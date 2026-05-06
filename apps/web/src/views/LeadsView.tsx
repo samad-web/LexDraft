@@ -1,0 +1,302 @@
+import { useMemo, useState, type DragEvent } from 'react';
+import { Icon } from '@lexdraft/ui';
+import type { Lead, LeadStage } from '@lexdraft/types';
+import { useUIStore } from '@/store/ui';
+import { useLeads, useMoveLead, useDeleteLead } from '@/hooks/useLeads';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { NewLeadModal } from '@/components/NewLeadModal';
+
+type StageId = LeadStage;
+
+interface Stage {
+  id: StageId;
+  label: string;
+  sub: string;
+}
+
+const STAGES: ReadonlyArray<Stage> = [
+  { id: 'new',       label: 'New',           sub: 'Untriaged enquiries'   },
+  { id: 'qualified', label: 'Qualified',     sub: 'Discovery complete'    },
+  { id: 'proposal',  label: 'Proposal sent', sub: 'Awaiting reply'        },
+  { id: 'won',       label: 'Won',           sub: 'Engagement signed'     },
+  { id: 'lost',      label: 'Lost',          sub: 'Closed without engagement' },
+];
+
+const STAGE_BADGE: Record<StageId, string> = {
+  new:       'badge-cobalt',
+  qualified: 'badge-amber',
+  proposal:  'badge-cream',
+  won:       'badge-sage',
+  lost:      'badge-vermillion',
+};
+
+function formatINR(value: number): string {
+  return value.toLocaleString('en-IN');
+}
+
+function formatAge(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 0) return 'now';
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours < 1) return 'now';
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return `${Math.floor(days / 7)}w`;
+}
+
+export function LeadsView() {
+  const showToast = useUIStore((s) => s.showToast);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverStage, setDragOverStage] = useState<StageId | null>(null);
+  const { data: leads = [], isLoading, isError } = useLeads();
+  const moveLead = useMoveLead();
+  const deleteLead = useDeleteLead();
+  const confirm = useConfirm();
+
+  const handleDelete = async (lead: Lead) => {
+    const ok = await confirm({
+      title: `Delete "${lead.name}"?`,
+      message: 'This lead will be removed from the pipeline. This cannot be undone.',
+      confirmLabel: 'Delete lead',
+      danger: true,
+    });
+    if (!ok) return;
+    deleteLead.mutate(lead.id, {
+      onError: () => showToast({ type: 'vermillion', text: 'Couldn’t delete lead' }),
+      onSuccess: () => showToast({ type: 'sage', text: `Deleted "${lead.name}"` }),
+    });
+  };
+
+  const handleDragStart = (e: DragEvent<HTMLElement>, lead: Lead) => {
+    e.dataTransfer.setData('text/plain', lead.id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggingId(lead.id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDragOverStage(null);
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLElement>, stage: StageId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverStage !== stage) setDragOverStage(stage);
+  };
+
+  const handleDragLeave = (e: DragEvent<HTMLElement>) => {
+    // Only clear when leaving the column container itself, not its children.
+    if (e.currentTarget === e.target) setDragOverStage(null);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLElement>, stage: StageId) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData('text/plain');
+    setDraggingId(null);
+    setDragOverStage(null);
+    if (!id) return;
+    const lead = leads.find((l) => l.id === id);
+    if (!lead || lead.stage === stage) return;
+    moveLead.mutate(
+      { id, stage },
+      {
+        onError: () => showToast({ type: 'vermillion', text: 'Couldn’t move lead' }),
+      },
+    );
+  };
+
+  const PIPELINE: Record<StageId, Lead[]> = useMemo(() => {
+    const groups: Record<StageId, Lead[]> = { new: [], qualified: [], proposal: [], won: [], lost: [] };
+    for (const l of leads) groups[l.stage].push(l);
+    return groups;
+  }, [leads]);
+
+  const totals = useMemo<Record<StageId, number>>(() => ({
+    new:       PIPELINE.new.reduce((s, l) => s + l.valueInr, 0),
+    qualified: PIPELINE.qualified.reduce((s, l) => s + l.valueInr, 0),
+    proposal:  PIPELINE.proposal.reduce((s, l) => s + l.valueInr, 0),
+    won:       PIPELINE.won.reduce((s, l) => s + l.valueInr, 0),
+    lost:      PIPELINE.lost.reduce((s, l) => s + l.valueInr, 0),
+  }), [PIPELINE]);
+
+  const totalPipe = totals.new + totals.qualified + totals.proposal + totals.won;
+
+  return (
+    <div className="col stagger" style={{ gap: 24 }}>
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Intake pipeline</div>
+        <h1 className="heading-xl">Leads</h1>
+      </div>
+
+      <div className="row" style={{ flexWrap: 'wrap', gap: 16 }}>
+        <div className="col" style={{ gap: 4 }}>
+          <span className="eyebrow" style={{ color: 'var(--text-tertiary)' }}>Open pipeline value</span>
+          <span className="heading-lg mono tabular">₹{formatINR(totalPipe)}</span>
+        </div>
+        <span className="spacer" />
+        <button
+          type="button"
+          className="btn"
+          onClick={() => showToast({ type: 'cobalt', text: 'Pipeline export queued' })}
+        >
+          <Icon name="download" size={14} /> Export
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setModalOpen(true)}
+        >
+          <Icon name="plus" size={14} /> Capture lead
+        </button>
+      </div>
+      <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${STAGES.length}, minmax(220px, 1fr))`,
+          gap: 16,
+          alignItems: 'flex-start',
+          overflowX: 'auto',
+        }}
+      >
+        {STAGES.map((stage) => {
+          const list = PIPELINE[stage.id];
+          const isDropTarget = dragOverStage === stage.id;
+          return (
+            <section
+              key={stage.id}
+              aria-label={`${stage.label} column`}
+              onDragOver={(e) => handleDragOver(e, stage.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, stage.id)}
+              style={{
+                background: isDropTarget ? 'var(--bg-elevated)' : 'var(--bg-surface-2)',
+                border: '1px solid',
+                borderColor: isDropTarget ? 'var(--text-primary)' : 'var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 16,
+                minHeight: 360,
+                transition: 'background 120ms, border-color 120ms',
+              }}
+            >
+              <div className="row" style={{ marginBottom: 4 }}>
+                <span className={`badge ${STAGE_BADGE[stage.id]}`}>{stage.label.toUpperCase()}</span>
+                <span className="spacer" />
+                <span className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  {list.length}
+                </span>
+              </div>
+              <div className="eyebrow" style={{ marginTop: 6, marginBottom: 14 }}>
+                {stage.sub}
+              </div>
+
+              <div className="col" style={{ gap: 10 }}>
+                {list.length === 0 && (
+                  <p className="body-xs muted" style={{ padding: '6px 4px' }}>
+                    {isLoading ? 'Loading…' : isError ? 'Couldn’t load leads' : 'No leads yet.'}
+                  </p>
+                )}
+                {list.map((lead) => (
+                  <article
+                    key={lead.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, lead)}
+                    onDragEnd={handleDragEnd}
+                    style={{
+                      position: 'relative',
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 14,
+                      cursor: 'grab',
+                      opacity: draggingId === lead.id ? 0.5 : 1,
+                      transition: 'opacity 120ms',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      aria-label={`Delete ${lead.name}`}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(lead); }}
+                      className="lead-delete-btn"
+                      style={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        width: 22,
+                        height: 22,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid transparent',
+                        borderRadius: 'var(--radius-sm)',
+                        color: 'var(--text-tertiary)',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background 120ms, border-color 120ms, color 120ms',
+                      }}
+                    >
+                      <Icon name="close" size={12} />
+                    </button>
+                    <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 8, paddingRight: 24 }}>{lead.name}</div>
+                    <div className="row" style={{ marginBottom: 10 }}>
+                      <span className="mono tabular" style={{ fontWeight: 500 }}>
+                        ₹{formatINR(lead.valueInr)}
+                      </span>
+                      <span className="spacer" />
+                      <span className="mono tabular" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                        {formatAge(lead.capturedAt)}
+                      </span>
+                    </div>
+                    {lead.referrer && (
+                      <div
+                        className="mono"
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--text-tertiary)',
+                          letterSpacing: '0.04em',
+                          borderTop: '1px solid var(--border-subtle)',
+                          paddingTop: 8,
+                        }}
+                      >
+                        {lead.referrer.toUpperCase()}
+                      </div>
+                    )}
+                    {lead.stage === 'lost' && (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveLead.mutate(
+                            { id: lead.id, stage: 'won' },
+                            {
+                              onError: () => showToast({ type: 'vermillion', text: 'Couldn’t reopen lead' }),
+                              onSuccess: () => showToast({ type: 'sage', text: `"${lead.name}" moved to Won` }),
+                            },
+                          );
+                        }}
+                        style={{
+                          marginTop: 10,
+                          width: '100%',
+                          borderColor: 'var(--success)',
+                          color: 'var(--success)',
+                        }}
+                      >
+                        <Icon name="check" size={12} /> Reopen as won
+                      </button>
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

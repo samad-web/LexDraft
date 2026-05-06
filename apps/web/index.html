@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-density="comfortable">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="LexDraft — practice management for Indian advocates" />
+    <title>LexDraft</title>
+    <script>
+      // Theme is locked to light; density preference is honoured.
+      (function () {
+        document.documentElement.setAttribute('data-theme', 'light');
+        try {
+          // Clear legacy keys carried over from the prototype so a stale
+          // value can never re-apply a different theme.
+          localStorage.removeItem('lexdraft-theme');
+          localStorage.removeItem('lexdraft-version');
+          localStorage.removeItem('lexdraft-theme-touched');
+          var raw = localStorage.getItem('lexdraft-ui');
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.state && 'theme' in parsed.state) {
+              delete parsed.state.theme;
+              localStorage.setItem('lexdraft-ui', JSON.stringify(parsed));
+            }
+          }
+          var d = localStorage.getItem('lexdraft-density');
+          if (d === 'compact' || d === 'comfortable' || d === 'spacious') {
+            document.documentElement.setAttribute('data-density', d);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

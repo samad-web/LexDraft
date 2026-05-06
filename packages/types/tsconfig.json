@@ -1,0 +1,8 @@
+{
+  "extends": "@lexdraft/tsconfig/base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}

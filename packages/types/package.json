@@ -1,0 +1,20 @@
+{
+  "name": "@lexdraft/types",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist"
+  },
+  "devDependencies": {
+    "@lexdraft/tsconfig": "workspace:*",
+    "@lexdraft/eslint-config": "workspace:*",
+    "typescript": "^5.6.3"
+  }
+}

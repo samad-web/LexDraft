@@ -1,0 +1,21 @@
+{
+  "name": "@lexdraft/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.cjs",
+  "files": [
+    "index.cjs",
+    "react.cjs",
+    "node.cjs"
+  ],
+  "peerDependencies": {
+    "eslint": "^9.13.0"
+  },
+  "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.11.0",
+    "@typescript-eslint/parser": "^8.11.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0"
+  }
+}

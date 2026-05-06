@@ -1,0 +1,13 @@
+{
+  "name": "@lexdraft/tailwind-config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./preset.cjs",
+  "files": [
+    "preset.cjs",
+    "tokens.css"
+  ],
+  "peerDependencies": {
+    "tailwindcss": "^3.4.13"
+  }
+}
