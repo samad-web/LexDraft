@@ -4,6 +4,7 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { useLimitations } from '@/hooks/useLimitations';
 import { PillNav } from '@/components/PillNav';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
+import { CaseloadHealthWidget } from '@/components/CaseloadHealthWidget';
 import { greetingFor } from '@/lib/greeting';
 import type { Alert, DocumentRecord, Hearing } from '@lexdraft/types';
 
@@ -116,6 +117,18 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
             firstName={firstName}
             steps={emptyStateSteps}
           />
+        </div>
+      )}
+
+      {/*
+        Caseload-health widget — sits between the empty-state panel and
+        the existing rail/widgets. Self-gated by the `caseload.health`
+        feature; when the user lacks it, the underlying fetch errors and
+        the widget renders nothing.
+      */}
+      {data && !isEmptyChambers && (
+        <div style={{ paddingTop: 24, paddingBottom: 4 }}>
+          <CaseloadHealthWidget />
         </div>
       )}
 

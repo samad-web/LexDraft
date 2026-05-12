@@ -5,6 +5,7 @@ import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
 import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
+import { CopyButton } from '@/components/CopyButton';
 import { usePagination } from '@/hooks/usePagination';
 
 interface CasesListViewProps {
@@ -156,7 +157,9 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                       {c.type}
                     </div>
                   </td>
-                  <td className="mono tabular" style={{ color: 'var(--text-secondary)' }}>{c.cnr}</td>
+                  <td style={{ color: 'var(--text-secondary)' }}>
+                    <CopyButton value={c.cnr} />
+                  </td>
                   <td className="muted">{c.court}</td>
                   <td><span className="badge badge-cobalt">{String(c.stage).toUpperCase()}</span></td>
                   <td>{c.client}</td>

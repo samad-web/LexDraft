@@ -4,6 +4,7 @@ import { adminService } from '../services/admin.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
 import { auditService } from '../services/audit.service';
+import { analyticsRefreshService } from '../services/analytics-refresh.service';
 
 export const adminRouter: Router = Router();
 
@@ -235,5 +236,18 @@ adminRouter.delete('/templates/:id', async (req, res, next) => {
   try {
     await templatesService.remove(req.params.id!, actor(req));
     res.status(204).end();
+  } catch (err) { next(err); }
+});
+
+// ---- analytics MV refresh --------------------------------------------------
+// Force an immediate refresh of the Firm-analytics materialized views.
+// Daily auto-refresh is wired via the `analytics.refresh` pg-boss job;
+// this endpoint exists for operators who want their dashboard to catch
+// up without waiting for the next scheduled run (e.g. after bulk imports).
+adminRouter.post('/analytics/refresh', async (_req, res, next) => {
+  try {
+    const results = await analyticsRefreshService.refreshAll();
+    const ok = results.every((r) => r.ok);
+    res.status(ok ? 200 : 207).json({ ok, results });
   } catch (err) { next(err); }
 });

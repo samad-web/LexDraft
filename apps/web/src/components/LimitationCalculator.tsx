@@ -3,18 +3,34 @@ import type { FormEvent } from 'react';
 import type { LimitationCalculation, LimitationFilingType } from '@lexdraft/types';
 import {
   useCalculateLimitation,
+  useComputeFromRule,
   useLimitationFilingTypes,
+  useLimitationRules,
+  type ComputeDeadlineResult,
 } from '@/hooks/useLimitations';
 
 /**
  * Limitation calculator — pick a filing type, enter the trigger date, get
  * the deadline plus any compound milestones (e.g. NI §138 ladder).
+ *
+ * Two modes:
+ *   - "Filing type" mode (legacy): pick a cause-of-action from the curated
+ *     FILING_TYPES catalog. Handles ladder rules (NI §138) and warnings.
+ *   - "Matter type" mode (statute-aware, post-0022): pick a matter type from
+ *     the rules table; the engine returns the deadline plus the statutory
+ *     basis (statute + section) so it can be persisted alongside the row.
  */
+type Mode = 'filing' | 'matter';
+
 export function LimitationCalculator() {
   const types = useLimitationFilingTypes();
   const calc = useCalculateLimitation();
+  const rules = useLimitationRules();
+  const ruleCalc = useComputeFromRule();
 
+  const [mode, setMode] = useState<Mode>('filing');
   const [filingTypeId, setFilingTypeId] = useState<string>('');
+  const [matterType, setMatterType] = useState<string>('');
   const [triggerDate, setTriggerDate] = useState<string>(
     () => new Date().toISOString().slice(0, 10),
   );
@@ -34,10 +50,21 @@ export function LimitationCalculator() {
     [types.data, filingTypeId],
   );
 
+  const selectedRule = useMemo(
+    () => rules.data?.find((r) => r.matterType === matterType),
+    [rules.data, matterType],
+  );
+
   function onSubmit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    if (!filingTypeId || !triggerDate) return;
-    calc.mutate({ filingTypeId, triggerDate });
+    if (!triggerDate) return;
+    if (mode === 'filing') {
+      if (!filingTypeId) return;
+      calc.mutate({ filingTypeId, triggerDate });
+    } else {
+      if (!matterType) return;
+      ruleCalc.mutate({ matterType, computedFrom: triggerDate });
+    }
   }
 
   return (
@@ -51,29 +78,77 @@ export function LimitationCalculator() {
         </p>
       </div>
 
+      <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className={`chip${mode === 'filing' ? ' active' : ''}`}
+          onClick={() => setMode('filing')}
+        >
+          By filing type
+        </button>
+        <button
+          type="button"
+          className={`chip${mode === 'matter' ? ' active' : ''}`}
+          onClick={() => setMode('matter')}
+        >
+          By matter type
+        </button>
+      </div>
+
       <form onSubmit={onSubmit} className="row" style={{ gap: 'var(--space-3, 12px)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <label className="col" style={{ flex: '2 1 320px', gap: 6 }}>
-          <span className="eyebrow">Filing type</span>
-          <select
-            value={filingTypeId}
-            onChange={(e) => setFilingTypeId(e.target.value)}
-            required
-            className="input"
-            style={selectStyle}
-          >
-            <option value="">Select a cause of action…</option>
-            {Array.from(grouped.entries()).map(([category, items]) => (
-              <optgroup key={category} label={category}>
-                {items.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
+        {mode === 'filing' && (
+          <label className="col" style={{ flex: '2 1 320px', gap: 6 }}>
+            <span className="eyebrow">Filing type</span>
+            <select
+              value={filingTypeId}
+              onChange={(e) => setFilingTypeId(e.target.value)}
+              required
+              className="input"
+              style={selectStyle}
+            >
+              <option value="">Select a cause of action…</option>
+              {Array.from(grouped.entries()).map(([category, items]) => (
+                <optgroup key={category} label={category}>
+                  {items.map((t) => (
+                    <option key={t.id} value={t.id}>{t.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {mode === 'matter' && (
+          <label className="col" style={{ flex: '2 1 320px', gap: 6 }}>
+            <span className="eyebrow">Matter type</span>
+            <select
+              value={matterType}
+              onChange={(e) => setMatterType(e.target.value)}
+              required
+              className="input"
+              style={selectStyle}
+            >
+              <option value="">Select a matter type…</option>
+              {(rules.data ?? []).map((r) => (
+                <option key={r.matterType} value={r.matterType}>
+                  {r.matterType}
+                </option>
+              ))}
+            </select>
+            {selectedRule && (
+              <span className="body-xs muted" style={{ marginTop: 2 }}>
+                Statute: <strong>{selectedRule.statute}</strong> · <span className="mono">{selectedRule.section}</span>
+              </span>
+            )}
+          </label>
+        )}
 
         <label className="col" style={{ flex: '1 1 200px', gap: 6 }}>
-          <span className="eyebrow">{selected?.triggerLabel ?? 'Trigger date'}</span>
+          <span className="eyebrow">
+            {mode === 'filing'
+              ? selected?.triggerLabel ?? 'Trigger date'
+              : selectedRule?.computedFrom ?? 'Cause-of-action date'}
+          </span>
           <input
             type="date"
             value={triggerDate}
@@ -87,19 +162,51 @@ export function LimitationCalculator() {
         <button
           type="submit"
           className="btn btn-primary"
-          disabled={!filingTypeId || !triggerDate || calc.isPending}
+          disabled={
+            !triggerDate ||
+            (mode === 'filing' ? !filingTypeId || calc.isPending : !matterType || ruleCalc.isPending)
+          }
         >
-          {calc.isPending ? 'Calculating…' : 'Calculate'}
+          {(mode === 'filing' ? calc.isPending : ruleCalc.isPending) ? 'Calculating…' : 'Calculate'}
         </button>
       </form>
 
-      {calc.isError && (
+      {mode === 'filing' && calc.isError && (
         <p style={{ marginTop: 'var(--space-3, 12px)', color: 'var(--danger)' }}>
           Could not calculate. {(calc.error as Error)?.message ?? ''}
         </p>
       )}
+      {mode === 'matter' && ruleCalc.isError && (
+        <p style={{ marginTop: 'var(--space-3, 12px)', color: 'var(--danger)' }}>
+          Could not calculate. {(ruleCalc.error as Error)?.message ?? ''}
+        </p>
+      )}
 
-      {calc.data && <Result result={calc.data} />}
+      {mode === 'filing' && calc.data && <Result result={calc.data} />}
+      {mode === 'matter' && ruleCalc.data && <RuleResult result={ruleCalc.data} />}
+    </div>
+  );
+}
+
+function RuleResult({ result }: { result: ComputeDeadlineResult }) {
+  const expired = result.daysRemaining < 0;
+  const critical = !expired && result.daysRemaining <= 7;
+  const warning = !expired && !critical && result.daysRemaining <= 30;
+  return (
+    <div className="col" style={{ gap: 'var(--space-4, 16px)', marginTop: 'var(--space-5, 20px)' }}>
+      <div className="row" style={{ gap: 'var(--space-4, 16px)', flexWrap: 'wrap' }}>
+        <Stat label="Deadline" value={result.deadline} mono />
+        <Stat
+          label="Days remaining"
+          value={`${result.daysRemaining}d`}
+          mono
+          tone={expired || critical ? 'danger' : warning ? 'warning' : 'default'}
+        />
+        <Stat label="Basis" value={`${result.basisStatute}, ${result.basisSection}`} small />
+      </div>
+      {result.notes && <Notice tone="info">{result.notes}</Notice>}
+      {expired && <Notice tone="danger">This deadline has already passed. Consider whether condonation under §5 of the Limitation Act is available.</Notice>}
+      {!expired && critical && <Notice tone="warning">Deadline is within 7 days — file urgently.</Notice>}
     </div>
   );
 }

@@ -1,0 +1,260 @@
+[
+  {
+    "matterType": "Recovery of money — oral contract",
+    "statute": "Limitation Act 1963",
+    "section": "Article 18",
+    "periodMonths": 36,
+    "computedFrom": "Date the money was lent or contract performance fell due",
+    "notes": "3-year period under Schedule I, Article 18 (money payable for money lent)."
+  },
+  {
+    "matterType": "Recovery of money — written contract",
+    "statute": "Limitation Act 1963",
+    "section": "Article 19",
+    "periodMonths": 36,
+    "computedFrom": "Date the money was paid for the plaintiff",
+    "notes": "If the contract fixes a different due date, anchor on that. 3 years from accrual of cause of action."
+  },
+  {
+    "matterType": "Price of goods sold and delivered",
+    "statute": "Limitation Act 1963",
+    "section": "Article 14",
+    "periodMonths": 36,
+    "computedFrom": "Date of delivery of goods",
+    "notes": ""
+  },
+  {
+    "matterType": "Suit on dishonoured negotiable instrument",
+    "statute": "Limitation Act 1963",
+    "section": "Article 35",
+    "periodMonths": 36,
+    "computedFrom": "Date of dishonour / date instrument became payable",
+    "notes": "Civil recovery suit on the instrument. Distinct from §138 NI Act criminal complaint window."
+  },
+  {
+    "matterType": "Specific performance of contract",
+    "statute": "Limitation Act 1963",
+    "section": "Article 54",
+    "periodMonths": 36,
+    "computedFrom": "Date fixed for performance, or date plaintiff had notice of refusal",
+    "notes": "If the contract fixes a date, run from that. Else from the date the plaintiff had notice that performance was refused."
+  },
+  {
+    "matterType": "Compensation for breach of contract (general)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 55",
+    "periodMonths": 36,
+    "computedFrom": "Date the contract was broken",
+    "notes": ""
+  },
+  {
+    "matterType": "Compensation for tort (general)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 72",
+    "periodMonths": 12,
+    "computedFrom": "Date the tort was committed",
+    "notes": "1-year residual tort period. Specific torts (defamation, malicious prosecution) have their own articles."
+  },
+  {
+    "matterType": "Compensation for personal injury",
+    "statute": "Limitation Act 1963",
+    "section": "Article 72/74",
+    "periodMonths": 12,
+    "computedFrom": "Date of the injury",
+    "notes": "Motor accidents are governed by §166 of the Motor Vehicles Act 1988 (no outer bar after 2019 amendment)."
+  },
+  {
+    "matterType": "Compensation for malicious prosecution",
+    "statute": "Limitation Act 1963",
+    "section": "Article 74",
+    "periodMonths": 12,
+    "computedFrom": "Date the prosecution terminated in plaintiff's favour",
+    "notes": ""
+  },
+  {
+    "matterType": "Compensation for defamation",
+    "statute": "Limitation Act 1963",
+    "section": "Article 75",
+    "periodMonths": 12,
+    "computedFrom": "Date the libel was published / date the plaintiff knew of slander",
+    "notes": ""
+  },
+  {
+    "matterType": "Possession of immovable property based on title",
+    "statute": "Limitation Act 1963",
+    "section": "Article 65",
+    "periodMonths": 144,
+    "computedFrom": "Date possession of the defendant became adverse",
+    "notes": "12-year clock starts only when the defendant's possession turns adverse — not from initial entry."
+  },
+  {
+    "matterType": "Possession based on previous possession (dispossession)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 64",
+    "periodMonths": 144,
+    "computedFrom": "Date of dispossession",
+    "notes": "Suit for possession on the strength of prior possession; 12 years."
+  },
+  {
+    "matterType": "Redemption of mortgage",
+    "statute": "Limitation Act 1963",
+    "section": "Article 61",
+    "periodMonths": 360,
+    "computedFrom": "Date the right to redeem accrued",
+    "notes": "30 years."
+  },
+  {
+    "matterType": "Declaration suit (general)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 58",
+    "periodMonths": 36,
+    "computedFrom": "Date the right to sue first accrued",
+    "notes": ""
+  },
+  {
+    "matterType": "Suit for partition",
+    "statute": "Limitation Act 1963",
+    "section": "Article 110",
+    "periodMonths": 144,
+    "computedFrom": "Date of exclusion from joint possession",
+    "notes": "12 years from when the plaintiff's possession of joint property is ousted."
+  },
+  {
+    "matterType": "Residual civil suit (catch-all)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 113",
+    "periodMonths": 36,
+    "computedFrom": "Date the right to sue accrues",
+    "notes": "3 years; the residual article for suits not otherwise provided for."
+  },
+  {
+    "matterType": "Residual application (catch-all)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 137",
+    "periodMonths": 36,
+    "computedFrom": "Date the right to apply accrued",
+    "notes": "3 years; the residual article for applications not otherwise provided for."
+  },
+  {
+    "matterType": "First appeal to High Court (civil)",
+    "statute": "Limitation Act 1963",
+    "section": "Article 116(a)",
+    "periodMonths": 3,
+    "computedFrom": "Date of the decree appealed from",
+    "notes": "90 days. Time for obtaining the certified copy is excluded under §12."
+  },
+  {
+    "matterType": "First appeal to subordinate civil court",
+    "statute": "Limitation Act 1963",
+    "section": "Article 116(b)",
+    "periodMonths": 1,
+    "computedFrom": "Date of the decree appealed from",
+    "notes": "30 days."
+  },
+  {
+    "matterType": "Review application",
+    "statute": "Limitation Act 1963",
+    "section": "Article 124",
+    "periodMonths": 1,
+    "computedFrom": "Date of the decree or order",
+    "notes": "30 days."
+  },
+  {
+    "matterType": "Civil revision application",
+    "statute": "Limitation Act 1963",
+    "section": "Article 131",
+    "periodMonths": 3,
+    "computedFrom": "Date of the decree or order sought to be revised",
+    "notes": "90 days."
+  },
+  {
+    "matterType": "Complaint under §138 NI Act (full ladder)",
+    "statute": "Negotiable Instruments Act 1881",
+    "section": "§138 provisos and §142(b)",
+    "periodMonths": 0,
+    "periodDays": 75,
+    "computedFrom": "Date of the cheque-dishonour memo",
+    "notes": "Compound ladder: 30 days to issue notice + 15-day drawer window + 30 days to file complaint after window expires. Use the calculator ladder for precise milestones."
+  },
+  {
+    "matterType": "Application to set aside arbitral award (§34 A&C Act)",
+    "statute": "Arbitration & Conciliation Act 1996",
+    "section": "§34(3)",
+    "periodMonths": 3,
+    "computedFrom": "Date the party received the signed award",
+    "notes": "Court may extend by another 30 days on sufficient cause; absolute bar after 3 months + 30 days."
+  },
+  {
+    "matterType": "Application for appointment of arbitrator (§11 A&C Act)",
+    "statute": "Arbitration & Conciliation Act 1996",
+    "section": "§11 (read with Limitation Act Art. 137)",
+    "periodMonths": 36,
+    "computedFrom": "Date the right to apply accrued (typically the date the opposite party failed to appoint an arbitrator within 30 days of notice)",
+    "notes": "3 years under Article 137. See Bharat Sanchar Nigam Ltd v. Nortel Networks (2021) for accrual analysis."
+  },
+  {
+    "matterType": "Consumer complaint",
+    "statute": "Consumer Protection Act 2019",
+    "section": "§69",
+    "periodMonths": 24,
+    "computedFrom": "Date on which the cause of action arose",
+    "notes": "2 years. Commission may admit beyond limitation on sufficient cause being shown."
+  },
+  {
+    "matterType": "Writ petition under Article 226",
+    "statute": "Constitution of India",
+    "section": "Article 226 (judicial-restraint principle)",
+    "periodMonths": 36,
+    "computedFrom": "Date of the impugned action",
+    "notes": "No statutory limitation. Courts adopt 3 years by analogy to Article 137 of the Limitation Act and apply doctrine of delay & laches."
+  },
+  {
+    "matterType": "Service appeal (general administrative)",
+    "statute": "Central Administrative Tribunals Act 1985",
+    "section": "§21",
+    "periodMonths": 12,
+    "computedFrom": "Date the order was made / communicated, or representation rejected",
+    "notes": "1 year. Service rules and CAT-jurisdiction filters apply separately."
+  },
+  {
+    "matterType": "Income-Tax appeal to CIT(A)",
+    "statute": "Income-Tax Act 1961",
+    "section": "§249",
+    "periodDays": 30,
+    "periodMonths": 0,
+    "computedFrom": "Date of service of the assessment order or notice of demand",
+    "notes": "30 days. Form 35 e-filing required. CIT(A) may condone delay on sufficient cause."
+  },
+  {
+    "matterType": "Income-Tax appeal to ITAT",
+    "statute": "Income-Tax Act 1961",
+    "section": "§253(3)",
+    "periodMonths": 2,
+    "computedFrom": "Date of communication of the order appealed against",
+    "notes": "60 days. ITAT may admit a delayed appeal on sufficient cause."
+  },
+  {
+    "matterType": "GST appeal to Appellate Authority",
+    "statute": "CGST Act 2017",
+    "section": "§107",
+    "periodMonths": 3,
+    "computedFrom": "Date on which the decision/order was communicated to the appellant",
+    "notes": "3 months for assessee appeals; appellate authority may condone a further 1 month."
+  },
+  {
+    "matterType": "Special Leave Petition (civil)",
+    "statute": "Supreme Court Rules 2013",
+    "section": "Order XXI / Limitation Act Art. 133",
+    "periodMonths": 3,
+    "computedFrom": "Date of the impugned judgment / order of the High Court",
+    "notes": "90 days. Time for obtaining a certified copy is excluded."
+  },
+  {
+    "matterType": "Restoration of suit / setting aside ex parte decree",
+    "statute": "Limitation Act 1963",
+    "section": "Article 122 / 123",
+    "periodMonths": 1,
+    "computedFrom": "Date of the dismissal-for-default order / date of knowledge of the ex parte decree",
+    "notes": "30 days. §123 carries a separate accrual rule for ex parte decrees."
+  }
+]

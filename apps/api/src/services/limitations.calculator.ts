@@ -8,7 +8,17 @@
  * needs research-grade citation work; the catalog here is meant to be
  * gradually extended. Each entry carries `reference` and `notes` so the UI
  * can warn users to verify against the bare Act for the specific facts.
+ *
+ * In addition to the FILING_TYPES picker (organised by cause-of-action), this
+ * module exposes a parallel matter-type → deadline path via getRules() and
+ * computeDeadline(). The matter-type rules live in
+ * `apps/api/src/data/limitation-rules.json` and are keyed by a human-friendly
+ * matter type (e.g. "Complaint under §138 NI Act"). Either path is supported;
+ * the rules-based path is the entry point used by the "Add deadline" flow
+ * once a firm has classified a matter.
  */
+
+import rulesData from '../data/limitation-rules.json';
 
 export type PeriodUnit = 'days' | 'months' | 'years';
 
@@ -379,5 +389,96 @@ export function calculate(input: CalculateInput): CalculationResult {
     daysRemaining: days,
     steps: [],
     warnings,
+  };
+}
+
+// ---- Matter-type rules table ------------------------------------------------
+//
+// The rules-based path is intended for the "Add deadline" flow: a user picks
+// a matter type (e.g. "Recovery of money — written contract"), enters the
+// cause-of-action date, and the engine returns the statutory deadline plus
+// the basis citation. The rules JSON is plausibility-grade research-stand-in
+// data; counsel must verify before relying on it for filings.
+//
+// Period semantics: a rule may specify `periodMonths`, `periodDays`, or both.
+// When both are set the engine adds days first, then months (the NI 138 ladder
+// uses only periodDays = 75 and falls back to the dedicated ladder code path).
+
+export interface LimitationRule {
+  matterType: string;
+  statute: string;
+  section: string;
+  periodMonths: number;
+  /** Optional day-precision component for sub-month periods (e.g. 30, 60, 75). */
+  periodDays?: number;
+  computedFrom: string;
+  notes?: string;
+}
+
+const RULES: LimitationRule[] = rulesData as LimitationRule[];
+
+/** Return the full curated rules table. Used by GET /api/limitations/rules. */
+export function getRules(): LimitationRule[] {
+  return RULES.slice();
+}
+
+export function getRule(matterType: string): LimitationRule | undefined {
+  const want = matterType.trim().toLowerCase();
+  return RULES.find((r) => r.matterType.toLowerCase() === want);
+}
+
+export interface ComputeDeadlineInput {
+  matterType: string;
+  /** ISO YYYY-MM-DD. */
+  computedFrom: string;
+  /** Override "now" — for tests. */
+  now?: Date;
+}
+
+export interface ComputeDeadlineResult {
+  matterType: string;
+  basisStatute: string;
+  basisSection: string;
+  /** ISO YYYY-MM-DD deadline date. */
+  deadline: string;
+  daysRemaining: number;
+  computedFrom: string;
+  notes?: string;
+}
+
+/**
+ * Apply a curated matter-type rule to a trigger date and return the
+ * statutory deadline plus the citation. Throws a 422-flagged error when the
+ * matter type isn't in the rules table — callers should pre-validate against
+ * getRules() so we surface a useful UI error.
+ */
+export function computeDeadline(input: ComputeDeadlineInput): ComputeDeadlineResult {
+  const rule = getRule(input.matterType);
+  if (!rule) {
+    throw Object.assign(new Error(`Unknown matter type: ${input.matterType}`), { status: 422 });
+  }
+  parseIsoDate(input.computedFrom);
+
+  // Apply days first (if any), then months. This ordering matters for hybrid
+  // rules like "3 months + 30 days" (none in the current table, but the
+  // engine should handle the case for free when we add them).
+  let deadline = input.computedFrom;
+  if (rule.periodDays && rule.periodDays > 0) {
+    deadline = addDays(deadline, rule.periodDays);
+  }
+  if (rule.periodMonths > 0) {
+    deadline = addMonths(deadline, rule.periodMonths);
+  }
+
+  const daysRemaining = daysBetween(deadline, input.now ?? new Date());
+
+  return {
+    matterType: rule.matterType,
+    basisStatute: rule.statute,
+    basisSection: rule.section,
+    deadline,
+    daysRemaining,
+    computedFrom: input.computedFrom,
+    notes: rule.notes,
   };
 }

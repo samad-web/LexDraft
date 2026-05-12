@@ -18,6 +18,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { id: 'users',     label: 'Users',        icon: 'clients',   to: '/admin/users' },
   { id: 'templates', label: 'Templates',    icon: 'documents', to: '/admin/templates' },
   { id: 'audit',     label: 'Audit log',    icon: 'archive',   to: '/admin/audit' },
+  { id: 'errors',    label: 'Error log',    icon: 'flag',      to: '/admin/errors' },
 ];
 
 export function AdminSidebar() {

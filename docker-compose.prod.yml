@@ -1,0 +1,75 @@
+# LexDraft — production overrides.
+#
+# Layer this on top of the base compose file:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# REQUIRES docker compose v2.24+ for the `!reset` and `!override` tags
+# (used below to clear inherited port mappings and env_file lists).
+# `docker compose version` to check; upgrade with `apt-get install
+# docker-compose-plugin` on Debian/Ubuntu.
+#
+# Tightens three things the base file deliberately keeps loose for dev:
+#   1. Network exposure — postgres is internal-only.
+#   2. Secrets — env_file points at an operator-controlled path outside
+#      the repo. NEVER commit the prod file.
+#   3. Restart + resource limits — unless-stopped + cpus/memory caps.
+#
+# This file assumes the host runs Postgres in-container. If you bring
+# your own managed Postgres (Neon / RDS / Supabase) — recommended for
+# anything past single-tenant pilot — remove the `postgres` service
+# block entirely and just point DATABASE_URL at the managed endpoint
+# in /etc/lexdraft/api.env.
+
+services:
+  postgres:
+    restart: unless-stopped
+    # Drop the host port mapping — postgres is reachable ONLY via the
+    # internal compose network. Use `docker compose exec postgres psql`
+    # for ad-hoc queries.
+    ports: !reset []
+    environment:
+      # Force the operator to provide the password explicitly — no
+      # `:-lexdraft` fallback. Missing var = compose refuses to start.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB must be set}
+    deploy:
+      resources:
+        limits:
+          cpus:   "2.0"
+          memory: 2g
+        reservations:
+          memory: 512m
+
+  api:
+    restart: unless-stopped
+    # Production secrets live outside the repo. Provision this file via
+    # config management (Ansible / Terraform / Nix) with mode 0600 owned
+    # by the docker user.
+    env_file: !reset
+      - /etc/lexdraft/api.env
+    # Don't expose 4000 to the public internet — a reverse proxy
+    # (Caddy / Traefik / nginx) terminates TLS and forwards to this port
+    # over the internal docker network. If you must expose it (e.g. an
+    # IP-allowlisted admin host), bind to localhost only.
+    ports: !reset
+      - "127.0.0.1:4000:4000"
+    deploy:
+      resources:
+        limits:
+          cpus:   "2.0"
+          memory: 1g
+        reservations:
+          memory: 256m
+
+  web:
+    restart: unless-stopped
+    # Same reasoning as api — TLS termination at the edge proxy.
+    ports: !reset
+      - "127.0.0.1:8080:80"
+    deploy:
+      resources:
+        limits:
+          cpus:   "0.5"
+          memory: 256m
+        reservations:
+          memory: 64m

@@ -70,6 +70,14 @@ const Schema = z.object({
    *  but never claims to be real legal research. Real backends ('kanoon',
    *  'scc') would be wired here once their ingestion + retrieval is built. */
   RESEARCH_PROVIDER: z.enum(['none', 'demo']).default('none'),
+
+  /** Operator self-declares how many API replicas are running. Used only
+   *  to emit a one-time startup WARN log if it's > 1, because several of
+   *  our caches are process-local Maps and will drift between replicas
+   *  until a shared-cache abstraction lands. Unset = single replica = no
+   *  warning. NEVER auto-detect this — orchestrator-supplied is the
+   *  authoritative answer. */
+  API_REPLICAS: z.coerce.number().int().positive().optional(),
 });
 
 const parsed = Schema.safeParse(process.env);

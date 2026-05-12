@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface ModalProps {
   open: boolean;
@@ -13,6 +14,8 @@ interface ModalProps {
   footer?: ReactNode;
 }
 
+const ANIM_MS = 160;
+
 export function Modal({
   open,
   onClose,
@@ -24,6 +27,34 @@ export function Modal({
   onSubmit,
   footer,
 }: ModalProps) {
+  const prefersReduced = useReducedMotion();
+  // Honour OS-level "reduce motion" — instant open/close, no scale, no fade.
+  const animMs = prefersReduced ? 0 : ANIM_MS;
+  // Two-state lifecycle so we can animate BOTH enter and exit:
+  //   open=true        → rendered=true, visible=true (transitions in)
+  //   open=false       → visible=false (transitions out), then unmount
+  // The unmount delay must match ANIM_MS so the exit animation completes
+  // before the DOM is torn down.
+  const [rendered, setRendered] = useState(open);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRendered(true);
+      // Apply visible-state on the next frame so the transition sees the
+      // "from" state first. Without rAF, React batches both setStates and
+      // the browser never paints the initial off-state.
+      const raf = requestAnimationFrame(() => setVisible(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    if (rendered) {
+      setVisible(false);
+      const t = setTimeout(() => setRendered(false), animMs);
+      return () => clearTimeout(t);
+    }
+    return;
+  }, [open, rendered, animMs]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -33,7 +64,7 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!rendered) return null;
 
   const Body = onSubmit ? 'form' : 'div';
 
@@ -52,6 +83,8 @@ export function Modal({
         justifyContent: 'center',
         zIndex: 50,
         padding: 16,
+        opacity: visible ? 1 : 0,
+        transition: `opacity ${animMs}ms ease-out`,
       }}
     >
       <Body
@@ -68,6 +101,11 @@ export function Modal({
           display: 'flex',
           flexDirection: 'column',
           gap: 16,
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'scale(1)' : 'scale(0.96)',
+          transformOrigin: 'center',
+          transition: `opacity ${animMs}ms ease-out, transform ${animMs}ms ease-out`,
+          willChange: 'opacity, transform',
         }}
       >
         <div>

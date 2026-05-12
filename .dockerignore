@@ -1,0 +1,68 @@
+# Anything in this file is excluded from the build context sent to the
+# Docker daemon, which keeps builds fast (no shipping 1+ GB of
+# node_modules every `docker build`) and shrinks the resulting image.
+
+# pnpm + node — installed fresh inside the container.
+**/node_modules
+.pnpm-store
+
+# Build outputs — generated inside the build stage.
+**/dist
+**/.turbo
+**/.vite
+**/coverage
+**/tsconfig.tsbuildinfo
+
+# Secrets and per-environment config. NEVER bake these into an image.
+.env
+.env.*
+!apps/api/.env.docker
+!apps/api/.env.example
+
+# Local uploads & test artefacts.
+uploads
+.test-uploads
+
+# VCS metadata — adds size, leaks history, no runtime value.
+.git
+.gitignore
+.gitattributes
+
+# Editor / OS noise.
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Design + planning collateral. Kept in the repo but not shipped in the
+# image — the API doesn't read them at runtime.
+_design
+LEXDRAFT_*.md
+OVERVIEW.md
+CLIENT_PORTAL.md
+WORKFLOW_DASHBOARDS.md
+PRICING_AND_TIERS.md
+ONBOARDING.md
+design-system.md
+lexdraft-user-management-spec.md
+
+# Generated reports / design docs at the repo root — single-segment
+# globs in .dockerignore match only the top level, so package fixtures
+# under apps/*/test-fixtures/*.pdf still ship if a test ever needs them.
+*.docx
+*.doc
+*.pdf
+
+# CI / dev tooling.
+.github
+.husky
+
+# Docker files themselves — not needed inside the image.
+docker-compose*.yml
+**/Dockerfile
+.dockerignore
+
+# Scripts that aren't part of the runtime.
+scripts

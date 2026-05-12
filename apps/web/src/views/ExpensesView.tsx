@@ -7,6 +7,7 @@ import { NewExpenseModal } from '@/components/NewExpenseModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { apiClient } from '@/lib/api';
 
 interface BadgeMeta { label: string; cls: string }
 const STATUS_BADGE: Record<ExpenseStatus, BadgeMeta> = {
@@ -42,6 +43,38 @@ export function ExpensesView() {
           <h1 className="heading-xl">Expenses</h1>
         </div>
         <span className="spacer" />
+        <button
+          className="btn"
+          type="button"
+          onClick={async () => {
+            // GST / Tally-compatible CSV via /api/exports/expenses.csv.
+            // The view has no category filter today, so we don't pass a
+            // `type` param — when one is added, mirror its value here.
+            try {
+              const resp = await apiClient.get('/api/exports/expenses.csv', {
+                responseType: 'blob',
+              });
+              const blob = resp.data instanceof Blob
+                ? resp.data
+                : new Blob([String(resp.data)], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `lexdraft-expenses-${new Date().toISOString().slice(0, 10)}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) {
+              showToast({
+                type: 'cobalt',
+                text: err instanceof Error ? err.message : 'CSV export failed',
+              });
+            }
+          }}
+        >
+          <Icon name="download" size={14} /> Download CSV
+        </button>
         <button
           className="btn"
           type="button"

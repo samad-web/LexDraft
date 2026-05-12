@@ -4,9 +4,20 @@ import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useDiary } from '@/hooks/useDiary';
 import { NewDiaryEntryModal } from '@/components/NewDiaryEntryModal';
+import { RequestCoverageModal } from '@/components/RequestCoverageModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+
+/** Defaults handed to the coverage modal when a Diary hearing row asks for cover.
+ *  Kept narrow so we don't import the modal's full prop type here. */
+interface CoverageDefaults {
+  caseLabel?: string;
+  court?: string;
+  hearingDate?: string;
+  hearingTime?: string;
+  purpose?: string;
+}
 
 interface KindMeta {
   label: string;
@@ -48,6 +59,9 @@ function formatHeading(iso: string): string {
 export function DiaryView() {
   const [filter, setFilter] = useState<DiaryKind | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
+  // Coverage modal: opens with hearing-row defaults so the user only fills in
+  // the brief packet (URL + notes). `null` = closed.
+  const [coverageDefaults, setCoverageDefaults] = useState<CoverageDefaults | null>(null);
   const showToast = useUIStore((s) => s.showToast);
   const { data: entries = [], isLoading, isError } = useDiary();
 
@@ -124,6 +138,11 @@ export function DiaryView() {
         </button>
       </div>
       <NewDiaryEntryModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <RequestCoverageModal
+        open={coverageDefaults !== null}
+        onClose={() => setCoverageDefaults(null)}
+        defaults={coverageDefaults ?? undefined}
+      />
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
@@ -202,6 +221,24 @@ export function DiaryView() {
                         <span className="body-xs muted">{e.forum}</span>
                       </div>
                     </div>
+                    {e.kind === 'hearing' && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() =>
+                          setCoverageDefaults({
+                            caseLabel: e.caseLabel,
+                            court: e.forum,
+                            hearingDate: e.date,
+                            hearingTime: e.time,
+                            purpose: e.detail,
+                          })
+                        }
+                        title="Post this hearing to the coverage board"
+                      >
+                        <Icon name="members" size={12} /> Request coverage
+                      </button>
+                    )}
                   </div>
                 );
               })}

@@ -9,6 +9,7 @@ import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { apiClient } from '@/lib/api';
 
 type FilterId = 'all' | InvoiceStatus;
 
@@ -81,6 +82,42 @@ export function InvoicesView() {
 
       <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
         <span className="spacer" />
+        <button
+          type="button"
+          className="btn"
+          onClick={async () => {
+            // GST / Tally-compatible CSV via /api/exports/invoices.csv.
+            // Pass the active status filter through so the file matches
+            // what the user is looking at. We download via a temporary
+            // <a download> link — nothing is stored server-side.
+            try {
+              const params: Record<string, string> = {};
+              if (filter !== 'all') params.status = filter;
+              const resp = await apiClient.get('/api/exports/invoices.csv', {
+                params,
+                responseType: 'blob',
+              });
+              const blob = resp.data instanceof Blob
+                ? resp.data
+                : new Blob([String(resp.data)], { type: 'text/csv;charset=utf-8' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `lexdraft-invoices-${new Date().toISOString().slice(0, 10)}.csv`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) {
+              showToast({
+                type: 'cobalt',
+                text: err instanceof Error ? err.message : 'CSV export failed',
+              });
+            }
+          }}
+        >
+          <Icon name="download" size={14} /> Download CSV
+        </button>
         <button
           type="button"
           className="btn"

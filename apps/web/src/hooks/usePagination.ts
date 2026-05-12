@@ -17,10 +17,10 @@ export interface PaginationResult<T> {
  * array — when callers re-filter the dataset (e.g. typing in a search box)
  * we snap the cursor back to page 1 so the table doesn't go blank.
  *
- * The default page size of 10 matches the application-wide convention. Pass
- * a different size when a view legitimately needs more density.
+ * The default page size of 20 matches the application-wide convention. Pass
+ * a different size only when a view legitimately needs more or less density.
  */
-export function usePagination<T>(items: readonly T[], pageSize = 10): PaginationResult<T> {
+export function usePagination<T>(items: readonly T[], pageSize = 20): PaginationResult<T> {
   const total = items.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const [page, setPageRaw] = useState(1);

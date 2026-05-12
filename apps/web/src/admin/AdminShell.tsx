@@ -7,6 +7,7 @@ const ROUTE_LABEL: Record<string, string> = {
   '/admin/users':    'Users',
   '/admin/templates': 'Templates',
   '/admin/audit':    'Audit log',
+  '/admin/errors':   'Error log',
 };
 
 function labelFor(pathname: string): string {

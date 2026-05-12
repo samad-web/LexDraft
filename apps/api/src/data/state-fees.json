@@ -1,0 +1,242 @@
+[
+  {
+    "stateCode": "MH",
+    "stateName": "Maharashtra",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 75 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 150 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 500 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1500 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.5, "cap": 75000 }
+      ],
+      "notes": "Maharashtra Court Fees Act 1959 schedule (consolidated). Ad-valorem capped at INR 75,000 for suits valued above INR 1L."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 5.0, "minimum": 0,   "notes": "Urban areas; rural may attract 4%. Plus 1% LBT in Mumbai & PMRDA." },
+        "lease":            { "percentage": 5.0, "monthsCap": 60, "notes": "On average annual rent + premium; capped at 60 months of rent for short leases." },
+        "powerOfAttorney":  { "fixed": 500,                       "notes": "General PoA without consideration; PoA with consideration follows sale-deed rates." },
+        "affidavit":        { "fixed": 100,                       "notes": "Per Schedule I, Article 4 of the Maharashtra Stamp Act." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "With possession: 3%. Without possession: 0.5%, max INR 10L." },
+        "gift":             { "percentage": 3.0, "minimum": 0,    "notes": "Non-blood relatives. Blood relatives: INR 200 fixed." }
+      }
+    }
+  },
+  {
+    "stateCode": "KA",
+    "stateName": "Karnataka",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 100 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 400 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": 200000 }
+      ],
+      "notes": "Karnataka Court Fees and Suits Valuation Act 1958. Ad-valorem at 1% above INR 1L, capped at INR 2L."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 5.0, "minimum": 0,   "notes": "Plus 0.5% cess and 0.1% surcharge in urban areas. Properties under INR 35L attract 3%." },
+        "lease":            { "percentage": 5.0, "monthsCap": 60, "notes": "Lease 10y+: 5% on consideration; under 10y: ad-valorem on rent." },
+        "powerOfAttorney":  { "fixed": 200,                       "notes": "General PoA; PoA authorising sale follows full sale rates." },
+        "affidavit":        { "fixed": 20,                        "notes": "Karnataka Stamp Act Schedule, Article 4." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Without possession: 0.5% (max INR 10L). With possession: 5%." },
+        "gift":             { "percentage": 5.0, "minimum": 0,    "notes": "Family members: INR 1000 fixed; others: 5%." }
+      }
+    }
+  },
+  {
+    "stateCode": "TN",
+    "stateName": "Tamil Nadu",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 200 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 750 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 2000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": null }
+      ],
+      "notes": "Tamil Nadu Court Fees and Suits Valuation Act 1955. No statutory cap on ad-valorem; advocates verify with district court schedule."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 7.0, "minimum": 0,   "notes": "Plus 4% registration fee — total ~11%. Among the highest in India." },
+        "lease":            { "percentage": 1.0, "monthsCap": 60, "notes": "Lease under 30y: 1% of total rent + premium. Above 30y treated as conveyance." },
+        "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA without consideration. Family PoA: INR 1000 with INR 1000 reg fee." },
+        "affidavit":        { "fixed": 20,                        "notes": "Schedule I, Article 4 of Indian Stamp Act as applied in TN." },
+        "mortgage":         { "percentage": 1.0, "minimum": 100,  "notes": "Simple mortgage: 1%. With possession: 4%." },
+        "gift":             { "percentage": 7.0, "minimum": 0,    "notes": "To family member: 1% (max INR 25,000 stamp + INR 4,000 reg)." }
+      }
+    }
+  },
+  {
+    "stateCode": "DL",
+    "stateName": "Delhi",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 100 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 500 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1250 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": 200000 }
+      ],
+      "notes": "Court Fees Act 1870 as applied in Delhi (with state amendments). Ad-valorem capped at INR 2L for civil suits."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 6.0, "minimum": 0,   "notes": "Male buyer 6%; female buyer 4%; joint 5%. Plus 1% registration fee." },
+        "lease":            { "percentage": 2.0, "monthsCap": 60, "notes": "Lease 1-5y: 1.5%; 5-10y: 3%; 10-20y: 6%; above 20y: full conveyance." },
+        "powerOfAttorney":  { "fixed": 50,                        "notes": "GPA: INR 50. PoA to non-blood relative authorising sale: 3% of property value." },
+        "affidavit":        { "fixed": 10,                        "notes": "Schedule I-A, Article 4, Indian Stamp Act (Delhi amendment)." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Without possession: 0.5% (max INR 25L). With possession: 6%." },
+        "gift":             { "percentage": 6.0, "minimum": 0,    "notes": "Same as conveyance unless to specified relatives (then nominal)." }
+      }
+    }
+  },
+  {
+    "stateCode": "UP",
+    "stateName": "Uttar Pradesh",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 200 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 400 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 1500 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 4000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 7.5, "cap": 200000 }
+      ],
+      "notes": "Court Fees Act (UP amendment) — among the highest court-fee burden in India. 7.5% ad-valorem capped at INR 2L."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 7.0, "minimum": 0,   "notes": "Male 7%; female 6% (concession capped at INR 10L value). Plus 1% reg fee." },
+        "lease":            { "percentage": 4.0, "monthsCap": 60, "notes": "Lease 1-5y: 2%; 5-10y: 4%; 10-30y: 6%; above 30y treated as sale." },
+        "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA: INR 100. SPA for sale: ad-valorem on property value." },
+        "affidavit":        { "fixed": 10,                        "notes": "Indian Stamp Act (UP amendment), Schedule I-B, Article 4." },
+        "mortgage":         { "percentage": 1.0, "minimum": 100,  "notes": "Simple mortgage: 1% (max INR 5L). With possession: 7%." },
+        "gift":             { "percentage": 7.0, "minimum": 0,    "notes": "To family member: INR 5,000 fixed. Others: full sale rate." }
+      }
+    }
+  },
+  {
+    "stateCode": "GJ",
+    "stateName": "Gujarat",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 75 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 150 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 500 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1500 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 2.0, "cap": 75000 }
+      ],
+      "notes": "Bombay Court Fees Act 1959 as applied to Gujarat. Ad-valorem 2% above INR 1L, capped at INR 75,000."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 4.9, "minimum": 0,   "notes": "Basic 3.5% + 1.4% surcharge. Female buyers exempt from registration fee." },
+        "lease":            { "percentage": 1.0, "monthsCap": 60, "notes": "Lease under 1y: 1% of total rent. Up to 10y: 2%. Above 10y: scaled toward sale." },
+        "powerOfAttorney":  { "fixed": 300,                       "notes": "GPA: INR 300. Authorising sale to non-relative: 4.9%." },
+        "affidavit":        { "fixed": 50,                        "notes": "Gujarat Stamp Act, Schedule I, Article 4." },
+        "mortgage":         { "percentage": 1.5, "minimum": 100,  "notes": "Without possession: 1.5% (max INR 8.75L). With possession: full conveyance." },
+        "gift":             { "percentage": 4.9, "minimum": 0,    "notes": "Blood relatives: INR 200. Others: full conveyance rate." }
+      }
+    }
+  },
+  {
+    "stateCode": "WB",
+    "stateName": "West Bengal",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 100 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 400 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": 50000 }
+      ],
+      "notes": "Bengal Court Fees Act 1870 (amended). Ad-valorem at 1% capped at INR 50,000."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 6.0, "minimum": 0,   "notes": "Urban: 6% up to INR 1Cr, 7% above. Rural: 5%/6%. Plus 1% registration." },
+        "lease":            { "percentage": 2.0, "monthsCap": 60, "notes": "Lease 1-10y: ~2% of avg annual rent x term. Long leases scale upward." },
+        "powerOfAttorney":  { "fixed": 100,                       "notes": "Non-testamentary PoA: INR 100. PoA for consideration: ad-valorem." },
+        "affidavit":        { "fixed": 10,                        "notes": "Indian Stamp Act (Bengal amendment), Schedule I-A." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Without possession: 0.5%. With possession: 6%." },
+        "gift":             { "percentage": 6.0, "minimum": 0,    "notes": "Family: 0.5%. Others: same as conveyance." }
+      }
+    }
+  },
+  {
+    "stateCode": "KL",
+    "stateName": "Kerala",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 100 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 200 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 750 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 2500 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": null }
+      ],
+      "notes": "Kerala Court Fees and Suits Valuation Act 1959. No upper cap on ad-valorem — verify with revenue stamps office for high-value suits."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 8.0, "minimum": 0,   "notes": "Urban: 8% + 2% reg. Rural: 5% + 2% reg. Among the highest combined burden." },
+        "lease":            { "percentage": 1.0, "monthsCap": 60, "notes": "Lease under 1y: 1% rent. 1-20y: scaled 2-6%. Above 20y treated as conveyance." },
+        "powerOfAttorney":  { "fixed": 300,                       "notes": "GPA: INR 300. Family PoA: INR 1000. SPA for sale: ad-valorem." },
+        "affidavit":        { "fixed": 25,                        "notes": "Kerala Stamp Act, Schedule, Article 4." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Without possession: 0.5%. With possession: 5%." },
+        "gift":             { "percentage": 8.0, "minimum": 0,    "notes": "Family: 1% + 2% reg. Non-family: full conveyance." }
+      }
+    }
+  },
+  {
+    "stateCode": "AP",
+    "stateName": "Andhra Pradesh",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 100 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 400 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": 100000 }
+      ],
+      "notes": "AP Court Fees and Suits Valuation Act 1956. Ad-valorem capped at INR 1L."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 5.0, "minimum": 0,   "notes": "Plus 1.5% reg fee and 0.5% transfer duty in municipal areas." },
+        "lease":            { "percentage": 0.4, "monthsCap": 60, "notes": "Lease under 10y: 0.4% of avg annual rent. 10-20y: 0.6%. 20-30y: 1%." },
+        "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA: INR 100. SPA for sale: 5% ad-valorem." },
+        "affidavit":        { "fixed": 10,                        "notes": "AP Stamp Act, Schedule I-A, Article 4." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Simple mortgage: 0.5% (max INR 20K). With possession: 5%." },
+        "gift":             { "percentage": 5.0, "minimum": 0,    "notes": "To family member: 2% (max INR 10K). Others: full rate." }
+      }
+    }
+  },
+  {
+    "stateCode": "TG",
+    "stateName": "Telangana",
+    "courtFee": {
+      "rules": [
+        { "matterValueMin": 0,       "matterValueMax": 5000,    "fee": 50 },
+        { "matterValueMin": 5000,    "matterValueMax": 10000,   "fee": 100 },
+        { "matterValueMin": 10000,   "matterValueMax": 50000,   "fee": 400 },
+        { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 1000 },
+        { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": 100000 }
+      ],
+      "notes": "Telangana inherits the AP Court Fees and Suits Valuation Act 1956. Same ad-valorem and cap as AP."
+    },
+    "stampDuty": {
+      "instruments": {
+        "saleDeed":         { "percentage": 4.0, "minimum": 0,   "notes": "Plus 0.5% reg fee and 1.5% transfer duty in municipalities — total ~6%." },
+        "lease":            { "percentage": 0.4, "monthsCap": 60, "notes": "Under 10y: 0.4% of avg annual rent. Scales to ~3% for 30y leases." },
+        "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA: INR 100. SPA for sale: 5% ad-valorem on property value." },
+        "affidavit":        { "fixed": 10,                        "notes": "Telangana Stamp Act, Schedule I-A, Article 4." },
+        "mortgage":         { "percentage": 0.5, "minimum": 100,  "notes": "Simple: 0.5% (max INR 20K). With possession: full conveyance." },
+        "gift":             { "percentage": 4.0, "minimum": 0,    "notes": "Family: INR 1000 fixed + small reg. Non-family: full rate." }
+      }
+    }
+  }
+]

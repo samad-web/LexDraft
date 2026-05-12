@@ -1,0 +1,111 @@
+# LexDraft — local development compose.
+#
+# Brings up the full stack on a single host:
+#   - postgres : the only stateful service. Backs both the API and pg-boss.
+#   - api      : Express + postgres-js + pg-boss. Talks to postgres at
+#                hostname `postgres` over the internal network.
+#   - web      : nginx serving the Vite-built SPA. Exposed on host:8080.
+#
+# Usage:
+#   docker compose up --build              # foreground
+#   docker compose up -d --build           # detached
+#   docker compose exec api sh             # shell into the API
+#   docker compose exec api node dist/scripts/migrate.js
+#
+# (The container ships the COMPILED migrate script, not the tsx source —
+# `pnpm db:migrate` works on a developer laptop but not inside the image.)
+#
+# Production overrides (no host-exposed postgres, restart policies,
+# resource limits) live in docker-compose.prod.yml — see DEPLOYMENT.md.
+
+name: lexdraft
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      # Dev-only password. Override via the host environment (or .env at
+      # the repo root) when you bring this up on a shared dev box.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lexdraft}
+      POSTGRES_DB: ${POSTGRES_DB:-lexdraft}
+    # Exposed to the host ONLY so the developer can connect with psql /
+    # TablePlus / DataGrip. docker-compose.prod.yml drops this mapping.
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # pg_isready returns 0 once the server is accepting connections —
+      # api depends_on this with condition: service_healthy so the API
+      # never boots against a still-initialising cluster.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-lexdraft}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - lexdraft-net
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - apps/api/.env.docker
+    # apps/api/.env.docker points DATABASE_URL at the `postgres` hostname,
+    # which docker-compose resolves via the internal lexdraft-net network.
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    volumes:
+      # Persist uploaded documents across container rebuilds. The
+      # container writes as UID 1001 (`lexdraft` user) — `docker compose
+      # up` will create the host directory with the right permissions if
+      # missing. On SELinux hosts add `:Z`.
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:4000/api/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - lexdraft-net
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Empty = SPA calls /api on its own origin. For local dev the SPA
+        # hits the host:4000 API directly via CORS — override per env.
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000}
+    restart: unless-stopped
+    depends_on:
+      # Web doesn't *need* the API to be healthy to serve static files,
+      # but ordering keeps the logs readable on `docker compose up`.
+      - api
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost/healthz || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - lexdraft-net
+
+volumes:
+  postgres-data:
+    name: lexdraft-postgres-data
+
+networks:
+  lexdraft-net:
+    name: lexdraft-net
+    driver: bridge

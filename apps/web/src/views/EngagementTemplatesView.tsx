@@ -1,0 +1,497 @@
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Icon } from '@lexdraft/ui';
+import {
+  useCreateEngagementTemplate,
+  useDeleteEngagementTemplate,
+  useEngagementTemplates,
+  useUpdateEngagementTemplate,
+  type EngagementTemplate,
+} from '@/hooks/useEngagement';
+import { useUIStore } from '@/store/ui';
+import { Modal, Field } from '@/components/Modal';
+import { useConfirm } from '@/components/ConfirmDialog';
+
+/**
+ * Engagement-letter template library — Firm-tier surface. Lists every
+ * template owned by the firm, grouped by matter type, and offers CRUD plus a
+ * "make default" toggle. The actual letter generation happens from the case
+ * detail page (CaseDetailView); this view exists so firm admins can author
+ * the standard scope/fee language once and reuse it.
+ *
+ * Matter types are free-text — same convention as the existing clause bank.
+ * The list of "common" matter types is suggested but never enforced.
+ */
+
+const SUGGESTED_MATTER_TYPES: ReadonlyArray<string> = [
+  'Civil litigation',
+  'Criminal defence',
+  'Corporate advisory',
+  'Family law',
+  'Real estate',
+  'Employment',
+  'Intellectual property',
+  'Tax & regulatory',
+  'Arbitration',
+];
+
+interface DraftForm {
+  matterType: string;
+  scopeClauses: string;
+  feeClauses: string;
+  retainerInr: string;
+  notes: string;
+  isDefault: boolean;
+}
+
+const EMPTY_FORM: DraftForm = {
+  matterType: '',
+  scopeClauses: '',
+  feeClauses: '',
+  retainerInr: '',
+  notes: '',
+  isDefault: false,
+};
+
+interface TemplatePayload {
+  matterType: string;
+  scopeClauses: string;
+  feeClauses: string;
+  retainerInr: number | null;
+  notes: string | null;
+  isDefault: boolean;
+}
+
+function formToPayload(form: DraftForm): TemplatePayload {
+  const trimmedRetainer = form.retainerInr.trim();
+  const parsedRetainer = trimmedRetainer === '' ? null : Math.max(0, Math.round(Number(trimmedRetainer)));
+  return {
+    matterType: form.matterType.trim(),
+    scopeClauses: form.scopeClauses.trim(),
+    feeClauses: form.feeClauses.trim(),
+    retainerInr: parsedRetainer !== null && Number.isFinite(parsedRetainer) ? parsedRetainer : null,
+    notes: form.notes.trim() === '' ? null : form.notes.trim(),
+    isDefault: form.isDefault,
+  };
+}
+
+function templateToForm(t: EngagementTemplate): DraftForm {
+  return {
+    matterType: t.matterType,
+    scopeClauses: t.scopeClauses,
+    feeClauses: t.feeClauses,
+    retainerInr: t.retainerInr === null ? '' : String(t.retainerInr),
+    notes: t.notes ?? '',
+    isDefault: t.isDefault,
+  };
+}
+
+function formatInr(value: number | null): string {
+  if (value === null || value === undefined) return '—';
+  return `₹${new Intl.NumberFormat('en-IN').format(value)}`;
+}
+
+function readErrorMessage(err: unknown, fallback: string): string {
+  return (
+    (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error ??
+    (err as Error)?.message ??
+    fallback
+  );
+}
+
+export function EngagementTemplatesView() {
+  const { data, isLoading, isError } = useEngagementTemplates();
+  const showToast = useUIStore((s) => s.showToast);
+  const confirm = useConfirm();
+
+  const create = useCreateEngagementTemplate();
+  const update = useUpdateEngagementTemplate();
+
+  const groups = useMemo(() => data?.groups ?? [], [data]);
+  const total = data?.items.length ?? 0;
+
+  const [editing, setEditing] = useState<EngagementTemplate | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+
+  const handleCreate = async (payload: TemplatePayload) => {
+    await create.mutateAsync(payload);
+  };
+
+  const handleUpdate = (id: string) => async (payload: TemplatePayload) => {
+    await update.mutateAsync({ id, patch: payload });
+  };
+
+  return (
+    <div className="col stagger" style={{ gap: 24 }}>
+      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Firm · engagement letters</div>
+          <h1 className="heading-xl">Engagement templates</h1>
+          <div
+            className="mono"
+            style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginTop: 4 }}
+          >
+            {total} {total === 1 ? 'TEMPLATE' : 'TEMPLATES'} · {groups.length}{' '}
+            {groups.length === 1 ? 'MATTER TYPE' : 'MATTER TYPES'}
+          </div>
+        </div>
+        <span className="spacer" />
+        <button
+          className="btn btn-primary"
+          type="button"
+          onClick={() => setNewOpen(true)}
+        >
+          <Icon name="plus" size={14} /> New template
+        </button>
+      </div>
+
+      <p className="body-sm muted" style={{ maxWidth: 720 }}>
+        Author the standard scope of engagement and fee language for each matter type your
+        firm handles. When a matter is opened, the engagement letter is generated by
+        interpolating case + client details into the firm-approved template — saving
+        billing disputes downstream.
+      </p>
+
+      {isError && (
+        <div className="card" style={{ padding: 16, color: 'var(--danger)' }}>
+          Could not load engagement templates. Check your connection or try again.
+        </div>
+      )}
+
+      {isLoading ? (
+        <div className="card muted" style={{ padding: 24, textAlign: 'center' }}>
+          Loading templates…
+        </div>
+      ) : total === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
+          <Icon name="documents" size={24} className="muted" />
+          <div className="heading-sm" style={{ marginTop: 12, marginBottom: 4 }}>
+            No engagement templates yet
+          </div>
+          <p className="body-sm muted" style={{ maxWidth: 460, margin: '0 auto', marginBottom: 16 }}>
+            Add your first template to standardise the language your firm uses for new
+            engagements. You can mark one as default per matter type — the default is what
+            the "Generate engagement letter" action on a matter picks up automatically.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setNewOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Add first template
+          </button>
+        </div>
+      ) : (
+        <div className="col" style={{ gap: 28 }}>
+          {groups.map((group) => (
+            <div key={group.matterType} className="col" style={{ gap: 12 }}>
+              <div
+                className="row rule-bottom"
+                style={{
+                  alignItems: 'flex-end',
+                  paddingBottom: 8,
+                  borderBottom: '1px solid var(--border-default)',
+                }}
+              >
+                <h2 className="heading-md">{group.matterType}</h2>
+                <span className="spacer" />
+                <span
+                  className="mono"
+                  style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}
+                >
+                  {group.templates.length} {group.templates.length === 1 ? 'TEMPLATE' : 'TEMPLATES'}
+                </span>
+              </div>
+              <div className="grid-2" style={{ gap: 16 }}>
+                {group.templates.map((t) => (
+                  <TemplateCard
+                    key={t.id}
+                    template={t}
+                    onEdit={() => setEditing(t)}
+                    confirm={confirm}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <TemplateModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        title="New engagement template"
+        eyebrow="Firm-approved language"
+        submitLabel="Create template"
+        initial={EMPTY_FORM}
+        onSubmit={handleCreate}
+        toast={showToast}
+      />
+
+      {editing && (
+        <TemplateModal
+          open={true}
+          onClose={() => setEditing(null)}
+          title={`Edit · ${editing.matterType}`}
+          eyebrow="Engagement template"
+          submitLabel="Save changes"
+          initial={templateToForm(editing)}
+          onSubmit={handleUpdate(editing.id)}
+          toast={showToast}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------- Cards ---------- */
+
+interface TemplateCardProps {
+  template: EngagementTemplate;
+  onEdit: () => void;
+  confirm: ReturnType<typeof useConfirm>;
+}
+
+function TemplateCard({ template, onEdit, confirm }: TemplateCardProps) {
+  const del = useDeleteEngagementTemplate();
+  const update = useUpdateEngagementTemplate();
+  const showToast = useUIStore((s) => s.showToast);
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: 'Delete this template?',
+      message: `"${template.matterType}" template will be removed permanently.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await del.mutateAsync(template.id);
+      showToast({ type: 'sage', text: 'Template deleted' });
+    } catch (err) {
+      showToast({ type: 'vermillion', text: readErrorMessage(err, 'Could not delete template') });
+    }
+  };
+
+  const handleMakeDefault = async () => {
+    try {
+      await update.mutateAsync({ id: template.id, patch: { isDefault: true } });
+      showToast({ type: 'sage', text: 'Default updated' });
+    } catch (err) {
+      showToast({ type: 'vermillion', text: readErrorMessage(err, 'Could not update template') });
+    }
+  };
+
+  return (
+    <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+        {template.isDefault && <span className="badge badge-sage">DEFAULT</span>}
+        <span className="spacer" />
+        <span
+          className="mono"
+          style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}
+        >
+          {formatInr(template.retainerInr)} RETAINER
+        </span>
+      </div>
+      <div>
+        <div className="heading-sm" style={{ marginBottom: 4 }}>{template.matterType}</div>
+        {template.notes && (
+          <p className="body-sm muted" style={{ marginBottom: 6 }}>{template.notes}</p>
+        )}
+      </div>
+      <div className="col" style={{ gap: 6 }}>
+        <div className="eyebrow">Scope preview</div>
+        <p
+          className="body-sm"
+          style={{
+            color: 'var(--text-secondary)',
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {template.scopeClauses}
+        </p>
+      </div>
+      <div className="row rule-top" style={{ paddingTop: 12, gap: 8 }}>
+        {!template.isDefault && (
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => { void handleMakeDefault(); }}
+            disabled={update.isPending}
+            title="Mark this as the default for this matter type"
+          >
+            <Icon name="check" size={12} /> Make default
+          </button>
+        )}
+        <span className="spacer" />
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => { void handleDelete(); }}
+          aria-label="Delete template"
+          style={{ borderColor: 'var(--border-subtle)' }}
+        >
+          <Icon name="close" size={11} />
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={onEdit}
+        >
+          <Icon name="documents" size={12} /> Edit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Modal ---------- */
+
+interface TemplateModalProps {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  eyebrow: string;
+  submitLabel: string;
+  initial: DraftForm;
+  onSubmit: (payload: TemplatePayload) => Promise<void>;
+  toast: (toast: { type: 'sage' | 'cobalt' | 'amber' | 'vermillion'; text: string }) => void;
+}
+
+function TemplateModal({
+  open,
+  onClose,
+  title,
+  eyebrow,
+  submitLabel,
+  initial,
+  onSubmit,
+  toast,
+}: TemplateModalProps) {
+  const [form, setForm] = useState<DraftForm>(initial);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Reset internal state when the modal re-opens (e.g. switching between
+  // editing one template and then opening a fresh "New template" flow).
+  useEffect(() => {
+    if (open) setForm(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const payload = formToPayload(form);
+    if (!payload.matterType || !payload.scopeClauses || !payload.feeClauses) {
+      toast({ type: 'vermillion', text: 'Matter type, scope and fee clauses are required' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit(payload);
+      toast({ type: 'sage', text: 'Template saved' });
+      onClose();
+    } catch (err) {
+      toast({ type: 'vermillion', text: readErrorMessage(err, 'Failed to save template') });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      eyebrow={eyebrow}
+      width={760}
+      onSubmit={handleSubmit}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="submit" className="btn btn-primary" disabled={submitting}>
+            {submitting ? 'Saving…' : submitLabel}
+          </button>
+        </>
+      }
+    >
+      <Field label="MATTER TYPE *">
+        <input
+          className="input"
+          list="engagement-matter-types"
+          value={form.matterType}
+          onChange={(e) => setForm((f) => ({ ...f, matterType: e.target.value }))}
+          placeholder="e.g. Civil litigation"
+          required
+          autoFocus
+        />
+        <datalist id="engagement-matter-types">
+          {SUGGESTED_MATTER_TYPES.map((m) => <option key={m} value={m} />)}
+        </datalist>
+      </Field>
+
+      <Field label="SCOPE OF ENGAGEMENT *">
+        <textarea
+          className="input"
+          value={form.scopeClauses}
+          onChange={(e) => setForm((f) => ({ ...f, scopeClauses: e.target.value }))}
+          rows={6}
+          required
+          placeholder={
+            "Define what the firm will and won't do for the client. Supports placeholders: {{matter.title}}, {{matter.cnr}}, {{matter.court}}, {{client.name}}."
+          }
+        />
+      </Field>
+
+      <Field label="FEES AND PAYMENT TERMS *">
+        <textarea
+          className="input"
+          value={form.feeClauses}
+          onChange={(e) => setForm((f) => ({ ...f, feeClauses: e.target.value }))}
+          rows={6}
+          required
+          placeholder={
+            'Hourly rates, billing cadence, payment terms. {{retainer.inr}} interpolates the retainer.'
+          }
+        />
+      </Field>
+
+      <div className="grid-2" style={{ gap: 12 }}>
+        <Field label="DEFAULT RETAINER (INR)">
+          <input
+            className="input"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={form.retainerInr}
+            onChange={(e) => setForm((f) => ({ ...f, retainerInr: e.target.value }))}
+            placeholder="e.g. 100000"
+          />
+        </Field>
+        <Field label="NOTES (INTERNAL)">
+          <input
+            className="input"
+            value={form.notes}
+            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+            placeholder="Optional — visible only to firm staff"
+          />
+        </Field>
+      </div>
+
+      <label
+        className="row"
+        style={{ gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
+      >
+        <input
+          type="checkbox"
+          checked={form.isDefault}
+          onChange={(e) => setForm((f) => ({ ...f, isDefault: e.target.checked }))}
+        />
+        Use as default template for this matter type
+      </label>
+    </Modal>
+  );
+}

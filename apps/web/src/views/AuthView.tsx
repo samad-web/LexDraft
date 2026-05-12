@@ -1,8 +1,10 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useSignIn, useSignUp } from '@/hooks/useAuth';
+import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { useUIStore } from '@/store/ui';
+import { isMfaChallenge } from '@/lib/auth-types';
 
 // =============================================================================
 // AuthView — Sign in / Sign up + 3-step onboarding
@@ -38,6 +40,15 @@ export function AuthView() {
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [role, setRole] = useState<Role | null>(null);
 
+  // MFA challenge sub-step. Populated when the sign-in POST returns
+  // { mfaRequired: true, challengeId, expiresAt } instead of a session.
+  // Cleared back to null when the user goes back, completes verification,
+  // or the challenge expires.
+  const [mfaChallenge, setMfaChallenge] = useState<{
+    challengeId: string;
+    expiresAt: string;
+  } | null>(null);
+
   // Sign-in state
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
@@ -63,8 +74,30 @@ export function AuthView() {
     e.preventDefault();
     signIn.mutate(
       { email: signinEmail, password: signinPassword },
-      { onSuccess: (resp) => onComplete(resp) },
+      {
+        onSuccess: (resp) => {
+          // Branch on whether the server demanded an MFA challenge. The
+          // useSignIn hook handles the session-creation side; we only deal
+          // with where to route the user from here.
+          if (isMfaChallenge(resp)) {
+            setMfaChallenge({
+              challengeId: resp.challengeId,
+              expiresAt: resp.expiresAt,
+            });
+            return;
+          }
+          onComplete(resp);
+        },
+      },
     );
+  };
+
+  // Called by the MFA sub-step after a successful challenge exchange. The
+  // useMfaVerifyChallenge hook has already set the session; we just need to
+  // navigate to the right landing page.
+  const handleMfaSuccess = (user: { isSuperadmin?: boolean }) => {
+    setMfaChallenge(null);
+    onComplete({ user });
   };
 
   const handleSignUp = (e: FormEvent<HTMLFormElement>) => {
@@ -112,7 +145,7 @@ export function AuthView() {
     borderBottom: '1px solid var(--border-subtle)',
   };
 
-  const showTabs = !isSignup || step === 0;
+  const showTabs = (!isSignup || step === 0) && !mfaChallenge;
 
   // ---- Render -------------------------------------------------------------
 
@@ -209,8 +242,18 @@ export function AuthView() {
           </div>
         )}
 
+        {/* MFA challenge — interleaved between password POST and session creation. */}
+        {tab === 'signin' && mfaChallenge && (
+          <MfaChallengeStep
+            challengeId={mfaChallenge.challengeId}
+            expiresAt={mfaChallenge.expiresAt}
+            onSuccess={handleMfaSuccess}
+            onCancel={() => setMfaChallenge(null)}
+          />
+        )}
+
         {/* SIGN IN */}
-        {tab === 'signin' && (
+        {tab === 'signin' && !mfaChallenge && (
           <form
             onSubmit={handleSignIn}
             style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
@@ -500,5 +543,209 @@ export function AuthView() {
         )}
       </div>
     </div>
+  );
+}
+
+// ===========================================================================
+// MfaChallengeStep — exchange a sign-in challengeId for a session.
+//
+// Lives in the same file as AuthView because it's only ever rendered here
+// (not a generally-reusable widget — the post-password handshake is unique
+// to the sign-in flow). Extracted as its own component because the timer +
+// backup-code toggle state would otherwise bloat the parent further.
+// ===========================================================================
+
+interface MfaChallengeStepProps {
+  challengeId: string;
+  expiresAt: string;
+  onSuccess: (user: { isSuperadmin?: boolean }) => void;
+  onCancel: () => void;
+}
+
+function MfaChallengeStep({
+  challengeId,
+  expiresAt,
+  onSuccess,
+  onCancel,
+}: MfaChallengeStepProps) {
+  const verifyChallenge = useMfaVerifyChallenge();
+  const [code, setCode] = useState('');
+  const [useBackup, setUseBackup] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(() =>
+    Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)),
+  );
+
+  // Countdown to expiry. Re-render once a second; once we hit zero, the
+  // server will reject the challenge anyway, so we surface an inline
+  // "Expired" state and force a sign-in restart.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const remaining = Math.max(
+        0,
+        Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
+      );
+      setSecondsLeft(remaining);
+      if (remaining === 0) window.clearInterval(id);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [expiresAt]);
+
+  const expired = secondsLeft === 0;
+  // Backup codes are typically 10 chars (hex-like), TOTPs are 6 digits.
+  // Use input semantics that match: numeric for TOTP, plain text for backup.
+  const inputMax = useBackup ? 16 : 6;
+  const canSubmit = !expired && code.length >= (useBackup ? 6 : 6);
+
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!canSubmit) return;
+    verifyChallenge.mutate(
+      { challengeId, code: code.trim() },
+      {
+        onSuccess: ({ user }) => onSuccess({ isSuperadmin: user.isSuperadmin }),
+      },
+    );
+  };
+
+  const mins = Math.floor(secondsLeft / 60);
+  const secs = secondsLeft % 60;
+  const timeLabel = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 4 }}>TWO-FACTOR AUTHENTICATION</div>
+        <h2
+          className="display"
+          style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.01em', margin: 0 }}
+        >
+          Enter your authenticator code
+        </h2>
+        <p
+          className="muted"
+          style={{ fontSize: 13, marginTop: 6, color: 'var(--text-secondary)' }}
+        >
+          {useBackup
+            ? 'Type one of the backup codes you saved during setup.'
+            : 'Open your authenticator app and enter the 6-digit code.'}
+        </p>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="mfa-challenge-code">
+          {useBackup ? 'Backup code' : 'Authentication code'}
+        </label>
+        <input
+          id="mfa-challenge-code"
+          className="input mono"
+          inputMode={useBackup ? 'text' : 'numeric'}
+          autoComplete="one-time-code"
+          maxLength={inputMax}
+          placeholder={useBackup ? 'abcd-1234' : '000000'}
+          value={code}
+          onChange={(e) =>
+            setCode(
+              useBackup
+                ? e.target.value.replace(/\s/g, '')
+                : e.target.value.replace(/[^0-9]/g, ''),
+            )
+          }
+          autoFocus
+          disabled={expired}
+          style={{
+            fontSize: useBackup ? 18 : 24,
+            letterSpacing: useBackup ? '0.1em' : '0.4em',
+            textAlign: 'center',
+          }}
+        />
+      </div>
+
+      {!expired && (
+        <div
+          className="mono"
+          style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'center' }}
+        >
+          CHALLENGE EXPIRES IN {timeLabel}
+        </div>
+      )}
+
+      {expired && (
+        <div
+          role="alert"
+          style={{
+            fontSize: 13,
+            color: 'var(--danger)',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 12px',
+          }}
+        >
+          This challenge has expired. Please sign in again.
+        </div>
+      )}
+
+      {verifyChallenge.isError && !expired && (
+        <div
+          role="alert"
+          style={{
+            fontSize: 13,
+            color: 'var(--danger)',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-md)',
+            padding: '10px 12px',
+          }}
+        >
+          {(verifyChallenge.error as Error | null)?.message ?? 'Invalid code. Try again.'}
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className="btn btn-primary btn-lg btn-block"
+        disabled={verifyChallenge.isPending || !canSubmit}
+      >
+        {expired
+          ? 'Expired — sign in again'
+          : verifyChallenge.isPending
+            ? 'Verifying…'
+            : 'Verify'}
+      </button>
+
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          type="button"
+          onClick={() => {
+            setUseBackup((v) => !v);
+            setCode('');
+          }}
+          style={{
+            background: 'transparent',
+            border: 0,
+            color: 'var(--text-secondary)',
+            fontSize: 12,
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          {useBackup ? 'Use authenticator code instead' : 'Use a backup code instead'}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          style={{
+            background: 'transparent',
+            border: 0,
+            color: 'var(--text-secondary)',
+            fontSize: 12,
+            cursor: 'pointer',
+            padding: 0,
+          }}
+        >
+          Back to sign in
+        </button>
+      </div>
+    </form>
   );
 }

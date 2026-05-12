@@ -41,6 +41,13 @@ import { FirmDashboardView } from '@/views/FirmDashboardView';
 import { PortalInboxView } from '@/views/PortalInboxView';
 import { InviteAcceptView } from '@/views/InviteAcceptView';
 import { ManageView } from '@/views/manage/ManageView';
+import { SanhitaView } from '@/views/SanhitaView';
+import { CalculatorsView } from '@/views/CalculatorsView';
+import { CoverageView } from '@/views/CoverageView';
+import { PracticeAnalyticsView } from '@/views/PracticeAnalyticsView';
+import { EngagementTemplatesView } from '@/views/EngagementTemplatesView';
+import { MfaPromptBanner } from '@/components/MfaPromptBanner';
+import { DeletionScheduledBanner } from '@/components/DeletionScheduledBanner';
 // Portal sub-app is code-split via React.lazy so the firm-side bundle does
 // not include it (CLIENT_PORTAL.md §6.5). PortalLayout is loaded eagerly
 // because every authenticated portal route mounts inside it; the views
@@ -63,6 +70,7 @@ import { FirmDetailView as AdminFirmDetailView } from '@/admin/views/FirmDetailV
 import { UsersView as AdminUsersView } from '@/admin/views/UsersView';
 import { AuditLogView } from '@/admin/views/AuditLogView';
 import { TemplatesView } from '@/admin/views/TemplatesView';
+import { ErrorLogView } from '@/admin/views/ErrorLogView';
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
 
 export function App() {
@@ -164,6 +172,7 @@ export function App() {
             <Route path="users" element={<AdminUsersView />} />
             <Route path="audit" element={<AuditLogView />} />
             <Route path="templates" element={<TemplatesView />} />
+            <Route path="errors" element={<ErrorLogView />} />
           </Route>
           <Route path="*" element={<Navigate to="/admin" replace />} />
         </Routes>
@@ -177,6 +186,8 @@ export function App() {
     <>
       <ImpersonationBanner />
       {user.isSuperadmin && !actAs && <SuperadminBanner />}
+      <DeletionScheduledBanner />
+      <MfaPromptBanner />
       <div className="app">
         <Sidebar />
         <div className="main">
@@ -211,6 +222,11 @@ export function App() {
               <Route path="/app/manage"     element={<ManageView />} />
               <Route path="/app/messages"   element={<PortalInboxView />} />
               <Route path="/app/analytics"  element={<AnalyticsView />} />
+              <Route path="/app/sanhita"             element={<SanhitaView />} />
+              <Route path="/app/calculators"         element={<CalculatorsView />} />
+              <Route path="/app/coverage"            element={<CoverageView />} />
+              <Route path="/app/practice-analytics"  element={<PracticeAnalyticsView />} />
+              <Route path="/app/engagement"          element={<EngagementTemplatesView />} />
               <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
             </Routes>
           </div>

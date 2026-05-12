@@ -6,7 +6,11 @@ import type { Case } from '@lexdraft/types';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
+import { CopyButton } from '@/components/CopyButton';
+import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
+import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
+import { useUIStore } from '@/store/ui';
 
 const STAGES: ReadonlyArray<string> = [
   'Filing', 'Summons', 'WS', 'Issues', 'Evidence', 'Arguments', 'Judgment', 'Appeal',
@@ -56,7 +60,10 @@ export function CaseDetailView() {
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
   const updateVisibility = useUpdateMatterVisibility();
+  const generateLetter = useGenerateEngagementLetter();
+  const showToast = useUIStore((s) => s.showToast);
 
   if (isLoading) {
     return (
@@ -84,6 +91,17 @@ export function CaseDetailView() {
   const c: Case = data;
   const currentIdx = STAGES.indexOf(String(c.stage));
 
+  const handleGenerateEngagement = async (): Promise<void> => {
+    try {
+      const result = await generateLetter.mutateAsync({ caseId: c.id });
+      setEngagementLetter(result.text);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not generate engagement letter';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <BackButton onBack={() => navigate('/app/cases')} />
@@ -102,7 +120,7 @@ export function CaseDetailView() {
             <div className="row" style={{ gap: 14, flexWrap: 'wrap', color: 'var(--text-secondary)', fontSize: 13 }}>
               <span>{c.court}</span>
               <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-              <span className="mono tabular">CNR {c.cnr}</span>
+              <span>CNR <CopyButton value={c.cnr} /></span>
               <span style={{ color: 'var(--text-tertiary)' }}>·</span>
               <span>For: {c.client}</span>
             </div>
@@ -129,6 +147,16 @@ export function CaseDetailView() {
               onClick={() => setDocOpen(true)}
             >
               <Icon name="upload" size={14} /> Upload
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => { void handleGenerateEngagement(); }}
+              disabled={generateLetter.isPending}
+              title="Generate the engagement letter from the firm's default template for this matter type"
+            >
+              <Icon name="documents" size={14} />{' '}
+              {generateLetter.isPending ? 'Generating…' : 'Generate engagement letter'}
             </button>
             <button
               type="button"
@@ -207,7 +235,7 @@ export function CaseDetailView() {
             <div className="eyebrow" style={{ marginBottom: 8 }}>Matter</div>
             <h2 className="heading-md" style={{ marginBottom: 12 }}>Overview</h2>
             <div className="grid-2" style={{ gap: 16 }}>
-              <MetaItem label="CNR"        value={c.cnr}         mono />
+              <MetaItem label="CNR"        value={c.cnr}         mono copyable />
               <MetaItem label="Court"      value={c.court} />
               <MetaItem label="Stage"      value={String(c.stage)} />
               <MetaItem label="Status"     value={c.status} />
@@ -430,6 +458,12 @@ export function CaseDetailView() {
         }
       `}</style>
 
+      <EngagementLetterPreview
+        text={engagementLetter}
+        caseTitle={c.title}
+        onClose={() => setEngagementLetter(null)}
+      />
+
       <NewDocumentModal open={docOpen} onClose={() => setDocOpen(false)} defaultCase={c.title} />
       <NewHearingModal
         open={hearingOpen}
@@ -462,14 +496,105 @@ function BackButton({ onBack }: { onBack: () => void }) {
   );
 }
 
-function MetaItem({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function MetaItem({
+  label,
+  value,
+  mono,
+  copyable,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  /** When true, render the value as a CopyButton so advocates can grab
+   *  long identifiers (CNR, file numbers) without a select-all gesture. */
+  copyable?: boolean;
+}) {
   return (
     <div>
       <div className="eyebrow" style={{ marginBottom: 4 }}>{label}</div>
-      <div className={mono ? 'mono tabular' : ''} style={{ fontSize: 14, color: 'var(--text-primary)' }}>
-        {value}
+      <div className={mono && !copyable ? 'mono tabular' : ''} style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+        {copyable ? <CopyButton value={value} mono={mono} /> : value}
       </div>
     </div>
+  );
+}
+
+/**
+ * Preview modal for a freshly generated engagement letter.
+ *
+ * The shared `DocumentViewerModal` is wired to fetch its body from the
+ * documents / drafts API by id; a generated-on-the-fly letter has no id, so
+ * we render it through the generic `Modal` chrome instead. Same affordances —
+ * scrollable preview, close, copy to clipboard — without coupling the
+ * generated text to the persistence layer.
+ */
+function EngagementLetterPreview({
+  text,
+  caseTitle,
+  onClose,
+}: {
+  text: string | null;
+  caseTitle: string;
+  onClose: () => void;
+}) {
+  const showToast = useUIStore((s) => s.showToast);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async (): Promise<void> => {
+    if (!text) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      }
+      setCopied(true);
+      showToast({ type: 'sage', text: 'Engagement letter copied' });
+      window.setTimeout(() => setCopied(false), 1400);
+    } catch {
+      showToast({ type: 'vermillion', text: 'Could not copy letter' });
+    }
+  };
+
+  return (
+    <Modal
+      open={text !== null}
+      onClose={onClose}
+      title="Engagement letter"
+      eyebrow={caseTitle}
+      description="Generated from the firm's default template for this matter type. Review carefully before sending."
+      width={920}
+      footer={
+        <>
+          <button type="button" className="btn" onClick={onClose}>
+            Close
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => { void handleCopy(); }}>
+            <Icon name={copied ? 'check' : 'documents'} size={12} />{' '}
+            {copied ? 'Copied' : 'Copy to clipboard'}
+          </button>
+        </>
+      }
+    >
+      <pre
+        style={{
+          background: 'var(--bg-surface-2)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-md)',
+          padding: 20,
+          margin: 0,
+          minHeight: 320,
+          maxHeight: '60vh',
+          overflow: 'auto',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          fontFamily: 'var(--font-serif, Georgia, serif)',
+          fontSize: 14,
+          lineHeight: 1.6,
+          color: 'var(--text-primary)',
+        }}
+      >
+        {text ?? ''}
+      </pre>
+    </Modal>
   );
 }
 

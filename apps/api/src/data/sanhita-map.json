@@ -1,0 +1,1654 @@
+[
+  {
+    "fromAct": "IPC",
+    "fromSection": "76",
+    "fromTitle": "Act done by a person bound by law",
+    "toAct": "BNS",
+    "toSection": "14",
+    "toTitle": "Act done by a person bound, or by mistake of fact believing himself bound, by law",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "79",
+    "fromTitle": "Act done by a person justified by law",
+    "toAct": "BNS",
+    "toSection": "17",
+    "toTitle": "Act done by a person justified, or by mistake of fact believing himself justified, by law",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "84",
+    "fromTitle": "Act of a person of unsound mind",
+    "toAct": "BNS",
+    "toSection": "22",
+    "toTitle": "Act of a person of unsound mind",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "96",
+    "fromTitle": "Things done in private defence",
+    "toAct": "BNS",
+    "toSection": "34",
+    "toTitle": "Things done in private defence",
+    "substantiveChange": "Renumbered only",
+    "notes": "Private defence general principles regrouped under Chapter III of BNS."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "100",
+    "fromTitle": "When the right of private defence of the body extends to causing death",
+    "toAct": "BNS",
+    "toSection": "38",
+    "toTitle": "When the right of private defence of the body extends to causing death",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "120A",
+    "fromTitle": "Definition of criminal conspiracy",
+    "toAct": "BNS",
+    "toSection": "61(1)",
+    "toTitle": "Criminal conspiracy",
+    "substantiveChange": "Renumbered only",
+    "notes": "Conspiracy provisions merged at §61 BNS."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "120B",
+    "fromTitle": "Punishment of criminal conspiracy",
+    "toAct": "BNS",
+    "toSection": "61(2)",
+    "toTitle": "Punishment of criminal conspiracy",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "121",
+    "fromTitle": "Waging or attempting to wage war against the Government of India",
+    "toAct": "BNS",
+    "toSection": "147",
+    "toTitle": "Waging or attempting to wage war against the Government of India",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "124A",
+    "fromTitle": "Sedition",
+    "toAct": "BNS",
+    "toSection": "152",
+    "toTitle": "Act endangering sovereignty, unity and integrity of India",
+    "substantiveChange": "Sedition repealed; replaced with offence aimed at acts endangering sovereignty, unity and integrity. Elements differ — refer counsel before relying on old §124A jurisprudence.",
+    "notes": "IPC §124A is omitted. BNS §152 covers a narrower but differently framed offence."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "141",
+    "fromTitle": "Unlawful assembly",
+    "toAct": "BNS",
+    "toSection": "189(1)",
+    "toTitle": "Unlawful assembly",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "143",
+    "fromTitle": "Punishment for being member of unlawful assembly",
+    "toAct": "BNS",
+    "toSection": "189(2)",
+    "toTitle": "Punishment for being a member of an unlawful assembly",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "146",
+    "fromTitle": "Rioting",
+    "toAct": "BNS",
+    "toSection": "191(1)",
+    "toTitle": "Rioting",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "147",
+    "fromTitle": "Punishment for rioting",
+    "toAct": "BNS",
+    "toSection": "191(2)",
+    "toTitle": "Punishment for rioting",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "149",
+    "fromTitle": "Every member of unlawful assembly guilty of offence committed in prosecution of common object",
+    "toAct": "BNS",
+    "toSection": "190",
+    "toTitle": "Every member of unlawful assembly guilty of offence committed in prosecution of common object",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "153A",
+    "fromTitle": "Promoting enmity between different groups on grounds of religion, race, etc.",
+    "toAct": "BNS",
+    "toSection": "196",
+    "toTitle": "Promoting enmity between different groups on grounds of religion, race, etc.",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "166",
+    "fromTitle": "Public servant disobeying law, with intent to cause injury to any person",
+    "toAct": "BNS",
+    "toSection": "198",
+    "toTitle": "Public servant disobeying law, with intent to cause injury to any person",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "182",
+    "fromTitle": "False information, with intent to cause public servant to use his lawful power to the injury of another",
+    "toAct": "BNS",
+    "toSection": "217",
+    "toTitle": "False information, with intent to cause public servant to use his lawful power to the injury of another",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "188",
+    "fromTitle": "Disobedience to order duly promulgated by public servant",
+    "toAct": "BNS",
+    "toSection": "223",
+    "toTitle": "Disobedience to order duly promulgated by public servant",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "191",
+    "fromTitle": "Giving false evidence",
+    "toAct": "BNS",
+    "toSection": "227",
+    "toTitle": "Giving false evidence",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "201",
+    "fromTitle": "Causing disappearance of evidence of offence",
+    "toAct": "BNS",
+    "toSection": "238",
+    "toTitle": "Causing disappearance of evidence of offence, or giving false information to screen offender",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "211",
+    "fromTitle": "False charge of offence made with intent to injure",
+    "toAct": "BNS",
+    "toSection": "248",
+    "toTitle": "False charge of offence made with intent to injure",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "228A",
+    "fromTitle": "Disclosure of identity of the victim of certain offences",
+    "toAct": "BNS",
+    "toSection": "72",
+    "toTitle": "Disclosure of identity of the victim of certain offences, etc.",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "268",
+    "fromTitle": "Public nuisance",
+    "toAct": "BNS",
+    "toSection": "270",
+    "toTitle": "Public nuisance",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "279",
+    "fromTitle": "Rash driving or riding on a public way",
+    "toAct": "BNS",
+    "toSection": "281",
+    "toTitle": "Rash driving or riding on a public way",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "294",
+    "fromTitle": "Obscene acts and songs",
+    "toAct": "BNS",
+    "toSection": "296",
+    "toTitle": "Obscene acts and songs",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "299",
+    "fromTitle": "Culpable homicide",
+    "toAct": "BNS",
+    "toSection": "100",
+    "toTitle": "Culpable homicide",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "300",
+    "fromTitle": "Murder",
+    "toAct": "BNS",
+    "toSection": "101",
+    "toTitle": "Murder",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "302",
+    "fromTitle": "Punishment for murder",
+    "toAct": "BNS",
+    "toSection": "103",
+    "toTitle": "Punishment for murder",
+    "substantiveChange": "Renumbered only",
+    "notes": "§103(2) adds a punishment for murder by a group of five-or-more on specified discriminatory grounds (mob lynching)."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "304",
+    "fromTitle": "Punishment for culpable homicide not amounting to murder",
+    "toAct": "BNS",
+    "toSection": "105",
+    "toTitle": "Punishment for culpable homicide not amounting to murder",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "304A",
+    "fromTitle": "Causing death by negligence",
+    "toAct": "BNS",
+    "toSection": "106(1)",
+    "toTitle": "Causing death by negligence",
+    "substantiveChange": "Renumbered only",
+    "notes": "§106(2) introduces a higher sentence for hit-and-run where the driver does not report to the authorities."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "304B",
+    "fromTitle": "Dowry death",
+    "toAct": "BNS",
+    "toSection": "80",
+    "toTitle": "Dowry death",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "306",
+    "fromTitle": "Abetment of suicide",
+    "toAct": "BNS",
+    "toSection": "108",
+    "toTitle": "Abetment of suicide",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "307",
+    "fromTitle": "Attempt to murder",
+    "toAct": "BNS",
+    "toSection": "109",
+    "toTitle": "Attempt to murder",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "308",
+    "fromTitle": "Attempt to commit culpable homicide",
+    "toAct": "BNS",
+    "toSection": "110",
+    "toTitle": "Attempt to commit culpable homicide",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "319",
+    "fromTitle": "Hurt",
+    "toAct": "BNS",
+    "toSection": "114",
+    "toTitle": "Hurt",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "320",
+    "fromTitle": "Grievous hurt",
+    "toAct": "BNS",
+    "toSection": "116",
+    "toTitle": "Grievous hurt",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "323",
+    "fromTitle": "Punishment for voluntarily causing hurt",
+    "toAct": "BNS",
+    "toSection": "115(2)",
+    "toTitle": "Punishment for voluntarily causing hurt",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "324",
+    "fromTitle": "Voluntarily causing hurt by dangerous weapons or means",
+    "toAct": "BNS",
+    "toSection": "118(1)",
+    "toTitle": "Voluntarily causing hurt or grievous hurt by dangerous weapons or means",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": "IPC §§324 & 326 appear to be consolidated under BNS §118; verify exact sub-clause split."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "325",
+    "fromTitle": "Punishment for voluntarily causing grievous hurt",
+    "toAct": "BNS",
+    "toSection": "117(2)",
+    "toTitle": "Punishment for voluntarily causing grievous hurt",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "326",
+    "fromTitle": "Voluntarily causing grievous hurt by dangerous weapons or means",
+    "toAct": "BNS",
+    "toSection": "118(2)",
+    "toTitle": "Voluntarily causing grievous hurt by dangerous weapons or means",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": "Consolidated treatment with §324; verify sub-clause."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "326A",
+    "fromTitle": "Voluntarily causing grievous hurt by use of acid",
+    "toAct": "BNS",
+    "toSection": "124(1)",
+    "toTitle": "Voluntarily causing grievous hurt by use of acid",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "354",
+    "fromTitle": "Assault or criminal force to woman with intent to outrage her modesty",
+    "toAct": "BNS",
+    "toSection": "74",
+    "toTitle": "Assault or criminal force to woman with intent to outrage her modesty",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "354A",
+    "fromTitle": "Sexual harassment",
+    "toAct": "BNS",
+    "toSection": "75",
+    "toTitle": "Sexual harassment",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "354B",
+    "fromTitle": "Assault or use of criminal force to woman with intent to disrobe",
+    "toAct": "BNS",
+    "toSection": "76",
+    "toTitle": "Assault or use of criminal force to woman with intent to disrobe",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "354C",
+    "fromTitle": "Voyeurism",
+    "toAct": "BNS",
+    "toSection": "77",
+    "toTitle": "Voyeurism",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "354D",
+    "fromTitle": "Stalking",
+    "toAct": "BNS",
+    "toSection": "78",
+    "toTitle": "Stalking",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "359",
+    "fromTitle": "Kidnapping",
+    "toAct": "BNS",
+    "toSection": "135",
+    "toTitle": "Kidnapping",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "363",
+    "fromTitle": "Punishment for kidnapping",
+    "toAct": "BNS",
+    "toSection": "137",
+    "toTitle": "Kidnapping (punishment)",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "375",
+    "fromTitle": "Rape",
+    "toAct": "BNS",
+    "toSection": "63",
+    "toTitle": "Rape",
+    "substantiveChange": "Renumbered only",
+    "notes": "Age threshold for the wife-exception raised — verify against the latest text."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "376",
+    "fromTitle": "Punishment for rape",
+    "toAct": "BNS",
+    "toSection": "64",
+    "toTitle": "Punishment for rape",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "376A",
+    "fromTitle": "Punishment for causing death or resulting in persistent vegetative state of victim",
+    "toAct": "BNS",
+    "toSection": "66",
+    "toTitle": "Punishment for causing death or resulting in persistent vegetative state of victim",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "376AB",
+    "fromTitle": "Punishment for rape on woman under twelve years of age",
+    "toAct": "BNS",
+    "toSection": "65(2)",
+    "toTitle": "Punishment for rape on woman under twelve years of age",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "376D",
+    "fromTitle": "Gang rape",
+    "toAct": "BNS",
+    "toSection": "70(1)",
+    "toTitle": "Gang rape",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "377",
+    "fromTitle": "Unnatural offences",
+    "toAct": "BNS",
+    "toSection": "",
+    "toTitle": "Omitted",
+    "substantiveChange": "IPC §377 is not directly carried over to BNS. Consensual same-sex conduct between adults was already read down in Navtej Singh Johar (2018); non-consensual acts now fall under BNS rape and sexual-assault provisions.",
+    "notes": "Mind-the-gap: prosecutions involving non-consensual or minor victims now rely on §63-§69 / §74-§75 BNS. Counsel review essential."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "378",
+    "fromTitle": "Theft",
+    "toAct": "BNS",
+    "toSection": "303(1)",
+    "toTitle": "Theft",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "379",
+    "fromTitle": "Punishment for theft",
+    "toAct": "BNS",
+    "toSection": "303(2)",
+    "toTitle": "Punishment for theft",
+    "substantiveChange": "Renumbered only",
+    "notes": "§303(2) introduces enhanced punishment for habitual theft offenders."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "380",
+    "fromTitle": "Theft in dwelling house, etc.",
+    "toAct": "BNS",
+    "toSection": "305",
+    "toTitle": "Theft in dwelling house, means of transportation or place of worship, etc.",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "383",
+    "fromTitle": "Extortion",
+    "toAct": "BNS",
+    "toSection": "308(1)",
+    "toTitle": "Extortion",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "384",
+    "fromTitle": "Punishment for extortion",
+    "toAct": "BNS",
+    "toSection": "308(2)",
+    "toTitle": "Punishment for extortion",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "390",
+    "fromTitle": "Robbery",
+    "toAct": "BNS",
+    "toSection": "309(1)",
+    "toTitle": "Robbery",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "392",
+    "fromTitle": "Punishment for robbery",
+    "toAct": "BNS",
+    "toSection": "309(4)",
+    "toTitle": "Punishment for robbery",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "395",
+    "fromTitle": "Punishment for dacoity",
+    "toAct": "BNS",
+    "toSection": "310(2)",
+    "toTitle": "Punishment for dacoity",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "397",
+    "fromTitle": "Robbery or dacoity, with attempt to cause death or grievous hurt",
+    "toAct": "BNS",
+    "toSection": "311",
+    "toTitle": "Robbery or dacoity with attempt to cause death or grievous hurt",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "403",
+    "fromTitle": "Dishonest misappropriation of property",
+    "toAct": "BNS",
+    "toSection": "314",
+    "toTitle": "Dishonest misappropriation of property",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "405",
+    "fromTitle": "Criminal breach of trust",
+    "toAct": "BNS",
+    "toSection": "316(1)",
+    "toTitle": "Criminal breach of trust",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "406",
+    "fromTitle": "Punishment for criminal breach of trust",
+    "toAct": "BNS",
+    "toSection": "316(2)",
+    "toTitle": "Punishment for criminal breach of trust",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "408",
+    "fromTitle": "Criminal breach of trust by clerk or servant",
+    "toAct": "BNS",
+    "toSection": "316(4)",
+    "toTitle": "Criminal breach of trust by clerk or servant",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "409",
+    "fromTitle": "Criminal breach of trust by public servant, banker, merchant or agent",
+    "toAct": "BNS",
+    "toSection": "316(5)",
+    "toTitle": "Criminal breach of trust by public servant, banker, merchant or agent",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "415",
+    "fromTitle": "Cheating",
+    "toAct": "BNS",
+    "toSection": "318(1)",
+    "toTitle": "Cheating",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "417",
+    "fromTitle": "Punishment for cheating",
+    "toAct": "BNS",
+    "toSection": "318(2)",
+    "toTitle": "Punishment for cheating",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "419",
+    "fromTitle": "Punishment for cheating by personation",
+    "toAct": "BNS",
+    "toSection": "319(2)",
+    "toTitle": "Punishment for cheating by personation",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "420",
+    "fromTitle": "Cheating and dishonestly inducing delivery of property",
+    "toAct": "BNS",
+    "toSection": "318(4)",
+    "toTitle": "Cheating and dishonestly inducing delivery of property",
+    "substantiveChange": "Renumbered only",
+    "notes": "Frequently cited; the canonical IPC §420 lives at BNS §318(4)."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "425",
+    "fromTitle": "Mischief",
+    "toAct": "BNS",
+    "toSection": "324(1)",
+    "toTitle": "Mischief",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "441",
+    "fromTitle": "Criminal trespass",
+    "toAct": "BNS",
+    "toSection": "329(1)",
+    "toTitle": "Criminal trespass",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "447",
+    "fromTitle": "Punishment for criminal trespass",
+    "toAct": "BNS",
+    "toSection": "329(3)",
+    "toTitle": "Punishment for criminal trespass",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "452",
+    "fromTitle": "House-trespass after preparation for hurt, assault or wrongful restraint",
+    "toAct": "BNS",
+    "toSection": "333",
+    "toTitle": "House-trespass after preparation for hurt, assault or wrongful restraint",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "463",
+    "fromTitle": "Forgery",
+    "toAct": "BNS",
+    "toSection": "336(1)",
+    "toTitle": "Forgery",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "465",
+    "fromTitle": "Punishment for forgery",
+    "toAct": "BNS",
+    "toSection": "336(2)",
+    "toTitle": "Punishment for forgery",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "468",
+    "fromTitle": "Forgery for purpose of cheating",
+    "toAct": "BNS",
+    "toSection": "336(3)",
+    "toTitle": "Forgery for purpose of cheating",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "471",
+    "fromTitle": "Using as genuine a forged document",
+    "toAct": "BNS",
+    "toSection": "340(2)",
+    "toTitle": "Using as genuine a forged document or electronic record",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "489A",
+    "fromTitle": "Counterfeiting currency-notes or bank-notes",
+    "toAct": "BNS",
+    "toSection": "178",
+    "toTitle": "Counterfeiting currency-notes or bank-notes",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "498A",
+    "fromTitle": "Husband or relative of husband of a woman subjecting her to cruelty",
+    "toAct": "BNS",
+    "toSection": "85",
+    "toTitle": "Husband or relative of husband of a woman subjecting her to cruelty",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "499",
+    "fromTitle": "Defamation",
+    "toAct": "BNS",
+    "toSection": "356(1)",
+    "toTitle": "Defamation",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "500",
+    "fromTitle": "Punishment for defamation",
+    "toAct": "BNS",
+    "toSection": "356(2)",
+    "toTitle": "Punishment for defamation",
+    "substantiveChange": "Renumbered only",
+    "notes": "§356(3)/(4) now allow community service as an alternative sentence."
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "503",
+    "fromTitle": "Criminal intimidation",
+    "toAct": "BNS",
+    "toSection": "351(1)",
+    "toTitle": "Criminal intimidation",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "504",
+    "fromTitle": "Intentional insult with intent to provoke breach of the peace",
+    "toAct": "BNS",
+    "toSection": "352",
+    "toTitle": "Intentional insult with intent to provoke breach of the peace",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "506",
+    "fromTitle": "Punishment for criminal intimidation",
+    "toAct": "BNS",
+    "toSection": "351(2)",
+    "toTitle": "Punishment for criminal intimidation",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IPC",
+    "fromSection": "509",
+    "fromTitle": "Word, gesture or act intended to insult the modesty of a woman",
+    "toAct": "BNS",
+    "toSection": "79",
+    "toTitle": "Word, gesture or act intended to insult the modesty of a woman",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+
+  {
+    "fromAct": "CrPC",
+    "fromSection": "41",
+    "fromTitle": "When police may arrest without warrant",
+    "toAct": "BNSS",
+    "toSection": "35",
+    "toTitle": "When police may arrest without warrant",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "41A",
+    "fromTitle": "Notice of appearance before police officer",
+    "toAct": "BNSS",
+    "toSection": "35(3)",
+    "toTitle": "Notice of appearance before police officer",
+    "substantiveChange": "Renumbered only",
+    "notes": "Arnesh Kumar-style notice now lives under §35 BNSS."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "50",
+    "fromTitle": "Person arrested to be informed of grounds of arrest",
+    "toAct": "BNSS",
+    "toSection": "47",
+    "toTitle": "Person arrested to be informed of grounds of arrest",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "57",
+    "fromTitle": "Person arrested not to be detained more than twenty-four hours",
+    "toAct": "BNSS",
+    "toSection": "58",
+    "toTitle": "Person arrested not to be detained more than twenty-four hours",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "100",
+    "fromTitle": "Persons in charge of closed place to allow search",
+    "toAct": "BNSS",
+    "toSection": "103",
+    "toTitle": "Persons in charge of closed place to allow search",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "107",
+    "fromTitle": "Security for keeping the peace in other cases",
+    "toAct": "BNSS",
+    "toSection": "126",
+    "toTitle": "Security for keeping the peace in other cases",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "144",
+    "fromTitle": "Power to issue order in urgent cases of nuisance",
+    "toAct": "BNSS",
+    "toSection": "163",
+    "toTitle": "Power to issue order in urgent cases of nuisance or apprehended danger",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "154",
+    "fromTitle": "Information in cognizable cases (FIR)",
+    "toAct": "BNSS",
+    "toSection": "173",
+    "toTitle": "Information in cognizable cases",
+    "substantiveChange": "Renumbered only",
+    "notes": "BNSS §173 also explicitly permits zero-FIR registration and e-FIRs for certain offences."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "156",
+    "fromTitle": "Police officer's power to investigate cognizable case",
+    "toAct": "BNSS",
+    "toSection": "175",
+    "toTitle": "Police officer's power to investigate cognizable case",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "161",
+    "fromTitle": "Examination of witnesses by police",
+    "toAct": "BNSS",
+    "toSection": "180",
+    "toTitle": "Examination of witnesses by police",
+    "substantiveChange": "Renumbered only",
+    "notes": "Audio-video recording of certain witness statements now expressly contemplated."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "164",
+    "fromTitle": "Recording of confessions and statements",
+    "toAct": "BNSS",
+    "toSection": "183",
+    "toTitle": "Recording of confessions and statements",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "167",
+    "fromTitle": "Procedure when investigation cannot be completed in twenty-four hours",
+    "toAct": "BNSS",
+    "toSection": "187",
+    "toTitle": "Procedure when investigation cannot be completed in twenty-four hours",
+    "substantiveChange": "Renumbered only",
+    "notes": "Default-bail clock unchanged but counsel should check the 15/40/60/90 day arithmetic against the new text."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "173",
+    "fromTitle": "Report of police officer on completion of investigation (charge-sheet)",
+    "toAct": "BNSS",
+    "toSection": "193",
+    "toTitle": "Report of police officer on completion of investigation",
+    "substantiveChange": "Renumbered only",
+    "notes": "BNSS §193(8) requires the IO to inform the informant of progress within 90 days."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "190",
+    "fromTitle": "Cognizance of offences by Magistrates",
+    "toAct": "BNSS",
+    "toSection": "210",
+    "toTitle": "Cognizance of offences by Magistrates",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "200",
+    "fromTitle": "Examination of complainant",
+    "toAct": "BNSS",
+    "toSection": "223",
+    "toTitle": "Examination of complainant",
+    "substantiveChange": "Renumbered only",
+    "notes": "BNSS §223 proviso requires hearing the accused before taking cognizance on a complaint."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "202",
+    "fromTitle": "Postponement of issue of process",
+    "toAct": "BNSS",
+    "toSection": "225",
+    "toTitle": "Postponement of issue of process",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "204",
+    "fromTitle": "Issue of process",
+    "toAct": "BNSS",
+    "toSection": "227",
+    "toTitle": "Issue of process",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "227",
+    "fromTitle": "Discharge",
+    "toAct": "BNSS",
+    "toSection": "250",
+    "toTitle": "Discharge",
+    "substantiveChange": "Renumbered only",
+    "notes": "Discharge application must be filed within 60 days of commitment under BNSS §250 — strict timeline."
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "228",
+    "fromTitle": "Framing of charge",
+    "toAct": "BNSS",
+    "toSection": "251",
+    "toTitle": "Framing of charge",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "239",
+    "fromTitle": "When accused shall be discharged (warrant case)",
+    "toAct": "BNSS",
+    "toSection": "262",
+    "toTitle": "When accused shall be discharged",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "311",
+    "fromTitle": "Power to summon material witness, or examine person present",
+    "toAct": "BNSS",
+    "toSection": "348",
+    "toTitle": "Power to summon material witness, or examine person present",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "313",
+    "fromTitle": "Power to examine the accused",
+    "toAct": "BNSS",
+    "toSection": "351",
+    "toTitle": "Power to examine the accused",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "319",
+    "fromTitle": "Power to proceed against other persons appearing to be guilty",
+    "toAct": "BNSS",
+    "toSection": "358",
+    "toTitle": "Power to proceed against other persons appearing to be guilty",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "320",
+    "fromTitle": "Compounding of offences",
+    "toAct": "BNSS",
+    "toSection": "359",
+    "toTitle": "Compounding of offences",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "354",
+    "fromTitle": "Language and contents of judgment",
+    "toAct": "BNSS",
+    "toSection": "393",
+    "toTitle": "Language and contents of judgment",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "374",
+    "fromTitle": "Appeals from convictions",
+    "toAct": "BNSS",
+    "toSection": "415",
+    "toTitle": "Appeals from convictions",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "378",
+    "fromTitle": "Appeal in case of acquittal",
+    "toAct": "BNSS",
+    "toSection": "419",
+    "toTitle": "Appeal in case of acquittal",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "397",
+    "fromTitle": "Calling for records to exercise powers of revision",
+    "toAct": "BNSS",
+    "toSection": "438",
+    "toTitle": "Calling for records to exercise powers of revision",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "401",
+    "fromTitle": "High Court's powers of revision",
+    "toAct": "BNSS",
+    "toSection": "442",
+    "toTitle": "High Court's powers of revision",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "436",
+    "fromTitle": "In what cases bail to be taken",
+    "toAct": "BNSS",
+    "toSection": "478",
+    "toTitle": "In what cases bail to be taken",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "437",
+    "fromTitle": "When bail may be taken in case of non-bailable offence",
+    "toAct": "BNSS",
+    "toSection": "480",
+    "toTitle": "When bail may be taken in case of non-bailable offence",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "438",
+    "fromTitle": "Direction for grant of bail to person apprehending arrest (anticipatory bail)",
+    "toAct": "BNSS",
+    "toSection": "482",
+    "toTitle": "Direction for grant of bail to person apprehending arrest",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "439",
+    "fromTitle": "Special powers of High Court or Court of Session regarding bail",
+    "toAct": "BNSS",
+    "toSection": "483",
+    "toTitle": "Special powers of High Court or Court of Session regarding bail",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "446",
+    "fromTitle": "Procedure when bond has been forfeited",
+    "toAct": "BNSS",
+    "toSection": "491",
+    "toTitle": "Procedure when bond has been forfeited",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "451",
+    "fromTitle": "Order for custody and disposal of property pending trial",
+    "toAct": "BNSS",
+    "toSection": "497",
+    "toTitle": "Order for custody and disposal of property pending trial",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "457",
+    "fromTitle": "Procedure by police upon seizure of property",
+    "toAct": "BNSS",
+    "toSection": "503",
+    "toTitle": "Procedure by police upon seizure of property",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "468",
+    "fromTitle": "Bar to taking cognizance after lapse of the period of limitation",
+    "toAct": "BNSS",
+    "toSection": "514",
+    "toTitle": "Bar to taking cognizance after lapse of the period of limitation",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  },
+  {
+    "fromAct": "CrPC",
+    "fromSection": "482",
+    "fromTitle": "Saving of inherent powers of High Court",
+    "toAct": "BNSS",
+    "toSection": "528",
+    "toTitle": "Saving of inherent powers of High Court",
+    "substantiveChange": "Renumbered only",
+    "notes": "The famous CrPC §482 quash jurisdiction is now BNSS §528."
+  },
+
+  {
+    "fromAct": "IEA",
+    "fromSection": "3",
+    "fromTitle": "Interpretation clause — definitions",
+    "toAct": "BSA",
+    "toSection": "2",
+    "toTitle": "Definitions",
+    "substantiveChange": "Renumbered only",
+    "notes": "BSA §2(1)(d) expressly includes electronic and digital records within the definition of 'document'."
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "5",
+    "fromTitle": "Evidence may be given of facts in issue and relevant facts",
+    "toAct": "BSA",
+    "toSection": "3",
+    "toTitle": "Evidence may be given of facts in issue and relevant facts",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "6",
+    "fromTitle": "Relevancy of facts forming part of same transaction (res gestae)",
+    "toAct": "BSA",
+    "toSection": "4",
+    "toTitle": "Relevancy of facts forming part of same transaction",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "8",
+    "fromTitle": "Motive, preparation and previous or subsequent conduct",
+    "toAct": "BSA",
+    "toSection": "6",
+    "toTitle": "Motive, preparation and previous or subsequent conduct",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "11",
+    "fromTitle": "When facts not otherwise relevant become relevant",
+    "toAct": "BSA",
+    "toSection": "9",
+    "toTitle": "When facts not otherwise relevant become relevant",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "17",
+    "fromTitle": "Admission defined",
+    "toAct": "BSA",
+    "toSection": "15",
+    "toTitle": "Admission defined",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "24",
+    "fromTitle": "Confession caused by inducement, threat or promise irrelevant",
+    "toAct": "BSA",
+    "toSection": "22",
+    "toTitle": "Confession caused by inducement, threat or promise irrelevant in criminal proceedings",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "25",
+    "fromTitle": "Confession to police officer not to be proved",
+    "toAct": "BSA",
+    "toSection": "23(1)",
+    "toTitle": "Confession to police officer not to be proved",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "26",
+    "fromTitle": "Confession by accused while in police custody",
+    "toAct": "BSA",
+    "toSection": "23(2)",
+    "toTitle": "Confession by accused while in police custody",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "27",
+    "fromTitle": "How much of information received from accused may be proved",
+    "toAct": "BSA",
+    "toSection": "23(2) proviso",
+    "toTitle": "How much of information received from accused may be proved",
+    "substantiveChange": "Renumbered only",
+    "notes": "Famous 'discovery' provision now subsumed within BSA §23. Confirm clause-numbering carefully."
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "32",
+    "fromTitle": "Cases in which statement of relevant fact by person who is dead or cannot be found is relevant",
+    "toAct": "BSA",
+    "toSection": "26",
+    "toTitle": "Cases in which statement of relevant fact by person who is dead or cannot be found, etc., is relevant",
+    "substantiveChange": "Renumbered only",
+    "notes": "Dying declaration jurisprudence under IEA §32(1) carries over to BSA §26(a)."
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "45",
+    "fromTitle": "Opinions of experts",
+    "toAct": "BSA",
+    "toSection": "39",
+    "toTitle": "Opinions of experts",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "60",
+    "fromTitle": "Oral evidence must be direct",
+    "toAct": "BSA",
+    "toSection": "54",
+    "toTitle": "Oral evidence must be direct",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "61",
+    "fromTitle": "Proof of contents of documents",
+    "toAct": "BSA",
+    "toSection": "56",
+    "toTitle": "Proof of contents of documents",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "62",
+    "fromTitle": "Primary evidence",
+    "toAct": "BSA",
+    "toSection": "57",
+    "toTitle": "Primary evidence",
+    "substantiveChange": "Renumbered only",
+    "notes": "Electronic records are expressly primary evidence under BSA §57(e)-(f)."
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "63",
+    "fromTitle": "Secondary evidence",
+    "toAct": "BSA",
+    "toSection": "58",
+    "toTitle": "Secondary evidence",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "65",
+    "fromTitle": "Cases in which secondary evidence relating to documents may be given",
+    "toAct": "BSA",
+    "toSection": "60",
+    "toTitle": "Cases in which secondary evidence relating to documents may be given",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "65A",
+    "fromTitle": "Special provisions as to evidence relating to electronic record",
+    "toAct": "BSA",
+    "toSection": "62",
+    "toTitle": "Special provisions as to evidence relating to electronic record",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "65B",
+    "fromTitle": "Admissibility of electronic records",
+    "toAct": "BSA",
+    "toSection": "63",
+    "toTitle": "Admissibility of electronic records",
+    "substantiveChange": "Renumbered only; the §65B(4) certificate is now §63(4) BSA with an updated Schedule prescribing the format.",
+    "notes": "Anvar P.V. / Arjun Panditrao Khotkar line of cases continues to govern; only the section number changes."
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "73",
+    "fromTitle": "Comparison of signature, writing or seal with others admitted or proved",
+    "toAct": "BSA",
+    "toSection": "72",
+    "toTitle": "Comparison of signature, writing or seal with others admitted or proved",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "74",
+    "fromTitle": "Public documents",
+    "toAct": "BSA",
+    "toSection": "74",
+    "toTitle": "Public documents",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "91",
+    "fromTitle": "Evidence of terms of contracts, grants and other dispositions of property reduced to form of document",
+    "toAct": "BSA",
+    "toSection": "94",
+    "toTitle": "Evidence of terms of contracts, grants and other dispositions of property reduced to form of document",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "92",
+    "fromTitle": "Exclusion of evidence of oral agreement",
+    "toAct": "BSA",
+    "toSection": "95",
+    "toTitle": "Exclusion of evidence of oral agreement",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "101",
+    "fromTitle": "Burden of proof",
+    "toAct": "BSA",
+    "toSection": "104",
+    "toTitle": "Burden of proof",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "103",
+    "fromTitle": "Burden of proof as to particular fact",
+    "toAct": "BSA",
+    "toSection": "106",
+    "toTitle": "Burden of proof as to particular fact",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "106",
+    "fromTitle": "Burden of proving fact especially within knowledge",
+    "toAct": "BSA",
+    "toSection": "109",
+    "toTitle": "Burden of proving fact especially within knowledge",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "112",
+    "fromTitle": "Birth during marriage, conclusive proof of legitimacy",
+    "toAct": "BSA",
+    "toSection": "116",
+    "toTitle": "Birth during marriage, conclusive proof of legitimacy",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "113A",
+    "fromTitle": "Presumption as to abetment of suicide by a married woman",
+    "toAct": "BSA",
+    "toSection": "117",
+    "toTitle": "Presumption as to abetment of suicide by a married woman",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "113B",
+    "fromTitle": "Presumption as to dowry death",
+    "toAct": "BSA",
+    "toSection": "118",
+    "toTitle": "Presumption as to dowry death",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "114",
+    "fromTitle": "Court may presume existence of certain facts",
+    "toAct": "BSA",
+    "toSection": "119",
+    "toTitle": "Court may presume existence of certain facts",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "118",
+    "fromTitle": "Who may testify",
+    "toAct": "BSA",
+    "toSection": "124",
+    "toTitle": "Who may testify",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "122",
+    "fromTitle": "Communications during marriage",
+    "toAct": "BSA",
+    "toSection": "128",
+    "toTitle": "Communications during marriage",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "126",
+    "fromTitle": "Professional communications (lawyer–client privilege)",
+    "toAct": "BSA",
+    "toSection": "132",
+    "toTitle": "Professional communications",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "133",
+    "fromTitle": "Accomplice",
+    "toAct": "BSA",
+    "toSection": "138",
+    "toTitle": "Accomplice",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "134",
+    "fromTitle": "Number of witnesses",
+    "toAct": "BSA",
+    "toSection": "139",
+    "toTitle": "Number of witnesses",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "138",
+    "fromTitle": "Order of examinations",
+    "toAct": "BSA",
+    "toSection": "143",
+    "toTitle": "Order of examinations",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "145",
+    "fromTitle": "Cross-examination as to previous statements in writing",
+    "toAct": "BSA",
+    "toSection": "148",
+    "toTitle": "Cross-examination as to previous statements in writing",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "154",
+    "fromTitle": "Question by party to his own witness (hostile witness)",
+    "toAct": "BSA",
+    "toSection": "157",
+    "toTitle": "Question by party to his own witness",
+    "substantiveChange": "Renumbered only",
+    "notes": ""
+  },
+  {
+    "fromAct": "IEA",
+    "fromSection": "161",
+    "fromTitle": "Right of adverse party as to writing used to refresh memory",
+    "toAct": "BSA",
+    "toSection": "164",
+    "toTitle": "Right of adverse party as to writing used to refresh memory",
+    "substantiveChange": "UNVERIFIED — counsel review required",
+    "notes": ""
+  }
+]

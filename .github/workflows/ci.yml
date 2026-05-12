@@ -1,0 +1,123 @@
+# LexDraft — continuous integration.
+#
+# Bare-minimum gate before merging. Catches the things that break a
+# production deploy without ever reaching the deploy step: type errors,
+# lint failures, test failures, and "the bundle doesn't build."
+#
+# Scope is intentionally narrow. Out of scope (covered elsewhere):
+#   - docker image builds — those run in the release pipeline, not on
+#     every PR. Builds are 5+ minutes; not worth the CI minutes for
+#     readme-only PRs.
+#   - integration tests against a real DB — a parallel agent is wiring
+#     these. The job exposes a postgres service the integration suite
+#     can pick up via DATABASE_URL.
+#   - deploys — manual via the runbook in DEPLOYMENT.md.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel older runs on the same ref — saves CI minutes when PRs receive
+# rapid pushes. Trade-off: a passing run on commit N can be obsoleted
+# by commit N+1; that's the correct behaviour for required checks.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Postgres available at postgres://postgres:postgres@localhost:5432/lexdraft_test
+    # The unit suite (vitest) defaults to in-memory mode — DATABASE_URL='' —
+    # so this service is here for the integration suite the sibling agent
+    # is building. Keeping it always-on means the integration tests
+    # don't need a separate workflow file.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lexdraft_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Defaults that satisfy env.ts when the integration suite runs.
+      # `setup.ts` overrides these for the unit suite, so unit tests
+      # stay in their in-memory mode.
+      JWT_SECRET: ci-test-secret-32-bytes-minimum-aaaaaaaa
+      STORAGE_SIGNING_SECRET: ci-storage-signing-secret-32-bytes-min-x
+      STORAGE_LOCAL_DIR: ./.test-uploads
+      STORAGE_PUBLIC_BASE_URL: http://localhost:4000
+      # The integration suite picks this up; the unit suite ignores it.
+      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/lexdraft_test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Corepack drives the pnpm version pinned in the root package.json
+      # (currently pnpm@9.12.0). That keeps CI byte-identical to a
+      # developer's machine.
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm via Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.12.0 --activate
+          pnpm -v
+
+      # pnpm-store cache: keyed on the lockfile so it invalidates exactly
+      # when dependencies change.
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Lint — Turbo runs the per-package `lint` script. Right now
+      # apps/web doesn't define one in package.json, so the turbo task
+      # is best-effort. `--continue` keeps a failure in one package
+      # from masking failures in another.
+      - name: Lint
+        run: pnpm lint --continue
+        continue-on-error: false
+
+      # Typecheck — most defects this catches would otherwise show up
+      # at runtime against a real DB. Two filter expressions because
+      # the root `pnpm typecheck` runs the turbo pipeline which has
+      # `dependsOn: ^build`; explicit filters are faster.
+      - name: Typecheck API
+        run: pnpm --filter @lexdraft/api typecheck
+
+      - name: Typecheck Web
+        run: pnpm --filter @lexdraft/web typecheck
+
+      # Unit tests — vitest. Runs in-memory by default. The integration
+      # suite (once it lands) will read DATABASE_URL_TEST.
+      - name: API tests
+        run: pnpm --filter @lexdraft/api test
+
+      # Build last — proves the production bundles compile cleanly with
+      # the exact same source the type checker and tests just saw.
+      - name: Build
+        run: pnpm build

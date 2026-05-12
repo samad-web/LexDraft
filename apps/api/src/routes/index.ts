@@ -26,6 +26,15 @@ import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
 import { meMfaRouter } from './me-mfa.routes';
 import { meDpdpRouter } from './me-dpdp.routes';
+import { sanhitaRouter } from './sanhita.routes';
+import { calculatorsRouter } from './calculators.routes';
+import { conflictsRouter } from './conflicts.routes';
+import { coverageRouter } from './coverage.routes';
+import { practiceAnalyticsRouter } from './practice-analytics.routes';
+import { engagementRouter } from './engagement.routes';
+import { caseloadHealthRouter } from './caseload-health.routes';
+import { exportsRouter } from './exports.routes';
+import { adminErrorsRouter } from './admin-errors.routes';
 import { portalRouter } from './portal.routes';
 import { portalAdminRouter } from './portal-admin.routes';
 import { requireAuth, requireSuperadmin, optionalAuth } from '../middleware/auth';
@@ -97,8 +106,21 @@ apiRouter.use('/me',          requireAuth, meRouter);
 apiRouter.use('/me/mfa',      optionalAuth, meMfaRouter);
 apiRouter.use('/me/dpdp',     requireAuth,  meDpdpRouter);
 
+// Sweep B features — statute reference, calculators, conflict + coverage,
+// practice analytics, engagement letters, caseload health, financial exports.
+apiRouter.use('/sanhita',             requireAuth, sanhitaRouter);
+apiRouter.use('/calculators',         requireAuth, calculatorsRouter);
+apiRouter.use('/conflicts',           requireAuth, conflictsRouter);
+apiRouter.use('/coverage',            requireAuth, coverageRouter);
+apiRouter.use('/practice-analytics',  requireAuth, practiceAnalyticsRouter);
+apiRouter.use('/engagement',          requireAuth, engagementRouter);
+apiRouter.use('/caseload-health',     requireAuth, caseloadHealthRouter);
+apiRouter.use('/exports',             requireAuth, exportsRouter);
+
 // Firm-side portal administration — toggles, lifecycle, inbox.
 apiRouter.use('/portal-admin', requireAuth, portalAdminRouter);
 
 // Platform admin — superadmin only, impersonation sessions blocked.
 apiRouter.use('/admin', requireAuth, requireSuperadmin, adminRouter);
+// Internal error log — superadmin-only viewer + resolve actions.
+apiRouter.use('/admin/errors', requireAuth, requireSuperadmin, adminErrorsRouter);

@@ -84,16 +84,19 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Practice',
     items: [
-      { id: 'invoices',   label: 'Invoices',   icon: 'invoices',   to: '/app/invoices',   requiresFeature: 'billing.view' },
-      { id: 'tasks',      label: 'Tasks',      icon: 'tasks',      to: '/app/tasks',      requiresFeature: 'matter.view' },
-      { id: 'expenses',   label: 'Expenses',   icon: 'expenses',   to: '/app/expenses',   requiresFeature: 'billing.view' },
-      { id: 'limitation', label: 'Limitation', icon: 'limitation', to: '/app/limitation', requiresFeature: 'matter.view' },
+      { id: 'invoices',           label: 'Invoices',          icon: 'invoices',   to: '/app/invoices',           requiresFeature: 'billing.view' },
+      { id: 'tasks',              label: 'Tasks',             icon: 'tasks',      to: '/app/tasks',              requiresFeature: 'matter.view' },
+      { id: 'expenses',           label: 'Expenses',          icon: 'expenses',   to: '/app/expenses',           requiresFeature: 'billing.view' },
+      { id: 'limitation',         label: 'Limitation',        icon: 'limitation', to: '/app/limitation',         requiresFeature: 'matter.view' },
+      { id: 'coverage',           label: 'Coverage Board',    icon: 'members',    to: '/app/coverage',           requiresFeature: 'coverage.requests' },
+      { id: 'practice-analytics', label: 'Practice Insights', icon: 'analytics',  to: '/app/practice-analytics', requiresFeature: 'practice.analytics' },
     ],
   },
   {
     title: 'Research',
     items: [
       { id: 'research',  label: 'Legal Research', icon: 'research',  to: '/app/research',  requiresFeature: 'research.basic' },
+      { id: 'sanhita',   label: 'Sanhita',        icon: 'research',  to: '/app/sanhita',   requiresFeature: 'drafting.basic' },
       { id: 'diary',     label: 'Judgment Diary', icon: 'diary',     to: '/app/diary',     requiresFeature: 'matter.view' },
       { id: 'causelist', label: 'Cause List',     icon: 'causelist', to: '/app/causelist', requiresFeature: 'matter.view' },
     ],
@@ -101,19 +104,21 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Tools',
     items: [
-      { id: 'ecourts', label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',  requiresFeature: 'matter.view' },
-      { id: 'stamp',   label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
-      { id: 'archive', label: 'Physical Docs', icon: 'archive', to: '/app/archive',  requiresFeature: 'matter.view' },
+      { id: 'ecourts',     label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',     requiresFeature: 'matter.view' },
+      { id: 'stamp',       label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
+      { id: 'calculators', label: 'Calculators',   icon: 'flag',    to: '/app/calculators', requiresFeature: 'tools.calculators' },
+      { id: 'archive',     label: 'Physical Docs', icon: 'archive', to: '/app/archive',     requiresFeature: 'matter.view' },
     ],
   },
   {
     title: 'Firm',
     items: [
-      { id: 'firm',      label: 'Firm overview', icon: 'shield',     to: '/app/firm',      requiresFeature: 'firm.dashboard.view' },
-      { id: 'manage',    label: 'Manage firm',   icon: 'shield',     to: '/app/manage',    requiresFeature: 'admin.users' },
-      { id: 'members',   label: 'Members',       icon: 'members',    to: '/app/members',   requiresFeature: 'firm.members.view' },
-      { id: 'analytics', label: 'Analytics',     icon: 'analytics',  to: '/app/analytics', requiresFeature: 'analytics.firm' },
-      { id: 'settings',  label: 'Settings',      icon: 'settings',   to: '/app/settings' },
+      { id: 'firm',       label: 'Firm overview',      icon: 'shield',    to: '/app/firm',       requiresFeature: 'firm.dashboard.view' },
+      { id: 'manage',     label: 'Manage firm',        icon: 'shield',    to: '/app/manage',     requiresFeature: 'admin.users' },
+      { id: 'members',    label: 'Members',            icon: 'members',   to: '/app/members',    requiresFeature: 'firm.members.view' },
+      { id: 'analytics',  label: 'Analytics',          icon: 'analytics', to: '/app/analytics',  requiresFeature: 'analytics.firm' },
+      { id: 'engagement', label: 'Engagement Letters', icon: 'file',      to: '/app/engagement', requiresFeature: 'engagement.letters' },
+      { id: 'settings',   label: 'Settings',           icon: 'settings',  to: '/app/settings' },
     ],
   },
 ];
@@ -143,4 +148,9 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   members:    { title: 'Members',         eyebrow: 'Chambers roll' },
   manage:     { title: 'Manage firm',     eyebrow: 'User management & roles' },
   settings:   { title: 'Settings',        eyebrow: 'Preferences' },
+  sanhita:           { title: 'Sanhita',          eyebrow: 'IPC → BNS, CrPC → BNSS, Evidence → BSA' },
+  calculators:       { title: 'Calculators',      eyebrow: 'Court fee · stamp duty · vakalatnama' },
+  coverage:          { title: 'Coverage Board',   eyebrow: 'Hearing coverage requests' },
+  'practice-analytics': { title: 'Practice Insights', eyebrow: 'Workload fairness & matter profitability' },
+  engagement:        { title: 'Engagement Letters', eyebrow: 'Templates & generation' },
 };

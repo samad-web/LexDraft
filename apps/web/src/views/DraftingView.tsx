@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useMutation } from '@tanstack/react-query';
 import { DatePicker, Icon, Select } from '@lexdraft/ui';
 import type { DraftRequest } from '@lexdraft/types';
 import { useStreamDraft, type LlmProvider } from '@/hooks/useDrafting';
 import { useUIStore } from '@/store/ui';
+import { api } from '@/lib/api';
 import {
   RichTextEditor,
   plainTextToHtml,
@@ -218,6 +220,123 @@ export function DraftingView() {
   const hasOutput = Boolean(output) || streaming;
   const displayHtml = editedHtml ?? plainTextToHtml(output);
   const outputLangCode = LANG_HTML[outputLang];
+
+  // Sanhita stale-IPC scan: when generation finishes (or a draft is loaded),
+  // POST the body to /api/sanhita/scan and surface chips for any matches that
+  // map to a BNS / BNSS / BSA replacement. The scan is fire-and-forget — if
+  // it fails we silently swallow rather than blocking the drafting flow.
+  const scanMutation = useMutation({
+    mutationFn: (text: string) =>
+      api.post<{
+        found: Array<{ match: string; index: number; length: number; fromAct: string; fromSection: string }>;
+        suggestions: Array<{
+          match: string;
+          index: number;
+          length: number;
+          fromAct: string;
+          fromSection: string;
+          mapping: {
+            fromAct: string; fromSection: string; fromTitle: string;
+            toAct: string; toSection: string; toTitle: string;
+            substantiveChange: string; notes: string;
+          } | null;
+        }>;
+      }>('/sanhita/scan', { text }),
+  });
+
+  // Re-scan whenever the rendered output settles: stream.data.text is the
+  // committed body, isStreaming flips to false at the end. We use displayHtml
+  // when the user has manually edited so they see warnings for their edits
+  // too — but we strip tags first because the scanner expects plain text.
+  const scanInputText = useMemo(() => {
+    if (streaming) return '';
+    if (editedHtml) return htmlToPlainText(editedHtml);
+    return output ?? '';
+  }, [streaming, editedHtml, output]);
+
+  useEffect(() => {
+    if (!scanInputText.trim()) {
+      scanMutation.reset();
+      return;
+    }
+    scanMutation.mutate(scanInputText);
+    // We intentionally exclude scanMutation from deps — including it would
+    // loop because mutate() updates the mutation's identity references.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanInputText]);
+
+  // De-duplicate suggestions by the (fromAct, fromSection) pair so the user
+  // sees one chip per stale reference even if it appears many times in the
+  // draft. Only surface chips that have a known replacement.
+  const staleChips = useMemo(() => {
+    const data = scanMutation.data;
+    if (!data) return [];
+    const seen = new Set<string>();
+    const out: Array<{
+      key: string;
+      fromAct: string;
+      fromSection: string;
+      toAct: string;
+      toSection: string;
+      substantiveChange: string;
+      count: number;
+    }> = [];
+    for (const s of data.suggestions) {
+      if (!s.mapping) continue;
+      const key = `${s.fromAct}-${s.fromSection}`;
+      const existing = out.find((o) => o.key === key);
+      if (existing) {
+        existing.count += 1;
+        continue;
+      }
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        key,
+        fromAct: s.fromAct,
+        fromSection: s.fromSection,
+        toAct: s.mapping.toAct,
+        toSection: s.mapping.toSection,
+        substantiveChange: s.mapping.substantiveChange,
+        count: 1,
+      });
+    }
+    return out;
+  }, [scanMutation.data]);
+
+  // Apply a replacement: switch every "<fromAct> §<fromSection>" occurrence
+  // in the current draft body to "<toAct> §<toSection>". We operate on the
+  // plain-text output and re-render via setEditedHtml so the user can keep
+  // editing afterwards. The replacement is intentionally string-based, not
+  // regex-on-the-server, so the user can see exactly what's about to change.
+  const applySanhitaReplacement = (chip: { fromAct: string; fromSection: string; toAct: string; toSection: string }) => {
+    const sourceText = editedHtml ? htmlToPlainText(editedHtml) : output ?? '';
+    if (!sourceText) return;
+    // Be permissive about the match: "Sec. 302 IPC", "Section 302 IPC", "u/s 302 IPC", "302 IPC", "IPC 302".
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sec = escape(chip.fromSection);
+    const actAlias =
+      chip.fromAct === 'IPC' ? '(?:IPC|I\\.P\\.C\\.|Indian Penal Code|Penal Code(?:,?\\s*1860)?)'
+      : chip.fromAct === 'CrPC' ? '(?:Cr\\.?P\\.?C\\.?|CrPC|Code of Criminal Procedure(?:,?\\s*1973)?)'
+      : '(?:IEA|Indian Evidence Act(?:,?\\s*1872)?|Evidence Act(?:,?\\s*1872)?)';
+    // Order A: "Sec. 302 IPC" / "Section 302 of the IPC"
+    const orderA = new RegExp(
+      `(?:(?:u\\/s|under\\s+section|sec(?:tion)?\\.?|s\\.?|§)\\s*)?${sec}\\s*(?:of\\s+(?:the\\s+)?)?${actAlias}`,
+      'gi',
+    );
+    // Order B: "IPC Sec. 302" / "IPC §302"
+    const orderB = new RegExp(`${actAlias}[\\s,]*(?:sec(?:tion)?\\.?|s\\.?|§)?\\s*${sec}`, 'gi');
+    const replacement = `${chip.toAct} §${chip.toSection}`;
+    let next = sourceText.replace(orderA, replacement);
+    next = next.replace(orderB, replacement);
+    if (next === sourceText) {
+      showToast({ type: 'amber', text: `No textual match for §${chip.fromSection} ${chip.fromAct}` });
+      return;
+    }
+    setEditedHtml(plainTextToHtml(next));
+    setIsEditing(false);
+    showToast({ type: 'sage', text: `Replaced ${chip.fromAct} §${chip.fromSection} → ${chip.toAct} §${chip.toSection}` });
+  };
 
   // If the output disappears (manual reset, draft cleared), drop the stage so
   // the brief returns to side-by-side mode.
@@ -834,6 +953,68 @@ export function DraftingView() {
               />
             )}
           </div>
+
+          {hasOutput && !streaming && staleChips.length > 0 && (
+            <div
+              className="card"
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(180, 83, 9, 0.06)',
+                borderLeft: '3px solid var(--warning)',
+              }}
+            >
+              <div
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  color: 'var(--text-tertiary)',
+                  marginBottom: 8,
+                }}
+              >
+                STALE STATUTE REFERENCES · {staleChips.length}
+              </div>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {staleChips.map((chip) => (
+                  <button
+                    key={chip.key}
+                    type="button"
+                    className="chip"
+                    onClick={() => applySanhitaReplacement(chip)}
+                    title={
+                      /unverified/i.test(chip.substantiveChange)
+                        ? 'Mapping marked UNVERIFIED — counsel review required'
+                        : chip.substantiveChange || 'Renumbered only'
+                    }
+                    style={{ fontSize: 12 }}
+                  >
+                    <span className="mono" style={{ marginRight: 6 }}>
+                      {chip.fromAct} §{chip.fromSection}
+                    </span>
+                    <span style={{ color: 'var(--text-tertiary)', marginRight: 6 }}>→</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>
+                      Replace with {chip.toAct} §{chip.toSection}
+                    </span>
+                    {chip.count > 1 && (
+                      <span
+                        className="mono"
+                        style={{ marginLeft: 6, color: 'var(--text-tertiary)' }}
+                      >
+                        ×{chip.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="body-xs muted"
+                style={{ marginTop: 8 }}
+              >
+                Indian criminal law was renumbered by the Bharatiya Nyaya / Nagarik Suraksha / Sakshya Sanhitas (2023).
+                Suggested replacements are plausibility-grade — verify against the bare Act before relying on them.
+              </div>
+            </div>
+          )}
 
           {hasOutput && !streaming && (
             <div

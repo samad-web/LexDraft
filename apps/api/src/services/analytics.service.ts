@@ -1,6 +1,22 @@
 import type { AnalyticsSummary } from '@lexdraft/types';
 import { db } from '../db/client';
 
+/**
+ * Firm-tier analytics.
+ *
+ * Reads from the materialized views created in migration 0021
+ * (analytics_active_matters_mv, analytics_stages_mv, analytics_outcomes_mv,
+ * analytics_monthly_revenue_mv) instead of aggregating live OLTP tables on
+ * every request. Refresh cadence is daily via the `analytics.refresh`
+ * pg-boss job; on-demand refresh is available to operators through
+ * analyticsRefreshService.refreshAll().
+ *
+ * Staleness: the dashboard can lag by up to 24h since the last refresh.
+ * That tradeoff buys cheap reads + no contention against invoice/case
+ * write traffic. For sub-day freshness, callers should trigger a manual
+ * refresh.
+ */
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 function trailing12Months(): Array<{ year: number; month: number; label: string }> {
@@ -13,8 +29,8 @@ function trailing12Months(): Array<{ year: number; month: number; label: string 
   return out;
 }
 
-interface RevenueRow { y: number; m: number; total: number }
-interface StageRow   { stage: string; count: number }
+interface RevenueRow { y: number; m: number; total: number | string }
+interface StageRow   { stage: string; stage_count: number }
 interface OutcomeRow { won: number; total: number }
 
 const EMPTY_SUMMARY: AnalyticsSummary = {
@@ -30,45 +46,48 @@ export const analyticsService = {
     if (!sql) return EMPTY_SUMMARY;
 
     const months = trailing12Months();
-    const earliest = `${months[0]!.year}-${String(months[0]!.month + 1).padStart(2, '0')}-01`;
+    // Earliest (y, m) pair the trailing-12 chart needs. Used as a tuple
+    // filter `(y, m) >= (earliestY, earliestM)` so we never pull rows we
+    // won't render.
+    const earliestY = months[0]!.year;
+    const earliestM = months[0]!.month + 1;
+    const currentYear = new Date().getFullYear();
 
-    const [activeRows, stageRows, outcomeRows, revRows, ytdRows] = await Promise.all([
-      sql<{ count: number }[]>`
-        select count(*)::int as count from cases
-        where firm_id = ${firmId}::uuid and status = 'Active'
+    const [activeRows, stageRows, outcomeRows, revRows] = await Promise.all([
+      sql<{ active_count: number }[]>`
+        select active_count
+        from analytics_active_matters_mv
+        where firm_id = ${firmId}::uuid
+        limit 1
       `,
       sql<StageRow[]>`
-        select stage, count(*)::int as count from cases
-        where firm_id = ${firmId}::uuid and status = 'Active'
-        group by stage order by count desc
+        select stage, stage_count
+        from analytics_stages_mv
+        where firm_id = ${firmId}::uuid
+        order by stage_count desc
       `,
       sql<OutcomeRow[]>`
-        select
-          count(*) filter (where outcome = 'Won')::int as won,
-          count(*) filter (where outcome is not null)::int as total
-        from cases
+        select won, total
+        from analytics_outcomes_mv
         where firm_id = ${firmId}::uuid
+        limit 1
       `,
       sql<RevenueRow[]>`
-        select extract(year  from issued_date)::int as y,
-               extract(month from issued_date)::int as m,
-               coalesce(sum(amount_inr), 0)::int    as total
-        from invoices
+        select y, m, total
+        from analytics_monthly_revenue_mv
         where firm_id = ${firmId}::uuid
-          and status in ('paid','pending','overdue')
-          and issued_date >= ${earliest}::date
-        group by 1, 2
-      `,
-      sql<{ total: number }[]>`
-        select coalesce(sum(amount_inr), 0)::int as total
-        from invoices
-        where firm_id = ${firmId}::uuid
-          and extract(year from issued_date) = ${new Date().getFullYear()}
+          and (y, m) >= (${earliestY}, ${earliestM})
       `,
     ]);
 
     const revMap = new Map<string, number>();
-    for (const r of revRows) revMap.set(`${r.y}-${r.m}`, r.total);
+    let revenueYtdInr = 0;
+    for (const r of revRows) {
+      // bigint columns come back as string in postgres-js — coerce defensively
+      const total = typeof r.total === 'string' ? Number(r.total) : r.total;
+      revMap.set(`${r.y}-${r.m}`, total);
+      if (r.y === currentYear) revenueYtdInr += total;
+    }
 
     const monthlyRevenue = months.map((m) => ({
       label: m.label,
@@ -82,12 +101,12 @@ export const analyticsService = {
 
     return {
       kpis: {
-        activeMatters: activeRows[0]?.count ?? 0,
+        activeMatters: activeRows[0]?.active_count ?? 0,
         billableHoursMonth: 0, // no time-entries table yet
-        revenueYtdInr: ytdRows[0]?.total ?? 0,
+        revenueYtdInr,
         winRatePct,
       },
-      stages: stageRows.map((r) => ({ label: r.stage, count: r.count })),
+      stages: stageRows.map((r) => ({ label: r.stage, count: r.stage_count })),
       monthlyRevenue,
     };
   },

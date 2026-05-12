@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
-import type { Limitation } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
-import { useLimitations } from '@/hooks/useLimitations';
+import { useLimitations, type LimitationRow as LimitationRowType } from '@/hooks/useLimitations';
 import { NewLimitationModal } from '@/components/NewLimitationModal';
 import { LimitationCalculator } from '@/components/LimitationCalculator';
 import { Gate } from '@/components/Gate';
@@ -10,7 +9,7 @@ import { downloadCsv } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
-type LimitationRow = Limitation;
+type LimitationRow = LimitationRowType;
 
 type UrgencyId = 'critical' | 'warning' | 'safe';
 
@@ -83,11 +82,13 @@ export function LimitationView() {
             }
             downloadCsv(
               `limitations-${new Date().toISOString().slice(0, 10)}.csv`,
-              ['Matter', 'CNR', 'Filing type', 'Forum', 'Deadline', 'Days remaining', 'Urgency'],
+              ['Matter', 'CNR', 'Filing type', 'Basis statute', 'Basis section', 'Forum', 'Deadline', 'Days remaining', 'Urgency'],
               sorted.map((r) => [
                 r.caseLabel,
                 r.cnr,
                 r.filingType,
+                r.basisStatute ?? '',
+                r.basisSection ?? '',
                 r.forum,
                 r.deadline,
                 r.daysRemaining,
@@ -166,6 +167,7 @@ export function LimitationView() {
               <th style={{ width: 110 }}>Urgency</th>
               <th>Matter</th>
               <th>Filing type</th>
+              <th>Basis</th>
               <th>Forum</th>
               <th style={{ width: 130 }}>Deadline</th>
               <th style={{ width: 110, textAlign: 'right' }}>Days left</th>
@@ -175,14 +177,14 @@ export function LimitationView() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                   <span className="muted">Loading deadlines<span className="blink" /></span>
                 </td>
               </tr>
             )}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--danger)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--danger)' }}>
                   Couldn’t load limitations.
                 </td>
               </tr>
@@ -201,6 +203,18 @@ export function LimitationView() {
                     </div>
                   </td>
                   <td className="body-sm">{r.filingType}</td>
+                  <td className="body-sm">
+                    {r.basisStatute || r.basisSection ? (
+                      <div className="col" style={{ gap: 2 }}>
+                        <span className="body-xs">{r.basisStatute ?? '—'}</span>
+                        {r.basisSection && (
+                          <span className="mono body-xs muted tabular">{r.basisSection}</span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
                   <td className="body-sm muted">{r.forum}</td>
                   <td className="mono tabular" style={{ fontWeight: 500 }}>{r.deadline}</td>
                   <td
@@ -228,7 +242,7 @@ export function LimitationView() {
             })}
             {!isLoading && !isError && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
                   <span className="body-sm muted">{rows.length === 0 ? 'No deadlines yet.' : 'No deadlines match this filter.'}</span>
                 </td>
               </tr>

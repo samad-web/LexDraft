@@ -156,3 +156,19 @@ jobs.register('dpdp.purgeExpiredAuditEntries', async () => {
   const purged = await dpdpService.purgeExpiredAuditEntries();
   logger.info({ purged }, 'dpdp.purgeExpiredAuditEntries complete');
 });
+
+// Analytics MV refresh. Idempotent — `refresh materialized view
+// concurrently` is a no-op when nothing's changed and is safe to call
+// repeatedly. Suggested schedule: daily 02:30 IST (before the DPDP purge
+// at 03:00 so a freshly-purged row doesn't transiently appear in the
+// next-morning revenue chart).
+jobs.register('analytics.refresh', async () => {
+  const { analyticsRefreshService } = await import('./analytics-refresh.service');
+  const results = await analyticsRefreshService.refreshAll();
+  const failed = results.filter((r) => !r.ok);
+  if (failed.length > 0) {
+    logger.warn({ failed }, 'analytics.refresh — some MVs failed');
+  } else {
+    logger.info({ count: results.length, totalMs: results.reduce((s, r) => s + r.ms, 0) }, 'analytics.refresh complete');
+  }
+});

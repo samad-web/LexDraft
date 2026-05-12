@@ -64,6 +64,10 @@ const SOLO_FEATURES: ReadonlyArray<FeatureKey> = [
   // Research / usage report
   'research.basic',
   'reports.usage',
+  // Sweep B cross-tier features available even at Solo
+  'tools.calculators',
+  'caseload.health',
+  'exports.financial',
 ];
 
 const PRACTICE_LEAD_FEATURES: ReadonlyArray<FeatureKey> = [
@@ -78,6 +82,10 @@ const PRACTICE_LEAD_FEATURES: ReadonlyArray<FeatureKey> = [
   'firm.dashboard.view',  // PG Lead can see firm dashboard within Practice
   'admin.practice_groups',
   'reports.activity',
+  // Sweep B Practice-tier additions
+  'conflicts.check',
+  'coverage.requests',
+  'practice.analytics',
 ];
 
 const FIRM_ADMIN_FEATURES: ReadonlyArray<FeatureKey> = [
@@ -87,6 +95,8 @@ const FIRM_ADMIN_FEATURES: ReadonlyArray<FeatureKey> = [
   'admin.users', 'admin.roles', 'admin.audit', 'admin.billing',
   'analytics.firm',
   'reports.billing',
+  // Sweep B Firm-tier additions
+  'engagement.letters',
 ];
 
 function demoFallbackFor(roleText: string): FeatureKey[] {

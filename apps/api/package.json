@@ -10,6 +10,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "eval": "tsx eval/runner.ts",
     "clean": "rm -rf dist .turbo",
     "db:migrate": "tsx src/scripts/migrate.ts",

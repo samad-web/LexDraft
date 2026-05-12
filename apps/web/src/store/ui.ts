@@ -9,12 +9,24 @@ interface UIState {
   theme: Theme;
   cmdK: boolean;
   toast: { type: 'sage' | 'cobalt' | 'amber' | 'vermillion'; text: string } | null;
+  /**
+   * Set to true on sign-in when the server reports `mustEnrollMfa` (the
+   * user's role mandates MFA but no factor is on file). The MfaPromptBanner
+   * reads this flag to decide whether to mount; it's cleared back to false
+   * when enrolment completes or the session ends.
+   *
+   * Intentionally NOT persisted — it derives from the live sign-in response,
+   * not user preference, so it should reset on every page reload (the next
+   * /me + status fetch will refresh the true state).
+   */
+  forceMfaEnrollment: boolean;
   setLang: (l: Lang) => void;
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   toggleCmdK: (open?: boolean) => void;
   showToast: (toast: { type: 'sage' | 'cobalt' | 'amber' | 'vermillion'; text: string }) => void;
   hideToast: () => void;
+  setForceMfaEnrollment: (v: boolean) => void;
 }
 
 function applyTheme(theme: Theme): void {
@@ -29,7 +41,9 @@ export const useUIStore = create<UIState>()(
       theme: 'light',
       cmdK: false,
       toast: null,
+      forceMfaEnrollment: false,
       setLang: (lang) => set({ lang }),
+      setForceMfaEnrollment: (forceMfaEnrollment) => set({ forceMfaEnrollment }),
       setTheme: (theme) => {
         applyTheme(theme);
         set({ theme });
