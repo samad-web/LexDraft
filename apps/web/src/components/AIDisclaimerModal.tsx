@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { Icon } from '@lexdraft/ui';
+import { LetterheadPicker } from './letterhead/LetterheadPicker';
 
 interface AIDisclaimerModalProps {
   open: boolean;
   format: 'PDF' | 'DOCX' | null;
   onCancel: () => void;
-  onConfirm: () => void;
+  /** Receives the letterhead choice (undefined = auto-default, null = none,
+   *  string = picked letterhead id) so the caller can pass it to exportPdf. */
+  onConfirm: (letterheadChoice: string | null | undefined) => void;
 }
 
 export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDisclaimerModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
+  // Letterhead selection — defaults to the user's effective default.
+  const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(undefined);
 
   if (!open || !format) return null;
 
@@ -79,6 +84,11 @@ export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDiscl
           record of its AI-assisted origin.
         </p>
 
+        <LetterheadPicker
+          value={letterheadChoice}
+          onChange={setLetterheadChoice}
+        />
+
         <label
           className="row"
           style={{
@@ -110,7 +120,7 @@ export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDiscl
             type="button"
             className="btn btn-primary"
             disabled={!acknowledged}
-            onClick={onConfirm}
+            onClick={() => onConfirm(letterheadChoice)}
           >
             Download {format}
           </button>

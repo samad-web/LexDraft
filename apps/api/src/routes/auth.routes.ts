@@ -12,6 +12,8 @@ const SignUp = z.object({
   role: z.enum(['solo', 'group', 'firm']),
   firm: z.string().optional(),
   enrolment: z.string().optional(),
+  primaryCourt: z.string().optional(),
+  practiceAreas: z.string().optional(),
 });
 
 export const authRouter: Router = Router();

@@ -16,6 +16,7 @@ import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { exportPdf, exportDocx } from '@/lib/export-doc';
+import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import type { DocTemplate } from '@/lib/doc-templates';
 import { useSaveDraft } from '@/hooks/useDrafts';
 import type { SavedDraft } from '@lexdraft/types';
@@ -487,17 +488,26 @@ export function DraftingView() {
     showToast({ type: 'sage', text: 'Brief reset to default values' });
   };
 
-  const performExport = async () => {
+  const performExport = async (letterheadChoice: string | null | undefined) => {
     const fmt = exportFormat;
     if (!fmt) return;
+    // Resolve the picker's choice into something exportPdf can consume:
+    //   undefined → leave undefined, exportPdf auto-fetches effective default
+    //   null      → explicit "no letterhead"
+    //   string    → fetch that specific letterhead + its logo
+    const letterhead =
+      letterheadChoice === undefined ? undefined
+      : letterheadChoice === null   ? null
+      : await resolveLetterhead(letterheadChoice);
     const payload = {
       title: docType,
       bodyHtml: displayHtml,
       dated: draftDate,
+      letterhead,
     };
     try {
       if (fmt === 'PDF') await exportPdf(payload);
-      else exportDocx(payload);
+      else await exportDocx(payload);
       showToast({ type: 'sage', text: `${fmt} prepared` });
     } catch (err) {
       const msg = err instanceof Error ? err.message : `${fmt} export failed`;

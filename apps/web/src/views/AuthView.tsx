@@ -59,7 +59,6 @@ export function AuthView() {
   const [enrolment, setEnrolment] = useState('');
   const [password, setPassword] = useState('');
   const [firm, setFirm] = useState('');
-  // Firm-detail extras kept as local UI fields; only `firm` reaches the API today.
   const [primaryCourt, setPrimaryCourt] = useState('');
   const [practiceAreas, setPracticeAreas] = useState('');
 
@@ -111,6 +110,8 @@ export function AuthView() {
         role,
         firm: firm || undefined,
         enrolment: enrolment || undefined,
+        primaryCourt: primaryCourt || undefined,
+        practiceAreas: practiceAreas || undefined,
       },
       { onSuccess: (resp) => onComplete(resp) },
     );

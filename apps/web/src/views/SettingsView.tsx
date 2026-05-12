@@ -17,11 +17,13 @@ import {
   useRequestDeletion,
   type ConsentRecord,
 } from '@/hooks/useDpdp';
+import { LetterheadsPanel } from '@/components/letterhead/LetterheadsPanel';
 
-type TabId = 'account' | 'privacy';
+type TabId = 'account' | 'letterhead' | 'privacy';
 
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'account', label: 'Account' },
+  { id: 'letterhead', label: 'Letterhead' },
   { id: 'privacy', label: 'Privacy & Data' },
 ];
 
@@ -42,6 +44,7 @@ export function SettingsView() {
       <PillNav items={TABS} value={tab} onChange={setTab} ariaLabel="Settings section" />
 
       {tab === 'account' && <AccountPanel />}
+      {tab === 'letterhead' && <LetterheadsPanel />}
       {tab === 'privacy' && <PrivacyPanel />}
     </div>
   );

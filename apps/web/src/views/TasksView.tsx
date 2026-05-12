@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@lexdraft/ui';
-import { useTaskBoard, useMoveTask } from '@/hooks/useTasks';
+import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
 import { NewTaskModal } from '@/components/NewTaskModal';
@@ -33,9 +33,14 @@ function isOverdue(due: string): boolean {
 export function TasksView() {
   const board = useTaskBoard();
   const moveTask = useMoveTask();
+  const deleteTask = useDeleteTask();
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  // Two-step confirm on destructive delete. Inline rather than window.confirm
+  // because the drawer already has the user's focus — a native dialog would
+  // shove that focus to a different layer.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
 
   const moveOpenTask = (to: TaskColumn, message: { type: 'sage' | 'cobalt'; text: string }) => {
@@ -48,6 +53,21 @@ export function TasksView() {
     );
     setOpenTask(null);
     showToast(message);
+  };
+
+  const closeDrawer = () => {
+    setOpenTask(null);
+    setConfirmingDelete(false);
+  };
+
+  const deleteOpenTask = () => {
+    if (!openTask) return;
+    const id = openTask.id;
+    deleteTask.mutate(id, {
+      onError: () => showToast({ type: 'vermillion', text: 'Couldn’t delete task' }),
+      onSuccess: () => showToast({ type: 'sage', text: 'Task deleted' }),
+    });
+    closeDrawer();
   };
 
   return (
@@ -194,7 +214,7 @@ export function TasksView() {
       {openTask && (
         <>
           <div
-            onClick={() => setOpenTask(null)}
+            onClick={closeDrawer}
             style={{
               position: 'fixed',
               inset: 0,
@@ -228,7 +248,7 @@ export function TasksView() {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => setOpenTask(null)}
+                onClick={closeDrawer}
                 aria-label="Close"
               >
                 <Icon name="close" size={14} />
@@ -278,6 +298,50 @@ export function TasksView() {
               >
                 Reject
               </button>
+            </div>
+            {/* Destructive action — pushed below the workflow buttons and
+                gated behind a two-step confirm so a misclick on the drawer
+                doesn't drop a task. */}
+            <div
+              style={{
+                marginTop: 24,
+                paddingTop: 16,
+                borderTop: '1px solid var(--border-default)',
+              }}
+            >
+              {confirmingDelete ? (
+                <div className="col" style={{ gap: 10 }}>
+                  <p className="body-sm" style={{ color: 'var(--danger)' }}>
+                    Delete this task? This cannot be undone.
+                  </p>
+                  <div className="row" style={{ gap: 8 }}>
+                    <button
+                      type="button"
+                      className="btn btn-oxblood"
+                      onClick={deleteOpenTask}
+                      disabled={deleteTask.isPending}
+                    >
+                      {deleteTask.isPending ? 'Deleting…' : 'Yes, delete'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setConfirmingDelete(true)}
+                  style={{ color: 'var(--danger)' }}
+                >
+                  <Icon name="close" size={14} /> Delete task
+                </button>
+              )}
             </div>
           </div>
         </>

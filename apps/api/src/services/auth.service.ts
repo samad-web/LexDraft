@@ -46,6 +46,9 @@ interface UserRow {
   firm_id: string | null;
   firm_name: string | null;
   plan_tier: string | null;
+  enrolment: string | null;
+  primary_court: string | null;
+  practice_areas: string | null;
 }
 
 /**
@@ -149,7 +152,7 @@ export function issueImpersonationToken(target: User, admin: ActAsClaim): { toke
 }
 
 function rowToPublic(row: UserRow): User {
-  return {
+  const user: User = {
     id: row.id,
     name: row.name,
     email: row.email,
@@ -158,10 +161,15 @@ function rowToPublic(row: UserRow): User {
     firm: row.firm_name ?? '',
     plan: normalizePlan(row.plan_tier),
   };
+  if (row.enrolment) user.enrolment = row.enrolment;
+  if (row.primary_court) user.primaryCourt = row.primary_court;
+  if (row.practice_areas) user.practiceAreas = row.practice_areas;
+  return user;
 }
 
 const USER_SELECT_WITH_FIRM = `
   select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.firm_id,
+         u.enrolment, u.primary_court, u.practice_areas,
          f.name as firm_name, f.plan_tier
   from users u
   left join firms f on f.id = u.firm_id
@@ -194,12 +202,20 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
     const roleId = await resolveSystemRoleId(record.role);
     const rows = await sql<UserRow[]>`
       with inserted as (
-        insert into users (firm_id, name, email, role, role_id, is_superadmin, password_hash)
-        values (${targetFirmId}, ${record.name}, ${record.email.toLowerCase()},
-                ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash})
-        returning id, name, email, role, is_superadmin, password_hash, firm_id
+        insert into users (
+          firm_id, name, email, role, role_id, is_superadmin, password_hash,
+          enrolment, primary_court, practice_areas
+        )
+        values (
+          ${targetFirmId}, ${record.name}, ${record.email.toLowerCase()},
+          ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
+          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null}
+        )
+        returning id, name, email, role, is_superadmin, password_hash, firm_id,
+                  enrolment, primary_court, practice_areas
       )
       select i.id, i.name, i.email, i.role, i.is_superadmin, i.password_hash, i.firm_id,
+             i.enrolment, i.primary_court, i.practice_areas,
              f.name as firm_name, f.plan_tier
       from inserted i
       left join firms f on f.id = i.firm_id
@@ -315,6 +331,9 @@ export const authService = {
       firm: input.firm ?? '',
       isSuperadmin: false,
       passwordHash: await bcrypt.hash(input.password, 10),
+      enrolment: input.enrolment,
+      primaryCourt: input.primaryCourt,
+      practiceAreas: input.practiceAreas,
     }, null);
     return { user, token: issueToken(user) };
   },

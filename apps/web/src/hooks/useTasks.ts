@@ -53,3 +53,32 @@ export function useCreateTask() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
 }
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/tasks/${id}`),
+    // Optimistic remove from whichever column the task currently lives in.
+    // Mirrors the useMoveTask pattern so the drag-and-delete experience
+    // feels equally snappy — the rollback path restores the snapshot if
+    // the server rejects the delete.
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ['tasks'] });
+      const prev = qc.getQueryData<TaskBoard>(['tasks']);
+      if (prev) {
+        const next: TaskBoard = {
+          pending: prev.pending.filter((t) => t.id !== id),
+          progress: prev.progress.filter((t) => t.id !== id),
+          review: prev.review.filter((t) => t.id !== id),
+          done: prev.done.filter((t) => t.id !== id),
+        };
+        qc.setQueryData(['tasks'], next);
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['tasks'], ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}

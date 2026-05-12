@@ -153,6 +153,14 @@ export interface User {
   /** Plan tier of the user's firm. Absent for users not yet attached to a firm. */
   plan?: UserPlan;
   isSuperadmin?: boolean;
+  /** Bar Council enrolment number captured at sign-up. Surfaced so
+   *  downstream UI (letterhead designer, profile cards) can avoid
+   *  re-asking for it. */
+  enrolment?: string;
+  /** Primary court the practitioner appears before. Captured at sign-up. */
+  primaryCourt?: string;
+  /** Comma-separated list of practice areas captured at sign-up. */
+  practiceAreas?: string;
 }
 
 export interface AuthResponse {
@@ -172,6 +180,8 @@ export interface SignUpRequest {
   role: 'solo' | 'group' | 'firm';
   firm?: string;
   enrolment?: string;
+  primaryCourt?: string;
+  practiceAreas?: string;
 }
 
 export interface DashboardSummary {

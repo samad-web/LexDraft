@@ -13,6 +13,9 @@
 
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { useAuthStore } from '@/store/auth';
+import { renderLetterheadHtml } from './letterhead-templates';
+import { resolveEffectiveLetterhead, type ResolvedLetterhead } from './letterhead-resolve';
 
 export const AI_DISCLAIMER_HTML = `
 <div style="margin-top:32px;padding:16px;border:1px solid #999;border-radius:8px;color:#444;font-size:11px;line-height:1.55;background:#f7f7f7;">
@@ -21,6 +24,15 @@ export const AI_DISCLAIMER_HTML = `
   legal, or citation errors. It must be reviewed and verified by a
   qualified advocate before being filed, served, or relied upon.
 </div>`;
+
+export interface ExportAdvocate {
+  name: string;
+  /** Role / position rendered under the name (e.g. "Solo Advocate",
+   *  "Managing Partner"). Optional — falls back to a blank second line. */
+  role?: string | null;
+  /** Firm name rendered as a third line. Optional. */
+  firm?: string | null;
+}
 
 interface ExportPayload {
   title: string;
@@ -35,6 +47,53 @@ interface ExportPayload {
   disclaimerHtml?: string | null;
   /** Page orientation when printed. Reports often need landscape. Default 'portrait'. */
   orientation?: 'portrait' | 'landscape';
+  /**
+   * Signature block rendered between the body and the disclaimer.
+   *  - `undefined` (default) — auto-detect the current signed-in advocate
+   *    from the auth store. Every export carries the originator by default.
+   *  - `null` — explicitly suppress the signature block (e.g. anonymous
+   *    or system-generated exports).
+   *  - explicit object — override (e.g. when generating on someone else's
+   *    behalf during impersonation).
+   */
+  advocate?: ExportAdvocate | null;
+  /**
+   * Letterhead rendered at the very top of the document, replacing the
+   * default centered title block.
+   *  - `undefined` (default) — auto-resolve the user's effective default
+   *    (personal beats firm). When neither exists, falls through to the
+   *    plain centered title.
+   *  - `null` — explicitly suppress letterhead even if the user has a
+   *    default (e.g. internal scratch exports).
+   *  - explicit object — use this specific letterhead (e.g. when the
+   *    export dialog has a picker).
+   */
+  letterhead?: ResolvedLetterhead | null;
+}
+
+/** Pull the current signed-in advocate from the auth store. Returns null if
+ *  no session — exports still render, just without a signature line. */
+function currentAdvocate(): ExportAdvocate | null {
+  const user = useAuthStore.getState().user;
+  if (!user) return null;
+  return {
+    name: user.name,
+    role: user.role ?? null,
+    firm: user.firm ?? null,
+  };
+}
+
+function buildSignatureHtml(advocate: ExportAdvocate): string {
+  const name = escapeHtml(advocate.name);
+  const role = advocate.role ? escapeHtml(advocate.role) : '';
+  const firm = advocate.firm ? escapeHtml(advocate.firm) : '';
+  return `
+    <div style="margin-top:48px;page-break-inside:avoid;">
+      <div style="border-top:1px solid #999;width:280px;margin-bottom:6px;"></div>
+      <div style="font-weight:600;font-size:12pt;color:#111;">${name}</div>
+      ${role ? `<div style="font-size:11pt;color:#444;">${role}</div>` : ''}
+      ${firm ? `<div style="font-size:11pt;color:#444;">${firm}</div>` : ''}
+    </div>`;
 }
 
 function buildDocumentHtml({
@@ -43,13 +102,33 @@ function buildDocumentHtml({
   dated,
   disclaimerHtml,
   orientation = 'portrait',
+  advocate,
+  letterhead,
 }: ExportPayload): string {
   const safeTitle = escapeHtml(title);
   const datedRow = dated
-    ? `<div style="text-align:right;color:#444;font-size:12px;margin-bottom:24px;">Dated: ${escapeHtml(dated)}</div>`
+    ? `<div style="text-align:right;color:#444;font-size:12px;margin-bottom:18px;">Dated: ${escapeHtml(dated)}</div>`
     : '';
   const footer = disclaimerHtml === null ? '' : (disclaimerHtml ?? AI_DISCLAIMER_HTML);
   const maxWidth = orientation === 'landscape' ? '10in' : '7in';
+  // Resolve the signature block. `null` = explicit suppression; `undefined`
+  // = fall back to the signed-in advocate so every existing exporter
+  // automatically carries the originator without a call-site change.
+  const resolvedAdvocate: ExportAdvocate | null =
+    advocate === null ? null : advocate ?? currentAdvocate();
+  const signatureHtml = resolvedAdvocate ? buildSignatureHtml(resolvedAdvocate) : '';
+  // Letterhead replaces the centered title block when present. The title
+  // is still surfaced — just rendered smaller, below the letterhead — so
+  // the reader can tell whether they're looking at a notice, a brief, or
+  // an invoice. When no letterhead is configured we keep the legacy
+  // centered title block exactly as before, so un-branded exports look
+  // identical to pre-letterhead output.
+  const letterheadHtml = letterhead
+    ? renderLetterheadHtml(letterhead.templateKey, letterhead.fields, letterhead.logoUrl)
+    : '';
+  const titleBlock = letterhead
+    ? `<div style="text-align:center;font-weight:600;font-size:13pt;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:4px;">${safeTitle}</div>`
+    : `<div class="doc-title">${safeTitle}</div>`;
   return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
@@ -82,9 +161,11 @@ function buildDocumentHtml({
   </style>
 </head>
 <body>
-  <div class="doc-title">${safeTitle}</div>
+  ${letterheadHtml}
+  ${titleBlock}
   ${datedRow}
   <div class="doc-body">${bodyHtml}</div>
+  ${signatureHtml}
   ${footer}
 </body>
 </html>`;
@@ -105,9 +186,17 @@ function safeFilename(title: string): string {
 }
 
 /** A4 portrait dimensions in pt: 595.28 × 841.89. Landscape swaps these.
- *  We capture the rendered HTML at 2× scale so text stays sharp on retina. */
+ *  We capture the rendered HTML at 2× scale so text stays sharp on retina.
+ *
+ *  Letterhead auto-resolution: when the caller doesn't pass `letterhead` we
+ *  fetch the user's effective default before rendering, so every existing
+ *  exporter (drafting, invoices, expenses, …) gets letterhead support
+ *  without a call-site change. Pass `letterhead: null` to opt out, or pass
+ *  an explicit resolved letterhead (e.g. from a picker) to override the
+ *  default. */
 export async function exportPdf(payload: ExportPayload): Promise<void> {
-  const html = buildDocumentHtml(payload);
+  const resolved = await resolveLetterheadIfNeeded(payload);
+  const html = buildDocumentHtml(resolved);
 
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -181,12 +270,25 @@ export async function exportPdf(payload: ExportPayload): Promise<void> {
   }
 }
 
-export function exportDocx(payload: ExportPayload): void {
-  const html = buildDocumentHtml(payload);
+export async function exportDocx(payload: ExportPayload): Promise<void> {
+  // DOCX shares the same letterhead-resolution semantics as PDF. We made
+  // this async to accommodate the network call; the underlying file write
+  // is still synchronous on a Blob.
+  const resolved = await resolveLetterheadIfNeeded(payload);
+  const html = buildDocumentHtml(resolved);
   const blob = new Blob(['﻿', html], {
     type: 'application/msword;charset=utf-8',
   });
   triggerBlobDownload(blob, `${safeFilename(payload.title)}.doc`);
+}
+
+/** Resolve the letterhead in the payload — auto-fetch the user's effective
+ *  default when `letterhead` was left undefined. `null` and explicit
+ *  objects pass through unchanged. */
+async function resolveLetterheadIfNeeded(payload: ExportPayload): Promise<ExportPayload> {
+  if (payload.letterhead !== undefined) return payload;
+  const lh = await resolveEffectiveLetterhead();
+  return { ...payload, letterhead: lh };
 }
 
 function triggerBlobDownload(blob: Blob, filename: string): void {
