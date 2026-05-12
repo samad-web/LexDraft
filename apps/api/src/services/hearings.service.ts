@@ -52,33 +52,47 @@ function startOfWeek(iso: string): Date {
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'] as const;
 
+/**
+ * `hearings` doesn't carry firm_id directly — it joins to `cases.firm_id`
+ * via `case_id`. Hearings without a `case_id` are orphans (legacy / loose
+ * entries) and are excluded from per-firm reads to prevent cross-tenant
+ * disclosure. The cause-list view renders hearings with case_label even when
+ * case_id is null — but only when they belong to a case in the same firm.
+ */
 export const hearingsService = {
-  async listToday(): Promise<Hearing[]> {
+  async listToday(firmId: string | null): Promise<Hearing[]> {
+    if (!firmId) return [];
     const sql = db();
     if (sql) {
       const rows = await sql<HearingRow[]>`
-        select id, case_label, hearing_time, court, purpose, status
-        from hearings where status = 'today'
-        order by hearing_time
+        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status
+        from hearings h
+        join cases c on c.id = h.case_id
+        where h.status = 'today' and c.firm_id = ${firmId}::uuid
+        order by h.hearing_time
       `;
       return rows.map(fromRow);
     }
     return memory.filter((h) => h.status === 'today');
   },
 
-  async listUpcoming(): Promise<Hearing[]> {
+  async listUpcoming(firmId: string | null): Promise<Hearing[]> {
+    if (!firmId) return [];
     const sql = db();
     if (sql) {
       const rows = await sql<HearingRow[]>`
-        select id, case_label, hearing_time, court, purpose, status
-        from hearings order by status desc, hearing_time
+        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status
+        from hearings h
+        join cases c on c.id = h.case_id
+        where c.firm_id = ${firmId}::uuid
+        order by h.status desc, h.hearing_time
       `;
       return rows.map(fromRow);
     }
     return memory;
   },
 
-  async week(weekStartIso?: string): Promise<CalendarWeek> {
+  async week(firmId: string | null, weekStartIso?: string): Promise<CalendarWeek> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const start = startOfWeek(weekStartIso ?? today.toISOString().slice(0, 10));
@@ -99,17 +113,20 @@ export const hearingsService = {
       };
     });
 
+    if (!firmId) return { weekStart: startStr, days, hearings: [] };
     const sql = db();
     if (!sql) {
       return { weekStart: startStr, days, hearings: [] };
     }
 
     const rows = await sql<HearingDateRow[]>`
-      select id, case_label, hearing_time, court, purpose, status,
-             hearing_date, judge
-      from hearings
-      where hearing_date between ${startStr}::date and ${endStr}::date
-      order by hearing_date asc, hearing_time asc
+      select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status,
+             h.hearing_date, h.judge
+      from hearings h
+      join cases c on c.id = h.case_id
+      where h.hearing_date between ${startStr}::date and ${endStr}::date
+        and c.firm_id = ${firmId}::uuid
+      order by h.hearing_date asc, h.hearing_time asc
     `;
     const hearings = rows.map(fromDateRow);
     for (const h of hearings) {
@@ -119,14 +136,17 @@ export const hearingsService = {
     return { weekStart: startStr, days, hearings };
   },
 
-  async listForDay(iso: string): Promise<CalendarHearing[]> {
+  async listForDay(firmId: string | null, iso: string): Promise<CalendarHearing[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<HearingDateRow[]>`
-      select id, case_label, hearing_time, court, purpose, status,
-             hearing_date, judge
-      from hearings where hearing_date = ${iso}::date
-      order by hearing_time asc
+      select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status,
+             h.hearing_date, h.judge
+      from hearings h
+      join cases c on c.id = h.case_id
+      where h.hearing_date = ${iso}::date and c.firm_id = ${firmId}::uuid
+      order by h.hearing_time asc
     `;
     return rows.map(fromDateRow);
   },
@@ -139,7 +159,12 @@ export const hearingsService = {
     status: Hearing['status'];
     date?: string;
     judge?: string;
-  }): Promise<CalendarHearing> {
+    /** Required so we can constrain the new row to a case in the caller's firm. */
+    caseId?: string;
+  }, firmId: string | null): Promise<CalendarHearing> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create hearing'), { status: 422 });
+    }
     const sql = db();
     if (!sql) {
       const fallback: CalendarHearing = {
@@ -154,9 +179,24 @@ export const hearingsService = {
       memory.push(fallback);
       return fallback;
     }
+    // Resolve case_id either from input.caseId (must be in this firm) or from
+    // matching the case_label inside the firm. Refuse to create cross-firm.
+    const [caseRow] = input.caseId
+      ? await sql<Array<{ id: string }>>`
+          select id from cases
+          where id = ${input.caseId}::uuid and firm_id = ${firmId}::uuid limit 1
+        `
+      : await sql<Array<{ id: string }>>`
+          select id from cases
+          where firm_id = ${firmId}::uuid and title = ${input.case}
+          order by created_at desc limit 1
+        `;
+    if (!caseRow) {
+      throw Object.assign(new Error('Case not found in this firm'), { status: 404 });
+    }
     const rows = await sql<HearingDateRow[]>`
-      insert into hearings (case_label, hearing_time, court, purpose, status, hearing_date, judge)
-      values (${input.case}, ${input.time}, ${input.court}, ${input.purpose},
+      insert into hearings (case_id, case_label, hearing_time, court, purpose, status, hearing_date, judge)
+      values (${caseRow.id}::uuid, ${input.case}, ${input.time}, ${input.court}, ${input.purpose},
               ${input.status}::hearing_status, ${input.date || null},
               ${input.judge || null})
       returning id, case_label, hearing_time, court, purpose, status,

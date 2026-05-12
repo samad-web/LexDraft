@@ -6,6 +6,7 @@ interface RichTextEditorProps {
   onChange: (html: string) => void;
   minHeight?: number;
   autoFocus?: boolean;
+  lang?: string;
 }
 
 interface ToolButton {
@@ -17,7 +18,7 @@ interface ToolButton {
   active?: () => boolean;
 }
 
-export function RichTextEditor({ value, onChange, minHeight = 520, autoFocus }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, minHeight = 520, autoFocus, lang }: RichTextEditorProps) {
   const ref = useRef<HTMLDivElement>(null);
 
   // Sync external value into the DOM only when it differs — avoids resetting the caret on every keystroke.
@@ -124,19 +125,14 @@ export function RichTextEditor({ value, onChange, minHeight = 520, autoFocus }: 
         contentEditable
         suppressContentEditableWarning
         spellCheck
+        lang={lang}
+        dir="ltr"
         onInput={handleInput}
         onBlur={handleInput}
+        className="court-prose court-prose-paper"
         style={{
           minHeight,
-          padding: '16px 20px',
-          border: '1px solid var(--border-default)',
           borderRadius: 8,
-          outline: 'none',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          lineHeight: 1.7,
-          color: 'var(--text-primary)',
-          background: 'var(--bg-surface)',
           whiteSpace: 'pre-wrap',
           overflowWrap: 'break-word',
         }}

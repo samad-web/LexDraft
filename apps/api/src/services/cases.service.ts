@@ -12,6 +12,7 @@ interface CaseRow {
   status: Case['status'];
   next_hearing: string | Date | null;
   type: string;
+  visible_to_client?: boolean;
 }
 
 function fromRow(r: CaseRow): Case {
@@ -29,43 +30,58 @@ function fromRow(r: CaseRow): Case {
     status: r.status,
     next,
     type: r.type,
+    visibleToClient: r.visible_to_client ?? false,
   };
 }
 
 // In-memory fallback (used only when DATABASE_URL is blank).
 const memory: Case[] = [...SEED_CASES];
 
+interface ListFilter {
+  firmId: string | null;
+  type?: string;
+  q?: string;
+}
+
+/**
+ * All read paths require `firmId`. When the caller has no firm attachment we
+ * return an empty list — never the global table — so cross-tenant data
+ * leakage is impossible (cf. spec §10 tenant isolation).
+ */
 export const casesService = {
-  async list(filter?: { type?: string; q?: string }): Promise<Case[]> {
+  async list(filter: ListFilter): Promise<Case[]> {
+    if (!filter.firmId) return [];
     const sql = db();
     if (sql) {
       const rows = await sql<CaseRow[]>`
-        select id, cnr, title, court, stage, client, status, next_hearing, type
+        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
         from cases
-        where (${filter?.type ?? null}::text is null or ${filter?.type ?? null}::text = 'all'
-               or lower(type) = lower(${filter?.type ?? null}::text))
-          and (${filter?.q ?? null}::text is null
-               or title ilike '%' || ${filter?.q ?? null}::text || '%'
-               or cnr   ilike '%' || ${filter?.q ?? null}::text || '%')
+        where firm_id = ${filter.firmId}::uuid
+          and (${filter.type ?? null}::text is null or ${filter.type ?? null}::text = 'all'
+               or lower(type) = lower(${filter.type ?? null}::text))
+          and (${filter.q ?? null}::text is null
+               or title ilike '%' || ${filter.q ?? null}::text || '%'
+               or cnr   ilike '%' || ${filter.q ?? null}::text || '%')
         order by next_hearing nulls last, title
       `;
       return rows.map(fromRow);
     }
     let out = memory;
-    if (filter?.type && filter.type !== 'all') out = out.filter((c) => c.type.toLowerCase() === filter.type!.toLowerCase());
-    if (filter?.q) {
+    if (filter.type && filter.type !== 'all') out = out.filter((c) => c.type.toLowerCase() === filter.type!.toLowerCase());
+    if (filter.q) {
       const q = filter.q.toLowerCase();
       out = out.filter((c) => c.title.toLowerCase().includes(q) || c.cnr.toLowerCase().includes(q));
     }
     return out;
   },
 
-  async get(id: string): Promise<Case | undefined> {
+  async get(id: string, firmId: string | null): Promise<Case | undefined> {
+    if (!firmId) return undefined;
     const sql = db();
     if (sql) {
       const rows = await sql<CaseRow[]>`
-        select id, cnr, title, court, stage, client, status, next_hearing, type
-        from cases where id::text = ${id}
+        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
+        from cases where id::text = ${id} and firm_id = ${firmId}::uuid
         limit 1
       `;
       const row = rows[0];
@@ -74,14 +90,17 @@ export const casesService = {
     return memory.find((c) => c.id === id);
   },
 
-  async create(input: Omit<Case, 'id'>): Promise<Case> {
+  async create(input: Omit<Case, 'id'>, firmId: string | null): Promise<Case> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create case'), { status: 422 });
+    }
     const sql = db();
     if (sql) {
       const rows = await sql<CaseRow[]>`
-        insert into cases (cnr, title, court, stage, client, status, next_hearing, type)
-        values (${input.cnr}, ${input.title}, ${input.court}, ${input.stage},
+        insert into cases (firm_id, cnr, title, court, stage, client, status, next_hearing, type)
+        values (${firmId}::uuid, ${input.cnr}, ${input.title}, ${input.court}, ${input.stage},
                 ${input.client}, ${input.status}, ${input.next || null}, ${input.type})
-        returning id, cnr, title, court, stage, client, status, next_hearing, type
+        returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;
       return fromRow(rows[0]!);
     }
@@ -90,7 +109,8 @@ export const casesService = {
     return c;
   },
 
-  async update(id: string, patch: Partial<Case>): Promise<Case | undefined> {
+  async update(id: string, patch: Partial<Case>, firmId: string | null): Promise<Case | undefined> {
+    if (!firmId) return undefined;
     const sql = db();
     if (sql) {
       const rows = await sql<CaseRow[]>`
@@ -103,8 +123,8 @@ export const casesService = {
           status        = coalesce(${(patch.status ?? null) as string | null}, status),
           next_hearing  = coalesce(${patch.next ?? null}, next_hearing),
           type          = coalesce(${patch.type ?? null}, type)
-        where id::text = ${id}
-        returning id, cnr, title, court, stage, client, status, next_hearing, type
+        where id::text = ${id} and firm_id = ${firmId}::uuid
+        returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;
       const row = rows[0];
       return row ? fromRow(row) : undefined;
@@ -115,10 +135,13 @@ export const casesService = {
     return memory[i];
   },
 
-  async remove(id: string): Promise<boolean> {
+  async remove(id: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
     const sql = db();
     if (sql) {
-      const rows = await sql`delete from cases where id::text = ${id} returning id`;
+      const rows = await sql`
+        delete from cases where id::text = ${id} and firm_id = ${firmId}::uuid returning id
+      `;
       return rows.length > 0;
     }
     const i = memory.findIndex((c) => c.id === id);

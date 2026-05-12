@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useDocuments } from '@/hooks/useDocuments';
-import { useUIStore } from '@/store/ui';
 import type { DocumentRecord } from '@lexdraft/types';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
+import { DocumentViewerModal } from '@/components/DocumentViewerModal';
+import { useUpdateDocumentPortalFlags } from '@/hooks/usePortalAdmin';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface FolderDef {
   id: string;
@@ -51,11 +54,12 @@ function statusFor(doc: DocumentRecord): { label: string; cls: string } {
 export function DocumentsView() {
   const docs = useDocuments();
   const navigate = useNavigate();
-  const showToast = useUIStore((s) => s.showToast);
   const [folder, setFolder] = useState<string>('all');
   const [chip, setChip] = useState<string>('all');
   const [query, setQuery] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
+  const [viewing, setViewing] = useState<DocumentRecord | null>(null);
+  const updateFlags = useUpdateDocumentPortalFlags();
 
   const all = docs.data ?? [];
 
@@ -78,6 +82,8 @@ export function DocumentsView() {
       return true;
     });
   }, [all, folder, chip, query]);
+
+  const pager = usePagination(filtered);
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
@@ -215,13 +221,16 @@ export function DocumentsView() {
                     <th>Type</th>
                     <th>Status</th>
                     <th>Updated</th>
+                    <th title="Share with the client portal">Shared</th>
+                    <th title="Client must acknowledge">Ack req'd</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((d) => {
+                  {pager.slice.map((d) => {
                     const status = statusFor(d);
                     const key = d.id ?? `${d.name}-${d.updated}`;
+                    const docId = d.id ?? '';
                     return (
                       <tr key={key}>
                         <td>
@@ -237,10 +246,33 @@ export function DocumentsView() {
                         </td>
                         <td className="mono muted">{d.updated}</td>
                         <td>
+                          <input
+                            type="checkbox"
+                            aria-label="Share with client"
+                            checked={!!d.sharedWithClient}
+                            disabled={!docId || updateFlags.isPending}
+                            onChange={(e) => updateFlags.mutate({
+                              id: docId, sharedWithClient: e.target.checked,
+                            })}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="checkbox"
+                            aria-label="Requires acknowledgement"
+                            checked={!!d.requiresAcknowledgement}
+                            disabled={!docId || !d.sharedWithClient || updateFlags.isPending}
+                            onChange={(e) => updateFlags.mutate({
+                              id: docId, requiresAcknowledgement: e.target.checked,
+                            })}
+                            title={!d.sharedWithClient ? 'Share with client first' : ''}
+                          />
+                        </td>
+                        <td>
                           <button
                             type="button"
                             className="btn btn-sm"
-                            onClick={() => showToast({ type: 'cobalt', text: `Opening "${d.name}"…` })}
+                            onClick={() => setViewing(d)}
                           >
                             Open
                           </button>
@@ -250,7 +282,7 @@ export function DocumentsView() {
                   })}
                   {filtered.length === 0 && (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={8}>
                         <p className="body-md muted" style={{ textAlign: 'center', padding: 'var(--space-4) 0' }}>
                           No documents match the current filters.
                         </p>
@@ -259,6 +291,17 @@ export function DocumentsView() {
                   )}
                 </tbody>
               </table>
+            )}
+            {docs.data && (
+              <div style={{ padding: '0 var(--space-4)' }}>
+                <Pagination
+                  page={pager.page}
+                  totalPages={pager.totalPages}
+                  total={pager.total}
+                  pageSize={pager.pageSize}
+                  onChange={pager.setPage}
+                />
+              </div>
             )}
           </div>
         </div>
@@ -269,6 +312,7 @@ export function DocumentsView() {
       `}</style>
 
       <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

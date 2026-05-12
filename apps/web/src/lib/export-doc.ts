@@ -1,15 +1,18 @@
 /**
  * Lightweight client-side document export.
  *
- * - PDF: opens a print window with the document HTML and triggers the browser
- *   print dialog. The user picks "Save as PDF" — no library required, and the
- *   output uses the browser's high-quality vector PDF renderer.
+ * - PDF: renders the document HTML into a hidden iframe, snapshots it with
+ *   html2canvas, packs the snapshot into a multi-page A4 PDF via jsPDF, and
+ *   triggers a direct file download. Same UX as DOCX — no print dialog.
  *
  * - DOCX: wraps the document HTML with the Office Open XML mso-style preamble
  *   and saves it as a .doc file. Word and LibreOffice open these natively.
  *   This is not a true .docx zip package, but it is a valid Word document and
  *   keeps headings, lists, bold/italic, alignment, and paragraphs intact.
  */
+
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export const AI_DISCLAIMER_HTML = `
 <div style="margin-top:32px;padding:16px;border:1px solid #999;border-radius:8px;color:#444;font-size:11px;line-height:1.55;background:#f7f7f7;">
@@ -101,24 +104,80 @@ function safeFilename(title: string): string {
   return title.replace(/[^a-z0-9-_]+/gi, '_').replace(/^_+|_+$/g, '') || 'document';
 }
 
-export function exportPdf(payload: ExportPayload): void {
+/** A4 portrait dimensions in pt: 595.28 × 841.89. Landscape swaps these.
+ *  We capture the rendered HTML at 2× scale so text stays sharp on retina. */
+export async function exportPdf(payload: ExportPayload): Promise<void> {
   const html = buildDocumentHtml(payload);
-  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100');
-  if (!win) {
-    throw new Error('Pop-up blocked. Allow pop-ups for this site to save as PDF.');
-  }
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
-  // Wait for fonts/images so print preview is fully laid out.
-  const trigger = () => {
-    win.focus();
-    win.print();
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  // 816px is roughly 8.5" at 96dpi — close to A4 width so layout matches print.
+  iframe.style.cssText = [
+    'position:fixed',
+    'right:0',
+    'bottom:0',
+    'width:816px',
+    'height:0',
+    'border:0',
+    'visibility:hidden',
+    'z-index:-1',
+  ].join(';');
+  document.body.appendChild(iframe);
+
+  const cleanup = () => {
+    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
   };
-  if (win.document.readyState === 'complete') {
-    setTimeout(trigger, 50);
-  } else {
-    win.addEventListener('load', () => setTimeout(trigger, 50));
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      iframe.onload = () => resolve();
+      iframe.onerror = () => reject(new Error('iframe load failed'));
+      iframe.srcdoc = html;
+    });
+
+    const doc = iframe.contentDocument;
+    const body = doc?.body;
+    if (!doc || !body) throw new Error('iframe document missing');
+
+    // Resize iframe to fit rendered content so html2canvas captures everything.
+    iframe.style.height = `${body.scrollHeight}px`;
+    // Give fonts and layout one frame to settle.
+    await new Promise((r) => setTimeout(r, 120));
+
+    const canvas = await html2canvas(body, {
+      scale: 2,
+      backgroundColor: '#ffffff',
+      useCORS: true,
+      logging: false,
+      windowWidth: body.scrollWidth,
+      windowHeight: body.scrollHeight,
+    });
+
+    const orientation = payload.orientation === 'landscape' ? 'landscape' : 'portrait';
+    const pdf = new jsPDF({ orientation, unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgData = canvas.toDataURL('image/png');
+
+    let heightLeft = imgHeight;
+    let position = 0;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    // Paginate by sliding the same image upward by one page-height each loop.
+    while (heightLeft > 0) {
+      position -= pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    const blob = pdf.output('blob');
+    triggerBlobDownload(blob, `${safeFilename(payload.title)}.pdf`);
+  } finally {
+    cleanup();
   }
 }
 
@@ -127,12 +186,71 @@ export function exportDocx(payload: ExportPayload): void {
   const blob = new Blob(['﻿', html], {
     type: 'application/msword;charset=utf-8',
   });
+  triggerBlobDownload(blob, `${safeFilename(payload.title)}.doc`);
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${safeFilename(payload.title)}.doc`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+export function downloadCsv(filename: string, headers: string[], rows: ReadonlyArray<ReadonlyArray<unknown>>): void {
+  const lines = [headers.map(csvCell).join(','), ...rows.map((r) => r.map(csvCell).join(','))];
+  // BOM lets Excel render UTF-8 ₹ / accented characters correctly.
+  const blob = new Blob(['﻿', lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  triggerBlobDownload(blob, filename.endsWith('.csv') ? filename : `${filename}.csv`);
+}
+
+export interface IcsEvent {
+  uid: string;
+  start: Date;
+  end: Date;
+  summary: string;
+  location?: string;
+  description?: string;
+}
+
+function icsDate(d: Date): string {
+  // YYYYMMDDTHHMMSSZ — UTC stamp.
+  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+function icsEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+}
+
+export function downloadIcs(filename: string, events: ReadonlyArray<IcsEvent>): void {
+  const stamp = icsDate(new Date());
+  const lines: string[] = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//LexDraft//EN',
+    'CALSCALE:GREGORIAN',
+  ];
+  for (const e of events) {
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${e.uid}@lexdraft`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${icsDate(e.start)}`,
+      `DTEND:${icsDate(e.end)}`,
+      `SUMMARY:${icsEscape(e.summary)}`,
+      ...(e.location ? [`LOCATION:${icsEscape(e.location)}`] : []),
+      ...(e.description ? [`DESCRIPTION:${icsEscape(e.description)}`] : []),
+      'END:VEVENT',
+    );
+  }
+  lines.push('END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  triggerBlobDownload(blob, filename.endsWith('.ics') ? filename : `${filename}.ics`);
 }

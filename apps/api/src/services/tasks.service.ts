@@ -37,12 +37,15 @@ function emptyBoard(): TaskBoard {
 }
 
 export const tasksService = {
-  async board(): Promise<TaskBoard> {
+  async board(firmId: string | null): Promise<TaskBoard> {
+    if (!firmId) return emptyBoard();
     const sql = db();
     if (sql) {
       const rows = await sql<TaskRow[]>`
         select id, case_label, title, due_date, priority, assignee, comments_count, column_name
-        from tasks order by created_at
+        from tasks
+        where firm_id = ${firmId}::uuid
+        order by created_at
       `;
       const board = emptyBoard();
       for (const row of rows) board[row.column_name].push(fromRow(row));
@@ -51,11 +54,15 @@ export const tasksService = {
     return memory;
   },
 
-  async move(taskId: string, to: TaskColumn): Promise<TaskBoard> {
+  async move(taskId: string, to: TaskColumn, firmId: string | null): Promise<TaskBoard> {
+    if (!firmId) return emptyBoard();
     const sql = db();
     if (sql) {
-      await sql`update tasks set column_name = ${to}::task_column where id::text = ${taskId}`;
-      return tasksService.board();
+      await sql`
+        update tasks set column_name = ${to}::task_column
+        where id::text = ${taskId} and firm_id = ${firmId}::uuid
+      `;
+      return tasksService.board(firmId);
     }
     const cols: TaskColumn[] = ['pending', 'progress', 'review', 'done'];
     let task: Task | undefined;
@@ -74,12 +81,15 @@ export const tasksService = {
     return memory;
   },
 
-  async create(input: Omit<Task, 'id'>): Promise<Task> {
+  async create(input: Omit<Task, 'id'>, firmId: string | null): Promise<Task> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create task'), { status: 422 });
+    }
     const sql = db();
     if (sql) {
       const rows = await sql<TaskRow[]>`
-        insert into tasks (case_label, title, due_date, priority, assignee, comments_count, column_name)
-        values (${input.case}, ${input.title}, ${input.due || null},
+        insert into tasks (firm_id, case_label, title, due_date, priority, assignee, comments_count, column_name)
+        values (${firmId}::uuid, ${input.case}, ${input.title}, ${input.due || null},
                 ${input.priority}::task_priority, ${input.assignee},
                 ${input.comments}, ${input.column}::task_column)
         returning id, case_label, title, due_date, priority, assignee, comments_count, column_name
@@ -93,7 +103,8 @@ export const tasksService = {
     return task;
   },
 
-  async update(taskId: string, patch: Partial<Task>): Promise<Task | undefined> {
+  async update(taskId: string, patch: Partial<Task>, firmId: string | null): Promise<Task | undefined> {
+    if (!firmId) return undefined;
     const sql = db();
     if (sql) {
       const rows = await sql<TaskRow[]>`
@@ -105,7 +116,7 @@ export const tasksService = {
           assignee       = coalesce(${patch.assignee ?? null}, assignee),
           comments_count = coalesce(${patch.comments ?? null}, comments_count),
           column_name    = coalesce(${patch.column ?? null}::task_column, column_name)
-        where id::text = ${taskId}
+        where id::text = ${taskId} and firm_id = ${firmId}::uuid
         returning id, case_label, title, due_date, priority, assignee, comments_count, column_name
       `;
       const row = rows[0];
@@ -121,10 +132,13 @@ export const tasksService = {
     return undefined;
   },
 
-  async remove(taskId: string): Promise<boolean> {
+  async remove(taskId: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
     const sql = db();
     if (sql) {
-      const rows = await sql`delete from tasks where id::text = ${taskId} returning id`;
+      const rows = await sql`
+        delete from tasks where id::text = ${taskId} and firm_id = ${firmId}::uuid returning id
+      `;
       return rows.length > 0;
     }
     for (const k of Object.keys(memory) as TaskColumn[]) {

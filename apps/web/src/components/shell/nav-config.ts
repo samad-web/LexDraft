@@ -1,3 +1,4 @@
+import type { FeatureKey } from '@lexdraft/types';
 import type { IconName } from '@lexdraft/ui';
 
 export interface NavItem {
@@ -7,6 +8,8 @@ export interface NavItem {
   badge?: string;
   /** Route path under the app shell. */
   to: string;
+  /** When set, the item is hidden unless the resolver grants this feature. */
+  requiresFeature?: FeatureKey;
 }
 
 export interface NavGroup {
@@ -14,63 +17,103 @@ export interface NavGroup {
   items: NavItem[];
 }
 
+// =============================================================================
+// Sidebar gates — canonical tier matrix
+// =============================================================================
+// Plan determines surface area (which sidebar items render); role determines
+// actions within that surface. See OVERVIEW.md §2.5, WORKFLOW_DASHBOARDS.md §3.
+//
+// Required feature → who gets it (plan ∩ role from migrations 0009/0012/0013):
+//
+//   shared.documents     baseline — every authenticated user
+//   matter.view          Solo+ × (every tenant role except Intern-on-Solo)
+//   client.view          Solo+ × (same)
+//   leads.view           Solo+ × (Solo Advocate / Practice / Firm tenants)
+//   billing.view         Solo+ × (Solo Advocate + Firm Admin + Partner)
+//   drafting.basic       Solo+ × every drafting-capable role
+//   drafting.ai          Practice+ × (Lead / Partner / Senior / Associate)
+//   drafting.clauses     Solo+ × drafting-capable roles
+//   review.comment       Solo+ baseline review
+//   research.basic       Solo+ (all drafting-capable roles)
+//   reports.activity     Practice+ × (Lead / Partner / Firm Admin)
+//   firm.members.view    Practice+ × (Lead / Partner / Senior / Firm Admin)
+//   firm.dashboard.view  Firm × (Partner / Lead / Firm Admin)
+//                        OR Practice × Practice Group Lead (sees chambers dash)
+//   analytics.firm       Firm × (Partner / Lead / Firm Admin)
+//   admin.users          Practice+ × Firm Admin
+//
+// Solo (Solo Advocate role, Solo plan):
+//   ✓ Dashboard, Calendar, Cases, Clients, Leads, Documents, Clauses,
+//     Invoices, Tasks, Expenses, Limitation, Research, Diary, Cause list,
+//     eCourts, Stamp, Archive, Settings
+//   ✗ Draft (AI), Review, Firm overview, Members, Analytics, Manage firm
+//
+// Practice (Practice Group Lead / Partner / etc., Practice plan):
+//   ✓ All Solo items + Draft (AI), Review, Members, Firm overview (Lead)
+//   ✗ Analytics (Firm-only), Manage firm (Firm Admin only)
+//
+// Firm (Partner / Firm Admin etc., Firm plan):
+//   ✓ Everything that any role can see in their plan
+// =============================================================================
+
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Overview',
     items: [
       { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', to: '/app/dashboard' },
-      { id: 'calendar', label: 'Calendar', icon: 'calendar', to: '/app/calendar' },
+      { id: 'calendar',  label: 'Calendar',  icon: 'calendar',  to: '/app/calendar',  requiresFeature: 'matter.view' },
     ],
   },
   {
     title: 'Matters',
     items: [
-      { id: 'cases', label: 'Cases', icon: 'cases', to: '/app/cases' },
-      { id: 'clients', label: 'Clients', icon: 'clients', to: '/app/clients' },
-      { id: 'leads', label: 'Leads', icon: 'leads', to: '/app/leads' },
+      { id: 'cases',   label: 'Cases',   icon: 'cases',   to: '/app/cases',   requiresFeature: 'matter.view' },
+      { id: 'clients', label: 'Clients', icon: 'clients', to: '/app/clients', requiresFeature: 'client.view' },
+      { id: 'leads',   label: 'Leads',   icon: 'leads',   to: '/app/leads',   requiresFeature: 'leads.view' },
     ],
   },
   {
     title: 'Workspace',
     items: [
-      { id: 'draft', label: 'Draft', icon: 'draft', badge: 'AI', to: '/app/draft' },
-      { id: 'review', label: 'Review', icon: 'review', badge: 'AI', to: '/app/review' },
-      { id: 'documents', label: 'Documents', icon: 'documents', to: '/app/documents' },
-      { id: 'clauses', label: 'Clauses', icon: 'clauses', to: '/app/clauses' },
+      { id: 'draft',     label: 'Draft',     icon: 'draft',     badge: 'AI', to: '/app/draft',     requiresFeature: 'drafting.ai' },
+      { id: 'review',    label: 'Review',    icon: 'review',    badge: 'AI', to: '/app/review',    requiresFeature: 'review.approve' },
+      { id: 'documents', label: 'Documents', icon: 'documents', to: '/app/documents', requiresFeature: 'shared.documents' },
+      { id: 'clauses',   label: 'Clauses',   icon: 'clauses',   to: '/app/clauses',   requiresFeature: 'drafting.clauses' },
     ],
   },
   {
     title: 'Practice',
     items: [
-      { id: 'invoices', label: 'Invoices', icon: 'invoices', to: '/app/invoices' },
-      { id: 'tasks', label: 'Tasks', icon: 'tasks', to: '/app/tasks' },
-      { id: 'expenses', label: 'Expenses', icon: 'expenses', to: '/app/expenses' },
-      { id: 'limitation', label: 'Limitation', icon: 'limitation', to: '/app/limitation' },
+      { id: 'invoices',   label: 'Invoices',   icon: 'invoices',   to: '/app/invoices',   requiresFeature: 'billing.view' },
+      { id: 'tasks',      label: 'Tasks',      icon: 'tasks',      to: '/app/tasks',      requiresFeature: 'matter.view' },
+      { id: 'expenses',   label: 'Expenses',   icon: 'expenses',   to: '/app/expenses',   requiresFeature: 'billing.view' },
+      { id: 'limitation', label: 'Limitation', icon: 'limitation', to: '/app/limitation', requiresFeature: 'matter.view' },
     ],
   },
   {
     title: 'Research',
     items: [
-      { id: 'research', label: 'Legal Research', icon: 'research', to: '/app/research' },
-      { id: 'diary', label: 'Judgment Diary', icon: 'diary', to: '/app/diary' },
-      { id: 'causelist', label: 'Cause List', icon: 'causelist', to: '/app/causelist' },
+      { id: 'research',  label: 'Legal Research', icon: 'research',  to: '/app/research',  requiresFeature: 'research.basic' },
+      { id: 'diary',     label: 'Judgment Diary', icon: 'diary',     to: '/app/diary',     requiresFeature: 'matter.view' },
+      { id: 'causelist', label: 'Cause List',     icon: 'causelist', to: '/app/causelist', requiresFeature: 'matter.view' },
     ],
   },
   {
     title: 'Tools',
     items: [
-      { id: 'ecourts', label: 'eCourts', icon: 'ecourts', to: '/app/ecourts' },
-      { id: 'stamp', label: 'Stamp Duty', icon: 'stamp', to: '/app/stamp' },
-      { id: 'archive', label: 'Physical Docs', icon: 'archive', to: '/app/archive' },
+      { id: 'ecourts', label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',  requiresFeature: 'matter.view' },
+      { id: 'stamp',   label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
+      { id: 'archive', label: 'Physical Docs', icon: 'archive', to: '/app/archive',  requiresFeature: 'matter.view' },
     ],
   },
   {
     title: 'Firm',
     items: [
-      { id: 'firm', label: 'Firm overview', icon: 'shield', to: '/app/firm' },
-      { id: 'members', label: 'Members', icon: 'members', to: '/app/members' },
-      { id: 'analytics', label: 'Analytics', icon: 'analytics', to: '/app/analytics' },
-      { id: 'settings', label: 'Settings', icon: 'settings', to: '/app/settings' },
+      { id: 'firm',      label: 'Firm overview', icon: 'shield',     to: '/app/firm',      requiresFeature: 'firm.dashboard.view' },
+      { id: 'manage',    label: 'Manage firm',   icon: 'shield',     to: '/app/manage',    requiresFeature: 'admin.users' },
+      { id: 'members',   label: 'Members',       icon: 'members',    to: '/app/members',   requiresFeature: 'firm.members.view' },
+      { id: 'analytics', label: 'Analytics',     icon: 'analytics',  to: '/app/analytics', requiresFeature: 'analytics.firm' },
+      { id: 'settings',  label: 'Settings',      icon: 'settings',   to: '/app/settings' },
     ],
   },
 ];
@@ -98,5 +141,6 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   archive:    { title: 'Archive',         eyebrow: 'Closed matters' },
   firm:       { title: 'Firm overview',   eyebrow: 'Chambers performance' },
   members:    { title: 'Members',         eyebrow: 'Chambers roll' },
+  manage:     { title: 'Manage firm',     eyebrow: 'User management & roles' },
   settings:   { title: 'Settings',        eyebrow: 'Preferences' },
 };

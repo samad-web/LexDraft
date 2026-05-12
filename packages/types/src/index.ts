@@ -36,6 +36,8 @@ export interface Case {
   /** Next hearing date in ISO format (YYYY-MM-DD). */
   next: string;
   type: CaseType | string;
+  /** Firm-side toggle: surface this matter in the client portal. */
+  visibleToClient?: boolean;
 }
 
 export interface Hearing {
@@ -64,6 +66,54 @@ export interface DocumentRecord {
   /** Human-readable timestamp like "2h ago". */
   updated: string;
   case: string;
+  /** Distinguishes uploaded physical documents from in-app drafts so the
+   *  viewer can pick the right preview path. Optional for backwards-compat. */
+  kind?: 'document' | 'draft';
+  /** True when an uploaded file is attached. Set by the list endpoint so the
+   *  table can show a file icon without paying the cost of the base64 blob. */
+  hasFile?: boolean;
+  /** Original uploaded filename (e.g. "plaint.pdf"). */
+  fileName?: string;
+  /** MIME type of the uploaded file (e.g. "application/pdf"). */
+  fileMime?: string;
+  /** File size in bytes. */
+  fileSize?: number;
+  /** Base64 contents of the uploaded file. Returned by GET /documents/:id
+   *  only on the legacy/in-memory path. New uploads go through presigned URLs
+   *  and clients should use `downloadUrl` instead.
+   *  @deprecated prefer the presigned-URL flow. */
+  fileBase64?: string;
+  /** Opaque object key in the configured storage driver (local|s3|r2). */
+  storageKey?: string;
+  /** Firm-side toggle: surface this document in the client portal. */
+  sharedWithClient?: boolean;
+  /** Firm-side toggle: client must acknowledge receipt before "Action needed"
+   *  pill clears. Paired with `signedAt` on the portal side. */
+  requiresAcknowledgement?: boolean;
+  /** Set when a client has acknowledged the document. */
+  signedAt?: string;
+}
+
+export interface DocumentUploadUrlRequest {
+  fileName: string;
+  fileMime: string;
+  fileSize: number;
+}
+
+export interface DocumentUploadUrlResponse {
+  /** URL the client PUTs the binary body to. */
+  uploadUrl: string;
+  /** Storage key the client must echo back to /finalize. */
+  storageKey: string;
+  /** ISO timestamp the URL stops being valid. */
+  expiresAt: string;
+  /** Mime the client must send in the PUT's Content-Type header. */
+  requiredContentType: string;
+}
+
+export interface DocumentDownloadUrlResponse {
+  downloadUrl: string;
+  expiresAt: string;
 }
 
 export type TaskPriority = 'very_high' | 'high' | 'medium' | 'low';
@@ -91,12 +141,17 @@ export interface TaskBoard {
 
 export type UserRole = 'Solo Advocate' | 'Practice Lead' | 'Managing Partner' | string;
 
+/** Plan a firm is on. Mirrors the admin-only `FirmPlanTier` so tenants can read it too. */
+export type UserPlan = 'Solo' | 'Practice' | 'Firm';
+
 export interface User {
   id: ID;
   name: string;
   email: string;
   role: UserRole;
   firm?: string;
+  /** Plan tier of the user's firm. Absent for users not yet attached to a firm. */
+  plan?: UserPlan;
   isSuperadmin?: boolean;
 }
 
@@ -313,7 +368,7 @@ export interface AcceptInvitationRequest {
 // Everything below is consumed only by the /admin tree (and its API routes).
 // Tenants never see these shapes.
 
-export type FirmPlanTier = 'Solo' | 'Practice' | 'Firm';
+export type FirmPlanTier = UserPlan;
 export type BillingStatus = 'trial' | 'active' | 'past_due' | 'cancelled';
 export type FirmStatus = 'active' | 'suspended';
 export type UserStatus = 'active' | 'suspended' | 'deactivated';
@@ -406,14 +461,51 @@ export type AuditAction =
   | 'user.impersonate.end'
   | 'template.create'
   | 'template.update'
-  | 'template.delete';
+  | 'template.delete'
+  // Tenant-scoped CRUD audit actions.
+  | 'case.create'      | 'case.update'      | 'case.delete'
+  | 'client.create'    | 'client.update'    | 'client.delete'
+  | 'invoice.create'   | 'invoice.update'   | 'invoice.delete'
+  | 'lead.create'      | 'lead.update'      | 'lead.delete' | 'lead.stage.update'
+  | 'hearing.create'   | 'hearing.update'   | 'hearing.delete'
+  | 'document.create'  | 'document.update'  | 'document.delete'
+  | 'limitation.create'| 'limitation.update'| 'limitation.delete'
+  // Client portal — actor is the portal client (actor_user_id is null;
+  // payload carries `actorKind: 'portal_client'` and the client id).
+  | 'portal.session.created'
+  | 'portal.session.signed_out'
+  | 'portal.dashboard.viewed'
+  | 'portal.matter.viewed'
+  | 'portal.document.viewed'
+  | 'portal.document.acknowledged'
+  | 'portal.message.sent'
+  | 'portal.message.read'
+  | 'portal.profile.viewed'
+  | 'portal.profile.updated'
+  | 'portal.dsr.forget_me_requested'
+  // Firm-side portal administration (actor is a firm user).
+  | 'portal.client.enabled'
+  | 'portal.client.disabled'
+  | 'portal.client.link_resent'
+  | 'portal.document.shared'
+  | 'portal.document.unshared'
+  | 'portal.document.ack_required'
+  | 'portal.document.ack_cleared'
+  | 'portal.matter.visibility.updated'
+  | 'portal.message.firm_sent'
+  | 'portal.message.firm_read';
+
+export type AuditTargetType =
+  | 'firm' | 'user' | 'template' | 'platform'
+  | 'case' | 'client' | 'invoice' | 'lead' | 'hearing' | 'document' | 'limitation'
+  | 'portal_session' | 'portal_message';
 
 export interface AuditLogEntry {
   id: ID;
   actorUserId: ID;
   actorEmail: string;
   action: AuditAction;
-  targetType: 'firm' | 'user' | 'template' | 'platform';
+  targetType: AuditTargetType;
   targetId: ID | null;
   /** Free-form structured payload (before/after, reason, etc.). */
   payload: Record<string, unknown> | null;
@@ -460,6 +552,28 @@ export interface AdminCreateFirmRequest {
   name: string;
   seats: number;
   plan: FirmPlanTier;
+  /** Bootstrap Firm Admin (spec §3.1). Email is required so the tenant has an
+   *  active admin from the moment it exists. */
+  adminEmail: string;
+  /** Falls back to the email's local part when omitted. */
+  adminName?: string;
+  /** When omitted the API generates a one-time password and returns it on the
+   *  response so the platform operator can hand it off out-of-band. */
+  adminPassword?: string;
+}
+
+/** Response shape for `POST /admin/firms`: the created firm plus the bootstrap
+ *  admin's identity. `tempPassword` is populated only when the API generated
+ *  the password — never echoed back when the operator supplied one. */
+export interface AdminCreateFirmResponse {
+  firm: FirmSummary;
+  admin: {
+    id: ID;
+    email: string;
+    name: string;
+    /** Plaintext one-time password — present iff the API generated it. */
+    tempPassword?: string;
+  };
 }
 
 export interface AdminUpdateFirmRequest {
@@ -507,12 +621,126 @@ export interface AdminUpdateTemplateRequest {
 
 export interface AuditLogQuery {
   actorUserId?: ID;
-  targetType?: 'firm' | 'user' | 'template' | 'platform';
+  targetType?: AuditTargetType;
   targetId?: ID;
   action?: AuditAction;
   /** Pagination — newest first. */
   limit?: number;
   offset?: number;
+}
+
+// ---- RBAC: roles, practice groups, features (spec §4-§6) ------------------
+
+export type FeatureDomain =
+  | 'baseline'
+  | 'drafting'
+  | 'review'
+  | 'esign'
+  | 'matter'
+  | 'client'
+  | 'admin'
+  | 'reports';
+
+/** A feature key from the platform catalog (e.g. 'drafting.ai', 'admin.users'). */
+export type FeatureKey = string;
+
+export interface FeatureCatalogItem {
+  key: FeatureKey;
+  name: string;
+  description: string;
+  domain: FeatureDomain;
+  /** True iff every active user has this regardless of role/plan (spec §5.1). */
+  defaultBaseline: boolean;
+}
+
+/** A system or firm-scoped role.
+ *  - System roles: firmId === null and isSystem === true (the 8 from spec §4.1).
+ *  - Custom roles: firmId !== null, scoped to one tenant. */
+export interface Role {
+  id: ID;
+  firmId: ID | null;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  baseRoleId: ID | null;
+  /** Number of users currently assigned this role. */
+  userCount: number;
+}
+
+export interface PracticeGroup {
+  id: ID;
+  firmId: ID;
+  name: string;
+  leadUserId: ID | null;
+  archivedAt: string | null;
+  memberCount: number;
+}
+
+export interface CreatePracticeGroupRequest {
+  name: string;
+  leadUserId?: ID | null;
+}
+
+export interface UpdatePracticeGroupRequest {
+  name?: string;
+  leadUserId?: ID | null;
+  archived?: boolean;
+}
+
+/** Resolved feature set for the current session — returned by GET /me/features. */
+export interface MeFeaturesResponse {
+  /** All features the user CAN exercise, after the 3-layer resolver runs. */
+  features: FeatureKey[];
+  /** Convenience: the user's role at the moment the resolver ran. */
+  role: Pick<Role, 'id' | 'name' | 'isSystem'> | null;
+  /** Convenience: the firm's plan tier. */
+  plan: UserPlan | null;
+}
+
+/** A firm-admin-scoped user shape used by the /firm/users endpoint. Distinct
+ *  from `AdminUserSummary`: tenant-scoped (no platform-wide stats), role
+ *  surfaced as the structured object instead of a freeform string. */
+export interface FirmManagedUser {
+  id: ID;
+  name: string;
+  email: string;
+  status: UserStatus;
+  isSuperadmin: boolean;
+  /** Resolved role (system or custom). null only during legacy migration. */
+  role: Pick<Role, 'id' | 'name' | 'isSystem'> | null;
+  /** Practice group attachment, if any. */
+  practiceGroup: Pick<PracticeGroup, 'id' | 'name'> | null;
+  lastSeenAt: string | null;
+  createdAt: string;
+}
+
+export interface FirmUpdateUserRequest {
+  roleId?: ID;
+  practiceGroupId?: ID | null;
+  status?: UserStatus;
+}
+
+/** Direct user-creation request from a Firm Admin — bypasses the email/link
+ *  flow when the admin already knows the credentials. Mirrors `AdminCreateFirmRequest`'s
+ *  bootstrap-admin shape so the same Name@123 fallback applies. */
+export interface FirmCreateUserRequest {
+  email: string;
+  /** Falls back to a name derived from the email's local part when omitted. */
+  name?: string;
+  /** Role ID; must reference a system role or a custom role belonging to the
+   *  same firm. The server enforces this. */
+  roleId: ID;
+  /** Optional initial practice-group attachment. */
+  practiceGroupId?: ID | null;
+  /** Optional. When omitted the API generates `${FirstName}@123` and returns
+   *  it on the response so the admin can hand it off out-of-band. */
+  password?: string;
+}
+
+export interface FirmCreateUserResponse {
+  user: FirmManagedUser;
+  /** Plaintext password — present only when the API generated it. */
+  tempPassword?: string;
 }
 
 // ---- Clause bank ----------------------------------------------------------
@@ -569,6 +797,239 @@ export interface Client {
   lastContact: string;
   /** Number of currently-open matters for this client (computed). */
   mattersOpen: number;
+  /** Optional contact email. Required to grant the client portal access. */
+  email?: string;
+  /** Firm-side toggle: when true, this client may sign in to the portal. */
+  portalEnabled?: boolean;
+}
+
+// ---- Client portal --------------------------------------------------------
+
+export interface PortalRequestLinkResponse {
+  /** Always present so the endpoint can't be used to enumerate registered
+   *  client emails — both registered and unregistered emails get the same
+   *  generic acknowledgement. */
+  ok: true;
+  /** Plaintext magic link, ONLY returned in dev (when LLM_PROVIDER === 'none'
+   *  is a sufficient signal that this is a demo run, OR explicitly when
+   *  CLIENT_PORTAL_RETURN_LINK=true). Never set in production. */
+  devMagicLink?: string;
+}
+
+export interface PortalSession {
+  token: string;
+  expiresAt: string;
+  client: {
+    id: ID;
+    name: string;
+    email: string;
+    firmId: ID;
+  };
+}
+
+export interface PortalCaseSummary {
+  id: ID;
+  cnr: string;
+  title: string;
+  court: string;
+  stage: string;
+  status: CaseStatus;
+  /** Next hearing date in ISO format (YYYY-MM-DD) or empty. */
+  next: string;
+  type: string;
+}
+
+export interface PortalHearingSummary {
+  id?: ID;
+  /** Date of the hearing (YYYY-MM-DD). */
+  date?: string;
+  /** HH:mm 24h. */
+  time: string;
+  case: string;
+  court: string;
+  purpose: string;
+}
+
+export interface PortalInvoiceSummary {
+  id: ID;
+  invoiceNo: string;
+  amountInr: number;
+  issuedDate: string;
+  dueDate: string;
+  status: 'paid' | 'pending' | 'overdue';
+}
+
+export interface PortalDocumentSummary {
+  id: ID;
+  name: string;
+  type: string;
+  case: string;
+  updated: string;
+  hasFile: boolean;
+  /** Firm-side has flagged this document as requiring client acknowledgement. */
+  requiresAck: boolean;
+  /** ISO timestamp when the client acknowledged it; absent when not yet signed. */
+  signedAt?: string;
+}
+
+// ---- Portal dashboard / matter detail / messages --------------------------
+
+/** Aggregated payload served by `GET /api/portal/dashboard` so first paint
+ *  is one round trip rather than five (CLIENT_PORTAL.md §4.2). */
+export interface PortalDashboard {
+  client: { id: ID; name: string; email: string; firmId: ID };
+  counts: {
+    activeMatters: number;
+    upcomingHearings: number;
+    documentsToSign: number;
+    openInvoices: number;
+    unreadMessages: number;
+  };
+  /** Top 5 active matters, most-recently-active first. */
+  matters: PortalCaseSummary[];
+  /** Next 5 upcoming hearings across all matters. */
+  hearings: PortalHearingSummary[];
+  /** Last 5 shared documents. */
+  documents: PortalDocumentSummary[];
+  /** Top unpaid invoices first, then most recent paid. */
+  invoices: PortalInvoiceSummary[];
+}
+
+/** Full payload for `GET /api/portal/matters/:id`. The matter itself plus its
+ *  hearings, documents, and the message thread on this matter. */
+export interface PortalMatterDetail {
+  matter: PortalCaseSummary;
+  hearings: PortalHearingSummary[];
+  documents: PortalDocumentSummary[];
+  messages: PortalMessage[];
+}
+
+export interface PortalMessage {
+  id: ID;
+  /** null on the per-client "general" thread. */
+  matterId: ID | null;
+  /** Display label for the matter ("general" when matterId is null). */
+  matterLabel?: string;
+  senderKind: 'client' | 'firm';
+  senderName: string;
+  body: string;
+  /** ISO timestamp. */
+  sentAt: string;
+  /** ISO timestamp; absent until the recipient has read it. */
+  readAt?: string;
+  /** True iff the current viewer is the message's sender. UI-only convenience. */
+  mine: boolean;
+}
+
+export interface PortalSendMessageRequest {
+  /** null or omitted → the per-client "general" thread. */
+  matterId?: ID | null;
+  body: string;
+}
+
+export interface PortalAcknowledgeDocumentResponse {
+  id: ID;
+  /** ISO timestamp the acknowledgement was recorded. */
+  signedAt: string;
+}
+
+// ---- Portal profile -------------------------------------------------------
+
+/** Notification preferences exposed on `/portal/profile` (CLIENT_PORTAL.md
+ *  §4.8). Each key maps to a category of email the firm-side may emit. */
+export interface PortalNotificationPreferences {
+  newDocument: boolean;
+  hearingReminder: boolean;
+  newMessage: boolean;
+  invoiceIssued: boolean;
+  invoiceOverdue: boolean;
+}
+
+/** v1 ships English-only; the field exists so v2 can flip it to Hindi /
+ *  regional languages without a schema change. */
+export type PortalLanguage = 'en';
+
+export interface PortalProfile {
+  client: { id: ID; name: string; email: string; firmId: ID };
+  language: PortalLanguage;
+  notifications: PortalNotificationPreferences;
+}
+
+/** Partial update — only the keys the client wants to change. */
+export interface PortalProfileUpdate {
+  language?: PortalLanguage;
+  notifications?: Partial<PortalNotificationPreferences>;
+}
+
+export interface PortalForgetMeRequest {
+  /** Optional free-text reason; passed into the audit entry. */
+  reason?: string;
+}
+
+// ---- Firm-side portal admin -----------------------------------------------
+
+export interface FirmEnablePortalResponse {
+  ok: true;
+  clientId: ID;
+  /** Plaintext magic link, only returned in dev (CLIENT_PORTAL_RETURN_LINK=true). */
+  devMagicLink?: string;
+}
+
+/** A row in the firm-side "Portal messages" inbox — one entry per
+ *  (client × matter|null) thread, with unread count and last-message preview. */
+export interface FirmPortalThreadSummary {
+  clientId: ID;
+  clientName: string;
+  matterId: ID | null;
+  matterTitle: string | null;
+  /** ISO timestamp of the most recent message in the thread. */
+  lastMessageAt: string;
+  /** Preview body of the most recent message, truncated to ~120 chars. */
+  lastMessagePreview: string;
+  /** Number of client → firm messages on this thread that are not yet read. */
+  unreadFromClient: number;
+}
+
+// ---- Limitations calculator -----------------------------------------------
+
+export type LimitationPeriodUnit = 'days' | 'months' | 'years';
+
+export interface LimitationPeriod {
+  unit: LimitationPeriodUnit;
+  count: number;
+}
+
+export interface LimitationFilingType {
+  id: string;
+  category: string;
+  label: string;
+  period: LimitationPeriod;
+  reference: string;
+  triggerLabel: string;
+  notes?: string[];
+}
+
+export interface LimitationCalculationStep {
+  label: string;
+  /** ISO YYYY-MM-DD. */
+  date: string;
+  daysFromTrigger: number;
+  notes?: string;
+}
+
+export interface LimitationCalculation {
+  filingType: LimitationFilingType;
+  triggerDate: string;
+  deadline: string;
+  daysRemaining: number;
+  steps: LimitationCalculationStep[];
+  warnings: string[];
+}
+
+export interface LimitationCalculateRequest {
+  filingTypeId: string;
+  /** ISO YYYY-MM-DD. */
+  triggerDate: string;
 }
 
 // ---- Leads ----------------------------------------------------------------
@@ -651,6 +1112,55 @@ export interface DiaryEntry {
   detail: string;
   forum: string;
 }
+
+// ---- Physical documents register -----------------------------------------
+
+export type PhysicalDocStatus =
+  | 'in_chambers'
+  | 'court_file'
+  | 'client'
+  | 'co_counsel'
+  | 'archive_box'
+  | 'lost'
+  | 'returned';
+
+export interface PhysicalDocument {
+  id: ID;
+  /** Optional link to a matter; free-floating documents have a null caseId. */
+  caseId: ID | null;
+  /** Display label for the matter — denormalised so list views never join. */
+  caseLabel?: string;
+  /** Physical file/folder/cabinet identifier (barcode or hand-written ref). */
+  fileNo: string;
+  title: string;
+  /** Free-text classifier ("Original deed", "Affidavit"…). */
+  docType?: string;
+  location: string;
+  custodian?: string;
+  status: PhysicalDocStatus;
+  notes?: string;
+  /** YYYY-MM-DD when the document came into the firm's possession. */
+  receivedAt?: string;
+  /** ISO timestamp when the row was archived (soft delete). */
+  archivedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePhysicalDocumentRequest {
+  caseId?: ID | null;
+  caseLabel?: string;
+  fileNo: string;
+  title: string;
+  docType?: string;
+  location: string;
+  custodian?: string;
+  status?: PhysicalDocStatus;
+  notes?: string;
+  receivedAt?: string;
+}
+
+export type UpdatePhysicalDocumentRequest = Partial<CreatePhysicalDocumentRequest>;
 
 // ---- Archive (closed cases with outcome) ---------------------------------
 

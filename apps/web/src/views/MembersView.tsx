@@ -9,6 +9,8 @@ import {
   useCancelInvitation,
   useResendInvitation,
 } from '@/hooks/useInvitations';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type Status = 'active' | 'on-leave';
 
@@ -32,6 +34,7 @@ export function MembersView() {
     const onLeave  = MEMBERS.length - active;
     return { total: MEMBERS.length, active, onLeave };
   }, []);
+  const pager = usePagination(MEMBERS);
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
@@ -64,9 +67,18 @@ export function MembersView() {
           <p className="body-md muted">No members yet. Invite your first colleague to populate the chambers roll.</p>
         </div>
       ) : (
-        <div className="grid-3" style={{ gap: 20 }}>
-          {MEMBERS.map((m) => <MemberCard key={m.id} member={m} />)}
-        </div>
+        <>
+          <div className="grid-3" style={{ gap: 20 }}>
+            {pager.slice.map((m) => <MemberCard key={m.id} member={m} />)}
+          </div>
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
+        </>
       )}
 
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
@@ -120,11 +132,19 @@ function PendingInvitations() {
               onResend={() =>
                 resend.mutate(inv.id, {
                   onSuccess: () => showToast({ type: 'sage', text: `Invitation refreshed for ${inv.email}` }),
+                  onError: (err) => showToast({
+                    type: 'vermillion',
+                    text: (err as Error)?.message || `Couldn’t resend invitation for ${inv.email}`,
+                  }),
                 })
               }
               onCancel={() =>
                 cancel.mutate(inv.id, {
                   onSuccess: () => showToast({ type: 'cobalt', text: `Invitation cancelled for ${inv.email}` }),
+                  onError: (err) => showToast({
+                    type: 'vermillion',
+                    text: (err as Error)?.message || `Couldn’t cancel invitation for ${inv.email}`,
+                  }),
                 })
               }
               busy={cancel.isPending || resend.isPending}

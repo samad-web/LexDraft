@@ -3,6 +3,9 @@ import { Icon } from '@lexdraft/ui';
 import { useCases } from '@/hooks/useCases';
 import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
+import { Gate } from '@/components/Gate';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface CasesListViewProps {
   onOpen: (c: Case) => void;
@@ -41,6 +44,7 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
 
   const { data, isLoading, isError, error } = useCases(queryParams);
   const cases: Case[] = data ?? [];
+  const pager = usePagination(cases);
 
   return (
     <div className="col stagger" style={{ gap: 20 }}>
@@ -77,13 +81,15 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
             <Icon name="search" size={14} />
           </span>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setIntakeOpen(true)}
-        >
-          <Icon name="plus" size={14} /> New case
-        </button>
+        <Gate feature="matter.create">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setIntakeOpen(true)}
+          >
+            <Icon name="plus" size={14} /> New case
+          </button>
+        </Gate>
       </div>
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -136,7 +142,7 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                   </td>
                 </tr>
               )}
-              {cases.map((c) => (
+              {pager.slice.map((c) => (
                 <tr
                   key={c.id}
                   onClick={() => onOpen(c)}
@@ -159,6 +165,13 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
               ))}
             </tbody>
           </table>
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
         </div>
       )}
 

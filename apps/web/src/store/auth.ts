@@ -20,6 +20,10 @@ interface AuthState {
   /** The admin's prior session, kept so "End impersonation" can swap back without a re-login. */
   previousSession: PreviousSession | null;
   setSession: (user: User, token: string) => void;
+  /** Replace the cached `user` while keeping the existing token. Used by the
+   *  /me boot refresh to pick up server-side mutations (plan change, role
+   *  rename, etc.) without forcing a re-login. */
+  refreshUser: (user: User) => void;
   startImpersonation: (target: User, token: string, actAs: ActAs) => void;
   endImpersonation: () => void;
   clear: () => void;
@@ -48,6 +52,7 @@ export const useAuthStore = create<AuthState>()(
       actAs: null,
       previousSession: null,
       setSession: (user, token) => set({ user, token, actAs: decodeActAs(token), previousSession: null }),
+      refreshUser: (user) => set((state) => state.user ? { ...state, user } : state),
       startImpersonation: (target, token, actAs) => {
         const current = get();
         const prior = current.user && current.token

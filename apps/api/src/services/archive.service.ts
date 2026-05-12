@@ -18,13 +18,15 @@ function dateOnly(v: string | Date | null): string {
 }
 
 export const archiveService = {
-  async list(): Promise<ArchivedMatter[]> {
+  async list(firmId: string | null): Promise<ArchivedMatter[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<Row[]>`
       select id, cnr, title, client, court, outcome, closed_at
       from cases
-      where status = 'Closed' or status = 'Archived'
+      where firm_id = ${firmId}::uuid
+        and (status = 'Closed' or status = 'Archived')
       order by closed_at desc nulls last, title asc
     `;
     return rows

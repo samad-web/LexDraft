@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { Expense, ExpenseStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useExpenses } from '@/hooks/useExpenses';
 import { NewExpenseModal } from '@/components/NewExpenseModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface BadgeMeta { label: string; cls: string }
 const STATUS_BADGE: Record<ExpenseStatus, BadgeMeta> = {
@@ -20,10 +21,10 @@ function formatINR(value: number): string {
 }
 
 export function ExpensesView() {
-  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
   const [modalOpen, setModalOpen] = useState(false);
   const { data: rows = [], isLoading, isError } = useExpenses();
+  const pager = usePagination(rows);
 
   const stats = useMemo(() => {
     const monthTotal = rows.reduce((sum, r) => sum + r.amountInr, 0);
@@ -44,7 +45,7 @@ export function ExpensesView() {
         <button
           className="btn"
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (!rows.length) {
               showToast({ type: 'amber', text: 'No expenses to export' });
               return;
@@ -92,7 +93,7 @@ export function ExpensesView() {
               ${totals}
             `;
             try {
-              exportPdf({
+              await exportPdf({
                 title: 'Expenses ledger',
                 bodyHtml: html,
                 dated: today,
@@ -163,11 +164,10 @@ export function ExpensesView() {
                 <th>Matter</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
                 <th>Status</th>
-                <th />
               </tr>
             </thead>
             <tbody>
-              {rows.map((row: Expense) => {
+              {pager.slice.map((row: Expense) => {
                 const badge = STATUS_BADGE[row.status] ?? FALLBACK_BADGE;
                 return (
                   <tr key={row.id}>
@@ -186,20 +186,20 @@ export function ExpensesView() {
                     <td>
                       <span className={`badge ${badge.cls}`}>{badge.label}</span>
                     </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        onClick={() => navigate('/app/cases')}
-                      >
-                        Open
-                      </button>
-                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        )}
+        {!isLoading && !isError && (
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
         )}
       </div>
     </div>

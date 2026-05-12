@@ -4,9 +4,12 @@ import type { DraftRequest, DraftResponse } from '@lexdraft/types';
 import { api, apiClient } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
+export type LlmProvider = 'xai' | 'anthropic';
+
 export function useGenerateDraft() {
   return useMutation({
-    mutationFn: (req: DraftRequest) => api.post<DraftResponse>('/drafting/generate', req),
+    mutationFn: (req: DraftRequest & { provider?: LlmProvider }) =>
+      api.post<DraftResponse>('/drafting/generate', req),
   });
 }
 
@@ -33,7 +36,7 @@ export function useStreamDraft() {
     setState({ text: data.text, isStreaming: false, error: null, data });
   }, []);
 
-  const generate = useCallback(async (req: DraftRequest) => {
+  const generate = useCallback(async (req: DraftRequest & { provider?: LlmProvider }) => {
     setState({ text: '', isStreaming: true, error: null, data: null });
     const baseURL = apiClient.defaults.baseURL ?? '';
     const token = useAuthStore.getState().token;

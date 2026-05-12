@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Select } from '@lexdraft/ui';
 import type { AdminUserSummary, UserStatus } from '@lexdraft/types';
 import { adminApi } from '../api';
@@ -7,13 +8,17 @@ import { useAdminUsers, useDeleteUser, useResetPassword, useUpdateUser } from '.
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 export function UsersView() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<UserStatus | ''>('');
   const { data: users = [], isLoading } = useAdminUsers({ q: q || undefined, status: status || undefined });
+  const pager = usePagination(users);
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
+  const qc = useQueryClient();
   const update = useUpdateUser();
   const del = useDeleteUser();
   const reset = useResetPassword();
@@ -24,6 +29,9 @@ export function UsersView() {
   const handleImpersonate = async (u: AdminUserSummary) => {
     try {
       const grant = await adminApi.impersonate(u.id);
+      // Wipe admin's cached payloads — the impersonated session must see
+      // its own /dashboard, /me/usage, /me/features, etc.
+      qc.clear();
       startImpersonation(grant.user, grant.token, { adminId: grant.originalAdminId, adminEmail: useAuthStore.getState().user?.email ?? '' });
       navigate('/app/dashboard');
     } catch (err) {
@@ -38,17 +46,24 @@ export function UsersView() {
       confirmLabel: 'Delete user',
       danger: true,
     });
-    if (ok) del.mutate(u.id);
+    if (ok) {
+      del.mutate(u.id, {
+        onError: (err) => showToast({
+          type: 'vermillion',
+          text: (err as Error)?.message || `Couldn’t delete ${u.email}`,
+        }),
+      });
+    }
   };
 
   return (
-    <div style={{ padding: 32, maxWidth: 1320, margin: '0 auto' }}>
-      <header style={{ marginBottom: 24 }}>
-        <div className="eyebrow">Users</div>
-        <h1 className="display" style={{ fontSize: 28, fontWeight: 600 }}>Cross-firm directory · {users.length}</h1>
+    <div className="col stagger" style={{ gap: 24 }}>
+      <header>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Users</div>
+        <h1 className="display-md">Cross-firm directory · {users.length}</h1>
       </header>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         <input
           className="input"
           style={{ flex: 1 }}
@@ -73,7 +88,7 @@ export function UsersView() {
       {isLoading ? (
         <div className="muted">Loading users…</div>
       ) : (
-        <table className="data-table">
+        <table className="tbl">
           <thead>
             <tr>
               <th>Name</th>
@@ -85,7 +100,7 @@ export function UsersView() {
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {pager.slice.map((u) => (
               <tr key={u.id}>
                 <td>
                   {u.name}
@@ -108,18 +123,39 @@ export function UsersView() {
                       type="button"
                       className="btn btn-sm"
                       onClick={async () => {
-                        const r = await reset.mutateAsync(u.id);
-                        setResetResult({ email: u.email, tempPassword: r.tempPassword });
+                        try {
+                          const r = await reset.mutateAsync(u.id);
+                          setResetResult({ email: u.email, tempPassword: r.tempPassword });
+                        } catch (err) {
+                          showToast({
+                            type: 'vermillion',
+                            text: (err as Error)?.message || `Couldn’t reset password for ${u.email}`,
+                          });
+                        }
                       }}
                     >
                       Reset pw
                     </button>
                     {u.status === 'active' ? (
-                      <button type="button" className="btn btn-sm" onClick={() => update.mutate({ id: u.id, patch: { status: 'suspended' } })}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => update.mutate(
+                          { id: u.id, patch: { status: 'suspended' } },
+                          { onError: (err) => showToast({ type: 'vermillion', text: (err as Error)?.message || 'Couldn’t suspend user' }) },
+                        )}
+                      >
                         Suspend
                       </button>
                     ) : (
-                      <button type="button" className="btn btn-sm" onClick={() => update.mutate({ id: u.id, patch: { status: 'active' } })}>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => update.mutate(
+                          { id: u.id, patch: { status: 'active' } },
+                          { onError: (err) => showToast({ type: 'vermillion', text: (err as Error)?.message || 'Couldn’t reactivate user' }) },
+                        )}
+                      >
                         Reactivate
                       </button>
                     )}
@@ -140,6 +176,15 @@ export function UsersView() {
             )}
           </tbody>
         </table>
+      )}
+      {!isLoading && users.length > 0 && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onChange={pager.setPage}
+        />
       )}
 
       {resetResult && (

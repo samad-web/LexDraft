@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { invitationsService } from '../services/invitations.service';
 import { authService } from '../services/auth.service';
+import { firmIdForUser } from '../services/tenant';
 import { requireAuth } from '../middleware/auth';
 
 const InviteRoles = z.enum([
@@ -39,8 +40,8 @@ invitationsRouter.get('/by-token/:token', async (req, res, next) => {
 invitationsRouter.post('/by-token/:token/accept', async (req, res, next) => {
   try {
     const body = Accept.parse(req.body);
-    const auth = await invitationsService.accept(req.params.token!, body, (record) =>
-      authService.registerExternalUser(record),
+    const auth = await invitationsService.accept(req.params.token!, body, (record, firmId) =>
+      authService.registerExternalUser(record, firmId),
     );
     res.status(201).json(auth);
   } catch (err) {
@@ -52,9 +53,10 @@ invitationsRouter.post('/by-token/:token/accept', async (req, res, next) => {
 
 invitationsRouter.use(requireAuth);
 
-invitationsRouter.get('/', async (_req, res, next) => {
+invitationsRouter.get('/', async (req, res, next) => {
   try {
-    res.json({ items: await invitationsService.list() });
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: await invitationsService.list(firmId) });
   } catch (err) {
     next(err);
   }
@@ -68,12 +70,12 @@ invitationsRouter.post('/', async (req, res, next) => {
       res.status(401).json({ error: 'Inviter not found' });
       return;
     }
-    const inv = await invitationsService.create(body, {
-      id: inviter.id,
-      name: inviter.name,
-      email: inviter.email,
-      firm: inviter.firm,
-    });
+    const firmId = await firmIdForUser(req.user?.id);
+    const inv = await invitationsService.create(
+      body,
+      { id: inviter.id, name: inviter.name, email: inviter.email, firm: inviter.firm },
+      firmId,
+    );
     res.status(201).json(inv);
   } catch (err) {
     next(err);
@@ -82,7 +84,8 @@ invitationsRouter.post('/', async (req, res, next) => {
 
 invitationsRouter.delete('/:id', async (req, res, next) => {
   try {
-    const ok = await invitationsService.cancel(req.params.id!);
+    const firmId = await firmIdForUser(req.user?.id);
+    const ok = await invitationsService.cancel(req.params.id!, firmId);
     if (!ok) {
       res.status(404).json({ error: 'Invitation not found or not pending' });
       return;
@@ -95,7 +98,8 @@ invitationsRouter.delete('/:id', async (req, res, next) => {
 
 invitationsRouter.post('/:id/resend', async (req, res, next) => {
   try {
-    const updated = await invitationsService.resend(req.params.id!);
+    const firmId = await firmIdForUser(req.user?.id);
+    const updated = await invitationsService.resend(req.params.id!, firmId);
     if (!updated) {
       res.status(404).json({ error: 'Invitation not found or not pending' });
       return;

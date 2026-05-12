@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Select } from '@lexdraft/ui';
 import { useAuditLog } from '../queries';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 const TARGET_TYPES = ['', 'firm', 'user', 'template', 'platform'] as const;
 
@@ -12,15 +14,16 @@ export function AuditLogView() {
     action: (actionFilter || undefined) as never,
     limit: 200,
   });
+  const pager = usePagination(entries);
 
   return (
-    <div style={{ padding: 32, maxWidth: 1320, margin: '0 auto' }}>
-      <header style={{ marginBottom: 24 }}>
-        <div className="eyebrow">Audit log</div>
-        <h1 className="display" style={{ fontSize: 28, fontWeight: 600 }}>Platform activity · {entries.length}</h1>
+    <div className="col stagger" style={{ gap: 24 }}>
+      <header>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Audit log</div>
+        <h1 className="display-md">Platform activity · {entries.length}</h1>
       </header>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ width: 200 }}>
           <Select
             value={targetType}
@@ -46,7 +49,7 @@ export function AuditLogView() {
       {isLoading ? (
         <div className="muted">Loading…</div>
       ) : (
-        <table className="data-table">
+        <table className="tbl">
           <thead>
             <tr>
               <th style={{ width: 200 }}>When</th>
@@ -57,7 +60,7 @@ export function AuditLogView() {
             </tr>
           </thead>
           <tbody>
-            {entries.map((e) => (
+            {pager.slice.map((e) => (
               <tr key={e.id}>
                 <td className="mono" style={{ fontSize: 12 }}>{new Date(e.createdAt).toLocaleString()}</td>
                 <td><span className="badge mono" style={{ fontSize: 11 }}>{e.action}</span></td>
@@ -75,6 +78,15 @@ export function AuditLogView() {
             )}
           </tbody>
         </table>
+      )}
+      {!isLoading && entries.length > 0 && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onChange={pager.setPage}
+        />
       )}
     </div>
   );

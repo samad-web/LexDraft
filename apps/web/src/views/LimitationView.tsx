@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { Limitation } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useLimitations } from '@/hooks/useLimitations';
 import { NewLimitationModal } from '@/components/NewLimitationModal';
+import { LimitationCalculator } from '@/components/LimitationCalculator';
+import { Gate } from '@/components/Gate';
+import { downloadCsv } from '@/lib/export-doc';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type LimitationRow = Limitation;
 
@@ -36,7 +40,6 @@ const FILTERS: ReadonlyArray<{ id: UrgencyId | 'all'; label: string }> = [
 export function LimitationView() {
   const [filter, setFilter] = useState<UrgencyId | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
-  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
   const { data: rows = [], isLoading, isError } = useLimitations();
 
@@ -48,6 +51,8 @@ export function LimitationView() {
     if (filter === 'all') return sorted;
     return sorted.filter((r) => urgencyOf(r.daysRemaining).id === filter);
   }, [sorted, filter]);
+
+  const pager = usePagination(filtered);
 
   const summary = useMemo(() => {
     return sorted.reduce(
@@ -71,19 +76,42 @@ export function LimitationView() {
         <button
           type="button"
           className="btn"
-          onClick={() => showToast({ type: 'cobalt', text: 'Limitation register export queued' })}
+          onClick={() => {
+            if (sorted.length === 0) {
+              showToast({ type: 'amber', text: 'No limitations to export' });
+              return;
+            }
+            downloadCsv(
+              `limitations-${new Date().toISOString().slice(0, 10)}.csv`,
+              ['Matter', 'CNR', 'Filing type', 'Forum', 'Deadline', 'Days remaining', 'Urgency'],
+              sorted.map((r) => [
+                r.caseLabel,
+                r.cnr,
+                r.filingType,
+                r.forum,
+                r.deadline,
+                r.daysRemaining,
+                urgencyOf(r.daysRemaining).label,
+              ]),
+            );
+            showToast({ type: 'sage', text: `Exported ${sorted.length} limitations` });
+          }}
         >
           <Icon name="download" size={14} /> Export
         </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Add deadline
-        </button>
+        <Gate feature="matter.create">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Add deadline
+          </button>
+        </Gate>
       </div>
       <NewLimitationModal open={modalOpen} onClose={() => setModalOpen(false)} />
+
+      <LimitationCalculator />
 
       <div className="stat-row">
         <div>
@@ -159,10 +187,10 @@ export function LimitationView() {
                 </td>
               </tr>
             )}
-            {!isLoading && !isError && filtered.map((r) => {
+            {!isLoading && !isError && pager.slice.map((r) => {
               const u = urgencyOf(r.daysRemaining);
               return (
-                <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/app/cases')}>
+                <tr key={r.id}>
                   <td>
                     <span className={`badge ${u.badgeClass}`}>{u.label}</span>
                   </td>
@@ -207,6 +235,15 @@ export function LimitationView() {
             )}
           </tbody>
         </table>
+        {!isLoading && !isError && (
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
+        )}
       </div>
     </div>
   );

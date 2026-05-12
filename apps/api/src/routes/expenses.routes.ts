@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { expensesService } from '../services/expenses.service';
+import { firmIdForUser } from '../services/tenant';
+import { validate } from '../middleware/validate';
+import { withAudit } from '../middleware/audit';
+import { requireFeature } from '../services/permissions.service';
 
 const Input = z.object({
   expenseNo: z.string().min(1),
@@ -16,18 +20,25 @@ const Input = z.object({
 
 export const expensesRouter: Router = Router();
 
-expensesRouter.get('/', async (_req, res, next) => {
+expensesRouter.get('/', requireFeature('billing.view'), async (req, res, next) => {
   try {
-    res.json({ items: await expensesService.list() });
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: await expensesService.list(firmId) });
   } catch (err) {
     next(err);
   }
 });
 
-expensesRouter.post('/', async (req, res, next) => {
-  try {
-    res.status(201).json(await expensesService.create(Input.parse(req.body)));
-  } catch (err) {
-    next(err);
-  }
-});
+expensesRouter.post(
+  '/',
+  requireFeature('billing.expense'),
+  validate({ body: Input }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      res.status(201).json(await expensesService.create(req.body, firmId));
+    } catch (err) {
+      next(err);
+    }
+  },
+);

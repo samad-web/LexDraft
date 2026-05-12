@@ -6,6 +6,8 @@ import { useUIStore } from '@/store/ui';
 import { NewClauseModal } from '@/components/NewClauseModal';
 import { ImportClausesModal } from '@/components/ImportClausesModal';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 const FALLBACK_CATEGORIES = [
   'Indemnity',
@@ -48,6 +50,7 @@ export function ClausesView() {
   }, [clauses]);
 
   const activeClauses = grouped.get(activeCategory) ?? [];
+  const pager = usePagination(activeClauses);
 
   const handleCopy = async (clause: Clause): Promise<void> => {
     const text = clause.body || `${clause.title}\n\n${clause.description}`;
@@ -192,7 +195,7 @@ export function ClausesView() {
             </div>
           ) : (
             <div className="grid-2" style={{ gap: 16 }}>
-              {activeClauses.map((clause) => {
+              {pager.slice.map((clause) => {
                 const isCopied = copiedId === clause.id;
                 return (
                   <div key={clause.id} className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -224,6 +227,15 @@ export function ClausesView() {
                 );
               })}
             </div>
+          )}
+          {activeClauses.length > 0 && (
+            <Pagination
+              page={pager.page}
+              totalPages={pager.totalPages}
+              total={pager.total}
+              pageSize={pager.pageSize}
+              onChange={pager.setPage}
+            />
           )}
         </div>
       </div>

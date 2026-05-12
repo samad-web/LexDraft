@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { Client, ClientType, ClientStatus } from '@lexdraft/types';
 import { useClients } from '@/hooks/useClients';
 import { NewClientModal } from '@/components/NewClientModal';
+import { Gate } from '@/components/Gate';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
+import {
+  useEnableClientPortal,
+  useDisableClientPortal,
+  useResendClientPortalLink,
+} from '@/hooks/usePortalAdmin';
 
 interface ClientRow extends Client {
   initials: string;
@@ -42,8 +49,47 @@ export function ClientsView() {
   const [filter, setFilter] = useState<FilterId>('all');
   const [q, setQ] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
-  const navigate = useNavigate();
   const { data: clients = [], isLoading, isError } = useClients();
+  const enable = useEnableClientPortal();
+  const disable = useDisableClientPortal();
+  const resend = useResendClientPortalLink();
+  const [busyClientId, setBusyClientId] = useState<string | null>(null);
+
+  async function onEnable(clientId: string): Promise<void> {
+    setBusyClientId(clientId);
+    try {
+      const res = await enable.mutateAsync(clientId);
+      if (res.devMagicLink) {
+        window.alert(`Portal enabled. Dev magic link:\n${res.devMagicLink}`);
+      }
+    } catch (e) {
+      window.alert((e as Error).message ?? 'Could not enable the portal.');
+    } finally {
+      setBusyClientId(null);
+    }
+  }
+
+  async function onDisable(clientId: string): Promise<void> {
+    if (!window.confirm('Disable portal access for this client? Active sessions will be revoked.')) return;
+    setBusyClientId(clientId);
+    try { await disable.mutateAsync(clientId); }
+    catch (e) { window.alert((e as Error).message ?? 'Could not disable the portal.'); }
+    finally { setBusyClientId(null); }
+  }
+
+  async function onResend(clientId: string): Promise<void> {
+    setBusyClientId(clientId);
+    try {
+      const res = await resend.mutateAsync(clientId);
+      if (res.devMagicLink) {
+        window.alert(`Sent. Dev magic link:\n${res.devMagicLink}`);
+      }
+    } catch (e) {
+      window.alert((e as Error).message ?? 'Could not resend the link.');
+    } finally {
+      setBusyClientId(null);
+    }
+  }
 
   const rows = useMemo<ClientRow[]>(
     () => clients.map((c) => ({ ...c, initials: initialsOf(c.name) })),
@@ -58,6 +104,8 @@ export function ClientsView() {
       return true;
     });
   }, [filter, q, rows]);
+
+  const pager = usePagination(visible);
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
@@ -92,13 +140,15 @@ export function ClientsView() {
           </span>
         </div>
         <span className="spacer" />
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Add client
-        </button>
+        <Gate feature="client.create">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Add client
+          </button>
+        </Gate>
       </div>
       <NewClientModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
@@ -125,12 +175,13 @@ export function ClientsView() {
               <th>Matters open</th>
               <th>Last contact</th>
               <th>Status</th>
+              <th>Portal</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <div className="col" style={{ padding: '28px 8px', alignItems: 'center' }}>
                     <span className="muted">Loading clients<span className="blink" /></span>
                   </div>
@@ -139,7 +190,7 @@ export function ClientsView() {
             )}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
                     <div className="heading-sm" style={{ color: 'var(--danger)' }}>Couldn’t load clients</div>
                   </div>
@@ -148,7 +199,7 @@ export function ClientsView() {
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
                     <div className="heading-sm">No clients yet</div>
                     <p className="body-sm muted">{rows.length === 0 ? 'Add your first client to populate the register.' : 'Try a different search or filter.'}</p>
@@ -156,14 +207,10 @@ export function ClientsView() {
                 </td>
               </tr>
             )}
-            {visible.map((c) => {
+            {pager.slice.map((c) => {
               const badge = STATUS_BADGE[c.status];
               return (
-                <tr
-                  key={c.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate('/app/clients')}
-                >
+                <tr key={c.id}>
                   <td>
                     <div className="row" style={{ gap: 12 }}>
                       <span className="avatar" aria-hidden="true">{c.initials}</span>
@@ -179,12 +226,58 @@ export function ClientsView() {
                   <td className="mono tabular">{c.mattersOpen}</td>
                   <td className="mono tabular muted">{c.lastContact}</td>
                   <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
+                  <td>
+                    {c.portalEnabled ? (
+                      <Gate feature="client.create">
+                        <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+                          <span className="badge badge-sage">ENABLED</span>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            disabled={busyClientId === c.id}
+                            onClick={() => onResend(c.id)}
+                            title="Resend magic link"
+                          >
+                            Resend
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            disabled={busyClientId === c.id}
+                            onClick={() => onDisable(c.id)}
+                            title="Revoke portal access"
+                          >
+                            Disable
+                          </button>
+                        </div>
+                      </Gate>
+                    ) : (
+                      <Gate feature="client.create">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={busyClientId === c.id || !c.email}
+                          onClick={() => onEnable(c.id)}
+                          title={!c.email ? 'Add a contact email first' : 'Enable portal access'}
+                        >
+                          Enable
+                        </button>
+                      </Gate>
+                    )}
+                  </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
+      <Pagination
+        page={pager.page}
+        totalPages={pager.totalPages}
+        total={pager.total}
+        pageSize={pager.pageSize}
+        onChange={pager.setPage}
+      />
     </div>
   );
 }

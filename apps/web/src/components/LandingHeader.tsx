@@ -33,18 +33,39 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
   };
 
   return (
-    <header style={headerStyle}>
+    <header className="lex-landing-header" style={headerStyle}>
       <div style={{ justifySelf: 'start' }}>
         <BrandMark />
       </div>
-      <div style={{ justifySelf: 'center' }}>
+      <div className="lex-landing-nav" style={{ justifySelf: 'center' }}>
         <PillNav items={tabs} value={activeTab} onChange={onTabChange} ariaLabel="Primary" />
       </div>
-      <div style={{ justifySelf: 'end', display: 'flex', gap: 10, alignItems: 'center' }}>
+      <div
+        className="lex-landing-actions"
+        style={{ justifySelf: 'end', display: 'flex', gap: 10, alignItems: 'center' }}
+      >
         <ThemeToggle />
-        <button className="btn" type="button" onClick={onSignIn}>Sign in</button>
-        <button className="btn btn-primary" type="button" onClick={onTrial}>Begin trial</button>
+        <button
+          className="btn lex-landing-signin"
+          type="button"
+          onClick={onSignIn}
+        >
+          Sign in
+        </button>
+        <button className="btn btn-primary" type="button" onClick={onTrial}>
+          Begin trial
+        </button>
       </div>
+      <style>{`
+        @media (max-width: 1023px) {
+          .lex-landing-header { padding: 16px 24px !important; }
+          .lex-landing-nav { display: none; }
+          .lex-landing-header { grid-template-columns: 1fr auto !important; }
+        }
+        @media (max-width: 480px) {
+          .lex-landing-signin { display: none; }
+        }
+      `}</style>
     </header>
   );
 }

@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { useFirmDashboard } from '@/hooks/useFirmDashboard';
+import { useCan, useFirmPracticeGroups } from '@/hooks/useFirmAdmin';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
+import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
+import { downloadCsv } from '@/lib/export-doc';
 import type {
   CaseStageSlice,
   FirmMember,
@@ -13,6 +16,11 @@ import type {
 
 export function FirmDashboardView() {
   const { data, isLoading, isError, error } = useFirmDashboard();
+  const isFirmAdmin = useCan('admin.users');
+  // Same trade-off as the Practice view: 403 for non-admins is harmless here,
+  // .data stays undefined and the step renders un-completed with a "ask your
+  // admin" hint.
+  const practiceGroups = useFirmPracticeGroups();
   const showToast = useUIStore((s) => s.showToast);
   const [inviteOpen, setInviteOpen] = useState(false);
 
@@ -24,6 +32,65 @@ export function FirmDashboardView() {
   }
 
   const seatPct = Math.round((data.firm.seatsUsed / data.firm.seats) * 100);
+
+  // Empty-state: firm has no matters, no hearings today, no active clients.
+  // The firm summary doesn't carry a doc count so we use the three signals it
+  // does carry; matters + clients + hearings being zero across the entire firm
+  // is a strong "this is a fresh tenant" tell.
+  const isEmptyChambers =
+    data.stats.activeMatters === 0 &&
+    data.hearingsToday.length === 0 &&
+    data.stats.clientsActive === 0 &&
+    data.stats.totalMatters === 0;
+
+  // Step completion derived from current data only. Branding has no tenant
+  // read endpoint yet → step 5 stays un-auto-completable; the panel as a whole
+  // disappears once any of {matter, client, hearing} comes alive.
+  const firmSteps: DashboardEmptyStateStep[] = [
+    {
+      label: 'Add your team',
+      hint: isFirmAdmin
+        ? 'Invite partners, leads, and associates so the firm roster reflects reality.'
+        : 'Your firm admin invites members from the Manage screen.',
+      link: '/app/manage',
+      linkLabel: 'Invite members',
+      completed: data.members.length > 1,
+      disabledHint: isFirmAdmin ? undefined : 'Ask your admin to invite the team',
+    },
+    {
+      label: 'Create practice groups',
+      hint: 'Group members by practice area — analytics roll up by these groupings.',
+      link: '/app/manage',
+      linkLabel: 'Open Manage',
+      completed: (practiceGroups.data?.length ?? 0) > 0,
+      disabledHint: isFirmAdmin ? undefined : 'Ask your admin to set up practice groups',
+    },
+    {
+      label: 'Open your first matter',
+      hint: 'Hearings, time entries, and invoices all attach to a matter.',
+      link: '/app/cases',
+      linkLabel: 'Open matter',
+      completed: data.stats.totalMatters > 0,
+    },
+    {
+      label: 'Issue your first invoice',
+      hint: 'Unlocks revenue analytics — the headline KPI strip and the trailing-12 chart.',
+      link: '/app/invoices',
+      linkLabel: 'Create invoice',
+      // No invoice count in the summary; cheap proxy: a non-zero FY revenue
+      // string. Brand-new firms get "₹0" — once the first invoice posts it
+      // updates and the step ticks.
+      completed: !/^\s*₹0\b/.test(data.stats.revenueFY),
+    },
+    {
+      label: 'Configure firm branding',
+      hint: 'Display name, logo, accent — used in client portal and document exports.',
+      link: '/app/settings',
+      linkLabel: 'Open settings',
+      completed: false,
+      disabledHint: isFirmAdmin ? undefined : 'Firm admin configures branding',
+    },
+  ];
 
   return (
     <div className="col stagger" style={{ gap: 28 }}>
@@ -44,7 +111,27 @@ export function FirmDashboardView() {
         <button
           className="btn"
           type="button"
-          onClick={() => showToast({ type: 'sage', text: 'Report queued for export' })}
+          onClick={() => {
+            const s = data.stats;
+            downloadCsv(
+              `firm-report-${new Date().toISOString().slice(0, 10)}.csv`,
+              ['Metric', 'Value'],
+              [
+                ['Firm', data.firm.name],
+                ['Period', data.firm.period],
+                ['Seats used', `${data.firm.seatsUsed} / ${data.firm.seats}`],
+                ['Total matters', s.totalMatters],
+                ['Active matters', s.activeMatters],
+                ['Revenue (FY)', s.revenueFY],
+                ['Revenue YoY (%)', s.revenueDeltaPct],
+                ['Billable hours (month)', s.billableHoursMonth],
+                ['Realisation (%)', s.realizationPct],
+                ['Active advocates', s.advocatesActive],
+                ['Active clients', s.clientsActive],
+              ],
+            );
+            showToast({ type: 'sage', text: 'Firm report exported' });
+          }}
         >
           <Icon name="download" size={14} /> Export report
         </button>
@@ -57,6 +144,14 @@ export function FirmDashboardView() {
         </button>
       </div>
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
+
+      {isEmptyChambers && (
+        <DashboardEmptyState
+          plan="Firm"
+          firmName={data.firm.name}
+          steps={firmSteps}
+        />
+      )}
 
       {/* Headline KPI strip */}
       <div className="stat-row">

@@ -10,7 +10,6 @@ export function Topbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
-  const showToast = useUIStore((s) => s.showToast);
   const [notifOpen, setNotifOpen] = useState(false);
 
   const segment = location.pathname.split('/')[2] || 'dashboard';
@@ -70,10 +69,7 @@ export function Topbar() {
 
       <button
         className="btn btn-primary"
-        onClick={() => {
-          navigate('/app/draft');
-          showToast({ type: 'cobalt', text: 'New draft started' });
-        }}
+        onClick={() => navigate('/app/draft')}
         style={{ padding: '0 14px' }}
       >
         <Icon name="plus" size={14} /> New

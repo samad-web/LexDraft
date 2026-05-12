@@ -29,22 +29,28 @@ function fromRow(r: Row): Invoice {
 }
 
 export const invoicesService = {
-  async list(): Promise<Invoice[]> {
+  async list(firmId: string | null): Promise<Invoice[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<Row[]>`
       select id, invoice_no, client, amount_inr, issued_date, due_date, status
-      from invoices order by issued_date desc, invoice_no desc
+      from invoices
+      where firm_id = ${firmId}::uuid
+      order by issued_date desc, invoice_no desc
     `;
     return rows.map(fromRow);
   },
 
-  async create(input: Omit<Invoice, 'id'>): Promise<Invoice> {
+  async create(input: Omit<Invoice, 'id'>, firmId: string | null): Promise<Invoice> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create invoice'), { status: 422 });
+    }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
     const rows = await sql<Row[]>`
-      insert into invoices (invoice_no, client, amount_inr, issued_date, due_date, status)
-      values (${input.invoiceNo}, ${input.client}, ${input.amountInr},
+      insert into invoices (firm_id, invoice_no, client, amount_inr, issued_date, due_date, status)
+      values (${firmId}::uuid, ${input.invoiceNo}, ${input.client}, ${input.amountInr},
               ${input.issuedDate}, ${input.dueDate}, ${input.status})
       returning id, invoice_no, client, amount_inr, issued_date, due_date, status
     `;

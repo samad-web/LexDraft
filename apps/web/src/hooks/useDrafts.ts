@@ -20,6 +20,9 @@ export function useSaveDraft() {
         : api.post<SavedDraft>('/drafts', body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['documents'] });
+      void qc.invalidateQueries({ queryKey: ['me', 'usage'] });
     },
   });
 }
@@ -30,6 +33,9 @@ export function useDeleteDraft() {
     mutationFn: (id: string) => api.delete<void>(`/drafts/${id}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: KEY });
+      void qc.invalidateQueries({ queryKey: ['dashboard'] });
+      void qc.invalidateQueries({ queryKey: ['documents'] });
+      void qc.invalidateQueries({ queryKey: ['me', 'usage'] });
     },
   });
 }

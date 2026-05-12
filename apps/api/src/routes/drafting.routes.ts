@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { draftingService } from '../services/drafting.service';
+import { requireFeature } from '../services/permissions.service';
+import { llmGenerationLimiter } from '../middleware/rateLimit';
 
 const Generate = z.object({
   docType: z.string().min(1),
@@ -11,21 +13,24 @@ const Generate = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'draftDate must be YYYY-MM-DD')
     .optional(),
+  // Optional per-request provider override. Falls back to env.llmProvider.
+  provider: z.enum(['xai', 'anthropic']).optional(),
 });
 
 export const draftingRouter: Router = Router();
 
-draftingRouter.post('/generate', async (req, res, next) => {
+draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
   try {
-    res.json(await draftingService.generate(Generate.parse(req.body)));
+    const { provider, ...draftReq } = Generate.parse(req.body);
+    res.json(await draftingService.generate(draftReq, provider));
   } catch (err) {
     next(err);
   }
 });
 
-draftingRouter.post('/generate/stream', async (req, res, next) => {
+draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
   try {
-    const parsed = Generate.parse(req.body);
+    const { provider, ...draftReq } = Generate.parse(req.body);
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
@@ -42,7 +47,7 @@ draftingRouter.post('/generate/stream', async (req, res, next) => {
     });
 
     try {
-      for await (const chunk of draftingService.generateStream(parsed)) {
+      for await (const chunk of draftingService.generateStream(draftReq, provider)) {
         if (aborted) return;
         send('delta', { text: chunk });
       }

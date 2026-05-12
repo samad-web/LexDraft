@@ -115,7 +115,7 @@ export function AnalyticsView() {
         <button
           className="btn"
           type="button"
-          onClick={() => {
+          onClick={async () => {
             if (!data) {
               showToast({ type: 'amber', text: 'Analytics still loading' });
               return;
@@ -139,7 +139,7 @@ export function AnalyticsView() {
               <table><thead><tr><th>Month</th><th class="num">Revenue</th></tr></thead><tbody>${revenueRows}</tbody></table>
             `;
             try {
-              exportPdf({
+              await exportPdf({
                 title: 'Practice analytics',
                 bodyHtml: html,
                 dated: today,

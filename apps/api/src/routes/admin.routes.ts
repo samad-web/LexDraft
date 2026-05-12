@@ -47,6 +47,9 @@ const CreateFirm = z.object({
   name: z.string().min(1),
   seats: z.number().int().min(1).max(500),
   plan: FirmPlanTier,
+  adminEmail: z.string().email(),
+  adminName: z.string().min(1).optional(),
+  adminPassword: z.string().min(8).optional(),
 });
 adminRouter.post('/firms', async (req, res, next) => {
   try {

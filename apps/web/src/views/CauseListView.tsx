@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from '@/store/ui';
 import { useCalendarDay } from '@/hooks/useCalendar';
+import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type CauseStatus = 'today' | 'upcoming' | 'past';
 
@@ -29,11 +32,11 @@ const TODAY_LABEL = new Date().toLocaleDateString(undefined, {
 
 export function CauseListView() {
   const [filter, setFilter] = useState<CauseStatus | 'all'>('all');
-  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
   const today = TODAY_LABEL; // string used in eyebrow
   const todayIso = new Date().toISOString().slice(0, 10);
   const { data: hearings = [], isLoading, isError } = useCalendarDay(todayIso);
+  const qc = useQueryClient();
 
   const ROWS: CauseRow[] = useMemo(() =>
     hearings.map((h, i) => ({
@@ -51,6 +54,8 @@ export function CauseListView() {
     if (filter === 'all') return ROWS;
     return ROWS.filter((r) => r.status === filter);
   }, [filter, ROWS]);
+
+  const pager = usePagination(filtered);
 
   const stats = useMemo(() => ({
     total: ROWS.length,
@@ -70,16 +75,53 @@ export function CauseListView() {
         <button
           type="button"
           className="btn"
-          onClick={() => showToast({ type: 'cobalt', text: 'Cause list PDF download queued' })}
+          onClick={async () => {
+            if (ROWS.length === 0) {
+              showToast({ type: 'amber', text: 'No matters listed today' });
+              return;
+            }
+            const rows = ROWS
+              .map((r) =>
+                `<tr>
+                  <td class="num">${r.serial}</td>
+                  <td>${escapeReportHtml(r.time)}</td>
+                  <td>${escapeReportHtml(r.caseName)}</td>
+                  <td>${escapeReportHtml(r.courtRoom)}</td>
+                  <td>${escapeReportHtml(r.purpose)}</td>
+                  <td>${escapeReportHtml(r.status.toUpperCase())}</td>
+                </tr>`,
+              )
+              .join('');
+            const html = `<table><thead><tr><th>№</th><th>Time</th><th>Matter</th><th>Court / Room</th><th>Purpose</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table>`;
+            try {
+              await exportPdf({
+                title: `Cause List · ${TODAY_LABEL}`,
+                bodyHtml: html,
+                dated: todayIso,
+                disclaimerHtml: null,
+                orientation: 'landscape',
+              });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'PDF export failed';
+              showToast({ type: 'vermillion', text: msg });
+            }
+          }}
         >
           <Icon name="download" size={14} /> Download PDF
         </button>
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => showToast({ type: 'cobalt', text: 'eCourts sync queued — refreshing daily roster' })}
+          onClick={async () => {
+            try {
+              await qc.invalidateQueries({ queryKey: ['calendar', 'day', todayIso] });
+              showToast({ type: 'sage', text: 'Roster refreshed' });
+            } catch {
+              showToast({ type: 'vermillion', text: 'Refresh failed — try again' });
+            }
+          }}
         >
-          <Icon name="upload" size={14} /> Sync from eCourts
+          <Icon name="upload" size={14} /> Refresh roster
         </button>
       </div>
 
@@ -147,8 +189,8 @@ export function CauseListView() {
                 </td>
               </tr>
             )}
-            {!isLoading && !isError && filtered.map((r) => (
-              <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => navigate('/app/cases')}>
+            {!isLoading && !isError && pager.slice.map((r) => (
+              <tr key={r.id}>
                 <td className="mono tabular muted" style={{ textAlign: 'right' }}>{r.serial}</td>
                 <td className="mono tabular" style={{ fontWeight: 500 }}>{r.time}</td>
                 <td>
@@ -176,6 +218,15 @@ export function CauseListView() {
             )}
           </tbody>
         </table>
+        {!isLoading && !isError && (
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
+        )}
       </div>
     </div>
   );

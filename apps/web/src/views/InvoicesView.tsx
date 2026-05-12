@@ -6,6 +6,9 @@ import { useInvoices } from '@/hooks/useInvoices';
 import { NewInvoiceModal } from '@/components/NewInvoiceModal';
 import { InvoiceDetailModal } from '@/components/InvoiceDetailModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { Gate } from '@/components/Gate';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type FilterId = 'all' | InvoiceStatus;
 
@@ -67,6 +70,8 @@ export function InvoicesView() {
     [invoices, filter],
   );
 
+  const pager = usePagination(visible);
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div>
@@ -79,7 +84,7 @@ export function InvoicesView() {
         <button
           type="button"
           className="btn"
-          onClick={() => {
+          onClick={async () => {
             if (!visible.length) {
               showToast({ type: 'amber', text: 'No invoices to export' });
               return;
@@ -125,7 +130,7 @@ export function InvoicesView() {
               ${totals}
             `;
             try {
-              exportPdf({
+              await exportPdf({
                 title: 'Invoices register',
                 bodyHtml: html,
                 dated: today,
@@ -139,13 +144,15 @@ export function InvoicesView() {
         >
           <Icon name="download" size={14} /> Export PDF
         </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> New invoice
-        </button>
+        <Gate feature="billing.invoice">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> New invoice
+          </button>
+        </Gate>
       </div>
       <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <InvoiceDetailModal
@@ -228,7 +235,7 @@ export function InvoicesView() {
                 </td>
               </tr>
             )}
-            {visible.map((inv) => {
+            {pager.slice.map((inv) => {
               const badge = STATUS_BADGE[inv.status];
               return (
                 <tr
@@ -251,6 +258,13 @@ export function InvoicesView() {
             })}
           </tbody>
         </table>
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onChange={pager.setPage}
+        />
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { DatePicker, Icon, Select } from '@lexdraft/ui';
 import type { DraftRequest } from '@lexdraft/types';
-import { useStreamDraft } from '@/hooks/useDrafting';
+import { useStreamDraft, type LlmProvider } from '@/hooks/useDrafting';
 import { useUIStore } from '@/store/ui';
 import {
   RichTextEditor,
@@ -56,7 +56,18 @@ const LANGUAGES: ReadonlyArray<readonly [Language, string]> = [
   ['TA', 'தமிழ்'],
 ];
 
+const LANG_HTML: Record<Language, string> = {
+  EN: 'en',
+  HI: 'hi',
+  TA: 'ta',
+};
+
 const TONES: ReadonlyArray<Tone> = ['Professional', 'Firm', 'Urgent', 'Conciliatory'];
+
+const PROVIDERS: ReadonlyArray<readonly [LlmProvider, string]> = [
+  ['xai', 'Grok (xAI)'],
+  ['anthropic', 'Claude (Anthropic)'],
+];
 
 type ValuesByDoc = Record<string, Record<string, string>>;
 
@@ -77,11 +88,15 @@ function seedDefaults(): ValuesByDoc {
 export function DraftingView() {
   const [docType, setDocType] = useState<string>(DEFAULT_DOC);
   const [lang, setLang] = useState<Language>('EN');
+  const [outputLang, setOutputLang] = useState<Language>('EN');
   const [tone, setTone] = useState<Tone>('Professional');
+  const [provider, setProvider] = useState<LlmProvider>('xai');
+  const [outputProvider, setOutputProvider] = useState<LlmProvider>('xai');
   const [allValues, setAllValues] = useState<ValuesByDoc>(() => seedDefaults());
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [showMobileForm, setShowMobileForm] = useState(false);
+  const [stageMode, setStageMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
   const [draftDate, setDraftDate] = useState<string>(todayIso());
@@ -174,6 +189,10 @@ export function DraftingView() {
     setDateModalOpen(false);
     setEditedHtml(null);
     setIsEditing(false);
+    setOutputLang(lang);
+    setOutputProvider(provider);
+    setStageMode(true);
+    setShowMobileForm(false);
     const fields: Record<string, string> = {};
     schema.sections.forEach((sec) =>
       sec.fields.forEach((f) => {
@@ -181,7 +200,7 @@ export function DraftingView() {
         if (v !== undefined && v.toString().trim()) fields[f.key] = v;
       }),
     );
-    void stream.generate({ docType, language: lang, tone, fields, draftDate: date });
+    void stream.generate({ docType, language: lang, tone, fields, draftDate: date, provider });
   };
 
   const reset = () => {
@@ -191,12 +210,20 @@ export function DraftingView() {
     setCurrentDraftId(null);
     setEditedHtml(null);
     setIsEditing(false);
+    setStageMode(false);
   };
 
   const output = stream.text;
   const streaming = stream.isStreaming;
   const hasOutput = Boolean(output) || streaming;
   const displayHtml = editedHtml ?? plainTextToHtml(output);
+  const outputLangCode = LANG_HTML[outputLang];
+
+  // If the output disappears (manual reset, draft cleared), drop the stage so
+  // the brief returns to side-by-side mode.
+  useEffect(() => {
+    if (!hasOutput) setStageMode(false);
+  }, [hasOutput]);
 
   // Surface stream-level errors to the UI.
   useEffect(() => {
@@ -306,6 +333,7 @@ export function DraftingView() {
   const handleLoadDraft = (d: SavedDraft) => {
     setDocType(d.docType);
     setLang(d.language);
+    setOutputLang(d.language);
     setTone((d.tone as Tone) ?? 'Professional');
     setAllValues((av) => ({ ...av, [d.docType]: { ...d.fields } }));
     setDraftDate(d.draftDate ?? todayIso());
@@ -313,6 +341,7 @@ export function DraftingView() {
     setIsEditing(false);
     setCurrentDraftId(d.id);
     setMyDraftsOpen(false);
+    setStageMode(true);
     // Seed the stream display with the saved body so the preview renders
     // immediately without needing a re-generation.
     stream.reset();
@@ -339,7 +368,7 @@ export function DraftingView() {
     showToast({ type: 'sage', text: 'Brief reset to default values' });
   };
 
-  const performExport = () => {
+  const performExport = async () => {
     const fmt = exportFormat;
     if (!fmt) return;
     const payload = {
@@ -348,7 +377,7 @@ export function DraftingView() {
       dated: draftDate,
     };
     try {
-      if (fmt === 'PDF') exportPdf(payload);
+      if (fmt === 'PDF') await exportPdf(payload);
       else exportDocx(payload);
       showToast({ type: 'sage', text: `${fmt} prepared` });
     } catch (err) {
@@ -366,7 +395,11 @@ export function DraftingView() {
           <h1 className="heading-xl" style={{ marginBottom: 4 }}>
             Draft
           </h1>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+          <div
+            key={docType}
+            className="mono draft-doctype-label"
+            style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
+          >
             {docType.toUpperCase()} · {schema.category.toUpperCase()}
           </div>
         </div>
@@ -494,7 +527,8 @@ export function DraftingView() {
 
       {schema.description && (
         <div
-          className="card"
+          key={docType}
+          className="card draft-schema-desc"
           style={{
             padding: '12px 18px',
             background: 'var(--bg-surface-2)',
@@ -530,8 +564,7 @@ export function DraftingView() {
       )}
 
       <div
-        className="draft-grid"
-        style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 42fr) minmax(0, 58fr)', gap: 16 }}
+        className={`draft-grid${stageMode ? ' draft-grid--stage' : ''}`}
       >
         {/* Form column */}
         <div
@@ -544,6 +577,7 @@ export function DraftingView() {
             maxHeight: 'calc(100vh - 96px)',
             overflowY: 'auto',
           }}
+          aria-hidden={stageMode || undefined}
         >
           <div
             style={{
@@ -570,33 +604,35 @@ export function DraftingView() {
               Clear
             </button>
           </div>
-          {schema.sections.map((sec) => {
-            const open = !!openSections[`${docType}::${sec.title}`];
-            const sectionFilled = sec.fields.filter((f) =>
-              (values[f.key] ?? '').toString().trim(),
-            ).length;
-            const sectionTotal = sec.fields.length;
-            return (
-              <Section
-                key={sec.title}
-                title={sec.title}
-                open={open}
-                onToggle={() => toggleSection(sec.title)}
-                meta={`${sectionFilled}/${sectionTotal}`}
-              >
-                <div className="col" style={{ gap: 14 }}>
-                  {sec.fields.map((f) => (
-                    <Field
-                      key={f.key}
-                      field={f}
-                      value={values[f.key] ?? ''}
-                      onChange={(v) => setField(f.key, v)}
-                    />
-                  ))}
-                </div>
-              </Section>
-            );
-          })}
+          <div key={docType} className="draft-sections-anim">
+            {schema.sections.map((sec) => {
+              const open = !!openSections[`${docType}::${sec.title}`];
+              const sectionFilled = sec.fields.filter((f) =>
+                (values[f.key] ?? '').toString().trim(),
+              ).length;
+              const sectionTotal = sec.fields.length;
+              return (
+                <Section
+                  key={sec.title}
+                  title={sec.title}
+                  open={open}
+                  onToggle={() => toggleSection(sec.title)}
+                  meta={`${sectionFilled}/${sectionTotal}`}
+                >
+                  <div className="col" style={{ gap: 14 }}>
+                    {sec.fields.map((f) => (
+                      <Field
+                        key={f.key}
+                        field={f}
+                        value={values[f.key] ?? ''}
+                        onChange={(v) => setField(f.key, v)}
+                      />
+                    ))}
+                  </div>
+                </Section>
+              );
+            })}
+          </div>
 
           <Section
             title="Options"
@@ -631,6 +667,36 @@ export function DraftingView() {
                       {t}
                     </button>
                   ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">Model</label>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  {PROVIDERS.map(([p, lbl]) => (
+                    <button
+                      key={p}
+                      className={`chip${provider === p ? ' active' : ''}`}
+                      onClick={() => setProvider(p)}
+                      title={
+                        p === 'xai'
+                          ? 'Generate with xAI Grok (set XAI_MODEL in apps/api/.env)'
+                          : 'Generate with Anthropic Claude (set ANTHROPIC_MODEL in apps/api/.env)'
+                      }
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: '0.14em',
+                    color: 'var(--text-tertiary)',
+                    marginTop: 8,
+                  }}
+                >
+                  Generate the same brief with each to compare drafts side-by-side via My drafts.
                 </div>
               </div>
             </div>
@@ -676,7 +742,57 @@ export function DraftingView() {
         </div>
 
         {/* Preview column */}
-        <div className="col" style={{ gap: 12 }}>
+        <div className="col draft-preview-wrap" style={{ gap: 12 }}>
+          {stageMode && hasOutput && (
+            <div className="row draft-stage-bar" style={{ gap: 8, alignItems: 'center' }}>
+              <button
+                className="btn btn-sm"
+                type="button"
+                onClick={() => setStageMode(false)}
+                title="Return to brief"
+              >
+                ← Brief
+              </button>
+              <span
+                className="mono"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: '0.16em',
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {schema.category} · {LANGUAGES.find((l) => l[0] === outputLang)?.[1] ?? outputLang}
+                {' · '}
+                {PROVIDERS.find((p) => p[0] === outputProvider)?.[1] ?? outputProvider}
+              </span>
+              {streaming && (
+                <span
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    letterSpacing: '0.12em',
+                    color: 'var(--text-secondary)',
+                    textTransform: 'uppercase',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                  }}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      background: 'var(--info)',
+                    }}
+                  />
+                  Generating
+                </span>
+              )}
+            </div>
+          )}
           <button
             className="btn btn-block draft-mobile-edit"
             onClick={() => setShowMobileForm((s) => !s)}
@@ -686,22 +802,25 @@ export function DraftingView() {
             {showMobileForm ? 'Close brief' : `Edit brief · ${completion}%`}
           </button>
           <div
-            className="card"
+            className="card draft-preview-card"
             style={{
-              padding: '40px 48px',
+              padding: 0,
               minHeight: 600,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.7,
               position: 'relative',
+              background: 'var(--bg-surface-2)',
             }}
           >
             {!output && !streaming && (
-              <EmptyState docType={docType} completion={completion} onGenerate={generate} />
+              <div key={docType} className="draft-empty-anim" style={{ padding: '40px 48px' }}>
+                <EmptyState docType={docType} completion={completion} onGenerate={generate} />
+              </div>
             )}
             {hasOutput && !isEditing && (
               <div
-                className="rt-content"
+                className="court-prose court-prose-paper"
+                lang={outputLangCode}
+                dir="ltr"
+                style={{ margin: '24px auto' }}
                 dangerouslySetInnerHTML={{ __html: displayHtml }}
               />
             )}
@@ -711,6 +830,7 @@ export function DraftingView() {
                 value={displayHtml}
                 onChange={setEditedHtml}
                 autoFocus
+                lang={outputLangCode}
               />
             )}
           </div>
@@ -789,7 +909,14 @@ export function DraftingView() {
                 <button
                   className="btn btn-primary"
                   type="button"
-                  onClick={() => showToast({ type: 'sage', text: 'Shared with client' })}
+                  onClick={() => {
+                    const subject = `${docType} — ${draftDate}`;
+                    const text = htmlToPlainText(displayHtml);
+                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${docType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
+                    const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    window.location.href = href;
+                    showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
+                  }}
                 >
                   <Icon name="arrow" size={14} /> Share with client
                 </button>
@@ -800,12 +927,122 @@ export function DraftingView() {
       </div>
 
       <style>{`
+        .draft-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
+          gap: 16px;
+          transition:
+            grid-template-columns 620ms cubic-bezier(0.32, 0.72, 0, 1),
+            gap 420ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-form {
+          transition:
+            opacity 320ms ease 220ms,
+            transform 520ms cubic-bezier(0.32, 0.72, 0, 1) 100ms,
+            visibility 0s linear 0ms;
+        }
+        .draft-preview-wrap {
+          width: 100%;
+          max-width: 100%;
+          margin: 0 auto;
+          transition: max-width 620ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-preview-card {
+          transition:
+            box-shadow 480ms ease,
+            transform 520ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-stage-bar {
+          opacity: 0;
+          transform: translateY(-4px);
+          transition:
+            opacity 280ms ease 240ms,
+            transform 320ms cubic-bezier(0.32, 0.72, 0, 1) 240ms;
+        }
+        .draft-grid--stage .draft-stage-bar {
+          opacity: 1;
+          transform: none;
+        }
+
+        @media (min-width: 1024px) {
+          .draft-grid--stage {
+            grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+            gap: 0;
+          }
+          .draft-grid--stage .draft-form {
+            opacity: 0;
+            transform: translateX(-24px) scale(0.98);
+            pointer-events: none;
+            visibility: hidden;
+            transition:
+              opacity 260ms ease,
+              transform 460ms cubic-bezier(0.32, 0.72, 0, 1),
+              visibility 0s linear 620ms;
+          }
+          .draft-grid--stage .draft-preview-wrap {
+            max-width: 1080px;
+          }
+          .draft-grid--stage .draft-preview-card {
+            box-shadow: 0 14px 40px rgba(10, 10, 10, 0.06);
+          }
+        }
+
         @media (max-width: 1023px) {
-          .draft-grid { grid-template-columns: 1fr !important; }
+          .draft-grid,
+          .draft-grid--stage { grid-template-columns: 1fr !important; gap: 16px !important; }
           .draft-form { position: static !important; max-height: none !important; }
           .draft-mobile-edit { display: inline-flex !important; }
           .draft-form { display: none; }
           .draft-form.show { display: block; }
+          .draft-stage-bar { display: none !important; }
+        }
+
+        @keyframes draftFadeSlideIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes draftFadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        .doc-chip-row {
+          animation: draftFadeSlideIn 260ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .doc-chip {
+          transition:
+            background 200ms cubic-bezier(0.32, 0.72, 0, 1),
+            color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+            border-color 200ms cubic-bezier(0.32, 0.72, 0, 1),
+            transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .doc-chip.active {
+          transform: translateY(-1px);
+        }
+        .draft-doctype-label {
+          animation: draftFadeIn 240ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-schema-desc {
+          animation: draftFadeSlideIn 320ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-sections-anim {
+          animation: draftFadeSlideIn 360ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        .draft-empty-anim {
+          animation: draftFadeSlideIn 320ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .draft-grid,
+          .draft-form,
+          .draft-preview-wrap,
+          .draft-preview-card,
+          .draft-stage-bar { transition: none !important; }
+          .doc-chip-row,
+          .doc-chip,
+          .draft-doctype-label,
+          .draft-schema-desc,
+          .draft-sections-anim,
+          .draft-empty-anim { animation: none !important; transition: none !important; }
         }
       `}</style>
 
@@ -898,11 +1135,15 @@ function DocTypePicker({ docType, onPick }: DocTypePickerProps) {
           );
         })}
       </div>
-      <div className="row" style={{ gap: 6, flexWrap: 'wrap', padding: 14, alignItems: 'flex-start' }}>
+      <div
+        key={activeTab}
+        className="row doc-chip-row"
+        style={{ gap: 6, flexWrap: 'wrap', padding: 14, alignItems: 'flex-start' }}
+      >
         {active.items.map((t) => (
           <button
             key={t}
-            className={`chip${docType === t ? ' active' : ''}`}
+            className={`chip doc-chip${docType === t ? ' active' : ''}`}
             onClick={() => onPick(t)}
             style={{ fontSize: 12 }}
           >

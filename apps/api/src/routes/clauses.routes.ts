@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { clausesService } from '../services/clauses.service';
+import { firmIdForUser } from '../services/tenant';
+import { requireFeature } from '../services/permissions.service';
 
 const CreateClause = z.object({
   category: z.string().min(1),
@@ -17,9 +19,11 @@ const Import = z.object({
 
 export const clausesRouter: Router = Router();
 
-clausesRouter.get('/', async (req, res, next) => {
+clausesRouter.get('/', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
+    const firmId = await firmIdForUser(req.user?.id);
     const items = await clausesService.list({
+      firmId,
       category: typeof req.query.category === 'string' ? req.query.category : undefined,
       q:        typeof req.query.q        === 'string' ? req.query.q        : undefined,
     });
@@ -27,40 +31,45 @@ clausesRouter.get('/', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-clausesRouter.post('/', async (req, res, next) => {
+clausesRouter.post('/', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
+    const firmId = await firmIdForUser(req.user?.id);
     const body = CreateClause.parse(req.body);
-    res.status(201).json(await clausesService.create(body));
+    res.status(201).json(await clausesService.create(body, firmId));
   } catch (err) { next(err); }
 });
 
-clausesRouter.patch('/:id', async (req, res, next) => {
+clausesRouter.patch('/:id', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
+    const firmId = await firmIdForUser(req.user?.id);
     const body = UpdateClause.parse(req.body);
-    const updated = await clausesService.update(req.params.id!, body);
+    const updated = await clausesService.update(String(req.params.id ?? ''), body, firmId);
     if (!updated) { res.status(404).json({ error: 'Clause not found' }); return; }
     res.json(updated);
   } catch (err) { next(err); }
 });
 
-clausesRouter.delete('/:id', async (req, res, next) => {
+clausesRouter.delete('/:id', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
-    const removed = await clausesService.remove(req.params.id!);
+    const firmId = await firmIdForUser(req.user?.id);
+    const removed = await clausesService.remove(String(req.params.id ?? ''), firmId);
     if (!removed) { res.status(404).json({ error: 'Clause not found' }); return; }
     res.status(204).end();
   } catch (err) { next(err); }
 });
 
-clausesRouter.post('/:id/use', async (req, res, next) => {
+clausesRouter.post('/:id/use', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
-    await clausesService.incrementUses(req.params.id!);
+    const firmId = await firmIdForUser(req.user?.id);
+    await clausesService.incrementUses(String(req.params.id ?? ''), firmId);
     res.status(204).end();
   } catch (err) { next(err); }
 });
 
-clausesRouter.post('/import', async (req, res, next) => {
+clausesRouter.post('/import', requireFeature('drafting.clauses'), async (req, res, next) => {
   try {
+    const firmId = await firmIdForUser(req.user?.id);
     const body = Import.parse(req.body);
-    res.json(await clausesService.importMany(body.items));
+    res.json(await clausesService.importMany(body.items, firmId));
   } catch (err) { next(err); }
 });

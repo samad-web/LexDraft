@@ -5,14 +5,19 @@ import {
   useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate,
 } from '../queries';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { useUIStore } from '@/store/ui';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 export function TemplatesView() {
   const [scope, setScope] = useState<TemplateScope | ''>('');
   const { data: templates = [], isLoading } = useTemplates(scope || undefined);
+  const pager = usePagination(templates);
   const [editing, setEditing] = useState<DocumentTemplate | null>(null);
   const [creating, setCreating] = useState(false);
   const del = useDeleteTemplate();
   const confirm = useConfirm();
+  const showToast = useUIStore((s) => s.showToast);
 
   const requestDelete = async (template: DocumentTemplate) => {
     const ok = await confirm({
@@ -21,20 +26,27 @@ export function TemplatesView() {
       confirmLabel: 'Delete template',
       danger: true,
     });
-    if (ok) del.mutate(template.id);
+    if (ok) {
+      del.mutate(template.id, {
+        onError: (err) => showToast({
+          type: 'vermillion',
+          text: (err as Error)?.message || `Couldn’t delete ${template.name}`,
+        }),
+      });
+    }
   };
 
   return (
-    <div style={{ padding: 32, maxWidth: 1320, margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24 }}>
+    <div className="col stagger" style={{ gap: 24 }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <div className="eyebrow">Templates</div>
-          <h1 className="display" style={{ fontSize: 28, fontWeight: 600 }}>Document templates · {templates.length}</h1>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Templates</div>
+          <h1 className="display-md">Document templates · {templates.length}</h1>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>+ New template</button>
       </header>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12 }}>
         <div style={{ width: 220 }}>
           <Select
             value={scope}
@@ -51,7 +63,7 @@ export function TemplatesView() {
       {isLoading ? (
         <div className="muted">Loading…</div>
       ) : (
-        <table className="data-table">
+        <table className="tbl">
           <thead>
             <tr>
               <th>Name</th>
@@ -62,7 +74,7 @@ export function TemplatesView() {
             </tr>
           </thead>
           <tbody>
-            {templates.map((t) => (
+            {pager.slice.map((t) => (
               <tr key={t.id}>
                 <td>{t.name}</td>
                 <td className="mono" style={{ fontSize: 12 }}>{t.slug}</td>
@@ -89,6 +101,15 @@ export function TemplatesView() {
           </tbody>
         </table>
       )}
+      {!isLoading && templates.length > 0 && (
+        <Pagination
+          page={pager.page}
+          totalPages={pager.totalPages}
+          total={pager.total}
+          pageSize={pager.pageSize}
+          onChange={pager.setPage}
+        />
+      )}
 
       {editing && <EditTemplateModal template={editing} onClose={() => setEditing(null)} />}
       {creating && <CreateTemplateModal onClose={() => setCreating(false)} />}
@@ -103,14 +124,22 @@ function CreateTemplateModal({ onClose }: { onClose: () => void }) {
   const [firmId, setFirmId] = useState('');
   const [body, setBody] = useState('');
   const create = useCreateTemplate();
+  const showToast = useUIStore((s) => s.showToast);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await create.mutateAsync({
-      name, slug, scope, body,
-      firmId: scope === 'firm' ? firmId : null,
-    });
-    onClose();
+    try {
+      await create.mutateAsync({
+        name, slug, scope, body,
+        firmId: scope === 'firm' ? firmId : null,
+      });
+      onClose();
+    } catch (err) {
+      showToast({
+        type: 'vermillion',
+        text: (err as Error)?.message || 'Couldn’t create template',
+      });
+    }
   };
 
   return (
@@ -151,11 +180,19 @@ function EditTemplateModal({ template, onClose }: { template: DocumentTemplate; 
   const [name, setName] = useState(template.name);
   const [body, setBody] = useState(template.body);
   const update = useUpdateTemplate();
+  const showToast = useUIStore((s) => s.showToast);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await update.mutateAsync({ id: template.id, patch: { name, body } });
-    onClose();
+    try {
+      await update.mutateAsync({ id: template.id, patch: { name, body } });
+      onClose();
+    } catch (err) {
+      showToast({
+        type: 'vermillion',
+        text: (err as Error)?.message || 'Couldn’t save template',
+      });
+    }
   };
 
   return (

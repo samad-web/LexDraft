@@ -12,12 +12,10 @@ export function AdminDashboardView() {
   const { data, isLoading } = usePlatformStats();
 
   return (
-    <div style={{ padding: 32, maxWidth: 1320, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
+    <div className="col stagger" style={{ gap: 28 }}>
+      <div>
         <div className="eyebrow" style={{ marginBottom: 8 }}>Platform overview</div>
-        <h1 className="display" style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em' }}>
-          Operations dashboard
-        </h1>
+        <h1 className="display-md">Operations dashboard</h1>
       </div>
 
       {isLoading || !data ? (
@@ -25,12 +23,10 @@ export function AdminDashboardView() {
       ) : (
         <>
           <div
-            className="stat-row"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
+              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
               gap: 20,
-              marginBottom: 40,
             }}
           >
             <StatCard label="Firms" value={String(data.firms.total)} sub={`${data.firms.active} active · ${data.firms.suspended} suspended`} />
@@ -39,15 +35,25 @@ export function AdminDashboardView() {
             <StatCard label="Matters" value={String(data.caseCount)} sub="Active across platform" />
           </div>
 
-          <section className="card" style={{ padding: 24 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div
+              className="row"
+              style={{
+                padding: 'var(--space-5) var(--space-6)',
+                alignItems: 'center',
+                borderBottom: '1px solid var(--border-subtle)',
+              }}
+            >
               <h2 className="heading-lg">Recent admin activity</h2>
-              <Link to="/admin/audit" className="no-underline" style={{ fontSize: 13 }}>View all →</Link>
+              <span className="spacer" />
+              <Link to="/admin/audit" className="no-underline body-sm">View all →</Link>
             </div>
             {data.recentAudit.length === 0 ? (
-              <div className="muted">No activity yet.</div>
+              <div className="muted" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
+                No activity yet.
+              </div>
             ) : (
-              <table className="data-table">
+              <table className="tbl">
                 <thead>
                   <tr>
                     <th style={{ width: 180 }}>When</th>
@@ -79,12 +85,10 @@ export function AdminDashboardView() {
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
-      <div className="display" style={{ fontSize: 36, fontWeight: 600, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>
-        {value}
-      </div>
-      <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{sub}</div>
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
+      <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>
+      <div className="display-md tabular" style={{ marginBottom: 6 }}>{value}</div>
+      <div className="body-sm muted">{sub}</div>
     </div>
   );
 }

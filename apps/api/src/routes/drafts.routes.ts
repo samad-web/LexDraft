@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { draftsService } from '../services/drafts.service';
+import { requireFeature } from '../services/permissions.service';
 
 const SaveInput = z.object({
   title: z.string().optional(),
@@ -18,7 +19,7 @@ const SaveInput = z.object({
 
 export const draftsRouter: Router = Router();
 
-draftsRouter.get('/', async (req, res, next) => {
+draftsRouter.get('/', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
@@ -28,11 +29,11 @@ draftsRouter.get('/', async (req, res, next) => {
   }
 });
 
-draftsRouter.get('/:id', async (req, res, next) => {
+draftsRouter.get('/:id', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    const draft = await draftsService.get(req.params.id, { userId });
+    const draft = await draftsService.get(String(req.params.id ?? ''), { userId });
     if (!draft) return res.status(404).json({ error: 'Draft not found' });
     res.json(draft);
   } catch (err) {
@@ -40,7 +41,7 @@ draftsRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-draftsRouter.post('/', async (req, res, next) => {
+draftsRouter.post('/', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
@@ -50,12 +51,12 @@ draftsRouter.post('/', async (req, res, next) => {
   }
 });
 
-draftsRouter.put('/:id', async (req, res, next) => {
+draftsRouter.put('/:id', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
     const updated = await draftsService.update(
-      req.params.id,
+      String(req.params.id ?? ''),
       SaveInput.parse(req.body),
       { userId },
     );
@@ -66,11 +67,11 @@ draftsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-draftsRouter.delete('/:id', async (req, res, next) => {
+draftsRouter.delete('/:id', requireFeature('drafting.basic'), async (req, res, next) => {
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    const ok = await draftsService.remove(req.params.id, { userId });
+    const ok = await draftsService.remove(String(req.params.id ?? ''), { userId });
     if (!ok) return res.status(404).json({ error: 'Draft not found' });
     res.status(204).end();
   } catch (err) {

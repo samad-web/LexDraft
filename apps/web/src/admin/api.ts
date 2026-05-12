@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import type {
   AdminCreateFirmRequest,
+  AdminCreateFirmResponse,
   AdminCreateTemplateRequest,
   AdminUpdateBrandingRequest,
   AdminUpdateFirmRequest,
@@ -30,7 +31,7 @@ export const adminApi = {
   // ---- firms ------------------------------------------------------------
   listFirms: () => api.get<{ items: FirmSummary[] }>('/admin/firms').then((r) => r.items),
   getFirm:   (id: string) => api.get<FirmDetail>(`/admin/firms/${id}`),
-  createFirm: (input: AdminCreateFirmRequest) => api.post<FirmSummary>('/admin/firms', input),
+  createFirm: (input: AdminCreateFirmRequest) => api.post<AdminCreateFirmResponse>('/admin/firms', input),
   updateFirm: (id: string, patch: AdminUpdateFirmRequest) => api.patch<FirmSummary>(`/admin/firms/${id}`, patch),
   deleteFirm: (id: string) => api.delete<void>(`/admin/firms/${id}`),
 

@@ -16,7 +16,9 @@ function dateOnly(v: string | Date): string {
   return v.slice(0, 10);
 }
 
-function daysBetween(deadline: string): number {
+/** Whole-day delta from local midnight today to the supplied YYYY-MM-DD
+ *  deadline. Negative when the deadline is in the past. Exported for tests. */
+export function daysBetween(deadline: string): number {
   const d = new Date(deadline + 'T00:00:00');
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -39,22 +41,28 @@ function fromRow(r: Row): Limitation {
 }
 
 export const limitationsService = {
-  async list(): Promise<Limitation[]> {
+  async list(firmId: string | null): Promise<Limitation[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<Row[]>`
       select id, case_label, cnr, filing_type, forum, deadline, filed_by
-      from limitations order by deadline asc
+      from limitations
+      where firm_id = ${firmId}::uuid
+      order by deadline asc
     `;
     return rows.map(fromRow);
   },
 
-  async create(input: Omit<Limitation, 'id' | 'daysRemaining'>): Promise<Limitation> {
+  async create(input: Omit<Limitation, 'id' | 'daysRemaining'>, firmId: string | null): Promise<Limitation> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create limitation'), { status: 422 });
+    }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
     const rows = await sql<Row[]>`
-      insert into limitations (case_label, cnr, filing_type, forum, deadline, filed_by)
-      values (${input.caseLabel}, ${input.cnr}, ${input.filingType},
+      insert into limitations (firm_id, case_label, cnr, filing_type, forum, deadline, filed_by)
+      values (${firmId}::uuid, ${input.caseLabel}, ${input.cnr}, ${input.filingType},
               ${input.forum}, ${input.deadline}, ${input.filedBy})
       returning id, case_label, cnr, filing_type, forum, deadline, filed_by
     `;

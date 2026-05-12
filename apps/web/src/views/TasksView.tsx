@@ -40,7 +40,12 @@ export function TasksView() {
 
   const moveOpenTask = (to: TaskColumn, message: { type: 'sage' | 'cobalt'; text: string }) => {
     if (!openTask) return;
-    moveTask.mutate({ id: openTask.id, to });
+    moveTask.mutate(
+      { id: openTask.id, to },
+      {
+        onError: () => showToast({ type: 'vermillion', text: 'Couldn’t move task' }),
+      },
+    );
     setOpenTask(null);
     showToast(message);
   };
@@ -96,7 +101,12 @@ export function TasksView() {
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => {
                   if (draggingId) {
-                    moveTask.mutate({ id: draggingId, to: col.id });
+                    moveTask.mutate(
+                      { id: draggingId, to: col.id },
+                      {
+                        onError: () => showToast({ type: 'vermillion', text: 'Couldn’t move task' }),
+                      },
+                    );
                   }
                   setDraggingId(null);
                 }}

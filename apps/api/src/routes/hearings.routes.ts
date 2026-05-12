@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { hearingsService } from '../services/hearings.service';
+import { firmIdForUser } from '../services/tenant';
+import { validate } from '../middleware/validate';
+import { withAudit } from '../middleware/audit';
+import { requireFeature } from '../services/permissions.service';
+import { notify } from '../services/notifications.service';
+import { db } from '../db/client';
 
 const Input = z.object({
   case: z.string().min(1),
@@ -10,46 +16,95 @@ const Input = z.object({
   status: z.enum(['today', 'upcoming', 'past']).default('upcoming'),
   date: z.string().optional(),
   judge: z.string().optional(),
+  caseId: z.string().uuid().optional(),
 });
+
+const WeekQuery = z.object({ start: z.string().optional() });
+const DayParams = z.object({ iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
 
 export const hearingsRouter: Router = Router();
 
-hearingsRouter.get('/today', async (_req, res, next) => {
+// Hearings live under the matter feature domain — re-uses matter.view/create
+// rather than introducing dedicated hearings.* keys.
+
+hearingsRouter.get('/today', requireFeature('matter.view'), async (req, res, next) => {
   try {
-    res.json({ items: await hearingsService.listToday() });
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: await hearingsService.listToday(firmId) });
   } catch (err) {
     next(err);
   }
 });
 
-hearingsRouter.post('/', async (req, res, next) => {
+hearingsRouter.post(
+  '/',
+  requireFeature('matter.create'),
+  validate({ body: Input }),
+  withAudit({ action: 'hearing.create', targetType: 'hearing' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const created = await hearingsService.create(req.body, firmId);
+      // Best-effort: if the hearing's matter is portal-visible, email the
+      // associated client. Resolves matter → client name → clientId.
+      try {
+        const sql = db();
+        if (sql && firmId) {
+          const matterTitle = (typeof req.body?.case === 'string' && req.body.case) || '';
+          if (matterTitle) {
+            const rows = await sql<Array<{ id: string }>>`
+              select c.id
+              from cases cs
+              join clients c on c.firm_id = cs.firm_id and c.name = cs.client
+              where cs.firm_id = ${firmId}::uuid
+                and cs.title = ${matterTitle}
+                and cs.visible_to_client = true
+                and c.portal_enabled = true
+              limit 1
+            `;
+            const clientId = rows[0]?.id;
+            if (clientId) {
+              await notify.hearingScheduled(clientId, {
+                matterTitle,
+                date: typeof req.body?.date === 'string' ? req.body.date : undefined,
+                time: typeof req.body?.time === 'string' ? req.body.time : '',
+                court: typeof req.body?.court === 'string' ? req.body.court : '',
+              });
+            }
+          }
+        }
+      } catch { /* best effort */ }
+      res.status(201).json(created);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+hearingsRouter.get('/week', requireFeature('matter.view'), validate({ query: WeekQuery }), async (req, res, next) => {
   try {
-    res.status(201).json(await hearingsService.create(Input.parse(req.body)));
+    const firmId = await firmIdForUser(req.user?.id);
+    const start = typeof req.query['start'] === 'string' ? req.query['start'] as string : undefined;
+    res.json(await hearingsService.week(firmId, start));
   } catch (err) {
     next(err);
   }
 });
 
-hearingsRouter.get('/week', async (req, res, next) => {
+hearingsRouter.get('/day/:iso', requireFeature('matter.view'), validate({ params: DayParams }), async (req, res, next) => {
   try {
-    const start = typeof req.query.start === 'string' ? req.query.start : undefined;
-    res.json(await hearingsService.week(start));
+    const firmId = await firmIdForUser(req.user?.id);
+    const iso = typeof req.params['iso'] === 'string' ? (req.params['iso'] as string) : '';
+    res.json({ items: await hearingsService.listForDay(firmId, iso) });
   } catch (err) {
     next(err);
   }
 });
 
-hearingsRouter.get('/day/:iso', async (req, res, next) => {
+hearingsRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
   try {
-    res.json({ items: await hearingsService.listForDay(req.params.iso!) });
-  } catch (err) {
-    next(err);
-  }
-});
-
-hearingsRouter.get('/', async (_req, res, next) => {
-  try {
-    res.json({ items: await hearingsService.listUpcoming() });
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: await hearingsService.listUpcoming(firmId) });
   } catch (err) {
     next(err);
   }

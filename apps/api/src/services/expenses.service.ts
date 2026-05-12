@@ -35,26 +35,32 @@ function fromRow(r: Row): Expense {
 }
 
 export const expensesService = {
-  async list(): Promise<Expense[]> {
+  async list(firmId: string | null): Promise<Expense[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<Row[]>`
       select id, expense_no, expense_date, description, category,
              case_label, amount_inr, status, reimbursable, billable
-      from expenses order by expense_date desc
+      from expenses
+      where firm_id = ${firmId}::uuid
+      order by expense_date desc
     `;
     return rows.map(fromRow);
   },
 
-  async create(input: Omit<Expense, 'id'>): Promise<Expense> {
+  async create(input: Omit<Expense, 'id'>, firmId: string | null): Promise<Expense> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create expense'), { status: 422 });
+    }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
     const rows = await sql<Row[]>`
       insert into expenses
-        (expense_no, expense_date, description, category, case_label,
+        (firm_id, expense_no, expense_date, description, category, case_label,
          amount_inr, status, reimbursable, billable)
       values
-        (${input.expenseNo}, ${input.date}, ${input.description}, ${input.category},
+        (${firmId}::uuid, ${input.expenseNo}, ${input.date}, ${input.description}, ${input.category},
          ${input.caseLabel}, ${input.amountInr}, ${input.status},
          ${input.reimbursable}, ${input.billable})
       returning id, expense_no, expense_date, description, category, case_label,

@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useDiary } from '@/hooks/useDiary';
 import { NewDiaryEntryModal } from '@/components/NewDiaryEntryModal';
+import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 interface KindMeta {
   label: string;
@@ -46,7 +48,6 @@ function formatHeading(iso: string): string {
 export function DiaryView() {
   const [filter, setFilter] = useState<DiaryKind | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
-  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
   const { data: entries = [], isLoading, isError } = useDiary();
 
@@ -65,6 +66,8 @@ export function DiaryView() {
     return Array.from(map.entries()).map(([date, entries]) => ({ date, entries }));
   }, [entries, filter]);
 
+  const pager = usePagination(groups);
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
@@ -76,7 +79,39 @@ export function DiaryView() {
         <button
           type="button"
           className="btn"
-          onClick={() => showToast({ type: 'cobalt', text: 'Diary print queued — opening printer dialog…' })}
+          onClick={async () => {
+            const visible = filter === 'all' ? entries : entries.filter((e) => e.kind === filter);
+            if (visible.length === 0) {
+              showToast({ type: 'amber', text: 'Nothing to print under the current filter' });
+              return;
+            }
+            const rows = [...visible]
+              .sort((a, b) => (a.date === b.date ? a.time.localeCompare(b.time) : a.date.localeCompare(b.date)))
+              .map((e) =>
+                `<tr>
+                  <td>${escapeReportHtml(e.date)}</td>
+                  <td>${escapeReportHtml(e.time || '')}</td>
+                  <td>${escapeReportHtml(e.kind.toUpperCase())}</td>
+                  <td>${escapeReportHtml(e.caseLabel)}</td>
+                  <td>${escapeReportHtml(e.forum || '')}</td>
+                  <td>${escapeReportHtml(e.detail || '')}</td>
+                </tr>`,
+              )
+              .join('');
+            const html = `<table><thead><tr><th>Date</th><th>Time</th><th>Kind</th><th>Matter</th><th>Forum</th><th>Detail</th></tr></thead><tbody>${rows}</tbody></table>`;
+            try {
+              await exportPdf({
+                title: 'Court Diary',
+                bodyHtml: html,
+                dated: new Date().toISOString().slice(0, 10),
+                disclaimerHtml: null,
+                orientation: 'landscape',
+              });
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Print failed';
+              showToast({ type: 'vermillion', text: msg });
+            }
+          }}
         >
           <Icon name="download" size={14} /> Print
         </button>
@@ -104,7 +139,7 @@ export function DiaryView() {
       </div>
 
       <div className="col" style={{ gap: 28 }}>
-        {groups.map((g) => (
+        {pager.slice.map((g) => (
           <section key={g.date} className="col" style={{ gap: 12 }}>
             <div className="row" style={{ gap: 12 }}>
               <div className="heading-md">{formatHeading(g.date)}</div>
@@ -118,22 +153,12 @@ export function DiaryView() {
                   <div
                     key={e.id}
                     className="row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => navigate('/app/cases')}
-                    onKeyDown={(ev) => {
-                      if (ev.key === 'Enter' || ev.key === ' ') {
-                        ev.preventDefault();
-                        navigate('/app/cases');
-                      }
-                    }}
                     style={{
                       alignItems: 'flex-start',
                       gap: 16,
                       padding: 'var(--space-4) var(--space-6)',
                       borderBottom:
                         idx === g.entries.length - 1 ? 'none' : '1px solid var(--border-subtle)',
-                      cursor: 'pointer',
                     }}
                   >
                     <div
@@ -197,6 +222,15 @@ export function DiaryView() {
           <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
             <p className="body-md muted">{entries.length === 0 ? 'No diary entries yet.' : 'No diary entries match this filter.'}</p>
           </div>
+        )}
+        {!isLoading && !isError && groups.length > 0 && (
+          <Pagination
+            page={pager.page}
+            totalPages={pager.totalPages}
+            total={pager.total}
+            pageSize={pager.pageSize}
+            onChange={pager.setPage}
+          />
         )}
       </div>
     </div>

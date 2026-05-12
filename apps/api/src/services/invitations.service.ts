@@ -15,7 +15,9 @@ import { env } from '../env';
 import { db } from '../db/client';
 
 const INVITATION_TTL_DAYS = 7;
-const SEED_FIRM_ID = '00000000-0000-0000-0000-000000000001';
+// Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
+// scope reads/writes — those always derive firmId from the caller.
+const FALLBACK_FIRM_ID = '00000000-0000-0000-0000-000000000001';
 
 interface Inviter {
   id: string;
@@ -26,6 +28,7 @@ interface Inviter {
 
 interface InvitationRow {
   id: string;
+  firm_id: string | null;
   email: string;
   role: InviteRole;
   firm_name: string;
@@ -37,6 +40,12 @@ interface InvitationRow {
   accepted_at: string | Date | null;
   message: string | null;
   created_at: string | Date;
+}
+
+/** Internal carrier — firmId is not part of the public Invitation type. */
+interface InvitationWithFirm {
+  inv: Invitation;
+  firmId: string | null;
 }
 
 function generateToken(): string {
@@ -82,43 +91,66 @@ function toPublic(inv: Invitation): InvitationPublic {
   };
 }
 
-// In-memory fallback (used only when DATABASE_URL is blank).
+// In-memory fallback (used only when DATABASE_URL is blank). The companion
+// firmId map keeps tenant scoping in dev demos that span multiple firms.
 const memInvites = new Map<string, Invitation>();
+const memInviteFirm = new Map<string, string | null>();
 const memByToken = new Map<string, string>();
 
+const INVITATION_SELECT = `
+  select id, firm_id, email, role, firm_name, invited_by_id, invited_by_name, status,
+         token, expires_at, accepted_at, message, created_at
+  from invitations
+`;
+
 export const invitationsService = {
-  async list(): Promise<Invitation[]> {
+  async list(firmId: string | null): Promise<Invitation[]> {
+    if (!firmId) return [];
     const sql = db();
     if (sql) {
-      await sql`update invitations set status = 'expired' where status = 'pending' and expires_at < now()`;
+      await sql`update invitations set status = 'expired' where status = 'pending' and expires_at < now() and firm_id = ${firmId}::uuid`;
       const rows = await sql<InvitationRow[]>`
-        select id, email, role, firm_name, invited_by_id, invited_by_name, status,
-               token, expires_at, accepted_at, message, created_at
-        from invitations order by created_at desc
+        ${sql.unsafe(INVITATION_SELECT)}
+        where firm_id = ${firmId}::uuid
+        order by created_at desc
       `;
       return rows.map(fromRow);
     }
     const now = Date.now();
+    const out: Invitation[] = [];
     for (const inv of memInvites.values()) {
+      if (memInviteFirm.get(inv.id) !== firmId) continue;
       if (inv.status === 'pending' && new Date(inv.expiresAt).getTime() < now) {
         memInvites.set(inv.id, { ...inv, status: 'expired' });
       }
+      out.push(memInvites.get(inv.id)!);
     }
-    return Array.from(memInvites.values()).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return out.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
   },
 
-  async create(input: CreateInvitationRequest, inviter: Inviter): Promise<Invitation> {
+  async create(
+    input: CreateInvitationRequest,
+    inviter: Inviter,
+    firmId: string | null,
+  ): Promise<Invitation> {
     const email = input.email.toLowerCase().trim();
     const id = generateId();
     const token = generateToken();
     const expiresAt = isoPlusDays(INVITATION_TTL_DAYS);
     const firm = inviter.firm ?? 'Sharma & Associates';
     const inviterUuid = /^[0-9a-f-]{36}$/i.test(inviter.id) ? inviter.id : null;
+    const persistedFirmId = firmId ?? FALLBACK_FIRM_ID;
 
     const sql = db();
     if (sql) {
+      // Duplicate-pending check is firm-scoped — different firms can each
+      // invite the same email address independently.
       const dup = await sql<{ id: string }[]>`
-        select id from invitations where lower(email) = ${email} and status = 'pending' limit 1
+        select id from invitations
+        where lower(email) = ${email}
+          and status = 'pending'
+          and firm_id = ${persistedFirmId}::uuid
+        limit 1
       `;
       if (dup.length > 0) {
         throw Object.assign(new Error('An invitation is already pending for this email'), { status: 409 });
@@ -128,18 +160,22 @@ export const invitationsService = {
           id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
           status, token, expires_at, message
         ) values (
-          ${id}, ${SEED_FIRM_ID}, ${email}, ${input.role}, ${firm},
+          ${id}, ${persistedFirmId}, ${email}, ${input.role}, ${firm},
           ${inviterUuid}, ${inviter.name},
           'pending', ${token}, ${expiresAt}, ${input.message?.trim() || null}
         )
-        returning id, email, role, firm_name, invited_by_id, invited_by_name,
+        returning id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
                   status, token, expires_at, accepted_at, message, created_at
       `;
       return fromRow(rows[0]!);
     }
 
     for (const existing of memInvites.values()) {
-      if (existing.email === email && existing.status === 'pending') {
+      if (
+        existing.email === email &&
+        existing.status === 'pending' &&
+        memInviteFirm.get(existing.id) === persistedFirmId
+      ) {
         throw Object.assign(new Error('An invitation is already pending for this email'), { status: 409 });
       }
     }
@@ -156,36 +192,44 @@ export const invitationsService = {
       message: input.message?.trim() || undefined,
     };
     memInvites.set(inv.id, inv);
+    memInviteFirm.set(inv.id, persistedFirmId);
     memByToken.set(inv.token, inv.id);
     return inv;
   },
 
-  async cancel(id: string): Promise<boolean> {
+  async cancel(id: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
     const sql = db();
     if (sql) {
       const rows = await sql`
         update invitations set status = 'cancelled'
-        where id = ${id} and status = 'pending'
+        where id = ${id}
+          and status = 'pending'
+          and firm_id = ${firmId}::uuid
         returning id
       `;
       return rows.length > 0;
     }
     const inv = memInvites.get(id);
     if (!inv || inv.status !== 'pending') return false;
+    if (memInviteFirm.get(id) !== firmId) return false;
     memInvites.set(id, { ...inv, status: 'cancelled' });
     memByToken.delete(inv.token);
     return true;
   },
 
-  async resend(id: string): Promise<Invitation | undefined> {
+  async resend(id: string, firmId: string | null): Promise<Invitation | undefined> {
+    if (!firmId) return undefined;
     const sql = db();
     const newToken = generateToken();
     const newExpires = isoPlusDays(INVITATION_TTL_DAYS);
     if (sql) {
       const rows = await sql<InvitationRow[]>`
         update invitations set token = ${newToken}, expires_at = ${newExpires}
-        where id = ${id} and status = 'pending'
-        returning id, email, role, firm_name, invited_by_id, invited_by_name,
+        where id = ${id}
+          and status = 'pending'
+          and firm_id = ${firmId}::uuid
+        returning id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
                   status, token, expires_at, accepted_at, message, created_at
       `;
       const row = rows[0];
@@ -193,6 +237,7 @@ export const invitationsService = {
     }
     const inv = memInvites.get(id);
     if (!inv || inv.status !== 'pending') return undefined;
+    if (memInviteFirm.get(id) !== firmId) return undefined;
     memByToken.delete(inv.token);
     const refreshed: Invitation = { ...inv, token: newToken, expiresAt: newExpires };
     memInvites.set(id, refreshed);
@@ -208,9 +253,8 @@ export const invitationsService = {
         where token = ${token} and status = 'pending' and expires_at < now()
       `;
       const rows = await sql<InvitationRow[]>`
-        select id, email, role, firm_name, invited_by_id, invited_by_name, status,
-               token, expires_at, accepted_at, message, created_at
-        from invitations where token = ${token} limit 1
+        ${sql.unsafe(INVITATION_SELECT)}
+        where token = ${token} limit 1
       `;
       const row = rows[0];
       if (!row) throw Object.assign(new Error('Invitation not found'), { status: 404 });
@@ -235,25 +279,26 @@ export const invitationsService = {
   async accept(
     token: string,
     body: AcceptInvitationRequest,
-    registerUser: (u: User & { passwordHash: string }) => Promise<void>,
+    registerUser: (u: User & { passwordHash: string }, firmId: string | null) => Promise<void>,
   ): Promise<AuthResponse> {
     const sql = db();
-    let inv: Invitation;
+    let bundle: InvitationWithFirm;
     if (sql) {
       const rows = await sql<InvitationRow[]>`
-        select id, email, role, firm_name, invited_by_id, invited_by_name, status,
-               token, expires_at, accepted_at, message, created_at
-        from invitations where token = ${token} limit 1
+        ${sql.unsafe(INVITATION_SELECT)}
+        where token = ${token} limit 1
       `;
       const row = rows[0];
       if (!row) throw Object.assign(new Error('Invitation not found'), { status: 404 });
-      inv = fromRow(row);
+      bundle = { inv: fromRow(row), firmId: row.firm_id };
     } else {
       const id = memByToken.get(token);
       if (!id) throw Object.assign(new Error('Invitation not found'), { status: 404 });
-      inv = memInvites.get(id)!;
+      const inv = memInvites.get(id)!;
+      bundle = { inv, firmId: memInviteFirm.get(id) ?? null };
     }
 
+    const { inv, firmId } = bundle;
     if (inv.status !== 'pending') {
       throw Object.assign(new Error(`This invitation is ${inv.status}`), { status: 409 });
     }
@@ -272,7 +317,7 @@ export const invitationsService = {
       isSuperadmin: false,
     };
 
-    await registerUser({ ...user, passwordHash });
+    await registerUser({ ...user, passwordHash }, firmId);
 
     if (sql) {
       const rows = await sql<{ id: string }[]>`

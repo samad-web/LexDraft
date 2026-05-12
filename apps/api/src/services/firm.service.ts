@@ -71,11 +71,15 @@ function relativeFromIso(iso: string | null): string {
 
 interface AlertRow { id: string; tone: Alert['type']; text: string; detail: string }
 
-async function alerts(): Promise<Alert[]> {
+async function alerts(firmId: string | null): Promise<Alert[]> {
+  if (!firmId) return [];
   const sql = db();
   if (!sql) return SEED_ALERTS;
   const rows = await sql<AlertRow[]>`
-    select id, tone, text, detail from alerts order by created_at desc
+    select id, tone, text, detail
+    from alerts
+    where firm_id = ${firmId}::uuid
+    order by created_at desc
   `;
   return rows.map((r) => ({ id: r.id, type: r.tone, text: r.text, detail: r.detail }));
 }
@@ -125,7 +129,10 @@ export const firmService = {
     if (!sql) {
       // No database configured (local dev without Postgres). Return a small
       // synthetic snapshot so the UI doesn't render empty. Mark it clearly.
-      const [hearingsToday, alertsList] = await Promise.all([hearingsService.listToday(), alerts()]);
+      const [hearingsToday, alertsList] = await Promise.all([
+        hearingsService.listToday(null),
+        alerts(null),
+      ]);
       return {
         ...EMPTY_DASHBOARD,
         firm: { name: 'Demo firm (no DB)', seats: 1, seatsUsed: 1, period: fy.label },
@@ -136,7 +143,10 @@ export const firmService = {
 
     const firmId = await firmIdForUser(userId);
     if (!firmId) {
-      const [hearingsToday, alertsList] = await Promise.all([hearingsService.listToday(), alerts()]);
+      const [hearingsToday, alertsList] = await Promise.all([
+        hearingsService.listToday(null),
+        alerts(null),
+      ]);
       return { ...EMPTY_DASHBOARD, alerts: alertsList, hearingsToday };
     }
 
@@ -215,8 +225,8 @@ export const firmService = {
         group by 1
         order by 1
       `,
-      hearingsService.listToday(),
-      alerts(),
+      hearingsService.listToday(firmId),
+      alerts(firmId),
     ]);
 
     const firmName = firmRow?.name ?? 'Your firm';

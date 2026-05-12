@@ -4,6 +4,7 @@ import type { CalendarHearing } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useCalendarWeek } from '@/hooks/useCalendar';
 import { NewHearingModal } from '@/components/NewHearingModal';
+import { downloadIcs, type IcsEvent } from '@/lib/export-doc';
 
 function shiftWeek(weekStart: string, deltaDays: number): string {
   const d = new Date(weekStart + 'T00:00:00');
@@ -58,7 +59,27 @@ export function CalendarView() {
         <button
           type="button"
           className="btn"
-          onClick={() => showToast({ type: 'cobalt', text: 'Calendar export queued — .ics file ready shortly' })}
+          onClick={() => {
+            const all = data?.hearings ?? [];
+            if (all.length === 0) {
+              showToast({ type: 'amber', text: 'No hearings this week to export' });
+              return;
+            }
+            const events: IcsEvent[] = all.map((h, i) => {
+              const [hh = '10', mm = '00'] = (h.time || '10:00').split(':');
+              const start = new Date(`${h.date}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:00`);
+              const end = new Date(start.getTime() + 60 * 60 * 1000);
+              return {
+                uid: h.id ?? `hearing-${h.date}-${i}`,
+                start, end,
+                summary: `${h.case} — ${h.purpose}`,
+                location: h.court,
+                description: `Status: ${h.status}`,
+              };
+            });
+            downloadIcs(`hearings-week-${data?.weekStart ?? todayIso()}.ics`, events);
+            showToast({ type: 'sage', text: `Exported ${events.length} hearings to .ics` });
+          }}
         >
           <Icon name="download" size={14} /> Export ICS
         </button>

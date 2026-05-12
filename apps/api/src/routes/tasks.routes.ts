@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { tasksService } from '../services/tasks.service';
+import { firmIdForUser } from '../services/tenant';
+import { requireFeature } from '../services/permissions.service';
 
 const TaskInput = z.object({
   title: z.string(),
@@ -16,25 +18,33 @@ const Move = z.object({ to: z.enum(['pending', 'progress', 'review', 'done']) })
 
 export const tasksRouter: Router = Router();
 
-tasksRouter.get('/', async (_req, res, next) => {
+// Tasks live under the matter feature domain.
+tasksRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
   try {
-    res.json(await tasksService.board());
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json(await tasksService.board(firmId));
   } catch (err) {
     next(err);
   }
 });
 
-tasksRouter.post('/', async (req, res, next) => {
+tasksRouter.post('/', requireFeature('matter.create'), async (req, res, next) => {
   try {
-    res.status(201).json(await tasksService.create(TaskInput.parse(req.body)));
+    const firmId = await firmIdForUser(req.user?.id);
+    res.status(201).json(await tasksService.create(TaskInput.parse(req.body), firmId));
   } catch (err) {
     next(err);
   }
 });
 
-tasksRouter.patch('/:id', async (req, res, next) => {
+tasksRouter.patch('/:id', requireFeature('matter.create'), async (req, res, next) => {
   try {
-    const updated = await tasksService.update(req.params.id!, TaskInput.partial().parse(req.body));
+    const firmId = await firmIdForUser(req.user?.id);
+    const updated = await tasksService.update(
+      String(req.params.id ?? ''),
+      TaskInput.partial().parse(req.body),
+      firmId,
+    );
     if (!updated) {
       res.status(404).json({ error: 'Task not found' });
       return;
@@ -45,18 +55,20 @@ tasksRouter.patch('/:id', async (req, res, next) => {
   }
 });
 
-tasksRouter.post('/:id/move', async (req, res, next) => {
+tasksRouter.post('/:id/move', requireFeature('matter.create'), async (req, res, next) => {
   try {
+    const firmId = await firmIdForUser(req.user?.id);
     const { to } = Move.parse(req.body);
-    res.json(await tasksService.move(req.params.id!, to));
+    res.json(await tasksService.move(String(req.params.id ?? ''), to, firmId));
   } catch (err) {
     next(err);
   }
 });
 
-tasksRouter.delete('/:id', async (req, res, next) => {
+tasksRouter.delete('/:id', requireFeature('matter.create'), async (req, res, next) => {
   try {
-    const removed = await tasksService.remove(req.params.id!);
+    const firmId = await firmIdForUser(req.user?.id);
+    const removed = await tasksService.remove(String(req.params.id ?? ''), firmId);
     if (!removed) {
       res.status(404).json({ error: 'Task not found' });
       return;

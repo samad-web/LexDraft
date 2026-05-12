@@ -3,6 +3,8 @@ import { Icon } from '@lexdraft/ui';
 import type { ArchivedMatter, CaseOutcome } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useArchive } from '@/hooks/useArchive';
+import { Pagination } from '@/components/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 
 type Outcome = CaseOutcome;
 type FilterKey = 'all' | Outcome;
@@ -27,6 +29,8 @@ export function ArchiveView() {
       return matchOutcome && matchQuery;
     });
   }, [archive, filter, query]);
+
+  const pager = usePagination(filtered);
 
   const counts = useMemo<Record<FilterKey, number>>(() => {
     const tally: Record<FilterKey, number> = { all: archive.length, Won: 0, Lost: 0, Settled: 0, Withdrawn: 0 };
@@ -99,7 +103,7 @@ export function ArchiveView() {
                 </td>
               </tr>
             ) : (
-              filtered.map((m) => (
+              pager.slice.map((m) => (
                 <tr
                   key={m.id}
                   style={{ cursor: 'pointer' }}
@@ -118,9 +122,17 @@ export function ArchiveView() {
         </table>
       </div>
 
+      <Pagination
+        page={pager.page}
+        totalPages={pager.totalPages}
+        total={pager.total}
+        pageSize={pager.pageSize}
+        onChange={pager.setPage}
+      />
+
       <div className="row" style={{ gap: 8 }}>
         <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-          SHOWING {filtered.length} OF {archive.length} MATTERS
+          {filtered.length} OF {archive.length} MATTERS MATCH FILTERS
         </span>
       </div>
     </div>

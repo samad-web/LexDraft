@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth';
 import { adminApi } from './api';
 
@@ -7,11 +8,13 @@ export function ImpersonationBanner() {
   const user = useAuthStore((s) => s.user);
   const actAs = useAuthStore((s) => s.actAs);
   const endImpersonation = useAuthStore((s) => s.endImpersonation);
+  const qc = useQueryClient();
 
   if (!actAs || !user) return null;
 
   const handleEnd = async () => {
     try { await adminApi.endImpersonation(user.id); } catch { /* best-effort */ }
+    qc.clear();
     endImpersonation();
     navigate('/admin');
   };

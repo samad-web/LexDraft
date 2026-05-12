@@ -5,6 +5,8 @@ import { useUIStore } from '@/store/ui';
 import { useLeads, useMoveLead, useDeleteLead } from '@/hooks/useLeads';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { NewLeadModal } from '@/components/NewLeadModal';
+import { downloadCsv } from '@/lib/export-doc';
+import { Gate } from '@/components/Gate';
 
 type StageId = LeadStage;
 
@@ -139,17 +141,30 @@ export function LeadsView() {
         <button
           type="button"
           className="btn"
-          onClick={() => showToast({ type: 'cobalt', text: 'Pipeline export queued' })}
+          onClick={() => {
+            if (leads.length === 0) {
+              showToast({ type: 'amber', text: 'No leads to export' });
+              return;
+            }
+            downloadCsv(
+              `leads-${new Date().toISOString().slice(0, 10)}.csv`,
+              ['Name', 'Stage', 'Value (INR)', 'Referrer', 'Captured at'],
+              leads.map((l) => [l.name, l.stage, l.valueInr, l.referrer, l.capturedAt]),
+            );
+            showToast({ type: 'sage', text: `Exported ${leads.length} leads` });
+          }}
         >
           <Icon name="download" size={14} /> Export
         </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Capture lead
-        </button>
+        <Gate feature="leads.create">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Capture lead
+          </button>
+        </Gate>
       </div>
       <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
 

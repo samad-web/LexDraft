@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import { analyticsService } from '../services/analytics.service';
+import { firmIdForUser } from '../services/tenant';
+import { requireFeature } from '../services/permissions.service';
 
 export const analyticsRouter: Router = Router();
 
-analyticsRouter.get('/', async (_req, res, next) => {
+analyticsRouter.get('/', requireFeature('reports.activity'), async (req, res, next) => {
   try {
-    res.json(await analyticsService.summary());
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json(await analyticsService.summary(firmId));
   } catch (err) {
     next(err);
   }

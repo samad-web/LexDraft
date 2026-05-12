@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import type {
   AdminCreateFirmRequest,
+  AdminCreateFirmResponse,
   AdminUpdateBrandingRequest,
   AdminUpdateFirmRequest,
   AdminUpdateFlagsRequest,
@@ -19,6 +20,65 @@ import type {
 } from '@lexdraft/types';
 import { db } from '../db/client';
 import { auditService } from './audit.service';
+import { invalidatePermissionsCache } from './permissions.service';
+import { invalidateTenantCache } from './tenant';
+
+/** HTTP-aware error for guard-rail failures. The Express error middleware
+ *  reads `.status` and forwards it to the client. */
+function badRequest(message: string, status = 422): Error {
+  return Object.assign(new Error(message), { status });
+}
+
+/** Minimal interface satisfied by both the postgres-js root client and a
+ *  transaction handle — we only call the tagged-template form here. */
+type SqlExecutor = <T>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
+
+/** Spec §10: every firm must keep at least one active Firm Admin at all
+ *  times. Throws when the supplied mutation would zero them out. Pass
+ *  `excludingUserId` for the user being changed/deleted so they don't
+ *  count themselves.
+ *
+ *  Accepts an optional executor (`sql` or a `tx`) so callers can run the
+ *  check inside their own transaction — without that the check + the
+ *  mutation that follows is a TOCTOU race (two concurrent demotions of
+ *  different admins could both pass the check and leave a firm
+ *  admin-less).
+ */
+async function assertNotLastFirmAdmin(
+  opts: { userId: string; excludingUserId?: string },
+  exec?: unknown,
+): Promise<void> {
+  const sqlExec = (exec ?? db()) as SqlExecutor | null;
+  if (!sqlExec) return;
+  const rows = await sqlExec<Array<{ firm_id: string | null; is_admin: boolean }>>`
+    select u.firm_id,
+           (r.name = 'Firm Admin' and r.is_system = true) as is_admin
+    from users u
+    left join roles r on r.id = u.role_id
+    where u.id = ${opts.userId}::uuid
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row || !row.is_admin || !row.firm_id) return;
+
+  // Lock the firm's admin rows for the duration of the surrounding tx so a
+  // concurrent demotion can't pass its own check before we commit ours.
+  const counts = await sqlExec<Array<{ c: string | number }>>`
+    select count(*)::int as c
+    from users u
+    join roles r on r.id = u.role_id
+    where u.firm_id = ${row.firm_id}::uuid
+      and r.name = 'Firm Admin' and r.is_system = true
+      and u.status = 'active'
+      and u.id <> ${opts.excludingUserId ?? opts.userId}::uuid
+    for update
+  `;
+  if (Number(counts[0]?.c ?? 0) === 0) {
+    throw badRequest(
+      'This user is the last active Firm Admin for the firm. Promote another admin before changing or deleting them.',
+    );
+  }
+}
 
 // ---------- shared row shapes -----------------------------------------------
 
@@ -174,33 +234,127 @@ export const adminService = {
     };
   },
 
-  async createFirm(input: AdminCreateFirmRequest, actor: { id: string; email: string }): Promise<FirmSummary> {
+  async createFirm(input: AdminCreateFirmRequest, actor: { id: string; email: string }): Promise<AdminCreateFirmResponse> {
     const sql = db();
     if (!sql) throw new Error('Database not configured');
 
-    const rows = await sql<{ id: string }[]>`
-      insert into firms (name, seats, plan_tier)
-      values (${input.name}, ${input.seats}, ${input.plan})
-      returning id
+    // ---- bootstrap-admin pre-flight ---------------------------------------
+    // Per spec §3.1 every firm is born with an active Firm Admin. Validate
+    // the email + uniqueness BEFORE we touch the firms table — failing late
+    // would orphan a half-provisioned tenant.
+    const adminEmail = input.adminEmail.trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(adminEmail)) {
+      throw Object.assign(new Error('Invalid admin email'), { status: 422 });
+    }
+    const [existing] = await sql<Array<{ id: string }>>`
+      select id from users where lower(email) = ${adminEmail} limit 1
     `;
-    const firmId = rows[0]!.id;
+    if (existing) {
+      throw Object.assign(
+        new Error(`A user with email "${adminEmail}" already exists. Pick a different admin email or attach the existing user via the Users tab.`),
+        { status: 409 },
+      );
+    }
 
-    // Default branding mirrors the firm name; default flags = all enabled.
-    await sql`insert into firm_branding (firm_id, display_name) values (${firmId}::uuid, ${input.name})`;
-    await sql`
-      insert into feature_flags (firm_id, module, enabled)
-      select ${firmId}::uuid, m, true from unnest(${ALL_MODULES as unknown as string[]}::text[]) as m
+    // System Firm Admin role (seeded by 0009_rbac.sql).
+    const [adminRoleRow] = await sql<Array<{ id: string }>>`
+      select id from roles where firm_id is null and is_system = true and name = 'Firm Admin' limit 1
     `;
+    if (!adminRoleRow) {
+      throw new Error('Firm Admin system role missing — did 0009_rbac.sql run?');
+    }
 
+    // Resolve admin name first because the generated-password format depends
+    // on it: `${FirstName}@123` (e.g. "Aarav@123"). Falls back to a name
+    // derived from the email's local part when adminName is omitted.
+    const adminName = (input.adminName?.trim()
+      || (adminEmail.split('@')[0] ?? '')
+        .split(/[._-]+/)
+        .filter(Boolean)
+        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(' '))
+      || adminEmail;
+
+    // Generate a temp password if none supplied. Format: FirstName@123.
+    // First name = first whitespace-delimited token of adminName, stripped of
+    // non-ASCII-alphanumerics, capitalised. Falls back to "User" if the name
+    // produces nothing usable. Predictable by design — operator must rotate.
+    let plaintextPassword = input.adminPassword?.trim();
+    let generated = false;
+    if (!plaintextPassword) {
+      const firstToken = adminName.split(/\s+/)[0] ?? '';
+      const sanitized  = firstToken.replace(/[^A-Za-z0-9]/g, '');
+      const firstName  = sanitized.length > 0
+        ? sanitized.charAt(0).toUpperCase() + sanitized.slice(1).toLowerCase()
+        : 'User';
+      plaintextPassword = `${firstName}@123`;
+      generated = true;
+    } else if (plaintextPassword.length < 8) {
+      throw Object.assign(new Error('Admin password must be at least 8 characters'), { status: 422 });
+    }
+    const passwordHash = await bcrypt.hash(plaintextPassword, 10);
+
+    // ---- transaction: firm + branding + flags + admin --------------------
+    // postgres-js exposes `sql.begin` for atomic multi-statement work. If any
+    // step throws (e.g. unique-violation race on email) the firm row is
+    // rolled back too — no orphaned tenants.
+    const { firmId, adminId } = await sql.begin(async (tx) => {
+      const [firmRow] = await tx<{ id: string }[]>`
+        insert into firms (name, seats, plan_tier)
+        values (${input.name}, ${input.seats}, ${input.plan})
+        returning id
+      `;
+      const newFirmId = firmRow!.id;
+
+      await tx`
+        insert into firm_branding (firm_id, display_name)
+        values (${newFirmId}::uuid, ${input.name})
+      `;
+      await tx`
+        insert into feature_flags (firm_id, module, enabled)
+        select ${newFirmId}::uuid, m, true
+        from unnest(${ALL_MODULES as unknown as string[]}::text[]) as m
+      `;
+
+      const [userRow] = await tx<{ id: string }[]>`
+        insert into users (firm_id, name, email, role, role_id, is_superadmin, password_hash, status)
+        values (
+          ${newFirmId}::uuid,
+          ${adminName},
+          ${adminEmail},
+          ${'Firm Admin'},
+          ${adminRoleRow.id}::uuid,
+          ${false},
+          ${passwordHash},
+          ${'active'}::user_status
+        )
+        returning id
+      `;
+      return { firmId: newFirmId, adminId: userRow!.id };
+    });
+
+    // Audit trail — write outside the firm tx so a failed audit doesn't
+    // roll back tenant creation.
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,
       action: 'firm.create', targetType: 'firm', targetId: firmId,
-      payload: { name: input.name, seats: input.seats, plan: input.plan },
+      payload: {
+        name: input.name, seats: input.seats, plan: input.plan,
+        adminEmail, adminId, passwordSource: generated ? 'generated' : 'supplied',
+      },
     });
 
     const detail = await this.getFirm(firmId);
     if (!detail) throw new Error('Firm vanished after create');
-    return detail;
+    return {
+      firm: detail,
+      admin: {
+        id: adminId,
+        email: adminEmail,
+        name: adminName,
+        ...(generated ? { tempPassword: plaintextPassword } : {}),
+      },
+    };
   },
 
   async updateFirm(id: string, patch: AdminUpdateFirmRequest, actor: { id: string; email: string }): Promise<FirmSummary> {
@@ -242,6 +396,11 @@ export const adminService = {
 
   // ---- plan ---------------------------------------------------------------
 
+  /** Update a firm's plan. Plan changes shift the Layer-1 (`plan_features`)
+   *  set every user in that firm sees, so we drop the entire permissions
+   *  cache. Per-firm invalidation isn't supported by the cache today; on a
+   *  multi-tenant deployment a per-firm-keyed cache or pub/sub would be a
+   *  worthwhile refinement. */
   async updatePlan(id: string, patch: AdminUpdatePlanRequest, actor: { id: string; email: string }): Promise<FirmPlan> {
     const sql = db();
     if (!sql) throw new Error('Database not configured');
@@ -255,6 +414,12 @@ export const adminService = {
                            else ${patch.renewsAt ?? null}::date end
       where id = ${id}::uuid
     `;
+    // Plan tier change → every user in the firm has a different feature set.
+    // The cache is process-local and doesn't support per-firm keys yet, so
+    // the safe move is a full clear.
+    if (patch.tier !== undefined) {
+      invalidatePermissionsCache();
+    }
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,
       action: 'firm.plan.update', targetType: 'firm', targetId: id, payload: patch,
@@ -350,21 +515,37 @@ export const adminService = {
   async updateUser(id: string, patch: AdminUpdateUserRequest, actor: { id: string; email: string }): Promise<AdminUserSummary> {
     const sql = db();
     if (!sql) throw new Error('Database not configured');
-    await sql`
-      update users set
-        role          = coalesce(${patch.role ?? null}, role),
-        status        = coalesce(${patch.status ?? null}::user_status, status),
-        is_superadmin = coalesce(${patch.isSuperadmin ?? null}, is_superadmin),
-        firm_id       = case when ${patch.firmId === undefined ? 1 : 0}::int = 1
-                             then firm_id
-                             else ${patch.firmId ?? null}::uuid end,
-        suspended_at  = case
-          when ${patch.status ?? null}::user_status = 'suspended' then now()
-          when ${patch.status ?? null}::user_status = 'active'    then null
-          else suspended_at
-        end
-      where id = ${id}::uuid
-    `;
+
+    // Last-admin protection (spec §10): block any change that would leave
+    // the firm without an active Firm Admin. The check and the update run
+    // inside the same transaction with `for update` row locks so two
+    // concurrent demotions can't both pass.
+    const becomingNonAdmin = patch.role !== undefined && patch.role !== 'Firm Admin';
+    const becomingInactive = patch.status === 'suspended' || patch.status === 'deactivated';
+    const movingFirms      = patch.firmId !== undefined;
+
+    await sql.begin(async (tx) => {
+      if (becomingNonAdmin || becomingInactive || movingFirms) {
+        await assertNotLastFirmAdmin({ userId: id }, tx);
+      }
+      await tx`
+        update users set
+          role          = coalesce(${patch.role ?? null}, role),
+          status        = coalesce(${patch.status ?? null}::user_status, status),
+          is_superadmin = coalesce(${patch.isSuperadmin ?? null}, is_superadmin),
+          firm_id       = case when ${patch.firmId === undefined ? 1 : 0}::int = 1
+                               then firm_id
+                               else ${patch.firmId ?? null}::uuid end,
+          suspended_at  = case
+            when ${patch.status ?? null}::user_status = 'suspended' then now()
+            when ${patch.status ?? null}::user_status = 'active'    then null
+            else suspended_at
+          end
+        where id = ${id}::uuid
+      `;
+    });
+    invalidatePermissionsCache(id);
+    invalidateTenantCache(id);
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,
       action: patch.status === 'suspended' ? 'user.suspend'
@@ -386,7 +567,12 @@ export const adminService = {
   async deleteUser(id: string, actor: { id: string; email: string }): Promise<void> {
     const sql = db();
     if (!sql) throw new Error('Database not configured');
-    await sql`delete from users where id = ${id}::uuid`;
+    await sql.begin(async (tx) => {
+      await assertNotLastFirmAdmin({ userId: id }, tx);
+      await tx`delete from users where id = ${id}::uuid`;
+    });
+    invalidatePermissionsCache(id);
+    invalidateTenantCache(id);
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,
       action: 'user.delete', targetType: 'user', targetId: id, payload: null,

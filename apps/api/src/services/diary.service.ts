@@ -31,24 +31,30 @@ function fromRow(r: Row): DiaryEntry {
 }
 
 export const diaryService = {
-  async list(): Promise<DiaryEntry[]> {
+  async list(firmId: string | null): Promise<DiaryEntry[]> {
+    if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
     const rows = await sql<Row[]>`
       select id, entry_date, entry_time, kind, case_label, cnr, detail, forum
-      from diary_entries order by entry_date asc, entry_time asc
+      from diary_entries
+      where firm_id = ${firmId}::uuid
+      order by entry_date asc, entry_time asc
     `;
     return rows.map(fromRow);
   },
 
-  async create(input: Omit<DiaryEntry, 'id'>): Promise<DiaryEntry> {
+  async create(input: Omit<DiaryEntry, 'id'>, firmId: string | null): Promise<DiaryEntry> {
+    if (!firmId) {
+      throw Object.assign(new Error('No firm attached — cannot create diary entry'), { status: 422 });
+    }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
     const rows = await sql<Row[]>`
       insert into diary_entries
-        (entry_date, entry_time, kind, case_label, cnr, detail, forum)
+        (firm_id, entry_date, entry_time, kind, case_label, cnr, detail, forum)
       values
-        (${input.date}, ${input.time}, ${input.kind}, ${input.caseLabel},
+        (${firmId}::uuid, ${input.date}, ${input.time}, ${input.kind}, ${input.caseLabel},
          ${input.cnr}, ${input.detail}, ${input.forum})
       returning id, entry_date, entry_time, kind, case_label, cnr, detail, forum
     `;

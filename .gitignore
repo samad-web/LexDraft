@@ -14,3 +14,16 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 _design
+
+# TypeScript incremental build cache — rebuilt on every typecheck
+*.tsbuildinfo
+
+# Local AI-drafting sample outputs at the repo root (generated during dev)
+/Notice_u_s_138_NI_Act_claude.doc
+/Notice_u_s_138_NI_Act_xai.doc
+/LexDraft_Pricing_and_Tiers.docx
+/doc_claude.pdf
+
+# Local uploads dir (file-storage driver default)
+/uploads/
+.test-uploads/

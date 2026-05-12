@@ -6,6 +6,7 @@ import type { Case } from '@lexdraft/types';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
+import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 
 const STAGES: ReadonlyArray<string> = [
   'Filing', 'Summons', 'WS', 'Issues', 'Evidence', 'Arguments', 'Judgment', 'Appeal',
@@ -55,6 +56,7 @@ export function CaseDetailView() {
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const updateVisibility = useUpdateMatterVisibility();
 
   if (isLoading) {
     return (
@@ -105,7 +107,22 @@ export function CaseDetailView() {
               <span>For: {c.client}</span>
             </div>
           </div>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <label
+              className="row"
+              style={{ gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
+              title="When enabled, this matter is visible in the client portal."
+            >
+              <input
+                type="checkbox"
+                checked={!!c.visibleToClient}
+                disabled={!c.id || updateVisibility.isPending}
+                onChange={(e) => updateVisibility.mutate({
+                  id: c.id, visibleToClient: e.target.checked,
+                })}
+              />
+              Visible to client
+            </label>
             <button
               type="button"
               className="btn"

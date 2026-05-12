@@ -70,6 +70,17 @@ button { cursor: pointer; }
 em { font-style: normal; }
 em.case-name, .case-name { font-style: italic; }
 strong, b { font-weight: 600; }
+
+/* ---------- LANGUAGE FONT FALLBACKS ----------
+   Tamil and Devanagari glyphs are not present in Inter; switching the font
+   stack on `lang="ta"` / `lang="hi"` keeps drafts in those scripts legible
+   without affecting English UI chrome. */
+[lang='hi'] {
+  font-family: 'Noto Sans Devanagari', 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+}
+[lang='ta'] {
+  font-family: 'Noto Sans Tamil', 'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
+}
 a {
   color: var(--text-primary);
   text-decoration: underline;
@@ -750,6 +761,104 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
     transform: none !important;
     transition: none !important;
   }
+}
+
+/* ---------- COURT-PROSE ----------
+ * Indian court document conventions:
+ *  - A4 paper, ~1.5" left margin (binding), ~1" elsewhere
+ *  - Times New Roman 14pt, 1.5 line-height, justified
+ * Used in:
+ *  - DocumentViewerModal (read-only view)
+ *  - DraftingView preview card (generated output)
+ *  - RichTextEditor contentEditable (editing)
+ */
+.court-prose {
+  background: #fff;
+  color: #111;
+  font-family: 'Times New Roman', Times, Georgia, serif;
+  font-size: 14pt;
+  line-height: 1.5;
+  text-align: justify;
+  hyphens: auto;
+  padding: 64px 56px 64px 96px;
+}
+.court-prose:focus { outline: none; }
+.court-prose > *:first-child { margin-top: 0; }
+.court-prose > *:last-child  { margin-bottom: 0; }
+
+.court-prose p {
+  margin: 0 0 14pt;
+  text-align: justify;
+}
+.court-prose h1, .court-prose h2, .court-prose h3,
+.court-prose h4, .court-prose h5, .court-prose h6 {
+  font-family: 'Times New Roman', Times, Georgia, serif;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 28pt 0 14pt;
+  line-height: 1.3;
+}
+.court-prose h1 { font-size: 18pt; }
+.court-prose h2 { font-size: 16pt; }
+.court-prose h3 { font-size: 14pt; text-transform: none; letter-spacing: 0; text-align: left; }
+.court-prose h4, .court-prose h5, .court-prose h6 {
+  font-size: 14pt; text-transform: none; text-align: left;
+}
+
+.court-prose ol, .court-prose ul {
+  margin: 0 0 14pt;
+  padding-left: 36pt;
+}
+.court-prose li {
+  margin-bottom: 10pt;
+  line-height: 1.5;
+  text-align: justify;
+}
+.court-prose ol > li::marker { font-weight: 600; }
+
+.court-prose blockquote {
+  margin: 14pt 24pt;
+  padding-left: 16pt;
+  border-left: 2px solid #999;
+  font-style: italic;
+}
+
+.court-prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 14pt 0;
+}
+.court-prose th, .court-prose td {
+  border: 1px solid #999;
+  padding: 8pt 10pt;
+  text-align: left;
+  vertical-align: top;
+  line-height: 1.4;
+}
+.court-prose th { font-weight: 700; background: #f4f4f4; }
+
+.court-prose hr {
+  border: 0;
+  border-top: 1px solid #999;
+  margin: 18pt 0;
+}
+
+.court-prose strong, .court-prose b { font-weight: 700; }
+.court-prose em, .court-prose i { font-style: italic; }
+.court-prose u { text-decoration: underline; }
+
+/* Modifier: paper-card — drop shadow, max-width A4-proportioned */
+.court-prose.court-prose-paper {
+  border: 1px solid var(--border-default);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+@media (max-width: 720px) {
+  .court-prose { padding: 40px 28px 40px 56px; font-size: 13pt; }
 }
 
 /* ---------- SUPERADMIN BANNER ---------- */

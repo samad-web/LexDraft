@@ -17,25 +17,29 @@ interface RevenueRow { y: number; m: number; total: number }
 interface StageRow   { stage: string; count: number }
 interface OutcomeRow { won: number; total: number }
 
+const EMPTY_SUMMARY: AnalyticsSummary = {
+  kpis: { activeMatters: 0, billableHoursMonth: 0, revenueYtdInr: 0, winRatePct: 0 },
+  stages: [],
+  monthlyRevenue: [],
+};
+
 export const analyticsService = {
-  async summary(): Promise<AnalyticsSummary> {
+  async summary(firmId: string | null): Promise<AnalyticsSummary> {
+    if (!firmId) return EMPTY_SUMMARY;
     const sql = db();
-    if (!sql) {
-      return {
-        kpis: { activeMatters: 0, billableHoursMonth: 0, revenueYtdInr: 0, winRatePct: 0 },
-        stages: [],
-        monthlyRevenue: [],
-      };
-    }
+    if (!sql) return EMPTY_SUMMARY;
 
     const months = trailing12Months();
     const earliest = `${months[0]!.year}-${String(months[0]!.month + 1).padStart(2, '0')}-01`;
 
     const [activeRows, stageRows, outcomeRows, revRows, ytdRows] = await Promise.all([
-      sql<{ count: number }[]>`select count(*)::int as count from cases where status = 'Active'`,
+      sql<{ count: number }[]>`
+        select count(*)::int as count from cases
+        where firm_id = ${firmId}::uuid and status = 'Active'
+      `,
       sql<StageRow[]>`
         select stage, count(*)::int as count from cases
-        where status = 'Active'
+        where firm_id = ${firmId}::uuid and status = 'Active'
         group by stage order by count desc
       `,
       sql<OutcomeRow[]>`
@@ -43,20 +47,23 @@ export const analyticsService = {
           count(*) filter (where outcome = 'Won')::int as won,
           count(*) filter (where outcome is not null)::int as total
         from cases
+        where firm_id = ${firmId}::uuid
       `,
       sql<RevenueRow[]>`
         select extract(year  from issued_date)::int as y,
                extract(month from issued_date)::int as m,
                coalesce(sum(amount_inr), 0)::int    as total
         from invoices
-        where status in ('paid','pending','overdue')
+        where firm_id = ${firmId}::uuid
+          and status in ('paid','pending','overdue')
           and issued_date >= ${earliest}::date
         group by 1, 2
       `,
       sql<{ total: number }[]>`
         select coalesce(sum(amount_inr), 0)::int as total
         from invoices
-        where extract(year from issued_date) = ${new Date().getFullYear()}
+        where firm_id = ${firmId}::uuid
+          and extract(year from issued_date) = ${new Date().getFullYear()}
       `,
     ]);
 

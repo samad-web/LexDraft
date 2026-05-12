@@ -8,6 +8,14 @@ import {
   useDeleteFirm, useFirm, useUpdateBranding, useUpdateFirm,
   useUpdateFlags, useUpdatePlan,
 } from '../queries';
+import { useUIStore } from '@/store/ui';
+
+function adminErrorToast(showToast: ReturnType<typeof useUIStore.getState>['showToast'], fallback: string) {
+  return (err: unknown) => showToast({
+    type: 'vermillion',
+    text: (err as Error)?.message || fallback,
+  });
+}
 
 const ALL_MODULES: FeatureModule[] = [
   'drafting', 'cases', 'contracts', 'billing', 'research',
@@ -22,11 +30,11 @@ export function FirmDetailView() {
   const { data: firm, isLoading } = useFirm(id);
 
   if (isLoading || !firm) {
-    return <div style={{ padding: 32 }} className="muted">Loading firm…</div>;
+    return <div className="muted">Loading firm…</div>;
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1320, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="col stagger" style={{ gap: 24 }}>
       <Header firm={firm} onBack={() => navigate('/admin/firms')} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 24 }}>
@@ -56,7 +64,7 @@ function Header({ firm, onBack }: { firm: NonNullable<ReturnType<typeof useFirm>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
         <div>
           <div className="eyebrow">Firm</div>
-          <h1 className="display" style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.02em' }}>{firm.name}</h1>
+          <h1 className="display-md" style={{ marginTop: 4 }}>{firm.name}</h1>
           <div className="mono muted" style={{ fontSize: 12, marginTop: 4 }}>{firm.id}</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -74,6 +82,7 @@ function Header({ firm, onBack }: { firm: NonNullable<ReturnType<typeof useFirm>
 
 function BrandingCard({ firmId, initial }: { firmId: string; initial: { displayName: string; logoUrl: string | null; accentColor: string | null } }) {
   const update = useUpdateBranding(firmId);
+  const showToast = useUIStore((s) => s.showToast);
   const [name, setName] = useState(initial.displayName);
   const [logo, setLogo] = useState(initial.logoUrl ?? '');
   const [accent, setAccent] = useState(initial.accentColor ?? '');
@@ -98,11 +107,14 @@ function BrandingCard({ firmId, initial }: { firmId: string; initial: { displayN
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => update.mutate({
-            displayName: name,
-            logoUrl: logo.trim() === '' ? null : logo.trim(),
-            accentColor: accent.trim() === '' ? null : accent.trim(),
-          })}
+          onClick={() => update.mutate(
+            {
+              displayName: name,
+              logoUrl: logo.trim() === '' ? null : logo.trim(),
+              accentColor: accent.trim() === '' ? null : accent.trim(),
+            },
+            { onError: adminErrorToast(showToast, 'Couldn’t save branding') },
+          )}
           disabled={update.isPending}
         >
           {update.isPending ? 'Saving…' : 'Save branding'}
@@ -116,6 +128,7 @@ function BrandingCard({ firmId, initial }: { firmId: string; initial: { displayN
 
 function FlagsCard({ firmId, initial }: { firmId: string; initial: FeatureFlag[] }) {
   const update = useUpdateFlags(firmId);
+  const showToast = useUIStore((s) => s.showToast);
   const [flags, setFlags] = useState<Record<FeatureModule, boolean>>(() => {
     const map = {} as Record<FeatureModule, boolean>;
     for (const m of ALL_MODULES) map[m] = initial.find((f) => f.module === m)?.enabled ?? true;
@@ -151,7 +164,10 @@ function FlagsCard({ firmId, initial }: { firmId: string; initial: FeatureFlag[]
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => update.mutate({ flags: ALL_MODULES.map((m) => ({ module: m, enabled: flags[m] })) })}
+          onClick={() => update.mutate(
+            { flags: ALL_MODULES.map((m) => ({ module: m, enabled: flags[m] })) },
+            { onError: adminErrorToast(showToast, 'Couldn’t save flags') },
+          )}
           disabled={update.isPending}
         >
           {update.isPending ? 'Saving…' : 'Save flags'}
@@ -172,7 +188,7 @@ function MembersCard({ firm }: { firm: NonNullable<ReturnType<typeof useFirm>['d
       {firm.members.length === 0 ? (
         <div className="muted">No members yet.</div>
       ) : (
-        <table className="data-table">
+        <table className="tbl">
           <thead>
             <tr>
               <th>Name</th>
@@ -204,6 +220,7 @@ function MembersCard({ firm }: { firm: NonNullable<ReturnType<typeof useFirm>['d
 function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier: FirmPlanTier; status: BillingStatus; mrrInr: number; renewsAt: string | null }; status: FirmStatus }) {
   const update = useUpdatePlan(firmId);
   const updateFirm = useUpdateFirm(firmId);
+  const showToast = useUIStore((s) => s.showToast);
   const [tier, setTier]   = useState<FirmPlanTier>(initial.tier);
   const [bs, setBs]       = useState<BillingStatus>(initial.status);
   const [mrr, setMrr]     = useState(initial.mrrInr);
@@ -238,7 +255,10 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => update.mutate({ tier, status: bs, mrrInr: mrr, renewsAt: renews || null })}
+          onClick={() => update.mutate(
+            { tier, status: bs, mrrInr: mrr, renewsAt: renews || null },
+            { onError: adminErrorToast(showToast, 'Couldn’t save plan') },
+          )}
           disabled={update.isPending}
         >
           {update.isPending ? 'Saving…' : 'Save plan'}
@@ -247,11 +267,25 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
       <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 20, paddingTop: 16 }}>
         <div className="eyebrow" style={{ marginBottom: 8 }}>Tenant status</div>
         {status === 'active' ? (
-          <button type="button" className="btn" onClick={() => updateFirm.mutate({ status: 'suspended' })}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => updateFirm.mutate(
+              { status: 'suspended' },
+              { onError: adminErrorToast(showToast, 'Couldn’t suspend firm') },
+            )}
+          >
             Suspend firm
           </button>
         ) : (
-          <button type="button" className="btn btn-primary" onClick={() => updateFirm.mutate({ status: 'active' })}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => updateFirm.mutate(
+              { status: 'active' },
+              { onError: adminErrorToast(showToast, 'Couldn’t reactivate firm') },
+            )}
+          >
             Reactivate firm
           </button>
         )}
@@ -264,6 +298,7 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
 
 function DangerCard({ firmId, status: _status, onDeleted }: { firmId: string; status: FirmStatus; onDeleted: () => void }) {
   const del = useDeleteFirm();
+  const showToast = useUIStore((s) => s.showToast);
   const [confirmText, setConfirmText] = useState('');
   return (
     <section className="card" style={{ padding: 24, borderColor: 'var(--danger)' }}>
@@ -278,7 +313,13 @@ function DangerCard({ firmId, status: _status, onDeleted }: { firmId: string; st
           className="btn"
           style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
           disabled={confirmText !== 'DELETE' || del.isPending}
-          onClick={async () => { await del.mutateAsync(firmId); onDeleted(); }}
+          onClick={() => del.mutate(firmId, {
+            onSuccess: () => onDeleted(),
+            onError: (err) => showToast({
+              type: 'vermillion',
+              text: (err as Error)?.message || 'Couldn’t delete firm',
+            }),
+          })}
         >
           {del.isPending ? 'Deleting…' : 'Delete firm permanently'}
         </button>
