@@ -18,6 +18,7 @@ import { CasesListView } from '@/views/CasesListView';
 import { CaseDetailView } from '@/views/CaseDetailView';
 import { DraftingView } from '@/views/DraftingView';
 import { ContractReviewView } from '@/views/ContractReviewView';
+import { ReviewQueueView } from '@/views/ReviewQueueView';
 import { TasksView } from '@/views/TasksView';
 import { DocumentsView } from '@/views/DocumentsView';
 import { ResearchView } from '@/views/ResearchView';
@@ -200,6 +201,7 @@ export function App() {
               <Route path="/app/cases/:id" element={<CaseDetailView />} />
               <Route path="/app/draft" element={<DraftingView />} />
               <Route path="/app/review" element={<ContractReviewView />} />
+              <Route path="/app/review-queue" element={<ReviewQueueView />} />
               <Route path="/app/tasks" element={<TasksView />} />
               <Route path="/app/documents" element={<DocumentsView />} />
               <Route path="/app/research" element={<ResearchView />} />

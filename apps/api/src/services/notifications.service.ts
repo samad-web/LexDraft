@@ -72,6 +72,22 @@ async function loadClient(clientId: string): Promise<ClientLookup | null> {
   };
 }
 
+interface UserLookup { id: string; name: string; email: string; firmId: string }
+
+async function loadUser(userId: string): Promise<UserLookup | null> {
+  const sql = db();
+  if (!sql) return null;
+  const rows = await sql<Array<{ id: string; name: string; email: string | null; firm_id: string }>>`
+    select id, name, email, firm_id
+    from users
+    where id = ${userId}::uuid and (status is null or status = 'active')
+    limit 1
+  `;
+  const row = rows[0];
+  if (!row || !row.email) return null;
+  return { id: row.id, name: row.name, email: row.email, firmId: row.firm_id };
+}
+
 async function loadFirmRecipients(firmId: string): Promise<string[]> {
   const sql = db();
   if (!sql) return [];
@@ -285,6 +301,96 @@ export const notify = {
           `  ${summary.documentName}`,
           ``,
           `The acknowledgement is recorded against the document in the firm-side register.`,
+        ].join('\n'),
+      });
+    }
+  },
+
+  // ----- Contract review workflow -----------------------------------------
+  // No per-user preferences yet for these — firm-side internal workflow,
+  // not subject to client-portal opt-outs. Same fire-and-forget contract:
+  // failures log a warn and never bubble back to the originating mutation.
+
+  /** A reviewer was assigned (or re-assigned). The assignee gets the ping. */
+  async reviewAssigned(
+    assigneeId: string,
+    summary: { reviewTitle: string; assignerName: string },
+  ): Promise<void> {
+    const u = await loadUser(assigneeId);
+    if (!u) return;
+    await send({
+      to: u.email,
+      subject: `You've been assigned a contract review: ${summary.reviewTitle}`,
+      body: [
+        `Hi ${u.name},`,
+        ``,
+        `${summary.assignerName} assigned you to review the contract:`,
+        `  ${summary.reviewTitle}`,
+        ``,
+        `Open the Review tab in LexDraft to read the AI findings, leave comments, and approve or request changes.`,
+      ].join('\n'),
+    });
+  },
+
+  /** Decision recorded — notify whoever requested the review. */
+  async reviewDecided(
+    requesterId: string,
+    summary: {
+      reviewTitle: string;
+      decision: 'approved' | 'changes_requested';
+      reviewerName: string;
+    },
+  ): Promise<void> {
+    const u = await loadUser(requesterId);
+    if (!u) return;
+    const verb = summary.decision === 'approved' ? 'approved' : 'requested changes on';
+    await send({
+      to: u.email,
+      subject: `${summary.reviewerName} ${verb} your review: ${summary.reviewTitle}`,
+      body: [
+        `Hi ${u.name},`,
+        ``,
+        `${summary.reviewerName} ${verb} the contract review:`,
+        `  ${summary.reviewTitle}`,
+        ``,
+        summary.decision === 'approved'
+          ? 'The review is now marked approved.'
+          : 'Open the review to see the comments and decide your next steps.',
+      ].join('\n'),
+    });
+  },
+
+  /** A comment was posted on a review. Notify the assignee, the requester,
+   *  and (if this is a reply) the parent comment's author. Author skips
+   *  themselves so they don't get an email for their own post. */
+  async reviewCommentPosted(
+    recipientIds: ReadonlyArray<string>,
+    summary: {
+      reviewTitle: string;
+      commenterName: string;
+      preview: string;
+      isReply: boolean;
+    },
+  ): Promise<void> {
+    // De-dupe and resolve once; one user can't appear twice as a recipient.
+    const unique = Array.from(new Set(recipientIds.filter(Boolean)));
+    for (const id of unique) {
+      const u = await loadUser(id);
+      if (!u) continue;
+      await send({
+        to: u.email,
+        subject: summary.isReply
+          ? `${summary.commenterName} replied on ${summary.reviewTitle}`
+          : `${summary.commenterName} commented on ${summary.reviewTitle}`,
+        body: [
+          `Hi ${u.name},`,
+          ``,
+          `${summary.commenterName} ${summary.isReply ? 'replied to a comment' : 'added a comment'} on the review:`,
+          `  ${summary.reviewTitle}`,
+          ``,
+          `  "${summary.preview}"`,
+          ``,
+          `Open the review in LexDraft to read the full thread and respond.`,
         ].join('\n'),
       });
     }

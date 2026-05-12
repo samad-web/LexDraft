@@ -15,6 +15,7 @@
 import type { FeatureKey, MeFeaturesResponse, UserPlan } from '@lexdraft/types';
 import { db } from '../db/client';
 import { authService } from './auth.service';
+import { cacheBroadcaster } from './cache-broadcaster';
 
 interface ResolverRow {
   user_id: string;
@@ -115,10 +116,13 @@ function demoFallbackFor(roleText: string): FeatureKey[] {
     case 'Paralegal':
     case 'Legal Secretary':
     case 'Intern':
-      // Limited tenant access: view + drafting basics only.
+      // Limited tenant access: view + drafting basics + review (as a reader/
+      // commenter). `review.comment` is granted to these roles via migration
+      // 0028 so the Review tab is reachable from every system role.
       return [
         ...BASELINE_FEATURES,
         'drafting.basic', 'drafting.templates',
+        'review.comment',
         'matter.view', 'client.view',
         'firm.members.view',
       ];
@@ -151,9 +155,20 @@ export const __testing = { demoFallbackFor };
  * cache or pub/sub fanout is required to keep them coherent; until then,
  * each replica's TTL bounds the stale window.
  */
+// Cross-replica invalidation. See cache-broadcaster.ts for the full
+// design. Local handler drops the entry; sister replicas' calls land
+// here via the NOTIFY channel and apply the same drop.
+cacheBroadcaster.subscribe('permissions', (userId) => {
+  if (userId === null) cache.clear();
+  else cache.delete(userId);
+});
+
 export function invalidatePermissionsCache(userId?: string): void {
   if (userId === undefined) cache.clear();
   else cache.delete(userId);
+  // Fire-and-forget cross-replica broadcast. Failure is logged in the
+  // broadcaster and falls through to TTL-based eventual consistency.
+  void cacheBroadcaster.publish('permissions', userId ?? null);
 }
 
 /** Resolve the full feature set + role/plan summary for a user. Cached. */

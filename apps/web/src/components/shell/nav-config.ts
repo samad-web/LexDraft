@@ -76,7 +76,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Workspace',
     items: [
       { id: 'draft',     label: 'Draft',     icon: 'draft',     badge: 'AI', to: '/app/draft',     requiresFeature: 'drafting.ai' },
-      { id: 'review',    label: 'Review',    icon: 'review',    badge: 'AI', to: '/app/review',    requiresFeature: 'review.approve' },
+      { id: 'review',    label: 'Review',    icon: 'review',    badge: 'AI', to: '/app/review',    requiresFeature: 'review.comment' },
+      { id: 'review-queue', label: 'My Queue', icon: 'tasks',  to: '/app/review-queue', requiresFeature: 'review.comment' },
       { id: 'documents', label: 'Documents', icon: 'documents', to: '/app/documents', requiresFeature: 'shared.documents' },
       { id: 'clauses',   label: 'Clauses',   icon: 'clauses',   to: '/app/clauses',   requiresFeature: 'drafting.clauses' },
     ],
