@@ -4,6 +4,7 @@ import { useFirmDashboard } from '@/hooks/useFirmDashboard';
 import { useCan, useFirmPracticeGroups } from '@/hooks/useFirmAdmin';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
+import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
 import { downloadCsv } from '@/lib/export-doc';
 import type {
@@ -23,6 +24,7 @@ export function FirmDashboardView() {
   const practiceGroups = useFirmPracticeGroups();
   const showToast = useUIStore((s) => s.showToast);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   if (isLoading) {
     return <Loading />;
@@ -59,7 +61,7 @@ export function FirmDashboardView() {
     },
     {
       label: 'Create practice groups',
-      hint: 'Group members by practice area — analytics roll up by these groupings.',
+      hint: 'Group members by practice area - analytics roll up by these groupings.',
       link: '/app/manage',
       linkLabel: 'Open Manage',
       completed: (practiceGroups.data?.length ?? 0) > 0,
@@ -74,17 +76,17 @@ export function FirmDashboardView() {
     },
     {
       label: 'Issue your first invoice',
-      hint: 'Unlocks revenue analytics — the headline KPI strip and the trailing-12 chart.',
+      hint: 'Unlocks revenue analytics - the headline KPI strip and the trailing-12 chart.',
       link: '/app/invoices',
       linkLabel: 'Create invoice',
       // No invoice count in the summary; cheap proxy: a non-zero FY revenue
-      // string. Brand-new firms get "₹0" — once the first invoice posts it
+      // string. Brand-new firms get "₹0" - once the first invoice posts it
       // updates and the step ticks.
       completed: !/^\s*₹0\b/.test(data.stats.revenueFY),
     },
     {
       label: 'Configure firm branding',
-      hint: 'Display name, logo, accent — used in client portal and document exports.',
+      hint: 'Display name, logo, accent - used in client portal and document exports.',
       link: '/app/settings',
       linkLabel: 'Open settings',
       completed: false,
@@ -145,6 +147,35 @@ export function FirmDashboardView() {
       </div>
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
+      {/* Calendar CTA - dedicated card row. */}
+      <div
+        className="card"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          padding: '18px 22px',
+          background: 'var(--bg-surface-2)',
+          borderColor: 'var(--border-default)',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
+          <div className="heading-md" style={{ marginBottom: 2 }}>Full hearings calendar</div>
+          <p className="body-sm muted" style={{ margin: 0 }}>
+            Every hearing across the firm for the month. Step through months and drill into any day's list.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-lg"
+          onClick={() => setCalendarOpen(true)}
+          aria-label="Open full month calendar"
+        >
+          <Icon name="calendar" size={16} /> Open calendar
+        </button>
+      </div>
+
       {isEmptyChambers && (
         <DashboardEmptyState
           plan="Firm"
@@ -164,7 +195,7 @@ export function FirmDashboardView() {
         />
         <Stat
           label="Billable hours · month"
-          value={data.stats.billableHoursMonth > 0 ? String(data.stats.billableHoursMonth) : '—'}
+          value={data.stats.billableHoursMonth > 0 ? String(data.stats.billableHoursMonth) : '-'}
           hint={
             data.stats.realizationPct > 0
               ? `${data.stats.realizationPct}% realisation`
@@ -284,6 +315,7 @@ export function FirmDashboardView() {
               <span className="spacer" />
               <span className="badge badge-cobalt">{data.hearingsToday.length} listed</span>
             </div>
+            <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
             <div className="col" style={{ gap: 0 }}>
               {data.hearingsToday.length === 0 && (
                 <div className="body-sm muted" style={{ padding: '12px 0' }}>
@@ -418,9 +450,9 @@ function MemberRow({ member }: { member: FirmMember }) {
           </div>
         </div>
       </td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.activeMatters || '—'}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.billableHours || '—'}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.winRate ? `${member.winRate}%` : '—'}</td>
+      <td className="tabular" style={{ textAlign: 'right' }}>{member.activeMatters || '-'}</td>
+      <td className="tabular" style={{ textAlign: 'right' }}>{member.billableHours || '-'}</td>
+      <td className="tabular" style={{ textAlign: 'right' }}>{member.winRate ? `${member.winRate}%` : '-'}</td>
       <td>
         <span className={`badge ${statusBadge}`}>{member.status}</span>
       </td>

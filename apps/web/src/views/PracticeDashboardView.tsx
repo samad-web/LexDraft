@@ -6,6 +6,7 @@ import { useMyUsage } from '@/hooks/useMyUsage';
 import { useCan, useFirmPracticeGroups } from '@/hooks/useFirmAdmin';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
+import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
 import { greetingFor } from '@/lib/greeting';
 import type { Alert, FirmMember, Hearing } from '@lexdraft/types';
@@ -21,11 +22,12 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
   const isFirmAdmin = useCan('admin.users');
   // Practice-groups endpoint is admin-only; non-admin members will get 403 and
   // we surface a "Ask your admin" hint for that step instead. TanStack Query
-  // caches the error and the .data stays undefined — that lines up with the
+  // caches the error and the .data stays undefined - that lines up with the
   // step staying un-completed on the non-admin's view, which is correct.
   const practiceGroups = useFirmPracticeGroups();
   const showToast = useUIStore((s) => s.showToast);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const today = new Date();
   const dateStr = today.toLocaleDateString('en-GB', {
@@ -68,7 +70,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
     personal.data.recentDocs.length === 0 &&
     firm.data.stats.clientsActive === 0;
 
-  // Step completion derived from current data only — never persisted.
+  // Step completion derived from current data only - never persisted.
   // Branding has no tenant-facing read endpoint yet, so we deliberately leave
   // step 4 un-auto-completable; the link still drives the user into Settings.
   const practiceSteps: DashboardEmptyStateStep[] = [
@@ -92,7 +94,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
     },
     {
       label: 'Add your first matter',
-      hint: 'Open a case file — hearings, documents, and bills flow from here.',
+      hint: 'Open a case file - hearings, documents, and bills flow from here.',
       link: '/app/cases',
       linkLabel: 'Open matter',
       completed: firm.data.stats.activeMatters > 0,
@@ -135,7 +137,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         <p className="lede" style={{ marginTop: 14, maxWidth: 760 }}>
           {lede}
         </p>
-        <div className="row" style={{ marginTop: 18, gap: 10, flexWrap: 'wrap' }}>
+        <div className="row" style={{ marginTop: 18, gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="badge">{firm.data.firm.name}</span>
           <span className="badge badge-cobalt mono" style={{ letterSpacing: '0.1em' }}>
             {firm.data.firm.seatsUsed} / {firm.data.firm.seats} SEATS
@@ -145,6 +147,38 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
           </span>
         </div>
       </div>
+
+      {/* Calendar CTA - dedicated card row. */}
+      <div style={{ paddingTop: 24 }}>
+        <div
+          className="card"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 20,
+            padding: '18px 22px',
+            background: 'var(--bg-surface-2)',
+            borderColor: 'var(--border-default)',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
+            <div className="heading-md" style={{ marginBottom: 2 }}>Full hearings calendar</div>
+            <p className="body-sm muted" style={{ margin: 0 }}>
+              Every hearing across the firm for the month. Step through months and drill into any day's list.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setCalendarOpen(true)}
+            aria-label="Open full month calendar"
+          >
+            <Icon name="calendar" size={16} /> Open calendar
+          </button>
+        </div>
+      </div>
+      <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
       {isEmptyChambers && (
         <div style={{ paddingTop: 24 }}>
@@ -156,14 +190,14 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         </div>
       )}
 
-      {/* §I — MY DAY */}
+      {/* §I - MY DAY */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <div
           className="dash-primary"
           style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'flex-start' }}
         >
           <div>
-            <div className="eyebrow" style={{ marginBottom: 16 }}>§ I — My day</div>
+            <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - My day</div>
             <h2 className="display-md" style={{ marginBottom: 16 }}>
               {myHearingCount > 0
                 ? <>You have <span style={{ color: 'var(--text-primary)' }}>{myHearingCount}</span> {myHearingCount === 1 ? 'hearing' : 'hearings'} listed.</>
@@ -213,7 +247,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         </div>
       </section>
 
-      {/* §II — CHAMBERS PULSE */}
+      {/* §II - CHAMBERS PULSE */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <SectionHeader number="§ II" title="Chambers pulse" trailing="THIS MONTH" />
         <div className="stat-row">
@@ -228,7 +262,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         </div>
       </section>
 
-      {/* §III — TODAY ACROSS THE FIRM */}
+      {/* §III - TODAY ACROSS THE FIRM */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <SectionHeader
           number="§ III"
@@ -246,7 +280,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         )}
       </section>
 
-      {/* §IV — ACTIVE MEMBERS */}
+      {/* §IV - ACTIVE MEMBERS */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="row" style={{ alignItems: 'flex-end', marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
           <div className="eyebrow">§ IV</div>
@@ -283,7 +317,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         )}
       </section>
 
-      {/* §V — DOCUMENT REGISTER */}
+      {/* §V - DOCUMENT REGISTER */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <div className="row" style={{ alignItems: 'flex-end', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
           <div className="eyebrow">§ V</div>
@@ -332,7 +366,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         )}
       </section>
 
-      {/* §VI — UPGRADE NUDGE WHEN AT CAP */}
+      {/* §VI - UPGRADE NUDGE WHEN AT CAP */}
       {seatsAtCap && (
         <section style={{ padding: '24px 0 40px' }}>
           <div
@@ -559,7 +593,7 @@ function PracticeMemberRow({ member }: { member: FirmMember }) {
           </div>
         </div>
       </td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.activeMatters || '—'}</td>
+      <td className="tabular" style={{ textAlign: 'right' }}>{member.activeMatters || '-'}</td>
       <td>
         <span className={`badge ${statusBadge}`}>{member.status}</span>
       </td>

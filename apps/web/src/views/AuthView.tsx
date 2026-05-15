@@ -1,5 +1,5 @@
-import { useEffect, useState, type CSSProperties, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useSignIn, useSignUp } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
@@ -7,9 +7,9 @@ import { useUIStore } from '@/store/ui';
 import { isMfaChallenge } from '@/lib/auth-types';
 
 // =============================================================================
-// AuthView — Sign in / Sign up + 3-step onboarding
+// AuthView - Sign in / Sign up + 3-step onboarding
 // Ported from _design/lexdraft/project/views/auth.jsx, mapped to v2 Monochrome
-// tokens, wired to useSignIn / useSignUp. The "ADMIN" affordance is kept —
+// tokens, wired to useSignIn / useSignUp. The "ADMIN" affordance is kept -
 // the API auto-promotes such accounts to superadmin.
 // =============================================================================
 
@@ -24,17 +24,42 @@ interface RoleOption {
 
 const ROLE_OPTIONS: RoleOption[] = [
   { id: 'solo', label: 'Solo Advocate', sub: 'Just me' },
-  { id: 'group', label: 'Practice Group', sub: '2–8 people' },
+  { id: 'group', label: 'Practice Group', sub: '2-8 people' },
   { id: 'firm', label: 'Firm', sub: '9+ people' },
 ];
 
 const STEP_LABELS: readonly string[] = ['', 'Profile', 'Firm details', 'Done'];
+
+// Maps the `?reason=` value the api.ts interceptor appends on a 402 to a
+// human-friendly banner copy. Anything we don't recognise falls through to
+// the generic phrase, so future server-side codes degrade gracefully.
+const PLAN_REASON_MESSAGES: Record<string, string> = {
+  plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using LexDraft.',
+  plan_past_due:  'Your firm subscription is past due. Update billing to continue using LexDraft.',
+  plan_expired:   'Your firm subscription period has ended. Renew to continue using LexDraft.',
+};
 
 export function AuthView() {
   const navigate = useNavigate();
   const signIn = useSignIn();
   const signUp = useSignUp();
   const showToast = useUIStore((s) => s.showToast);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Renewal banner. Populated when the api.ts response interceptor redirects
+  // to /auth?reason=plan_* after a 402. We read it once into local state so
+  // dismissing the banner (or starting a new sign-in attempt) clears it
+  // without re-reading the URL.
+  const planReason = searchParams.get('reason');
+  const planMessage = useMemo(() => {
+    if (!planReason) return null;
+    return PLAN_REASON_MESSAGES[planReason] ?? 'Your firm subscription is no longer active. Renew to continue.';
+  }, [planReason]);
+  const dismissPlanBanner = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('reason');
+    setSearchParams(next, { replace: true });
+  };
 
   const [tab, setTab] = useState<AuthTab>('signin');
   const [step, setStep] = useState<0 | 1 | 2>(0);
@@ -243,7 +268,7 @@ export function AuthView() {
           </div>
         )}
 
-        {/* MFA challenge — interleaved between password POST and session creation. */}
+        {/* MFA challenge - interleaved between password POST and session creation. */}
         {tab === 'signin' && mfaChallenge && (
           <MfaChallengeStep
             challengeId={mfaChallenge.challengeId}
@@ -274,15 +299,13 @@ export function AuthView() {
             </div>
             <div>
               <label className="label" htmlFor="signin-password">Password</label>
-              <input
+              <PasswordInput
                 id="signin-password"
-                className="input"
-                type="password"
-                placeholder="••••••••"
                 value={signinPassword}
-                onChange={(e) => setSigninPassword(e.target.value)}
-                required
+                onChange={(v) => setSigninPassword(v)}
+                placeholder="••••••••"
                 autoComplete="current-password"
+                required
               />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -305,6 +328,40 @@ export function AuthView() {
                 Forgot?
               </a>
             </div>
+            {planMessage && (
+              <div
+                role="status"
+                style={{
+                  fontSize: 13,
+                  color: 'var(--text-primary)',
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 8,
+                }}
+              >
+                <span style={{ flex: 1 }}>{planMessage}</span>
+                <button
+                  type="button"
+                  onClick={dismissPlanBanner}
+                  aria-label="Dismiss"
+                  style={{
+                    border: 0,
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontSize: 16,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             {signIn.isError && (
               <div
                 role="alert"
@@ -350,7 +407,7 @@ export function AuthView() {
           </form>
         )}
 
-        {/* SIGN UP — STEP 0 (role) */}
+        {/* SIGN UP - STEP 0 (role) */}
         {tab === 'signup' && step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p
@@ -414,7 +471,7 @@ export function AuthView() {
           </div>
         )}
 
-        {/* SIGN UP — STEP 1 (profile) */}
+        {/* SIGN UP - STEP 1 (profile) */}
         {tab === 'signup' && step === 1 && (
           <form
             onSubmit={(e) => {
@@ -462,14 +519,12 @@ export function AuthView() {
             </div>
             <div>
               <label className="label" htmlFor="signup-password">Password</label>
-              <input
+              <PasswordInput
                 id="signup-password"
-                className="input"
-                type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
+                onChange={(v) => setPassword(v)}
                 autoComplete="new-password"
+                required
                 minLength={8}
               />
             </div>
@@ -479,7 +534,7 @@ export function AuthView() {
           </form>
         )}
 
-        {/* SIGN UP — STEP 2 (firm) */}
+        {/* SIGN UP - STEP 2 (firm) */}
         {tab === 'signup' && step === 2 && (
           <form
             onSubmit={handleSignUp}
@@ -548,10 +603,10 @@ export function AuthView() {
 }
 
 // ===========================================================================
-// MfaChallengeStep — exchange a sign-in challengeId for a session.
+// MfaChallengeStep - exchange a sign-in challengeId for a session.
 //
 // Lives in the same file as AuthView because it's only ever rendered here
-// (not a generally-reusable widget — the post-password handshake is unique
+// (not a generally-reusable widget - the post-password handshake is unique
 // to the sign-in flow). Extracted as its own component because the timer +
 // backup-code toggle state would otherwise bloat the parent further.
 // ===========================================================================
@@ -708,7 +763,7 @@ function MfaChallengeStep({
         disabled={verifyChallenge.isPending || !canSubmit}
       >
         {expired
-          ? 'Expired — sign in again'
+          ? 'Expired - sign in again'
           : verifyChallenge.isPending
             ? 'Verifying…'
             : 'Verify'}
@@ -748,5 +803,72 @@ function MfaChallengeStep({
         </button>
       </div>
     </form>
+  );
+}
+
+// ===========================================================================
+// PasswordInput - input with an inline show/hide eye toggle. Local to AuthView
+// because it's only ever used here; if a third password field shows up
+// elsewhere we'll lift it into @lexdraft/ui.
+// ===========================================================================
+
+interface PasswordInputProps {
+  id: string;
+  value: string;
+  onChange: (next: string) => void;
+  autoComplete?: string;
+  placeholder?: string;
+  required?: boolean;
+  minLength?: number;
+}
+
+function PasswordInput({
+  id,
+  value,
+  onChange,
+  autoComplete,
+  placeholder,
+  required,
+  minLength,
+}: PasswordInputProps) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        id={id}
+        className="input"
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        required={required}
+        minLength={minLength}
+        style={{ paddingRight: 38 }}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? 'Hide password' : 'Show password'}
+        aria-pressed={visible}
+        tabIndex={-1}
+        style={{
+          position: 'absolute',
+          right: 6,
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'transparent',
+          border: 0,
+          padding: 6,
+          cursor: 'pointer',
+          color: 'var(--text-tertiary)',
+          display: 'flex',
+          alignItems: 'center',
+          borderRadius: 'var(--radius-sm)',
+        }}
+      >
+        <Icon name={visible ? 'eyeOff' : 'eye'} size={16} />
+      </button>
+    </div>
   );
 }

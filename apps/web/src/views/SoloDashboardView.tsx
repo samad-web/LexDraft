@@ -5,6 +5,7 @@ import { useLimitations } from '@/hooks/useLimitations';
 import { PillNav } from '@/components/PillNav';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
 import { CaseloadHealthWidget } from '@/components/CaseloadHealthWidget';
+import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { greetingFor } from '@/lib/greeting';
 import type { Alert, DocumentRecord, Hearing } from '@lexdraft/types';
 
@@ -23,10 +24,14 @@ const RAIL_ITEMS: ReadonlyArray<{ id: SectionId; label: string }> = [
 
 export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
   const [section, setSection] = useState<SectionId>('today');
+  // Lift calendar modal state to the outer component so the "Full calendar"
+  // button can live next to the PillNav (always visible) rather than being
+  // hidden inside the §II cause-list section.
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const { data, isLoading, isError, error } = useDashboard();
   // Limitations aren't part of /dashboard yet; pull from the dedicated endpoint
   // purely so the onboarding checklist can mark step 4 complete once one
-  // exists. Cheap call — runs only on the dashboard view and gets cached.
+  // exists. Cheap call - runs only on the dashboard view and gets cached.
   const limitationsQuery = useLimitations();
 
   const today = new Date();
@@ -44,7 +49,7 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
       (alertCount > 0 ? `; ${alertCount} ${alertCount === 1 ? 'notice' : 'notices'} awaiting attention.` : '.');
 
   // Empty-state detection: brand-new firm with no clients, matters, hearings,
-  // or documents yet. Recent docs is a proxy for "any documents" — the Solo
+  // or documents yet. Recent docs is a proxy for "any documents" - the Solo
   // dashboard summary doesn't carry a total count but the recent-N feed is
   // always non-empty when any docs exist (see firm.service.ts behaviour).
   const isEmptyChambers = Boolean(
@@ -121,7 +126,7 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
       )}
 
       {/*
-        Caseload-health widget — sits between the empty-state panel and
+        Caseload-health widget - sits between the empty-state panel and
         the existing rail/widgets. Self-gated by the `caseload.health`
         feature; when the user lacks it, the underlying fetch errors and
         the widget renders nothing.
@@ -132,7 +137,38 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
         </div>
       )}
 
-      <div style={{ paddingTop: 20, paddingBottom: 20, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      {/* Calendar CTA - dedicated card row, unmissable. */}
+      <div style={{ paddingTop: 24 }}>
+        <div
+          className="card"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 20,
+            padding: '18px 22px',
+            background: 'var(--bg-surface-2)',
+            borderColor: 'var(--border-default)',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
+            <div className="heading-md" style={{ marginBottom: 2 }}>Full hearings calendar</div>
+            <p className="body-sm muted" style={{ margin: 0 }}>
+              See every hearing for the month. Jump between months and drill into any day's cause list.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setCalendarOpen(true)}
+            aria-label="Open full month calendar"
+          >
+            <Icon name="calendar" size={16} /> Open calendar
+          </button>
+        </div>
+      </div>
+
+      <div style={{ paddingTop: 20, paddingBottom: 20 }}>
         <PillNav
           items={RAIL_ITEMS}
           value={section}
@@ -140,6 +176,7 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
           ariaLabel="Dashboard sections"
         />
       </div>
+      <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
       {isLoading && (
         <div className="card" style={{ marginTop: 16 }}>
@@ -186,12 +223,12 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
           style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'flex-start' }}
         >
           <div>
-            <div className="eyebrow" style={{ marginBottom: 16 }}>§ I — Today’s work</div>
+            <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - Today’s work</div>
             <h2 className="display-md" style={{ marginBottom: 16 }}>
               Begin a draft. <span style={{ color: 'var(--text-secondary)' }}>Or open one already started.</span>
             </h2>
             <p className="body-lg muted" style={{ maxWidth: 520, marginBottom: 28 }}>
-              Indian-format document templates tuned to procedure. Speak the matter and the brief — a first draft will arrive in seconds.
+              Indian-format document templates tuned to procedure. Speak the matter and the brief - a first draft will arrive in seconds.
             </p>
             <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
               <button type="button" className="btn btn-primary btn-lg" onClick={() => onNav('draft')}>
@@ -416,7 +453,7 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
             <div className="eyebrow" style={{ marginBottom: 8 }}>Growing the chamber?</div>
             <div className="heading-md" style={{ marginBottom: 4 }}>Add a co-advocate with the Practice plan</div>
             <p className="body-sm muted" style={{ maxWidth: 520 }}>
-              Two to eight seats, shared matters, member roster, and ten times the AI drafts each month. Move up any time — your existing matters and templates carry over.
+              Two to eight seats, shared matters, member roster, and ten times the AI drafts each month. Move up any time - your existing matters and templates carry over.
             </p>
           </div>
           <button type="button" className="btn btn-primary" onClick={() => onNav('settings')}>
