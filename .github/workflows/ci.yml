@@ -61,7 +61,9 @@ jobs:
       STORAGE_LOCAL_DIR: ./.test-uploads
       STORAGE_PUBLIC_BASE_URL: http://localhost:4000
       # The integration suite picks this up; the unit suite ignores it.
-      DATABASE_URL_TEST: postgres://postgres:postgres@localhost:5432/lexdraft_test
+      # NOTE: the harness in apps/api/src/__tests__/integration-setup.ts reads
+      # TEST_DATABASE_URL (not DATABASE_URL_TEST). Keep the names in sync.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/lexdraft_test
 
     steps:
       - name: Checkout
@@ -112,10 +114,15 @@ jobs:
       - name: Typecheck Web
         run: pnpm --filter @lexdraft/web typecheck
 
-      # Unit tests — vitest. Runs in-memory by default. The integration
-      # suite (once it lands) will read DATABASE_URL_TEST.
-      - name: API tests
+      # Unit tests — vitest. Runs in-memory by default.
+      - name: API unit tests
         run: pnpm --filter @lexdraft/api test
+
+      # Integration suite — runs against the postgres service container
+      # configured above. Each test file gets its own schema (test_<hex>)
+      # so the suite is safe to parallelise. See apps/api/INTEGRATION_TESTS.md.
+      - name: API integration tests
+        run: pnpm --filter @lexdraft/api test:integration
 
       # Build last — proves the production bundles compile cleanly with
       # the exact same source the type checker and tests just saw.
