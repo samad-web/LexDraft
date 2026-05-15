@@ -13,6 +13,8 @@ import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { LandingView } from '@/views/LandingView';
 import { AuthView } from '@/views/AuthView';
+import { SurveyView } from '@/views/SurveyView';
+import { SurveyThanksView } from '@/views/SurveyThanksView';
 import { DashboardView } from '@/views/DashboardView';
 import { CasesListView } from '@/views/CasesListView';
 import { CaseDetailView } from '@/views/CaseDetailView';
@@ -109,7 +111,8 @@ export function App() {
   const isPublic =
     location.pathname === '/' ||
     location.pathname.startsWith('/auth') ||
-    location.pathname.startsWith('/invite');
+    location.pathname.startsWith('/invite') ||
+    location.pathname.startsWith('/survey');
 
   // Client portal lives in its own auth space (magic-link → portal JWT). It
   // does NOT depend on the advocate session in `useAuthStore`, so the rest of
@@ -147,6 +150,8 @@ export function App() {
           <Route path="/" element={<LandingView />} />
           <Route path="/auth/*" element={<AuthView />} />
           <Route path="/invite/:token" element={<InviteAcceptView />} />
+          <Route path="/survey" element={<SurveyView />} />
+          <Route path="/survey/thanks" element={<SurveyThanksView />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toast />

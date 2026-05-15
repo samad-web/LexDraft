@@ -5,7 +5,8 @@ import type { AuthResponse, SignInRequest, SignUpRequest, User, UserPlan } from 
 import { env } from '../env';
 import { db } from '../db/client';
 import { mfaService } from './mfa.service';
-import { ConflictError, UnauthorizedError } from '../lib/errors';
+import { getPlanState, evaluatePlanState } from './plan-status.service';
+import { ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
 
 /**
  * Transitional response returned by signIn when the user is MFA-enrolled
@@ -56,7 +57,7 @@ interface UserRow {
  * system role name seeded by migrations 0009/0013. Used so auto-provisioned
  * users land with a real `role_id`, not just a free-text role.
  *
- * Returns null when there's no match — the user will fall through to
+ * Returns null when there's no match - the user will fall through to
  * baseline-only permissions, which is the safer default than guessing.
  */
 function systemRoleNameFor(roleText: string): string | null {
@@ -90,7 +91,7 @@ function normalizePlan(raw: string | null | undefined): UserPlan | undefined {
 
 /**
  * Default firm for self-serve sign-up and sign-in auto-provision in dev.
- * Used ONLY by those two paths — invitation acceptance derives firmId from
+ * Used ONLY by those two paths - invitation acceptance derives firmId from
  * the invitation row so invitees join the inviter's tenant, not this one.
  *
  * TODO: replace with real firm-provisioning during sign-up (one firm per
@@ -246,7 +247,7 @@ export const authService = {
    *   3. Everyone else → normal { user, token }.
    */
   async signIn({ email, password }: SignInRequest): Promise<SignInResult> {
-    // Empty password is never valid — refuse before any DB lookup so the
+    // Empty password is never valid - refuse before any DB lookup so the
     // legitimate "no password supplied" path can't get confused with a real
     // login attempt. (Older dev paths used to default to the literal
     // 'lexdraft' string; that backdoor is gone.)
@@ -257,7 +258,7 @@ export const authService = {
     if (!lookup) {
       // Dev-only auto-provision. Gated on (a) NODE_ENV !== 'production' AND
       // (b) explicit DEV_AUTH_AUTO_PROVISION='true'. In prod, unknown email
-      // means 401 — no account is silently created and no superadmin can
+      // means 401 - no account is silently created and no superadmin can
       // ever materialize via the email-contains-'admin' shortcut.
       if (!env.devAuthAutoProvision) {
         throw new UnauthorizedError('Invalid credentials');
@@ -286,9 +287,25 @@ export const authService = {
     const ok = await bcrypt.compare(password, lookup.passwordHash);
     if (!ok) throw new UnauthorizedError('Invalid credentials');
 
+    // Refuse to issue a token when the firm's plan is already inactive.
+    // Mid-session enforcement is handled by the requireActivePlan middleware;
+    // doing the same check here means the user never sees the dashboard
+    // flash before getting kicked out by the first authenticated request.
+    // Superadmins bypass so they can still log in to fix lapsed customers.
+    if (!lookup.publicUser.isSuperadmin) {
+      const planState = await getPlanState(lookup.publicUser.id);
+      const planCheck = evaluatePlanState(planState);
+      if (!planCheck.ok) {
+        throw new PaymentRequiredError('Your firm plan is no longer active. Please renew to continue.', {
+          code: planCheck.reason,
+          details: planCheck.renewsAt ? { renewsAt: planCheck.renewsAt.toISOString() } : undefined,
+        });
+      }
+    }
+
     // MFA gate. signInGate hits the DB once for the user's MFA state +
     // role-requirement flags. The in-memory mode (no DATABASE_URL) throws
-    // there — guard the call so dev-mode logins still work.
+    // there - guard the call so dev-mode logins still work.
     let gate: { enrolled: boolean; required: boolean } = { enrolled: false, required: false };
     try {
       gate = await mfaService.signInGate(lookup.publicUser.id);
@@ -380,7 +397,7 @@ export const authService = {
   },
 
   /**
-   * Direct insert — used by the invitation acceptance flow. The firmId comes
+   * Direct insert - used by the invitation acceptance flow. The firmId comes
    * from the invitation row so the new user joins the inviter's tenant, not
    * the self-serve default.
    */

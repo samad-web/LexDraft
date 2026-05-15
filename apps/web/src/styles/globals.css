@@ -1,5 +1,5 @@
 /* =================================================================
-   LexDraft — Monochrome Legal globals.
+   LexDraft - Monochrome Legal globals.
    Implements design-system.md sections 3 (typography), 6 (borders),
    7 (components), 8 (layout patterns).
    ================================================================= */
@@ -765,7 +765,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 
 /* ---------- MICROINTERACTIONS ----------
  * Small, restrained motion. The legal design system is monochrome and
- * trust-leaning — keep durations under 200ms, ease-out, single-property
+ * trust-leaning - keep durations under 200ms, ease-out, single-property
  * changes where possible. All animations are gated by prefers-reduced-
  * motion so motion-sensitive users never see them.
  */
@@ -787,7 +787,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 }
 
 @media (prefers-reduced-motion: reduce) {
-  /* Pill still appears, just without movement — feedback shouldn't
+  /* Pill still appears, just without movement - feedback shouldn't
    * be invisible to anyone. */
   @keyframes copy-pill-in {
     from { opacity: 0; }
@@ -887,7 +887,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .court-prose em, .court-prose i { font-style: italic; }
 .court-prose u { text-decoration: underline; }
 
-/* Modifier: paper-card — drop shadow, max-width A4-proportioned */
+/* Modifier: paper-card - drop shadow, max-width A4-proportioned */
 .court-prose.court-prose-paper {
   border: 1px solid var(--border-default);
   box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
@@ -918,6 +918,269 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 ::-webkit-scrollbar-track { background: var(--bg-base); }
 ::-webkit-scrollbar-thumb { background: var(--bg-surface-2); border: 2px solid var(--bg-base); border-radius: var(--radius-full); }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+
+/* ---------- SURVEY (one-question-per-screen) ----------
+   Used by /survey. The page is a fixed-viewport flex column: brand +
+   progress pinned at top, single-question card vertically centered in
+   the middle, nav buttons pinned at bottom. Long option lists inside a
+   question flow into 2-3 columns via auto-fill so they fit without page
+   scroll on most viewports; the question body overflows internally if
+   absolutely needed (very small height + 20+-option lists). */
+.survey-page {
+  min-height: 100vh;
+  background: var(--bg-base);
+  display: flex;
+  flex-direction: column;
+  position: relative;          /* contains the absolutely-positioned BackgroundBoxes */
+  overflow: hidden;            /* clip the skewed boxes plane that overflows the page */
+}
+.survey-page > .survey-shell {
+  position: relative;
+  z-index: 1;                  /* stack above the hero background */
+}
+.survey-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 3vh, 32px) clamp(16px, 4vw, 28px);
+}
+/* The shell stretches top-to-bottom; without this, every element in the
+   central column would intercept hover events and the BackgroundBoxes
+   grid would never see hovers above or below the card.
+
+   pointer-events doesn't cascade, so we explicitly disable it across the
+   whole shell subtree, then re-enable on the actual interactive regions
+   (the card and its contents, the numbered pager, the back/continue nav).
+   Empty space around the card - header brand area, body padding, gaps
+   between sections - falls through to the boxes underneath. */
+.survey-shell,
+.survey-shell * {
+  pointer-events: none;
+}
+.survey-shell .survey-card,
+.survey-shell .survey-card *,
+.survey-shell .survey-steps,
+.survey-shell .survey-steps *,
+.survey-shell .survey-nav,
+.survey-shell .survey-nav * {
+  pointer-events: auto;
+}
+.survey-top { flex: 0 0 auto; }
+.survey-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px 0;
+}
+.survey-body > * { margin: auto 0; }           /* vertical center when space allows */
+.survey-card { padding: clamp(20px, 3.5vw, 36px); }
+.survey-nav { flex: 0 0 auto; display: flex; gap: 12px; margin-top: 12px; }
+.survey-progress-track {
+  height: 4px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+.survey-progress-fill {
+  height: 100%;
+  background: var(--text-primary);
+  border-radius: var(--radius-full);
+  transition: width 250ms ease;
+}
+/* Numbered pager under the progress bar. Clicking jumps; visited indices
+   are free, future indices validate forward and may bounce back to the
+   first incomplete step. */
+.survey-steps {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  /* The 50% inline padding parks the content's start at the container's
+     visual centre. Combined with `scrollIntoView({ inline: 'center' })` on
+     index change, the active number is always anchored mid-row; earlier
+     numbers extend leftward (scrolled off as the survey progresses). With
+     only one number rendered, it lands dead-centre naturally. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 2px;
+  padding-inline: 50%;
+  scroll-snap-type: x proximity;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+          mask-image: linear-gradient(to right, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+  /* Padding-inline:50% means scrollWidth is always > clientWidth even with
+     one item, so the native bar would always render. Hide by default; JS
+     toggles `is-overflow` when the *items themselves* (no padding) exceed
+     the viewport. */
+  scrollbar-width: none;
+}
+.survey-steps::-webkit-scrollbar { display: none; }
+/* Sleek bar: hair-thin track, semi-transparent thumb that picks up the theme
+   foreground via color-mix. Only paints when JS adds `is-overflow` (15+ steps). */
+.survey-steps.is-overflow {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-primary) 28%, transparent) transparent;
+}
+.survey-steps.is-overflow::-webkit-scrollbar {
+  display: initial;
+  height: 2px;
+}
+.survey-steps.is-overflow::-webkit-scrollbar-track { background: transparent; }
+.survey-steps.is-overflow::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-primary) 28%, transparent);
+  border-radius: var(--radius-full);
+}
+.survey-steps.is-overflow::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--text-primary) 50%, transparent);
+}
+.survey-step {
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;          /* no shrink - keeps the straight-line layout */
+  scroll-snap-align: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-tertiary);
+  font: 600 11px/1 var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, transform 120ms ease;
+}
+.survey-step:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+.survey-step:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+/* Sliding pill - same layoutId across every step button, so framer-motion
+   tweens its position from the previous active circle to the new one. */
+.survey-step-pill {
+  position: absolute;
+  inset: 0;
+  background: var(--text-primary);
+  border-radius: var(--radius-full);
+  z-index: 0;
+}
+.survey-step-label {
+  position: relative;
+  z-index: 1;
+}
+.survey-step--current {
+  color: var(--bg-base);
+  border-color: var(--text-primary);
+}
+.survey-step--visited {
+  color: var(--text-primary);
+  border-color: var(--border-strong, var(--text-primary));
+}
+.survey-step--future {
+  color: var(--text-tertiary);
+}
+/* Multi-column packs mixed-height fields without leaving gaps under
+   shorter items the way an auto-fit grid does. The browser balances
+   columns by height: e.g. for Step 3, "role" (short) + "firmSize" (tall)
+   stack into one column while "years" fills the other. Collapses to 1
+   column on viewports too narrow for 280px-wide columns. */
+.survey-fields {
+  columns: 280px;
+  column-gap: 24px;
+}
+.survey-fields > * {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 20px;
+  display: block;
+}
+.survey-fields > *:last-child { margin-bottom: 0; }
+
+/* Single-column flex stack - used for FIELD_GROUPS pairings where one field
+   is a conditional follow-up to another (e.g. caseMgmt yes/no + the "if yes,
+   which one?" text field). Keeps the follow-up directly below the trigger
+   instead of letting multi-column move it alongside. */
+.survey-fields-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* =================================================================
+   BackgroundBoxes - Aceternity-style skewed grid that highlights on
+   hover. See apps/web/src/components/BackgroundBoxes.tsx. Recoloured
+   monochrome: borders + plus-marks derive from --text-primary via
+   color-mix, hover fill is solid --text-primary, so the whole effect
+   tracks the active light/dark theme automatically.
+   ================================================================= */
+.bg-boxes-host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.bg-boxes-plane {
+  /* Matches Aceternity's `absolute -top-1/4 left-1/4 h-full w-full p-4`.
+     The skew + scale in the inline transform projects this region across
+     the whole host; the offset biases the plane up + right so the visible
+     grid covers the page rather than clustering on one side. */
+  position: absolute;
+  top: -25%;
+  left: 25%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  padding: 16px;
+  transform-origin: 50% 50%;
+}
+.bg-boxes-row {
+  position: relative;
+  width: 64px;
+  height: 32px;
+  border-left: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+.bg-boxes-cell {
+  position: relative;
+  width: 64px;
+  height: 32px;
+  border-top:   1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--text-primary) 16%, transparent);
+}
+.bg-boxes-plus {
+  position: absolute;
+  top: -14px;
+  left: -22px;
+  width: 40px;
+  height: 24px;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--text-primary) 22%, transparent);
+}
+.survey-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+.phone-input { display: flex; gap: 8px; align-items: stretch; }
+.phone-input > select.input {
+  flex: 0 0 auto;
+  width: 92px;
+  padding-right: 28px;      /* tighter than default 36px since text is short */
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%;
+}
+.phone-input > input.input { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 480px) {
+  .survey-options { grid-template-columns: 1fr; }
+}
 
 /* Rich-text content (rendered draft preview + edited body). */
 .rt-content { color: var(--text-primary); }

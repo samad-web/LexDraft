@@ -15,13 +15,13 @@ export const signInLimiter = rateLimit({
   limit: 10,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  // Don't count successful sign-ins toward the limit — only failed attempts
+  // Don't count successful sign-ins toward the limit - only failed attempts
   // burn budget, so a busy real user isn't punished.
   skipSuccessfulRequests: true,
   message: { error: 'Too many sign-in attempts. Try again in a few minutes.' },
 });
 
-// Sign-up is even tighter — there's no legitimate reason a single IP needs
+// Sign-up is even tighter - there's no legitimate reason a single IP needs
 // to create more than a handful of accounts per hour.
 export const signUpLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -31,10 +31,22 @@ export const signUpLimiter = rateLimit({
   message: { error: 'Too many sign-up attempts from this IP. Try again later.' },
 });
 
+// Survey draft writes - one respondent can comfortably generate 30-60 PUTs
+// across a full survey session (one per debounced answer change). 120/hour
+// gives generous headroom for a single user without leaving the endpoint
+// open to abuse. Keyed by IP since the public survey is unauthenticated.
+export const surveyDraftLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many draft saves from this IP. Try again later.' },
+});
+
 // LLM-generation limiter. Each call costs real money on Anthropic/xAI, so a
 // compromised account or a runaway script can rack up a bill fast. Keyed
 // per-user (falls back to IP for the edge case where a route slips out of
-// requireAuth) and caps at 30 generations per hour per user — well above
+// requireAuth) and caps at 30 generations per hour per user - well above
 // normal usage, well below "expensive accident" territory.
 export const llmGenerationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
@@ -59,7 +71,7 @@ interface PerUserOptions {
 /**
  * Per-user rate limiter for write traffic. Keys on `req.user.id`; falls back
  * to the remote IP when the request is unauthenticated (so the existing
- * IP-level limiter still catches anonymous abuse). Lives in-process — replace
+ * IP-level limiter still catches anonymous abuse). Lives in-process - replace
  * the bucket map with Redis if/when we run multiple API replicas.
  *
  * Only POST/PUT/PATCH/DELETE are counted, so list/read traffic isn't blocked

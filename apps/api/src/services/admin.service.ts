@@ -21,6 +21,7 @@ import type {
 import { db } from '../db/client';
 import { auditService } from './audit.service';
 import { invalidatePermissionsCache } from './permissions.service';
+import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidateTenantCache } from './tenant';
 
 /** HTTP-aware error for guard-rail failures. The Express error middleware
@@ -30,7 +31,7 @@ function badRequest(message: string, status = 422): Error {
 }
 
 /** Minimal interface satisfied by both the postgres-js root client and a
- *  transaction handle — we only call the tagged-template form here. */
+ *  transaction handle - we only call the tagged-template form here. */
 type SqlExecutor = <T>(strings: TemplateStringsArray, ...values: unknown[]) => Promise<T>;
 
 /** Spec §10: every firm must keep at least one active Firm Admin at all
@@ -39,7 +40,7 @@ type SqlExecutor = <T>(strings: TemplateStringsArray, ...values: unknown[]) => P
  *  count themselves.
  *
  *  Accepts an optional executor (`sql` or a `tx`) so callers can run the
- *  check inside their own transaction — without that the check + the
+ *  check inside their own transaction - without that the check + the
  *  mutation that follows is a TOCTOU race (two concurrent demotions of
  *  different admins could both pass the check and leave a firm
  *  admin-less).
@@ -240,7 +241,7 @@ export const adminService = {
 
     // ---- bootstrap-admin pre-flight ---------------------------------------
     // Per spec §3.1 every firm is born with an active Firm Admin. Validate
-    // the email + uniqueness BEFORE we touch the firms table — failing late
+    // the email + uniqueness BEFORE we touch the firms table - failing late
     // would orphan a half-provisioned tenant.
     const adminEmail = input.adminEmail.trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(adminEmail)) {
@@ -261,7 +262,7 @@ export const adminService = {
       select id from roles where firm_id is null and is_system = true and name = 'Firm Admin' limit 1
     `;
     if (!adminRoleRow) {
-      throw new Error('Firm Admin system role missing — did 0009_rbac.sql run?');
+      throw new Error('Firm Admin system role missing - did 0009_rbac.sql run?');
     }
 
     // Resolve admin name first because the generated-password format depends
@@ -278,7 +279,7 @@ export const adminService = {
     // Generate a temp password if none supplied. Format: FirstName@123.
     // First name = first whitespace-delimited token of adminName, stripped of
     // non-ASCII-alphanumerics, capitalised. Falls back to "User" if the name
-    // produces nothing usable. Predictable by design — operator must rotate.
+    // produces nothing usable. Predictable by design - operator must rotate.
     let plaintextPassword = input.adminPassword?.trim();
     let generated = false;
     if (!plaintextPassword) {
@@ -297,7 +298,7 @@ export const adminService = {
     // ---- transaction: firm + branding + flags + admin --------------------
     // postgres-js exposes `sql.begin` for atomic multi-statement work. If any
     // step throws (e.g. unique-violation race on email) the firm row is
-    // rolled back too — no orphaned tenants.
+    // rolled back too - no orphaned tenants.
     const { firmId, adminId } = await sql.begin(async (tx) => {
       const [firmRow] = await tx<{ id: string }[]>`
         insert into firms (name, seats, plan_tier)
@@ -333,7 +334,7 @@ export const adminService = {
       return { firmId: newFirmId, adminId: userRow!.id };
     });
 
-    // Audit trail — write outside the firm tx so a failed audit doesn't
+    // Audit trail - write outside the firm tx so a failed audit doesn't
     // roll back tenant creation.
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,
@@ -419,6 +420,17 @@ export const adminService = {
     // the safe move is a full clear.
     if (patch.tier !== undefined) {
       invalidatePermissionsCache();
+    }
+    // Any plan-state change (status / renews_at / tier) invalidates the
+    // requireActivePlan cache so the 402 gate takes effect on the next
+    // request rather than waiting up to 60s for the TTL to expire. Same
+    // process-local + no-per-firm-key constraint, so we clear globally.
+    if (
+      patch.status !== undefined ||
+      patch.renewsAt !== undefined ||
+      patch.tier !== undefined
+    ) {
+      invalidatePlanStatusCache();
     }
     await auditService.write({
       actorUserId: actor.id, actorEmail: actor.email,

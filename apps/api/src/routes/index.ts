@@ -39,14 +39,18 @@ import { exportsRouter } from './exports.routes';
 import { adminErrorsRouter } from './admin-errors.routes';
 import { portalRouter } from './portal.routes';
 import { portalAdminRouter } from './portal-admin.routes';
+import { surveyRouter } from './survey.routes';
+import { surveyDraftRouter } from './survey-draft.routes';
+import { signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
 import { requireAuth, requireSuperadmin, optionalAuth } from '../middleware/auth';
+import { requireActivePlan } from '../middleware/requireActivePlan';
 
 export const apiRouter: Router = Router();
 
-// Liveness — process is up. Cheap, no DB.
+// Liveness - process is up. Cheap, no DB.
 apiRouter.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
-// Readiness — process is up AND can talk to its dependencies. Used by the
+// Readiness - process is up AND can talk to its dependencies. Used by the
 // orchestrator's readinessProbe so a pod with a broken DB connection is
 // pulled out of the load balancer instead of serving 500s.
 apiRouter.get('/ready', async (_req, res) => {
@@ -71,7 +75,16 @@ apiRouter.get('/ready', async (_req, res) => {
 apiRouter.use('/auth', authRouter);
 apiRouter.use('/webhooks', webhooksRouter);
 
-// Client portal — its own auth (magic link → portal JWT). Internal middleware
+// Public market-research questionnaire (Legal_AI_Survey.md + lexdraft-survey.md).
+// Rate-limited at the IP level so a single source can't flood the table.
+//
+// Order matters: mount /survey/drafts BEFORE /survey so the specific sub-path
+// matches first. The draft endpoints get a more permissive limiter - one
+// respondent typically generates 30-60 PUTs across a session.
+apiRouter.use('/survey/drafts', surveyDraftLimiter, surveyDraftRouter);
+apiRouter.use('/survey', signUpLimiter, surveyRouter);
+
+// Client portal - its own auth (magic link → portal JWT). Internal middleware
 // gates all but /portal/auth/*.
 apiRouter.use('/portal', portalRouter);
 
@@ -79,30 +92,35 @@ apiRouter.use('/portal', portalRouter);
 // everything else under /invitations applies requireAuth via the router itself.
 apiRouter.use('/invitations', invitationsRouter);
 
-// Protected.
-apiRouter.use('/dashboard', requireAuth, dashboardRouter);
-apiRouter.use('/firm', requireAuth, firmRouter);
-apiRouter.use('/cases', requireAuth, casesRouter);
-apiRouter.use('/hearings', requireAuth, hearingsRouter);
-apiRouter.use('/tasks', requireAuth, tasksRouter);
-apiRouter.use('/documents', requireAuth, documentsRouter);
-apiRouter.use('/drafting', requireAuth, draftingRouter);
-apiRouter.use('/drafts',   requireAuth, draftsRouter);
-apiRouter.use('/review',   requireAuth, reviewRouter);
-apiRouter.use('/letterheads', requireAuth, letterheadsRouter);
-apiRouter.use('/research', requireAuth, researchRouter);
-apiRouter.use('/clauses',     requireAuth, clausesRouter);
-apiRouter.use('/clients',     requireAuth, clientsRouter);
-apiRouter.use('/leads',       requireAuth, leadsRouter);
-apiRouter.use('/invoices',    requireAuth, invoicesRouter);
-apiRouter.use('/expenses',    requireAuth, expensesRouter);
-apiRouter.use('/limitations', requireAuth, limitationsRouter);
-apiRouter.use('/diary',       requireAuth, diaryRouter);
-apiRouter.use('/archive',     requireAuth, archiveRouter);
-apiRouter.use('/physical-documents', requireAuth, physicalDocumentsRouter);
-apiRouter.use('/analytics',   requireAuth, analyticsRouter);
+// Protected. `requireActivePlan` runs after `requireAuth` on every feature
+// mount and returns 402 (PaymentRequired) when firms.plan_status is
+// past_due/cancelled, or when renews_at is in the past for a non-trial
+// firm. Superadmins + impersonation sessions bypass the check.
+// `/me*` is deliberately excluded so users can still log in to manage
+// profile / billing after their plan lapses.
+apiRouter.use('/dashboard', requireAuth, requireActivePlan, dashboardRouter);
+apiRouter.use('/firm', requireAuth, requireActivePlan, firmRouter);
+apiRouter.use('/cases', requireAuth, requireActivePlan, casesRouter);
+apiRouter.use('/hearings', requireAuth, requireActivePlan, hearingsRouter);
+apiRouter.use('/tasks', requireAuth, requireActivePlan, tasksRouter);
+apiRouter.use('/documents', requireAuth, requireActivePlan, documentsRouter);
+apiRouter.use('/drafting', requireAuth, requireActivePlan, draftingRouter);
+apiRouter.use('/drafts',   requireAuth, requireActivePlan, draftsRouter);
+apiRouter.use('/review',   requireAuth, requireActivePlan, reviewRouter);
+apiRouter.use('/letterheads', requireAuth, requireActivePlan, letterheadsRouter);
+apiRouter.use('/research', requireAuth, requireActivePlan, researchRouter);
+apiRouter.use('/clauses',     requireAuth, requireActivePlan, clausesRouter);
+apiRouter.use('/clients',     requireAuth, requireActivePlan, clientsRouter);
+apiRouter.use('/leads',       requireAuth, requireActivePlan, leadsRouter);
+apiRouter.use('/invoices',    requireAuth, requireActivePlan, invoicesRouter);
+apiRouter.use('/expenses',    requireAuth, requireActivePlan, expensesRouter);
+apiRouter.use('/limitations', requireAuth, requireActivePlan, limitationsRouter);
+apiRouter.use('/diary',       requireAuth, requireActivePlan, diaryRouter);
+apiRouter.use('/archive',     requireAuth, requireActivePlan, archiveRouter);
+apiRouter.use('/physical-documents', requireAuth, requireActivePlan, physicalDocumentsRouter);
+apiRouter.use('/analytics',   requireAuth, requireActivePlan, analyticsRouter);
 apiRouter.use('/me',          requireAuth, meRouter);
-// MFA — `optionalAuth` instead of `requireAuth` because the
+// MFA - `optionalAuth` instead of `requireAuth` because the
 // `verify-challenge` endpoint is the post-password handshake step where the
 // client has a challengeId but no bearer yet. Every other handler in this
 // router enforces `req.user` itself and throws UnauthorizedError when
@@ -110,21 +128,21 @@ apiRouter.use('/me',          requireAuth, meRouter);
 apiRouter.use('/me/mfa',      optionalAuth, meMfaRouter);
 apiRouter.use('/me/dpdp',     requireAuth,  meDpdpRouter);
 
-// Sweep B features — statute reference, calculators, conflict + coverage,
+// Sweep B features - statute reference, calculators, conflict + coverage,
 // practice analytics, engagement letters, caseload health, financial exports.
-apiRouter.use('/sanhita',             requireAuth, sanhitaRouter);
-apiRouter.use('/calculators',         requireAuth, calculatorsRouter);
-apiRouter.use('/conflicts',           requireAuth, conflictsRouter);
-apiRouter.use('/coverage',            requireAuth, coverageRouter);
-apiRouter.use('/practice-analytics',  requireAuth, practiceAnalyticsRouter);
-apiRouter.use('/engagement',          requireAuth, engagementRouter);
-apiRouter.use('/caseload-health',     requireAuth, caseloadHealthRouter);
-apiRouter.use('/exports',             requireAuth, exportsRouter);
+apiRouter.use('/sanhita',             requireAuth, requireActivePlan, sanhitaRouter);
+apiRouter.use('/calculators',         requireAuth, requireActivePlan, calculatorsRouter);
+apiRouter.use('/conflicts',           requireAuth, requireActivePlan, conflictsRouter);
+apiRouter.use('/coverage',            requireAuth, requireActivePlan, coverageRouter);
+apiRouter.use('/practice-analytics',  requireAuth, requireActivePlan, practiceAnalyticsRouter);
+apiRouter.use('/engagement',          requireAuth, requireActivePlan, engagementRouter);
+apiRouter.use('/caseload-health',     requireAuth, requireActivePlan, caseloadHealthRouter);
+apiRouter.use('/exports',             requireAuth, requireActivePlan, exportsRouter);
 
-// Firm-side portal administration — toggles, lifecycle, inbox.
-apiRouter.use('/portal-admin', requireAuth, portalAdminRouter);
+// Firm-side portal administration - toggles, lifecycle, inbox.
+apiRouter.use('/portal-admin', requireAuth, requireActivePlan, portalAdminRouter);
 
-// Platform admin — superadmin only, impersonation sessions blocked.
+// Platform admin - superadmin only, impersonation sessions blocked.
 apiRouter.use('/admin', requireAuth, requireSuperadmin, adminRouter);
-// Internal error log — superadmin-only viewer + resolve actions.
+// Internal error log - superadmin-only viewer + resolve actions.
 apiRouter.use('/admin/errors', requireAuth, requireSuperadmin, adminErrorsRouter);
