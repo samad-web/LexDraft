@@ -4,5 +4,8 @@ module.exports = {
   rules: {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
+    // Apostrophes and quotes in JSX text are valid; escaping them
+    // (`don&apos;t`) hurts readability without protecting anything.
+    'react/no-unescaped-entities': 'off',
   },
 };

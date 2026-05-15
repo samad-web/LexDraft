@@ -77,6 +77,8 @@ export function useStreamDraft() {
     let buffer = '';
     let acc = '';
 
+    // Standard streaming-reader pattern; loop exits on `done`.
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;

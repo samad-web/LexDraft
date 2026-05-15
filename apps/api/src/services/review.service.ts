@@ -1,7 +1,7 @@
 /**
  * Contract-review service.
  *
- * What changed: the legacy UI at /app/review was a static mock — hardcoded
+ * What changed: the legacy UI at /app/review was a static mock - hardcoded
  * findings, a 2.2-second setTimeout for "Analyzing", no persistence. This
  * service replaces that with a real LLM call that returns clause-level
  * findings + risk score, persisted per-firm so the user can revisit prior
@@ -24,7 +24,7 @@
  *
  * Demo / no-key mode: when `env.llmProvider === 'none'` the service emits
  * a single deterministic finding with a "Demonstration" banner so the UI
- * doesn't go blank in dev — same pattern the research service uses.
+ * doesn't go blank in dev - same pattern the research service uses.
  *
  * In-memory fallback (no DATABASE_URL): a per-firm Map mirrors the table
  * surface so the demo trail works without a Postgres.
@@ -52,7 +52,7 @@ import type {
 } from '../types/review.types';
 
 // Cap the raw paste size we send to the LLM. Larger contracts will be
-// truncated with a clear marker in the prompt — better than refusing
+// truncated with a clear marker in the prompt - better than refusing
 // outright, and the LLM will note in the summary that the tail wasn't
 // reviewed. ~120KB is roughly 30-40 pages of standard prose.
 const MAX_SOURCE_CHARS = 120_000;
@@ -171,12 +171,12 @@ interface BuiltPrompt {
 function buildPrompt(perspective: ReviewPerspective, sourceText: string): BuiltPrompt {
   const truncated = sourceText.length > MAX_SOURCE_CHARS;
   const body = truncated
-    ? sourceText.slice(0, MAX_SOURCE_CHARS) + '\n\n[…truncated for length — review continues from the start of the document only…]'
+    ? sourceText.slice(0, MAX_SOURCE_CHARS) + '\n\n[…truncated for length - review continues from the start of the document only…]'
     : sourceText;
 
   const system = `You are an experienced Indian commercial-law advocate reviewing a contract on behalf of the ${perspective}. Identify clauses that materially disadvantage the ${perspective}, flag missing standard clauses, and surface negotiable points. Cite Indian statutes (Indian Contract Act 1872 / Specific Relief Act 1963 / DPDPA 2023 / etc.) and leading authorities by name where applicable.
 
-Output STRICT JSON — no prose, no markdown, no code fences — matching this shape exactly:
+Output STRICT JSON - no prose, no markdown, no code fences - matching this shape exactly:
 
 {
   "riskScore": <integer 0-100, higher = worse for the ${perspective}>,
@@ -185,7 +185,7 @@ Output STRICT JSON — no prose, no markdown, no code fences — matching this s
     {
       "severity": "Critical" | "High" | "Moderate" | "Missing" | "Negotiable" | "Standard",
       "title": "<short headline, under 80 chars>",
-      "excerpt": "<verbatim clause text from the contract — leave empty string for severity=Missing>",
+      "excerpt": "<verbatim clause text from the contract - leave empty string for severity=Missing>",
       "law": "<statute/section or leading case>",
       "suggestion": "<remediation: redline or counter-clause, under 200 chars>"
     }
@@ -268,7 +268,7 @@ async function callGrok(prompt: BuiltPrompt): Promise<string> {
           model: env.XAI_MODEL,
           max_tokens: 4096,
           // Grok supports JSON-mode via response_format. Anthropic relies on
-          // the prompt's "STRICT JSON" directive — both providers go through
+          // the prompt's "STRICT JSON" directive - both providers go through
           // the same parser below regardless.
           response_format: { type: 'json_object' },
           messages: [
@@ -316,7 +316,7 @@ function coerceSeverity(s: unknown): ReviewSeverity {
     return s as ReviewSeverity;
   }
   // Default unknown severities to "Moderate" rather than dropping the finding
-  // — better to surface it than to lose the model's signal.
+  // - better to surface it than to lose the model's signal.
   return 'Moderate';
 }
 
@@ -374,7 +374,7 @@ function parseLlmJson(raw: string): RawReviewLlmOutput {
 function demoOutput(perspective: ReviewPerspective): RawReviewLlmOutput {
   return {
     riskScore: 64,
-    summary: `Demonstration only — no LLM provider is configured. This is a sample review for the ${perspective} perspective showing the shape of real findings.`,
+    summary: `Demonstration only - no LLM provider is configured. This is a sample review for the ${perspective} perspective showing the shape of real findings.`,
     findings: [
       {
         severity: 'Critical',
@@ -396,7 +396,7 @@ function demoOutput(perspective: ReviewPerspective): RawReviewLlmOutput {
 
 // ---------- Memory fallback (no DATABASE_URL) ------------------------------
 
-interface MemReview extends ContractReview {}
+type MemReview = ContractReview;
 const memReviews = new Map<string, Map<string, MemReview>>();
 function memBucket(firmId: string): Map<string, MemReview> {
   let b = memReviews.get(firmId);
@@ -517,12 +517,12 @@ function emptyMemReview(args: {
 
 export const reviewService = {
   /** Run a fresh review and persist it. Returns the completed (or failed) row.
-   *  The whole pipeline runs inline — no background job — because the LLM
+   *  The whole pipeline runs inline - no background job - because the LLM
    *  call dominates the latency and the UI is already an explicit "Analyze"
    *  click, not a background pulse. */
   async create(input: CreateArgs): Promise<ContractReview> {
     if (!input.firmId) {
-      throw new UnprocessableEntityError('No firm attached — cannot create review');
+      throw new UnprocessableEntityError('No firm attached - cannot create review');
     }
     if (!input.sourceText || input.sourceText.trim().length < 50) {
       throw new UnprocessableEntityError('sourceText is too short to review (need at least 50 chars)');
@@ -579,7 +579,7 @@ export const reviewService = {
     }
 
     // 2) Call the LLM (or demo). Failures are caught and persisted as
-    //    status='failed' — the route layer surfaces them as 201s with the
+    //    status='failed' - the route layer surfaces them as 201s with the
     //    failed row so the UI can show "Re-run" instead of a generic toast.
     try {
       let parsed: RawReviewLlmOutput;
@@ -603,7 +603,7 @@ export const reviewService = {
     }
   },
 
-  /** Internal — promote an analyzing row to completed. */
+  /** Internal - promote an analyzing row to completed. */
   async _finalize(
     id: string,
     firmId: string,
@@ -613,7 +613,7 @@ export const reviewService = {
     const sql = db();
     if (sql) {
       // sql.json's type rejects arrays of typed objects (it wants an
-      // open-shaped JSONObject). Serialise + cast in SQL — same wire
+      // open-shaped JSONObject). Serialise + cast in SQL - same wire
       // representation, no type gymnastics.
       const findingsJson = JSON.stringify(out.findings);
       await sql`
@@ -648,7 +648,7 @@ export const reviewService = {
     return updated;
   },
 
-  /** Internal — mark a row as failed. Returned to the caller so the UI can
+  /** Internal - mark a row as failed. Returned to the caller so the UI can
    *  render the failure inline (with the same id) rather than losing it. */
   async _fail(id: string, firmId: string, message: string): Promise<ContractReview> {
     const sql = db();
@@ -750,7 +750,7 @@ export const reviewService = {
     };
   },
 
-  /** Reviewer queue — reviews assigned to a specific user. Same shape as
+  /** Reviewer queue - reviews assigned to a specific user. Same shape as
    *  list(); a separate path keeps the index hint clear and the SQL simple. */
   async mine(userId: string, firmId: string | null): Promise<ListContractReviewsResponse> {
     if (!firmId) return { items: [] };
@@ -825,7 +825,7 @@ export const reviewService = {
     return r;
   },
 
-  /** Lifecycle update — assign a reviewer and/or record a decision. The
+  /** Lifecycle update - assign a reviewer and/or record a decision. The
    *  authorisation rules:
    *   - Anyone in the firm with `review.approve` (route gate) can assign
    *     OR re-assign.
@@ -887,7 +887,7 @@ export const reviewService = {
       const row = await fetchReviewById(id, firmId);
       if (!row) throw new NotFoundError('Review not found');
       const updated = rowToReview(row);
-      // Fire notifications AFTER the write commits. Fire-and-forget — the
+      // Fire notifications AFTER the write commits. Fire-and-forget - the
       // notifications service catches its own failures, so a logging
       // hiccup never poisons the mutation result.
       void emitLifecycleNotifications(current, updated, callerId);
@@ -936,7 +936,7 @@ export const reviewService = {
 // Compares the pre/post snapshot of a lifecycle update and emits the right
 // notifications. Each path resolves the caller's name once (so the email
 // reads "Asha assigned you…" instead of an opaque user id) and skips
-// self-notifications — you don't need an email about your own action.
+// self-notifications - you don't need an email about your own action.
 
 async function resolveDisplayName(userId: string | null): Promise<string> {
   if (!userId) return 'A teammate';
@@ -962,7 +962,7 @@ async function emitLifecycleNotifications(
     const callerName = await resolveDisplayName(callerId);
 
     // 1) Assignee changed (assigned, re-assigned, or unassigned). Notify the
-    //    new assignee — but never the caller themselves, since pinging
+    //    new assignee - but never the caller themselves, since pinging
     //    yourself for assigning yourself is just noise.
     const newAssigneeId = after.assignedTo?.id ?? null;
     const oldAssigneeId = before.assignedTo?.id ?? null;
@@ -985,7 +985,7 @@ async function emitLifecycleNotifications(
       });
     }
   } catch (err) {
-    // Defence in depth — notifications.service.send() already swallows its
+    // Defence in depth - notifications.service.send() already swallows its
     // own errors, but if a synchronous step here throws we don't want it
     // poisoning the mutation result the caller already saw.
     logger.warn({ err, reviewId: after.id }, 'review lifecycle notifications failed');

@@ -59,7 +59,7 @@ interface ListFilter {
 }
 
 /**
- * Tracks physical (paper) documents the firm holds — vakalatnamas, sworn
+ * Tracks physical (paper) documents the firm holds - vakalatnamas, sworn
  * affidavits, signed contracts, court orders. Distinct from the digital
  * documents register, which tracks scans/PDFs in the cloud.
  *
@@ -109,7 +109,7 @@ export const physicalDocumentsService = {
 
   async create(input: CreatePhysicalDocumentRequest, firmId: string | null): Promise<PhysicalDocument> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create physical document'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create physical document'), { status: 422 });
     }
     if (!input.fileNo?.trim() || !input.title?.trim() || !input.location?.trim()) {
       throw Object.assign(new Error('fileNo, title and location are required'), { status: 400 });
@@ -120,7 +120,7 @@ export const physicalDocumentsService = {
     // If caseId is supplied, verify it belongs to this firm and pull the
     // title for caseLabel denormalisation.
     let resolvedCaseLabel = input.caseLabel?.trim() || null;
-    let resolvedCaseId = input.caseId ?? null;
+    const resolvedCaseId = input.caseId ?? null;
     if (resolvedCaseId) {
       const owned = await sql<Array<{ title: string }>>`
         select title from cases where id = ${resolvedCaseId}::uuid and firm_id = ${firmId}::uuid limit 1

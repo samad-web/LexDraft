@@ -23,6 +23,11 @@ _design
 /Notice_u_s_138_NI_Act_xai.doc
 /LexDraft_Pricing_and_Tiers.docx
 /doc_claude.pdf
+/Notice_u_s_138_NI_Act.pdf
+/Stamp_duty_estimate_Maharashtra_Sale_Deed*.pdf
+
+# Local exports of survey responses (generated during dev/QA)
+/lexdraft-survey-response-*.json
 
 # Local uploads dir (file-storage driver default)
 /uploads/

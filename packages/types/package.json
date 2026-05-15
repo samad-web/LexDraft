@@ -15,6 +15,7 @@
   "devDependencies": {
     "@lexdraft/tsconfig": "workspace:*",
     "@lexdraft/eslint-config": "workspace:*",
+    "eslint": "^8.57.0",
     "typescript": "^5.6.3"
   }
 }

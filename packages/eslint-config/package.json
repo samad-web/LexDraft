@@ -9,7 +9,7 @@
     "node.cjs"
   ],
   "peerDependencies": {
-    "eslint": "^9.13.0"
+    "eslint": "^8.57.0"
   },
   "dependencies": {
     "@typescript-eslint/eslint-plugin": "^8.11.0",

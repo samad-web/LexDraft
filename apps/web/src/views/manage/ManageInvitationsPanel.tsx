@@ -12,14 +12,18 @@ export function ManageInvitationsPanel() {
   const showToast = useUIStore((s) => s.showToast);
   const [inviteOpen, setInviteOpen] = useState(false);
 
+  // Hooks must run on every render (rules-of-hooks). When data isn't yet
+  // loaded, both lists are empty and the pagers are no-ops — cheaper than
+  // restructuring the loading state.
+  const all = invitations.data ?? [];
+  const pending = all.filter((i) => i.status === 'pending');
+  const past = all.filter((i) => i.status !== 'pending');
+  const pendingPager = usePagination(pending);
+  const pastPager = usePagination(past);
+
   if (invitations.isLoading) {
     return <div className="muted">Loading invitations…</div>;
   }
-
-  const pending = (invitations.data ?? []).filter((i) => i.status === 'pending');
-  const past = (invitations.data ?? []).filter((i) => i.status !== 'pending');
-  const pendingPager = usePagination(pending);
-  const pastPager = usePagination(past);
 
   return (
     <div className="col" style={{ gap: 20 }}>
