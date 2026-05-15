@@ -1,6 +1,6 @@
 [
   {
-    "matterType": "Recovery of money — oral contract",
+    "matterType": "Recovery of money - oral contract",
     "statute": "Limitation Act 1963",
     "section": "Article 18",
     "periodMonths": 36,
@@ -8,7 +8,7 @@
     "notes": "3-year period under Schedule I, Article 18 (money payable for money lent)."
   },
   {
-    "matterType": "Recovery of money — written contract",
+    "matterType": "Recovery of money - written contract",
     "statute": "Limitation Act 1963",
     "section": "Article 19",
     "periodMonths": 36,
@@ -85,7 +85,7 @@
     "section": "Article 65",
     "periodMonths": 144,
     "computedFrom": "Date possession of the defendant became adverse",
-    "notes": "12-year clock starts only when the defendant's possession turns adverse — not from initial entry."
+    "notes": "12-year clock starts only when the defendant's possession turns adverse - not from initial entry."
   },
   {
     "matterType": "Possession based on previous possession (dispossession)",

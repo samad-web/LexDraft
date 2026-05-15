@@ -2,6 +2,7 @@ import {
   useEffect, useId, useLayoutEffect, useRef, useState,
   type CSSProperties, type KeyboardEvent, type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface SelectOption<T extends string = string> {
   value: T;
@@ -17,7 +18,7 @@ export interface SelectProps<T extends string = string> {
   options: ReadonlyArray<SelectOption<T>>;
   placeholder?: string;
   disabled?: boolean;
-  /** Same `aria-invalid` as native input — borders go red. */
+  /** Same `aria-invalid` as native input - borders go red. */
   invalid?: boolean;
   className?: string;
   id?: string;
@@ -33,7 +34,7 @@ const MAX_MENU_HEIGHT = 280;
 
 /** Custom-styled select that renders a popover menu matching the app's
  *  monochrome system. Click-outside, keyboard nav, and flip-on-overflow
- *  are all handled inline — no external deps. */
+ *  are all handled inline - no external deps. */
 export function Select<T extends string = string>({
   value, onChange, options, placeholder = 'Select…',
   disabled, invalid, className = '', id, style, name, menuWidth,
@@ -142,14 +143,17 @@ export function Select<T extends string = string>({
         <span className="select-chevron" aria-hidden>▾</span>
       </button>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
+        // Rendered into document.body so a transformed/scaled ancestor (e.g.
+        // the app Modal which animates with `transform: scale(...)`) can't
+        // capture our `position: fixed` containing block and offset the menu.
         <div
           ref={menuRef}
           role="listbox"
           id={listId}
           tabIndex={-1}
           className="select-menu"
-          style={menuStyle}
+          style={{ ...menuStyle, zIndex: 1000 }}
         >
           {options.map((opt, i) => {
             const active = i === activeIndex;
@@ -188,7 +192,8 @@ export function Select<T extends string = string>({
               </div>
             );
           })}
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

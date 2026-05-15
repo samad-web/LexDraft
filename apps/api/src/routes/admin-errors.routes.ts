@@ -4,7 +4,7 @@ import { errorLogService } from '../services/error-log.service';
 
 /**
  * SuperAdmin-only routes for the internal error tracker. Mount in
- * `routes/index.ts` AFTER `requireAuth` + `requireSuperadmin` — those gates
+ * `routes/index.ts` AFTER `requireAuth` + `requireSuperadmin` - those gates
  * live on the orchestrator side; this router intentionally adds no auth of
  * its own so the mount point is the single source of truth.
  *

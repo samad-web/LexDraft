@@ -174,7 +174,7 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
 
   const handleImport = async () => {
     if (parsed.length === 0) {
-      showToast({ type: 'vermillion', text: 'Nothing to import — paste or upload a file first' });
+      showToast({ type: 'vermillion', text: 'Nothing to import - paste or upload a file first' });
       return;
     }
     try {

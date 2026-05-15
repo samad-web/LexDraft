@@ -1,8 +1,8 @@
 -- =============================================================================
--- LexDraft — extra domain tables
+-- LexDraft - extra domain tables
 -- =============================================================================
 -- Adds tables for clients, leads, invoices, expenses, limitations, and diary
--- entries — the resources that power Clients, Leads, Invoices, Expenses,
+-- entries - the resources that power Clients, Leads, Invoices, Expenses,
 -- Limitation, Diary, Calendar, CauseList, Archive, and Analytics views.
 -- Also extends `cases` with an outcome + closed_at so Archive can filter.
 -- Idempotent.

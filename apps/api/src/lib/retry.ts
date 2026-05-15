@@ -3,7 +3,7 @@
  *
  * Designed for outbound HTTP calls where transient failures (429, 5xx,
  * connection resets) are common and worth retrying, but client-side
- * failures (4xx besides 429) should fail fast — no point hammering an
+ * failures (4xx besides 429) should fail fast - no point hammering an
  * API that's rejecting your credentials.
  *
  * `shouldRetry` decides whether a given error is retriable. The default
@@ -17,7 +17,7 @@ export interface RetryOptions {
   /** Max delay between attempts, capping exponential growth. */
   maxMs?: number;
   shouldRetry?: (err: unknown, attempt: number) => boolean;
-  /** Optional hook — called on every retry (not the final failure). */
+  /** Optional hook - called on every retry (not the final failure). */
   onRetry?: (err: unknown, attempt: number, waitMs: number) => void;
 }
 
@@ -27,7 +27,7 @@ const DEFAULT_RETRY = (err: unknown): boolean => {
   if (typeof status === 'number') {
     return status === 429 || (status >= 500 && status < 600);
   }
-  // Network-level errors don't surface a status — assume retriable.
+  // Network-level errors don't surface a status - assume retriable.
   const code = (err as { code?: string }).code;
   if (typeof code === 'string') {
     return ['ECONNRESET', 'ETIMEDOUT', 'EAI_AGAIN', 'ENETUNREACH', 'UND_ERR_SOCKET'].includes(code);

@@ -3,7 +3,7 @@
  *
  * These tests lock in the spec §10 contract: every domain service must scope
  * reads/writes by firm_id. A caller in firm A must never observe firm B's
- * rows — and an attacker who guesses a row id from firm A must not be able
+ * rows - and an attacker who guesses a row id from firm A must not be able
  * to read it as a user attached to firm B.
  *
  * Test mode: in-memory fallback (DATABASE_URL=''). The setup.ts file leaves
@@ -24,7 +24,7 @@
  * path IS firm-scoped (see the `where firm_id = ${filter.firmId}::uuid`
  * clauses) and is what runs in production. We can't exercise the SQL CTE
  * without a live Postgres, but we DO exercise the null-firm guard on those
- * services — that guard is what catches a user with no firm attachment
+ * services - that guard is what catches a user with no firm attachment
  * from accidentally hitting the table.
  */
 
@@ -52,7 +52,7 @@ function uuid(): string {
 // casesService
 // =============================================================================
 
-describe('tenant isolation — casesService', () => {
+describe('tenant isolation - casesService', () => {
   it('list returns [] when firmId is null', async () => {
     const items = await casesService.list({ firmId: null });
     expect(items).toEqual([]);
@@ -92,7 +92,7 @@ describe('tenant isolation — casesService', () => {
 // hearingsService (joins via cases.firm_id)
 // =============================================================================
 
-describe('tenant isolation — hearingsService', () => {
+describe('tenant isolation - hearingsService', () => {
   it('listToday returns [] when firmId is null', async () => {
     expect(await hearingsService.listToday(null)).toEqual([]);
   });
@@ -126,7 +126,7 @@ describe('tenant isolation — hearingsService', () => {
 // documentsService
 // =============================================================================
 
-describe('tenant isolation — documentsService', () => {
+describe('tenant isolation - documentsService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await documentsService.list(null)).toEqual([]);
   });
@@ -157,11 +157,11 @@ describe('tenant isolation — documentsService', () => {
 });
 
 // =============================================================================
-// clausesService — fully bucketed per-firm in memory, so we can exercise the
+// clausesService - fully bucketed per-firm in memory, so we can exercise the
 // full cross-firm isolation contract end-to-end here.
 // =============================================================================
 
-describe('tenant isolation — clausesService', () => {
+describe('tenant isolation - clausesService', () => {
   it('list returns [] when firmId is null', async () => {
     const items = await clausesService.list({ firmId: null });
     expect(items).toEqual([]);
@@ -269,7 +269,7 @@ describe('tenant isolation — clausesService', () => {
 // clientsService
 // =============================================================================
 
-describe('tenant isolation — clientsService', () => {
+describe('tenant isolation - clientsService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await clientsService.list(null)).toEqual([]);
   });
@@ -292,7 +292,7 @@ describe('tenant isolation — clientsService', () => {
 // leadsService
 // =============================================================================
 
-describe('tenant isolation — leadsService', () => {
+describe('tenant isolation - leadsService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await leadsService.list(null)).toEqual([]);
   });
@@ -323,7 +323,7 @@ describe('tenant isolation — leadsService', () => {
 // invoicesService
 // =============================================================================
 
-describe('tenant isolation — invoicesService', () => {
+describe('tenant isolation - invoicesService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await invoicesService.list(null)).toEqual([]);
   });
@@ -353,7 +353,7 @@ describe('tenant isolation — invoicesService', () => {
 // expensesService
 // =============================================================================
 
-describe('tenant isolation — expensesService', () => {
+describe('tenant isolation - expensesService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await expensesService.list(null)).toEqual([]);
   });
@@ -386,7 +386,7 @@ describe('tenant isolation — expensesService', () => {
 // limitationsService
 // =============================================================================
 
-describe('tenant isolation — limitationsService', () => {
+describe('tenant isolation - limitationsService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await limitationsService.list(null)).toEqual([]);
   });
@@ -416,7 +416,7 @@ describe('tenant isolation — limitationsService', () => {
 // diaryService
 // =============================================================================
 
-describe('tenant isolation — diaryService', () => {
+describe('tenant isolation - diaryService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await diaryService.list(null)).toEqual([]);
   });
@@ -447,7 +447,7 @@ describe('tenant isolation — diaryService', () => {
 // tasksService
 // =============================================================================
 
-describe('tenant isolation — tasksService', () => {
+describe('tenant isolation - tasksService', () => {
   it('board is empty when firmId is null', async () => {
     const b = await tasksService.board(null);
     expect(b).toEqual({ pending: [], progress: [], review: [], done: [] });
@@ -488,7 +488,7 @@ describe('tenant isolation — tasksService', () => {
 // archiveService
 // =============================================================================
 
-describe('tenant isolation — archiveService', () => {
+describe('tenant isolation - archiveService', () => {
   it('list returns [] when firmId is null', async () => {
     expect(await archiveService.list(null)).toEqual([]);
   });

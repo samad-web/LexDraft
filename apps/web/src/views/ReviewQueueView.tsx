@@ -4,7 +4,7 @@ import { Icon } from '@lexdraft/ui';
 import { useMyReviews, type ContractReviewSummary, type ReviewDecision } from '@/hooks/useReview';
 
 /**
- * "My Reviews" — the reviewer queue.
+ * "My Reviews" - the reviewer queue.
  *
  * Lists every review where the current user is the assignee, bucketed by
  * decision state (Pending → Changes requested → Approved). Each row links
@@ -166,7 +166,7 @@ function QueueRow({ item, token }: { item: ContractReviewSummary; token: StatusT
         </div>
       </div>
       <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-        {item.status === 'completed' ? `${item.riskScore ?? '—'}/100` : item.status.toUpperCase()}
+        {item.status === 'completed' ? `${item.riskScore ?? '-'}/100` : item.status.toUpperCase()}
       </span>
       <span className={`badge ${BADGE_BY_TOKEN[token]}`}>{decisionLabel(item.decision)}</span>
       <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>

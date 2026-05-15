@@ -63,7 +63,7 @@ export function CalculatorsView() {
           <div className="body-xs muted" style={{ flex: 1, lineHeight: 1.5 }}>
             Estimates are indicative only. Court fees, stamp duty schedules and
             vakalatnama formats are amended periodically by state gazette and court
-            notifications — confirm the final figure with the relevant Sub-Registrar,
+            notifications - confirm the final figure with the relevant Sub-Registrar,
             court schedule or Bar Council before filing.
           </div>
         </div>

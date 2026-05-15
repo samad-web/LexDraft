@@ -1,4 +1,4 @@
-// LexDraft document schemas — per-type field collection for drafting.
+// LexDraft document schemas - per-type field collection for drafting.
 // Ported from _design/lexdraft/project/doc-schemas.jsx.
 // Each schema lists the structured data the AI needs to compose that document.
 // Fields ship with realistic defaults so the brief is usable immediately.
@@ -38,7 +38,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         title: 'Drawer (Sender of Notice)',
         fields: [
           { key: 'sender_name', label: 'Payee name', type: 'text', placeholder: 'Full legal name of payee', required: true, default: 'Mehta Enterprises Pvt. Ltd.' },
-          { key: 'sender_address', label: 'Payee address', type: 'textarea', rows: 2, required: true, default: 'Plot No. 14, Industrial Area Phase II,\nNaraina, New Delhi — 110028' },
+          { key: 'sender_address', label: 'Payee address', type: 'textarea', rows: 2, required: true, default: 'Plot No. 14, Industrial Area Phase II,\nNaraina, New Delhi - 110028' },
           { key: 'sender_pan', label: 'PAN / GSTIN', type: 'text', placeholder: 'Optional', optional: true, default: '07AABCM4561K1ZP' },
         ],
       },
@@ -46,7 +46,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         title: 'Drawee (Notice Recipient)',
         fields: [
           { key: 'recipient_name', label: 'Drawer name', type: 'text', placeholder: 'Person/entity who issued the cheque', required: true, default: 'Sandeep Verma' },
-          { key: 'recipient_address', label: 'Drawer address', type: 'textarea', rows: 2, required: true, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram — 122018, Haryana' },
+          { key: 'recipient_address', label: 'Drawer address', type: 'textarea', rows: 2, required: true, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram - 122018, Haryana' },
         ],
       },
       {
@@ -95,7 +95,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
 
   Plaint: {
     category: 'Pleading',
-    description: 'Civil suit plaint under CPC — opens a civil action before a competent court.',
+    description: 'Civil suit plaint under CPC - opens a civil action before a competent court.',
     sections: [
       {
         title: 'Court & Suit',
@@ -116,7 +116,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         title: 'Plaintiff',
         fields: [
           { key: 'plaintiff_name', label: 'Full name', type: 'text', required: true, default: 'Rohan Mehta' },
-          { key: 'plaintiff_address', label: 'Address', type: 'textarea', rows: 2, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru — 560038, Karnataka' },
+          { key: 'plaintiff_address', label: 'Address', type: 'textarea', rows: 2, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru - 560038, Karnataka' },
           { key: 'plaintiff_designation', label: 'Designation / Capacity', type: 'text', optional: true, default: 'Sole Proprietor of M/s Mehta Trading Co.' },
         ],
       },
@@ -124,7 +124,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         title: 'Defendant',
         fields: [
           { key: 'defendant_name', label: 'Full name', type: 'text', required: true, default: 'M/s Skyline Constructions Pvt. Ltd.' },
-          { key: 'defendant_address', label: 'Address', type: 'textarea', rows: 2, default: 'No. 88, Outer Ring Road, HBR Layout,\nBengaluru — 560043, Karnataka' },
+          { key: 'defendant_address', label: 'Address', type: 'textarea', rows: 2, default: 'No. 88, Outer Ring Road, HBR Layout,\nBengaluru - 560043, Karnataka' },
           { key: 'defendant_designation', label: 'Designation / Capacity', type: 'text', optional: true, default: 'Through its Managing Director' },
         ],
       },
@@ -200,7 +200,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
             required: true,
             default: 'Petitioner',
           },
-          { key: 'client_address', label: 'Client address', type: 'textarea', rows: 2, required: true, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru — 560038, Karnataka' },
+          { key: 'client_address', label: 'Client address', type: 'textarea', rows: 2, required: true, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru - 560038, Karnataka' },
         ],
       },
       {
@@ -214,7 +214,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
             type: 'textarea',
             rows: 2,
             required: true,
-            default: "Chamber No. 27, Advocates' Block,\nHigh Court Complex, Ambedkar Veedhi,\nBengaluru — 560001",
+            default: "Chamber No. 27, Advocates' Block,\nHigh Court Complex, Ambedkar Veedhi,\nBengaluru - 560001",
           },
         ],
       },
@@ -223,7 +223,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
 
   Affidavit: {
     category: 'Pleading',
-    description: 'Sworn statement of facts — supporting an application or pleading.',
+    description: 'Sworn statement of facts - supporting an application or pleading.',
     sections: [
       {
         title: 'Deponent',
@@ -231,8 +231,8 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
           { key: 'deponent_name', label: 'Deponent name', type: 'text', required: true, default: 'Rohan Mehta' },
           { key: 'deponent_age', label: 'Age', type: 'number', required: true, default: '38' },
           { key: 'deponent_father', label: 'S/o · D/o · W/o', type: 'text', required: true, default: 'S/o Late Shri Vinod Mehta' },
-          { key: 'deponent_address', label: 'Address', type: 'textarea', rows: 2, required: true, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru — 560038, Karnataka' },
-          { key: 'deponent_occupation', label: 'Occupation', type: 'text', optional: true, default: 'Business — Sole Proprietor, M/s Mehta Trading Co.' },
+          { key: 'deponent_address', label: 'Address', type: 'textarea', rows: 2, required: true, default: 'No. 32, 5th Cross, Indiranagar 1st Stage,\nBengaluru - 560038, Karnataka' },
+          { key: 'deponent_occupation', label: 'Occupation', type: 'text', optional: true, default: 'Business - Sole Proprietor, M/s Mehta Trading Co.' },
         ],
       },
       {
@@ -243,7 +243,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
             label: 'Purpose of affidavit',
             type: 'text',
             required: true,
-            default: 'In support of I.A. No. 234 of 2026 in O.S. No. 1247 of 2025 — application for temporary injunction.',
+            default: 'In support of I.A. No. 234 of 2026 in O.S. No. 1247 of 2025 - application for temporary injunction.',
           },
           {
             key: 'paragraphs',
@@ -263,7 +263,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
 
   'Bail Application': {
     category: 'Criminal',
-    description: 'Application seeking bail — regular, anticipatory, or interim.',
+    description: 'Application seeking bail - regular, anticipatory, or interim.',
     sections: [
       {
         title: 'Court & FIR',
@@ -286,7 +286,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         title: 'Accused',
         fields: [
           { key: 'accused_name', label: 'Full name', type: 'text', required: true, default: 'Sandeep Verma' },
-          { key: 'accused_address', label: 'Address', type: 'textarea', rows: 2, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram — 122018, Haryana' },
+          { key: 'accused_address', label: 'Address', type: 'textarea', rows: 2, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram - 122018, Haryana' },
           { key: 'accused_designation', label: 'Designation / Capacity', type: 'text', optional: true, default: 'Age 41 years, S/o Shri Mahesh Verma; Businessman' },
         ],
       },
@@ -317,7 +317,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
             type: 'textarea',
             rows: 2,
             optional: true,
-            default: 'Two local sureties of ₹1,00,000 each — Shri Anand Kapoor (Advocate) and Smt. Neha Verma (sister of the Applicant).',
+            default: 'Two local sureties of ₹1,00,000 each - Shri Anand Kapoor (Advocate) and Smt. Neha Verma (sister of the Applicant).',
           },
         ],
       },
@@ -386,7 +386,7 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
 export const DEFAULT_SCHEMA: DocSchema = {
   category: 'General',
   description:
-    'Generic legal document brief. Provide a short statement of the matter and the parties involved — the AI will compose a complete draft.',
+    'Generic legal document brief. Provide a short statement of the matter and the parties involved - the AI will compose a complete draft.',
   sections: [
     {
       title: 'Brief',

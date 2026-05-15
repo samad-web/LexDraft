@@ -9,10 +9,10 @@
  *
  *   2. SYNCHRONOUSLY rewrite `DATABASE_URL` to point at a freshly-generated
  *      ephemeral schema name. This MUST happen before the test file's top
- *      imports run — otherwise `env.ts` reads `DATABASE_URL=''` once at
+ *      imports run - otherwise `env.ts` reads `DATABASE_URL=''` once at
  *      load time, sets `env.hasDatabase = false` forever, and every service
  *      under test falls back to in-memory mode. The schema doesn't exist
- *      yet at this point — that's fine because `db()` only actually
+ *      yet at this point - that's fine because `db()` only actually
  *      connects when a service method is called, and that doesn't happen
  *      until `beforeAll` provisions the schema.
  *
@@ -40,7 +40,7 @@ process.env['STORAGE_SIGNING_SECRET'] = process.env['STORAGE_SIGNING_SECRET'] ||
 process.env['DEV_AUTH_AUTO_PROVISION'] = process.env['DEV_AUTH_AUTO_PROVISION'] || 'true';
 process.env['DATABASE_SSL'] = process.env['DATABASE_SSL'] || 'false';
 
-// Fail loudly if TEST_DATABASE_URL is missing — better here than 10 lines
+// Fail loudly if TEST_DATABASE_URL is missing - better here than 10 lines
 // of confusing "schema does not exist" errors later.
 const TEST_URL = process.env['TEST_DATABASE_URL'] ?? '';
 if (!TEST_URL) {

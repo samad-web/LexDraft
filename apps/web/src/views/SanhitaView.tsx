@@ -61,7 +61,7 @@ export function SanhitaView() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Statute translator</div>
         <h1 className="heading-xl">Sanhita translator</h1>
         <p className="body-sm muted" style={{ maxWidth: 720, marginTop: 8 }}>
-          Cross-reference the colonial-era IPC, CrPC and Indian Evidence Act to their 2023 successors —
+          Cross-reference the colonial-era IPC, CrPC and Indian Evidence Act to their 2023 successors -
           Bharatiya Nyaya Sanhita (BNS), Bharatiya Nagarik Suraksha Sanhita (BNSS) and Bharatiya Sakshya
           Adhiniyam (BSA). Coverage is curated, not exhaustive. Always verify against the bare Act before
           relying on a mapping in court.
@@ -79,7 +79,7 @@ export function SanhitaView() {
         <span className="body-sm">
           <strong>Plausibility-grade data.</strong> These mappings are research-stand-in entries
           assembled from public commentary on the new Sanhitas. Several entries carry an
-          <em> &ldquo;UNVERIFIED&rdquo;</em> marker — counsel review is required before relying on any
+          <em> &ldquo;UNVERIFIED&rdquo;</em> marker - counsel review is required before relying on any
           mapping for filings, advice or jurisprudence.
         </span>
       </div>

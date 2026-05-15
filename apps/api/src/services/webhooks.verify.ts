@@ -6,7 +6,7 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      /** Raw request bytes — set by the express.json `verify` callback in
+      /** Raw request bytes - set by the express.json `verify` callback in
        *  app.ts so webhook handlers can verify signatures against the exact
        *  payload the provider signed. */
       rawBody?: Buffer;
@@ -22,7 +22,7 @@ export type WebhookVerifyResult =
  * Verifies a `:source`-keyed inbound webhook against the per-provider
  * HMAC-SHA256 secret configured in env (`WEBHOOK_SECRET_<UPPERCASE>`).
  *
- * Expected header: `x-signature: sha256=<hex>` — the provider hashes the
+ * Expected header: `x-signature: sha256=<hex>` - the provider hashes the
  * raw request bytes with the shared secret. Comparison is timing-safe.
  *
  * Sources without a configured secret are rejected with 503 unless the
@@ -49,7 +49,7 @@ export function verifyWebhook(req: Request, source: string): WebhookVerifyResult
   const rawBody = req.rawBody ?? Buffer.alloc(0);
   const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
 
-  // timingSafeEqual requires equal-length buffers — bail before the
+  // timingSafeEqual requires equal-length buffers - bail before the
   // comparison if lengths differ so we don't throw.
   const a = Buffer.from(expected, 'hex');
   const b = Buffer.from(supplied, 'hex');

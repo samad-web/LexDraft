@@ -8,7 +8,7 @@ import { logger } from '../logger';
  *
  * Conventions:
  *   - Job names are dotted (`documents.cleanup`, `email.send`).
- *   - Payloads are plain JSON. Don't put Buffers in the payload — store the
+ *   - Payloads are plain JSON. Don't put Buffers in the payload - store the
  *     bytes in `storage` and pass the key.
  *   - Handlers should be idempotent. pg-boss may redeliver on worker crash.
  */
@@ -93,7 +93,7 @@ export const jobs = {
     return instance.send(name, data as object, sendOpts);
   },
 
-  /** Stop the worker — used during graceful shutdown. */
+  /** Stop the worker - used during graceful shutdown. */
   async stop(): Promise<void> {
     if (boss) {
       await boss.stop({ graceful: true, timeout: 10_000 });
@@ -115,7 +115,7 @@ interface EmailSendPayload {
 }
 
 jobs.register<EmailSendPayload>('email.send', async (data) => {
-  // No SMTP provider wired yet — log so it shows up in dev. Swap in nodemailer
+  // No SMTP provider wired yet - log so it shows up in dev. Swap in nodemailer
   // (or a transactional API like Postmark/Resend) when credentials land.
   logger.info({ to: data.to, subject: data.subject }, 'email.send (stub)');
 });
@@ -126,7 +126,7 @@ interface HearingReminderPayload {
 }
 
 jobs.register<HearingReminderPayload>('hearing.reminder', async (data) => {
-  logger.info({ data }, 'hearing.reminder (stub) — wire WhatsApp/SMS provider');
+  logger.info({ data }, 'hearing.reminder (stub) - wire WhatsApp/SMS provider');
 });
 
 interface DocumentCleanupPayload {
@@ -157,7 +157,7 @@ jobs.register('dpdp.purgeExpiredAuditEntries', async () => {
   logger.info({ purged }, 'dpdp.purgeExpiredAuditEntries complete');
 });
 
-// Analytics MV refresh. Idempotent — `refresh materialized view
+// Analytics MV refresh. Idempotent - `refresh materialized view
 // concurrently` is a no-op when nothing's changed and is safe to call
 // repeatedly. Suggested schedule: daily 02:30 IST (before the DPDP purge
 // at 03:00 so a freshly-purged row doesn't transiently appear in the
@@ -167,7 +167,7 @@ jobs.register('analytics.refresh', async () => {
   const results = await analyticsRefreshService.refreshAll();
   const failed = results.filter((r) => !r.ok);
   if (failed.length > 0) {
-    logger.warn({ failed }, 'analytics.refresh — some MVs failed');
+    logger.warn({ failed }, 'analytics.refresh - some MVs failed');
   } else {
     logger.info({ count: results.length, totalMs: results.reduce((s, r) => s + r.ms, 0) }, 'analytics.refresh complete');
   }

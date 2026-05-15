@@ -17,10 +17,10 @@ jobs.start().catch((err) => logger.error({ err }, 'jobs.start failed'));
 // Boot the cross-replica cache invalidation listener. firmId + permissions
 // caches subscribe at module load; this kicks the LISTEN connection open.
 // In-memory mode (no DATABASE_URL) is a no-op. A failure here doesn't
-// crash the process — single-replica deploys still serve correct decisions
+// crash the process - single-replica deploys still serve correct decisions
 // from the local cache + TTL fallback.
 cacheBroadcaster.start().catch((err) =>
-  logger.error({ err }, 'cacheBroadcaster.start failed — running without cross-replica invalidation'),
+  logger.error({ err }, 'cacheBroadcaster.start failed - running without cross-replica invalidation'),
 );
 
 // MFA pending challenges are stored in Postgres (table `mfa_pending_challenges`)

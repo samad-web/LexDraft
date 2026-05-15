@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — platform admin schema
+-- LexDraft - platform admin schema
 -- =============================================================================
 -- Adds the tables and columns the /admin tree depends on:
 --   * firm plan / billing fields on firms
@@ -132,7 +132,7 @@ insert into feature_flags (firm_id, module, enabled) values
 
 -- A trio of seed platform templates so the templates view has content.
 insert into document_templates (id, name, slug, scope, body) values
-  ('11111111-1111-1111-1111-000000000001', 'Plaint — Civil Suit',          'plaint-civil',     'platform', '# Plaint\n\nIN THE COURT OF ...'),
+  ('11111111-1111-1111-1111-000000000001', 'Plaint - Civil Suit',          'plaint-civil',     'platform', '# Plaint\n\nIN THE COURT OF ...'),
   ('11111111-1111-1111-1111-000000000002', 'Vakalatnama',                  'vakalatnama',      'platform', '# Vakalatnama\n\nI/We the undersigned ...'),
-  ('11111111-1111-1111-1111-000000000003', 'Bail Application — Sec. 437',  'bail-app-437',     'platform', '# Bail Application u/s 437 CrPC\n\n...')
+  ('11111111-1111-1111-1111-000000000003', 'Bail Application - Sec. 437',  'bail-app-437',     'platform', '# Bail Application u/s 437 CrPC\n\n...')
   on conflict do nothing;

@@ -1,7 +1,7 @@
 // Golden set of representative legal drafting briefs.
 //
 // Each brief is a complete DraftRequest plus a quality rubric. The rubric is
-// intentionally lightweight — substring + structural checks — because the
+// intentionally lightweight - substring + structural checks - because the
 // goal is regression detection, not document-correctness adjudication. A
 // drafted plaint that omits "Petitioner" or "prayer" is suspect regardless
 // of how artful its prose is.
@@ -9,7 +9,7 @@
 // Conventions:
 // - IDs are kebab-case: <doc-type>-<topic>-<lang>-<tone>-<n>.
 // - mustInclude/mustNotInclude are case-insensitive substring matches.
-// - No real case citations — the briefs reference statute sections that exist
+// - No real case citations - the briefs reference statute sections that exist
 //   (CPC, CrPC, NI Act, etc.) but no specific judicial precedent.
 
 import type { DraftRequest } from '@lexdraft/types';
@@ -90,7 +90,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
         plaintiff: 'Smt. Lakshmi Narayanan, W/o R. Narayanan, residing at Plot 22, Adyar, Chennai',
         defendant: 'Shri Arun Subramanian, R/o Plot 22, Adyar, Chennai (in unlawful occupation)',
         cause_of_action: 'Defendant has continued occupation of the suit schedule property after expiry of the leave and licence agreement dated 01.01.2024 despite notice to vacate dated 15.03.2026',
-        property_description: 'Ground floor of premises bearing door no. 22, Adyar 2nd Cross Street, Chennai — admeasuring 1,200 sq.ft.',
+        property_description: 'Ground floor of premises bearing door no. 22, Adyar 2nd Cross Street, Chennai - admeasuring 1,200 sq.ft.',
         relief_sought: 'Decree for vacant physical possession of suit schedule property and mesne profits',
       },
     },
@@ -175,7 +175,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
       tone: 'Firm',
       fields: {
         sender: 'M/s Patel Steel Industries, through its proprietor Shri Bharat Patel, having office at GIDC Vatva, Ahmedabad',
-        addressee: 'Shri Manoj Shah, R/o A-12 Satellite, Ahmedabad — drawer of the dishonoured cheque',
+        addressee: 'Shri Manoj Shah, R/o A-12 Satellite, Ahmedabad - drawer of the dishonoured cheque',
         cheque_details: 'Cheque no. 224501 dated 15.03.2026 for Rs. 8,50,000/- drawn on HDFC Bank, CG Road branch',
         dishonour_details: 'Returned unpaid by HDFC Bank on 22.03.2026 with remarks "Funds Insufficient" vide memo dated 22.03.2026',
         underlying_liability: 'Outstanding payment for supply of MS steel rods under invoice no. PSI/2026/22 dated 02.02.2026',
@@ -317,7 +317,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
   // ─── Hindi ────────────────────────────────────────────────────────────────
   // Substring matches stay simple: ASCII statute references and party labels
   // ("Petitioner"/"Respondent" survive in the Devanagari output as is) plus
-  // Devanagari fragments where useful. We don't insist on full Hindi style —
+  // Devanagari fragments where useful. We don't insist on full Hindi style -
   // the structural checks (parties block, prayer) carry the load.
   {
     id: 'plaint-recovery-hi-pro-1',
@@ -469,7 +469,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
   // ─── Edge cases ───────────────────────────────────────────────────────────
   {
     id: 'edge-minimal-fields-en-1',
-    description: 'Very short brief — single field; tests robustness to thin input',
+    description: 'Very short brief - single field; tests robustness to thin input',
     request: {
       docType: 'Legal Notice',
       language: 'EN',
@@ -489,7 +489,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
   },
   {
     id: 'edge-maximal-fields-en-1',
-    description: 'Very long brief — ten fields; tests output discipline',
+    description: 'Very long brief - ten fields; tests output discipline',
     request: {
       docType: 'Plaint',
       language: 'EN',
@@ -500,7 +500,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
         defendant: 'M/s Apex Freight Services, a partnership firm having its office at Plot 22, Mayapuri Industrial Area, New Delhi',
         contract_details: 'Service Agreement dated 12.01.2025 for transportation of industrial goods between Delhi and Mumbai',
         breach_details: 'Defendant failed to deliver consignment dated 18.06.2025 (LR No. APX/56781) causing loss of goods worth Rs. 14,80,000/-',
-        prior_correspondence: 'Demand letter dated 02.08.2025; reminder dated 30.08.2025; legal notice dated 14.10.2025 — no response',
+        prior_correspondence: 'Demand letter dated 02.08.2025; reminder dated 30.08.2025; legal notice dated 14.10.2025 - no response',
         damages_claimed: 'Rs. 14,80,000/- value of goods + Rs. 1,20,000/- interest + Rs. 50,000/- costs',
         jurisdiction: 'Cause of action arose at Delhi; defendant\'s office at Delhi',
         suit_value: 'Rs. 16,50,000/-',
@@ -534,7 +534,7 @@ export const GOLDEN_BRIEFS: GoldenBrief[] = [
         addressee: 'M/s Sundown Retail',
         invoice_amount: 'Rs. 6,50,000/-',
         outstanding_amount: 'Rs. 7,20,000/-',
-        // Two different totals are referenced — a careful drafter will use
+        // Two different totals are referenced - a careful drafter will use
         // both numbers verbatim and let the advocate reconcile, rather than
         // hallucinate a single "correct" figure.
         demand: 'Pay the outstanding sum within 15 days',

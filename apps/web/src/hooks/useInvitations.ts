@@ -40,7 +40,7 @@ export function useResendInvitation() {
   });
 }
 
-/** Public — used on the /invite/:token page to fetch the invitation summary. */
+/** Public - used on the /invite/:token page to fetch the invitation summary. */
 export function useInvitationByToken(token: string | undefined) {
   return useQuery({
     queryKey: ['invitations', 'by-token', token],
@@ -50,7 +50,7 @@ export function useInvitationByToken(token: string | undefined) {
   });
 }
 
-/** Public — accept the invitation, creates the account, returns a session. */
+/** Public - accept the invitation, creates the account, returns a session. */
 export function useAcceptInvitation() {
   return useMutation({
     mutationFn: ({ token, body }: { token: string; body: AcceptInvitationRequest }) =>

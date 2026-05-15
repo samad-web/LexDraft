@@ -9,12 +9,12 @@
  *   2. For client-bound events, honours `clients.portal_preferences.notifications.*`
  *      so a client who has opted out of, say, hearing reminders won't
  *      receive them. System messages (sign-in alerts, magic-link resends)
- *      ignore preferences — see §6.4.
- *   3. Enqueues the job. Failures are logged, never thrown — notifications
+ *      ignore preferences - see §6.4.
+ *   3. Enqueues the job. Failures are logged, never thrown - notifications
  *      are observability-grade, not a correctness gate on the originating
  *      mutation.
  *
- * No SMTP provider is wired yet — the underlying handler in `jobs.service`
+ * No SMTP provider is wired yet - the underlying handler in `jobs.service`
  * just logs. When credentials land, swap that handler and every event here
  * begins delivering with no further changes.
  */
@@ -91,7 +91,7 @@ async function loadUser(userId: string): Promise<UserLookup | null> {
 async function loadFirmRecipients(firmId: string): Promise<string[]> {
   const sql = db();
   if (!sql) return [];
-  // Send to every active firm admin (`role = 'Firm Admin'`) — when there's no
+  // Send to every active firm admin (`role = 'Firm Admin'`) - when there's no
   // explicit primary advocate on the matter, this is the safest fallback so
   // someone sees the message. Future enhancement: route via matter.assigned_advocate.
   const rows = await sql<Array<{ email: string }>>`
@@ -118,7 +118,7 @@ async function send(args: SendArgs): Promise<void> {
   try {
     await jobs.enqueue('email.send', args);
   } catch (err) {
-    // Never bubble — the calling mutation has already succeeded.
+    // Never bubble - the calling mutation has already succeeded.
     logger.warn({ err, to: args.to, subject: args.subject }, 'notifications: enqueue failed');
   }
 }
@@ -130,14 +130,14 @@ async function send(args: SendArgs): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export const notify = {
-  /** Portal access enabled — fired by the firm-side "Enable portal" toggle.
+  /** Portal access enabled - fired by the firm-side "Enable portal" toggle.
    *  System message: ignores preferences. */
   async portalEnabled(clientId: string, magicLink: string): Promise<void> {
     const c = await loadClient(clientId);
     if (!c) return;
     await send({
       to: c.email,
-      subject: `Your portal is ready — sign in`,
+      subject: `Your portal is ready - sign in`,
       body: [
         `Hi ${c.name},`,
         ``,
@@ -151,7 +151,7 @@ export const notify = {
     });
   },
 
-  /** Magic-link re-sent — system message, ignores preferences. */
+  /** Magic-link re-sent - system message, ignores preferences. */
   async magicLinkResent(clientId: string, magicLink: string): Promise<void> {
     const c = await loadClient(clientId);
     if (!c) return;
@@ -270,7 +270,7 @@ export const notify = {
   },
 
   /** Notify the firm side that a portal client sent a message. Always
-   *  delivered — firm users don't have per-event preferences in v1. */
+   *  delivered - firm users don't have per-event preferences in v1. */
   async messageFromClient(firmId: string, summary: { clientName: string; matterTitle: string | null; preview: string }): Promise<void> {
     const recipients = await loadFirmRecipients(firmId);
     for (const to of recipients) {
@@ -307,7 +307,7 @@ export const notify = {
   },
 
   // ----- Contract review workflow -----------------------------------------
-  // No per-user preferences yet for these — firm-side internal workflow,
+  // No per-user preferences yet for these - firm-side internal workflow,
   // not subject to client-portal opt-outs. Same fire-and-forget contract:
   // failures log a warn and never bubble back to the originating mutation.
 
@@ -332,7 +332,7 @@ export const notify = {
     });
   },
 
-  /** Decision recorded — notify whoever requested the review. */
+  /** Decision recorded - notify whoever requested the review. */
   async reviewDecided(
     requesterId: string,
     summary: {

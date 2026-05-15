@@ -51,7 +51,7 @@ export const clientsService = {
 
   async create(input: Omit<Client, 'id' | 'mattersOpen'>, firmId: string | null): Promise<Client> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create client'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create client'), { status: 422 });
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');

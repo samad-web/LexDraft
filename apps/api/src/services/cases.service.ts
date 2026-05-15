@@ -45,7 +45,7 @@ interface ListFilter {
 
 /**
  * All read paths require `firmId`. When the caller has no firm attachment we
- * return an empty list — never the global table — so cross-tenant data
+ * return an empty list - never the global table - so cross-tenant data
  * leakage is impossible (cf. spec §10 tenant isolation).
  */
 export const casesService = {
@@ -92,7 +92,7 @@ export const casesService = {
 
   async create(input: Omit<Case, 'id'>, firmId: string | null): Promise<Case> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create case'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create case'), { status: 422 });
     }
     const sql = db();
     if (sql) {

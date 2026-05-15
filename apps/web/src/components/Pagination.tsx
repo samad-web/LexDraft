@@ -17,7 +17,7 @@ interface PaginationProps {
  * Page numbers collapse around the current page when the count is large
  * (1 … 4 5 *6* 7 8 … 12) so the bar never grows beyond a single line.
  *
- * Self-hides on single-page lists by default — reduces visual noise on
+ * Self-hides on single-page lists by default - reduces visual noise on
  * empty/short datasets without needing a wrapper conditional in every
  * caller.
  */
@@ -46,7 +46,7 @@ export function Pagination(props: PaginationProps) {
     >
       {props.showSummary !== false && (
         <span className="muted" style={{ fontSize: 13 }}>
-          {total === 0 ? '0 results' : `Showing ${start}–${end} of ${total}`}
+          {total === 0 ? '0 results' : `Showing ${start}-${end} of ${total}`}
         </span>
       )}
       <div role="group" style={{ display: 'flex', gap: 4, alignItems: 'center' }}>

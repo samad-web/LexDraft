@@ -1,10 +1,10 @@
 /**
- * Internal error tracking — Postgres-backed alternative to Sentry/OTel.
+ * Internal error tracking - Postgres-backed alternative to Sentry/OTel.
  *
  * The error middleware fires `capture(...)` for every 5xx and a curated subset
- * of 4xx (403/422/429 — security signal). Inserts are best-effort: a failed
+ * of 4xx (403/422/429 - security signal). Inserts are best-effort: a failed
  * write logs a warning and resolves; it never throws, never blocks the
- * response. That's load-bearing — the whole point of this module is to be a
+ * response. That's load-bearing - the whole point of this module is to be a
  * safety net, so it cannot become a new failure mode for the surface it
  * observes.
  *
@@ -19,10 +19,10 @@ import { logger } from '../logger';
 /** Hard cap on the persisted stack trace. 4 KB is plenty for a useful trace
  *  while keeping JSONB pages from bloating on a buggy day. */
 const STACK_MAX = 4096;
-/** Hard cap on a single string value inside the context payload — protects
+/** Hard cap on a single string value inside the context payload - protects
  *  against an over-eager handler stuffing a megabyte of HTML in. */
 const CONTEXT_STRING_MAX = 4096;
-/** Maximum nesting depth we'll walk when scrubbing — anything deeper is
+/** Maximum nesting depth we'll walk when scrubbing - anything deeper is
  *  dropped. Defends against pathological cyclic structures. */
 const CONTEXT_MAX_DEPTH = 6;
 
@@ -58,7 +58,7 @@ const REDACT_KEYS = new Set<string>([
 ]);
 
 /** Recursively scrub credential-shaped fields and clamp string lengths.
- *  Pure — does not mutate the input. Returns `null` for input we couldn't
+ *  Pure - does not mutate the input. Returns `null` for input we couldn't
  *  serialise (cycles, non-JSON-safe values). */
 function scrubContext(input: unknown, depth = 0): unknown {
   if (input == null) return input;
@@ -79,7 +79,7 @@ function scrubContext(input: unknown, depth = 0): unknown {
     }
     return out;
   }
-  // Functions, symbols, bigints, etc. — anything not JSON-safe — get dropped.
+  // Functions, symbols, bigints, etc. - anything not JSON-safe - get dropped.
   return undefined;
 }
 
@@ -247,7 +247,7 @@ function errorStackOf(err: unknown): string | undefined {
 export const errorLogService = {
   /**
    * Persist an error row. Fire-and-forget: returns a promise that resolves
-   * to void EITHER on successful insert OR on a logged failure — it never
+   * to void EITHER on successful insert OR on a logged failure - it never
    * rejects. Callers may `void errorLogService.capture(...)` without a
    * try/catch around it.
    */
@@ -255,7 +255,7 @@ export const errorLogService = {
     try {
       const sql = db();
       if (!sql) {
-        // No DB configured — silently drop. This matches the audit log's
+        // No DB configured - silently drop. This matches the audit log's
         // behaviour in dev when DATABASE_URL is blank. Logging here would
         // produce one warning per request, which is noise.
         return;
@@ -418,7 +418,7 @@ export const errorLogService = {
     if (!sql) {
       return { totalCount: 0, unresolvedCount: 0, byStatus: {}, byPath: [], byErrorName: [] };
     }
-    // One round-trip per axis is fine — these are aggregates over the
+    // One round-trip per axis is fine - these are aggregates over the
     // window the operator chose, expected to be < a few weeks in practice.
     const totals = await sql<Array<{ total: number; unresolved: number }>>`
       select count(*)::int as total,

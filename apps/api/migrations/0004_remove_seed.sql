@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — remove sample/seed content
+-- LexDraft - remove sample/seed content
 -- =============================================================================
 -- Wipes the cases, hearings, alerts, documents, and tasks that were inserted
 -- by 0002_seed.sql so the live DB reflects a true empty starting state.
@@ -29,17 +29,17 @@ delete from hearings where (case_label, hearing_time, court) in (
 
 -- ---- alerts (matched by exact text + detail) --------------------------------
 delete from alerts where (text, detail) in (
-  ('Limitation expires in 4 days',     'Patel v. Reliance — Section 138 NI Act'),
-  ('Cross-examination prep pending',   'Mehta v. Verma — tomorrow 10:30'),
-  ('eCourts status update',            'Rao v. HDFC — order uploaded')
+  ('Limitation expires in 4 days',     'Patel v. Reliance - Section 138 NI Act'),
+  ('Cross-examination prep pending',   'Mehta v. Verma - tomorrow 10:30'),
+  ('eCourts status update',            'Rao v. HDFC - order uploaded')
 );
 
 -- ---- documents (matched by name) --------------------------------------------
 delete from documents where name in (
-  'Plaint — Patel v. Reliance Infra.docx',
-  'Written Statement — Coastal Estates.docx',
-  'Affidavit — Mehta cross-prep.docx',
-  'Bail Application — Khanna.docx'
+  'Plaint - Patel v. Reliance Infra.docx',
+  'Written Statement - Coastal Estates.docx',
+  'Affidavit - Mehta cross-prep.docx',
+  'Bail Application - Khanna.docx'
 );
 
 -- ---- tasks (matched by title) -----------------------------------------------

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Integration vitest config — runs the *.integration.test.ts suite against a
+ * Integration vitest config - runs the *.integration.test.ts suite against a
  * real Postgres pointed at by `TEST_DATABASE_URL`. Each test file gets its
  * own ephemeral schema (created by `integration-setup.ts` in beforeAll and
  * dropped in afterAll), so files can run in parallel without colliding on
@@ -9,7 +9,7 @@ import { defineConfig } from 'vitest/config';
  *
  * Invoked via `pnpm --filter @lexdraft/api test:integration`.
  *
- * Sequential `fileParallelism: false` is deliberate — the postgres-js client
+ * Sequential `fileParallelism: false` is deliberate - the postgres-js client
  * created per test file holds a small pool, and most CI Postgres containers
  * cap at ~100 connections. Serializing test files (still parallel WITHIN a
  * file via vitest's default concurrency) keeps connection counts predictable

@@ -151,7 +151,7 @@ export function ManageUsersPanel() {
         <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
           <div className="muted">
             {users.data?.length === 0
-              ? 'No users in this firm yet — invite your first co-advocate from the Invitations tab.'
+              ? 'No users in this firm yet - invite your first co-advocate from the Invitations tab.'
               : 'No users match the current filters.'}
           </div>
         </div>
@@ -202,7 +202,7 @@ export function ManageUsersPanel() {
                       value={u.practiceGroup?.id ?? ''}
                       onChange={(v) => onChangeGroup(u, v)}
                       options={[
-                        { value: '', label: '— No group —' },
+                        { value: '', label: '- No group -' },
                         ...((groups.data ?? []).map((g) => ({ value: g.id, label: g.name }))),
                       ]}
                     />

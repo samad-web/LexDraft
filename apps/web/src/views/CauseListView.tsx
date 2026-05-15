@@ -117,7 +117,7 @@ export function CauseListView() {
               await qc.invalidateQueries({ queryKey: ['calendar', 'day', todayIso] });
               showToast({ type: 'sage', text: 'Roster refreshed' });
             } catch {
-              showToast({ type: 'vermillion', text: 'Refresh failed — try again' });
+              showToast({ type: 'vermillion', text: 'Refresh failed - try again' });
             }
           }}
         >

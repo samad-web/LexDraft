@@ -1,10 +1,10 @@
 /**
- * Practice-tier analytics — lighter cousin of the Firm-tier `analyticsService`.
+ * Practice-tier analytics - lighter cousin of the Firm-tier `analyticsService`.
  *
  * Two surfaces:
- *  1. `workload(firmId)`     — fairness view, distribution of open matters
+ *  1. `workload(firmId)`     - fairness view, distribution of open matters
  *                              and upcoming hearings across firm members.
- *  2. `profitability(firmId)` — paid vs. expenses per matter, worst-first.
+ *  2. `profitability(firmId)` - paid vs. expenses per matter, worst-first.
  *
  * Live joins over OLTP tables (`users`, `cases`, `hearings`, `invoices`,
  * `expenses`, `tasks`). The Firm tier reads from materialized views; we
@@ -12,7 +12,7 @@
  * (≤ 25 seats), (b) the queries we run are O(matters) at worst, and
  * (c) partners want to see today's numbers, not yesterday's. If perf
  * becomes a problem the upgrade path is a `practice_analytics_*_mv` set
- * — see the agent report.
+ * - see the agent report.
  *
  * Tenant safety: every query is scoped by `firm_id`. We return empty
  * payloads (not 4xx) for callers without a firm attachment, matching the
@@ -43,7 +43,7 @@ const EMPTY_PROFITABILITY: ProfitabilityResponse = { matters: [] };
  */
 function weekBoundaries(now: Date): { thisStart: string; nextStart: string; afterStart: string } {
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  // JS: Sun=0..Sat=6. ISO weeks start Monday — shift accordingly.
+  // JS: Sun=0..Sat=6. ISO weeks start Monday - shift accordingly.
   const dow = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - dow);
   const thisStart = d.toISOString().slice(0, 10);
@@ -103,14 +103,14 @@ export const practiceAnalyticsService = {
   /**
    * Workload-fairness view. Pulls active members, then layers on:
    *  - open matters per member (firm-wide total split across members because
-   *    `cases.assignee` does not exist in the schema yet — flagged in the
+   *    `cases.assignee` does not exist in the schema yet - flagged in the
    *    agent report);
    *  - hearings this/next ISO week (firm-wide; same gap);
    *  - open tasks (task.assignee → users.name case-insensitive match).
    *
    * `isOverloaded` is a simple median-based flag: any member whose openMatters
    * exceeds 1.5x the median is tinted in the UI. With even distribution
-   * (the current heuristic) nobody ever flips overloaded — once the
+   * (the current heuristic) nobody ever flips overloaded - once the
    * assignee column lands the math will start to bite.
    */
   async workload(firmId: string | null): Promise<WorkloadResponse> {
@@ -226,11 +226,11 @@ export const practiceAnalyticsService = {
    *
    * The invoice→case match is by client name, so a client with multiple
    * matters will see invoices smeared across them. This is the same
-   * compromise the existing invoice list makes — fix lands when a real
+   * compromise the existing invoice list makes - fix lands when a real
    * `invoices.case_id` column does. See agent report.
    *
    * Sorted by netInr ascending (worst first). `since` filters by
-   * `cases.created_at` so the query window stays bounded — useful when
+   * `cases.created_at` so the query window stays bounded - useful when
    * partners want a quarterly snapshot.
    */
   async profitability(
@@ -306,7 +306,7 @@ export const practiceAnalyticsService = {
       };
     });
 
-    // Sort by netInr ascending — partners want worst-first. Tie-break on
+    // Sort by netInr ascending - partners want worst-first. Tie-break on
     // marginPct (lower first; null treated as worst since "no revenue yet"
     // is essentially a write-down candidate).
     matters.sort((a, b) => {

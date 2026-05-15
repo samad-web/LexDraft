@@ -1,13 +1,13 @@
 /**
- * Engagement-letter routes — gated by `engagement.letters` (Firm-tier only;
+ * Engagement-letter routes - gated by `engagement.letters` (Firm-tier only;
  * the orchestrator wires the feature → plan grant).
  *
- * GET    /api/engagement/templates       — list (also returns grouped view)
- * POST   /api/engagement/templates       — create
- * GET    /api/engagement/templates/:id   — single
- * PATCH  /api/engagement/templates/:id   — update
- * DELETE /api/engagement/templates/:id   — remove
- * POST   /api/engagement/generate        — interpolate + return text
+ * GET    /api/engagement/templates       - list (also returns grouped view)
+ * POST   /api/engagement/templates       - create
+ * GET    /api/engagement/templates/:id   - single
+ * PATCH  /api/engagement/templates/:id   - update
+ * DELETE /api/engagement/templates/:id   - remove
+ * POST   /api/engagement/generate        - interpolate + return text
  *
  * Auth is applied at mount time (apiRouter.use('/engagement', requireAuth, …)).
  * Tenant scope is resolved per-request from the bearer's userId.

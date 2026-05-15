@@ -1,12 +1,12 @@
 /**
- * Resolve a letterhead — by id, or "the user's effective default" — into the
+ * Resolve a letterhead - by id, or "the user's effective default" - into the
  * shape `exportPdf` / `exportDocx` need to render it.
  *
  * Why a separate file: the exporter runs inside a non-React call stack
  * (a button onClick), so it can't use TanStack hooks directly. These
  * helpers wrap the same endpoints the hooks use but as plain async fns.
  *
- * Cheap to call repeatedly — the underlying endpoints respond in tens of ms
+ * Cheap to call repeatedly - the underlying endpoints respond in tens of ms
  * and the response is small. If repeated calls become a hot path we can
  * memoise on the React Query cache, but exporters don't fire often enough
  * to justify that today.
@@ -20,7 +20,7 @@ import type {
   ListLetterheadsResponse,
 } from '@/hooks/useLetterheads';
 
-/** What the exporter needs to render a letterhead — template + slot values
+/** What the exporter needs to render a letterhead - template + slot values
  *  + the logo as a usable URL (already resolved to a presigned GET). */
 export interface ResolvedLetterhead {
   id: string;
@@ -40,7 +40,7 @@ export async function resolveLetterhead(id: string): Promise<ResolvedLetterhead 
   }
 }
 
-/** Fetch the user's effective default — personal beats firm, returns null
+/** Fetch the user's effective default - personal beats firm, returns null
  *  if neither exists. The route already computes which one wins. */
 export async function resolveEffectiveLetterhead(): Promise<ResolvedLetterhead | null> {
   try {
@@ -48,7 +48,7 @@ export async function resolveEffectiveLetterhead(): Promise<ResolvedLetterhead |
     const lh = list.effectiveDefault;
     return lh ? await toResolved(lh) : null;
   } catch {
-    // Failing to resolve a letterhead must never break the export — fall
+    // Failing to resolve a letterhead must never break the export - fall
     // back to the un-letterheaded path silently.
     return null;
   }
@@ -63,7 +63,7 @@ async function toResolved(lh: Letterhead): Promise<ResolvedLetterhead> {
       );
       logoUrl = res.downloadUrl;
     } catch {
-      // Logo fetch failure shouldn't poison the rest of the letterhead —
+      // Logo fetch failure shouldn't poison the rest of the letterhead -
       // the template renders gracefully with an empty logoUrl.
       logoUrl = null;
     }

@@ -9,9 +9,9 @@ import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
 /**
- * Seat ranges per plan tier — mirrors PRICING_AND_TIERS.md §3.1.
+ * Seat ranges per plan tier - mirrors PRICING_AND_TIERS.md §3.1.
  *  - Solo:     1 seat (locked, no team)
- *  - Practice: 2–8 seats (chamber-sized)
+ *  - Practice: 2-8 seats (chamber-sized)
  *  - Firm:     9+ seats (defaults to a sensible 12; capped at 500 for sanity)
  */
 const SEAT_RULES: Record<FirmPlanTier, { min: number; max: number; default: number; locked: boolean; hint: string }> = {
@@ -196,7 +196,7 @@ function CreateFirmModal({
   const planSummary = useMemo(() => {
     switch (plan) {
       case 'Solo':     return 'Single advocate, self-serve trial.';
-      case 'Practice': return 'Founding partner of a 2–8 person chamber.';
+      case 'Practice': return 'Founding partner of a 2-8 person chamber.';
       case 'Firm':     return 'Established firm, 9+ seats, sales-led contract.';
     }
   }, [plan]);
@@ -207,7 +207,7 @@ function CreateFirmModal({
       onClose={handleClose}
       eyebrow="New tenant"
       title="Create a firm"
-      description="Provision a new tenant. Bootstrap a Firm Admin so the firm has someone to invite the rest of the team — name first, then plan, seats, and admin credentials."
+      description="Provision a new tenant. Bootstrap a Firm Admin so the firm has someone to invite the rest of the team - name first, then plan, seats, and admin credentials."
       width={560}
       onSubmit={handleSubmit}
       footer={
@@ -219,7 +219,7 @@ function CreateFirmModal({
         </>
       }
     >
-      {/* Step 1 — Firm name */}
+      {/* Step 1 - Firm name */}
       <Field label="FIRM NAME">
         <input
           className="input"
@@ -231,14 +231,14 @@ function CreateFirmModal({
         />
       </Field>
 
-      {/* Step 2 — Plan */}
+      {/* Step 2 - Plan */}
       <Field label="PLAN">
         <Select
           value={plan}
           onChange={(v) => handlePlanChange(v as FirmPlanTier)}
           options={[
             { value: 'Solo',     label: 'Solo · Independent advocate' },
-            { value: 'Practice', label: 'Practice · 2–8 advocates' },
+            { value: 'Practice', label: 'Practice · 2-8 advocates' },
             { value: 'Firm',     label: 'Firm · 9+ advocates (custom)' },
           ]}
         />
@@ -247,8 +247,8 @@ function CreateFirmModal({
         </div>
       </Field>
 
-      {/* Step 3 — Seats */}
-      <Field label={`SEATS · ${rules.min}${rules.max === rules.min ? '' : `–${rules.max}`}`}>
+      {/* Step 3 - Seats */}
+      <Field label={`SEATS · ${rules.min}${rules.max === rules.min ? '' : `-${rules.max}`}`}>
         <input
           type="number"
           className="input"
@@ -265,7 +265,7 @@ function CreateFirmModal({
           {rules.hint}
           {!seatsValid && (
             <span style={{ color: 'var(--danger)', marginLeft: 8 }}>
-              Allowed: {rules.min}–{rules.max}.
+              Allowed: {rules.min}-{rules.max}.
             </span>
           )}
         </div>
@@ -273,7 +273,7 @@ function CreateFirmModal({
 
       <hr style={{ border: 0, borderTop: '1px solid var(--border-subtle)', margin: '4px 0' }} />
 
-      {/* Step 4 — Bootstrap admin */}
+      {/* Step 4 - Bootstrap admin */}
       <div>
         <div className="eyebrow" style={{ marginBottom: 4 }}>Firm Admin</div>
         <div className="body-xs muted" style={{ marginBottom: 12 }}>
@@ -389,7 +389,7 @@ function CreatedFirmDialog({
         />
       ) : (
         <div className="body-sm muted" style={{ padding: '10px 0' }}>
-          Password: <em>set at create time</em> — share it with the admin separately.
+          Password: <em>set at create time</em> - share it with the admin separately.
         </div>
       )}
       <div

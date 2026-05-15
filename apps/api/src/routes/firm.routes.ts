@@ -70,7 +70,7 @@ firmRouter.patch('/users/:id', requireFeature('admin.users'), async (req, res, n
 });
 
 // ---- /firm/roles --------------------------------------------------------
-// Read-only in Phase 1 — surfaces the seeded system roles + counts.
+// Read-only in Phase 1 - surfaces the seeded system roles + counts.
 firmRouter.get('/roles', requireFeature('admin.users'), async (req, res, next) => {
   try {
     res.json({ items: await firmAdminService.listAvailableRoles(req.user!.id) });

@@ -4,7 +4,7 @@
  *   GET /api/practice-analytics/workload
  *   GET /api/practice-analytics/profitability?since=2025-01-01
  *
- * Both gated by the `practice.analytics` feature key — the orchestrator
+ * Both gated by the `practice.analytics` feature key - the orchestrator
  * wires this feature into the Practice + Firm plans (see PRICING_AND_TIERS).
  * Solo callers will hit a 403; that's intentional, workload-fairness only
  * matters in a team setting.

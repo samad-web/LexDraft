@@ -68,7 +68,7 @@ function bucketOf(sev: ReviewSeverity): ResultTab {
 
 interface IndexedFinding {
   finding: ContractReviewFinding;
-  /** Position in the original findings[] array — the key used to anchor
+  /** Position in the original findings[] array - the key used to anchor
    *  per-finding comments on the server. */
   index: number;
 }
@@ -135,7 +135,7 @@ export function ContractReviewView() {
     (detailQuery.data as ContractReview | undefined) ?? null;
 
   // When the user types into the paste box, that's effectively the same as
-  // a file selection — promote to step 2 so the perspective picker appears.
+  // a file selection - promote to step 2 so the perspective picker appears.
   useEffect(() => {
     if (sourceText.trim().length > 200 && step === 1) setStep(2);
   }, [sourceText, step]);
@@ -197,7 +197,7 @@ export function ContractReviewView() {
       } else if (created.provider === 'none') {
         showToast({
           type: 'cobalt',
-          text: 'Demonstration only — no LLM provider configured. Findings shown are illustrative.',
+          text: 'Demonstration only - no LLM provider configured. Findings shown are illustrative.',
         });
       }
     } catch (err) {
@@ -267,7 +267,7 @@ export function ContractReviewView() {
         )}
       </div>
 
-      {/* Step 1 — upload / paste */}
+      {/* Step 1 - upload / paste */}
       {step < 3 && (
         <div className="col" style={{ gap: 16 }}>
           <div className="row" style={{ gap: 12 }}>
@@ -303,7 +303,7 @@ export function ContractReviewView() {
             <p className="body-md muted" style={{ marginBottom: 16 }}>
               {fileName
                 ? 'Drop another to replace, or edit the text in the box below'
-                : 'PDF, DOCX, or plain text — extracted in your browser, never uploaded as-is'}
+                : 'PDF, DOCX, or plain text - extracted in your browser, never uploaded as-is'}
             </p>
             <label className="btn">
               Browse files
@@ -345,7 +345,7 @@ export function ContractReviewView() {
         </div>
       )}
 
-      {/* Step 2 — perspective */}
+      {/* Step 2 - perspective */}
       {step >= 2 && step < 3 && (
         <div className="col" style={{ gap: 16 }}>
           <div className="row" style={{ gap: 12 }}>
@@ -395,7 +395,7 @@ export function ContractReviewView() {
         </div>
       )}
 
-      {/* Step 3 — results */}
+      {/* Step 3 - results */}
       {step === 3 && (
         <div className="col" style={{ gap: 20 }}>
           <div className="row" style={{ gap: 12 }}>
@@ -416,7 +416,7 @@ export function ContractReviewView() {
               </div>
               <p className="body-md muted">
                 The model is reading the contract and cross-referencing Indian law. This usually
-                takes 10–30 seconds.
+                takes 10-30 seconds.
               </p>
             </div>
           )}
@@ -453,7 +453,7 @@ export function ContractReviewView() {
                     fontSize: 13,
                   }}
                 >
-                  Demonstration only — no LLM provider configured on this server. The findings
+                  Demonstration only - no LLM provider configured on this server. The findings
                   below are illustrative.
                 </div>
               )}
@@ -481,7 +481,7 @@ export function ContractReviewView() {
                     style={{ alignItems: 'baseline', gap: 8, marginBottom: 14 }}
                   >
                     <span className="mono tabular" style={{ fontSize: 64, fontWeight: 400 }}>
-                      {score ?? '—'}
+                      {score ?? '-'}
                     </span>
                     <span
                       className="mono"
@@ -549,7 +549,7 @@ export function ContractReviewView() {
                 </div>
                 {/* Card vs redline toggle. Redline mode lays each finding out
                     as before/after columns so the rewrite is comparable at a
-                    glance — the card view keeps the comment threads & details. */}
+                    glance - the card view keeps the comment threads & details. */}
                 <div
                   className="row"
                   style={{
@@ -627,7 +627,7 @@ export function ContractReviewView() {
         </div>
       )}
 
-      {/* Prior reviews — collapsed when running, expanded otherwise */}
+      {/* Prior reviews - collapsed when running, expanded otherwise */}
       <HistoryPanel
         items={reviewsQuery.data?.items ?? []}
         loading={reviewsQuery.isLoading}
@@ -699,7 +699,7 @@ function HistoryPanel({ items, loading, activeId, onOpen, onRemove }: HistoryPan
                 </div>
               </button>
               <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                {r.status === 'completed' ? `${r.riskScore ?? '—'}/100` : r.status.toUpperCase()}
+                {r.status === 'completed' ? `${r.riskScore ?? '-'}/100` : r.status.toUpperCase()}
               </span>
               <span className={`badge ${TOKEN_TO_BADGE[risk.token]}`}>{risk.label}</span>
               <button
@@ -748,12 +748,12 @@ function RiskGauge({ score }: { score: number }) {
 }
 
 // ============================================================================
-// Redline row — side-by-side before/after for a single finding
+// Redline row - side-by-side before/after for a single finding
 // ============================================================================
 // Designed as a complement to the card view, not a replacement: it skips
 // the comments / redline-toggle affordances so each row stays comparable
 // and prints reasonably. Findings of kind "Missing" don't have a left-hand
-// excerpt — we render the right column full-width with a "MISSING CLAUSE"
+// excerpt - we render the right column full-width with a "MISSING CLAUSE"
 // marker so the reader doesn't have to hunt for context.
 
 function RedlineRow({ finding }: { finding: ContractReviewFinding }) {
@@ -824,7 +824,7 @@ function RedlineRow({ finding }: { finding: ContractReviewFinding }) {
             className="mono"
             style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 6 }}
           >
-            {hasExcerpt ? 'SUGGESTED REWRITE' : 'MISSING CLAUSE — ADD'}
+            {hasExcerpt ? 'SUGGESTED REWRITE' : 'MISSING CLAUSE - ADD'}
           </div>
           <div
             className="body-sm"
@@ -838,7 +838,7 @@ function RedlineRow({ finding }: { finding: ContractReviewFinding }) {
               whiteSpace: 'pre-wrap',
             }}
           >
-            {finding.suggestion || '—'}
+            {finding.suggestion || '-'}
           </div>
         </div>
       </div>
@@ -858,8 +858,8 @@ function ClauseCard({ finding, findingIndex, reviewId }: ClauseCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const token = SEVERITY_TOKEN[finding.severity];
   const badgeClass = TOKEN_TO_BADGE[token];
-  // We fetch comments lazily — only when the user expands the thread for
-  // this finding — to avoid loading hundreds of comments on a long review.
+  // We fetch comments lazily - only when the user expands the thread for
+  // this finding - to avoid loading hundreds of comments on a long review.
   const commentsQuery = useReviewComments(commentsOpen ? reviewId : null);
   const findingComments = useMemo(
     () =>
@@ -951,7 +951,7 @@ function ClauseCard({ finding, findingIndex, reviewId }: ClauseCardProps) {
 }
 
 // ============================================================================
-// Workflow strip — assignee picker + decision actions
+// Workflow strip - assignee picker + decision actions
 // ============================================================================
 
 function WorkflowStrip({ review }: { review: ContractReview }) {
@@ -1070,7 +1070,7 @@ function WorkflowStrip({ review }: { review: ContractReview }) {
 }
 
 // ============================================================================
-// Review-level discussion — top-level comments at the bottom of the page
+// Review-level discussion - top-level comments at the bottom of the page
 // ============================================================================
 
 function ReviewDiscussion({ reviewId }: { reviewId: string }) {
@@ -1102,7 +1102,7 @@ function ReviewDiscussion({ reviewId }: { reviewId: string }) {
 }
 
 // ============================================================================
-// Comment thread — shared between per-finding and review-level
+// Comment thread - shared between per-finding and review-level
 // ============================================================================
 
 interface CommentThreadProps {

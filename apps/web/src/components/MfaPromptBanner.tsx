@@ -7,10 +7,10 @@ import { useMfaStatus } from '@/hooks/useMfa';
  * user's role mandates MFA but no factor has been enrolled.
  *
  * Two sources are OR-ed:
- *   1. The transient `forceMfaEnrollment` UI flag — set by useSignIn when the
+ *   1. The transient `forceMfaEnrollment` UI flag - set by useSignIn when the
  *      sign-in response carries `mustEnrollMfa`. Survives until the user
  *      completes enrolment (or signs out).
- *   2. The persistent `/me/mfa/status` response — `required && !enrolled`.
+ *   2. The persistent `/me/mfa/status` response - `required && !enrolled`.
  *      This catches the case where the user reloads the page mid-session
  *      (the transient flag is gone but the server still demands enrolment),
  *      and the case where an admin flips the role-MFA policy live.
@@ -34,7 +34,7 @@ export function MfaPromptBanner() {
       role="alert"
       aria-live="polite"
       style={{
-        // Amber/warning bar — matches the security tone without screaming
+        // Amber/warning bar - matches the security tone without screaming
         // "danger" the way the oxblood/red tokens would.
         background: 'var(--warning-bg, #fff7e6)',
         borderBottom: '1px solid var(--warning, #b8860b)',

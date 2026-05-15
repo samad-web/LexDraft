@@ -10,12 +10,12 @@
 --   is what the requester acts on; the AI's score is advisory.
 --
 -- New columns on contract_reviews:
---   assigned_to     — who's responsible for the human review (optional;
+--   assigned_to     - who's responsible for the human review (optional;
 --                     reviews can sit unassigned in a "Needs reviewer" queue)
---   decision        — pending|changes_requested|approved (null until decided)
---   decided_at      — when the decision was recorded
---   decided_by      — who decided (the assignee, or any user with override
---                     rights — we don't lock this in DB; service enforces)
+--   decision        - pending|changes_requested|approved (null until decided)
+--   decided_at      - when the decision was recorded
+--   decided_by      - who decided (the assignee, or any user with override
+--                     rights - we don't lock this in DB; service enforces)
 --
 -- New table contract_review_comments:
 --   Threaded comments. `finding_index` ties a comment to a specific finding

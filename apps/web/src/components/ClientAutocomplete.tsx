@@ -120,7 +120,7 @@ export function ClientAutocomplete({
       e.preventDefault();
       setActiveIndex((i) => Math.max(0, i - 1));
     } else if (e.key === 'Enter' && open && suggestions.length > 0) {
-      // Only swallow Enter when a suggestion is highlighted — bare Enter
+      // Only swallow Enter when a suggestion is highlighted - bare Enter
       // should still submit the surrounding form.
       const pick = suggestions[activeIndex];
       if (pick) {

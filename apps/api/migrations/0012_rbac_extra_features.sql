@@ -1,20 +1,20 @@
 -- =============================================================================
--- LexDraft — RBAC catalog extensions for tenant CRUD
+-- LexDraft - RBAC catalog extensions for tenant CRUD
 -- =============================================================================
 -- 0009_rbac.sql seeded the matter/client/drafting/admin/reports feature keys
 -- but tenant CRUD for invoicing, expenses, leads, and research had no catalog
--- entries — so the routes couldn't be gated by `requireFeature`. This
+-- entries - so the routes couldn't be gated by `requireFeature`. This
 -- migration:
 --
 --   1. Adds the missing keys (billing.*, leads.*, research.basic).
 --   2. Maps them to plan tiers (Layer 1).
 --   3. Maps them to seeded system roles (Layer 2) by mirroring closely-related
---      grants — anyone who already has `client.*` gets `leads.*`, anyone with
+--      grants - anyone who already has `client.*` gets `leads.*`, anyone with
 --      `drafting.basic` gets `research.basic`, anyone with `reports.billing`
 --      gets `billing.*`.
 --
 -- Note: hearings, limitations, diary, tasks, archive, analytics intentionally
--- DO NOT get dedicated keys — they're satisfied by `matter.view/create` and
+-- DO NOT get dedicated keys - they're satisfied by `matter.view/create` and
 -- `reports.activity` already in the catalog. The route layer gates them on
 -- those existing keys.
 --

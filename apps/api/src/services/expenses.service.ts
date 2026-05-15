@@ -51,7 +51,7 @@ export const expensesService = {
 
   async create(input: Omit<Expense, 'id'>, firmId: string | null): Promise<Expense> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create expense'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create expense'), { status: 422 });
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');

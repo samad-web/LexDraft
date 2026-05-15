@@ -34,7 +34,7 @@ export function ManageRolesPanel() {
               {pager.slice.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.name}</td>
-                  <td className="muted">{r.description ?? '—'}</td>
+                  <td className="muted">{r.description ?? '-'}</td>
                   <td className="mono tabular" style={{ textAlign: 'right' }}>{r.userCount}</td>
                   <td>
                     <span className={`badge ${r.isSystem ? '' : 'badge-cobalt'}`}>

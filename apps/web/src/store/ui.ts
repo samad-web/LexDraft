@@ -15,7 +15,7 @@ interface UIState {
    * reads this flag to decide whether to mount; it's cleared back to false
    * when enrolment completes or the session ends.
    *
-   * Intentionally NOT persisted — it derives from the live sign-in response,
+   * Intentionally NOT persisted - it derives from the live sign-in response,
    * not user preference, so it should reset on every page reload (the next
    * /me + status fetch will refresh the true state).
    */

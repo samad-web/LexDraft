@@ -8,7 +8,7 @@ import { usePortalAuthStore } from '@/store/portalAuth';
 /**
  * Magic-link sign-in for the read-only client portal. Two states:
  *  1. Enter email → POST /portal/auth/request-link
- *  2. "Check your email" — also surfaces the dev link when the API returns one.
+ *  2. "Check your email" - also surfaces the dev link when the API returns one.
  *
  * If the URL already contains `?token=…`, we short-circuit to verifyMutation
  * so an emailed link can boot the user straight into the dashboard.

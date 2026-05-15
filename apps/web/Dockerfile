@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
 #
-# LexDraft Web — Vite SPA bundled and served by nginx.
+# LexDraft Web - Vite SPA bundled and served by nginx.
 #
 # Two stages: Node-22 to compile, nginx:alpine to serve. The runner image
-# carries no Node toolchain at all — just hashed static assets and an
+# carries no Node toolchain at all - just hashed static assets and an
 # nginx config tuned for SPAs (try_files fallback + cache headers).
 #
 # Build context is the monorepo root, same as the API image:
@@ -14,7 +14,7 @@ FROM node:22-alpine AS build
 WORKDIR /workspace
 RUN corepack enable
 
-# Workspace manifests first — cache-friendly layer.
+# Workspace manifests first - cache-friendly layer.
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/api/package.json                apps/api/package.json
 COPY apps/web/package.json                apps/web/package.json
@@ -33,7 +33,7 @@ COPY packages packages
 COPY apps/web apps/web
 
 # `VITE_API_URL` is baked into the bundle at build time. Empty default
-# means the SPA calls /api on its own origin — the right answer when a
+# means the SPA calls /api on its own origin - the right answer when a
 # reverse proxy fronts both web and api on the same hostname.
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}

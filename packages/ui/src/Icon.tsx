@@ -7,7 +7,7 @@ export type IconName =
   | 'archive' | 'members' | 'analytics' | 'settings' | 'search' | 'bell'
   | 'plus' | 'moon' | 'sun' | 'home' | 'chat' | 'more' | 'arrow' | 'chevron'
   | 'chevronD' | 'upload' | 'download' | 'close' | 'check' | 'flag' | 'file'
-  | 'shield' | 'globe' | 'menu';
+  | 'shield' | 'globe' | 'menu' | 'eye' | 'eyeOff';
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -58,6 +58,8 @@ const PATHS: Record<IconName, ReactNode> = {
   shield: (<><path d="M12 2 4 5v7c0 5 3.5 9 8 10 4.5-1 8-5 8-10V5z"/></>),
   globe: (<><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></>),
   menu: (<><path d="M3 6h18M3 12h18M3 18h18"/></>),
+  eye: (<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>),
+  eyeOff: (<><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.5 0-10-7-10-7a18.45 18.45 0 0 1 4.06-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M10.59 10.59a2 2 0 1 0 2.83 2.83"/><path d="M2 2l20 20"/></>),
 };
 
 export function Icon({ name, size = 16, className = '', ...rest }: IconProps) {

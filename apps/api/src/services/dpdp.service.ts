@@ -1,7 +1,7 @@
 /**
  * DPDP Act 2023 compliance service.
  *
- * Backs the `/api/me/dpdp/*` data-principal endpoints — export, deletion
+ * Backs the `/api/me/dpdp/*` data-principal endpoints - export, deletion
  * request, deletion cancellation, and the consent ledger. Also exposes two
  * background-job handlers (`purgeDueDeletions`, `purgeExpiredAuditEntries`)
  * that the orchestrator wires into pg-boss on a daily cron.
@@ -12,7 +12,7 @@
  *     `scheduled_purge_at = now() + retention`. The user is also moved to
  *     status='deactivated' so they can't sign back in.
  *   - Tenant-owned data (clients, cases, etc.) is firm-scoped and NOT
- *     soft-deleted just because one user wants to leave — that would purge
+ *     soft-deleted just because one user wants to leave - that would purge
  *     the firm's case files. Only the user's personal artefacts (drafts,
  *     consent entries, the user row itself) are flagged.
  *   - `cancelDeletion` clears both flags as long as `scheduled_purge_at` is
@@ -91,12 +91,12 @@ function userRowToExported(r: UserRow): ExportedUser {
  *  than enough head-room for accidental-deletion recovery; longer means rows
  *  that are conceptually "deleted" linger in the operational database. */
 const MAX_RETENTION_DAYS = 365;
-/** DPDP doesn't fix a number — 30 days is industry standard for SaaS and
+/** DPDP doesn't fix a number - 30 days is industry standard for SaaS and
  *  matches our internal SLA for honouring a recovery request. */
 const DEFAULT_RETENTION_DAYS = 30;
 
 /** Cast helper for DPDP-specific audit actions. The packages/types
- *  AuditAction union doesn't yet include these — we're intentionally not
+ *  AuditAction union doesn't yet include these - we're intentionally not
  *  mutating that file (orchestrator owns it). */
 function dpdpAction(name: string): AuditAction {
   return name as AuditAction;
@@ -107,7 +107,7 @@ function dpdpTarget(name: string): AuditTargetType {
 }
 
 /** Best-effort row dump. Falls back to an empty array if the table doesn't
- *  exist in the current DB revision — the export should still succeed even
+ *  exist in the current DB revision - the export should still succeed even
  *  on a partially-migrated dev box. The `query` callback returns whatever the
  *  postgres-js template tag returns (a thenable that resolves to a row array);
  *  we don't constrain it here so the SQL stays readable at the call site. */
@@ -150,7 +150,7 @@ export const dpdpService = {
     const firmId = userRow.firm_id;
 
     // Per-table dumps. We intentionally `select *` then strip sensitive
-    // columns (password_hash) in JS — keeps this resilient against schema
+    // columns (password_hash) in JS - keeps this resilient against schema
     // drift without having to maintain a column allow-list for every table.
     const drafts = await safeQuery(() => sql`
       select * from drafts where user_id = ${userId}::uuid order by created_at desc
@@ -227,7 +227,7 @@ export const dpdpService = {
       consents: consentRows.map(consentRowToRecord),
     };
 
-    // Estimate size for the audit row — full stringify would be heavy on
+    // Estimate size for the audit row - full stringify would be heavy on
     // large dumps, but a rough length is plenty for compliance reporting.
     const approxBytes = JSON.stringify({
       drafts: drafts.length,
@@ -296,7 +296,7 @@ export const dpdpService = {
     if (!userRow) throw new NotFoundError('User not found');
 
     if (userRow.deleted_at) {
-      // Already pending — treat the second call as idempotent. Return what
+      // Already pending - treat the second call as idempotent. Return what
       // we have rather than throwing, since the UI might re-issue on retry.
       const scheduledIso = userRow.scheduled_purge_at?.toISOString() ?? new Date().toISOString();
       return {
@@ -322,7 +322,7 @@ export const dpdpService = {
       scheduledPurgeAt = updated!.scheduled_purge_at.toISOString();
 
       // Soft-delete the rows the user personally authored. Firm-shared data
-      // (clients/cases/etc.) is intentionally untouched — the firm still
+      // (clients/cases/etc.) is intentionally untouched - the firm still
       // owns it after one user leaves.
       await tx`
         update drafts
@@ -472,7 +472,7 @@ export const dpdpService = {
 
   /**
    * Background-job handler. Hard-deletes rows whose `scheduled_purge_at`
-   * has elapsed across every user-owned table. Idempotent — re-running it
+   * has elapsed across every user-owned table. Idempotent - re-running it
    * just deletes whatever's newly eligible.
    *
    * Tables are processed in dependency order: child rows first (drafts),

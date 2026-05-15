@@ -68,7 +68,7 @@ export function useLimitationFilingTypes() {
     queryKey: ['limitations', 'calculator', 'types'],
     queryFn: () => api.get<{ items: LimitationFilingType[] }>('/limitations/calculator/types'),
     select: (r) => r.items,
-    // Catalog is static — refresh once per session, not on focus.
+    // Catalog is static - refresh once per session, not on focus.
     staleTime: 60 * 60 * 1000,
   });
 }
@@ -87,7 +87,7 @@ export function useLimitationRules() {
     queryKey: ['limitations', 'rules'],
     queryFn: () => api.get<{ items: LimitationRule[] }>('/limitations/rules'),
     select: (r) => r.items,
-    // Rules are curated static data — cache aggressively.
+    // Rules are curated static data - cache aggressively.
     staleTime: 60 * 60 * 1000,
   });
 }

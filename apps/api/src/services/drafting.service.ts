@@ -33,7 +33,7 @@ interface BuiltPrompt {
 /** Split into system + user so Anthropic's top-level `system` param and xAI's
  *  `{role:'system'}` message both carry the persona/style instructions, while
  *  the user message carries only the request-specific task and brief. Same
- *  split is applied to both providers — A/B remains apples-to-apples. */
+ *  split is applied to both providers - A/B remains apples-to-apples. */
 function buildPrompt(req: DraftRequest): BuiltPrompt {
   const langName = req.language === 'EN' ? 'English' : req.language === 'HI' ? 'Hindi' : 'Tamil';
   const briefLines = Object.entries(req.fields)
@@ -42,7 +42,7 @@ function buildPrompt(req: DraftRequest): BuiltPrompt {
     .join('\n');
   const dated = req.draftDate ?? new Date().toISOString().slice(0, 10);
 
-  const system = `You are an experienced Indian advocate. Draft court-ready documents in ${langName} following Indian legal conventions, statutes, and pleading style. Number paragraphs where appropriate. Include proper headings, parties block, prayer/conclusion, and verification/jurat where applicable. Be precise and concise — under 500 words. Output ONLY the document text — no commentary, no markdown.`;
+  const system = `You are an experienced Indian advocate. Draft court-ready documents in ${langName} following Indian legal conventions, statutes, and pleading style. Number paragraphs where appropriate. Include proper headings, parties block, prayer/conclusion, and verification/jurat where applicable. Be precise and concise - under 500 words. Output ONLY the document text - no commentary, no markdown.`;
 
   const user = `Draft a "${req.docType}" with tone: ${req.tone}. Date the document "${dated}".
 
@@ -129,7 +129,7 @@ async function callClaude(req: DraftRequest): Promise<string> {
         // so marking it cache_control='ephemeral' lets Anthropic reuse
         // the encoded prefix across calls. The savings are token-count
         // dependent (≥1024 input tokens for Sonnet to actually cache)
-        // and harmless when the prompt is small — request shape is correct
+        // and harmless when the prompt is small - request shape is correct
         // for when we grow the system instructions or fold in firm-grounded
         // few-shot examples.
         body: JSON.stringify({
@@ -240,7 +240,7 @@ async function* streamGrok(req: DraftRequest): AsyncGenerator<string, void, void
           const text = evt.choices?.[0]?.delta?.content;
           if (text) yield text;
         } catch {
-          // ignore malformed frames — keepalive comments etc.
+          // ignore malformed frames - keepalive comments etc.
         }
       }
     }
@@ -303,7 +303,7 @@ async function* streamClaude(req: DraftRequest): AsyncGenerator<string, void, vo
             yield evt.delta.text;
           }
         } catch {
-          // ignore malformed frames — keepalive comments etc.
+          // ignore malformed frames - keepalive comments etc.
         }
       }
     }

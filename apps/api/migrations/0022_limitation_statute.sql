@@ -4,7 +4,7 @@
 -- with the metadata a matter-type-driven calculator needs to surface the
 -- legal basis next to each tracked deadline.
 --
---   matter_type    -- the curated rule id used (e.g. "Recovery of money — oral contract")
+--   matter_type    -- the curated rule id used (e.g. "Recovery of money - oral contract")
 --   basis_statute  -- 'Limitation Act 1963', 'NI Act 1881', 'Consumer Protection Act 2019', …
 --   basis_section  -- 'Article 18', '§138 NI Act', 'Article 113'
 --   computed_from  -- the trigger date the deadline was calculated from

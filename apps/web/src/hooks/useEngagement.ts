@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 /**
- * Engagement-letter hooks — Firm-tier feature. Types are kept local to the
+ * Engagement-letter hooks - Firm-tier feature. Types are kept local to the
  * web app for now (mirror of `apps/api/src/types/engagement.types.ts`); the
  * orchestrator will hoist them into `@lexdraft/types` when the feature
  * graduates from preview.

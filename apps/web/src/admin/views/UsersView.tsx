@@ -29,7 +29,7 @@ export function UsersView() {
   const handleImpersonate = async (u: AdminUserSummary) => {
     try {
       const grant = await adminApi.impersonate(u.id);
-      // Wipe admin's cached payloads — the impersonated session must see
+      // Wipe admin's cached payloads - the impersonated session must see
       // its own /dashboard, /me/usage, /me/features, etc.
       qc.clear();
       startImpersonation(grant.user, grant.token, { adminId: grant.originalAdminId, adminEmail: useAuthStore.getState().user?.email ?? '' });
@@ -107,7 +107,7 @@ export function UsersView() {
                   {u.isSuperadmin && <span className="badge badge-vermillion mono" style={{ marginLeft: 8, fontSize: 9 }}>SUPER</span>}
                 </td>
                 <td className="mono" style={{ fontSize: 12 }}>{u.email}</td>
-                <td>{u.firmName ?? '—'}</td>
+                <td>{u.firmName ?? '-'}</td>
                 <td>{u.role}</td>
                 <td>
                   <span className={`badge ${u.status === 'active' ? 'badge-sage' : 'badge-vermillion'}`}>{u.status}</span>

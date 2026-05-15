@@ -46,7 +46,7 @@ export const diaryService = {
 
   async create(input: Omit<DiaryEntry, 'id'>, firmId: string | null): Promise<DiaryEntry> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create diary entry'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create diary entry'), { status: 422 });
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');

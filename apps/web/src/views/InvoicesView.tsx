@@ -89,7 +89,7 @@ export function InvoicesView() {
             // GST / Tally-compatible CSV via /api/exports/invoices.csv.
             // Pass the active status filter through so the file matches
             // what the user is looking at. We download via a temporary
-            // <a download> link — nothing is stored server-side.
+            // <a download> link - nothing is stored server-side.
             try {
               const params: Record<string, string> = {};
               if (filter !== 'all') params.status = filter;

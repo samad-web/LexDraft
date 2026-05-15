@@ -1,5 +1,5 @@
 /**
- * Coverage swap board — Practice / Firm tier feature.
+ * Coverage swap board - Practice / Firm tier feature.
  *
  * 3-column Trello-style layout (Open / Claimed / Completed) so the firm can
  * see, at a glance, who needs cover and who's already picked up someone
@@ -8,7 +8,7 @@
  *
  * Authorisation is enforced server-side. We optimistically render whichever
  * actions COULD apply and let the API reject if the caller isn't entitled
- * (e.g. claiming your own request) — that surfaces a toast rather than
+ * (e.g. claiming your own request) - that surfaces a toast rather than
  * confusing pre-hide. Cancelled requests are intentionally not visible by
  * default; they re-appear if the caller filters by "All".
  */
@@ -330,7 +330,7 @@ export function CoverageView() {
                     <span className="body-sm">{selected.claimedByName}</span>
                   </div>
                 ) : (
-                  <span className="body-sm muted">— Not yet claimed —</span>
+                  <span className="body-sm muted">- Not yet claimed -</span>
                 )}
               </div>
             </div>

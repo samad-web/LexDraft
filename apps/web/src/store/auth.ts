@@ -29,7 +29,7 @@ interface AuthState {
   clear: () => void;
 }
 
-/** Decode a JWT payload without verification — for surfacing the actAs claim to the UI. */
+/** Decode a JWT payload without verification - for surfacing the actAs claim to the UI. */
 function decodeActAs(token: string): ActAs | null {
   try {
     const part = token.split('.')[1];
@@ -39,7 +39,7 @@ function decodeActAs(token: string): ActAs | null {
       return { adminId: json.actAs.adminId, adminEmail: json.actAs.adminEmail };
     }
   } catch {
-    // ignore malformed tokens — caller treats as no impersonation
+    // ignore malformed tokens - caller treats as no impersonation
   }
   return null;
 }

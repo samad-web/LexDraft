@@ -7,7 +7,7 @@ import { logger } from '../logger';
  * `REFRESH MATERIALIZED VIEW CONCURRENTLY` requires (a) a unique index
  * on the view, and (b) that the view has already been populated at
  * least once. Migration 0021 creates each view WITH data and adds the
- * required unique index — so the CONCURRENTLY refresh is safe from the
+ * required unique index - so the CONCURRENTLY refresh is safe from the
  * very first run.
  *
  * Each REFRESH is its own statement and they run sequentially. Postgres
@@ -33,14 +33,14 @@ export const analyticsRefreshService = {
   async refreshAll(): Promise<RefreshResult[]> {
     const sql = db();
     if (!sql) {
-      logger.warn('analytics refresh skipped — DATABASE_URL not configured');
+      logger.warn('analytics refresh skipped - DATABASE_URL not configured');
       return [];
     }
     const out: RefreshResult[] = [];
     for (const view of VIEWS) {
       const t0 = Date.now();
       try {
-        // Identifier interpolation — `sql(view)` quotes the name safely.
+        // Identifier interpolation - `sql(view)` quotes the name safely.
         // postgres-js does not allow bind-parameter interpolation of
         // identifiers, but `sql.unsafe` is fine here because `view` is
         // a compile-time-constant string from the allowlist above.

@@ -57,7 +57,7 @@ describe('catalog integrity', () => {
   });
 });
 
-describe('calculate — simple articles', () => {
+describe('calculate - simple articles', () => {
   it('Art. 65 (12-year possession)', () => {
     const result = calculate({
       filingTypeId: 'art-65-possession',
@@ -112,7 +112,7 @@ describe('calculate — simple articles', () => {
   });
 });
 
-describe('calculate — NI Act §138 ladder', () => {
+describe('calculate - NI Act §138 ladder', () => {
   it('produces three milestones at +30, +45, +75 days', () => {
     const result = calculate({
       filingTypeId: 'ni138-dishonor',

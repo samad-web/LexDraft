@@ -1,5 +1,5 @@
 /**
- * clausesService — real-Postgres integration coverage.
+ * clausesService - real-Postgres integration coverage.
  *
  * Mirrors cases.integration.test.ts: two firms, full CRUD coverage, and a
  * focused test for the `importMany` path (which has dedupe logic the unit
@@ -18,7 +18,7 @@ beforeAll(async () => {
   firmB = await seedFirm('Clauses Firm B');
 });
 
-describe('clausesService — CRUD', () => {
+describe('clausesService - CRUD', () => {
   it('list returns [] for null firmId', async () => {
     expect(await clausesService.list({ firmId: null })).toEqual([]);
   });
@@ -94,7 +94,7 @@ describe('clausesService — CRUD', () => {
   });
 });
 
-describe('clausesService — importMany dedupe', () => {
+describe('clausesService - importMany dedupe', () => {
   it('skips duplicates by (category, lower(title)) within the same firm', async () => {
     const firstBatch = await clausesService.importMany([
       { category: 'Bulk', title: 'Confidentiality', description: '', body: 'orig' },
@@ -103,7 +103,7 @@ describe('clausesService — importMany dedupe', () => {
     expect(firstBatch.inserted).toBe(2);
     expect(firstBatch.skipped).toBe(0);
 
-    // Re-import with mixed-case title — should ALL be skipped (case-insensitive).
+    // Re-import with mixed-case title - should ALL be skipped (case-insensitive).
     const secondBatch = await clausesService.importMany([
       { category: 'Bulk', title: 'confidentiality', description: '', body: 'dup' },
       { category: 'Bulk', title: 'IP Assignment',   description: '', body: 'dup' },

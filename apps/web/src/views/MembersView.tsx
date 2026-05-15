@@ -40,7 +40,7 @@ export function MembersView() {
     <div className="col stagger" style={{ gap: 24 }}>
       <div className="row" style={{ flexWrap: 'wrap', gap: 16 }}>
         <div style={{ flex: 1, minWidth: 280 }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>§ — CHAMBERS ROLL</div>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>§ - CHAMBERS ROLL</div>
           <h1 className="heading-xl">Members</h1>
           <p className="body-md muted" style={{ marginTop: 8, maxWidth: 560 }}>
             Partners, associates, and counsel of record. Roles control matter access, billing approvals, and signing authority.

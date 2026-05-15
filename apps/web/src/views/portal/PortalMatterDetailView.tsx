@@ -75,7 +75,7 @@ export function PortalMatterDetailView() {
           <Table headers={['Date', 'Time', 'Court', 'Purpose']}>
             {hearings.map((h, i) => (
               <tr key={h.id ?? i}>
-                <td>{h.date ?? '—'}</td>
+                <td>{h.date ?? '-'}</td>
                 <td>{h.time}</td>
                 <td>{h.court}</td>
                 <td>{h.purpose}</td>
@@ -103,7 +103,7 @@ export function PortalMatterDetailView() {
                     ) : doc.requiresAck ? (
                       <Pill kind="warning">Action needed</Pill>
                     ) : (
-                      <span style={{ opacity: 0.5 }}>—</span>
+                      <span style={{ opacity: 0.5 }}>-</span>
                     )}
                   </td>
                   <td style={{ textAlign: 'right' }}>

@@ -2,7 +2,7 @@
  * Canonical list of Indian states and union territories.
  * Includes indicative stamp duty + registration rates per instrument type.
  *
- * Rates are *baseline* figures suitable for an estimator — they vary by
+ * Rates are *baseline* figures suitable for an estimator - they vary by
  * gender, locality (urban / rural / municipal), instrument value, and recent
  * notifications. Always defer to the Sub-Registrar's schedule at registration.
  *
@@ -15,7 +15,7 @@ export type IndiaStateType = 'state' | 'ut';
 export interface InstrumentRates {
   /** Sale deed / conveyance. */
   sale: number;
-  /** Long-term lease (10y+). Short leases differ — use this as a proxy. */
+  /** Long-term lease (10y+). Short leases differ - use this as a proxy. */
   lease: number;
   /** Mortgage with possession. Without possession is typically lower. */
   mortgage: number;

@@ -18,11 +18,11 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// Tier matrix — these tests are the canonical "who can see what" table.
+// Tier matrix - these tests are the canonical "who can see what" table.
 // Update them BEFORE changing role/plan grants in the resolver or migrations.
 // =============================================================================
 
-describe('demoFallbackFor — Solo Advocate', () => {
+describe('demoFallbackFor - Solo Advocate', () => {
   const f = demoFallbackFor('Solo Advocate');
 
   it('grants tenant CRUD that Solo plan permits', () => {
@@ -75,7 +75,7 @@ describe('demoFallbackFor — Solo Advocate', () => {
   });
 });
 
-describe('demoFallbackFor — Practice tier roles', () => {
+describe('demoFallbackFor - Practice tier roles', () => {
   it('Practice Group Lead gets Solo set + AI + review + Practice surfaces', () => {
     const f = demoFallbackFor('Practice Group Lead');
     expect(f).toContain('matter.view');             // inherited from Solo
@@ -107,7 +107,7 @@ describe('demoFallbackFor — Practice tier roles', () => {
   });
 });
 
-describe('demoFallbackFor — Firm Admin', () => {
+describe('demoFallbackFor - Firm Admin', () => {
   const f = demoFallbackFor('Firm Admin');
 
   it('gets the full firm-admin surface', () => {
@@ -129,7 +129,7 @@ describe('demoFallbackFor — Firm Admin', () => {
   });
 });
 
-describe('demoFallbackFor — restricted roles', () => {
+describe('demoFallbackFor - restricted roles', () => {
   it('Intern only sees baseline + minimal drafting / view', () => {
     const f = demoFallbackFor('Intern');
     expect(f).toContain('matter.view');
@@ -151,7 +151,7 @@ describe('demoFallbackFor — restricted roles', () => {
 // Integration via authService + resolveFeatures (memory mode round-trip)
 // =============================================================================
 
-describe('resolveFeatures — role-aware via memUsers', () => {
+describe('resolveFeatures - role-aware via memUsers', () => {
   it('a freshly-provisioned Solo Advocate sees no firm.* / analytics.firm / admin.* keys', async () => {
     const auth = await signInForTest({ email: `solo-${Date.now()}@example.com`, password: 'p' });
     const r = await resolveFeatures(auth.user.id);

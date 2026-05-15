@@ -1,5 +1,5 @@
 /**
- * cases.service — real-Postgres integration coverage.
+ * cases.service - real-Postgres integration coverage.
  *
  * Exercises the SQL paths (skipped in the unit suite because DATABASE_URL is
  * blank there). Two firms are seeded to prove `firmId` scoping actually
@@ -19,7 +19,7 @@ beforeAll(async () => {
   firmB = await seedFirm('Cases Firm B');
 });
 
-describe('casesService — real Postgres', () => {
+describe('casesService - real Postgres', () => {
   it('list returns [] for null firmId (cross-tenant safety)', async () => {
     const items = await casesService.list({ firmId: null });
     expect(items).toEqual([]);
@@ -98,13 +98,13 @@ describe('casesService — real Postgres', () => {
       status: 'Active', next: '2026-10-01', type: 'civil', visibleToClient: false,
     }, firmA.id);
 
-    // Wrong firm — silently returns undefined, row untouched.
+    // Wrong firm - silently returns undefined, row untouched.
     const wrongFirm = await casesService.update(created.id, { title: 'Hijacked' }, firmB.id);
     expect(wrongFirm).toBeUndefined();
     const stillPristine = await casesService.get(created.id, firmA.id);
     expect(stillPristine?.title).toBe('Pre-update');
 
-    // Right firm — patch applies.
+    // Right firm - patch applies.
     const ok = await casesService.update(created.id, { title: 'Post-update', stage: 'Hearing' }, firmA.id);
     expect(ok?.title).toBe('Post-update');
     expect(ok?.stage).toBe('Hearing');
@@ -137,5 +137,5 @@ describe('casesService — real Postgres', () => {
 });
 
 afterAll(async () => {
-  // Schema is dropped by teardownIntegrationDb — nothing local to clean.
+  // Schema is dropped by teardownIntegrationDb - nothing local to clean.
 });

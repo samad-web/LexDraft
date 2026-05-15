@@ -68,7 +68,7 @@ export const auditService = {
       // `retain_until` is set via sql.unsafe-ish raw fragment so the row's
       // `created_at` and the retention deadline are anchored to the same
       // statement-time `now()`. Falls back gracefully if the column doesn't
-      // exist yet (pre-migration 0020) — we re-issue the insert without it.
+      // exist yet (pre-migration 0020) - we re-issue the insert without it.
       try {
         await sql`
           insert into audit_log (actor_user_id, actor_email, action, target_type, target_id, payload, retain_until)
@@ -83,7 +83,7 @@ export const auditService = {
           )
         `;
       } catch (err) {
-        // 42703 = undefined_column. Means migration 0020 hasn't run yet —
+        // 42703 = undefined_column. Means migration 0020 hasn't run yet -
         // fall back to the pre-DPDP shape so the audit write still lands.
         const code = (err as { code?: string } | null)?.code;
         if (code === '42703') {
@@ -169,7 +169,7 @@ export const auditService = {
    * (e.g. plan changes, suspensions), plus portal-client actions on this
    * firm's clients. The audit_log table has no firm_id column today so
    * scoping is via joins on `users` (firm staff) and `clients` (portal
-   * clients — distinguished by `payload.actorKind = 'portal_client'`).
+   * clients - distinguished by `payload.actorKind = 'portal_client'`).
    */
   async listForFirm(firmId: string, query: AuditLogQuery = {}): Promise<AuditLogEntry[]> {
     const limit = Math.min(Math.max(query.limit ?? 50, 1), 200);

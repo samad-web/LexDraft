@@ -1,10 +1,10 @@
 /**
- * Indian limitations calculator. Pure, no I/O — given a filing-type id and
+ * Indian limitations calculator. Pure, no I/O - given a filing-type id and
  * the trigger date, returns the deadline plus any compound milestones (e.g.
  * the NI Act §138 ladder: notice → 15-day wait → 30-day window).
  *
  * Coverage is the most-used ~20 articles of Schedule I to the Limitation Act
- * 1963 plus the NI Act §138 ladder. This is NOT exhaustive — every article
+ * 1963 plus the NI Act §138 ladder. This is NOT exhaustive - every article
  * needs research-grade citation work; the catalog here is meant to be
  * gradually extended. Each entry carries `reference` and `notes` so the UI
  * can warn users to verify against the bare Act for the specific facts.
@@ -75,7 +75,7 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
   {
     id: 'art-23-money-lent',
     category: 'Money & contract',
-    label: 'Money lent — without instrument (Art. 22 / 23)',
+    label: 'Money lent - without instrument (Art. 22 / 23)',
     period: { unit: 'years', count: 3 },
     reference: 'Limitation Act 1963, Sch. I, Art. 22/23',
     triggerLabel: 'Date the loan was advanced',
@@ -92,7 +92,7 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
   {
     id: 'art-55-breach',
     category: 'Money & contract',
-    label: 'Compensation for breach of contract — general (Art. 55)',
+    label: 'Compensation for breach of contract - general (Art. 55)',
     period: { unit: 'years', count: 3 },
     reference: 'Limitation Act 1963, Sch. I, Art. 55',
     triggerLabel: 'Date the contract was broken',
@@ -103,7 +103,7 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
     label: 'Specific performance of a contract (Art. 54)',
     period: { unit: 'years', count: 3 },
     reference: 'Limitation Act 1963, Sch. I, Art. 54',
-    triggerLabel: 'Date fixed for performance — or date of refusal',
+    triggerLabel: 'Date fixed for performance - or date of refusal',
     notes: ['If the contract fixes a date, run from that. Else from the date the plaintiff had notice that performance was refused.'],
   },
 
@@ -133,7 +133,7 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
     period: { unit: 'years', count: 12 },
     reference: 'Limitation Act 1963, Sch. I, Art. 65',
     triggerLabel: 'Date possession of the defendant became adverse',
-    notes: ['12-year clock starts only when possession turns adverse — not from initial entry.'],
+    notes: ['12-year clock starts only when possession turns adverse - not from initial entry.'],
   },
   {
     id: 'art-58-declaration',
@@ -156,7 +156,7 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
   {
     id: 'art-116-civil-appeal-hc',
     category: 'Appeals & applications',
-    label: 'First appeal to High Court — civil (Art. 116(a))',
+    label: 'First appeal to High Court - civil (Art. 116(a))',
     period: { unit: 'days', count: 90 },
     reference: 'Limitation Act 1963, Sch. I, Art. 116(a)',
     triggerLabel: 'Date of decree appealed from',
@@ -215,12 +215,12 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
     notes: ['Court may extend by another 30 days on sufficient cause; absolute bar after 3 months + 30 days.'],
   },
 
-  // NI §138 is a compound ladder — kept here so the picker offers it; the
+  // NI §138 is a compound ladder - kept here so the picker offers it; the
   // calculator switches to a ladder for this id.
   {
     id: 'ni138-dishonor',
     category: 'NI Act',
-    label: 'Section 138 NI Act — full ladder',
+    label: 'Section 138 NI Act - full ladder',
     period: { unit: 'days', count: 75 },
     reference: 'Negotiable Instruments Act 1881, §138 provisos & §142',
     triggerLabel: 'Date of cheque-dishonor memo',
@@ -308,7 +308,7 @@ export function getFilingType(id: string): FilingType | undefined {
 export interface CalculateInput {
   filingTypeId: string;
   triggerDate: string;
-  /** Override "now" — for tests. */
+  /** Override "now" - for tests. */
   now?: Date;
 }
 
@@ -359,7 +359,7 @@ export function calculate(input: CalculateInput): CalculationResult {
 
     const days = daysBetween(complaintDeadline, input.now ?? new Date());
     if (days < 0)       warnings.push('Complaint deadline has already passed; consider §473 CrPC condonation.');
-    else if (days <= 7) warnings.push('Complaint deadline is within 7 days — file urgently.');
+    else if (days <= 7) warnings.push('Complaint deadline is within 7 days - file urgently.');
 
     return {
       filingType,
@@ -379,7 +379,7 @@ export function calculate(input: CalculateInput): CalculationResult {
     warnings.push(`Deadline (${deadline}) falls on a weekend; verify court working day. Section 4 may extend the period to the next working day.`);
   }
   if (days < 0)        warnings.push('This deadline has already passed. Consider whether s. 5 condonation is available.');
-  else if (days <= 7)  warnings.push('Deadline is within 7 days — file urgently.');
+  else if (days <= 7)  warnings.push('Deadline is within 7 days - file urgently.');
   else if (days <= 30) warnings.push('Deadline is within 30 days.');
 
   return {
@@ -395,7 +395,7 @@ export function calculate(input: CalculateInput): CalculationResult {
 // ---- Matter-type rules table ------------------------------------------------
 //
 // The rules-based path is intended for the "Add deadline" flow: a user picks
-// a matter type (e.g. "Recovery of money — written contract"), enters the
+// a matter type (e.g. "Recovery of money - written contract"), enters the
 // cause-of-action date, and the engine returns the statutory deadline plus
 // the basis citation. The rules JSON is plausibility-grade research-stand-in
 // data; counsel must verify before relying on it for filings.
@@ -431,7 +431,7 @@ export interface ComputeDeadlineInput {
   matterType: string;
   /** ISO YYYY-MM-DD. */
   computedFrom: string;
-  /** Override "now" — for tests. */
+  /** Override "now" - for tests. */
   now?: Date;
 }
 
@@ -449,7 +449,7 @@ export interface ComputeDeadlineResult {
 /**
  * Apply a curated matter-type rule to a trigger date and return the
  * statutory deadline plus the citation. Throws a 422-flagged error when the
- * matter type isn't in the rules table — callers should pre-validate against
+ * matter type isn't in the rules table - callers should pre-validate against
  * getRules() so we surface a useful UI error.
  */
 export function computeDeadline(input: ComputeDeadlineInput): ComputeDeadlineResult {

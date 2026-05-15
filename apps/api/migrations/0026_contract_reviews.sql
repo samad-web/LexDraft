@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 0026_contract_reviews.sql
 -- =============================================================================
--- Document review feature — replaces the mock UI behind /app/review with a
+-- Document review feature - replaces the mock UI behind /app/review with a
 -- real, persisted, LLM-backed clause analyzer.
 --
 -- One row per "review run": the user pastes / uploads a contract, picks a
@@ -11,9 +11,9 @@
 -- model upgrades can backfill comparable runs without a schema migration.
 --
 -- Multi-tenant: every read/write is firm-scoped via firm_id. Reviews may
--- optionally attach to a case (case_id ON DELETE SET NULL — keep the review
+-- optionally attach to a case (case_id ON DELETE SET NULL - keep the review
 -- around if the case is archived) and a document
--- (document_id ON DELETE SET NULL — same reasoning).
+-- (document_id ON DELETE SET NULL - same reasoning).
 --
 -- The feature key `review.approve` (already in the catalog at 0009) is what
 -- the routes gate on. No catalog change needed.
@@ -42,9 +42,9 @@ create table if not exists contract_reviews (
   -- layer; the column is unbounded to allow future increases.
   source_text     text not null,
   status          contract_review_status not null default 'pending',
-  -- Aggregate risk score, 0–100, populated when status='completed'.
+  -- Aggregate risk score, 0-100, populated when status='completed'.
   risk_score      smallint check (risk_score is null or risk_score between 0 and 100),
-  -- Findings payload — see ContractReviewFinding[] in types/review.types.ts.
+  -- Findings payload - see ContractReviewFinding[] in types/review.types.ts.
   -- Stored as jsonb so we can index/query individual severities later.
   findings_json   jsonb,
   -- Plain-text 1-2 sentence executive summary, surfaced above the findings.

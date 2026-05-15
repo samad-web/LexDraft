@@ -4,14 +4,14 @@ import type { SignInRequest, SignUpRequest } from '@lexdraft/types';
 /**
  * Test-only wrapper that calls authService.signIn and narrows the
  * SignInResult union to the success shape. Tests run without any MFA
- * enrolment, so the challenge branch should never fire — if it does, that
+ * enrolment, so the challenge branch should never fire - if it does, that
  * itself is a regression and we want the test to fail loudly here rather
  * than at the downstream `.user.id` access.
  */
 export async function signInForTest(input: SignInRequest): Promise<AuthResponseWithMfa> {
   const r = await authService.signIn(input);
   if (isMfaChallenge(r)) {
-    throw new Error('signInForTest: unexpected MFA challenge — tests assume no MFA enrolment');
+    throw new Error('signInForTest: unexpected MFA challenge - tests assume no MFA enrolment');
   }
   return r;
 }

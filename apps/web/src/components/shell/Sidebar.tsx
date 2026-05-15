@@ -120,7 +120,7 @@ export function Sidebar() {
           </span>
           <span className="mono" style={{ fontSize: 11 }}>
             {usage.isLoading || !usage.data
-              ? '— / —'
+              ? '- / -'
               : usage.data.aiDocuments.limit == null
                 ? `${usage.data.aiDocuments.used} · Unlimited`
                 : `${usage.data.aiDocuments.used} / ${usage.data.aiDocuments.limit}`}

@@ -198,7 +198,7 @@ function LetterheadCard({
         gap: 10,
       }}
     >
-      {/* Mini preview — letterheads with a logo show a placeholder until the
+      {/* Mini preview - letterheads with a logo show a placeholder until the
           GET URL resolves; the editor renders the live logo via useLogoUrl. */}
       <LetterheadPreview
         templateKey={letterhead.templateKey}

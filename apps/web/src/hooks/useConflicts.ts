@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
  *
  * Wraps `POST /api/conflicts/check`. Used by NewCaseModal to debounce-scan
  * client + party fields as the user types. We keep this as a mutation (not
- * a query) so each fresh scan is a deliberate trigger — the UI controls
+ * a query) so each fresh scan is a deliberate trigger - the UI controls
  * timing/debounce, react-query doesn't auto-refire on focus.
  */
 

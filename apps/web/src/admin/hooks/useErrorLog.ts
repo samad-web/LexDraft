@@ -3,12 +3,12 @@ import { api } from '@/lib/api';
 
 /**
  * TanStack Query wrappers for the internal error tracker. Mirrors the
- * shape of `apps/web/src/admin/queries.ts` — small, view-local file because
+ * shape of `apps/web/src/admin/queries.ts` - small, view-local file because
  * the orchestrator owns the central queries module and a self-contained
  * hooks file keeps this feature's diff minimal.
  */
 
-// ---------- shared types (kept local — no shared @lexdraft/types entries) ---
+// ---------- shared types (kept local - no shared @lexdraft/types entries) ---
 
 export interface ErrorLogListItem {
   id: string;
@@ -90,7 +90,7 @@ export const useErrorLogList = (query: ErrorLogQuery = {}) =>
   useQuery({
     queryKey: errorLogKeys.list(query),
     queryFn: () => errorLogApi.list(query),
-    // The error feed is live data — refetch on mount so an operator who
+    // The error feed is live data - refetch on mount so an operator who
     // navigates away and back doesn't stare at a stale list, but don't
     // poll: there's no expectation of sub-minute latency here.
     refetchOnMount: 'always',

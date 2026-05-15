@@ -4,13 +4,13 @@ import { storage, verifyLocalUploadUrl } from '../services/storage.service';
 
 /**
  * Local-driver upload/download endpoints. Each request is authenticated by the
- * HMAC signature embedded in the URL, NOT by the bearer token — this matches
+ * HMAC signature embedded in the URL, NOT by the bearer token - this matches
  * how S3/R2 presigned URLs work, so migrating drivers later doesn't require
  * client changes. The handlers are intentionally not under requireAuth.
  */
 export const uploadsRouter: Router = Router();
 
-// 25 MB cap — generous for legal documents (briefs, exhibits) but bounded
+// 25 MB cap - generous for legal documents (briefs, exhibits) but bounded
 // so a malicious client can't fill the disk in one PUT.
 const MAX_BYTES = 25 * 1024 * 1024;
 

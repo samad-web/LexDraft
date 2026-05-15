@@ -1,12 +1,12 @@
 /**
- * Hearing-coverage swap board DTOs — kept LOCAL to the api package on
+ * Hearing-coverage swap board DTOs - kept LOCAL to the api package on
  * purpose. The web client imports these via the route response shape; once
  * the surface stabilises the orchestrator will lift the public-facing types
  * (CoverageRequest, CoverageStatus) into `@lexdraft/types`.
  *
  * Denormalisation note: list/get responses include `requestedByName` and
  * `claimedByName` so the board UI doesn't have to fan-out a second fetch per
- * card. The names are joined from `users` at read time — we don't store them
+ * card. The names are joined from `users` at read time - we don't store them
  * on the row.
  */
 

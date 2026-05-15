@@ -1,5 +1,5 @@
 /**
- * Letterheads — firm + per-user library backing the Settings → Letterhead
+ * Letterheads - firm + per-user library backing the Settings → Letterhead
  * designer and the export-time header renderer.
  *
  * Tenant isolation: every read/write is firm-scoped via firm_id. Personal
@@ -99,7 +99,7 @@ interface Ctx {
   userId: string;
 }
 
-/** Compute the caller's effective default — personal beats firm. */
+/** Compute the caller's effective default - personal beats firm. */
 function pickEffectiveDefault(
   firm: Letterhead[],
   personal: Letterhead[],
@@ -141,7 +141,7 @@ export const letterheadsService = {
     };
   },
 
-  /** Internal — used by the exporter (and by `list` callers that already
+  /** Internal - used by the exporter (and by `list` callers that already
    *  have the data). Returned in the same shape `list()` returns. */
   async effectiveDefault(ctx: Ctx): Promise<Letterhead | null> {
     const { effectiveDefault } = await this.list(ctx);
@@ -223,7 +223,7 @@ export const letterheadsService = {
       });
       return rowToLetterhead(row);
     }
-    // Memory fallback — re-enforce the default invariant manually.
+    // Memory fallback - re-enforce the default invariant manually.
     const bucket = memBucket(ctx.firmId);
     if (input.isDefault) {
       for (let i = 0; i < bucket.length; i++) {
@@ -262,11 +262,11 @@ export const letterheadsService = {
     }
     const current = await this.get(id, ctx); // tenant + ownership gate
     // Editing a firm-scoped letterhead is allowed for any caller in the firm
-    // who has the feature key. We don't add a stricter check here — that's
+    // who has the feature key. We don't add a stricter check here - that's
     // the routes layer's job. Personal letterheads are already gated by the
     // owner_user_id predicate in `get()`.
     if (current.ownerUserId !== null && current.ownerUserId !== ctx.userId) {
-      // Defence in depth — `get()` already filters these out.
+      // Defence in depth - `get()` already filters these out.
       throw new ForbiddenError('Cannot edit a letterhead owned by another user');
     }
 

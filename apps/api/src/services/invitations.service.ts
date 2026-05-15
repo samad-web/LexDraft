@@ -16,7 +16,7 @@ import { db } from '../db/client';
 
 const INVITATION_TTL_DAYS = 7;
 // Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
-// scope reads/writes — those always derive firmId from the caller.
+// scope reads/writes - those always derive firmId from the caller.
 const FALLBACK_FIRM_ID = '00000000-0000-0000-0000-000000000001';
 
 interface Inviter {
@@ -42,7 +42,7 @@ interface InvitationRow {
   created_at: string | Date;
 }
 
-/** Internal carrier — firmId is not part of the public Invitation type. */
+/** Internal carrier - firmId is not part of the public Invitation type. */
 interface InvitationWithFirm {
   inv: Invitation;
   firmId: string | null;
@@ -143,7 +143,7 @@ export const invitationsService = {
 
     const sql = db();
     if (sql) {
-      // Duplicate-pending check is firm-scoped — different firms can each
+      // Duplicate-pending check is firm-scoped - different firms can each
       // invite the same email address independently.
       const dup = await sql<{ id: string }[]>`
         select id from invitations

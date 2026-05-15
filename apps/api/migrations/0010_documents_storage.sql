@@ -1,11 +1,11 @@
 -- =============================================================================
--- LexDraft — Document storage metadata
+-- LexDraft - Document storage metadata
 -- =============================================================================
 -- Adds the columns needed to back the presigned-URL upload flow:
---   storage_key  — opaque key in the configured storage driver (local|s3|r2)
---   file_name    — original filename the user uploaded
---   file_mime    — MIME type recorded at upload time
---   file_size    — byte count
+--   storage_key  - opaque key in the configured storage driver (local|s3|r2)
+--   file_name    - original filename the user uploaded
+--   file_mime    - MIME type recorded at upload time
+--   file_size    - byte count
 -- All idempotent.
 -- =============================================================================
 

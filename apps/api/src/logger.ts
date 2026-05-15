@@ -14,7 +14,7 @@ const REDACT_PATHS = [
   'req.headers["x-auth-token"]',
   'req.headers["x-anthropic-api-key"]',
 
-  // Request bodies — auth + admin flows
+  // Request bodies - auth + admin flows
   'req.body.password',
   'req.body.currentPassword',
   'req.body.newPassword',
@@ -44,14 +44,14 @@ const REDACT_PATHS = [
   'totpSecret',
   'mfaSecret',
 
-  // Env-shaped fields — guard against accidental env dumps
+  // Env-shaped fields - guard against accidental env dumps
   'JWT_SECRET',
   'ANTHROPIC_API_KEY',
   'XAI_API_KEY',
   'DATABASE_URL',
   'STORAGE_SIGNING_SECRET',
 
-  // Webhook payload bodies — providers ship signatures and sometimes
+  // Webhook payload bodies - providers ship signatures and sometimes
   // secrets in the body
   'body.password',
   'body.token',
@@ -60,7 +60,7 @@ const REDACT_PATHS = [
   'body.apiKey',
   'body.authorization',
 
-  // Single-level wildcard — catches err.config.headers, evt.user.password, …
+  // Single-level wildcard - catches err.config.headers, evt.user.password, …
   '*.password',
   '*.token',
   '*.secret',

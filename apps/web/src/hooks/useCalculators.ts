@@ -5,7 +5,7 @@ import { api } from '@/lib/api';
  * TanStack Query wrappers for the /api/calculators endpoints.
  *
  * The response shapes are mirrored inline here rather than imported from
- * `@lexdraft/types` — the calculator DTOs are intentionally local to the api
+ * `@lexdraft/types` - the calculator DTOs are intentionally local to the api
  * package for now (see apps/api/src/types/calculators.types.ts), and the
  * orchestrator will lift them into the shared types package once contracts
  * stabilise. Keeping the duplication explicit here is cheaper than a
@@ -107,7 +107,7 @@ export function useStampDuty(params: { state?: string; instrument?: string; valu
 }
 
 /** Vakalatnama is a POST because the body is too large for a query string and
- *  some address fields legitimately contain `&` / `?`. No caching — every
+ *  some address fields legitimately contain `&` / `?`. No caching - every
  *  generation is bespoke. */
 export function useGenerateVakalatnama() {
   return useMutation({

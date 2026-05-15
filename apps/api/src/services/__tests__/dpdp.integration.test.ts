@@ -1,5 +1,5 @@
 /**
- * dpdpService — DPDP Act 2023 endpoints against real Postgres.
+ * dpdpService - DPDP Act 2023 endpoints against real Postgres.
  *
  * Coverage:
  *   - exportUser dumps the headline tables and stamps `data_export_log`
@@ -8,7 +8,7 @@
  *     authored (firm-shared tables are intentionally untouched).
  *   - cancelDeletion reverses both flags.
  *   - purgeDueDeletions only hard-deletes rows whose `scheduled_purge_at`
- *     has elapsed — future deadlines are spared.
+ *     has elapsed - future deadlines are spared.
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';

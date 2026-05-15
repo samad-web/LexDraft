@@ -3,7 +3,7 @@
  * data-principal endpoints under `/api/me/dpdp/*`.
  *
  * Backend contract lives in `apps/api/src/types/dpdp.types.ts`. Those types are
- * local to the api package today — the orchestrator will lift them into
+ * local to the api package today - the orchestrator will lift them into
  * `@lexdraft/types` once this UI lands. Until then the frontend redeclares the
  * minimal DTOs it actually renders.
  */
@@ -19,7 +19,7 @@ export interface DeletionRequestResponse {
   scheduledPurgeAt: string;
   /** Retention window honoured. Default 30, capped at 365. */
   retentionDays: number;
-  /** Alias for scheduledPurgeAt — the latest moment the user can cancel. */
+  /** Alias for scheduledPurgeAt - the latest moment the user can cancel. */
   canCancelUntil: string;
 }
 
@@ -48,7 +48,7 @@ export interface DeletionRequestInput {
 /**
  * Stable query key for the in-session deletion status. The backend does not
  * (yet) expose `GET /api/me/dpdp/deletion-status`, so the banner reads this
- * key — it gets populated by the request mutation and cleared by the cancel
+ * key - it gets populated by the request mutation and cleared by the cancel
  * mutation. Persists for the React Query cache lifetime (i.e. this tab).
  */
 export const DELETION_STATUS_KEY = ['dpdp', 'deletion-status'] as const;

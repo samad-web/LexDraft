@@ -13,16 +13,16 @@ export const notFound: RequestHandler = (_req, res) => {
  * Status codes we persist into `error_log`. Everything 5xx is captured
  * unconditionally (operator's primary signal). A curated subset of 4xx
  * is captured too:
- *   403 — authorisation failures. Repeated 403s from one user are the
+ *   403 - authorisation failures. Repeated 403s from one user are the
  *         standard probing pattern; we want them surfaceable.
- *   422 — semantic validation rejections (vs. 400 schema rejections).
+ *   422 - semantic validation rejections (vs. 400 schema rejections).
  *         Often points to a broken client integration.
- *   429 — rate-limit hits. Useful for spotting runaway clients before
+ *   429 - rate-limit hits. Useful for spotting runaway clients before
  *         they degrade neighbours.
  * We deliberately exclude:
- *   400 — Zod schema failures. High volume, low signal.
- *   401 — unauthenticated. Browsers retry constantly; floods the table.
- *   404 — typo'd URLs, missing rows. Routine, no diagnostic value.
+ *   400 - Zod schema failures. High volume, low signal.
+ *   401 - unauthenticated. Browsers retry constantly; floods the table.
+ *   404 - typo'd URLs, missing rows. Routine, no diagnostic value.
  */
 function shouldCapture(status: number): boolean {
   return status >= 500 || status === 403 || status === 422 || status === 429;
@@ -31,7 +31,7 @@ function shouldCapture(status: number): boolean {
 /** Fire `errorLogService.capture(...)` without awaiting it from the
  *  middleware. We resolve `firmId` from the user before the insert so the
  *  viewer can scope by tenant. The whole chain is wrapped in a swallowing
- *  `.catch` — capture itself never throws, but the firm-id lookup might. */
+ *  `.catch` - capture itself never throws, but the firm-id lookup might. */
 function captureAsync(req: import('express').Request, status: number, err: unknown): void {
   const userId = req.user?.id;
   const requestId = req.id;
@@ -42,7 +42,7 @@ function captureAsync(req: import('express').Request, status: number, err: unkno
   const method = req.method;
   const path = req.path;
 
-  // Don't try to dump req.body unconditionally — handlers downstream of
+  // Don't try to dump req.body unconditionally - handlers downstream of
   // parsers may have streams, raw buffers, or just very large payloads.
   // Persist the headers (minus pino-redacted ones) and the query string;
   // the scrubber will strip credential-shaped fields.
@@ -89,7 +89,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
-  // Typed HTTP errors — status, code, and (when safe) details are taken
+  // Typed HTTP errors - status, code, and (when safe) details are taken
   // from the class instance. 4xx are exposed; 5xx fall through to opaque.
   if (isHttpError(err)) {
     if (err.status >= 500) {

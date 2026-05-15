@@ -68,7 +68,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
         ...(typeof claims.mfaVerifiedAt === 'number' ? { mfaVerifiedAt: claims.mfaVerifiedAt } : {}),
       };
     } catch {
-      // ignore — leave req.user undefined
+      // ignore - leave req.user undefined
     }
   }
   next();
@@ -76,7 +76,7 @@ export function optionalAuth(req: Request, _res: Response, next: NextFunction): 
 
 /** Gate for /api/admin/* routes. Must run AFTER requireAuth.
  *  An impersonation session (actAs claim present) is explicitly NOT allowed
- *  to hit admin routes — admins must end their impersonation first. */
+ *  to hit admin routes - admins must end their impersonation first. */
 export function requireSuperadmin(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
     res.status(401).json({ error: 'Authentication required' });
@@ -95,10 +95,10 @@ export function requireSuperadmin(req: Request, res: Response, next: NextFunctio
 
 /**
  * Gate routes that require a MFA-verified session for users whose role
- * mandates MFA (spec §10 — Firm Admin + superadmin).
+ * mandates MFA (spec §10 - Firm Admin + superadmin).
  *
  * Must run AFTER `requireAuth`. Users whose role does NOT require MFA
- * pass through unconditionally — this middleware is a no-op for them.
+ * pass through unconditionally - this middleware is a no-op for them.
  *
  * Currently exported but not wired to any router; the orchestrator will
  * attach it to sensitive admin routes in a follow-up. Two upgrade paths:

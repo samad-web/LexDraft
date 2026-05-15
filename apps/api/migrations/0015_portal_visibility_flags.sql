@@ -1,14 +1,14 @@
 -- =============================================================================
--- LexDraft — Client portal: opt-in visibility flags
+-- LexDraft - Client portal: opt-in visibility flags
 -- =============================================================================
 -- Per CLIENT_PORTAL.md §4.5 ("opt-in per document, not per matter") and §7.1
 -- (firm-side toggles). Until now the portal exposed every case/document/
--- invoice tied to a client by name match — that was fine for demo, wrong
+-- invoice tied to a client by name match - that was fine for demo, wrong
 -- for prod. This migration introduces explicit allow-flags:
 --
---   * clients.portal_enabled        — allow magic-link sign-in for this client
---   * cases.visible_to_client       — show this matter in the portal
---   * documents.shared_with_client  — surface this document in the portal
+--   * clients.portal_enabled        - allow magic-link sign-in for this client
+--   * cases.visible_to_client       - show this matter in the portal
+--   * documents.shared_with_client  - surface this document in the portal
 --
 -- Invoice visibility is derived: status != 'draft'. No new column.
 --

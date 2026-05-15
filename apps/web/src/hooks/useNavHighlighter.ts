@@ -29,7 +29,7 @@ export function useNavHighlighter(containerRef: RefObject<HTMLElement | null>): 
         setRect((r) => ({ ...r, visible: false }));
         return;
       }
-      // offsetTop is relative to the nearest positioned ancestor — when the
+      // offsetTop is relative to the nearest positioned ancestor - when the
       // container is `position: relative` this is exactly what we want, and
       // it's stable across scroll position (unlike getBoundingClientRect).
       let top = 0;

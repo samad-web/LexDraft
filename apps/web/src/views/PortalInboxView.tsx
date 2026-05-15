@@ -8,10 +8,10 @@ import {
 } from '@/hooks/usePortalAdmin';
 
 /**
- * Firm-side "Portal Messages" view (CLIENT_PORTAL.md §7.1 — last row of the
+ * Firm-side "Portal Messages" view (CLIENT_PORTAL.md §7.1 - last row of the
  * affordances table). Lists every (client × matter|null) thread with an
  * unread badge, opens the selected thread on the right, and lets advocates
- * reply. Polls at 60s — same cadence as the client side.
+ * reply. Polls at 60s - same cadence as the client side.
  */
 export function PortalInboxView() {
   const inbox = useFirmPortalInbox();
@@ -149,7 +149,7 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
         {thread.isLoading && <div className="muted">Loading messages…</div>}
         {thread.isError && <div style={{ color: 'var(--danger)' }}>Could not load messages.</div>}
         {thread.data && thread.data.items.length === 0 && (
-          <div className="muted">No messages yet — start the conversation.</div>
+          <div className="muted">No messages yet - start the conversation.</div>
         )}
         {thread.data?.items.map((m) => <Bubble key={m.id} message={m} />)}
       </div>

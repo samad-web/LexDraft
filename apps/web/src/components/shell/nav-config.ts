@@ -18,14 +18,14 @@ export interface NavGroup {
 }
 
 // =============================================================================
-// Sidebar gates — canonical tier matrix
+// Sidebar gates - canonical tier matrix
 // =============================================================================
 // Plan determines surface area (which sidebar items render); role determines
 // actions within that surface. See OVERVIEW.md §2.5, WORKFLOW_DASHBOARDS.md §3.
 //
 // Required feature → who gets it (plan ∩ role from migrations 0009/0012/0013):
 //
-//   shared.documents     baseline — every authenticated user
+//   shared.documents     baseline - every authenticated user
 //   matter.view          Solo+ × (every tenant role except Intern-on-Solo)
 //   client.view          Solo+ × (same)
 //   leads.view           Solo+ × (Solo Advocate / Practice / Firm tenants)

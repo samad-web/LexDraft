@@ -1,14 +1,14 @@
 -- Materialized views for Firm-tier analytics.
 --
 -- The /api/analytics summary endpoint previously ran five aggregations
--- against the live `cases` and `invoices` tables every request — fine at
+-- against the live `cases` and `invoices` tables every request - fine at
 -- small scale, but it competes with write traffic and gets quadratically
 -- worse as the firm's row count grows. These MVs move the heavy
 -- aggregations off the hot path; the service reads firm-keyed rows and
 -- pg-boss runs a daily REFRESH.
 --
 -- Refresh strategy: each MV has a `unique index` on its natural firm key
--- so `REFRESH MATERIALIZED VIEW CONCURRENTLY` is available — readers
+-- so `REFRESH MATERIALIZED VIEW CONCURRENTLY` is available - readers
 -- never see a half-refreshed view, and writes against the underlying
 -- tables don't block.
 --

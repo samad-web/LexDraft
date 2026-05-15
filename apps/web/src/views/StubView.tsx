@@ -17,7 +17,7 @@ export function StubView({ title, eyebrow }: StubViewProps) {
           <span className="badge badge-cobalt">Coming next</span>
           <p className="body-md muted" style={{ maxWidth: 560 }}>
             This module is wired into the navigation but its UI is being built. The shell, design
-            tokens, API contract, and routing are all in place — drop the corresponding view into
+            tokens, API contract, and routing are all in place - drop the corresponding view into
             <span className="mono"> src/views/</span> and the route at
             <span className="mono"> /app/{title.toLowerCase()} </span>
             will pick it up automatically.

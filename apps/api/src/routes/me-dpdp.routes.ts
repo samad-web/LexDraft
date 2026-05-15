@@ -1,6 +1,6 @@
 /**
  * Data-principal endpoints under `/api/me/dpdp/*`. Mounted by the orchestrator
- * behind `requireAuth`. Every handler operates against `req.user.id` — there
+ * behind `requireAuth`. Every handler operates against `req.user.id` - there
  * is no admin equivalent; one user, one principal, one export/deletion path.
  *
  * GET    /export           streams the user's data dump as an attachment
@@ -55,7 +55,7 @@ meDpdpRouter.get('/export', async (req, res, next) => {
     const date = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="lexdraft-data-export-${date}.json"`);
-    // Stream-friendly write: stringify in one shot — these are bounded by
+    // Stream-friendly write: stringify in one shot - these are bounded by
     // per-firm row counts and the response is gated by an authenticated
     // session, so memory pressure is the user's own ceiling.
     res.end(JSON.stringify(payload, null, 2));

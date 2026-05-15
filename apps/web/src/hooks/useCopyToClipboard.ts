@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * confirmation. Auto-resets, so the caller doesn't have to clear it.
  *
  * Falls back to a `document.execCommand` path on browsers that don't
- * expose `navigator.clipboard` (older Safari, non-HTTPS contexts) — the
+ * expose `navigator.clipboard` (older Safari, non-HTTPS contexts) - the
  * advocate-on-mobile-in-court case really cares.
  */
 export function useCopyToClipboard(feedbackMs = 1500): {

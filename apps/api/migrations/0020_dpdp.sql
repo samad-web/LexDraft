@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — DPDP Act 2023 compliance schema
+-- LexDraft - DPDP Act 2023 compliance schema
 -- =============================================================================
 -- Adds the storage primitives the data-principal endpoints depend on:
 --
@@ -9,15 +9,15 @@
 --       background job hard-deletes. The two-step lets us recover from
 --       accidental deletion and satisfies a legal-hold pause.
 --
---   (b) `consent_log` — append-only ledger of every consent grant/withdrawal
+--   (b) `consent_log` - append-only ledger of every consent grant/withdrawal
 --       so we can prove what the data principal agreed to at any moment.
 --       Versioned via (consent_type, consent_version) tuples.
 --
---   (c) `audit_log.retain_until` — extends the existing audit table with a
+--   (c) `audit_log.retain_until` - extends the existing audit table with a
 --       retention deadline so the purger can drop entries past their TTL
 --       (default 7 years, set at write time by audit.service.ts).
 --
---   (d) `data_export_log` — proves an export was generated for a given user
+--   (d) `data_export_log` - proves an export was generated for a given user
 --       at a given time. Required artifact under DPDP §11(1).
 --
 -- Idempotent. Every domain-table ALTER is guarded by a do-block that checks
@@ -59,7 +59,7 @@ create table if not exists consent_log (
   id              uuid primary key default gen_random_uuid(),
   user_id         uuid references users(id) on delete cascade,
   firm_id         uuid references firms(id) on delete cascade,
-  -- Free-text classifier — e.g. 'tos_v1', 'dpdp_processing', 'marketing_opt_in'.
+  -- Free-text classifier - e.g. 'tos_v1', 'dpdp_processing', 'marketing_opt_in'.
   -- Not enumerated so product can add categories without a migration.
   consent_type    text not null,
   consent_version text not null,

@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — align seed firm plan with auto-provisioned users
+-- LexDraft - align seed firm plan with auto-provisioned users
 -- =============================================================================
 -- Every user auto-provisioned by auth.service.signIn lands on the seed firm
 -- (id = 00000000-0000-0000-0000-000000000001) with role = 'Solo Advocate'.

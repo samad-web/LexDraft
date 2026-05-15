@@ -21,7 +21,7 @@ webhooksRouter.post('/:source', (req, res) => {
     return;
   }
 
-  // Body is logged at debug only — production should not dump full
+  // Body is logged at debug only - production should not dump full
   // payloads (pino redaction covers obvious fields but provider shapes
   // vary). The reqId is in req.log so this entry correlates with the
   // morgan access line and any downstream handler logs.

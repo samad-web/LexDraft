@@ -3,7 +3,7 @@
  * because the feature is currently API-only data + UI consuming inline shapes;
  * if the front-end ever needs to share a stronger contract we can promote these.
  *
- * Mapping coverage is plausibility-grade — see sanhita-map.json — and must be
+ * Mapping coverage is plausibility-grade - see sanhita-map.json - and must be
  * verified by counsel before production use.
  */
 
@@ -17,7 +17,7 @@ export interface SanhitaMapping {
   toAct: NewAct;
   toSection: string;
   toTitle: string;
-  /** "" | "Renumbered only" | free-text describing what changed | "UNVERIFIED — counsel review required". */
+  /** "" | "Renumbered only" | free-text describing what changed | "UNVERIFIED - counsel review required". */
   substantiveChange: string;
   /** Optional mind-the-gap commentary. */
   notes: string;

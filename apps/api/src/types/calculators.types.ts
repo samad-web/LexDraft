@@ -1,5 +1,5 @@
 /**
- * Calculator DTOs — kept LOCAL to the api package on purpose. The orchestrator
+ * Calculator DTOs - kept LOCAL to the api package on purpose. The orchestrator
  * will lift these into `@lexdraft/types` once UI contracts stabilise; for now
  * the calculators are read-only "tool" endpoints and the web hook duplicates
  * the response shapes inline.
@@ -8,7 +8,7 @@
  *              apps/api/src/data/vakalatnama-templates.json.
  *
  * All monetary values are in INR (paise dropped; integers). Caller is expected
- * to pre-validate user input — services additionally throw `BadRequestError`
+ * to pre-validate user input - services additionally throw `BadRequestError`
  * for unknown stateCode / instrument keys so the UI can render an actionable
  * message rather than a 500.
  */
@@ -29,7 +29,7 @@ export interface PercentageFeeRule {
   type: 'percentage';
   matterValueMin: number;
   matterValueMax: number | null;
-  /** Whole-number percent — e.g. 1.5 means 1.5%. */
+  /** Whole-number percent - e.g. 1.5 means 1.5%. */
   percentage: number;
   /** Optional INR cap. Null means uncapped. */
   cap: number | null;

@@ -21,7 +21,7 @@ interface ToolButton {
 export function RichTextEditor({ value, onChange, minHeight = 520, autoFocus, lang }: RichTextEditorProps) {
   const ref = useRef<HTMLDivElement>(null);
 
-  // Sync external value into the DOM only when it differs — avoids resetting the caret on every keystroke.
+  // Sync external value into the DOM only when it differs - avoids resetting the caret on every keystroke.
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

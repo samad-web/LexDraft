@@ -26,7 +26,7 @@ const CASE_INDEX: Record<string, CaseRecord> = {
     title: 'Mehta v. Verma',
     court: 'Delhi High Court · Court Room 12',
     parties: 'Anjali Mehta vs. Rajesh Verma & Ors.',
-    lastOrder: '24 April 2026 — adjourned for cross-examination',
+    lastOrder: '24 April 2026 - adjourned for cross-examination',
     nextHearing: '01 May 2026, 10:30',
     stage: 'Cross-examination of PW-1',
   },
@@ -35,7 +35,7 @@ const CASE_INDEX: Record<string, CaseRecord> = {
     title: 'Patel v. Reliance Infra',
     court: 'Karnataka High Court · Court Room 4',
     parties: 'Hemant Patel vs. Reliance Infrastructure Ltd.',
-    lastOrder: '18 April 2026 — plaint received, defects raised',
+    lastOrder: '18 April 2026 - plaint received, defects raised',
     nextHearing: '04 May 2026, 11:00',
     stage: 'Plaint registration',
   },
@@ -44,12 +44,12 @@ const CASE_INDEX: Record<string, CaseRecord> = {
 const SYNC_EVENTS: SyncEvent[] = [
   { id: 'e1', timestamp: '02 May · 09:14', cnr: 'DLHC010120251', case: 'Mehta v. Verma',          type: 'Hearing posted',  status: 'success' },
   { id: 'e2', timestamp: '02 May · 08:30', cnr: 'KAHC020120253', case: 'Patel v. Reliance Infra', type: 'Order uploaded',  status: 'success' },
-  { id: 'e3', timestamp: '02 May · 06:00', cnr: '—',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
+  { id: 'e3', timestamp: '02 May · 06:00', cnr: '-',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
   { id: 'e4', timestamp: '01 May · 18:42', cnr: 'MHHC030120252', case: 'State v. Khanna',         type: 'Stage updated',   status: 'success' },
   { id: 'e5', timestamp: '01 May · 16:08', cnr: 'DLDC080120254', case: 'Rao v. HDFC Bank',        type: 'Judgment uploaded', status: 'pending' },
-  { id: 'e6', timestamp: '01 May · 11:55', cnr: 'KAHC050120256', case: 'Reddy Properties — IBC',  type: 'Hearing posted',  status: 'failed'  },
+  { id: 'e6', timestamp: '01 May · 11:55', cnr: 'KAHC050120256', case: 'Reddy Properties - IBC',  type: 'Hearing posted',  status: 'failed'  },
   { id: 'e7', timestamp: '30 Apr · 19:20', cnr: 'DLHC120120255', case: 'Iyer v. ICICI Lombard',   type: 'Order uploaded',  status: 'success' },
-  { id: 'e8', timestamp: '30 Apr · 06:00', cnr: '—',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
+  { id: 'e8', timestamp: '30 Apr · 06:00', cnr: '-',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
 ];
 
 export function EcourtsView() {
@@ -69,7 +69,7 @@ export function EcourtsView() {
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ — ECOURTS GATEWAY</div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - ECOURTS GATEWAY</div>
         <h1 className="heading-xl">eCourts lookup</h1>
         <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
           Search any matter by its CNR (Case Number Record). Live indexed across district and High Courts via the eCourts services API.
@@ -119,7 +119,7 @@ export function EcourtsView() {
             <span className="dot dot-amber" />
             <div>
               <div className="heading-sm" style={{ marginBottom: 4 }}>No matter found for that CNR</div>
-              <p className="body-sm muted">Try DLHC010120251 or KAHC020120253 — sample records carried in this gateway demo.</p>
+              <p className="body-sm muted">Try DLHC010120251 or KAHC020120253 - sample records carried in this gateway demo.</p>
             </div>
           </div>
         </div>

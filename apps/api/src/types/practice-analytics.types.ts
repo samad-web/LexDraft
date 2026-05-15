@@ -17,7 +17,7 @@ export interface WorkloadMember {
   /**
    * Count of `cases` rows with status = 'Active' that we attribute to this
    * member. Because `cases` has no `assignee` column yet, this is the
-   * firm-wide active count distributed evenly across members — see the
+   * firm-wide active count distributed evenly across members - see the
    * "Data-model gaps" note in the agent report. Once an assignee column
    * lands, switch to a real per-member count.
    */
@@ -28,7 +28,7 @@ export interface WorkloadMember {
   hearingsNextWeek: number;
   /**
    * Open tasks attributed to this member. Tasks have an `assignee` text
-   * column — we match it loosely against `users.name` (case-insensitive
+   * column - we match it loosely against `users.name` (case-insensitive
    * exact match) and fall back to 0 if no row matches.
    */
   openTasks: number;

@@ -110,7 +110,7 @@ export function DraftingView() {
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const saveMutation = useSaveDraft();
   // Set true just before stream.seed() to suppress the effect that clears
-  // edits when stream.data.text changes — loading a draft must preserve them.
+  // edits when stream.data.text changes - loading a draft must preserve them.
   const skipResetOnSeedRef = useRef(false);
 
   const location = useLocation();
@@ -186,7 +186,7 @@ export function DraftingView() {
     setDateModalOpen(true);
   };
 
-  // Step 2: user confirmed the date — kick off the stream.
+  // Step 2: user confirmed the date - kick off the stream.
   const runGeneration = (date: string) => {
     setDraftDate(date);
     setDateModalOpen(false);
@@ -224,7 +224,7 @@ export function DraftingView() {
 
   // Sanhita stale-IPC scan: when generation finishes (or a draft is loaded),
   // POST the body to /api/sanhita/scan and surface chips for any matches that
-  // map to a BNS / BNSS / BSA replacement. The scan is fire-and-forget — if
+  // map to a BNS / BNSS / BSA replacement. The scan is fire-and-forget - if
   // it fails we silently swallow rather than blocking the drafting flow.
   const scanMutation = useMutation({
     mutationFn: (text: string) =>
@@ -248,7 +248,7 @@ export function DraftingView() {
   // Re-scan whenever the rendered output settles: stream.data.text is the
   // committed body, isStreaming flips to false at the end. We use displayHtml
   // when the user has manually edited so they see warnings for their edits
-  // too — but we strip tags first because the scanner expects plain text.
+  // too - but we strip tags first because the scanner expects plain text.
   const scanInputText = useMemo(() => {
     if (streaming) return '';
     if (editedHtml) return htmlToPlainText(editedHtml);
@@ -261,7 +261,7 @@ export function DraftingView() {
       return;
     }
     scanMutation.mutate(scanInputText);
-    // We intentionally exclude scanMutation from deps — including it would
+    // We intentionally exclude scanMutation from deps - including it would
     // loop because mutate() updates the mutation's identity references.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanInputText]);
@@ -350,7 +350,7 @@ export function DraftingView() {
     if (stream.error) setError(stream.error);
   }, [stream.error]);
 
-  // Drop pending edits whenever a new generation finishes — but skip when the
+  // Drop pending edits whenever a new generation finishes - but skip when the
   // change was caused by loading a saved draft (we want those edits preserved).
   useEffect(() => {
     if (!stream.data?.text) return;
@@ -993,7 +993,7 @@ export function DraftingView() {
                     onClick={() => applySanhitaReplacement(chip)}
                     title={
                       /unverified/i.test(chip.substantiveChange)
-                        ? 'Mapping marked UNVERIFIED — counsel review required'
+                        ? 'Mapping marked UNVERIFIED - counsel review required'
                         : chip.substantiveChange || 'Renumbered only'
                     }
                     style={{ fontSize: 12 }}
@@ -1021,7 +1021,7 @@ export function DraftingView() {
                 style={{ marginTop: 8 }}
               >
                 Indian criminal law was renumbered by the Bharatiya Nyaya / Nagarik Suraksha / Sakshya Sanhitas (2023).
-                Suggested replacements are plausibility-grade — verify against the bare Act before relying on them.
+                Suggested replacements are plausibility-grade - verify against the bare Act before relying on them.
               </div>
             </div>
           )}
@@ -1101,7 +1101,7 @@ export function DraftingView() {
                   className="btn btn-primary"
                   type="button"
                   onClick={() => {
-                    const subject = `${docType} — ${draftDate}`;
+                    const subject = `${docType} - ${draftDate}`;
                     const text = htmlToPlainText(displayHtml);
                     const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${docType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
                     const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -1467,9 +1467,9 @@ function Field({ field, value, onChange }: FieldProps) {
         <Select
           value={value}
           onChange={onChange}
-          placeholder="— Select —"
+          placeholder="- Select -"
           options={[
-            { value: '', label: '— Select —' },
+            { value: '', label: '- Select -' },
             ...(options ?? []).map((o) => ({ value: o, label: o })),
           ]}
         />
@@ -1553,7 +1553,7 @@ interface EmptyStateProps {
 function EmptyState({ docType, completion, onGenerate }: EmptyStateProps) {
   const message =
     completion === 0
-      ? 'Fill in the brief on the left. Each field maps to a specific element of the document — the more precise you are, the more grounded the draft.'
+      ? 'Fill in the brief on the left. Each field maps to a specific element of the document - the more precise you are, the more grounded the draft.'
       : completion < 100
         ? `Brief is ${completion}% complete. You can generate now, or fill more fields for a tighter draft.`
         : 'Brief is complete. Click Generate to compose the document.';

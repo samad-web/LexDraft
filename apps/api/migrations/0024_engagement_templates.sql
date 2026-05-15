@@ -3,7 +3,7 @@
 -- =============================================================================
 -- Firm-tier engagement-letter automation: per-firm template library keyed by
 -- matter type. The orchestrator gates `engagement.letters` to the Firm plan;
--- the schema here is plan-agnostic — only the route middleware enforces tier.
+-- the schema here is plan-agnostic - only the route middleware enforces tier.
 --
 -- A firm may keep many templates per matter type (e.g. one for retainer-based
 -- engagements, one for hourly mandates) but only one of them carries the
@@ -28,7 +28,7 @@ create table if not exists engagement_templates (
   created_by      uuid references users(id) on delete set null
 );
 
--- One default per (firm, matter_type). Partial index — non-default rows
+-- One default per (firm, matter_type). Partial index - non-default rows
 -- coexist freely.
 create unique index if not exists engagement_templates_firm_matter_default_uq
   on engagement_templates (firm_id, matter_type) where is_default = true;

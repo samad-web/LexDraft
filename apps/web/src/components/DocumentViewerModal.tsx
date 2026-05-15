@@ -51,7 +51,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
     };
   }, [fileBlobUrl]);
 
-  // Stop the active blob URL when the modal closes too — `useEffect` cleanup
+  // Stop the active blob URL when the modal closes too - `useEffect` cleanup
   // alone wouldn't fire if the modal goes from open→closed without unmount.
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -95,7 +95,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
       onClose={onClose}
       title={doc?.name ?? ''}
       eyebrow={doc?.type?.toUpperCase()}
-      description={doc?.case && doc.case !== '—' ? doc.case : undefined}
+      description={doc?.case && doc.case !== '-' ? doc.case : undefined}
       width={920}
       footer={
         <>
@@ -134,7 +134,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
           </p>
         )}
 
-        {/* Uploaded PDF — inline iframe preview */}
+        {/* Uploaded PDF - inline iframe preview */}
         {!isLoading && !isError && hasFile && isPdf && fileBlobUrl && (
           <iframe
             src={fileBlobUrl}
@@ -143,7 +143,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
           />
         )}
 
-        {/* Uploaded image — inline preview */}
+        {/* Uploaded image - inline preview */}
         {!isLoading && !isError && hasFile && isImage && fileBlobUrl && (
           <div
             style={{
@@ -162,7 +162,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
           </div>
         )}
 
-        {/* Uploaded but unsupported preview type — offer download */}
+        {/* Uploaded but unsupported preview type - offer download */}
         {!isLoading && !isError && hasFile && !isPdf && !isImage && (
           <div
             style={{
@@ -189,7 +189,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
           </div>
         )}
 
-        {/* Draft body (text-based) — existing path */}
+        {/* Draft body (text-based) - existing path */}
         {!isLoading && !isError && !hasFile && draftData && hasDraftBody && (
           <div
             className="court-prose court-prose-paper"

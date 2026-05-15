@@ -15,7 +15,7 @@ const Schema = z.object({
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
   XAI_API_KEY: z.string().optional().default(''),
   XAI_MODEL: z.string().default('grok-4'),
-  // Postgres / Supabase. Optional — when blank the API falls back to its
+  // Postgres / Supabase. Optional - when blank the API falls back to its
   // in-memory store (the demo mode). Provide a Supabase pooled URI in prod.
   DATABASE_URL: z.string().optional().default(''),
   DATABASE_SSL: z.enum(['true', 'false']).default('true'),
@@ -34,11 +34,11 @@ const Schema = z.object({
   WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   WRITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
 
-  /** Public URL of the web app — used to build magic links so the email
+  /** Public URL of the web app - used to build magic links so the email
    *  link lands on the right host. Falls back to the first CORS origin. */
   WEB_PUBLIC_BASE_URL: z.string().optional().default(''),
   /** When 'true', /portal/auth/request-link returns the magic link in the
-   *  response body. ONLY for dev — otherwise anyone hitting the endpoint
+   *  response body. ONLY for dev - otherwise anyone hitting the endpoint
    *  with a known client email can sign in without the inbox. */
   CLIENT_PORTAL_RETURN_LINK: z.enum(['true', 'false']).default('false'),
   /** Magic-link TTL in minutes. */
@@ -49,24 +49,24 @@ const Schema = z.object({
   /** Dev-only escape hatch. When 'true' AND NODE_ENV !== 'production', an
    *  unknown email at sign-in auto-provisions a user (and `admin` in the
    *  email auto-promotes to superadmin). Convenient for demos, fatal for
-   *  prod — kept off by default and double-gated on NODE_ENV below. */
+   *  prod - kept off by default and double-gated on NODE_ENV below. */
   DEV_AUTH_AUTO_PROVISION: z.enum(['true', 'false']).default('false'),
 
   /** Per-provider HMAC-SHA256 webhook secrets. Each provider stamps a
    *  hex digest of the raw body in the `x-signature` header (or a
-   *  provider-specific header — see services/webhooks.verify.ts). Any
+   *  provider-specific header - see services/webhooks.verify.ts). Any
    *  webhook mounted at /api/webhooks/:source with a configured secret
    *  is verified before its body is parsed. Sources without a configured
    *  secret are rejected with 503 unless WEBHOOK_ALLOW_UNVERIFIED='true'. */
   WEBHOOK_SECRET_ECOURTS: z.string().optional().default(''),
   WEBHOOK_SECRET_PAYMENT: z.string().optional().default(''),
   WEBHOOK_SECRET_ESIGN: z.string().optional().default(''),
-  /** Dev escape hatch — allow unsigned webhooks. NEVER set in prod. */
+  /** Dev escape hatch - allow unsigned webhooks. NEVER set in prod. */
   WEBHOOK_ALLOW_UNVERIFIED: z.enum(['true', 'false']).default('false'),
 
   /** Research provider. 'none' (default) returns 501 from /api/research so
    *  prod never ships the canned demo answer. 'demo' returns the canned
-   *  answer with a clear "Demonstration" banner — useful for sales demos
+   *  answer with a clear "Demonstration" banner - useful for sales demos
    *  but never claims to be real legal research. Real backends ('kanoon',
    *  'scc') would be wired here once their ingestion + retrieval is built. */
   RESEARCH_PROVIDER: z.enum(['none', 'demo']).default('none'),

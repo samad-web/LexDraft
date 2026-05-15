@@ -19,7 +19,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
 ];
 
 /**
- * Firm-Admin Console — User Management section per spec §7.
+ * Firm-Admin Console - User Management section per spec §7.
  *
  * Gated on the `admin.users` feature: the resolver only grants this when the
  * user's plan and role both include it (Firm Admin role on Practice/Firm

@@ -1,4 +1,4 @@
-# LexDraft API — integration test harness
+# LexDraft API - integration test harness
 
 The default `pnpm --filter @lexdraft/api test` suite runs the **unit** tests
 against the in-memory fallback (`DATABASE_URL=''`). This is fast and great
@@ -48,13 +48,13 @@ TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5433/postgres \
 ```
 
 If `TEST_DATABASE_URL` is unset every test fails on its first hook with a
-clear error message — the suite never silently falls back to in-memory mode.
+clear error message - the suite never silently falls back to in-memory mode.
 
 The regular unit suite is unaffected:
 
 ```bash
-pnpm --filter @lexdraft/api test            # unit — fast, in-memory
-pnpm --filter @lexdraft/api test:integration # integration — Postgres
+pnpm --filter @lexdraft/api test            # unit - fast, in-memory
+pnpm --filter @lexdraft/api test:integration # integration - Postgres
 ```
 
 ---
@@ -115,7 +115,7 @@ beforeAll(async () => {
   user = await seedUser(firm.id, { email: 'foo@integration.test' });
 });
 
-describe('fooService — real Postgres', () => {
+describe('fooService - real Postgres', () => {
   it('does the thing', async () => {
     const result = await fooService.doTheThing(user.id, firm.id);
     expect(result).toBeTruthy();
@@ -126,13 +126,13 @@ describe('fooService — real Postgres', () => {
 Conventions:
 
 - **Always seed your own firm + user in `beforeAll`.** Don't reuse fixtures
-  across files — the schema is fresh per file (via setup hook).
+  across files - the schema is fresh per file (via setup hook).
 - **Never set or reset `DATABASE_URL` from inside a test.** The setup file
   owns that knob.
 - **Need raw SQL?** Call `getIntegrationSql()` from `integration-db.ts`.
 - **Need a second firm to prove cross-tenant safety?** Call `seedFirm` again
   and assert the row count or visibility from each firm's perspective.
-- **Need MFA codes?** Use `authenticator.generate(secret)` from `otplib` —
+- **Need MFA codes?** Use `authenticator.generate(secret)` from `otplib` -
   see `mfa.integration.test.ts`.
 
 ---

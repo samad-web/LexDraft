@@ -72,14 +72,14 @@ export function StampView() {
 
   const [exporting, setExporting] = useState(false);
   // undefined = use the user's effective default (firm or personal). Set
-  // by the LetterheadPicker — null means "no letterhead", a string is a
+  // by the LetterheadPicker - null means "no letterhead", a string is a
   // specific letterhead id.
   const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(undefined);
 
   // Renders the estimate panel as a print-quality A4 PDF via the shared
   // exportPdf helper. We hand-build the HTML so the layout matches a
   // formal estimate (firm-letterhead style) rather than DOM-snapshotting
-  // the screen card — the on-screen card uses tokens like --bg-surface
+  // the screen card - the on-screen card uses tokens like --bg-surface
   // that don't translate well into a print stylesheet.
   const handleExportPdf = async (): Promise<void> => {
     if (exporting) return;
@@ -142,10 +142,10 @@ export function StampView() {
         : letterheadChoice === null   ? null
         : await resolveLetterhead(letterheadChoice);
       await exportPdf({
-        title: `Stamp duty estimate — ${stateName} ${instrumentName}`,
+        title: `Stamp duty estimate - ${stateName} ${instrumentName}`,
         bodyHtml,
         dated: today,
-        // This is a calculation report, not an AI draft — suppress the
+        // This is a calculation report, not an AI draft - suppress the
         // AI disclaimer footer that exportPdf injects by default.
         disclaimerHtml: null,
         letterhead,
@@ -164,7 +164,7 @@ export function StampView() {
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ — STAMP & REGISTRATION</div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - STAMP & REGISTRATION</div>
         <h1 className="heading-xl">Stamp duty calculator</h1>
         <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
           Indicative rates per the latest state schedules. Final liability is determined by the Sub-Registrar at the time of registration.

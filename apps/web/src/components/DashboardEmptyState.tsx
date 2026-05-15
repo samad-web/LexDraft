@@ -7,7 +7,7 @@ import { Icon } from '@lexdraft/ui';
  * Firm). Shows a checklist of high-leverage onboarding steps so a fresh tenant
  * has somewhere to start instead of a sea of zeros.
  *
- * Completion is derived from current data (entity counts) — never persisted
+ * Completion is derived from current data (entity counts) - never persisted
  * server-side. Once a tenant has even one of {client, matter, hearing, doc}
  * the panel hides entirely, so this is a *first-run* affordance, not a
  * permanent checklist.
@@ -20,7 +20,7 @@ import { Icon } from '@lexdraft/ui';
 export type DashboardEmptyStatePlan = 'Solo' | 'Practice' | 'Firm';
 
 export interface DashboardEmptyStateStep {
-  /** Short imperative — "Add your first client". */
+  /** Short imperative - "Add your first client". */
   label: string;
   /** Sub-line shown under the label. Optional. */
   hint?: string;
@@ -31,7 +31,7 @@ export interface DashboardEmptyStateStep {
   /** True when the step's underlying entity has been created. */
   completed: boolean;
   /**
-   * When set, replaces the action link with a static muted hint — used for
+   * When set, replaces the action link with a static muted hint - used for
    * non-admin members who can't perform the action themselves (e.g. "Ask your
    * admin to invite the team").
    */
@@ -40,9 +40,9 @@ export interface DashboardEmptyStateStep {
 
 interface Props {
   plan: DashboardEmptyStatePlan;
-  /** First name of the current user — used in the Solo greeting. */
+  /** First name of the current user - used in the Solo greeting. */
   firstName?: string;
-  /** Firm display name — used in Practice / Firm greetings. */
+  /** Firm display name - used in Practice / Firm greetings. */
   firmName?: string;
   steps: DashboardEmptyStateStep[];
 }
@@ -62,7 +62,7 @@ export function DashboardEmptyState({ plan, firstName, firmName, steps }: Props)
   });
 
   // Defensive: if the page was opened in a tab where the user previously
-  // dismissed the panel and then their dashboard re-emptied (rare — only via
+  // dismissed the panel and then their dashboard re-emptied (rare - only via
   // bulk deletion), respect the existing flag without overwriting it.
   useEffect(() => {
     if (!dismissed) return;
@@ -105,8 +105,8 @@ export function DashboardEmptyState({ plan, firstName, firmName, steps }: Props)
 
   const footnote =
     plan === 'Solo'
-      ? "Each step takes under a minute. Dismiss the checklist whenever you're ready — it'll come back if your dashboard goes empty again."
-      : 'These steps appear only on a fresh chambers — they disappear once your dashboard starts filling up.';
+      ? "Each step takes under a minute. Dismiss the checklist whenever you're ready - it'll come back if your dashboard goes empty again."
+      : 'These steps appear only on a fresh chambers - they disappear once your dashboard starts filling up.';
 
   return (
     <section

@@ -7,7 +7,7 @@
  * rather than skipping the WHERE clause (cf. tenant.ts contract).
  *
  * Claim race-safety: `claim()` is an atomic UPDATE WHERE status='open'.
- * Two users hitting "Claim" simultaneously can't both succeed — the loser
+ * Two users hitting "Claim" simultaneously can't both succeed - the loser
  * sees 0 rows updated and receives a 409 ConflictError. We do NOT issue a
  * `select ... for update` first because that would still be racy under a
  * permissive isolation level and adds a round-trip.
@@ -153,14 +153,14 @@ export const coverageService = {
   /**
    * Post a coverage request. If `hearingId` is supplied we denormalize the
    * hearing snapshot at create time; the caller may also pass explicit values
-   * to override. We refuse to create against a hearing in a different firm —
+   * to override. We refuse to create against a hearing in a different firm -
    * that would leak matter metadata across tenants.
    */
   async create(
     input: CreateCoverageRequestInput & { firmId: string | null; requestedBy: string },
   ): Promise<CoverageRequest> {
     if (!input.firmId) {
-      throw new UnprocessableEntityError('No firm attached — cannot create coverage request');
+      throw new UnprocessableEntityError('No firm attached - cannot create coverage request');
     }
     const sql = db();
     if (!sql) {
@@ -168,7 +168,7 @@ export const coverageService = {
     }
 
     // Snapshot the hearing if linked. We compare its firm_id (via cases) to
-    // the caller's firm — refuse on mismatch.
+    // the caller's firm - refuse on mismatch.
     let snapshot: HearingSnapshot | null = null;
     if (input.hearingId) {
       const rows = await sql<HearingSnapshot[]>`
@@ -241,7 +241,7 @@ export const coverageService = {
   },
 
   /**
-   * Atomic claim. Sets status='claimed', claimed_by, claimed_at — but only if
+   * Atomic claim. Sets status='claimed', claimed_by, claimed_at - but only if
    * the row is still 'open'. A losing racer gets ConflictError, not a silent
    * overwrite of the winner's claim.
    */
@@ -250,7 +250,7 @@ export const coverageService = {
     const sql = db();
     if (!sql) throw new NotFoundError('Coverage request not found');
 
-    // Guard against self-claim — the requester shouldn't pick up their own
+    // Guard against self-claim - the requester shouldn't pick up their own
     // posting (defeats the point of the swap).
     const existing = await sql<Array<{ status: CoverageStatus; requested_by: string }>>`
       select status, requested_by from coverage_requests
@@ -259,7 +259,7 @@ export const coverageService = {
     `;
     if (!existing[0]) throw new NotFoundError('Coverage request not found');
     if (existing[0].requested_by === claimerUserId) {
-      throw new BadRequestError('You posted this request — cannot claim it yourself');
+      throw new BadRequestError('You posted this request - cannot claim it yourself');
     }
 
     const updated = await sql<Array<{ id: string }>>`
@@ -280,7 +280,7 @@ export const coverageService = {
 
   /**
    * Cancel a coverage request. Only the original requester (or a Firm Admin)
-   * may cancel. We don't allow cancellation after completion — that would
+   * may cancel. We don't allow cancellation after completion - that would
    * rewrite history.
    */
   async cancel(id: string, userId: string, firmId: string | null): Promise<CoverageRequest> {
@@ -298,7 +298,7 @@ export const coverageService = {
       throw new ConflictError('Cannot cancel a completed coverage request');
     }
     if (rows[0].status === 'cancelled') {
-      // Idempotent — already cancelled, return current state.
+      // Idempotent - already cancelled, return current state.
       return coverageService.get(id, firmId);
     }
 

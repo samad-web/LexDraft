@@ -2,7 +2,7 @@
 
 A lightweight, on-demand regression suite for the drafting feature. Run it
 when you change the prompt in `drafting.service.ts`, swap models, switch
-providers, or upgrade a provider SDK. It is **not** a vitest test — LLM
+providers, or upgrade a provider SDK. It is **not** a vitest test - LLM
 calls are slow, non-deterministic, and cost money, so we don't run it on
 every commit.
 
@@ -19,8 +19,8 @@ every commit.
 4. Optionally diffs against a saved baseline so a regression breaks CI.
 
 The scoring rubric lives in `evaluator.ts` and is intentionally crude
-substring matching. The point is to catch the model going off the rails —
-refusing, switching languages, dropping the prayer — not to grade the
+substring matching. The point is to catch the model going off the rails -
+refusing, switching languages, dropping the prayer - not to grade the
 quality of the prose.
 
 ## How to run
@@ -63,7 +63,7 @@ When you intentionally change the prompt, model, or provider behaviour:
 2. Eyeball every brief in the output. Anything that *should* still pass had
    better pass; anything that newly fails needs a rubric tweak or a prompt
    tweak.
-3. Commit the new baseline. The diff in PR review should be small — if
+3. Commit the new baseline. The diff in PR review should be small - if
    half the scores moved, you've either broken something or your rubric
    was too tight.
 
@@ -75,16 +75,16 @@ without rerunning anything.
 
 The runner reports two kinds of regression:
 
-- **regression** — a brief that passed in the baseline now fails. Almost
+- **regression** - a brief that passed in the baseline now fails. Almost
   always means the prompt or model lost a structural element the rubric
   requires. Read the `failures` array on that brief.
-- **score-drop** — a brief that still passes but lost ≥ 10 points vs the
+- **score-drop** - a brief that still passes but lost ≥ 10 points vs the
   baseline. Usually a soft signal: the output is shorter, lost a required
   substring, or skipped a structural check. Worth investigating before
   shipping.
 
 A brief with `failures: ["contains forbidden substring: \"as an AI\""]`
-means the model started refusing or breaking persona — that's almost
+means the model started refusing or breaking persona - that's almost
 always a prompt regression, not a model regression.
 
 ## Cost
@@ -118,11 +118,11 @@ schedule it nightly at most.
 }
 ```
 
-Keep `mustInclude` short — five entries is plenty. The rubric should
+Keep `mustInclude` short - five entries is plenty. The rubric should
 catch a refusal or a structure break, not enforce a specific style.
 
 ## Files
 
-- `golden-briefs.ts` — the brief corpus + per-brief rubrics
-- `evaluator.ts`    — pure scoring functions, no I/O
-- `runner.ts`       — CLI orchestrator
+- `golden-briefs.ts` - the brief corpus + per-brief rubrics
+- `evaluator.ts`    - pure scoring functions, no I/O
+- `runner.ts`       - CLI orchestrator

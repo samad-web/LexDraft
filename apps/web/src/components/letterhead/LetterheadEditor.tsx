@@ -22,10 +22,10 @@ import { LetterheadPreview } from './LetterheadPreview';
  *
  * Three panels stacked vertically (on narrow screens) or laid out as
  * template-strip → form/preview split (on wide screens):
- *   1. Template strip — clickable cards, one per layout
- *   2. Slot form — text fields the chosen template uses, plus the logo
+ *   1. Template strip - clickable cards, one per layout
+ *   2. Slot form - text fields the chosen template uses, plus the logo
  *      uploader + scope/default toggles
- *   3. Live preview — the LetterheadPreview component, re-rendering on
+ *   3. Live preview - the LetterheadPreview component, re-rendering on
  *      every field/template change
  *
  * Save flow:
@@ -33,7 +33,7 @@ import { LetterheadPreview } from './LetterheadPreview';
  *   - "edit" mode: PATCH /letterheads/:id → close modal
  *   - Logo upload: when a new file is picked, runs the presigned PUT
  *     immediately so the resulting storage key is on hand before save.
- *     If the user cancels, the orphan key is harmless — the storage
+ *     If the user cancels, the orphan key is harmless - the storage
  *     driver garbage-collects it eventually (TODO once that worker exists).
  */
 
@@ -58,7 +58,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
   // Auth user is the source of truth for auto-population. The fields the
   // advocate gave us at sign-up (firm name, email, enrolment, primary court,
   // practice areas) seed the letterhead so they don't have to type them
-  // again. Solo advocates get the most aggressive defaults — name, scope and
+  // again. Solo advocates get the most aggressive defaults - name, scope and
   // is-default are pre-set so they can save without filling anything in.
   const authUser = useAuthStore((s) => s.user);
   const isSolo = authUser?.plan === 'Solo';
@@ -97,7 +97,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
     }
   }, [mode.kind, existing]);
 
-  // Reset on re-open in create mode — seed with first template's defaults,
+  // Reset on re-open in create mode - seed with first template's defaults,
   // then layer the signup-provided profile data on top so the form is already
   // filled in. For solo advocates we also auto-suggest a name and turn on
   // the default-flag so they can save without touching anything.
@@ -212,7 +212,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
   };
 
   // Which slot fields to render. The template definitions don't carry an
-  // explicit "supported fields" list — instead we surface every slot in
+  // explicit "supported fields" list - instead we surface every slot in
   // the editor; templates that ignore a slot just won't render it. This
   // keeps the editor simple and lets users move between templates without
   // losing typed values.
@@ -233,7 +233,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
           </div>
         )}
 
-        {/* Preview — hero block at the top, spans full modal width */}
+        {/* Preview - hero block at the top, spans full modal width */}
         <div className="col" style={{ gap: 8 }}>
           <div className="label">Preview</div>
           <div
@@ -257,7 +257,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
           </div>
         </div>
 
-        {/* Template chips — compact horizontal cards below the preview */}
+        {/* Template chips - compact horizontal cards below the preview */}
         <div className="col" style={{ gap: 8 }}>
           <div className="label">Template</div>
           <div
@@ -305,7 +305,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
             />
           </label>
 
-          {/* Scope toggle — only meaningful when the user belongs to a multi-
+          {/* Scope toggle - only meaningful when the user belongs to a multi-
               person firm. Solo advocates have no firm/personal distinction, so
               we hide it entirely and let the caller's defaultScope stand. */}
           {!isSolo && (
@@ -419,7 +419,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
 
           <hr className="hairline" style={{ margin: '8px 0' }} />
 
-          {/* Slot fields — paired into 2-col rows on wide screens for tighter
+          {/* Slot fields - paired into 2-col rows on wide screens for tighter
               vertical rhythm now that we have the full modal width. */}
           <div
             className="letterhead-slot-grid"
@@ -538,7 +538,7 @@ function AddressLines({
   value: string[] | undefined;
   onChange: (lines: string[]) => void;
 }) {
-  // Render the multi-line address as a single textarea — much less ceremony
+  // Render the multi-line address as a single textarea - much less ceremony
   // than per-line inputs and lets the user newline-separate at their pace.
   const text = (value ?? []).join('\n');
   return (
@@ -555,7 +555,7 @@ function AddressLines({
   );
 }
 
-// Build a list of inputs — placeholder for the useMemo dance; the actual
+// Build a list of inputs - placeholder for the useMemo dance; the actual
 // rendering happens inline in JSX above so each component can read fields
 // directly without prop drilling.
 function buildSlotInputs(
@@ -585,7 +585,7 @@ function stripEmpty(fields: LetterheadFields): LetterheadFields {
 
 /** Merge the signup-provided profile data onto a template's default slots so
  *  the create-mode form opens already populated. Signup values override the
- *  template's placeholder defaults — the user can still edit any slot, but
+ *  template's placeholder defaults - the user can still edit any slot, but
  *  for the common case (solo advocate accepting the prefill) no typing is
  *  required to save a usable letterhead. */
 function seedFieldsFromUser(

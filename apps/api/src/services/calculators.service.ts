@@ -1,15 +1,15 @@
 /**
- * State-aware calculators — court fees, stamp duty, vakalatnama generator.
+ * State-aware calculators - court fees, stamp duty, vakalatnama generator.
  *
  * Surfaces three pure-function endpoints that read from static JSON tables
  * shipped with the API. No DB writes, no firm scoping (these are advisory
  * tools available to every authenticated user with the `tools.calculators`
- * feature) — but every input is validated against the known state catalogue
+ * feature) - but every input is validated against the known state catalogue
  * so a typo'd `stateCode=ZZ` returns a 400 rather than a silent zero.
  *
  * ## Data accuracy
  * The rate tables in `apps/api/src/data/state-fees.json` and the templates in
- * `apps/api/src/data/vakalatnama-templates.json` are PLAUSIBILITY-GRADE — they
+ * `apps/api/src/data/vakalatnama-templates.json` are PLAUSIBILITY-GRADE - they
  * reflect commonly-cited figures but stamp/court fees are amended by state
  * gazette circulars (usually March/April each FY) and templates vary by court.
  * Production deployments MUST replace these tables with values verified
@@ -18,10 +18,10 @@
  *
  * ## Design notes
  *  - Slab matching is `[min, max)`; the open-ended slab uses `max: null`.
- *  - Percentage caps are floor'd to integer INR — partial paise is dropped
+ *  - Percentage caps are floor'd to integer INR - partial paise is dropped
  *    because Indian fee schedules don't track sub-rupee.
  *  - The template substitution is intentionally trivial (no expression eval)
- *    — placeholders like `[party_name]` are replaced verbatim; unknown
+ *    - placeholders like `[party_name]` are replaced verbatim; unknown
  *    placeholders pass through so the advocate can spot what's missing.
  */
 
@@ -45,7 +45,7 @@ import type {
 import stateFeesRaw from '../data/state-fees.json';
 import vakalatnamaRaw from '../data/vakalatnama-templates.json';
 
-// Cast at module boundary — the JSON is hand-curated and the JSON loader's
+// Cast at module boundary - the JSON is hand-curated and the JSON loader's
 // inferred type is too loose (treats every literal as a wide string). The
 // `tsc` resolveJsonModule output is unhelpful for discriminated unions.
 const STATE_FEES: StateFees[] = stateFeesRaw as unknown as StateFees[];
@@ -80,7 +80,7 @@ function isFixedInstrument(i: StampInstrument): i is FixedInstrument {
 }
 
 function formatINR(value: number): string {
-  // Express style for the breakdown rows — keeps the JSON small and lets the
+  // Express style for the breakdown rows - keeps the JSON small and lets the
   // UI format if it wants to. We still emit human-readable amounts in the
   // breakdown lines so the API can be used directly (cURL, Postman).
   return `INR ${Math.round(value).toLocaleString('en-IN')}`;
@@ -103,7 +103,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
 
 export const calculatorsService = {
   /**
-   * Discovery endpoint — used by the UI's state dropdown. Returns the union
+   * Discovery endpoint - used by the UI's state dropdown. Returns the union
    * of available instruments / court types so the UI doesn't hard-code a
    * list that drifts from the data file.
    */
@@ -143,7 +143,7 @@ export const calculatorsService = {
       inSlab(value, r.matterValueMin, r.matterValueMax),
     );
     if (!rule) {
-      // The JSON should be exhaustive — this is a data-quality signal, not
+      // The JSON should be exhaustive - this is a data-quality signal, not
       // user error, so surface it as 400 with a clear message rather than 500.
       throw new BadRequestError(
         `No court-fee rule matched value ${value} for state ${state.stateCode}`,
@@ -158,7 +158,7 @@ export const calculatorsService = {
       fee = Math.round(capped);
       const rangeLabel = rule.matterValueMax === null
         ? `above ${formatINR(rule.matterValueMin)}`
-        : `${formatINR(rule.matterValueMin)} – ${formatINR(rule.matterValueMax)}`;
+        : `${formatINR(rule.matterValueMin)} - ${formatINR(rule.matterValueMax)}`;
       breakdown.push(
         `Ad-valorem slab (${rangeLabel}): ${rule.percentage}% of ${formatINR(value)} = ${formatINR(raw)}`,
       );
@@ -169,7 +169,7 @@ export const calculatorsService = {
       fee = rule.fee;
       const rangeLabel = rule.matterValueMax === null
         ? `above ${formatINR(rule.matterValueMin)}`
-        : `${formatINR(rule.matterValueMin)} – ${formatINR(rule.matterValueMax)}`;
+        : `${formatINR(rule.matterValueMin)} - ${formatINR(rule.matterValueMax)}`;
       breakdown.push(`Flat slab (${rangeLabel}): ${formatINR(rule.fee)}`);
     }
 
@@ -215,7 +215,7 @@ export const calculatorsService = {
       duty = Math.round(withMin);
       breakdown.push(`Ad-valorem: ${inst.percentage}% of ${formatINR(value)} = ${formatINR(raw)}`);
       if (typeof inst.minimum === 'number' && raw < inst.minimum) {
-        breakdown.push(`Below minimum — floored at ${formatINR(inst.minimum)}`);
+        breakdown.push(`Below minimum - floored at ${formatINR(inst.minimum)}`);
       }
       if (typeof inst.monthsCap === 'number') {
         breakdown.push(
@@ -223,7 +223,7 @@ export const calculatorsService = {
         );
       }
     } else {
-      // Defensive — the discriminator should be exhaustive.
+      // Defensive - the discriminator should be exhaustive.
       throw new BadRequestError(
         `Instrument '${input.instrument}' has neither 'fixed' nor 'percentage'`,
         { code: 'invalid_instrument_shape' },
@@ -247,7 +247,7 @@ export const calculatorsService = {
     }
 
     // Prefer (stateCode, courtType) match. Fall back to (any state,
-    // courtType) — most jurisdictions accept the generic Form-X-style
+    // courtType) - most jurisdictions accept the generic Form-X-style
     // vakalatnama with state-specific Bar Council substitution.
     const exact = VAKALATNAMA_TEMPLATES.find(
       (t) => t.stateCode === input.stateCode && t.courtType === input.courtType,

@@ -405,7 +405,7 @@ interface PortalAuditInput {
 /**
  * Fire-and-forget audit write for portal actions. Distinct from the firm-side
  * `withAudit` middleware because the actor is a portal client, not a firm
- * user — `actorUserId` is null and the discriminator + identity live in the
+ * user - `actorUserId` is null and the discriminator + identity live in the
  * payload (`actorKind: 'portal_client'`). Never blocks the response.
  */
 function writePortalAudit(input: PortalAuditInput): void {
@@ -417,7 +417,7 @@ function writePortalAudit(input: PortalAuditInput): void {
     userAgent: input.req.header('user-agent') ?? '',
     ...(input.payload ?? {}),
   };
-  // We reuse `actor_user_id` to store the clientId — the column carries no FK
+  // We reuse `actor_user_id` to store the clientId - the column carries no FK
   // constraint, and `payload.actorKind` disambiguates user vs portal_client
   // when reading. This lets the firm-side audit feed surface portal actions
   // for the firm via a join against the clients table.

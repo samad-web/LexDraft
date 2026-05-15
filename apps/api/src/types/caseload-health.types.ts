@@ -1,5 +1,5 @@
 /**
- * Caseload health DTOs — kept LOCAL to the api package because the surface
+ * Caseload health DTOs - kept LOCAL to the api package because the surface
  * is still maturing. The web client imports these via the route response
  * shape; once thresholds and signal keys stabilise the orchestrator will
  * promote `CaseloadHealthSummary` into `@lexdraft/types`.
@@ -36,10 +36,10 @@ export interface CaseloadHealthSignal {
 }
 
 export interface CaseloadHealthSummary {
-  /** 0–100, higher = healthier. */
+  /** 0-100, higher = healthier. */
   score: number;
   band: CaseloadHealthBand;
   signals: CaseloadHealthSignal[];
-  /** 0–3 short, actionable suggestions derived from the heaviest signals. */
+  /** 0-3 short, actionable suggestions derived from the heaviest signals. */
   recommendations: string[];
 }

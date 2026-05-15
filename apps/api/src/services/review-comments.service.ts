@@ -4,7 +4,7 @@
  * Each comment is either review-level (findingIndex = null) or anchored to a
  * specific finding by its position in `findings_json`. Threading via
  * `parentCommentId`. Soft-deletion keeps the thread structure intact when a
- * reply is removed — the API returns the row with `isDeleted=true` and an
+ * reply is removed - the API returns the row with `isDeleted=true` and an
  * empty body so the client can render a "comment removed" placeholder
  * rather than re-parenting children to a non-existent comment.
  *
@@ -80,7 +80,7 @@ interface CreateArgs extends CreateReviewCommentRequest {
 export const reviewCommentsService = {
   async list(reviewId: string, firmId: string | null): Promise<ReviewComment[]> {
     // Tenant gate: confirm the review belongs to the firm. Throws 404 if not,
-    // which is the right surface — we don't even reveal that the id exists
+    // which is the right surface - we don't even reveal that the id exists
     // outside the firm.
     await reviewService.get(reviewId, firmId);
 
@@ -217,7 +217,7 @@ export const reviewCommentsService = {
     const sql = db();
     if (sql) {
       // Author-only edit. We don't allow firm admins to edit other people's
-      // comments — better to delete + re-comment than silently rewrite
+      // comments - better to delete + re-comment than silently rewrite
       // history.
       const rows = await sql<CommentRow[]>`
         with updated as (

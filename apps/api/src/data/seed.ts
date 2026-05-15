@@ -1,7 +1,7 @@
 import type { Alert, Case, DocumentRecord, Hearing, TaskBoard } from '@lexdraft/types';
 
 // =============================================================================
-// In-memory fallback data — used only when DATABASE_URL is blank, so services
+// In-memory fallback data - used only when DATABASE_URL is blank, so services
 // have something to fall back to. All sample/dummy entries have been removed.
 // =============================================================================
 

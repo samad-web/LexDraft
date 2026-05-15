@@ -1,12 +1,12 @@
 /**
- * analyticsService — read-after-MV-refresh integration coverage.
+ * analyticsService - read-after-MV-refresh integration coverage.
  *
  * The summary endpoint reads four materialized views (0021_analytics_views).
  * Without an explicit REFRESH after a write, the views remain empty for a
- * fresh schema — so we:
+ * fresh schema - so we:
  *
  *   1. Seed cases + invoices for two firms.
- *   2. Call analyticsRefreshService.refreshAll() — this is the same code
+ *   2. Call analyticsRefreshService.refreshAll() - this is the same code
  *      path the pg-boss cron and the on-demand admin endpoint use.
  *   3. Read analyticsService.summary(firmId) and assert the aggregates match.
  *
@@ -71,7 +71,7 @@ beforeAll(async () => {
   await seedCase(firmB.id, { cnr: 'B/CN-1', stage: 'Pleadings' });
   await seedCase(firmB.id, { cnr: 'B/CN-2', stage: 'Pleadings' });
 
-  // Firm A invoices — current year so they roll into YTD.
+  // Firm A invoices - current year so they roll into YTD.
   const currentYear = new Date().getFullYear();
   await seedInvoice(firmA.id, { invoiceNo: 'INV-A-1', amount: 100_000, year: currentYear, month: 1 });
   await seedInvoice(firmA.id, { invoiceNo: 'INV-A-2', amount: 200_000, year: currentYear, month: 2 });
@@ -100,7 +100,7 @@ describe('analyticsService.summary', () => {
   it('computes active matters + stages for firm A only', async () => {
     const out = await analyticsService.summary(firmA.id);
     expect(out.kpis.activeMatters).toBe(3);
-    // Stages: Pleadings(2), Trial(1) — order is by stage_count desc.
+    // Stages: Pleadings(2), Trial(1) - order is by stage_count desc.
     const stageMap = new Map(out.stages.map((s) => [s.label, s.count]));
     expect(stageMap.get('Pleadings')).toBe(2);
     expect(stageMap.get('Trial')).toBe(1);
@@ -113,7 +113,7 @@ describe('analyticsService.summary', () => {
 
   it('revenueYtdInr sums paid + pending invoices for the current year only', async () => {
     const out = await analyticsService.summary(firmA.id);
-    // 100k + 200k + 300k = 600k total this year — service stores as integer.
+    // 100k + 200k + 300k = 600k total this year - service stores as integer.
     expect(out.kpis.revenueYtdInr).toBe(600_000);
   });
 

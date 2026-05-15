@@ -32,7 +32,7 @@ async function listAlerts(firmId: string | null): Promise<Alert[]> {
 
 function relativeFromIso(iso: string): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '—';
+  if (Number.isNaN(then)) return '-';
   const diff = Date.now() - then;
   const min = Math.round(diff / 60_000);
   if (min < 1) return 'just now';
@@ -64,7 +64,7 @@ export const dashboardService = {
       id: d.id,
       name: d.title,
       type: d.docType,
-      case: '—',
+      case: '-',
       updated: relativeFromIso(d.updatedAt),
     }));
     const merged: DocumentRecord[] = [...draftDocs, ...docs].slice(0, 4);
@@ -78,7 +78,7 @@ export const dashboardService = {
         activeMatters: cases.filter((c) => c.status === 'Active').length,
         clients: clientNames.size,
         unread: alerts.length,
-        revenueFY: '—',
+        revenueFY: '-',
       },
     };
   },

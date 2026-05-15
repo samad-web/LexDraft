@@ -13,7 +13,7 @@ export const portalStrings = {
   signOut: 'Sign out',
   back: '← Back',
   loading: 'Loading…',
-  empty: '—',
+  empty: '-',
 
   // navigation
   navDashboard: 'Dashboard',
@@ -61,7 +61,7 @@ export const portalStrings = {
   messagesPlaceholder: 'Type your message…',
   messagesSend: 'Send',
   messagesSending: 'Sending…',
-  messagesEmpty: 'No messages yet — start the conversation.',
+  messagesEmpty: 'No messages yet - start the conversation.',
   messagesLoading: 'Loading messages…',
   messagesError: 'Could not load messages.',
   messagesSendError: 'Could not send the message.',
@@ -73,8 +73,8 @@ export const portalStrings = {
   profileSaved: 'Saved.',
   profileNameLabel: 'Name',
   profileEmailLabel: 'Contact email',
-  profileNameLocked: 'Your advocate manages this — ask them to update it.',
-  profileEmailLocked: 'Your sign-in email — ask your advocate to change it.',
+  profileNameLocked: 'Your advocate manages this - ask them to update it.',
+  profileEmailLocked: 'Your sign-in email - ask your advocate to change it.',
   profileLanguageLabel: 'Language',
   profileLanguageEnglish: 'English',
   profileNotificationsTitle: 'Notifications',

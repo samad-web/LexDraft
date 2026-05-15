@@ -1,7 +1,7 @@
 /**
  * Coverage swap board routes.
  *
- * All endpoints are gated by `coverage.requests` — granted to Practice and
+ * All endpoints are gated by `coverage.requests` - granted to Practice and
  * Firm tier plans. The orchestrator wires the plan_features rows; until
  * those land, only baseline users and explicit grant-overrides can reach
  * these handlers.

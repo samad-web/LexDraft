@@ -1,4 +1,4 @@
-/** Shared base ESLint config — TypeScript + Prettier compat. */
+/** Shared base ESLint config - TypeScript + Prettier compat. */
 module.exports = {
   root: false,
   parser: '@typescript-eslint/parser',

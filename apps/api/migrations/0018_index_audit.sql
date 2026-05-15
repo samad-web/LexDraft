@@ -7,7 +7,7 @@
 -- row-by-row; the composites below let it index-only-scan.
 --
 -- All `create index if not exists` so the migration is idempotent and
--- safe to re-run. NOT `concurrently` — the in-app migration runner uses
+-- safe to re-run. NOT `concurrently` - the in-app migration runner uses
 -- single transactions today; promote to `concurrently` + standalone files
 -- when we move to a managed runner that can run them out-of-transaction.
 
@@ -18,7 +18,7 @@ create index if not exists cases_firm_stage_idx  on cases (firm_id, stage);
 -- documents: register paginates newest-first per tenant
 create index if not exists documents_firm_updated_idx on documents (firm_id, updated_at desc);
 
--- tasks: every list query is `where firm_id = $1` — currently a full scan
+-- tasks: every list query is `where firm_id = $1` - currently a full scan
 create index if not exists tasks_firm_idx        on tasks (firm_id);
 create index if not exists tasks_firm_column_idx on tasks (firm_id, column_name);
 

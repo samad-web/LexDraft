@@ -1,8 +1,8 @@
 -- =============================================================================
--- LexDraft — Physical document register
+-- LexDraft - Physical document register
 -- =============================================================================
 -- The sidebar previously labelled `/app/archive` as "Physical Docs" but the
--- view it pointed at is the closed-matters archive — not a register of
+-- view it pointed at is the closed-matters archive - not a register of
 -- paper documents. This migration introduces a real physical-document
 -- register so advocates can track the originals (vakalatnamas, sworn
 -- affidavits, signed contracts, etc.) that live in the chambers cabinet
@@ -22,10 +22,10 @@ create table if not exists physical_documents (
   -- Denormalised matter title shown in lists when case_id is null or the
   -- linked case is renamed. Always populated so list views stay fast.
   case_label   text,
-  -- Physical file/folder/cabinet identifier — barcode or hand-written ref.
+  -- Physical file/folder/cabinet identifier - barcode or hand-written ref.
   file_no      text not null,
   title        text not null,
-  -- Free-text classifier ("Original deed", "Affidavit", "Court order"…) —
+  -- Free-text classifier ("Original deed", "Affidavit", "Court order"…) -
   -- not enumerated because Indian-practice paperwork is too varied.
   doc_type     text,
   location     text not null,

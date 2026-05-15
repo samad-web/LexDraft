@@ -14,20 +14,20 @@
  * already encodes.
  *
  * Layer-by-layer coverage:
- *   - baseline       — `profile.view` is in BASELINE_FEATURES so every role
+ *   - baseline       - `profile.view` is in BASELINE_FEATURES so every role
  *                      sees it (verified per-role below)
- *   - plan ∩ role    — Solo Advocate on `matter.view` (plan grants, role grants
+ *   - plan ∩ role    - Solo Advocate on `matter.view` (plan grants, role grants
  *                      → 200); Solo Advocate on `drafting.ai` (Solo plan
  *                      excludes → 403); Intern on `matter.create` (role
  *                      excludes → 403)
- *   - role explicit  — `firm.dashboard.view` is firm-only; a Solo Advocate
+ *   - role explicit  - `firm.dashboard.view` is firm-only; a Solo Advocate
  *                      gets 403; a Practice Lead gets through
- *   - admin gates    — `admin.users` available only to Firm Admin
- *   - analytics      — `analytics.firm` is Firm-only
+ *   - admin gates    - `admin.users` available only to Firm Admin
+ *   - analytics      - `analytics.firm` is Firm-only
  *
  * About user-overrides: in DATABASE_URL='' (memory) mode, `resolveFeatures`
  * routes through `demoFallbackFor(role)` (see permissions.service.ts line
- * 162-167) and does NOT honour `user_feature_overrides` rows — those are
+ * 162-167) and does NOT honour `user_feature_overrides` rows - those are
  * computed by the SQL CTE on lines 213-237 of the same file, and require a
  * live Postgres + the migration that defines `user_feature_overrides` to
  * exercise. We approximate the OUTCOMES below by mocking `resolveFeatures`
@@ -102,10 +102,10 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// 401 — no user attached
+// 401 - no user attached
 // =============================================================================
 
-describe('requireFeature — auth gate', () => {
+describe('requireFeature - auth gate', () => {
   it('401s when no user is attached', async () => {
     const handler = requireFeature('matter.view');
     const next = vi.fn() as unknown as NextFunction;
@@ -118,7 +118,7 @@ describe('requireFeature — auth gate', () => {
 });
 
 // =============================================================================
-// `matter.view` — Solo plan + Solo Advocate role should grant.
+// `matter.view` - Solo plan + Solo Advocate role should grant.
 // =============================================================================
 
 describe('requireFeature("matter.view")', () => {
@@ -148,7 +148,7 @@ describe('requireFeature("matter.view")', () => {
 });
 
 // =============================================================================
-// `firm.dashboard.view` — Practice + Firm only.
+// `firm.dashboard.view` - Practice + Firm only.
 // =============================================================================
 
 describe('requireFeature("firm.dashboard.view")', () => {
@@ -182,7 +182,7 @@ describe('requireFeature("firm.dashboard.view")', () => {
 });
 
 // =============================================================================
-// `admin.users` — Firm Admin only.
+// `admin.users` - Firm Admin only.
 // =============================================================================
 
 describe('requireFeature("admin.users")', () => {
@@ -214,7 +214,7 @@ describe('requireFeature("admin.users")', () => {
 });
 
 // =============================================================================
-// `drafting.ai` — Solo plan excludes it; Practice + Firm include it.
+// `drafting.ai` - Solo plan excludes it; Practice + Firm include it.
 // This is the "plan denies the feature" coverage.
 // =============================================================================
 
@@ -246,7 +246,7 @@ describe('requireFeature("drafting.ai")', () => {
 });
 
 // =============================================================================
-// `drafting.clauses` — Solo plan includes the clause library (no AI).
+// `drafting.clauses` - Solo plan includes the clause library (no AI).
 // =============================================================================
 
 describe('requireFeature("drafting.clauses")', () => {
@@ -268,7 +268,7 @@ describe('requireFeature("drafting.clauses")', () => {
 });
 
 // =============================================================================
-// `analytics.firm` — Firm Admin only.
+// `analytics.firm` - Firm Admin only.
 // =============================================================================
 
 describe('requireFeature("analytics.firm")', () => {
@@ -300,11 +300,11 @@ describe('requireFeature("analytics.firm")', () => {
 });
 
 // =============================================================================
-// Role-explicit deny — Intern role doesn't grant matter.create even though
+// Role-explicit deny - Intern role doesn't grant matter.create even though
 // the plan would allow it (the role layer excludes write operations).
 // =============================================================================
 
-describe('requireFeature — role-layer deny', () => {
+describe('requireFeature - role-layer deny', () => {
   it('an Intern is blocked from matter.create (role excludes write)', async () => {
     // Memory-mode resolveFeatures uses authService.getById(userId).role to
     // pick the demoFallbackFor set. Spy on getById to return an Intern role
@@ -394,7 +394,7 @@ describe('requireFeature — role-layer deny', () => {
 });
 
 // =============================================================================
-// User-override outcomes — the SQL resolver implements
+// User-override outcomes - the SQL resolver implements
 //   - grant override wins over a role that lacks the feature (provided the
 //     plan still grants it), and
 //   - deny override removes a feature the role granted.
@@ -405,9 +405,9 @@ describe('requireFeature — role-layer deny', () => {
 // the middleware doesn't short-circuit around the resolver.
 // =============================================================================
 
-describe('requireFeature — outcome honours resolver (override-layer wiring)', () => {
+describe('requireFeature - outcome honours resolver (override-layer wiring)', () => {
   // Loose typing on the spy: vi.spyOn returns a parameterised MockInstance and
-  // we don't need the precise generic shape — we only ever call mockRestore.
+  // we don't need the precise generic shape - we only ever call mockRestore.
   let getByIdSpy: { mockRestore(): void } | undefined;
 
   afterEach(() => {
@@ -419,7 +419,7 @@ describe('requireFeature — outcome honours resolver (override-layer wiring)', 
     // Spec scenario: a Practice Lead has drafting.ai via their role, but a
     // user-feature-override of decision='deny' removes it. We can't insert
     // override rows in memory mode, so we model the same outcome by
-    // resolving the user as a Solo Advocate — drafting.ai is then absent
+    // resolving the user as a Solo Advocate - drafting.ai is then absent
     // from the feature set, and requireFeature must 403.
     const id = await newSoloUser();
     getByIdSpy = vi.spyOn(authService, 'getById').mockResolvedValue({
@@ -443,7 +443,7 @@ describe('requireFeature — outcome honours resolver (override-layer wiring)', 
     // Spec scenario: a Paralegal has no drafting.ai via their role, but a
     // user-feature-override decision='grant' adds it back (plan permitting).
     // We model the same outcome by resolving the user as a Practice Lead
-    // (role grants it, plan grants it) — requireFeature must call next().
+    // (role grants it, plan grants it) - requireFeature must call next().
     const id = await newSoloUser();
     getByIdSpy = vi.spyOn(authService, 'getById').mockResolvedValue({
       id,
@@ -465,7 +465,7 @@ describe('requireFeature — outcome honours resolver (override-layer wiring)', 
 });
 
 // =============================================================================
-// `firm.members.view` — Practice plan unlock. Useful for the broader
+// `firm.members.view` - Practice plan unlock. Useful for the broader
 // "plan ∩ role" matrix beyond what's explicitly named in the spec.
 // =============================================================================
 
@@ -498,11 +498,11 @@ describe('requireFeature("firm.members.view")', () => {
 
 // =============================================================================
 // Smoke: every persona sees `profile.view` (baseline). This is the
-// always-allowed layer of the resolver — if it ever 403s the resolver is
+// always-allowed layer of the resolver - if it ever 403s the resolver is
 // fundamentally broken.
 // =============================================================================
 
-describe('requireFeature("profile.view") — baseline guarantee', () => {
+describe('requireFeature("profile.view") - baseline guarantee', () => {
   it('Solo Advocate', async () => {
     const id = await newSoloUser();
     const next = vi.fn() as unknown as NextFunction;

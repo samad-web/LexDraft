@@ -1,5 +1,5 @@
 /**
- * Financial-export DTOs — kept LOCAL to the api package. These types are
+ * Financial-export DTOs - kept LOCAL to the api package. These types are
  * only consumed by `exports.service.ts` and `exports.routes.ts`; the web
  * client receives the CSV body verbatim and never deserialises a JSON
  * shape from this surface, so there's nothing to share with `@lexdraft/types`.

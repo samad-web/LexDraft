@@ -69,7 +69,7 @@ export function AuditLogView() {
                 </td>
                 <td>{e.actorEmail}</td>
                 <td className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {e.payload ? JSON.stringify(e.payload) : '—'}
+                  {e.payload ? JSON.stringify(e.payload) : '-'}
                 </td>
               </tr>
             ))}

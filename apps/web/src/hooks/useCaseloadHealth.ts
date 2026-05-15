@@ -3,7 +3,7 @@ import { api } from '@/lib/api';
 
 /**
  * Local mirror of the api's `CaseloadHealthSummary` shape. We don't import
- * from `@lexdraft/types` because the surface is still maturing — the
+ * from `@lexdraft/types` because the surface is still maturing - the
  * service-side types live in `apps/api/src/types/caseload-health.types.ts`
  * and will be promoted to the shared package once thresholds stabilise.
  */
@@ -38,7 +38,7 @@ export function useCaseloadHealth() {
     // midnight; manual mutations elsewhere may invalidate). 60s is a
     // sensible balance between freshness and request volume.
     staleTime: 60_000,
-    // The widget is non-critical — never block the dashboard on a 403/500.
+    // The widget is non-critical - never block the dashboard on a 403/500.
     retry: false,
   });
 }

@@ -13,7 +13,7 @@ interface GateProps {
 /**
  * Conditional renderer driven by the resolved permission set from
  * `/me/features`. Mirrors the server-side `requireFeature` so the UI doesn't
- * surface affordances the API would 403 — purely a UX nicety; the server is
+ * surface affordances the API would 403 - purely a UX nicety; the server is
  * always the authority.
  *
  * Note: while `useMeFeatures()` is loading we render nothing (rather than

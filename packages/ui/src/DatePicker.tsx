@@ -2,6 +2,7 @@ import {
   useEffect, useId, useLayoutEffect, useMemo, useRef, useState,
   type CSSProperties, type KeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
 export interface DatePickerProps {
@@ -72,7 +73,7 @@ export function DatePicker({
   const reactId = useId();
   const panelId = `${id ?? reactId}-cal`;
 
-  // The cursor month — what the panel is showing.
+  // The cursor month - what the panel is showing.
   const [cursor, setCursor] = useState(() => {
     const p = parseIso(value) ?? parseIso(todayIso())!;
     return { y: p.y, m: p.m };
@@ -174,14 +175,14 @@ export function DatePicker({
         </span>
       </button>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={panelRef}
           role="dialog"
           aria-label="Choose date"
           id={panelId}
           className="select-menu datepicker-panel"
-          style={{ ...panelStyle, padding: 12 }}
+          style={{ ...panelStyle, padding: 12, zIndex: 1000 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <button type="button" className="datepicker-nav" onClick={goPrev} aria-label="Previous month">‹</button>
@@ -228,7 +229,8 @@ export function DatePicker({
             <button type="button" className="btn btn-sm" onClick={() => onChange('')}>Clear</button>
             <button type="button" className="btn btn-sm" onClick={() => { onChange(today); setOpen(false); triggerRef.current?.focus(); }}>Today</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

@@ -5,12 +5,12 @@ import { useLetterheads, type Letterhead } from '@/hooks/useLetterheads';
  * Letterhead picker for export dialogs.
  *
  * Controlled component. Three states the caller cares about:
- *   - `value === undefined` — "auto-default", the exporter will look up the
+ *   - `value === undefined` - "auto-default", the exporter will look up the
  *     effective default itself
- *   - `value === null`      — "no letterhead", the user opted out
- *   - `value === string`    — the picked letterhead id
+ *   - `value === null`      - "no letterhead", the user opted out
+ *   - `value === string`    - the picked letterhead id
  *
- * We deliberately don't pre-resolve the letterhead inside the picker — the
+ * We deliberately don't pre-resolve the letterhead inside the picker - the
  * exporter does that with `resolveLetterhead(id)` so the network call only
  * happens at export time, not on every dropdown change.
  */
@@ -53,12 +53,12 @@ export function LetterheadPicker({
       >
         <option value="__default__">
           {data?.effectiveDefault
-            ? `Default — ${data.effectiveDefault.name}`
+            ? `Default - ${data.effectiveDefault.name}`
             : 'Default (none configured)'}
         </option>
         <option value="__none__">No letterhead</option>
         {items.length > 0 && (
-          <optgroup label="—">
+          <optgroup label="-">
             {items.map((it) => (
               <option key={it.id} value={it.id}>
                 {it.label}
@@ -90,7 +90,7 @@ function buildOptions(
     seen.add(l.id);
     out.push({ id: l.id, label: `Firm · ${l.name}${l.isDefault ? ' (default)' : ''}` });
   }
-  // Drop the effective-default entry — already represented by the first
-  // "Default — <name>" option.
+  // Drop the effective-default entry - already represented by the first
+  // "Default - <name>" option.
   return out.filter((it) => it.id !== effective?.id);
 }

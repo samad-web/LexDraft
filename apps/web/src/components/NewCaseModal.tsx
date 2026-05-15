@@ -31,7 +31,7 @@ function todayPlus(days: number): string {
 
 /**
  * Pull the opposing party out of the matter title. Indian filings overwhelmingly
- * use "X v. Y" / "X vs Y" / "X versus Y" — the right-hand-side is the opposing
+ * use "X v. Y" / "X vs Y" / "X versus Y" - the right-hand-side is the opposing
  * party. We split on the first separator and trim. If no separator is found we
  * return undefined; the conflict-check still runs against the client name.
  */
@@ -94,7 +94,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
             setConflictDismissed(false);
           },
           // Silent failure: don't blow up the form if the feature is gated
-          // off or the API hiccups — the lawyer can still file the matter.
+          // off or the API hiccups - the lawyer can still file the matter.
           onError: () => setConflictResult(null),
         },
       );
@@ -284,7 +284,7 @@ interface ConflictPanelProps {
 
 /**
  * Surfaces conflict-check output above the submit button. Green is subtle
- * and dismissible — we don't want to congratulate the lawyer on every new
+ * and dismissible - we don't want to congratulate the lawyer on every new
  * matter. Amber + red are sticky.
  */
 function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onOverrideChange }: ConflictPanelProps) {
@@ -343,7 +343,7 @@ function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onO
   const accent = isRed ? 'var(--danger)' : 'var(--warning)';
   const heading = isRed
     ? 'Existing client / direct conflict detected'
-    : 'Potential conflict — name appears in a past matter';
+    : 'Potential conflict - name appears in a past matter';
 
   return (
     <div

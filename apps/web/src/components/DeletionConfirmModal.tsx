@@ -3,7 +3,7 @@
  *
  *   1. Pick a retention window (default 30 days; max 365 server-side).
  *   2. Type your own email address verbatim to arm the "Confirm deletion"
- *      button — defends against muscle-memory clicks on a destructive flow.
+ *      button - defends against muscle-memory clicks on a destructive flow.
  *
  * The submission itself is handled by the parent (it owns the mutation), this
  * modal just collects intent and hands back `{ retentionDays }`.
@@ -15,11 +15,11 @@ import { Modal } from './Modal';
 interface DeletionConfirmModalProps {
   open: boolean;
   onClose: () => void;
-  /** The user's verified email — typed-confirmation must match exactly. */
+  /** The user's verified email - typed-confirmation must match exactly. */
   userEmail: string;
   /** Called when the user types their email correctly and clicks confirm. */
   onConfirm: (input: { retentionDays: number }) => void;
-  /** True while the parent mutation is in flight — disables the form. */
+  /** True while the parent mutation is in flight - disables the form. */
   submitting?: boolean;
   /** Optional inline error string surfaced from the parent's mutation. */
   error?: string | null;

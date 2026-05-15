@@ -9,16 +9,16 @@
  *
  * The function is firm-scoped (every read filters by firm_id, via the
  * service layer or direct SQL). When the caller has no firm attachment
- * (`firmId === null`) we return a flat "healthy / no signal" payload —
- * never the global table — mirroring the tenant-isolation invariant used
+ * (`firmId === null`) we return a flat "healthy / no signal" payload -
+ * never the global table - mirroring the tenant-isolation invariant used
  * across the rest of the api.
  *
  * Thresholds are tuned for the Solo tier (one advocate, no support staff).
  * Practice / Firm tiers will likely want different cutoffs; that's a
- * follow-up — for now this widget is gated to Solo.
+ * follow-up - for now this widget is gated to Solo.
  *
  * Score formula: start at 100, subtract 15 per critical signal, 8 per
- * warning. Floor at 0. Bands: healthy ≥ 75, stretched 50–74, overloaded < 50.
+ * warning. Floor at 0. Bands: healthy ≥ 75, stretched 50-74, overloaded < 50.
  */
 
 import type {
@@ -38,7 +38,7 @@ const THRESHOLDS = {
   imminent_limitations:  { warning: 3,  critical: 6  },
   tasks_overdue:         { warning: 5,  critical: 10 },
   invoice_overdue:       { warning: 3,  critical: 6  },
-  // No critical band for unscheduled hearings — it's a "watch this" signal.
+  // No critical band for unscheduled hearings - it's a "watch this" signal.
   unscheduled_hearings:  { warning: 4,  critical: Number.POSITIVE_INFINITY },
 } as const;
 
@@ -92,22 +92,22 @@ function recommendationsFor(signals: CaseloadHealthSignal[]): string[] {
       case 'imminent_limitations':
         out.push(
           s.severity === 'critical'
-            ? `Block 90 minutes today for limitation review — ${s.value} deadlines inside 14 days.`
+            ? `Block 90 minutes today for limitation review - ${s.value} deadlines inside 14 days.`
             : `Schedule a limitation sweep this week (${s.value} deadlines inside 14 days).`,
         );
         break;
       case 'open_matters':
         out.push(
           s.severity === 'critical'
-            ? `Archive or hand off stale matters — ${s.value} are open right now.`
-            : `Review your active roster — ${s.value} open matters is near the solo ceiling.`,
+            ? `Archive or hand off stale matters - ${s.value} are open right now.`
+            : `Review your active roster - ${s.value} open matters is near the solo ceiling.`,
         );
         break;
       case 'tasks_overdue':
         out.push(`Triage your task board: ${s.value} items are past due.`);
         break;
       case 'invoice_overdue':
-        out.push(`Send reminders on ${s.value} overdue invoice${s.value === 1 ? '' : 's'} — cash flow matters.`);
+        out.push(`Send reminders on ${s.value} overdue invoice${s.value === 1 ? '' : 's'} - cash flow matters.`);
         break;
       case 'unscheduled_hearings':
         out.push(`Prepare briefs for the ${s.value} hearings listed in the next 7 days.`);
@@ -119,7 +119,7 @@ function recommendationsFor(signals: CaseloadHealthSignal[]): string[] {
 
 // ---- Demo-mode (no DB) defaults ------------------------------------------
 // When DATABASE_URL is blank the demo dashboard should still render this
-// widget. Return the most flattering payload — no signals, healthy band.
+// widget. Return the most flattering payload - no signals, healthy band.
 function emptySummary(): CaseloadHealthSummary {
   return { score: 100, band: 'healthy', signals: [], recommendations: [] };
 }
@@ -141,7 +141,7 @@ export const caseloadHealthService = {
   /**
    * Compute the health summary for a solo's caseload.
    *
-   * @param _userId  Reserved — currently unused because Solo plans have a
+   * @param _userId  Reserved - currently unused because Solo plans have a
    *                 single advocate per firm, so firm-scoped counts ARE the
    *                 user's counts. Kept on the signature so a future
    *                 multi-user variant (Practice tier roll-out) can scope
@@ -207,7 +207,7 @@ export const caseloadHealthService = {
         label: 'Open matters',
         value: counts.open_matters,
         threshold: thresholdValueFor(openSev, THRESHOLDS.open_matters),
-        message: `${counts.open_matters} active matters — solos start to drop balls past ${THRESHOLDS.open_matters.warning}.`,
+        message: `${counts.open_matters} active matters - solos start to drop balls past ${THRESHOLDS.open_matters.warning}.`,
       });
     }
 
@@ -255,7 +255,7 @@ export const caseloadHealthService = {
         label: 'Hearings in 7 days',
         value: counts.unscheduled_hearings,
         threshold: thresholdValueFor(hearSev, THRESHOLDS.unscheduled_hearings),
-        message: `${counts.unscheduled_hearings} hearings listed in the next 7 days — confirm briefs.`,
+        message: `${counts.unscheduled_hearings} hearings listed in the next 7 days - confirm briefs.`,
       });
     }
 

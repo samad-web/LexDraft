@@ -2,6 +2,7 @@ import {
   useEffect, useId, useLayoutEffect, useRef, useState,
   type CSSProperties, type KeyboardEvent,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
 export interface TimePickerProps {
@@ -161,14 +162,14 @@ export function TimePicker({
         </span>
       </button>
 
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <div
           ref={panelRef}
           role="dialog"
           aria-label="Choose time"
           id={panelId}
           className="select-menu timepicker-panel"
-          style={{ ...panelStyle, padding: 12 }}
+          style={{ ...panelStyle, padding: 12, zIndex: 1000 }}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
@@ -225,7 +226,8 @@ export function TimePicker({
             <button type="button" className="btn btn-sm" onClick={() => onChange('')}>Clear</button>
             <button type="button" className="btn btn-sm" onClick={setNow}>Now</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );

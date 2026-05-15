@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — initial schema
+-- LexDraft - initial schema
 -- =============================================================================
 -- This migration creates every domain table the API services read/write.
 -- It is idempotent: every CREATE uses IF NOT EXISTS and every ALTER is guarded.

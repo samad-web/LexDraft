@@ -9,7 +9,7 @@ import { signInForTest } from '../../__tests__/auth-test-helpers';
 // only one worth testing); so we focus here on the JWT contract and on
 // boundary behaviour that doesn't need a live DB.
 
-describe('portalService — JWT contract', () => {
+describe('portalService - JWT contract', () => {
   it('rejects a tenant-user JWT as a portal token', async () => {
     const auth = await signInForTest({ email: 'tenant-user@example.com', password: 'p' });
     expect(() => portalService.verify(auth.token)).toThrow();
@@ -35,7 +35,7 @@ describe('portalService — JWT contract', () => {
   });
 });
 
-describe('portalService.requestMagicLink — memory fallback', () => {
+describe('portalService.requestMagicLink - memory fallback', () => {
   it('returns ok=true even when no clients table exists (no enumeration leak)', async () => {
     const res = await portalService.requestMagicLink('unknown@example.com');
     expect(res.ok).toBe(true);
@@ -43,7 +43,7 @@ describe('portalService.requestMagicLink — memory fallback', () => {
   });
 });
 
-describe('portalService read methods — memory fallback', () => {
+describe('portalService read methods - memory fallback', () => {
   it('returns empty arrays when no DB is configured', async () => {
     expect(await portalService.listCases('c', 'f')).toEqual([]);
     expect(await portalService.listHearings('c', 'f')).toEqual([]);

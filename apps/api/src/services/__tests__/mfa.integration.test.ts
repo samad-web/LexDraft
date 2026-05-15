@@ -1,5 +1,5 @@
 /**
- * mfaService — TOTP enrolment + verification against real Postgres.
+ * mfaService - TOTP enrolment + verification against real Postgres.
  *
  * The enrolment / verify path requires (a) the users table, (b)
  * mfa_pending_challenges, and (c) a TOTP secret derived by otplib that the
@@ -31,7 +31,7 @@ beforeAll(async () => {
   });
 });
 
-describe('mfaService — enrol → confirm → verify roundtrip', () => {
+describe('mfaService - enrol → confirm → verify roundtrip', () => {
   it('issues a secret + QR + challenge, and accepts a valid code', async () => {
     const start = await mfaService.enrollStart(user.id);
     expect(start.secret).toBeTruthy();
@@ -94,7 +94,7 @@ describe('mfaService — enrol → confirm → verify roundtrip', () => {
     const start = await mfaService.enrollStart(u.id);
     const code = authenticator.generate(start.secret);
     await mfaService.enrollConfirm(u.id, start.challengeId, code);
-    // Second call with same challengeId — must be rejected as already used.
+    // Second call with same challengeId - must be rejected as already used.
     await expect(
       mfaService.enrollConfirm(u.id, start.challengeId, code),
     ).rejects.toMatchObject({ status: 401 });

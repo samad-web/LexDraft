@@ -47,7 +47,7 @@ export function PillNav<T extends string>({ items, value, onChange, ariaLabel }:
     const fromW = iRect.width;
     const distance = Math.abs(x - fromX);
     const midX = (fromX + x) / 2;
-    // Stretch the pill toward the target during transit — capped so long jumps
+    // Stretch the pill toward the target during transit - capped so long jumps
     // don't look cartoony.
     const stretchExtra = Math.min(distance * 0.3, 80);
     const midW = Math.max(fromW, w) + stretchExtra;

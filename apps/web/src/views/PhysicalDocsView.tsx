@@ -37,7 +37,7 @@ const STATUS_BADGE: Record<PhysicalDocStatus, { label: string; cls: string }> = 
 };
 
 /**
- * Register of paper documents the firm holds — vakalatnamas, sworn
+ * Register of paper documents the firm holds - vakalatnamas, sworn
  * affidavits, signed contracts, court orders. Distinct from the digital
  * documents register (`/app/documents`), which tracks scans/PDFs in cloud
  * storage.
@@ -73,10 +73,10 @@ export function PhysicalDocsView() {
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ — Physical documents</div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - Physical documents</div>
         <h1 className="heading-xl">Physical Docs</h1>
         <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Track paper originals — vakalatnamas, sworn affidavits, signed contracts, court orders.
+          Track paper originals - vakalatnamas, sworn affidavits, signed contracts, court orders.
           Each row records where the document is now and who has custody.
         </p>
       </div>
@@ -144,7 +144,7 @@ export function PhysicalDocsView() {
             )}
             {!list.isLoading && !list.isError && items.length === 0 && (
               <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28 }}>
-                <span className="muted">No physical documents tracked yet — click <strong>Add document</strong> to register one.</span>
+                <span className="muted">No physical documents tracked yet - click <strong>Add document</strong> to register one.</span>
               </td></tr>
             )}
             {pager.slice.map((d) => {
@@ -157,10 +157,10 @@ export function PhysicalDocsView() {
                     {d.docType && <div className="muted" style={{ fontSize: 12 }}>{d.docType}</div>}
                   </td>
                   <td className="muted" style={{ fontSize: 13 }}>
-                    {d.caseLabel ?? <span className="muted">—</span>}
+                    {d.caseLabel ?? <span className="muted">-</span>}
                   </td>
                   <td className="body-sm">{d.location}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{d.custodian ?? '—'}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{d.custodian ?? '-'}</td>
                   <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
                   <td>
                     <Gate feature="matter.create">

@@ -38,7 +38,7 @@ export const leadsService = {
 
   async create(input: Omit<Lead, 'id' | 'capturedAt'>, firmId: string | null): Promise<Lead> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create lead'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create lead'), { status: 422 });
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');

@@ -19,7 +19,7 @@ declare global {
 /**
  * Validates a client-portal JWT. Distinct from `requireAuth` (tenant users)
  * because the two token kinds carry different claims and must never be
- * interchangeable — a portal token must NOT grant tenant-user access, and a
+ * interchangeable - a portal token must NOT grant tenant-user access, and a
  * tenant-user token must NOT grant portal access.
  */
 export function requirePortalAuth(req: Request, res: Response, next: NextFunction): void {

@@ -133,7 +133,7 @@ export function LimitationView() {
           <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>
             {summary.warning}
           </div>
-          <div className="body-xs muted">8–30 days out</div>
+          <div className="body-xs muted">8-30 days out</div>
         </div>
         <div>
           <div className="row" style={{ gap: 8, marginBottom: 6 }}>
@@ -206,13 +206,13 @@ export function LimitationView() {
                   <td className="body-sm">
                     {r.basisStatute || r.basisSection ? (
                       <div className="col" style={{ gap: 2 }}>
-                        <span className="body-xs">{r.basisStatute ?? '—'}</span>
+                        <span className="body-xs">{r.basisStatute ?? '-'}</span>
                         {r.basisSection && (
                           <span className="mono body-xs muted tabular">{r.basisSection}</span>
                         )}
                       </div>
                     ) : (
-                      <span className="muted">—</span>
+                      <span className="muted">-</span>
                     )}
                   </td>
                   <td className="body-sm muted">{r.forum}</td>

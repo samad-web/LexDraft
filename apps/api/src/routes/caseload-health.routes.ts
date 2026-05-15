@@ -1,5 +1,5 @@
 /**
- * Caseload health endpoint — drives the SoloDashboard widget that flags
+ * Caseload health endpoint - drives the SoloDashboard widget that flags
  * burnout-risk signals (open matters, imminent limitations, overdue
  * tasks/invoices, near-term hearings). One read-only GET; the assessment
  * is recomputed live every call. Gated by `caseload.health` so it can be

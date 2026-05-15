@@ -83,7 +83,7 @@ export const analyticsService = {
     const revMap = new Map<string, number>();
     let revenueYtdInr = 0;
     for (const r of revRows) {
-      // bigint columns come back as string in postgres-js — coerce defensively
+      // bigint columns come back as string in postgres-js - coerce defensively
       const total = typeof r.total === 'string' ? Number(r.total) : r.total;
       revMap.set(`${r.y}-${r.m}`, total);
       if (r.y === currentYear) revenueYtdInr += total;

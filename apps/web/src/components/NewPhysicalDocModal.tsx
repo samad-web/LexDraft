@@ -20,7 +20,7 @@ const STATUS_OPTIONS: Array<{ value: PhysicalDocStatus; label: string }> = [
 
 /**
  * Modal for adding a paper document to the physical-documents register.
- * The matter link is optional — pre-matter documents (e.g. an unfiled
+ * The matter link is optional - pre-matter documents (e.g. an unfiled
  * vakalatnama) can be tracked too. The fileNo unique-per-firm constraint
  * surfaces as a 409 from the API; we render the message inline.
  */
@@ -100,7 +100,7 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
             </Field>
             <Field label="Linked matter">
               <select className="input" value={caseId} onChange={(e) => setCaseId(e.target.value)}>
-                <option value="">— None —</option>
+                <option value="">- None -</option>
                 {(cases.data ?? []).map((c: Case) => (
                   <option key={c.id} value={c.id}>{c.title}</option>
                 ))}

@@ -11,7 +11,7 @@
  *   - `assignSystemRole(userId, roleName)` → wires `users.role_id` to the
  *     matching system role from migration 0009 (so the permissions resolver
  *     returns something other than baseline).
- *   - `addUserFeatureOverride(...)` — convenience for the override tests.
+ *   - `addUserFeatureOverride(...)` - convenience for the override tests.
  *
  * Everything uses the schema-bound `getIntegrationSql()` client, so the
  * inserts land where the test expects.
@@ -32,7 +32,7 @@ export interface SeededUser {
   firmId: string;
   email: string;
   name: string;
-  /** Plain-text password — re-used by tests that want to call authService.signIn */
+  /** Plain-text password - re-used by tests that want to call authService.signIn */
   password: string;
   role: string;
 }
@@ -44,7 +44,7 @@ export interface SeedUserOpts {
   /** Free-text role label (the legacy `users.role` column). */
   role?: string;
   isSuperadmin?: boolean;
-  /** Optional system role NAME ('Firm Admin', 'Solo Advocate', etc.) — when
+  /** Optional system role NAME ('Firm Admin', 'Solo Advocate', etc.) - when
    *  provided, the user is wired to that role_id post-insert. */
   systemRole?: string;
 }
@@ -72,7 +72,7 @@ export async function seedUser(
   const name = opts.name ?? `Integration User ${suffix}`;
   const password = opts.password ?? 'integration-pass-1';
   const role = opts.role ?? 'Solo Advocate';
-  const passwordHash = await bcrypt.hash(password, 4); // cost 4 — tests, not prod
+  const passwordHash = await bcrypt.hash(password, 4); // cost 4 - tests, not prod
 
   const rows = await sql<Array<{ id: string }>>`
     insert into users (firm_id, name, email, role, is_superadmin, password_hash)

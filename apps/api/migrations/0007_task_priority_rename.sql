@@ -1,12 +1,12 @@
 -- =============================================================================
--- LexDraft — rename task priorities from color names to semantic levels
+-- LexDraft - rename task priorities from color names to semantic levels
 -- =============================================================================
 -- Maps:
---   vermillion -> very_high   (most urgent — was red/danger)
+--   vermillion -> very_high   (most urgent - was red/danger)
 --   amber      -> high        (was orange/warning)
---   cobalt     -> medium      (was blue/info — this is also the new default)
+--   cobalt     -> medium      (was blue/info - this is also the new default)
 --   sage       -> low         (was green/success)
---   muted      -> low         (was grey/none — folded into low)
+--   muted      -> low         (was grey/none - folded into low)
 --
 -- Postgres-safe enum migration: rename old enum aside, create new, convert
 -- the column in place via CASE, then drop the old enum.

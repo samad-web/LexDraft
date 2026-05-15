@@ -13,7 +13,7 @@ import type {
  *
  * Transforms don't affect layout, so without a wrapper height the parent
  * collapses to zero pixels. We use a ResizeObserver to keep the wrapper's
- * height in sync with the (changing) inner content — important because the
+ * height in sync with the (changing) inner content - important because the
  * inner block grows / shrinks as the user types into slot fields and as
  * the logo image loads in.
  *

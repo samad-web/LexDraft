@@ -158,7 +158,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
               id="invite-message"
               className="input"
               rows={3}
-              placeholder="Welcome aboard — looking forward to working together."
+              placeholder="Welcome aboard - looking forward to working together."
               value={message}
               maxLength={500}
               onChange={(e) => setMessage(e.target.value)}

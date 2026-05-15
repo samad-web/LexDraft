@@ -1,5 +1,5 @@
 /**
- * Request-coverage modal — invoked from the Diary view (and any other
+ * Request-coverage modal - invoked from the Diary view (and any other
  * surface that lists a hearing). When pre-filled from a hearing row we lock
  * the matter/court/date/time as read-only context and the user only fills
  * the brief packet (URL + notes).
@@ -147,7 +147,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
             className="input"
             value={briefUrl}
             onChange={(e) => setBriefUrl(e.target.value)}
-            placeholder="Optional — link to the brief packet"
+            placeholder="Optional - link to the brief packet"
           />
         </Field>
         <Field label="NOTES FOR COVERING COUNSEL" wide>

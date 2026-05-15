@@ -2,10 +2,10 @@
  * Time-of-day salutation. Uses the browser's local hour so an Indian advocate
  * working at 8 PM IST sees "Good evening" regardless of where the server is.
  *
- *   05:00–11:59 → Good morning
- *   12:00–16:59 → Good afternoon
- *   17:00–21:59 → Good evening
- *   22:00–04:59 → Good night
+ *   05:00-11:59 → Good morning
+ *   12:00-16:59 → Good afternoon
+ *   17:00-21:59 → Good evening
+ *   22:00-04:59 → Good night
  */
 export function timeOfDaySalutation(now: Date = new Date()): string {
   const h = now.getHours();

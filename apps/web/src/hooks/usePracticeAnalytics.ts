@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 // Mirrors apps/api/src/types/practice-analytics.types.ts. Duplicated here
 // rather than promoted to @lexdraft/types because the API contract is
 // still in flux (per-member figures will tighten once `cases.assignee`
-// lands — see the practice-analytics service notes).
+// lands - see the practice-analytics service notes).
 
 export interface WorkloadMember {
   userId: string;

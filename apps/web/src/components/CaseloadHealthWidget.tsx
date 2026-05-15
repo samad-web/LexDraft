@@ -3,14 +3,14 @@ import { useCaseloadHealth, type CaseloadHealthBand, type CaseloadHealthSignal }
 /**
  * Caseload-health widget for the Solo dashboard. Renders:
  *
- *   - a horizontal score bar (0–100), tinted by band
+ *   - a horizontal score bar (0-100), tinted by band
  *   - the band label (Healthy / Stretched / Overloaded)
  *   - up to 3 most-severe signals as chips
- *   - 1–2 short recommendation lines
+ *   - 1-2 short recommendation lines
  *
  * The widget is self-contained: it owns its own data fetch via
  * `useCaseloadHealth`, swallows loading & error states gracefully, and
- * renders nothing when the assess endpoint is forbidden (403 — feature
+ * renders nothing when the assess endpoint is forbidden (403 - feature
  * gated off for this user) so it never gets in the way.
  *
  * Visual language uses the global tokens: --success / --warning / --danger
@@ -207,7 +207,7 @@ export function CaseloadHealthWidget(): JSX.Element | null {
 
       {topSignals.length === 0 && recs.length === 0 && (
         <p className="body-sm muted" style={{ margin: 0 }}>
-          Nothing to flag. The chambers is running clean — keep it that way.
+          Nothing to flag. The chambers is running clean - keep it that way.
         </p>
       )}
     </section>

@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — TOTP-based multi-factor authentication (spec §10)
+-- LexDraft - TOTP-based multi-factor authentication (spec §10)
 -- =============================================================================
 -- Adds MFA state to users + a short-lived challenge table used for the
 -- "password verified, awaiting TOTP" handshake during sign-in.
@@ -9,7 +9,7 @@
 -- admin/role-promotion flow; the actual enforcement lives in the auth
 -- service + requireMfa middleware (not in this schema).
 --
--- Idempotent — `add column if not exists`, `create index if not exists`,
+-- Idempotent - `add column if not exists`, `create index if not exists`,
 -- `create table if not exists` so re-runs are safe.
 -- =============================================================================
 
@@ -31,7 +31,7 @@ alter table users add column if not exists mfa_backup_codes   text[];
 -- TOTP verification at sign-in time. Also reused as the storage for the
 -- provisional enrolment secret so a server restart doesn't leak it
 -- in-process. `consumed_at` is set when the row is exchanged for a real
--- session token — replaying the same challengeId after that is rejected.
+-- session token - replaying the same challengeId after that is rejected.
 create table if not exists mfa_pending_challenges (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid not null references users(id) on delete cascade,

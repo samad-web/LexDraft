@@ -135,7 +135,7 @@ export function useUploadLetterheadLogo() {
       );
       const putRes = await fetch(presign.uploadUrl, {
         method: 'PUT',
-        // Must match exactly — the local driver's HMAC covers the
+        // Must match exactly - the local driver's HMAC covers the
         // content type. Mismatches surface as a 403 from the signed URL.
         headers: { 'content-type': presign.requiredContentType },
         body: file,

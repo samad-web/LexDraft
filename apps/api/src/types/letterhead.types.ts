@@ -1,12 +1,12 @@
 /**
- * Letterhead DTOs — kept LOCAL to the api package on purpose. The web
+ * Letterhead DTOs - kept LOCAL to the api package on purpose. The web
  * client mirrors these in `apps/web/src/hooks/useLetterheads.ts` until
  * the feature stabilises and we promote a unified set into `@lexdraft/types`.
  *
  * Editor model: template-with-slots. The user picks one of a small fixed
  * set of `template_key`s (defined client-side, see `LETTERHEAD_TEMPLATES`
  * in the web app) and the slot values land in `fields`. The server doesn't
- * interpret either — it just stores and returns them; the rendering happens
+ * interpret either - it just stores and returns them; the rendering happens
  * client-side at export time.
  */
 
@@ -21,7 +21,7 @@ export type LetterheadTemplateKey =
   | 'court-filing'
   | 'modern-accent';
 
-/** Slot values consumed by the templates. Each template uses a subset —
+/** Slot values consumed by the templates. Each template uses a subset -
  *  unused fields are left blank and ignored by that template's renderer. */
 export interface LetterheadFields {
   firmName?: string;
@@ -94,7 +94,7 @@ export interface ListLetterheadsResponse {
   effectiveDefault: Letterhead | null;
 }
 
-/** Response from POST /api/letterheads/logo-upload-url — same shape the
+/** Response from POST /api/letterheads/logo-upload-url - same shape the
  *  documents flow uses; reusing the existing storage presign pattern. */
 export interface LetterheadLogoUploadUrl {
   uploadUrl: string;

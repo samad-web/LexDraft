@@ -7,7 +7,7 @@ import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { portalStrings as t } from './strings';
 
 /**
- * Profile screen — read-only identity (name + email come from the firm-side
+ * Profile screen - read-only identity (name + email come from the firm-side
  * client record), language preference (English-only in v1), per-event
  * notification toggles, and the DPDP "Right to be forgotten" trigger.
  */

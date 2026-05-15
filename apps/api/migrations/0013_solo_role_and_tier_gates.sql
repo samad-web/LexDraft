@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — Solo Advocate role + Firm-tier nav gates
+-- LexDraft - Solo Advocate role + Firm-tier nav gates
 -- =============================================================================
 -- Two problems being fixed:
 --
@@ -8,7 +8,7 @@
 --       plan. They couldn't see Cases, Clients, etc. in DB mode (demo mode
 --       only hid this by serving an overly-permissive fallback).
 --
---   (b) Three sidebar items — Firm overview, Members, Analytics — had no
+--   (b) Three sidebar items - Firm overview, Members, Analytics - had no
 --       feature key to gate on, so every plan saw them. The dashboard
 --       spec (WORKFLOW_DASHBOARDS.md §3) is explicit: Solo gets none of
 --       these; Practice gets Members only; Firm gets all three.
@@ -18,7 +18,7 @@
 --   1. Adds the missing feature keys (firm.dashboard.view, firm.members.view,
 --      analytics.firm) and maps them to the right plans + roles.
 --   2. Seeds a "Solo Advocate" system role and grants the same feature set
---      the Solo plan allows — so a real Solo sign-up gets a real role.
+--      the Solo plan allows - so a real Solo sign-up gets a real role.
 --
 -- Idempotent.
 -- =============================================================================
@@ -48,18 +48,28 @@ on conflict do nothing;
 -- Mirrors the 'Solo Advocate' text role auth.service.ts uses for self-serve
 -- solo sign-ups. Granting it the same feature set the Solo plan permits keeps
 -- the resolver's plan∩role intersection meaningful.
-insert into roles (id, firm_id, name, description, is_system) values
-  (gen_random_uuid(), null, 'Solo Advocate',
-   'Independent practitioner on the Solo plan. Owns their own matters, clients, drafting, billing.', true)
-on conflict (firm_id, name) do nothing;
+--
+-- We use WHERE NOT EXISTS instead of ON CONFLICT here: the `roles` table only
+-- has *partial* unique indexes (`roles_system_name_uq` is conditional on
+-- `firm_id IS NULL AND is_system = true`), and PG can't reliably infer a
+-- partial index as an ON CONFLICT arbiter from `(firm_id, name)`. WHERE NOT
+-- EXISTS sidesteps the inference and is equally idempotent.
+insert into roles (id, firm_id, name, description, is_system)
+select gen_random_uuid(), null, 'Solo Advocate',
+       'Independent practitioner on the Solo plan. Owns their own matters, clients, drafting, billing.',
+       true
+where not exists (
+  select 1 from roles
+  where firm_id is null and is_system = true and name = 'Solo Advocate'
+);
 
--- ---- role_features (Layer 2) — Solo Advocate ------------------------------
+-- ---- role_features (Layer 2) - Solo Advocate ------------------------------
 do $$
 declare
   r_solo uuid := (select id from roles where firm_id is null and is_system = true and name = 'Solo Advocate');
 begin
   if r_solo is null then
-    raise notice 'Solo Advocate role not found — skipping role_features seed';
+    raise notice 'Solo Advocate role not found - skipping role_features seed';
     return;
   end if;
 
@@ -81,7 +91,7 @@ begin
   on conflict do nothing;
 end $$;
 
--- ---- role_features (Layer 2) — Firm-tier nav gates ------------------------
+-- ---- role_features (Layer 2) - Firm-tier nav gates ------------------------
 -- firm.dashboard.view, firm.members.view, analytics.firm:
 --   - Firm Admin gets all (mass-insert below)
 --   - Partner gets all three
@@ -112,7 +122,7 @@ begin
       (r_senior, 'firm.members.view', true)
     on conflict do nothing;
   end if;
-  -- Firm Admin sweep — picks up the new keys whether or not the role was
+  -- Firm Admin sweep - picks up the new keys whether or not the role was
   -- already mass-inserted by 0009/0012.
   if r_admin is not null then
     insert into role_features (role_id, feature_key, enabled)

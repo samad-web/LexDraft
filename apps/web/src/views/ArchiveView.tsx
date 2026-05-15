@@ -43,10 +43,10 @@ export function ArchiveView() {
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ — CLOSED MATTERS</div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - CLOSED MATTERS</div>
         <h1 className="heading-xl">Archive</h1>
         <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          A complete register of disposed matters across the chambers. Read-only — original files are preserved with their final orders.
+          A complete register of disposed matters across the chambers. Read-only - original files are preserved with their final orders.
         </p>
       </div>
 

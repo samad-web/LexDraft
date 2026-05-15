@@ -1,5 +1,5 @@
 /**
- * Conflict-of-interest types — Practice-tier feature.
+ * Conflict-of-interest types - Practice-tier feature.
  *
  * Bar Council rules require advocates to refuse a matter where they (or the
  * firm) have a relationship with the opposing side. The check runs across
@@ -11,8 +11,8 @@
  *   - amber → soft warning; party name appeared in an older matter
  *   - green → no hits, safe to proceed
  *
- * Hits are kept simple — just the matched fragment + classification + the
- * row it came from — so the UI can render a humane "we found X in Y"
+ * Hits are kept simple - just the matched fragment + classification + the
+ * row it came from - so the UI can render a humane "we found X in Y"
  * narrative without re-querying.
  */
 
@@ -28,7 +28,7 @@ export type ConflictClassification =
  * logic differs subtly: a hit on a *party* name against `cases.client` means
  * "we have represented this person" (informational); a hit on an *opposing*
  * name against `cases.client` means the firm has acted for the now-opposing
- * party — a textbook conflict.
+ * party - a textbook conflict.
  */
 export type ConflictSide = 'party' | 'opposing';
 

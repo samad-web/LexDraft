@@ -1,7 +1,7 @@
 -- =============================================================================
 -- 0029_letterheads.sql
 -- =============================================================================
--- Per-firm + per-user letterhead library — the design data the Settings →
+-- Per-firm + per-user letterhead library - the design data the Settings →
 -- Letterhead editor saves, and the exporter renders at the top of every
 -- generated document (PDF / DOCX). Replaces the centered "DOCUMENT TITLE"
 -- block currently injected by buildDocumentHtml.
@@ -20,7 +20,7 @@
 -- fields as JSONB keeps the schema stable as new templates land.
 --
 -- The logo lives under the existing storage driver (local / s3 / r2). We
--- only persist `logo_key` here — never inline data URLs — so the JSON
+-- only persist `logo_key` here - never inline data URLs - so the JSON
 -- blob stays small.
 --
 -- Default invariants:
@@ -46,13 +46,13 @@ create table if not exists letterheads (
   updated_at      timestamptz not null default now()
 );
 
--- Browse by firm — the common list-letterheads-for-this-firm query.
+-- Browse by firm - the common list-letterheads-for-this-firm query.
 create index if not exists letterheads_firm_idx on letterheads (firm_id);
--- Personal lookup — list-mine-only path.
+-- Personal lookup - list-mine-only path.
 create index if not exists letterheads_owner_idx
   on letterheads (owner_user_id) where owner_user_id is not null;
 
--- One firm-scoped default per firm. Partial index — non-default rows
+-- One firm-scoped default per firm. Partial index - non-default rows
 -- coexist freely.
 create unique index if not exists letterheads_firm_default_uq
   on letterheads (firm_id) where owner_user_id is null and is_default = true;

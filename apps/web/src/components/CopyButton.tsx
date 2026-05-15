@@ -5,11 +5,11 @@ import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
  * that fades in on hover; on click, the icon swaps to a checkmark and a
  * subtle "Copied" pill appears for ~1.5s.
  *
- * Designed for long identifiers advocates copy constantly — CNRs, case
+ * Designed for long identifiers advocates copy constantly - CNRs, case
  * IDs, invoice numbers. The whole element is clickable and keyboard-
  * focusable so it works for accessibility users too.
  *
- * Visual restraint is intentional — the legal design system is monochrome,
+ * Visual restraint is intentional - the legal design system is monochrome,
  * so the only motion is a brief opacity transition on the feedback pill.
  */
 export function CopyButton({
@@ -20,10 +20,10 @@ export function CopyButton({
 }: {
   /** The string to write to clipboard. */
   value: string;
-  /** Optional visible label override — defaults to `value`. Useful when
+  /** Optional visible label override - defaults to `value`. Useful when
    *  the visible text is shorter than the actual identifier (rare). */
   label?: string;
-  /** Render with monospaced + tabular numerals — the default for legal
+  /** Render with monospaced + tabular numerals - the default for legal
    *  identifiers. Set to false for plain text. */
   mono?: boolean;
   className?: string;
@@ -97,7 +97,7 @@ export function CopyButton({
             letterSpacing: '0.02em',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
-            // Fade-in handled by mounting — keep it minimal so the
+            // Fade-in handled by mounting - keep it minimal so the
             // pill feels instant rather than animated.
             animation: 'copy-pill-in 140ms ease-out',
           }}

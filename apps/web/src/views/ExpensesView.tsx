@@ -49,7 +49,7 @@ export function ExpensesView() {
           onClick={async () => {
             // GST / Tally-compatible CSV via /api/exports/expenses.csv.
             // The view has no category filter today, so we don't pass a
-            // `type` param — when one is added, mirror its value here.
+            // `type` param - when one is added, mirror its value here.
             try {
               const resp = await apiClient.get('/api/exports/expenses.csv', {
                 responseType: 'blob',

@@ -1,5 +1,5 @@
 /**
- * Financial export — CSV generation for GST + Tally compliance.
+ * Financial export - CSV generation for GST + Tally compliance.
  *
  * Indian advocates need quarterly tax & GST returns. The schema doesn't
  * carry GST fields yet (no `gst_pct`, `sac_code`, `paid_date`, etc.), so
@@ -70,7 +70,7 @@ function commentLine(text: string): string {
 // We read GST-style columns via `to_jsonb(row)->>'col_name'` instead of
 // referencing the column directly. That's deliberate: when a future
 // migration adds `gst_pct`, `gst_no`, `sac_code`, `paid_date` etc. the
-// existing query lights up automatically — and when the column doesn't
+// existing query lights up automatically - and when the column doesn't
 // exist yet, `to_jsonb(row)->>'missing'` returns NULL instead of erroring
 // (Postgres treats absent keys as NULL on jsonb access). One query path,
 // forward-compatible with the schema, no `information_schema` round-trip.
@@ -112,7 +112,7 @@ export const exportsService = {
   async invoicesCsv(filter: InvoicesExportFilter): Promise<string> {
     if (!filter.firmId) {
       return [
-        commentLine('LexDraft invoices export — no firm attached, file intentionally empty.'),
+        commentLine('LexDraft invoices export - no firm attached, file intentionally empty.'),
         csvRow(['invoice_no', 'issued_date', 'due_date', 'client_name', 'gst_no',
                 'sac_code', 'amount_inr', 'gst_pct', 'gst_inr', 'total_inr',
                 'status', 'paid_date']),
@@ -123,9 +123,9 @@ export const exportsService = {
 
     const out: string[] = [];
     out.push(commentLine(
-      `LexDraft invoices export — generated ${new Date().toISOString().slice(0, 10)}. ` +
+      `LexDraft invoices export - generated ${new Date().toISOString().slice(0, 10)}. ` +
       `GST defaults used where source data is absent: gst_pct=${DEFAULT_GST_PCT}, sac_code=${DEFAULT_SAC_CODE} (legal services). ` +
-      `These cells are ESTIMATED — verify before filing.`,
+      `These cells are ESTIMATED - verify before filing.`,
     ));
     out.push(csvRow([
       'invoice_no', 'issued_date', 'due_date', 'client_name', 'gst_no',
@@ -158,7 +158,7 @@ export const exportsService = {
   async expensesCsv(filter: ExpensesExportFilter): Promise<string> {
     if (!filter.firmId) {
       return [
-        commentLine('LexDraft expenses export — no firm attached, file intentionally empty.'),
+        commentLine('LexDraft expenses export - no firm attached, file intentionally empty.'),
         csvRow(['expense_no', 'incurred_date', 'category', 'vendor', 'gst_no',
                 'amount_inr', 'gst_inr', 'total_inr', 'payment_method', 'case_label']),
       ].join('');
@@ -168,9 +168,9 @@ export const exportsService = {
 
     const out: string[] = [];
     out.push(commentLine(
-      `LexDraft expenses export — generated ${new Date().toISOString().slice(0, 10)}. ` +
+      `LexDraft expenses export - generated ${new Date().toISOString().slice(0, 10)}. ` +
       `gst_inr is estimated as ${DEFAULT_GST_PCT}% of net where source data is absent. ` +
-      `vendor / gst_no / payment_method default to blank when unknown — verify before filing.`,
+      `vendor / gst_no / payment_method default to blank when unknown - verify before filing.`,
     ));
     out.push(csvRow([
       'expense_no', 'incurred_date', 'category', 'vendor', 'gst_no',
@@ -178,7 +178,7 @@ export const exportsService = {
     ]));
     for (const r of rows) {
       // For expenses the stored amount is treated as NET (pre-GST), which
-      // matches typical bookkeeping practice — vendor invoices break out
+      // matches typical bookkeeping practice - vendor invoices break out
       // base + GST. If real fields land later, use them in place of split.
       const net   = r.expense.amountInr;
       const gst   = r.extras.gstInr > 0
@@ -212,7 +212,7 @@ interface ExpenseExportRow { expense: Expense; extras: ExpenseExtras }
 async function fetchInvoicesForExport(filter: InvoicesExportFilter): Promise<InvoiceExportRow[]> {
   const sql = db();
   if (!sql) {
-    // No DB — fall back to the same service the routes use, then filter in
+    // No DB - fall back to the same service the routes use, then filter in
     // memory. Keeps demo-mode + tests honest.
     const all = await invoicesService.list(filter.firmId ?? null);
     return all
@@ -225,7 +225,7 @@ async function fetchInvoicesForExport(filter: InvoicesExportFilter): Promise<Inv
   const status = filter.status ?? null;
 
   // `to_jsonb(i)->>'col'` returns NULL when the column is absent rather
-  // than raising — so this query is forward-compatible with a future
+  // than raising - so this query is forward-compatible with a future
   // migration that adds gst_pct / gst_no / sac_code / paid_date columns.
   const rows = await sql<Array<{
     id: string; invoice_no: string; client: string; amount_inr: number;
@@ -277,7 +277,7 @@ async function fetchExpensesForExport(filter: ExpensesExportFilter): Promise<Exp
   const until = filter.until ?? null;
   const type  = filter.type  ?? null;
 
-  // Same forward-compatible jsonb extraction trick as the invoice path —
+  // Same forward-compatible jsonb extraction trick as the invoice path -
   // NULLs surface here when columns don't exist yet, and we coalesce to
   // sensible defaults below.
   const rows = await sql<Array<{

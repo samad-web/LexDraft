@@ -1,9 +1,9 @@
 /**
- * Migration validation — proves every SQL file under apps/api/migrations:
+ * Migration validation - proves every SQL file under apps/api/migrations:
  *   1. Names itself with the agreed `NNNN_<snake_case>.sql` pattern.
  *   2. Applies cleanly against an empty schema, in order.
  *   3. Leaves the headline domain tables present.
- *   4. Is idempotent — re-running every migration a second time succeeds.
+ *   4. Is idempotent - re-running every migration a second time succeeds.
  *
  * This is the integration suite's load-bearing test. If a migration goes in
  * with a syntax error, a missing IF NOT EXISTS, or a dependency on a column
@@ -11,7 +11,7 @@
  * chance to mislead with a confusing error.
  *
  * The migration runner from `src/scripts/migrate.ts` is intentionally NOT
- * reused — it expects a real `DATABASE_URL` against the public schema and a
+ * reused - it expects a real `DATABASE_URL` against the public schema and a
  * `_migrations` ledger. Here we apply files directly inside the test schema
  * with explicit `search_path` control.
  */
@@ -62,7 +62,7 @@ beforeAll(async () => {
   }
   schema = `mig_${crypto.randomBytes(3).toString('hex')}`;
   // `max: 1` so `set search_path` (and any subsequent migration SQL) all
-  // route over the same physical connection — otherwise a pool round-robin
+  // route over the same physical connection - otherwise a pool round-robin
   // could land a query in `public` instead of the test schema.
   sql = postgres(url, {
     ssl: false,
@@ -90,7 +90,7 @@ async function listMigrationFiles(): Promise<string[]> {
     .sort((a, b) => a.localeCompare(b));
 }
 
-describe('migrations — file naming', () => {
+describe('migrations - file naming', () => {
   it('every .sql file matches NNNN_snake_case.sql', async () => {
     const files = await listMigrationFiles();
     expect(files.length).toBeGreaterThan(0);
@@ -100,7 +100,7 @@ describe('migrations — file naming', () => {
   });
 });
 
-describe('migrations — apply against empty schema', () => {
+describe('migrations - apply against empty schema', () => {
   it('applies every migration in order with a SELECT 1 health check between each', async () => {
     const files = await listMigrationFiles();
     for (const filename of files) {
@@ -139,7 +139,7 @@ describe('migrations — apply against empty schema', () => {
   });
 });
 
-describe('migrations — idempotency', () => {
+describe('migrations - idempotency', () => {
   it('re-running every migration a second time succeeds without errors', async () => {
     const files = await listMigrationFiles();
     for (const filename of files) {
@@ -147,7 +147,7 @@ describe('migrations — idempotency', () => {
       const body = await readFile(resolve(MIGRATIONS_DIR, filename), 'utf8');
       // If a migration is non-idempotent (e.g. missing `if not exists` or a
       // bare `insert` without `on conflict do nothing`), the unsafe() call
-      // throws — re-throw with the file name so the failure message is
+      // throws - re-throw with the file name so the failure message is
       // actually actionable.
       try {
         await sql.unsafe(body);

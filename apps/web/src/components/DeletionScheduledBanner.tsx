@@ -2,7 +2,7 @@
  * Top-of-shell banner that surfaces a pending DPDP deletion request, with a
  * one-click Cancel.
  *
- * Limitation — the backend has no `GET /api/me/dpdp/deletion-status` endpoint
+ * Limitation - the backend has no `GET /api/me/dpdp/deletion-status` endpoint
  * yet. State is read from the React Query cache that the request/cancel
  * mutations write to. In practice this means: the banner only shows in the
  * same browser session that *initiated* the deletion. Reload (or a different
@@ -13,7 +13,7 @@
  */
 
 import { Icon } from '@lexdraft/ui';
-// Using 'flag' for the warning indicator — the IconName union does not
+// Using 'flag' for the warning indicator - the IconName union does not
 // include an alert/warning glyph and 'flag' is what CalculatorsView uses for
 // its advisory banner.
 import { useCancelDeletion, useDeletionStatus } from '@/hooks/useDpdp';

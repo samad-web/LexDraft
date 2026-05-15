@@ -79,7 +79,7 @@ const BILLING_OPTIONS = [
 ];
 
 const STEPS: Step[] = [
-  { n: '01', t: 'Capture the matter', b: 'Voice-record the client conversation. LexDraft extracts parties, facts, dates, and the cause of action — then opens the case file pre-populated.', out: 'Case file ready' },
+  { n: '01', t: 'Capture the matter', b: 'Voice-record the client conversation. LexDraft extracts parties, facts, dates, and the cause of action - then opens the case file pre-populated.', out: 'Case file ready' },
   { n: '02', t: 'Draft with AI', b: 'Choose from 200+ Indian-format templates. Drafts stream in seconds with citations, statutory references, and a precedent trail you can audit.', out: 'Draft ready to print' },
   { n: '03', t: 'File and follow up', b: 'Print court-ready, e-file via integrated portals, and track limitation. Every deadline auto-syncs to your calendar and the client’s.', out: 'Calendar synced' },
   { n: '04', t: 'Review contracts', b: 'Drop a contract in. Risk-flagged clause-by-clause output, with redlines aligned to your firm’s preferred positions.', out: 'Risk report ready' },
@@ -90,7 +90,7 @@ const STEPS: Step[] = [
 type FeatureIconName = 'draft' | 'cases' | 'contracts' | 'billing' | 'research' | 'limitation';
 
 const FEATURES: FeatureItem[] = [
-  { t: 'Drafting', b: 'Notices, plaints, written statements, vakalatnamas — every Indian-format document with statutory citations baked in.', icon: 'draft' },
+  { t: 'Drafting', b: 'Notices, plaints, written statements, vakalatnamas - every Indian-format document with statutory citations baked in.', icon: 'draft' },
   { t: 'Cases', b: 'CNR-linked, eCourts integrated. Hearing diary, cause-list pull, party tracking, and document tagging in a single timeline.', icon: 'cases' },
   { t: 'Contracts', b: 'Clause-level risk scoring with red-line suggestions. Compare against your firm’s preferred-positions library.', icon: 'contracts' },
   { t: 'Billing', b: 'Tabular-aligned invoices, retainer reconciliation, and NEFT/UPI payment receipts that match your IT-return format.', icon: 'billing' },
@@ -101,7 +101,7 @@ const FEATURES: FeatureItem[] = [
 const BENEFITS: string[] = [
   'Read briefs for ten hours without eye strain',
   'Tabular numbers for fees, dates, and case numbers',
-  'Italic reserved for case names — never decoration',
+  'Italic reserved for case names - never decoration',
   'Status colour only on status, never on chrome',
   'WCAG AA across both light and dark themes',
 ];
@@ -115,7 +115,7 @@ const TRUST_POINTS: string[] = [
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    quote: 'The interface stays out of the way — exactly what a brief deserves. I can read drafts for an entire afternoon without my eyes burning.',
+    quote: 'The interface stays out of the way - exactly what a brief deserves. I can read drafts for an entire afternoon without my eyes burning.',
     attribution: 'Senior Advocate',
     role: 'Civil practice · Madras High Court',
   },
@@ -150,7 +150,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Can I export my data if I leave?',
-    a: 'Yes — at any time. One-click export of every matter, draft, contract, invoice, and document as a portable archive. No lock-in, no waiting period.',
+    a: 'Yes - at any time. One-click export of every matter, draft, contract, invoice, and document as a portable archive. No lock-in, no waiting period.',
   },
   {
     q: 'How is LexDraft priced for partnerships?',
@@ -218,21 +218,21 @@ const SUPPORT_CHANNELS: SupportChannel[] = [
     eyebrow: 'Email',
     title: 'support@lexdraft.in',
     detail: 'Detailed queries, screenshots, and audit-trail requests. Replies within four working hours on business days.',
-    hours: 'Mon–Fri · 9:00–19:00 IST',
+    hours: 'Mon-Fri · 9:00-19:00 IST',
     cta: { label: 'Compose email', href: 'mailto:support@lexdraft.in' },
   },
   {
     eyebrow: 'WhatsApp',
     title: 'Chambers liaison',
     detail: 'Quick questions, file attachments, escalations from the bench. A real chambers-trained liaison, not a bot.',
-    hours: 'Mon–Sat · 9:00–21:00 IST',
+    hours: 'Mon-Sat · 9:00-21:00 IST',
     cta: { label: 'Open WhatsApp', href: 'https://wa.me/918045678900' },
   },
   {
     eyebrow: 'Phone',
     title: '+91 80 4567 8900',
-    detail: 'Calls only — no IVR, no hold music. Routed to a senior support engineer when our liaison is unavailable.',
-    hours: 'Mon–Fri · 10:00–19:00 IST',
+    detail: 'Calls only - no IVR, no hold music. Routed to a senior support engineer when our liaison is unavailable.',
+    hours: 'Mon-Fri · 10:00-19:00 IST',
     cta: { label: 'Call support', href: 'tel:+918045678900' },
   },
 ];
@@ -695,7 +695,7 @@ export function LandingView() {
             Practice management built for Indian advocates, not adapted for them.
           </h1>
           <p className="lede" style={{ fontSize: 19, color: 'var(--text-secondary)', maxWidth: 640, marginBottom: 36 }}>
-            Cases, drafting, billing, and research — unified under one calm, document-first interface. Indian-format templates, eCourts integrated, citations to SCC and Manupatra. Built to be read for ten hours straight.
+            Cases, drafting, billing, and research - unified under one calm, document-first interface. Indian-format templates, eCourts integrated, citations to SCC and Manupatra. Built to be read for ten hours straight.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button className="btn btn-primary btn-lg" type="button" onClick={goAuth}>
@@ -776,7 +776,7 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* WORKFLOW — compact connected timeline */}
+      {/* WORKFLOW - compact connected timeline */}
       <section
         id="workflow"
         style={{
@@ -792,7 +792,7 @@ export function LandingView() {
             <SectionLabel
               eyebrow="How it works"
               title="From client intake to court-ready filing in one workspace."
-              description="Six steps that mirror how chambers already work — only faster and with the paper trail kept for you."
+              description="Six steps that mirror how chambers already work - only faster and with the paper trail kept for you."
               maxWidth={760}
             />
           </div>
@@ -816,13 +816,13 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* FEATURE GRID — with icons */}
+      {/* FEATURE GRID - with icons */}
       <section style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto' }}>
         <div className="reveal">
           <SectionLabel
             eyebrow="The product"
             title="Everything a chamber runs on. Nothing that gets in the way."
-            description="Six modules that share one case file — so a deadline added in Limitation shows up in Calendar, and an invoice issued in Billing closes against the same matter."
+            description="Six modules that share one case file - so a deadline added in Limitation shows up in Calendar, and an invoice issued in Billing closes against the same matter."
             maxWidth={760}
           />
         </div>
@@ -871,7 +871,7 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* LEGIBILITY — reframed as user benefits */}
+      {/* LEGIBILITY - reframed as user benefits */}
       <section
         style={{
           padding: '96px 48px',
@@ -1332,7 +1332,7 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* TRIAL CTA — what's in the trial */}
+      {/* TRIAL CTA - what's in the trial */}
       <section
         id="trial"
         className="reveal-stagger"
@@ -1385,7 +1385,7 @@ export function LandingView() {
           {[
             {
               t: 'Full Practice tier',
-              b: 'Every Practice-tier feature is unlocked for 14 days — eight seats, unlimited matters, all integrations.',
+              b: 'Every Practice-tier feature is unlocked for 14 days - eight seats, unlimited matters, all integrations.',
             },
             {
               t: 'Free 60-min onboarding',
@@ -1542,7 +1542,7 @@ export function LandingView() {
           ))}
         </div>
 
-        {/* Bottom strip — CIN + compliance */}
+        {/* Bottom strip - CIN + compliance */}
         <div className="lex-footer-base">
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             © 2026 LexDraft Technologies Pvt Ltd · CIN U72900KA2024PTC987654

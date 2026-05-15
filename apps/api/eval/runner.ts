@@ -1,4 +1,4 @@
-// LexDraft drafting eval harness — standalone runner.
+// LexDraft drafting eval harness - standalone runner.
 //
 // NOT a vitest test. LLM calls are slow, non-deterministic, and cost money;
 // we run this on-demand against the live provider when changing prompts,
@@ -14,11 +14,11 @@
 //   pnpm --filter @lexdraft/api eval --json
 //
 // Exit codes:
-//   0  — all briefs pass, or (with --baseline) no regressions vs baseline
-//   1  — at least one regression (failing brief that previously passed,
-//        or score drop greater than REGRESSION_SCORE_DELTA) — also used
+//   0  - all briefs pass, or (with --baseline) no regressions vs baseline
+//   1  - at least one regression (failing brief that previously passed,
+//        or score drop greater than REGRESSION_SCORE_DELTA) - also used
 //        for unhandled errors
-//   2  — invalid CLI args
+//   2  - invalid CLI args
 
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -130,7 +130,7 @@ async function runOne(
     return evaluateBrief(brief, resp.text, latency);
   } catch (err) {
     // The drafting service swallows provider errors and falls back to the
-    // template, so we shouldn't normally land here — but if we do (bad env,
+    // template, so we shouldn't normally land here - but if we do (bad env,
     // import failure), surface it as a hard 0 with the error in `failures`
     // rather than crashing the whole run.
     const latency = Date.now() - start;
@@ -183,7 +183,7 @@ function pad(s: string, width: number): string {
 function printTable(summary: RunSummary): void {
   const lines: string[] = [];
   lines.push('');
-  lines.push('LexDraft drafting eval — results');
+  lines.push('LexDraft drafting eval - results');
   lines.push('═'.repeat(86));
   lines.push(
     pad('ID', 38) + ' '
@@ -285,7 +285,7 @@ function printDiffTable(diff: ReturnType<typeof diffAgainstBaseline>): void {
   );
   lines.push('─'.repeat(86));
   for (const r of rows) {
-    const base = r.baselineScore === null ? '—' : String(r.baselineScore);
+    const base = r.baselineScore === null ? '-' : String(r.baselineScore);
     const deltaStr = r.delta > 0 ? `+${r.delta}` : String(r.delta);
     lines.push(
       pad(r.briefId, 38) + ' '

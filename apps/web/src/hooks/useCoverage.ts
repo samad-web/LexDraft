@@ -1,5 +1,5 @@
 /**
- * Coverage swap board — TanStack Query wrappers.
+ * Coverage swap board - TanStack Query wrappers.
  *
  * Read query (`useCoverageList`) returns all firm-scoped coverage requests
  * the caller has access to. The mutations invalidate the list after each

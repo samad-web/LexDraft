@@ -13,7 +13,7 @@ interface AIDisclaimerModalProps {
 
 export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDisclaimerModalProps) {
   const [acknowledged, setAcknowledged] = useState(false);
-  // Letterhead selection — defaults to the user's effective default.
+  // Letterhead selection - defaults to the user's effective default.
   const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(undefined);
 
   if (!open || !format) return null;
@@ -75,8 +75,8 @@ export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDiscl
         <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text-secondary)', margin: 0 }}>
           The {format} you are about to download was drafted with AI assistance. It may contain
           factual, legal, or citation errors. <strong style={{ color: 'var(--text-primary)' }}>
-          You must review and verify every paragraph</strong> — facts, parties, dates, statutes,
-          and prayer — before filing it, serving it on a party, or sending it to a client.
+          You must review and verify every paragraph</strong> - facts, parties, dates, statutes,
+          and prayer - before filing it, serving it on a party, or sending it to a client.
         </p>
 
         <p style={{ fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-tertiary)', margin: 0 }}>

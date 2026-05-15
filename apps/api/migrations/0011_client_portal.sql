@@ -1,13 +1,13 @@
 -- =============================================================================
--- LexDraft — Client portal
+-- LexDraft - Client portal
 -- =============================================================================
 -- Read-only portal that lets clients see their own cases, hearings, invoices,
 -- and documents. Auth is via magic link (passwordless): the client enters
 -- their email, we mint a short-lived single-use token, email it (today: log
 -- via the email.send job stub), and exchange it for a portal-scoped JWT.
 --
---   * clients.email                  — destination for the magic link
---   * client_portal_sessions         — magic-link tokens (hashed)
+--   * clients.email                  - destination for the magic link
+--   * client_portal_sessions         - magic-link tokens (hashed)
 --
 -- Idempotent.
 -- =============================================================================

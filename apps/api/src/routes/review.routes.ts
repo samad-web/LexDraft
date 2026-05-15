@@ -1,23 +1,23 @@
 /**
- * Contract-review routes — gated by `review.approve` (Practice + Firm tiers;
+ * Contract-review routes - gated by `review.approve` (Practice + Firm tiers;
  * Solo gets `review.comment` only, which is read-only commentary on others'
  * reviews and not yet exposed).
  *
- *   POST   /api/review                          — run a fresh review
- *   GET    /api/review                          — list firm's reviews
- *   GET    /api/review/assignable-users         — directory for the picker
- *   GET    /api/review/:id                      — full review payload
- *   PATCH  /api/review/:id                      — assignee / decision update
- *   DELETE /api/review/:id                      — remove a review
- *   GET    /api/review/:id/comments             — list comments on a review
- *   POST   /api/review/:id/comments             — add a comment (or reply)
- *   PATCH  /api/review/:id/comments/:commentId  — edit (author only)
- *   DELETE /api/review/:id/comments/:commentId  — soft-delete (author only)
+ *   POST   /api/review                          - run a fresh review
+ *   GET    /api/review                          - list firm's reviews
+ *   GET    /api/review/assignable-users         - directory for the picker
+ *   GET    /api/review/:id                      - full review payload
+ *   PATCH  /api/review/:id                      - assignee / decision update
+ *   DELETE /api/review/:id                      - remove a review
+ *   GET    /api/review/:id/comments             - list comments on a review
+ *   POST   /api/review/:id/comments             - add a comment (or reply)
+ *   PATCH  /api/review/:id/comments/:commentId  - edit (author only)
+ *   DELETE /api/review/:id/comments/:commentId  - soft-delete (author only)
  *
  * The POST review handler is wrapped in `llmGenerationLimiter` (the same
  * per-user cap the drafting routes use) so a runaway script can't burn
  * through the LLM budget by re-submitting paste after paste. Comment
- * mutations don't hit an LLM — they're plain CRUD, so the global write
+ * mutations don't hit an LLM - they're plain CRUD, so the global write
  * limiter is sufficient.
  */
 
@@ -37,7 +37,7 @@ const PERSPECTIVE = z.enum([
 
 const Create = z.object({
   perspective: PERSPECTIVE,
-  // Cap at ~200KB — the service truncates further to 120KB before the LLM
+  // Cap at ~200KB - the service truncates further to 120KB before the LLM
   // call. Anything above this is almost certainly a paste mishap.
   sourceText: z.string().min(50).max(200_000),
   title: z.string().max(200).optional(),
@@ -66,7 +66,7 @@ const UpdateComment = z.object({
 // Gate at `review.comment` (not `review.approve`) so every plan tier sees
 // the feature. Solo's plan_features row only includes `review.comment`;
 // `review.approve` is Practice+ only. Granting the entire review surface
-// — including assign/decide/comment — under `review.comment` keeps the
+// - including assign/decide/comment - under `review.comment` keeps the
 // page visible to Solo users without inventing a third feature key.
 const gate = requireFeature('review.comment');
 
@@ -89,7 +89,7 @@ reviewRouter.post('/', gate, llmGenerationLimiter, async (req, res, next) => {
       ...(body.documentId ? { documentId: body.documentId } : {}),
       ...(body.provider ? { provider: body.provider } : {}),
     });
-    // 201 even when status='failed' — the row exists, the UI renders the
+    // 201 even when status='failed' - the row exists, the UI renders the
     // failure inline. Only validation / auth problems surface as 4xx.
     res.status(201).json(created);
   } catch (err) {
@@ -107,7 +107,7 @@ reviewRouter.get('/', gate, async (req, res, next) => {
   }
 });
 
-// "My queue" — reviews assigned to the caller. Defined BEFORE the
+// "My queue" - reviews assigned to the caller. Defined BEFORE the
 // `/:id` route so Express doesn't match `mine` as an id.
 reviewRouter.get('/mine', gate, async (req, res, next) => {
   try {
@@ -122,7 +122,7 @@ reviewRouter.get('/mine', gate, async (req, res, next) => {
 
 // Lightweight directory for the assignee picker. Gated by `review.approve`
 // so we don't broaden access beyond who can already see /app/review; only
-// id/name/email are returned (no role, status, etc.) — that lives on the
+// id/name/email are returned (no role, status, etc.) - that lives on the
 // admin-only /firm/users surface.
 reviewRouter.get('/assignable-users', gate, async (req, res, next) => {
   try {
@@ -133,7 +133,7 @@ reviewRouter.get('/assignable-users', gate, async (req, res, next) => {
     }
     const sql = db();
     if (!sql) {
-      // In-memory mode — no users table to enumerate. Return at least the
+      // In-memory mode - no users table to enumerate. Return at least the
       // caller so the picker isn't empty in dev.
       res.json({
         items: req.user

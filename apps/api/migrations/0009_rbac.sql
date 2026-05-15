@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — Firm-tier RBAC, Practice Groups, Feature Entitlements
+-- LexDraft - Firm-tier RBAC, Practice Groups, Feature Entitlements
 -- =============================================================================
 -- Implements Phase 1 of lexdraft-user-management-spec.md:
 --   * practice_groups          (sub-units inside a firm)
@@ -117,7 +117,7 @@ create index if not exists users_role_idx on users (role_id);
 create index if not exists users_pg_idx   on users (practice_group_id);
 
 -- =============================================================================
--- SEED — system roles, feature catalog, plan & role mappings
+-- SEED - system roles, feature catalog, plan & role mappings
 -- =============================================================================
 
 -- ---- 8 system roles (spec §4.1) ---------------------------------------------
@@ -134,7 +134,7 @@ on conflict do nothing;
 
 -- ---- feature catalog (spec §6) ----------------------------------------------
 insert into features (key, name, description, domain, default_baseline) values
-  -- Baseline (every active user, regardless of role/plan — spec §5.1)
+  -- Baseline (every active user, regardless of role/plan - spec §5.1)
   ('profile.view',         'View own profile',                 'Read your profile and update your password.', 'baseline', true),
   ('profile.update',       'Update own profile',               'Edit your profile and change your password.', 'baseline', true),
   ('announcements.view',   'View firm announcements',          'See announcements posted by firm admins.',   'baseline', true),
@@ -302,7 +302,7 @@ begin
   )
   on conflict do nothing;
 
-  -- Intern: read-only-ish — only the very basic drafting + matter view
+  -- Intern: read-only-ish - only the very basic drafting + matter view
   insert into role_features (role_id, feature_key, enabled)
   select r_intern, key, true
   from features

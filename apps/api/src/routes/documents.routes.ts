@@ -38,7 +38,7 @@ const FinalizeUploadInput = z.object({
 
 function relativeFromIso(iso: string): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '—';
+  if (Number.isNaN(then)) return '-';
   const diff = Date.now() - then;
   const min = Math.round(diff / 60_000);
   if (min < 1) return 'just now';
@@ -56,7 +56,7 @@ export const documentsRouter: Router = Router();
 
 // Documents read uses the baseline `shared.documents` so every authenticated
 // firm member can see what's been shared with them. Writes/uploads gate on
-// drafting.basic — same key as drafts editing.
+// drafting.basic - same key as drafts editing.
 
 documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, next) => {
   try {
@@ -70,7 +70,7 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
       id: d.id,
       name: d.title,
       type: d.docType,
-      case: '—',
+      case: '-',
       updated: relativeFromIso(d.updatedAt),
       kind: 'draft',
     }));
@@ -125,7 +125,7 @@ documentsRouter.post('/upload-url', requireFeature('drafting.basic'), validate({
   try {
     const firmId = await firmIdForUser(req.user?.id);
     if (!firmId) {
-      res.status(422).json({ error: 'No firm attached — cannot upload documents' });
+      res.status(422).json({ error: 'No firm attached - cannot upload documents' });
       return;
     }
     const safeName = req.body.fileName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 200) || 'file';

@@ -7,7 +7,7 @@ import { validate } from '../middleware/validate';
 /**
  * Sanhita translator routes.
  *
- * Surface area is deliberately tiny — three endpoints, all read-only and
+ * Surface area is deliberately tiny - three endpoints, all read-only and
  * tenant-agnostic (the mapping is the same for every firm). Gated under
  * `drafting.basic` because the primary consumer is the drafting view's
  * stale-IPC linter.
@@ -34,7 +34,7 @@ const ListQuery = z.object({
 
 export const sanhitaRouter: Router = Router();
 
-// GET /api/sanhita — list the curated mapping table (optionally filtered).
+// GET /api/sanhita - list the curated mapping table (optionally filtered).
 sanhitaRouter.get(
   '/',
   requireFeature('drafting.basic'),

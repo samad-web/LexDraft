@@ -22,11 +22,11 @@ export function useSignIn() {
     onSuccess: (r) => {
       // MFA-challenge branch: the server has accepted the password but is
       // withholding the session token until the user proves possession of
-      // their TOTP factor. Do NOT setSession yet — the caller (AuthView)
+      // their TOTP factor. Do NOT setSession yet - the caller (AuthView)
       // routes to the challenge sub-step using the returned `challengeId`.
       if (isMfaChallenge(r)) return;
 
-      // Fully authenticated branch — swap the session, blow away the cache.
+      // Fully authenticated branch - swap the session, blow away the cache.
       qc.clear();
       setSession(r.user, r.token);
 

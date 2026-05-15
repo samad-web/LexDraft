@@ -62,7 +62,7 @@
     },
     "stampDuty": {
       "instruments": {
-        "saleDeed":         { "percentage": 7.0, "minimum": 0,   "notes": "Plus 4% registration fee — total ~11%. Among the highest in India." },
+        "saleDeed":         { "percentage": 7.0, "minimum": 0,   "notes": "Plus 4% registration fee - total ~11%. Among the highest in India." },
         "lease":            { "percentage": 1.0, "monthsCap": 60, "notes": "Lease under 30y: 1% of total rent + premium. Above 30y treated as conveyance." },
         "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA without consideration. Family PoA: INR 1000 with INR 1000 reg fee." },
         "affidavit":        { "fixed": 20,                        "notes": "Schedule I, Article 4 of Indian Stamp Act as applied in TN." },
@@ -106,7 +106,7 @@
         { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 4000 },
         { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 7.5, "cap": 200000 }
       ],
-      "notes": "Court Fees Act (UP amendment) — among the highest court-fee burden in India. 7.5% ad-valorem capped at INR 2L."
+      "notes": "Court Fees Act (UP amendment) - among the highest court-fee burden in India. 7.5% ad-valorem capped at INR 2L."
     },
     "stampDuty": {
       "instruments": {
@@ -178,7 +178,7 @@
         { "matterValueMin": 50000,   "matterValueMax": 100000,  "fee": 2500 },
         { "type": "percentage", "matterValueMin": 100000, "matterValueMax": null, "percentage": 1.0, "cap": null }
       ],
-      "notes": "Kerala Court Fees and Suits Valuation Act 1959. No upper cap on ad-valorem — verify with revenue stamps office for high-value suits."
+      "notes": "Kerala Court Fees and Suits Valuation Act 1959. No upper cap on ad-valorem - verify with revenue stamps office for high-value suits."
     },
     "stampDuty": {
       "instruments": {
@@ -230,7 +230,7 @@
     },
     "stampDuty": {
       "instruments": {
-        "saleDeed":         { "percentage": 4.0, "minimum": 0,   "notes": "Plus 0.5% reg fee and 1.5% transfer duty in municipalities — total ~6%." },
+        "saleDeed":         { "percentage": 4.0, "minimum": 0,   "notes": "Plus 0.5% reg fee and 1.5% transfer duty in municipalities - total ~6%." },
         "lease":            { "percentage": 0.4, "monthsCap": 60, "notes": "Under 10y: 0.4% of avg annual rent. Scales to ~3% for 30y leases." },
         "powerOfAttorney":  { "fixed": 100,                       "notes": "GPA: INR 100. SPA for sale: 5% ad-valorem on property value." },
         "affidavit":        { "fixed": 10,                        "notes": "Telangana Stamp Act, Schedule I-A, Article 4." },

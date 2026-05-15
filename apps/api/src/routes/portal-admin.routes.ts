@@ -153,7 +153,7 @@ portalAdminRouter.patch(
       const body = DocumentPortalPatch.parse(req.body);
       const result = await portalAdminService.setDocumentPortalFlags(docId, firmId, body);
 
-      // Audit the actual transitions, not just the request — so a no-op
+      // Audit the actual transitions, not just the request - so a no-op
       // PATCH (toggle to current value) doesn't pollute the feed.
       if (body.sharedWithClient !== undefined) {
         fireAudit({

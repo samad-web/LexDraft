@@ -3,7 +3,7 @@
  *
  * Extracted from the inline `<a download>` snippets that were duplicated in
  * InvoicesView/ExpensesView so the DPDP export flow can reuse the exact same
- * pattern. Server-side nothing is stored — the file is built once, downloaded
+ * pattern. Server-side nothing is stored - the file is built once, downloaded
  * once, then the object URL is revoked.
  */
 export function triggerBlobDownload(blob: Blob, filename: string): void {

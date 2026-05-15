@@ -6,7 +6,7 @@
 -- them instead of asking the user a second time.
 --
 -- Before this migration these fields were captured in the AuthView form
--- but silently dropped before the request was sent — solo advocates had
+-- but silently dropped before the request was sent - solo advocates had
 -- to re-enter their enrolment number and chambers details when designing
 -- a letterhead. With these columns the LetterheadEditor seeds the slot
 -- fields directly from /auth/me so a solo advocate can save a letterhead
@@ -15,7 +15,7 @@
 -- Placement rationale:
 --   - All three columns live on `users` rather than `firms`. Today every
 --     self-serve sign-up lands in the shared SELF_SERVE_DEFAULT_FIRM_ID
---     firm (see auth.service.ts) — storing these on `firms` would mean
+--     firm (see auth.service.ts) - storing these on `firms` would mean
 --     each fresh signup overwrites the previous user's values. Keeping
 --     them per-user is also semantically fine: different lawyers in the
 --     same firm legitimately have different enrolments, primary courts,

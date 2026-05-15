@@ -108,7 +108,7 @@ export function NewInvoiceModal({ open, onClose }: Props) {
           <ClientAutocomplete
             value={client}
             onChange={setClient}
-            placeholder="Billed to (party name) — start typing to search clients"
+            placeholder="Billed to (party name) - start typing to search clients"
             required
             autoFocus
           />

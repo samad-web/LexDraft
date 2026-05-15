@@ -1,5 +1,5 @@
 /**
- * Engagement-letter automation — Firm-tier feature.
+ * Engagement-letter automation - Firm-tier feature.
  *
  * Owns CRUD over `engagement_templates` (firm-scoped) plus a stateless
  * `generate()` that resolves the template + case context, interpolates the
@@ -18,7 +18,7 @@
  *     can promote a template without first demoting the existing one.
  *
  * When `DATABASE_URL` is not configured the service degrades to a per-firm
- * in-memory store. Same surface, same invariants — keeps dev-mode demos
+ * in-memory store. Same surface, same invariants - keeps dev-mode demos
  * working without a Postgres.
  */
 
@@ -90,7 +90,7 @@ function groupByMatterType(items: EngagementTemplate[]): EngagementTemplateGroup
 const INR_FORMATTER = new Intl.NumberFormat('en-IN');
 
 function formatInr(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return '—';
+  if (value === null || value === undefined || Number.isNaN(value)) return '-';
   return INR_FORMATTER.format(Math.round(value));
 }
 
@@ -122,7 +122,7 @@ function interpolate(body: string, ctx: PlaceholderContext): string {
       if (cur && typeof cur === 'object' && p in (cur as Record<string, unknown>)) {
         cur = (cur as Record<string, unknown>)[p];
       } else {
-        return match; // unknown — leave the placeholder visible
+        return match; // unknown - leave the placeholder visible
       }
     }
     return cur === null || cur === undefined ? '' : String(cur);
@@ -138,8 +138,8 @@ interface BuildLetterArgs {
 
 /**
  * Standard engagement-letter wrapper. The body of the scope / fee sections is
- * authored per-firm in the template; everything around them — header block,
- * salutation, numbering, sign-off — is generated here so every letter the
+ * authored per-firm in the template; everything around them - header block,
+ * salutation, numbering, sign-off - is generated here so every letter the
  * firm sends has the same skeleton.
  */
 function buildLetter({ ctx, scope, fee, retainerInr }: BuildLetterArgs): string {
@@ -245,7 +245,7 @@ export const engagementService = {
 
   async create(input: CreateArgs): Promise<EngagementTemplate> {
     if (!input.firmId) {
-      throw new UnprocessableEntityError('No firm attached — cannot create engagement template');
+      throw new UnprocessableEntityError('No firm attached - cannot create engagement template');
     }
     const sql = db();
     if (sql) {
@@ -277,7 +277,7 @@ export const engagementService = {
       });
       return rowToTemplate(row);
     }
-    // Memory fallback — re-enforce the default invariant manually.
+    // Memory fallback - re-enforce the default invariant manually.
     const bucket = memBucket(input.firmId);
     if (input.isDefault) {
       for (const [k, v] of bucket) {
@@ -420,7 +420,7 @@ export const engagementService = {
     const matter = await casesService.get(args.caseId, args.firmId);
     if (!matter) throw new NotFoundError('Case not found');
 
-    // 2. Resolve the template — explicit pick wins, else firm default for
+    // 2. Resolve the template - explicit pick wins, else firm default for
     //    the matter type.
     let template: EngagementTemplate | null = null;
     if (args.templateId) {
@@ -451,7 +451,7 @@ export const engagementService = {
     }
 
     // 3. Resolve firm + client name. firms / clients tables don't yet carry
-    //    an address column — we degrade gracefully and leave that line out
+    //    an address column - we degrade gracefully and leave that line out
     //    of the header when blank.
     const sql = db();
     let firmName = 'Your firm';

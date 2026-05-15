@@ -9,7 +9,7 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   width?: number;
-  /** Submission handler — when present, the modal renders as a <form>. */
+  /** Submission handler - when present, the modal renders as a <form>. */
   onSubmit?: (e: React.FormEvent) => void;
   footer?: ReactNode;
 }
@@ -28,7 +28,7 @@ export function Modal({
   footer,
 }: ModalProps) {
   const prefersReduced = useReducedMotion();
-  // Honour OS-level "reduce motion" — instant open/close, no scale, no fade.
+  // Honour OS-level "reduce motion" - instant open/close, no scale, no fade.
   const animMs = prefersReduced ? 0 : ANIM_MS;
   // Two-state lifecycle so we can animate BOTH enter and exit:
   //   open=true        → rendered=true, visible=true (transitions in)

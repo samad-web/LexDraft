@@ -6,7 +6,7 @@ import { permissionsService } from '../services/permissions.service';
 export const meRouter: Router = Router();
 
 // Current User as the API knows it. Used at app boot to refresh the cached
-// auth state — picks up plan changes (e.g. firm promoted to Practice) without
+// auth state - picks up plan changes (e.g. firm promoted to Practice) without
 // a sign-out/sign-in cycle.
 meRouter.get('/', async (req, res, next) => {
   try {

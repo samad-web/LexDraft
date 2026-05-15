@@ -11,7 +11,7 @@ export interface PresignedUpload {
   /** ISO timestamp the URL stops being valid. */
   expiresAt: string;
   /** When using the local driver the client must include this exact mime in
-   *  the PUT's Content-Type header — the signature covers it. */
+   *  the PUT's Content-Type header - the signature covers it. */
   requiredContentType: string;
 }
 
@@ -23,10 +23,10 @@ export interface PresignedDownload {
 export interface StorageDriver {
   presignUpload(input: { key: string; contentType: string; expiresInSec?: number }): Promise<PresignedUpload>;
   presignDownload(input: { key: string; expiresInSec?: number }): Promise<PresignedDownload>;
-  /** Server-side write — used by code paths that already hold the bytes
+  /** Server-side write - used by code paths that already hold the bytes
    *  (e.g. document-template renderers). */
   putObject(input: { key: string; body: Buffer; contentType: string }): Promise<void>;
-  /** Server-side read — used by the local-driver signed-GET handler and by
+  /** Server-side read - used by the local-driver signed-GET handler and by
    *  background jobs that need to pull the bytes themselves. */
   getObject(key: string): Promise<{ body: Buffer; contentType: string } | null>;
   delete(key: string): Promise<void>;
@@ -161,7 +161,7 @@ export function storage(): StorageDriver {
   return cached!;
 }
 
-// Exported for the upload route — not part of the StorageDriver interface
+// Exported for the upload route - not part of the StorageDriver interface
 // because S3/R2 do verification on their side, not ours.
 export function verifyLocalUploadUrl(input: {
   method: 'GET' | 'PUT';

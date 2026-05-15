@@ -6,7 +6,7 @@ import { PortalNav } from './PortalNav';
 /**
  * Guard that wraps every authenticated portal route. Two responsibilities:
  *
- *   1. Block navigation when the session is missing or expired — bounce to
+ *   1. Block navigation when the session is missing or expired - bounce to
  *      `/portal/login` with the `next` and `reason` query parameters so the
  *      user can come back to where they were.
  *   2. Run a 60-second watchdog that catches the case where the JWT expires
@@ -29,7 +29,7 @@ export function PortalLayout() {
     if (!token || !expiresAt) return;
     function check(): void {
       const exp = new Date(expiresAt!).getTime();
-      // 5-second skew window — covers small clock drift between client/server.
+      // 5-second skew window - covers small clock drift between client/server.
       if (exp - Date.now() < 5_000) {
         clear();
         const next = location.pathname + location.search;

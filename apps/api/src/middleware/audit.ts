@@ -41,7 +41,7 @@ function defaultPayload(req: Request, resBody: unknown): unknown {
  * response body via a `res.json` shim so we can include the persisted record's
  * id in the entry without forcing handlers to plumb the actor through.
  *
- * Failures are logged but never block the response — auditing is observability
+ * Failures are logged but never block the response - auditing is observability
  * grade, not a correctness gate.
  */
 export function withAudit(opts: AuditOptions): RequestHandler {

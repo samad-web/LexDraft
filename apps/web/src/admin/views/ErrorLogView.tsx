@@ -13,7 +13,7 @@ import {
 
 /**
  * SuperAdmin viewer over the `error_log` table. Layout follows AuditLogView
- * — filter strip on top, table below, click-row → side drawer for the full
+ * - filter strip on top, table below, click-row → side drawer for the full
  * stack trace + a resolve workflow.
  *
  * The list lives at the "all-resolved-or-not" view by default with an
@@ -34,7 +34,7 @@ const STATUS_OPTIONS = [
   { value: '429', label: '429 Rate Limited' },
 ];
 
-// Default window for the stats strip — "last 7 days". The operator can't
+// Default window for the stats strip - "last 7 days". The operator can't
 // change this from the UI yet; keeping it fixed avoids the analytics rabbit
 // hole. If a wider window is needed, edit here.
 function defaultStatsRange(): { since: string; until: string } {
@@ -51,7 +51,7 @@ function statusToneClass(status: number, resolved: boolean): string {
 }
 
 function shortId(id: string | null): string {
-  return id ? id.slice(0, 8) : '—';
+  return id ? id.slice(0, 8) : '-';
 }
 
 export function ErrorLogView() {
@@ -99,21 +99,21 @@ export function ErrorLogView() {
           gap: 12,
         }}
       >
-        <StatCard label="Errors (7d)" value={stats?.totalCount.toLocaleString() ?? '—'} />
+        <StatCard label="Errors (7d)" value={stats?.totalCount.toLocaleString() ?? '-'} />
         <StatCard
           label="Unresolved"
-          value={stats?.unresolvedCount.toLocaleString() ?? '—'}
+          value={stats?.unresolvedCount.toLocaleString() ?? '-'}
           tone={stats && stats.unresolvedCount > 0 ? 'danger' : undefined}
         />
         <StatCard
           label="Top path"
-          value={topPath ? topPath.path : '—'}
+          value={topPath ? topPath.path : '-'}
           sub={topPath ? `${topPath.count} hits` : undefined}
           mono
         />
         <StatCard
           label="Top error class"
-          value={topError ? topError.name : '—'}
+          value={topError ? topError.name : '-'}
           sub={topError ? `${topError.count} hits` : undefined}
           mono
         />
@@ -194,7 +194,7 @@ export function ErrorLogView() {
         <ErrorDrawer id={selectedId} onClose={() => setSelectedId(null)} />
       )}
 
-      {/* Inline styles — kept here to avoid a new CSS file. The tone
+      {/* Inline styles - kept here to avoid a new CSS file. The tone
           classes use existing semantic tokens from tokens.css. */}
       <style>{`
         .errlog-row-danger  { background: var(--danger-bg); }
@@ -233,12 +233,12 @@ function ErrorRow({
         {row.path}
       </td>
       <td className="mono" style={{ fontSize: 12 }}>{row.errorName}</td>
-      <td style={{ fontSize: 13 }}>{row.userEmail ?? <span className="muted">—</span>}</td>
-      <td style={{ fontSize: 13 }}>{row.firmName ?? <span className="muted">—</span>}</td>
+      <td style={{ fontSize: 13 }}>{row.userEmail ?? <span className="muted">-</span>}</td>
+      <td style={{ fontSize: 13 }}>{row.firmName ?? <span className="muted">-</span>}</td>
       <td onClick={(e) => e.stopPropagation()}>
         {row.requestId ? (
           <CopyButton value={row.requestId} label={shortId(row.requestId)} />
-        ) : <span className="muted">—</span>}
+        ) : <span className="muted">-</span>}
       </td>
     </tr>
   );
@@ -308,15 +308,15 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                 <div className="muted">Error</div>
                 <div className="mono">{data.errorName}: {data.errorMessage}</div>
                 <div className="muted">User</div>
-                <div>{data.userEmail ?? '—'}{data.userName ? ` · ${data.userName}` : ''}</div>
+                <div>{data.userEmail ?? '-'}{data.userName ? ` · ${data.userName}` : ''}</div>
                 <div className="muted">Firm</div>
-                <div>{data.firmName ?? '—'}</div>
+                <div>{data.firmName ?? '-'}</div>
                 <div className="muted">Request id</div>
-                <div>{data.requestId ? <CopyButton value={data.requestId} /> : '—'}</div>
+                <div>{data.requestId ? <CopyButton value={data.requestId} /> : '-'}</div>
                 <div className="muted">IP</div>
-                <div className="mono">{data.ip ?? '—'}</div>
+                <div className="mono">{data.ip ?? '-'}</div>
                 <div className="muted">User agent</div>
-                <div className="mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>{data.userAgent ?? '—'}</div>
+                <div className="mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>{data.userAgent ?? '-'}</div>
               </div>
             </section>
 
@@ -363,7 +363,7 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
               {isResolved ? (
                 <div className="col" style={{ gap: 8 }}>
                   <div className="muted" style={{ fontSize: 13 }}>
-                    Resolved at {data.resolvedAt ? new Date(data.resolvedAt).toLocaleString() : '—'}
+                    Resolved at {data.resolvedAt ? new Date(data.resolvedAt).toLocaleString() : '-'}
                     {data.resolutionNote ? ` · ${data.resolutionNote}` : ''}
                   </div>
                   <button
@@ -379,7 +379,7 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
                 <div className="col" style={{ gap: 8 }}>
                   <textarea
                     className="input"
-                    placeholder="Optional resolution note (e.g. 'Fixed in PR #214', 'Won't fix — third-party API flake')"
+                    placeholder="Optional resolution note (e.g. 'Fixed in PR #214', 'Won't fix - third-party API flake')"
                     rows={3}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}

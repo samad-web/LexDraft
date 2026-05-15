@@ -4,12 +4,12 @@
  * Supports:
  *   - .pdf   via pdfjs-dist
  *   - .docx  via mammoth (already used by ImportClausesModal)
- *   - .txt / .md and anything with a text/* MIME type — plain FileReader
+ *   - .txt / .md and anything with a text/* MIME type - plain FileReader
  *
  * Returns the extracted text. Throws `UnsupportedFileError` if the file kind
  * isn't one of the above so callers can render a paste-instead hint.
  *
- * Why client-side: keeps the API contract (`POST /api/review`) JSON-only —
+ * Why client-side: keeps the API contract (`POST /api/review`) JSON-only -
  * no multipart, no server-side parser deps. Mirrors how the clauses importer
  * already converts DOCX in the browser.
  */
@@ -38,7 +38,7 @@ async function extractText(file: File): Promise<string> {
 
 async function extractDocx(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  // extractRawText keeps the prose linear — we don't need the HTML structure
+  // extractRawText keeps the prose linear - we don't need the HTML structure
   // mammoth emits via convertToHtml. The model wants the contract as a
   // continuous text body.
   const { value } = await mammoth.extractRawText({ arrayBuffer: buffer });
@@ -49,7 +49,7 @@ async function extractDocx(file: File): Promise<string> {
  *  bundle only loads when the user actually opens a PDF. */
 async function extractPdf(file: File): Promise<string> {
   const pdfjs = await import('pdfjs-dist');
-  // Without a worker, pdfjs falls back to running on the main thread — slower
+  // Without a worker, pdfjs falls back to running on the main thread - slower
   // but functional. We point it at the bundled worker so big PDFs don't
   // freeze the UI. Vite resolves `?url` to a stable build URL.
   const workerUrl = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;

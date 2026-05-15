@@ -6,7 +6,7 @@ let client: ReturnType<typeof postgres> | null = null;
 
 /**
  * Lazily-initialised Postgres client. Returns `null` if `DATABASE_URL` is not
- * configured — services should fall back to their in-memory store in that case.
+ * configured - services should fall back to their in-memory store in that case.
  */
 export function db(): ReturnType<typeof postgres> | null {
   if (!env.hasDatabase) return null;

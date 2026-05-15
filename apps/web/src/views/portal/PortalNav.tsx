@@ -15,7 +15,7 @@ export function PortalNav() {
   const client = usePortalAuthStore((s) => s.client);
   const clear = usePortalAuthStore((s) => s.clear);
 
-  // Light-weight, cached by React Query — the dashboard view also subscribes
+  // Light-weight, cached by React Query - the dashboard view also subscribes
   // to ['portal','dashboard'], so this rides on its cache when it's fresh.
   const dashboard = useQuery({
     queryKey: ['portal', 'dashboard'],

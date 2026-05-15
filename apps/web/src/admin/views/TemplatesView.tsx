@@ -148,7 +148,7 @@ function CreateTemplateModal({ onClose }: { onClose: () => void }) {
         <div className="eyebrow">New template</div>
         <h3 className="display" style={{ fontSize: 22, fontWeight: 600 }}>Create document template</h3>
         <Field label="NAME"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
-        <Field label="SLUG (a–z, 0–9, dashes)"><input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} pattern="[a-z0-9-]+" required /></Field>
+        <Field label="SLUG (a-z, 0-9, dashes)"><input className="input" value={slug} onChange={(e) => setSlug(e.target.value)} pattern="[a-z0-9-]+" required /></Field>
         <Field label="SCOPE">
           <Select
             value={scope}

@@ -14,7 +14,7 @@ export interface PaginationResult<T> {
 
 /**
  * Client-side pagination over an in-memory list. Pure function of the input
- * array — when callers re-filter the dataset (e.g. typing in a search box)
+ * array - when callers re-filter the dataset (e.g. typing in a search box)
  * we snap the cursor back to page 1 so the table doesn't go blank.
  *
  * The default page size of 20 matches the application-wide convention. Pass

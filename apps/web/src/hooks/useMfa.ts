@@ -17,7 +17,7 @@ import type {
  * Three flavours of MFA-related call:
  *  - status:    `useMfaStatus()` (cached query)
  *  - enrolment: `useMfaEnrollStart` / `useMfaEnrollConfirm` (authed)
- *  - challenge: `useMfaVerifyChallenge` (UNAUTHED — runs between password POST
+ *  - challenge: `useMfaVerifyChallenge` (UNAUTHED - runs between password POST
  *               and session creation; we hand-roll the request rather than
  *               going through the api wrapper so we can prove there's no
  *               bearer attached)
@@ -32,7 +32,7 @@ export function useMfaStatus() {
   return useQuery({
     queryKey: MFA_STATUS_KEY,
     queryFn: () => api.get<MfaStatus>('/me/mfa/status'),
-    // Status is sticky for the lifetime of a session — re-fetching after
+    // Status is sticky for the lifetime of a session - re-fetching after
     // every refocus is wasteful and would flicker the security panel.
     staleTime: 60_000,
   });
@@ -79,7 +79,7 @@ export function useMfaVerify() {
  * The server allows this with no Authorization header (the challengeId is
  * itself the proof-of-password). The api wrapper would attach whatever stale
  * token is in the store, so we go around it and use the underlying axios
- * client directly with the auth header explicitly stripped — important when
+ * client directly with the auth header explicitly stripped - important when
  * the prior tab is signed in as someone else.
  *
  * The verify-challenge response only carries `{ token }`, so once we have it

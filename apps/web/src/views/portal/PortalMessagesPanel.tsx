@@ -11,7 +11,7 @@ interface Props {
 /**
  * Threaded message panel for the portal. Used both inside a matter detail
  * view and standalone for the per-client general thread. Polls every 60 s
- * (per CLIENT_PORTAL.md §2.2 — WebSockets are deferred to v2) and marks
+ * (per CLIENT_PORTAL.md §2.2 - WebSockets are deferred to v2) and marks
  * unread firm-side messages as read on mount.
  */
 export function PortalMessagesPanel({ matterId }: Props) {
@@ -45,7 +45,7 @@ export function PortalMessagesPanel({ matterId }: Props) {
         queryClient.invalidateQueries({ queryKey: ['portal', 'dashboard'] });
         queryClient.invalidateQueries({ queryKey });
       }
-    }).catch(() => {/* silent — the next poll will retry */});
+    }).catch(() => {/* silent - the next poll will retry */});
   }, [messages.data, matterId, queryClient]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = useMutation({
@@ -84,7 +84,7 @@ export function PortalMessagesPanel({ matterId }: Props) {
           <Empty>{portalErrorMessage(messages.error, 'Could not load messages.')}</Empty>
         )}
         {messages.data && messages.data.items.length === 0 && (
-          <Empty>No messages yet — start the conversation.</Empty>
+          <Empty>No messages yet - start the conversation.</Empty>
         )}
         {messages.data?.items.map((m) => (
           <MessageBubble key={m.id} message={m} />

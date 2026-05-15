@@ -28,7 +28,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
 ];
 
 export function SettingsView() {
-  // Tabbed layout — "Account" holds the existing identity/security/session
+  // Tabbed layout - "Account" holds the existing identity/security/session
   // cards, "Privacy & Data" holds the DPDP §11 surface (export, consents,
   // deletion). Routing-level deeplinks aren't wired yet; local state is fine
   // since these are sibling concerns on the same screen.
@@ -62,9 +62,9 @@ function AccountPanel() {
       <Card>
         <div className="eyebrow" style={{ marginBottom: 14 }}>Account</div>
         <div className="col" style={{ gap: 10 }}>
-          <Row label="Name" value={user?.name || '—'} />
-          <Row label="Email" value={user?.email || '—'} />
-          <Row label="Role" value={user?.role || '—'} />
+          <Row label="Name" value={user?.name || '-'} />
+          <Row label="Email" value={user?.email || '-'} />
+          <Row label="Role" value={user?.role || '-'} />
           {user?.firm && <Row label="Firm" value={user.firm} />}
         </div>
       </Card>
@@ -100,10 +100,10 @@ function Row({ label, value }: { label: string; value: string }) {
 
 /**
  * Renders one of three states:
- *   - "loading"       — the /me/mfa/status query is in flight (rare; <300ms)
- *   - "not-enrolled"  — CTA to set up. If `required` is also true, an amber
+ *   - "loading"       - the /me/mfa/status query is in flight (rare; <300ms)
+ *   - "not-enrolled"  - CTA to set up. If `required` is also true, an amber
  *                       banner reinforces that the role mandates it.
- *   - "enrolled"      — confirmation strip + disable / regenerate actions
+ *   - "enrolled"      - confirmation strip + disable / regenerate actions
  */
 function SecurityPanel() {
   const status = useMfaStatus();
@@ -255,7 +255,7 @@ function formatDate(iso: string): string {
 
 // ---- Privacy & Data tab (DPDP §11) ----------------------------------------
 //
-// Four sections, in order, satisfying DPDP §11 (data principal rights —
+// Four sections, in order, satisfying DPDP §11 (data principal rights -
 // access, erasure, grievance). Layout matches the rest of Settings: stack of
 // <Card>s separated by 24px vertical gap.
 
@@ -279,7 +279,7 @@ function PrivacyPanel() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Export</div>
         <h2 className="heading-md" style={{ margin: 0, marginBottom: 6 }}>Export my data</h2>
         <p className="muted body-sm" style={{ margin: 0, marginBottom: 14 }}>
-          Download all of your personal data we hold — drafts, profile, audit
+          Download all of your personal data we hold - drafts, profile, audit
           entries, consent history. Honours your right under DPDP §11.
         </p>
         <button
@@ -313,7 +313,7 @@ function PrivacyPanel() {
           <div className="muted body-sm">Loading consent history…</div>
         ) : consents.length === 0 ? (
           <div className="muted body-sm">
-            No consent records yet — these appear when you accept or revise terms.
+            No consent records yet - these appear when you accept or revise terms.
           </div>
         ) : (
           <ConsentTable rows={consents} />

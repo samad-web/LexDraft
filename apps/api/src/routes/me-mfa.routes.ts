@@ -1,5 +1,5 @@
 /**
- * /api/me/mfa/* — TOTP enrolment, verification, and teardown.
+ * /api/me/mfa/* - TOTP enrolment, verification, and teardown.
  *
  * Mounted by the orchestrator behind `requireAuth`, so every handler can
  * trust `req.user` is set. Tenant scoping is implicit (all calls act on
@@ -83,12 +83,12 @@ meMfaRouter.post('/verify', async (req, res, next) => {
 /**
  * Exchange the sign-in challengeId (returned by signIn when MFA is enrolled)
  * + a TOTP code for a full session token. This is an UNAUTHENTICATED
- * endpoint (the client has no token yet) — the challengeId stands in for
+ * endpoint (the client has no token yet) - the challengeId stands in for
  * "I have already proved my password to this server in the last 5 minutes".
  *
  * Mounted under /api/me/mfa for path locality; orchestrator should
  * special-case this one to skip requireAuth, OR alternatively the
- * orchestrator can mount this under /api/auth/mfa/verify-challenge — see
+ * orchestrator can mount this under /api/auth/mfa/verify-challenge - see
  * the report for the tradeoff. The handler itself does not require auth.
  */
 meMfaRouter.post('/verify-challenge', async (req, res, next) => {
@@ -113,7 +113,7 @@ meMfaRouter.get('/status', async (req, res, next) => {
 
 /**
  * Self-disable. The orchestrator will likely wire a separate
- * /admin/users/:id/mfa endpoint for superadmin teardown of OTHER users —
+ * /admin/users/:id/mfa endpoint for superadmin teardown of OTHER users -
  * this one only tears down the caller's own factor.
  *
  * For Firm Admin / superadmin roles the UI should warn that re-enrolment

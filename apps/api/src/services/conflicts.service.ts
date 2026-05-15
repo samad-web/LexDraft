@@ -2,7 +2,7 @@
  * Conflict-of-interest scan.
  *
  * When a new matter is opened, the firm must confirm it has no relationship
- * to the opposing side — both Bar Council ethics and DPDP-era client-trust
+ * to the opposing side - both Bar Council ethics and DPDP-era client-trust
  * hygiene demand this. Manual review is fine for ~50 matters; past that it
  * stops happening reliably, which is exactly when conflicts cost real money.
  *
@@ -15,7 +15,7 @@
  *   1. `pg_trgm` would give us fuzzy + similarity scoring. Adding the
  *      extension is a migration-level change; out of scope here.
  *   2. The `cases` table doesn't yet carry a structured `opposing_party`
- *      column — we mine `cases.title` ("X v. Y") which is heuristic but
+ *      column - we mine `cases.title` ("X v. Y") which is heuristic but
  *      covers the dominant Indian filing convention.
  *   3. No counsel-on-record table either, so `same_advocate_other_side`
  *      is currently surfaced when an opposing-side term hits `cases.client`
@@ -65,7 +65,7 @@ function maxSeverity(a: ConflictSeverity, b: ConflictSeverity): ConflictSeverity
 }
 
 /**
- * Bag of cases (id, title, client) and clients (id, name) for the firm — we
+ * Bag of cases (id, title, client) and clients (id, name) for the firm - we
  * fetch once and run match logic in JS. For a ~thousand-row firm this is
  * cheaper than N round-trips per term, and it lets us keep the LIKE plain
  * (no pg_trgm) without slowing the API down materially.
@@ -157,7 +157,7 @@ export const conflictsService = {
     // A match on the OPPOSING side is the hot path for the ethics check:
     //   - opposing name == an existing client  → red (existing_client)
     //   - opposing name appears in a past case.client → red
-    //     (same_advocate_other_side — we acted FOR them before)
+    //     (same_advocate_other_side - we acted FOR them before)
     //   - opposing name appears in a past case.title → amber (mentioned before)
     for (const term of opposingTerms) {
       for (const c of clients) {
@@ -214,7 +214,7 @@ export const conflictsService = {
     for (const term of partyTerms) {
       for (const c of clients) {
         if (c.name.toLowerCase().includes(term)) {
-          // The party IS an existing client — that's the normal happy
+          // The party IS an existing client - that's the normal happy
           // path (returning client). Surface amber so the user sees the
           // link, but don't block.
           const h = buildHit({

@@ -67,10 +67,10 @@ export function AnalyticsView() {
   const KPIS: Kpi[] = useMemo(() => {
     if (!data) {
       return [
-        { label: 'Active matters', value: '—', delta: '', positive: true },
-        { label: 'Billable hours (MTD)', value: '—', delta: '', positive: true },
-        { label: 'Revenue YTD', value: '—', delta: '', positive: true },
-        { label: 'Win rate', value: '—', delta: '', positive: true },
+        { label: 'Active matters', value: '-', delta: '', positive: true },
+        { label: 'Billable hours (MTD)', value: '-', delta: '', positive: true },
+        { label: 'Revenue YTD', value: '-', delta: '', positive: true },
+        { label: 'Win rate', value: '-', delta: '', positive: true },
       ];
     }
     return [

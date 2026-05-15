@@ -93,7 +93,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Returns `(options) => Promise<boolean>` — resolves true on confirm, false
+/** Returns `(options) => Promise<boolean>` - resolves true on confirm, false
  *  on cancel/escape/backdrop click. Throws if used outside ConfirmProvider. */
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmCtx);

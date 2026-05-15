@@ -6,17 +6,17 @@
  * `process.env.INTEGRATION_TEST_SCHEMA`. This module just provisions the
  * actual schema, applies migrations, and tears down.
  *
- *   1. `setupIntegrationDb()` — opens a postgres-js client pinned to the
+ *   1. `setupIntegrationDb()` - opens a postgres-js client pinned to the
  *      test schema via `connection.search_path`, runs every migration file
  *      under `apps/api/migrations/*.sql` (sorted), and returns a handle
  *      with the schema name and a postgres-js client useful for raw setup
  *      SQL in test fixtures.
  *
- *   2. `getIntegrationSql()` — returns the client from (1). Test bodies
+ *   2. `getIntegrationSql()` - returns the client from (1). Test bodies
  *      use it for raw seeds where calling through a service would be
  *      circular.
  *
- *   3. `teardownIntegrationDb()` — drops the schema CASCADE, closes the
+ *   3. `teardownIntegrationDb()` - drops the schema CASCADE, closes the
  *      lifecycle client, AND closes the API's lazy `db()` singleton (so
  *      the next test file's connections rebind cleanly).
  *
@@ -54,10 +54,10 @@ function requireSchemaName(): string {
   if (!schema) {
     throw new Error(
       'INTEGRATION_TEST_SCHEMA is not set. The integration-setup.ts file must '
-      + 'run before any integration test — check vitest.integration.config.ts.',
+      + 'run before any integration test - check vitest.integration.config.ts.',
     );
   }
-  // Defensive: only allow [a-z0-9_], no spaces, no quotes — we interpolate
+  // Defensive: only allow [a-z0-9_], no spaces, no quotes - we interpolate
   // this into SQL identifiers via `"${schema}"`.
   if (!/^[a-z0-9_]+$/i.test(schema)) {
     throw new Error(`INTEGRATION_TEST_SCHEMA has unexpected characters: ${schema}`);
@@ -95,7 +95,7 @@ async function runMigrationsInSchema(
 
 /**
  * Create the ephemeral schema and apply migrations. Idempotent within a
- * process — calling twice returns the same handle.
+ * process - calling twice returns the same handle.
  */
 export async function setupIntegrationDb(): Promise<IntegrationDbHandle> {
   if (handle) return handle;
@@ -116,7 +116,7 @@ export async function setupIntegrationDb(): Promise<IntegrationDbHandle> {
     connection: { search_path: `${schema},public` },
   });
 
-  // Quote the identifier — schema names are user-supplied (via random hex)
+  // Quote the identifier - schema names are user-supplied (via random hex)
   // and `postgres-js` doesn't expand template params as identifiers.
   await sql.unsafe(`drop schema if exists "${schema}" cascade`);
   await sql.unsafe(`create schema "${schema}"`);
@@ -155,7 +155,7 @@ export async function teardownIntegrationDb(): Promise<void> {
       const { closeDb } = await import('../db/client');
       await closeDb();
     } catch {
-      // closeDb may not exist on older revisions — ignore.
+      // closeDb may not exist on older revisions - ignore.
     }
     handle = null;
   }

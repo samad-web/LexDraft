@@ -86,7 +86,7 @@
     "toAct": "BNS",
     "toSection": "152",
     "toTitle": "Act endangering sovereignty, unity and integrity of India",
-    "substantiveChange": "Sedition repealed; replaced with offence aimed at acts endangering sovereignty, unity and integrity. Elements differ — refer counsel before relying on old §124A jurisprudence.",
+    "substantiveChange": "Sedition repealed; replaced with offence aimed at acts endangering sovereignty, unity and integrity. Elements differ - refer counsel before relying on old §124A jurisprudence.",
     "notes": "IPC §124A is omitted. BNS §152 covers a narrower but differently framed offence."
   },
   {
@@ -216,7 +216,7 @@
     "toAct": "BNS",
     "toSection": "72",
     "toTitle": "Disclosure of identity of the victim of certain offences, etc.",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -376,7 +376,7 @@
     "toAct": "BNS",
     "toSection": "118(1)",
     "toTitle": "Voluntarily causing hurt or grievous hurt by dangerous weapons or means",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": "IPC §§324 & 326 appear to be consolidated under BNS §118; verify exact sub-clause split."
   },
   {
@@ -396,7 +396,7 @@
     "toAct": "BNS",
     "toSection": "118(2)",
     "toTitle": "Voluntarily causing grievous hurt by dangerous weapons or means",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": "Consolidated treatment with §324; verify sub-clause."
   },
   {
@@ -476,7 +476,7 @@
     "toAct": "BNS",
     "toSection": "137",
     "toTitle": "Kidnapping (punishment)",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -487,7 +487,7 @@
     "toSection": "63",
     "toTitle": "Rape",
     "substantiveChange": "Renumbered only",
-    "notes": "Age threshold for the wife-exception raised — verify against the latest text."
+    "notes": "Age threshold for the wife-exception raised - verify against the latest text."
   },
   {
     "fromAct": "IPC",
@@ -516,7 +516,7 @@
     "toAct": "BNS",
     "toSection": "65(2)",
     "toTitle": "Punishment for rape on woman under twelve years of age",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -756,7 +756,7 @@
     "toAct": "BNS",
     "toSection": "333",
     "toTitle": "House-trespass after preparation for hurt, assault or wrongful restraint",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -796,7 +796,7 @@
     "toAct": "BNS",
     "toSection": "340(2)",
     "toTitle": "Using as genuine a forged document or electronic record",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -1058,7 +1058,7 @@
     "toSection": "250",
     "toTitle": "Discharge",
     "substantiveChange": "Renumbered only",
-    "notes": "Discharge application must be filed within 60 days of commitment under BNSS §250 — strict timeline."
+    "notes": "Discharge application must be filed within 60 days of commitment under BNSS §250 - strict timeline."
   },
   {
     "fromAct": "CrPC",
@@ -1077,7 +1077,7 @@
     "toAct": "BNSS",
     "toSection": "262",
     "toTitle": "When accused shall be discharged",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -1247,7 +1247,7 @@
     "toAct": "BNSS",
     "toSection": "514",
     "toTitle": "Bar to taking cognizance after lapse of the period of limitation",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   },
   {
@@ -1264,7 +1264,7 @@
   {
     "fromAct": "IEA",
     "fromSection": "3",
-    "fromTitle": "Interpretation clause — definitions",
+    "fromTitle": "Interpretation clause - definitions",
     "toAct": "BSA",
     "toSection": "2",
     "toTitle": "Definitions",
@@ -1584,7 +1584,7 @@
   {
     "fromAct": "IEA",
     "fromSection": "126",
-    "fromTitle": "Professional communications (lawyer–client privilege)",
+    "fromTitle": "Professional communications (lawyer-client privilege)",
     "toAct": "BSA",
     "toSection": "132",
     "toTitle": "Professional communications",
@@ -1648,7 +1648,7 @@
     "toAct": "BSA",
     "toSection": "164",
     "toTitle": "Right of adverse party as to writing used to refresh memory",
-    "substantiveChange": "UNVERIFIED — counsel review required",
+    "substantiveChange": "UNVERIFIED - counsel review required",
     "notes": ""
   }
 ]

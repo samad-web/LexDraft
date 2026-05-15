@@ -78,7 +78,7 @@ function emptyCounts(): PortalDashboard['counts'] {
 
 // Default preferences applied when the client has never saved a profile.
 // The notification opt-ins are all true so a freshly-provisioned client
-// receives the events the firm-side already emits — opt-out is explicit.
+// receives the events the firm-side already emits - opt-out is explicit.
 const DEFAULT_NOTIFICATIONS: PortalNotificationPreferences = {
   newDocument: true,
   hearingReminder: true,
@@ -97,7 +97,7 @@ function defaultProfile(client: PortalProfile['client']): PortalProfile {
 }
 
 /** Coerce whatever's in the jsonb column into a known-shape preferences
- *  object. Bad values fall back to defaults — never throws. */
+ *  object. Bad values fall back to defaults - never throws. */
 function parsePortalPreferences(raw: unknown): PreferencesShape {
   const obj = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {};
   const language: PortalLanguage = obj['language'] === 'en' ? 'en' : 'en';
@@ -161,12 +161,12 @@ export const portalService = {
   /** Issue (and "send") a magic link to every client in this firm whose
    *  email matches. We treat unknown emails as a no-op so a stranger can't
    *  enumerate registered client emails. The plaintext link is only ever
-   *  in this function — only its sha256 is persisted. */
+   *  in this function - only its sha256 is persisted. */
   async requestMagicLink(emailRaw: string): Promise<PortalRequestLinkResult> {
     const email = emailRaw.trim().toLowerCase();
     const sql = db();
     if (!sql) {
-      // Demo mode — clients table is empty in memory anyway.
+      // Demo mode - clients table is empty in memory anyway.
       return { ok: true };
     }
 
@@ -204,7 +204,7 @@ export const portalService = {
       const link = `${env.webPublicBaseUrl.replace(/\/+$/, '')}/portal/verify?token=${token}`;
       firstLink ??= link;
 
-      // Hand off to the email job. With no SMTP wired this just logs — but
+      // Hand off to the email job. With no SMTP wired this just logs - but
       // crucially the plaintext token never persists past this scope.
       await jobs.enqueue('email.send', {
         to: email,
@@ -305,7 +305,7 @@ export const portalService = {
   // ---- Read endpoints -----------------------------------------------------
   // Every method takes the resolved portal context and scopes hard to that
   // single client's name within that single firm. Cross-tenant leakage is
-  // impossible by construction — clientName is derived from the row matched
+  // impossible by construction - clientName is derived from the row matched
   // by clientId, and every where clause pins firm_id.
 
   async clientName(clientId: string, firmId: string): Promise<string | null> {
@@ -355,7 +355,7 @@ export const portalService = {
     const name = await this.clientName(clientId, firmId);
     if (!name) return [];
     // Hearings ↔ cases via case_label. Only show today + upcoming.
-    // Note: the hearings table doesn't carry firm_id directly — it joins
+    // Note: the hearings table doesn't carry firm_id directly - it joins
     // through case_id, but the seed/legacy rows can have NULL case_id, so
     // we scope via the case-label IN-list against the firm's own cases.
     const rows = await sql<Array<{
@@ -442,7 +442,7 @@ export const portalService = {
   async dashboard(clientId: string, firmId: string): Promise<PortalDashboard> {
     const sql = db();
     if (!sql) {
-      // Demo mode — return a coherent empty payload so the UI renders.
+      // Demo mode - return a coherent empty payload so the UI renders.
       return {
         client: { id: clientId, name: '', email: '', firmId },
         counts: emptyCounts(),
@@ -585,7 +585,7 @@ export const portalService = {
     if (!name) throw Object.assign(new Error('Document not available'), { status: 404 });
 
     // Single statement: scope by firm + the client's own visible matters +
-    // shared-with-client + ack-required. Idempotent — re-acknowledging
+    // shared-with-client + ack-required. Idempotent - re-acknowledging
     // returns the existing signed_at.
     const rows = await sql<Array<{ id: string; signed_at: Date }>>`
       update documents d set
@@ -797,7 +797,7 @@ export const portalService = {
   async getProfile(clientId: string, firmId: string): Promise<PortalProfile> {
     const sql = db();
     if (!sql) {
-      // Demo mode — return a fully-populated default so the UI renders.
+      // Demo mode - return a fully-populated default so the UI renders.
       return defaultProfile({ id: clientId, name: '', email: '', firmId });
     }
     const rows = await sql<Array<{
@@ -859,7 +859,7 @@ export const portalService = {
       limit 1
     `;
     if (!rows.length) {
-      // Same surface as success — don't leak whether the record exists.
+      // Same surface as success - don't leak whether the record exists.
       return { ok: true };
     }
     return { ok: true };
@@ -867,7 +867,7 @@ export const portalService = {
 
   /** Fetch the storage key for a document this portal client owns. Returns
    *  null when the document either doesn't exist, isn't theirs, or has no
-   *  attached file — the caller can't tell which, by design. */
+   *  attached file - the caller can't tell which, by design. */
   async getDocumentStorageKey(documentId: string, clientId: string, firmId: string): Promise<string | null> {
     const sql = db();
     if (!sql) return null;
@@ -936,7 +936,7 @@ export const portalAdminService = {
       throw Object.assign(new Error('Client not found in this firm'), { status: 404 });
     }
     if (!row.email) {
-      throw Object.assign(new Error('Client has no contact email — add one before enabling the portal'), { status: 422 });
+      throw Object.assign(new Error('Client has no contact email - add one before enabling the portal'), { status: 422 });
     }
     // Use the existing magic-link issuer so token storage + email enqueuing
     // stays in one place. We pass the email through the standard request path.
@@ -975,7 +975,7 @@ export const portalAdminService = {
   },
 
   /** Issue a fresh magic link for an already-enabled client. Different from
-   *  `enablePortal` because this MUST fail when the client is disabled — we
+   *  `enablePortal` because this MUST fail when the client is disabled - we
    *  don't silently re-enable. */
   async resendLink(clientId: string, firmId: string): Promise<PortalEnableOutcome> {
     const sql = db();

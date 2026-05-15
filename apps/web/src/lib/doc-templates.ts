@@ -1,7 +1,7 @@
 /**
  * Pre-filled scenarios users can drop into a brief instead of typing from
  * scratch. Each template targets a specific doc type and supplies a set of
- * field values. Schemas already ship with sensible defaults — these templates
+ * field values. Schemas already ship with sensible defaults - these templates
  * exist to give realistic alternative scenarios for common doc types.
  *
  * Adding a new template: pick the doc type, give it a clear label and a
@@ -51,7 +51,7 @@ export const DOC_TEMPLATES: ReadonlyArray<DocTemplate> = [
   {
     id: 'vakalatnama-civil',
     docType: 'Vakalatnama',
-    label: 'Civil suit — petitioner',
+    label: 'Civil suit - petitioner',
     summary: 'Vakalatnama for a civil suit, executed by the petitioner authorising counsel.',
     fields: {
       court: 'Court of the Civil Judge, Senior Division, Bengaluru',
@@ -65,7 +65,7 @@ export const DOC_TEMPLATES: ReadonlyArray<DocTemplate> = [
   {
     id: 'legal-notice-recovery',
     docType: 'Legal Notice',
-    label: 'Money recovery — services rendered',
+    label: 'Money recovery - services rendered',
     summary: 'Demand notice for unpaid professional fees following completion of services.',
     fields: {
       sender_name: 'Iyer & Iyer Consultants LLP',

@@ -34,8 +34,8 @@ export function daysBetween(deadline: string): number {
  * Public row shape returned to clients. Augments the shared Limitation type
  * with the statute-aware fields (added in migration 0022). The fields are
  * optional on the shared type for backwards compatibility with rows entered
- * before the calculator existed — we surface them as `null`-safe strings so
- * the UI can render "—" when missing.
+ * before the calculator existed - we surface them as `null`-safe strings so
+ * the UI can render "-" when missing.
  */
 export interface LimitationRow extends Limitation {
   matterType?: string | null;
@@ -88,7 +88,7 @@ export const limitationsService = {
 
   async create(input: CreateLimitationInput, firmId: string | null): Promise<LimitationRow> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create limitation'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create limitation'), { status: 422 });
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');

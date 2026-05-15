@@ -15,7 +15,7 @@ export function ManagePracticeGroupsPanel() {
     <div className="col" style={{ gap: 16 }}>
       <PhaseTwoBanner
         title="Practice-group editing arrives in Phase 2"
-        copy="The schema is in place — once the editor ships you'll be able to create groups (Litigation, Corporate, IP, …), assign Practice Group Leads, and scope team views by group."
+        copy="The schema is in place - once the editor ships you'll be able to create groups (Litigation, Corporate, IP, …), assign Practice Group Leads, and scope team views by group."
       />
 
       {(groups.data ?? []).length === 0 ? (

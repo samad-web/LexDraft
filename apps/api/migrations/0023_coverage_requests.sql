@@ -2,7 +2,7 @@
 --
 -- When an advocate has a clash on a hearing date, they post the matter to the
 -- board so anyone in the firm can pick it up. The historical workflow was a
--- WhatsApp scramble — this turns it into an auditable, claimable queue with
+-- WhatsApp scramble - this turns it into an auditable, claimable queue with
 -- a brief packet attached.
 --
 -- Multi-tenant: scoped via firm_id (every read/write joins to the caller's

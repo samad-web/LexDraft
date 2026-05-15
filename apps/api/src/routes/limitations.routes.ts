@@ -19,7 +19,7 @@ const Input = z.object({
   forum: z.string().default(''),
   deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'deadline must be ISO YYYY-MM-DD'),
   filedBy: z.string().default(''),
-  // Statute-aware fields (migration 0022). All optional — older clients that
+  // Statute-aware fields (migration 0022). All optional - older clients that
   // typed in a deadline by hand continue to post the original payload.
   matterType:    z.string().optional(),
   basisStatute:  z.string().optional(),

@@ -1,5 +1,5 @@
 -- =============================================================================
--- LexDraft — saved drafts
+-- LexDraft - saved drafts
 -- =============================================================================
 -- Backs the "Save" / "My drafts" feature on the Drafting view. Each row stores
 -- everything needed to round-trip a draft back into the editor: the brief

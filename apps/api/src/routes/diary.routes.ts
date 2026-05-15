@@ -16,7 +16,7 @@ const Input = z.object({
 
 export const diaryRouter: Router = Router();
 
-// Diary is matter-adjacent — gates on matter.view/create.
+// Diary is matter-adjacent - gates on matter.view/create.
 diaryRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);

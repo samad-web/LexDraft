@@ -11,7 +11,7 @@ declare global {
        *  `x-request-id` so clients can quote it in support tickets. */
       id: string;
       /** Pino child logger bound to this request's id, method, and URL.
-       *  Prefer this over the module-level `logger` inside handlers — log
+       *  Prefer this over the module-level `logger` inside handlers - log
        *  lines stay correlatable across the full request lifecycle. */
       log: Logger;
     }
@@ -25,12 +25,12 @@ declare global {
  * log line carries the correlation id.
  *
  * Header forwarding lets a load balancer or CDN stamp the id at the edge
- * and have every internal service log it consistently — no separate
+ * and have every internal service log it consistently - no separate
  * tracing system needed for the basic "what happened in this request"
  * question.
  */
 export function requestId(req: Request, res: Response, next: NextFunction): void {
-  // Trust an upstream id only if it looks reasonable — reject malicious
+  // Trust an upstream id only if it looks reasonable - reject malicious
   // huge or non-printable payloads so the field is safe to log.
   const inbound = req.header('x-request-id');
   const id = inbound && /^[A-Za-z0-9_.:-]{8,128}$/.test(inbound) ? inbound : randomUUID();

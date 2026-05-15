@@ -323,7 +323,7 @@ function ProfitabilityTab() {
                     ? { background: 'var(--danger-bg)' }
                     : undefined;
                   const marginText =
-                    m.marginPct === null ? '—' : `${m.marginPct}%`;
+                    m.marginPct === null ? '-' : `${m.marginPct}%`;
                   return (
                     <tr key={m.caseId} style={rowStyle}>
                       <td>
@@ -341,7 +341,7 @@ function ProfitabilityTab() {
                         {formatInr(m.netInr)}
                       </td>
                       <td className="mono tabular">{marginText}</td>
-                      <td className="body-sm muted">{m.lastInvoiceAt ?? '—'}</td>
+                      <td className="body-sm muted">{m.lastInvoiceAt ?? '-'}</td>
                     </tr>
                   );
                 })}

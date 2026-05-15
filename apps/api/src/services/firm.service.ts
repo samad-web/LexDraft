@@ -43,7 +43,7 @@ function fyBoundaries(now = new Date()): {
   const startPrior = `${startYear - 1}-04-01`;
   const endPrior = `${startYear}-03-31`;
   const q = Math.floor(((m - 3 + 12) % 12) / 3) + 1;
-  const label = `FY ${String(startYear).slice(2)}–${String(endYear).slice(2)} · Q${q}`;
+  const label = `FY ${String(startYear).slice(2)}-${String(endYear).slice(2)} · Q${q}`;
   return { startCurrent, endCurrent, startPrior, endPrior, label };
 }
 
@@ -57,7 +57,7 @@ function initialsFor(name: string): string {
 }
 
 function relativeFromIso(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const then = new Date(iso).getTime();
   const days = Math.floor((Date.now() - then) / 86_400_000);
   if (Number.isNaN(days)) return iso.slice(0, 10);
@@ -254,7 +254,7 @@ export const firmService = {
     const practiceAreas: PracticeAreaSlice[] = typeRows.map((r) => ({
       name: r.type,
       matters: r.n,
-      revenue: '—',
+      revenue: '-',
       share: r.n / totalCasesByType,
     }));
 

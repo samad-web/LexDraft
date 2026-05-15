@@ -4,14 +4,14 @@
 -- In-app, Postgres-backed error capture. We do not run OpenTelemetry or Sentry
 -- in production, so the error middleware persists 5xx and a curated subset of
 -- 4xx (403/422/429) into this table for the SuperAdmin viewer. Distinct from
--- `audit_log` (business events, 7-year DPDP retention) — these are technical
+-- `audit_log` (business events, 7-year DPDP retention) - these are technical
 -- incidents that an operator triages, marks resolved, and eventually purges.
 --
 -- The capture path is fire-and-forget from the error middleware's perspective:
 -- a failed insert MUST NOT crash request handling. The service implements that
 -- semantically; this DDL just makes the destination available.
 --
--- Indices are deliberately conservative — newest-first scans, status/user/firm
+-- Indices are deliberately conservative - newest-first scans, status/user/firm
 -- filters, and a partial index on the common "show me unresolved" query.
 -- =============================================================================
 

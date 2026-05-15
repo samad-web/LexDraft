@@ -45,7 +45,7 @@ interface ListFilter {
 
 /**
  * All read/write paths require `firmId`. When the caller has no firm
- * attachment we return empty / no-op rather than touching the global table —
+ * attachment we return empty / no-op rather than touching the global table -
  * the clause library is firm-private (cf. spec §10 tenant isolation).
  */
 export const clausesService = {
@@ -76,7 +76,7 @@ export const clausesService = {
 
   async create(input: CreateClauseRequest, firmId: string | null): Promise<Clause> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create clause'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create clause'), { status: 422 });
     }
     const sql = db();
     if (sql) {
@@ -144,7 +144,7 @@ export const clausesService = {
 
   async importMany(items: CreateClauseRequest[], firmId: string | null): Promise<ImportClausesResult> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot import clauses'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot import clauses'), { status: 422 });
     }
     const sql = db();
     let inserted = 0;
@@ -152,7 +152,7 @@ export const clausesService = {
     const sane = items.filter((it) => it && it.category?.trim() && it.title?.trim());
     skipped += items.length - sane.length;
     if (sql && sane.length > 0) {
-      // Skip rows where (firm_id, category, title) already exists — case-insensitive title match.
+      // Skip rows where (firm_id, category, title) already exists - case-insensitive title match.
       await sql.begin(async (tx) => {
         for (const it of sane) {
           const existing = await tx<{ id: string }[]>`

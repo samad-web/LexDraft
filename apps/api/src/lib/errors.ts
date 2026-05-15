@@ -1,6 +1,6 @@
 /**
  * HTTP-aware error taxonomy. Services and middleware throw these instead of
- * stringly-typed `Object.assign(new Error(...), { status: 4xx })` — the
+ * stringly-typed `Object.assign(new Error(...), { status: 4xx })` - the
  * central error handler in middleware/error.ts maps each subclass to its
  * correct response status, message, and (optional) detail payload.
  *
@@ -39,6 +39,12 @@ export class UnauthorizedError extends HttpError {
 export class ForbiddenError extends HttpError {
   constructor(message = 'Forbidden', opts?: { code?: string; details?: unknown }) {
     super(403, message, opts);
+  }
+}
+
+export class PaymentRequiredError extends HttpError {
+  constructor(message = 'Payment required', opts?: { code?: string; details?: unknown }) {
+    super(402, message, opts);
   }
 }
 

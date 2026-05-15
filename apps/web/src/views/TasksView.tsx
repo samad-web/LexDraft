@@ -38,7 +38,7 @@ export function TasksView() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   // Two-step confirm on destructive delete. Inline rather than window.confirm
-  // because the drawer already has the user's focus — a native dialog would
+  // because the drawer already has the user's focus - a native dialog would
   // shove that focus to a different layer.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
@@ -299,7 +299,7 @@ export function TasksView() {
                 Reject
               </button>
             </div>
-            {/* Destructive action — pushed below the workflow buttons and
+            {/* Destructive action - pushed below the workflow buttons and
                 gated behind a two-step confirm so a misclick on the drawer
                 doesn't drop a task. */}
             <div

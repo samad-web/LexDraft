@@ -1,7 +1,7 @@
 /**
  * Plan-tier enforcement for the client portal (CLIENT_PORTAL.md §7.4).
  *
- *   Solo:     portal is not included — blocked at the gate.
+ *   Solo:     portal is not included - blocked at the gate.
  *   Practice: included; capped at 50 active portal-enabled clients per firm.
  *   Firm:     unlimited.
  *
@@ -18,7 +18,7 @@ interface PlanGateOk {
 }
 interface PlanGateBlocked {
   allowed: false;
-  /** Machine-readable reason — `'plan_not_supported'` for Solo,
+  /** Machine-readable reason - `'plan_not_supported'` for Solo,
    *  `'cap_reached'` when Practice is at its 50-seat ceiling. */
   reason: 'plan_not_supported' | 'cap_reached';
   /** Human-friendly message safe to surface in the UI. */

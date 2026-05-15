@@ -50,6 +50,6 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
 });
 
 authRouter.post('/sign-out', requireAuth, (_req, res) => {
-  // Stateless JWT — client just discards the token. Endpoint exists for symmetry.
+  // Stateless JWT - client just discards the token. Endpoint exists for symmetry.
   res.status(204).end();
 });

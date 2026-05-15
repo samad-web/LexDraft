@@ -4,14 +4,14 @@
  * Problem: several process-local caches (firmId resolver, permissions
  * resolver) accelerate hot paths by memoising per-user state for a short
  * TTL. When a mutation happens on replica A, replica A invalidates its
- * own cache — but replicas B and C continue serving stale entitlement /
+ * own cache - but replicas B and C continue serving stale entitlement /
  * tenant decisions until their own TTL expires.
  *
  * Solution: every replica subscribes to a `cache_invalidations` channel
  * on Postgres. When a mutation invalidates a key locally, it also fires
  * a NOTIFY with a typed payload `{ scope, key }`. Every other replica's
  * subscriber receives the NOTIFY and applies its local invalidation. The
- * publisher itself receives its own NOTIFY too — harmless because the
+ * publisher itself receives its own NOTIFY too - harmless because the
  * local invalidation has already happened (Set.delete on a missing key
  * is a no-op).
  *
@@ -28,9 +28,9 @@
  * Failure modes:
  * - If the LISTEN connection drops, postgres-js reconnects automatically.
  *   In the interval, this replica may serve stale data until its TTL
- *   expires — same upper bound as the single-replica case.
+ *   expires - same upper bound as the single-replica case.
  * - If NOTIFY publishing fails (e.g. transaction rollback), no message
- *   is sent — the writer's mutation didn't land either, so other
+ *   is sent - the writer's mutation didn't land either, so other
  *   replicas correctly stay on the pre-mutation state.
  */
 
@@ -42,7 +42,7 @@ export type CacheScope = 'tenant' | 'permissions';
 export interface CacheInvalidationPayload {
   scope: CacheScope;
   /** The cache key being invalidated. `null` means "drop everything in
-   *  this scope" — used for whole-firm changes like `firms.plan_tier`. */
+   *  this scope" - used for whole-firm changes like `firms.plan_tier`. */
   key: string | null;
 }
 
@@ -65,24 +65,24 @@ export function subscribe(scope: CacheScope, handler: Handler): void {
 }
 
 /** Publish an invalidation across all replicas. The local invalidation
- *  must still be performed by the caller — this function only broadcasts
+ *  must still be performed by the caller - this function only broadcasts
  *  to other replicas. Network failures are logged but not thrown; a
  *  failed broadcast must never abort the parent mutation. */
 export async function publish(scope: CacheScope, key: string | null): Promise<void> {
   const sql = db();
-  if (!sql) return; // in-memory mode — nothing to broadcast
+  if (!sql) return; // in-memory mode - nothing to broadcast
   try {
     const payload: CacheInvalidationPayload = { scope, key };
     await sql.notify(CHANNEL, JSON.stringify(payload));
   } catch (err) {
-    // Log but don't throw — broadcast is best-effort. Replicas will
+    // Log but don't throw - broadcast is best-effort. Replicas will
     // eventually self-heal when their TTLs expire.
     logger.warn({ err, scope, key }, 'cache_invalidations NOTIFY failed');
   }
 }
 
 /** Boot the LISTEN subscription. Idempotent. Safe to call before any
- *  subscribers are registered — they'll receive NOTIFYs delivered after
+ *  subscribers are registered - they'll receive NOTIFYs delivered after
  *  their `subscribe()` call. */
 export async function start(): Promise<void> {
   if (started) return;
@@ -116,7 +116,7 @@ export async function start(): Promise<void> {
       started = true;
     } catch (err) {
       logger.error({ err }, 'cache_invalidations LISTEN failed to start');
-      // Don't crash the process — single-replica deploys still work without
+      // Don't crash the process - single-replica deploys still work without
       // the broadcaster. Reset `starting` so a later retry can succeed.
       starting = null;
       throw err;

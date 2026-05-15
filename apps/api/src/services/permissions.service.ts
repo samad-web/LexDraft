@@ -1,5 +1,5 @@
 /**
- * Permission resolver — implements the 3-layer entitlement model from
+ * Permission resolver - implements the 3-layer entitlement model from
  * `lexdraft-user-management-spec.md` §5.
  *
  *   can(user, F) = baseline(F)
@@ -181,7 +181,7 @@ export async function resolveFeatures(userId: string): Promise<MeFeaturesRespons
 
   const sql = db();
   if (!sql) {
-    // No database — return a role-aware fallback so demo mode (no
+    // No database - return a role-aware fallback so demo mode (no
     // DATABASE_URL) approximates what the real resolver would return for
     // each tier. The auth-service text role is the only signal we have.
     const memUser = await authService.getById(userId).catch(() => undefined);
@@ -273,7 +273,7 @@ export async function userCan(userId: string, featureKey: FeatureKey): Promise<b
   return features.includes(featureKey);
 }
 
-/** Express middleware factory — gate a route on a feature key. */
+/** Express middleware factory - gate a route on a feature key. */
 export function requireFeature(featureKey: FeatureKey) {
   return async (
     req: import('express').Request,

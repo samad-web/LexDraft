@@ -44,7 +44,7 @@ async function runMigration(
   filename: string,
   body: string,
 ): Promise<void> {
-  // Each .sql file is run as a single command — postgres-js handles multiple
+  // Each .sql file is run as a single command - postgres-js handles multiple
   // statements when sent via .unsafe. We wrap in a transaction for atomicity.
   console.log(`  → applying ${filename}`);
   await sql.begin(async (tx) => {
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
     }
 
     if (pending.length === 0) {
-      console.log(`Up to date — ${applied.size} migration${applied.size === 1 ? '' : 's'} already applied.`);
+      console.log(`Up to date - ${applied.size} migration${applied.size === 1 ? '' : 's'} already applied.`);
       return;
     }
 
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
       const body = await readFile(resolve(MIGRATIONS_DIR, filename), 'utf8');
       await runMigration(sql, filename, body);
     }
-    console.log(`\nDone — ${applied.size + pending.length} total applied.`);
+    console.log(`\nDone - ${applied.size + pending.length} total applied.`);
   } catch (err) {
     console.error('\nMigration failed:');
     console.error(err);

@@ -10,7 +10,7 @@ import {
 } from '@/hooks/useLimitations';
 
 /**
- * Limitation calculator — pick a filing type, enter the trigger date, get
+ * Limitation calculator - pick a filing type, enter the trigger date, get
  * the deadline plus any compound milestones (e.g. NI §138 ladder).
  *
  * Two modes:
@@ -206,7 +206,7 @@ function RuleResult({ result }: { result: ComputeDeadlineResult }) {
       </div>
       {result.notes && <Notice tone="info">{result.notes}</Notice>}
       {expired && <Notice tone="danger">This deadline has already passed. Consider whether condonation under §5 of the Limitation Act is available.</Notice>}
-      {!expired && critical && <Notice tone="warning">Deadline is within 7 days — file urgently.</Notice>}
+      {!expired && critical && <Notice tone="warning">Deadline is within 7 days - file urgently.</Notice>}
     </div>
   );
 }

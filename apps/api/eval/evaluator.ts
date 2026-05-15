@@ -1,6 +1,6 @@
 // Pure scoring functions for drafting evaluation.
 //
-// No I/O, no LLM calls — just deterministic string analysis. Keeping this
+// No I/O, no LLM calls - just deterministic string analysis. Keeping this
 // pure makes the runner trivially testable in isolation and lets us swap
 // the scoring rubric without touching the orchestration layer.
 
@@ -24,7 +24,7 @@ const PENALTY = {
 
 const PASS_THRESHOLD = 70;
 
-/** Rough estimate — Anthropic/xAI tokenisation isn't exact at 4 chars/token,
+/** Rough estimate - Anthropic/xAI tokenisation isn't exact at 4 chars/token,
  *  but for cost-tracking-trend purposes this is fine. The eval harness uses
  *  it only for the aggregate "did this run get more expensive?" signal. */
 export function estimateTokens(text: string): number {
@@ -37,7 +37,7 @@ function containsCI(haystack: string, needle: string): boolean {
 
 /** Detect paragraph numbering of the form "1.", "1)", or "(1)" at the start
  *  of at least two distinct lines. A single numbered line could just be a
- *  list inside a paragraph — two means the document is actually structured. */
+ *  list inside a paragraph - two means the document is actually structured. */
 function hasParagraphNumbering(text: string): boolean {
   const lines = text.split(/\r?\n/);
   let count = 0;
@@ -51,7 +51,7 @@ function hasParagraphNumbering(text: string): boolean {
   return false;
 }
 
-/** Loose "parties block" detection — Indian pleadings name the parties at the
+/** Loose "parties block" detection - Indian pleadings name the parties at the
  *  top under a "BETWEEN" / "Petitioner" / "Plaintiff" / "Appellant" / "Versus"
  *  banner. Any of those signals means the structural intent is present even
  *  if the exact heading varies by court and document type. */
@@ -62,7 +62,7 @@ function hasPartiesBlock(text: string): boolean {
   const hasParty = partyMarkers.some((m) => hay.includes(m));
   const hasOpposition = oppositionMarkers.some((m) => hay.includes(m));
   const hasConnector = /\b(versus|v\.|vs\.?|between)\b/i.test(text);
-  // Need a party and either an opposition or a connector — covers ex-parte
+  // Need a party and either an opposition or a connector - covers ex-parte
   // forms (no respondent) that still use "BETWEEN".
   return hasParty && (hasOpposition || hasConnector);
 }
@@ -142,7 +142,7 @@ export function evaluateBrief(
     score -= PENALTY.STRUCTURAL_FAIL;
   }
 
-  // Floor at 0, ceiling at 100 — multiple failures shouldn't push into
+  // Floor at 0, ceiling at 100 - multiple failures shouldn't push into
   // negatives or let a perfect-but-redundant brief score above 100.
   if (score < 0) score = 0;
   if (score > 100) score = 100;

@@ -1,5 +1,5 @@
 /**
- * Firm-admin service — backs the /firm/users, /firm/roles, /firm/practice-groups
+ * Firm-admin service - backs the /firm/users, /firm/roles, /firm/practice-groups
  * routes used by the in-app User Management section (spec §7).
  *
  * Tenant isolation: every query is scoped to the caller's firm_id, looked up
@@ -171,7 +171,7 @@ export const firmAdminService = {
         .join(' ')
       || email;
 
-    // Generate `${FirstName}@123` if no password supplied — same pattern as
+    // Generate `${FirstName}@123` if no password supplied - same pattern as
     // adminService.createFirm.
     let plaintextPassword = input.password?.trim();
     let generated = false;
@@ -281,7 +281,7 @@ export const firmAdminService = {
       throw Object.assign(new Error('User is not in this firm'), { status: 404 });
     }
 
-    // Last-admin protection — same logic as the platform-admin path.
+    // Last-admin protection - same logic as the platform-admin path.
     if (patch.roleId !== undefined || patch.status === 'suspended' || patch.status === 'deactivated') {
       const [adminCheck] = await sql<Array<{ is_admin: boolean }>>`
         select (r.name = 'Firm Admin' and r.is_system = true) as is_admin
@@ -300,7 +300,7 @@ export const firmAdminService = {
         `;
         if (Number(count?.c ?? 0) === 0) {
           throw Object.assign(
-            new Error('Last active Firm Admin — promote another admin first.'),
+            new Error('Last active Firm Admin - promote another admin first.'),
             { status: 422 },
           );
         }
@@ -347,7 +347,7 @@ export const firmAdminService = {
     return rowToManagedUser(row);
   },
 
-  /** Lists every role available to assign in this firm — system roles plus any
+  /** Lists every role available to assign in this firm - system roles plus any
    *  custom roles the firm has created. Phase 2 will surface a role-editor UI
    *  on top of this read endpoint. */
   async listAvailableRoles(callerId: string): Promise<Role[]> {

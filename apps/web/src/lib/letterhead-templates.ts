@@ -3,21 +3,21 @@
  *
  * Each template is the same triple:
  *   - metadata for the picker UI (name, description)
- *   - `defaultFields` — the slot values pre-populated when the user first
+ *   - `defaultFields` - the slot values pre-populated when the user first
  *     drops in this template (mostly placeholder strings so the preview
  *     looks "real" before the user types)
- *   - `render(fields, logoUrl) → HTML` — used both by the live preview
+ *   - `render(fields, logoUrl) → HTML` - used both by the live preview
  *     in the editor AND by the exporter at PDF/DOCX generation time
  *
  * Why HTML strings (not React): the exporter renders into an off-screen
  * iframe + html2canvas, which doesn't ride the React tree. Producing
  * portable HTML strings lets the same renderer drive screen previews and
- * print output. Inline styles only — every rule must survive html2canvas
+ * print output. Inline styles only - every rule must survive html2canvas
  * snapshotting, which doesn't follow class references back to the host
  * page's stylesheets.
  *
  * Sizing assumption: the renderer assumes an A4 portrait page minus 0.75"
- * margins — a content width of about 7 inches (~672px at 96dpi). The
+ * margins - a content width of about 7 inches (~672px at 96dpi). The
  * preview component shrinks the result to fit its container, but the HTML
  * itself targets the print width so what-you-see-is-what-you-print.
  */
@@ -29,7 +29,7 @@ export interface LetterheadTemplate {
   name: string;
   description: string;
   defaultFields: LetterheadFields;
-  /** Returns an HTML fragment — no <html>/<body>, no <style>. The caller
+  /** Returns an HTML fragment - no <html>/<body>, no <style>. The caller
    *  is responsible for wrapping. */
   render(fields: LetterheadFields, logoUrl: string | null): string;
 }
@@ -81,7 +81,7 @@ function safeColor(c: string | null | undefined, fallback = '#111'): string {
 const classicCentered: LetterheadTemplate = {
   key: 'classic-centered',
   name: 'Classic centered',
-  description: 'Logo above the firm name, address line in mono — formal and balanced.',
+  description: 'Logo above the firm name, address line in mono - formal and balanced.',
   defaultFields: {
     firmName: 'Your firm name',
     addressLines: ['Address line 1', 'City, State 000000'],
@@ -215,7 +215,7 @@ const courtFiling: LetterheadTemplate = {
 const modernAccent: LetterheadTemplate = {
   key: 'modern-accent',
   name: 'Modern accent',
-  description: 'Coloured accent bar at the top, logo and firm name below — for firms that want a touch of brand colour.',
+  description: 'Coloured accent bar at the top, logo and firm name below - for firms that want a touch of brand colour.',
   defaultFields: {
     firmName: 'Your firm name',
     tagline: 'Advocates & Solicitors',

@@ -29,7 +29,7 @@ function readFileAsBase64(file: File): Promise<PickedFile> {
         reject(new Error('Could not read file'));
         return;
       }
-      // Strip the "data:<mime>;base64," prefix — backend stores raw base64.
+      // Strip the "data:<mime>;base64," prefix - backend stores raw base64.
       const base64 = result.includes(',') ? result.slice(result.indexOf(',') + 1) : result;
       resolve({
         name: file.name,
@@ -96,7 +96,7 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
     if (file.size > MAX_FILE_BYTES) {
       showToast({
         type: 'amber',
-        text: `File too large — ${formatBytes(file.size)}. Max 12 MB.`,
+        text: `File too large - ${formatBytes(file.size)}. Max 12 MB.`,
       });
       return;
     }
@@ -310,7 +310,7 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
           className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Plaint — Mehta v. Skyline.pdf"
+          placeholder="e.g. Plaint - Mehta v. Skyline.pdf"
           required
           autoFocus
         />

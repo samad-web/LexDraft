@@ -8,7 +8,7 @@ import { portalStrings as t } from './strings';
 /**
  * Read-mostly client dashboard. One round trip to `/portal/dashboard` returns
  * the counts strip, top matters, hearings, recent documents, and unpaid
- * invoices — per CLIENT_PORTAL.md §4.2 the dashboard must paint in a single
+ * invoices - per CLIENT_PORTAL.md §4.2 the dashboard must paint in a single
  * fetch, not five.
  */
 export function PortalDashboardView() {
@@ -65,7 +65,7 @@ export function PortalDashboardView() {
                 <td>{c.court}</td>
                 <td>{c.stage}</td>
                 <td>{c.status}</td>
-                <td>{c.next || '—'}</td>
+                <td>{c.next || '-'}</td>
                 <td style={{ textAlign: 'right' }}>
                   <button
                     type="button"
@@ -88,7 +88,7 @@ export function PortalDashboardView() {
           <Table headers={['Date', 'Time', 'Case', 'Court', 'Purpose']}>
             {d.hearings.map((h, i) => (
               <tr key={h.id ?? i}>
-                <td>{h.date ?? '—'}</td>
+                <td>{h.date ?? '-'}</td>
                 <td>{h.time}</td>
                 <td>{h.case}</td>
                 <td>{h.court}</td>
@@ -120,7 +120,7 @@ export function PortalDashboardView() {
                       Download
                     </button>
                   ) : (
-                    <span style={{ opacity: 0.5 }}>—</span>
+                    <span style={{ opacity: 0.5 }}>-</span>
                   )}
                 </td>
               </tr>

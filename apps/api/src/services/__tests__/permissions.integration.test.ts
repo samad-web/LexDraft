@@ -1,10 +1,10 @@
 /**
- * permissions.service — real-Postgres resolver coverage.
+ * permissions.service - real-Postgres resolver coverage.
  *
  * The unit suite tests `demoFallbackFor` (the no-DB fallback). This file
  * tests the actual SQL CTE in `resolveFeatures` against the seeded
  * features / plan_features / role_features tables, AND the layer-3
- * `user_feature_overrides` table — which the in-memory mode can never
+ * `user_feature_overrides` table - which the in-memory mode can never
  * exercise.
  *
  * Test matrix:
@@ -49,7 +49,7 @@ beforeEach(() => {
   invalidatePermissionsCache();
 });
 
-describe('resolveFeatures — plan × role intersection', () => {
+describe('resolveFeatures - plan × role intersection', () => {
   it('Solo plan + Firm Admin role: admin.users yes (role permits) but drafting.ai no (plan does not)', async () => {
     const u = await seedUser(firmSolo.id, {
       email: `perm-solo-admin-${Date.now()}@integration.test`,
@@ -63,7 +63,7 @@ describe('resolveFeatures — plan × role intersection', () => {
     expect(out.features).not.toContain('esign.bulk');
     // Solo plan DOES include drafting.basic + admin (none directly, since
     // Solo plan_features only covers drafting/matter/client/review/reports).
-    // admin.users requires Practice or Firm plan — confirm it's absent.
+    // admin.users requires Practice or Firm plan - confirm it's absent.
     expect(out.features).not.toContain('admin.users');
   });
 
@@ -110,7 +110,7 @@ describe('resolveFeatures — plan × role intersection', () => {
   });
 });
 
-describe('resolveFeatures — user_feature_overrides', () => {
+describe('resolveFeatures - user_feature_overrides', () => {
   it('grant override unlocks a key the user\'s role would otherwise skip', async () => {
     const u = await seedUser(firmFirm.id, {
       email: `perm-grant-${Date.now()}@integration.test`,
@@ -125,7 +125,7 @@ describe('resolveFeatures — user_feature_overrides', () => {
     await addUserFeatureOverride(u.id, 'admin.users', 'grant');
     out = await resolveFeatures(u.id);
     // Firm plan permits admin.users, and the override now grants it to this
-    // user — should appear.
+    // user - should appear.
     expect(out.features).toContain('admin.users');
   });
 
@@ -146,7 +146,7 @@ describe('resolveFeatures — user_feature_overrides', () => {
 
   it('grant override is ignored when the plan does NOT permit the feature', async () => {
     // Solo plan does not unlock esign.bulk. A grant override should NOT bypass
-    // the plan layer — the resolver intersects grant overrides with plan_set.
+    // the plan layer - the resolver intersects grant overrides with plan_set.
     const u = await seedUser(firmSolo.id, {
       email: `perm-grant-plan-block-${Date.now()}@integration.test`,
       role: 'Firm Admin',

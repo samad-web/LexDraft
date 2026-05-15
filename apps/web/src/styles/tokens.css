@@ -1,13 +1,13 @@
 /* =================================================================
-   LexDraft — Monochrome Legal design tokens.
-   Source of truth: /design-system.md (sections 2–6).
-   The system is locked to light — black text on near-white surfaces.
+   LexDraft - Monochrome Legal design tokens.
+   Source of truth: /design-system.md (sections 2-6).
+   The system is locked to light - black text on near-white surfaces.
    ================================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:wght@400;600&family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Noto+Sans+Tamil:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surfaces (light — design-system.md §2 light palette) */
+  /* Surfaces (light - design-system.md §2 light palette) */
   --bg-base:       #FAFAFA;
   --bg-surface:    #FFFFFF;
   --bg-surface-2:  #F4F4F4;
@@ -60,7 +60,7 @@
   --space-12: 96px;
   --space-13: 128px;
 
-  /* Shadows (popovers/modals only — cards rely on borders) */
+  /* Shadows (popovers/modals only - cards rely on borders) */
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.08);
   --shadow-modal:   0 24px 64px rgba(0,0,0,0.16);
 
@@ -99,7 +99,7 @@
 
 /* ---------- DARK THEME OVERRIDE ---------- */
 [data-theme='dark'] {
-  /* Surfaces — inverted from the light palette */
+  /* Surfaces - inverted from the light palette */
   --bg-base:       #0A0A0A;
   --bg-surface:    #141414;
   --bg-surface-2:  #1C1C1C;
@@ -119,13 +119,13 @@
   --border-strong:  #525252;
   --border-focus:   #FAFAFA;
 
-  /* Status — muted bg variants for dark surfaces */
+  /* Status - muted bg variants for dark surfaces */
   --success-bg: rgba(22,163,74,0.16);
   --warning-bg: rgba(202,138,4,0.18);
   --danger-bg:  rgba(220,38,38,0.18);
   --info-bg:    rgba(37,99,235,0.18);
 
-  /* Shadows — softer, since surfaces are already dark */
+  /* Shadows - softer, since surfaces are already dark */
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.40);
   --shadow-modal:   0 24px 64px rgba(0,0,0,0.60);
 }

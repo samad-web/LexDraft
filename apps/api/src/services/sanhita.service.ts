@@ -6,14 +6,14 @@
  *   CrPC → Bharatiya Nagarik Suraksha     (BNSS)
  *   IEA  → Bharatiya Sakshya Adhiniyam    (BSA)
  *
- * Data lives in apps/api/src/data/sanhita-map.json — a curated, hand-edited
+ * Data lives in apps/api/src/data/sanhita-map.json - a curated, hand-edited
  * table of the most-cited renumberings. Coverage is intentionally narrow:
  * we'd rather be silent than wrong on cross-referencing. Entries marked with
- * `substantiveChange: "UNVERIFIED — counsel review required"` are best-guesses
+ * `substantiveChange: "UNVERIFIED - counsel review required"` are best-guesses
  * pending verification; callers should surface that wording verbatim.
  *
  * All three exported functions are pure and synchronous (the JSON loads at
- * import time) — no database, no firm scoping.
+ * import time) - no database, no firm scoping.
  */
 
 import mappings from '../data/sanhita-map.json';
@@ -86,7 +86,7 @@ export function lookupByNewSection(input: LookupInput): SanhitaMapping | null {
 //   "Sec. 302 IPC", "Section 138 of the NI Act", "S. 161 Cr.P.C.",
 //   "§65B of the Evidence Act", "u/s 420 IPC", "IPC § 420", etc.
 //
-// The regex is deliberately tolerant — it accepts an optional sub-clause in
+// The regex is deliberately tolerant - it accepts an optional sub-clause in
 // parentheses (e.g. "120(A)") because counsel write these inconsistently.
 
 const ACT_ALIASES: Record<OldAct, RegExp> = {
@@ -120,7 +120,7 @@ const SCAN_REGEXES: Array<{ act: OldAct; rx: RegExp }> = (['IPC', 'CrPC', 'IEA']
  * Implementation notes:
  *  - The regexes are run separately per Act to avoid combinatorial alternation
  *    blowups and to keep the per-Act group ordering deterministic.
- *  - Overlapping matches are de-duplicated by [index, length] — the same span
+ *  - Overlapping matches are de-duplicated by [index, length] - the same span
  *    won't be reported twice when multiple regexes happen to fire on it.
  */
 export function scanText(body: string): ScanResult {

@@ -1,11 +1,11 @@
 /**
- * Calculator routes — court fee, stamp duty, vakalatnama generator.
+ * Calculator routes - court fee, stamp duty, vakalatnama generator.
  *
  * Mounted at `/api/calculators` (see routes/index.ts).
  *
  * Gating: every endpoint requires the `tools.calculators` feature. The
  * orchestrator wires this key into the permissions catalogue and plan grants
- * — Solo/Practice/Firm tiers all receive it by default since the calculators
+ * - Solo/Practice/Firm tiers all receive it by default since the calculators
  * are universally useful for Indian advocates.
  *
  * Inputs are validated with zod at the route boundary so the service layer
@@ -51,7 +51,7 @@ const VakalatnamaBody = z.object({
   respondent: z.string().optional(),
 });
 
-// Discovery — list states with calculator coverage. No tenant scoping; this
+// Discovery - list states with calculator coverage. No tenant scoping; this
 // is a static lookup gated behind auth + feature.
 calculatorsRouter.get('/states', requireFeature(FEATURE), (_req, res, next) => {
   try {

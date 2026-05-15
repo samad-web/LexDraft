@@ -226,7 +226,7 @@ export function CaseDetailView() {
         </div>
       </div>
 
-      {/* BODY — two columns */}
+      {/* BODY - two columns */}
       <div className="case-body" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'flex-start' }}>
         {/* LEFT */}
         <div className="col" style={{ gap: 24 }}>
@@ -524,8 +524,8 @@ function MetaItem({
  *
  * The shared `DocumentViewerModal` is wired to fetch its body from the
  * documents / drafts API by id; a generated-on-the-fly letter has no id, so
- * we render it through the generic `Modal` chrome instead. Same affordances —
- * scrollable preview, close, copy to clipboard — without coupling the
+ * we render it through the generic `Modal` chrome instead. Same affordances -
+ * scrollable preview, close, copy to clipboard - without coupling the
  * generated text to the persistence layer.
  */
 function EngagementLetterPreview({

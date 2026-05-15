@@ -1,14 +1,14 @@
 /**
- * Letterhead routes — backs the Settings → Letterhead designer.
+ * Letterhead routes - backs the Settings → Letterhead designer.
  *
- *   GET    /api/letterheads                — firm + personal designs + effective default
- *   POST   /api/letterheads                — create (firm-scoped or personal)
- *   GET    /api/letterheads/:id            — single design
- *   PATCH  /api/letterheads/:id            — update fields / promote default
- *   DELETE /api/letterheads/:id            — remove
- *   POST   /api/letterheads/logo-upload-url — presigned PUT for a logo image
+ *   GET    /api/letterheads                - firm + personal designs + effective default
+ *   POST   /api/letterheads                - create (firm-scoped or personal)
+ *   GET    /api/letterheads/:id            - single design
+ *   PATCH  /api/letterheads/:id            - update fields / promote default
+ *   DELETE /api/letterheads/:id            - remove
+ *   POST   /api/letterheads/logo-upload-url - presigned PUT for a logo image
  *
- * Gate: `drafting.basic` — the same feature anyone who can export a document
+ * Gate: `drafting.basic` - the same feature anyone who can export a document
  * already has. We deliberately don't gate on `admin.users` because every
  * advocate needs their letterhead for their own exports; firm-wide designs
  * are an extra layer the firm admin can curate, not a prerequisite.
@@ -68,7 +68,7 @@ const Update = z.object({
 const LogoUpload = z.object({
   fileName: z.string().min(1).max(255),
   fileMime: z.string().min(1).max(120),
-  // 2MB cap — letterhead logos should be small. Anything larger is likely
+  // 2MB cap - letterhead logos should be small. Anything larger is likely
   // unoptimised and would bloat every generated PDF.
   fileSize: z.number().int().min(1).max(2 * 1024 * 1024),
 });
@@ -106,7 +106,7 @@ letterheadsRouter.post('/', gate, async (req, res, next) => {
     if (!userId) throw new UnauthorizedError();
     const firmId = await firmIdForUser(userId);
     if (!firmId) {
-      throw new UnprocessableEntityError('No firm attached — cannot create letterhead');
+      throw new UnprocessableEntityError('No firm attached - cannot create letterhead');
     }
     const body = Create.parse(req.body);
     const created = await letterheadsService.create(body, { firmId, userId });
@@ -116,7 +116,7 @@ letterheadsRouter.post('/', gate, async (req, res, next) => {
   }
 });
 
-// Presigned logo upload — defined BEFORE /:id so Express doesn't match
+// Presigned logo upload - defined BEFORE /:id so Express doesn't match
 // 'logo-upload-url' as an id.
 letterheadsRouter.post('/logo-upload-url', gate, async (req, res, next) => {
   try {
@@ -124,7 +124,7 @@ letterheadsRouter.post('/logo-upload-url', gate, async (req, res, next) => {
     if (!userId) throw new UnauthorizedError();
     const firmId = await firmIdForUser(userId);
     if (!firmId) {
-      throw new UnprocessableEntityError('No firm attached — cannot upload logo');
+      throw new UnprocessableEntityError('No firm attached - cannot upload logo');
     }
     const body = LogoUpload.parse(req.body);
     if (!ALLOWED_LOGO_MIMES.has(body.fileMime.toLowerCase())) {
@@ -169,7 +169,7 @@ letterheadsRouter.get('/:id', gate, async (req, res, next) => {
 });
 
 // Presigned GET URL for the letterhead's logo. Goes through the letterhead
-// row first so tenant scope is enforced — passing a raw storage key from
+// row first so tenant scope is enforced - passing a raw storage key from
 // the client would bypass that.
 letterheadsRouter.get('/:id/logo-url', gate, async (req, res, next) => {
   try {

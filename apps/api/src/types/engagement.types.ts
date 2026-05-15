@@ -1,5 +1,5 @@
 /**
- * Engagement-letter DTOs — kept LOCAL to the api package on purpose. The
+ * Engagement-letter DTOs - kept LOCAL to the api package on purpose. The
  * orchestrator will promote/unify these into `@lexdraft/types` once the
  * Firm-tier feature ships to the web client; until then, treat this as the
  * API's provisional contract.
@@ -58,7 +58,7 @@ export interface GenerateEngagementLetterRequest {
 export interface GenerateEngagementLetterResponse {
   text: string;
   generatedAt: string;
-  /** Which template was actually used — surfaced so the UI can label the
+  /** Which template was actually used - surfaced so the UI can label the
    *  preview ("from default template" vs "from <picked>"). */
   templateId: string;
   matterType: string;

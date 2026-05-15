@@ -130,7 +130,7 @@ export const documentsService = {
 
   async create(input: CreateDocumentInput, firmId: string | null): Promise<DocumentRecord> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create document'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create document'), { status: 422 });
     }
     const sql = db();
     if (sql) {

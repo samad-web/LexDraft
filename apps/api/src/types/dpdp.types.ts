@@ -1,5 +1,5 @@
 /**
- * DPDP Act 2023 compliance DTOs — kept LOCAL to the api package on purpose.
+ * DPDP Act 2023 compliance DTOs - kept LOCAL to the api package on purpose.
  * Mirrors the shape returned by the data-principal endpoints under
  * `/api/me/dpdp/*`. The orchestrator will lift these into `@lexdraft/types`
  * once the consent-banner / settings UI wires up; treat this as the API's
@@ -11,7 +11,7 @@ export interface DpdpActor {
   email: string;
 }
 
-/** Trim of metadata that's safe to ship inside the export payload — strips
+/** Trim of metadata that's safe to ship inside the export payload - strips
  *  password hashes, internal flags, etc. before serialisation. */
 export interface ExportedUser {
   id: string;
@@ -51,7 +51,7 @@ export interface DeletionRequest {
   scheduledPurgeAt: string;
   /** Retention window honoured. Default 30, capped at 365. */
   retentionDays: number;
-  /** Alias for scheduledPurgeAt — the latest moment the user can cancel. */
+  /** Alias for scheduledPurgeAt - the latest moment the user can cancel. */
   canCancelUntil: string;
 }
 

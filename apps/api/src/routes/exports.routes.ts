@@ -1,5 +1,5 @@
 /**
- * Financial export endpoints — invoices + expenses CSV, sized for GST and
+ * Financial export endpoints - invoices + expenses CSV, sized for GST and
  * Tally quarterly compliance.
  *
  * Two read-only GETs, both gated by `exports.financial`. The CSV body is
@@ -14,7 +14,7 @@ import { exportsService } from '../services/exports.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 
-// YYYY-MM-DD only — sanitises against SQL injection at the parse layer and
+// YYYY-MM-DD only - sanitises against SQL injection at the parse layer and
 // keeps the route surface narrow. Both pg client and Postgres tolerate ISO
 // dates with no further escaping when passed via parameter binding.
 const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD');
@@ -34,7 +34,7 @@ const ExpensesQuery = z.object({
 function setCsvHeaders(res: import('express').Response, filename: string): void {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   // Some browsers / proxies (notably Cloudflare) will try to gzip a CSV
-  // mid-stream — we send the body as a single buffer below so that's
+  // mid-stream - we send the body as a single buffer below so that's
   // moot, but explicitly disabling caching keeps stale exports from
   // sneaking into a shared proxy.
   res.setHeader('Cache-Control', 'no-store');

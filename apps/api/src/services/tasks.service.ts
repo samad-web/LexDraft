@@ -83,7 +83,7 @@ export const tasksService = {
 
   async create(input: Omit<Task, 'id'>, firmId: string | null): Promise<Task> {
     if (!firmId) {
-      throw Object.assign(new Error('No firm attached — cannot create task'), { status: 422 });
+      throw Object.assign(new Error('No firm attached - cannot create task'), { status: 422 });
     }
     const sql = db();
     if (sql) {

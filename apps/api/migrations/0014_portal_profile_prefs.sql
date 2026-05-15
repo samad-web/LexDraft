@@ -1,7 +1,7 @@
 -- =============================================================================
--- LexDraft — Client portal: per-client preferences (language, notifications)
+-- LexDraft - Client portal: per-client preferences (language, notifications)
 -- =============================================================================
--- CLIENT_PORTAL.md §4.8 — the portal Profile screen exposes a small set of
+-- CLIENT_PORTAL.md §4.8 - the portal Profile screen exposes a small set of
 -- preferences. Storing them as jsonb on `clients` keeps the schema thin (one
 -- column, no new table) while leaving room for future keys without further
 -- migrations.

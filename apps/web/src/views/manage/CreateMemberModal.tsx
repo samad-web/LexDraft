@@ -32,7 +32,7 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
   const [autoPassword, setAutoPassword] = useState(true);
   const [password, setPassword] = useState('');
 
-  // Default role to "Associate" when present, otherwise the first role —
+  // Default role to "Associate" when present, otherwise the first role -
   // spares the admin one click in the common case.
   useEffect(() => {
     if (open && !roleId && roles.length > 0) {
@@ -164,7 +164,7 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
             value={practiceGroupId}
             onChange={setPracticeGroupId}
             options={[
-              { value: '', label: '— No group —' },
+              { value: '', label: '- No group -' },
               ...practiceGroups.map((g) => ({ value: g.id, label: g.name })),
             ]}
           />
@@ -239,7 +239,7 @@ export function CreatedMemberDialog({
       title={`${user.name} is ready`}
       description={
         tempPassword
-          ? 'Share these credentials with the member out-of-band (encrypted email, password manager, in-person). The temporary password is shown only on this screen — ask them to change it on first sign-in.'
+          ? 'Share these credentials with the member out-of-band (encrypted email, password manager, in-person). The temporary password is shown only on this screen - ask them to change it on first sign-in.'
           : 'The account is active. Share the password you set with the member separately.'
       }
       width={500}
@@ -262,7 +262,7 @@ export function CreatedMemberDialog({
         />
       ) : (
         <div className="body-sm muted" style={{ padding: '10px 0' }}>
-          Password: <em>set at create time</em> — share it separately.
+          Password: <em>set at create time</em> - share it separately.
         </div>
       )}
       <div

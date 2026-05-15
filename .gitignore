@@ -29,6 +29,10 @@ _design
 # Local exports of survey responses (generated during dev/QA)
 /lexdraft-survey-response-*.json
 
+# Survey questionnaire spec docs — kept outside the repo (managed elsewhere).
+/Legal_AI_Survey.md
+/lexdraft-survey.md
+
 # Local uploads dir (file-storage driver default)
 /uploads/
 .test-uploads/

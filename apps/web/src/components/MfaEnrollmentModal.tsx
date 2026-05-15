@@ -10,11 +10,11 @@ import type {
 
 /**
  * Three-step TOTP enrolment.
- *   1. SCAN     — display the server-rendered QR + manual base32 secret
- *   2. CONFIRM  — 6-digit code → POST /enroll/confirm
- *   3. BACKUP   — show the 8 one-time backup codes, force the user to ack
+ *   1. SCAN     - display the server-rendered QR + manual base32 secret
+ *   2. CONFIRM  - 6-digit code → POST /enroll/confirm
+ *   3. BACKUP   - show the 8 one-time backup codes, force the user to ack
  *
- * State is held locally — once the dialog closes, the secret/backup codes are
+ * State is held locally - once the dialog closes, the secret/backup codes are
  * gone for good (the server only retains hashed versions). This is the only
  * place in the product where backup codes are surfaced.
  */
@@ -38,7 +38,7 @@ export function MfaEnrollmentModal({ open, onClose }: Props) {
 
   // Kick off the server-side challenge on open. We only do this once per
   // mount cycle; if the user closes and reopens the modal we'll mint a fresh
-  // challenge — the previous one is rendered useless server-side.
+  // challenge - the previous one is rendered useless server-side.
   useEffect(() => {
     if (!open) return;
     setStep('scan');
@@ -71,7 +71,7 @@ export function MfaEnrollmentModal({ open, onClose }: Props) {
   };
 
   const handleClose = () => {
-    // Don't let users dismiss the backup-codes step without acknowledging —
+    // Don't let users dismiss the backup-codes step without acknowledging -
     // they'll be locked out if they lose their phone otherwise. The "I have
     // saved my codes" tick is the only path off step 3.
     if (step === 'backup' && !acked) return;
@@ -95,7 +95,7 @@ export function MfaEnrollmentModal({ open, onClose }: Props) {
           ? 'Open your authenticator app (Authy, 1Password, Google Authenticator) and scan the QR below.'
           : step === 'confirm'
             ? 'Type the code your authenticator app shows right now to finish enrolment.'
-            : 'These backup codes let you sign in if you lose access to your authenticator. They are shown ONCE — save them somewhere safe.'
+            : 'These backup codes let you sign in if you lose access to your authenticator. They are shown ONCE - save them somewhere safe.'
       }
       width={520}
     >
@@ -328,7 +328,7 @@ function BackupStep({
   const handleDownload = () => {
     const blob = new Blob(
       [
-        'LexDraft — Two-factor backup codes\n',
+        'LexDraft - Two-factor backup codes\n',
         'Each code can be used ONCE. Keep this file somewhere safe.\n',
         `Generated: ${new Date().toISOString()}\n\n`,
         allText,

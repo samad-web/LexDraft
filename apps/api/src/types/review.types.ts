@@ -1,5 +1,5 @@
 /**
- * Contract-review DTOs — kept LOCAL to the api package on purpose. The
+ * Contract-review DTOs - kept LOCAL to the api package on purpose. The
  * orchestrator will promote/unify these into `@lexdraft/types` once the
  * feature ships to the web client and stabilises; until then, treat this
  * file as the API's provisional contract.
@@ -29,7 +29,7 @@ export type ReviewSeverity =
 export type ReviewStatus = 'pending' | 'analyzing' | 'completed' | 'failed';
 
 /** Human-decision lifecycle. Distinct from `ReviewStatus`, which tracks the
- *  AI run. A review can be `status='completed'` AND `decision=null` — the AI
+ *  AI run. A review can be `status='completed'` AND `decision=null` - the AI
  *  finished, no human has decided yet. */
 export type ReviewDecision = 'pending' | 'changes_requested' | 'approved';
 
@@ -43,7 +43,7 @@ export interface ContractReviewFinding {
   severity: ReviewSeverity;
   /** Short headline shown in the findings card. */
   title: string;
-  /** Verbatim excerpt from the contract — the clause the model flagged.
+  /** Verbatim excerpt from the contract - the clause the model flagged.
    *  Empty for findings of kind 'Missing' (since the clause isn't there). */
   excerpt: string;
   /** Statute, section, or precedent the model cited (e.g. "Sec 23 ICA, 1872"). */
@@ -62,7 +62,7 @@ export interface ContractReviewSummary {
   sourceFilename: string | null;
   status: ReviewStatus;
   riskScore: number | null;
-  /** One-line executive summary — populated when status='completed'. */
+  /** One-line executive summary - populated when status='completed'. */
   summary: string | null;
   provider: string | null;
   errorMessage: string | null;
@@ -74,11 +74,11 @@ export interface ContractReviewSummary {
   decision: ReviewDecision | null;
   decidedAt: string | null;
   decidedBy: ReviewAssignee | null;
-  /** Convenience count — saves the UI an extra request when listing. */
+  /** Convenience count - saves the UI an extra request when listing. */
   commentCount: number;
 }
 
-/** Full review payload — what GET /api/review/:id returns. Adds the
+/** Full review payload - what GET /api/review/:id returns. Adds the
  *  source text and findings to the summary. */
 export interface ContractReview extends ContractReviewSummary {
   /** The contract text the LLM saw. Surfaced so the UI can render the

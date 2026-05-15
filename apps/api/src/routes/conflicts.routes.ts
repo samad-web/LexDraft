@@ -1,11 +1,11 @@
 /**
- * Conflict-of-interest check — Practice-tier endpoint.
+ * Conflict-of-interest check - Practice-tier endpoint.
  *
  * Mount under `/api/conflicts` in `routes/index.ts`. The route is gated by
  * the `conflicts.check` feature key, which the permissions orchestrator
  * wires onto Practice + Firm tiers.
  *
- * Empty / partial input is intentionally NOT a 400 — the web UI debounces
+ * Empty / partial input is intentionally NOT a 400 - the web UI debounces
  * on every keystroke, so noisy validation errors during typing would be
  * useless. The service returns `{ severity: 'green', hits: [] }` when
  * there's nothing to scan.
@@ -32,7 +32,7 @@ conflictsRouter.post('/check', requireFeature('conflicts.check'), async (req, re
   try {
     const firmId = await firmIdForUser(req.user?.id);
     if (!firmId) {
-      // No firm attached — return green so the UI can render the new-matter
+      // No firm attached - return green so the UI can render the new-matter
       // form normally. (Orchestrators sometimes provision users before
       // attaching a firm; we don't want that to break create-matter.)
       res.json({ severity: 'green', hits: [] });

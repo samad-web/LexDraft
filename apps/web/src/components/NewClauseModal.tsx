@@ -141,7 +141,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
             className="input"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="The full clause text — what gets pasted into a draft."
+            placeholder="The full clause text - what gets pasted into a draft."
             rows={8}
             required
           />

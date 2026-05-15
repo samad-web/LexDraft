@@ -1,19 +1,19 @@
 -- =============================================================================
--- LexDraft — Client portal: messages thread + document acknowledgement
+-- LexDraft - Client portal: messages thread + document acknowledgement
 -- =============================================================================
 -- CLIENT_PORTAL.md §4.5 (acknowledge receipt) and §4.7 (messages).
 --
 --   * documents.requires_acknowledgement / signed_at / signed_by_client_id
---       — adds the "lightweight signature" semantics for documents the
+--       - adds the "lightweight signature" semantics for documents the
 --         firm flags as needing client acknowledgement
 --   * portal_messages
---       — one row per message; threaded by (firm_id, client_id, matter_id),
+--       - one row per message; threaded by (firm_id, client_id, matter_id),
 --         where matter_id is null for the per-client "general" thread
 --
 -- Idempotent.
 -- =============================================================================
 
--- ---- documents — acknowledgement flags -------------------------------------
+-- ---- documents - acknowledgement flags -------------------------------------
 
 alter table documents
   add column if not exists requires_acknowledgement boolean not null default false;
@@ -42,7 +42,7 @@ create table if not exists portal_messages (
   sender_name  text not null,
   body         text not null check (length(body) between 1 and 4000),
   sent_at      timestamptz not null default now(),
-  /* recipient-read marker — null = unread by the other side */
+  /* recipient-read marker - null = unread by the other side */
   read_at      timestamptz
 );
 
@@ -54,7 +54,7 @@ create index if not exists portal_messages_unread_idx
 
 -- ---- demo seed: flag one of the seeded documents as requiring ack ----------
 -- Picks any document on the seed firm so the portal Acknowledge button has
--- something to bind to in dev — production migrations have no rows yet, so
+-- something to bind to in dev - production migrations have no rows yet, so
 -- this is a no-op there.
 
 update documents
