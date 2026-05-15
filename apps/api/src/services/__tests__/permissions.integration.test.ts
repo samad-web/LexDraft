@@ -8,8 +8,9 @@
  * exercise.
  *
  * Test matrix:
- *   - Solo plan × Firm Admin role → admin.* keys present (plan permits), but
- *     drafting.ai NOT present (Solo plan doesn't unlock AI even for admins).
+ *   - Solo plan × Firm Admin role → drafting.ai present (Solo plan opens the
+ *     gate per migration 0016; metering enforces the 50/mo cap elsewhere),
+ *     but admin.users / esign.bulk absent (Solo plan doesn't include them).
  *   - Practice plan × Firm Admin role → admin.users present (plan + role
  *     both grant), drafting.ai present (plan unlocks).
  *   - Firm plan × Firm Admin → full set including esign.bulk + analytics.firm.
@@ -50,7 +51,7 @@ beforeEach(() => {
 });
 
 describe('resolveFeatures - plan × role intersection', () => {
-  it('Solo plan + Firm Admin role: admin.users yes (role permits) but drafting.ai no (plan does not)', async () => {
+  it('Solo plan + Firm Admin role: drafting.ai yes (mig 0016), admin.users / esign.bulk NO (plan does not)', async () => {
     const u = await seedUser(firmSolo.id, {
       email: `perm-solo-admin-${Date.now()}@integration.test`,
       role: 'Firm Admin',
@@ -58,12 +59,16 @@ describe('resolveFeatures - plan × role intersection', () => {
     });
     const out = await resolveFeatures(u.id);
     expect(out.features).toContain('profile.view'); // baseline
-    // Solo plan does NOT include drafting.ai, so even Firm Admin can't see it.
-    expect(out.features).not.toContain('drafting.ai');
+    // drafting.ai is in Solo plan_features per 0016_solo_drafting_ai.sql:
+    // the 50/month cap is enforced by metering in me.routes.ts, not by the
+    // feature gate. Firm Admin role permits it; plan unlocks it.
+    expect(out.features).toContain('drafting.ai');
+    // drafting.basic ships in every paid tier.
+    expect(out.features).toContain('drafting.basic');
+    // esign.bulk is Firm-tier only; absent on Solo regardless of role.
     expect(out.features).not.toContain('esign.bulk');
-    // Solo plan DOES include drafting.basic + admin (none directly, since
-    // Solo plan_features only covers drafting/matter/client/review/reports).
-    // admin.users requires Practice or Firm plan - confirm it's absent.
+    // admin.users requires Practice or Firm plan - confirm it's absent on Solo
+    // even when the role (Firm Admin) would otherwise grant it.
     expect(out.features).not.toContain('admin.users');
   });
 
