@@ -19,12 +19,29 @@ const Input = z.object({
   caseId: z.string().uuid().optional(),
 });
 
+// Edit form: same shape as Input minus caseId (re-resolved server-side from the
+// matter label). All fields required so the row is fully replaced.
+const UpdateInput = z.object({
+  case: z.string().min(1),
+  time: z.string().min(1),
+  court: z.string().min(1),
+  purpose: z.string().min(1),
+  status: z.enum(['today', 'upcoming', 'past']),
+  date: z.string().optional(),
+  judge: z.string().optional(),
+});
+
 const WeekQuery = z.object({ start: z.string().optional() });
+const MonthQuery = z.object({
+  year:  z.coerce.number().int().min(1970).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+});
 const DayParams = z.object({ iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) });
+const IdParams = z.object({ id: z.string().uuid() });
 
 export const hearingsRouter: Router = Router();
 
-// Hearings live under the matter feature domain — re-uses matter.view/create
+// Hearings live under the matter feature domain - re-uses matter.view/create
 // rather than introducing dedicated hearings.* keys.
 
 hearingsRouter.get('/today', requireFeature('matter.view'), async (req, res, next) => {
@@ -91,6 +108,17 @@ hearingsRouter.get('/week', requireFeature('matter.view'), validate({ query: Wee
   }
 });
 
+hearingsRouter.get('/month', requireFeature('matter.view'), validate({ query: MonthQuery }), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    const year = Number(req.query['year']);
+    const month = Number(req.query['month']);
+    res.json(await hearingsService.month(firmId, year, month));
+  } catch (err) {
+    next(err);
+  }
+});
+
 hearingsRouter.get('/day/:iso', requireFeature('matter.view'), validate({ params: DayParams }), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
@@ -109,3 +137,37 @@ hearingsRouter.get('/', requireFeature('matter.view'), async (req, res, next) =>
     next(err);
   }
 });
+
+hearingsRouter.patch(
+  '/:id',
+  requireFeature('matter.create'),
+  validate({ params: IdParams, body: UpdateInput }),
+  withAudit({ action: 'hearing.update', targetType: 'hearing' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const id = String(req.params['id']);
+      const updated = await hearingsService.update(id, req.body, firmId);
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+hearingsRouter.delete(
+  '/:id',
+  requireFeature('matter.create'),
+  validate({ params: IdParams }),
+  withAudit({ action: 'hearing.delete', targetType: 'hearing' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const id = String(req.params['id']);
+      await hearingsService.remove(id, firmId);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  },
+);

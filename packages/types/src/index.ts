@@ -1,4 +1,4 @@
-// Shared domain types — the contract between apps/web and apps/api.
+// Shared domain types - the contract between apps/web and apps/api.
 // Mirrors the data shapes the design uses (see _design/lexdraft/project/data.jsx).
 
 export type ID = string;
@@ -206,7 +206,7 @@ export interface FirmMember {
   activeMatters: number;
   /** Hours billed in the current month. */
   billableHours: number;
-  /** Win rate as a percentage 0–100 across closed matters this FY. */
+  /** Win rate as a percentage 0-100 across closed matters this FY. */
   winRate: number;
   status: 'Active' | 'On leave' | 'Inactive';
 }
@@ -216,7 +216,7 @@ export interface PracticeAreaSlice {
   matters: number;
   /** INR string with a ₹ prefix, e.g. "₹4.2L". */
   revenue: string;
-  /** Share of total firm revenue 0–1. */
+  /** Share of total firm revenue 0-1. */
   share: number;
 }
 
@@ -245,7 +245,7 @@ export interface FirmDashboardSummary {
     name: string;
     seats: number;
     seatsUsed: number;
-    /** Friendly date string, e.g. "FY 25–26 · Q4". */
+    /** Friendly date string, e.g. "FY 25-26 · Q4". */
     period: string;
   };
   stats: {
@@ -415,7 +415,7 @@ export interface FirmBranding {
   displayName: string;
   /** Optional logo URL. */
   logoUrl: string | null;
-  /** Hex accent color (e.g. #0A0A0A) — used sparingly per the monochrome system. */
+  /** Hex accent color (e.g. #0A0A0A) - used sparingly per the monochrome system. */
   accentColor: string | null;
 }
 
@@ -480,7 +480,7 @@ export type AuditAction =
   | 'hearing.create'   | 'hearing.update'   | 'hearing.delete'
   | 'document.create'  | 'document.update'  | 'document.delete'
   | 'limitation.create'| 'limitation.update'| 'limitation.delete'
-  // Client portal — actor is the portal client (actor_user_id is null;
+  // Client portal - actor is the portal client (actor_user_id is null;
   // payload carries `actorKind: 'portal_client'` and the client id).
   | 'portal.session.created'
   | 'portal.session.signed_out'
@@ -542,7 +542,7 @@ export interface ImpersonationGrant {
   user: User;
   /** ISO timestamp when this grant expires. */
   expiresAt: string;
-  /** The admin who started the session — for the banner & end-session call. */
+  /** The admin who started the session - for the banner & end-session call. */
   originalAdminId: ID;
 }
 
@@ -574,14 +574,14 @@ export interface AdminCreateFirmRequest {
 
 /** Response shape for `POST /admin/firms`: the created firm plus the bootstrap
  *  admin's identity. `tempPassword` is populated only when the API generated
- *  the password — never echoed back when the operator supplied one. */
+ *  the password - never echoed back when the operator supplied one. */
 export interface AdminCreateFirmResponse {
   firm: FirmSummary;
   admin: {
     id: ID;
     email: string;
     name: string;
-    /** Plaintext one-time password — present iff the API generated it. */
+    /** Plaintext one-time password - present iff the API generated it. */
     tempPassword?: string;
   };
 }
@@ -634,7 +634,7 @@ export interface AuditLogQuery {
   targetType?: AuditTargetType;
   targetId?: ID;
   action?: AuditAction;
-  /** Pagination — newest first. */
+  /** Pagination - newest first. */
   limit?: number;
   offset?: number;
 }
@@ -697,7 +697,7 @@ export interface UpdatePracticeGroupRequest {
   archived?: boolean;
 }
 
-/** Resolved feature set for the current session — returned by GET /me/features. */
+/** Resolved feature set for the current session - returned by GET /me/features. */
 export interface MeFeaturesResponse {
   /** All features the user CAN exercise, after the 3-layer resolver runs. */
   features: FeatureKey[];
@@ -730,7 +730,7 @@ export interface FirmUpdateUserRequest {
   status?: UserStatus;
 }
 
-/** Direct user-creation request from a Firm Admin — bypasses the email/link
+/** Direct user-creation request from a Firm Admin - bypasses the email/link
  *  flow when the admin already knows the credentials. Mirrors `AdminCreateFirmRequest`'s
  *  bootstrap-admin shape so the same Name@123 fallback applies. */
 export interface FirmCreateUserRequest {
@@ -749,7 +749,7 @@ export interface FirmCreateUserRequest {
 
 export interface FirmCreateUserResponse {
   user: FirmManagedUser;
-  /** Plaintext password — present only when the API generated it. */
+  /** Plaintext password - present only when the API generated it. */
   tempPassword?: string;
 }
 
@@ -761,7 +761,7 @@ export interface Clause {
   category: string;
   title: string;
   description: string;
-  /** Full clause text — the thing that gets pasted into a draft. */
+  /** Full clause text - the thing that gets pasted into a draft. */
   body: string;
   /** Times the clause has been copied/used. Server-tracked. */
   uses: number;
@@ -817,7 +817,7 @@ export interface Client {
 
 export interface PortalRequestLinkResponse {
   /** Always present so the endpoint can't be used to enumerate registered
-   *  client emails — both registered and unregistered emails get the same
+   *  client emails - both registered and unregistered emails get the same
    *  generic acknowledgement. */
   ok: true;
   /** Plaintext magic link, ONLY returned in dev (when LLM_PROVIDER === 'none'
@@ -965,7 +965,7 @@ export interface PortalProfile {
   notifications: PortalNotificationPreferences;
 }
 
-/** Partial update — only the keys the client wants to change. */
+/** Partial update - only the keys the client wants to change. */
 export interface PortalProfileUpdate {
   language?: PortalLanguage;
   notifications?: Partial<PortalNotificationPreferences>;
@@ -985,7 +985,7 @@ export interface FirmEnablePortalResponse {
   devMagicLink?: string;
 }
 
-/** A row in the firm-side "Portal messages" inbox — one entry per
+/** A row in the firm-side "Portal messages" inbox - one entry per
  *  (client × matter|null) thread, with unread count and last-message preview. */
 export interface FirmPortalThreadSummary {
   clientId: ID;
@@ -1138,7 +1138,7 @@ export interface PhysicalDocument {
   id: ID;
   /** Optional link to a matter; free-floating documents have a null caseId. */
   caseId: ID | null;
-  /** Display label for the matter — denormalised so list views never join. */
+  /** Display label for the matter - denormalised so list views never join. */
   caseLabel?: string;
   /** Physical file/folder/cabinet identifier (barcode or hand-written ref). */
   fileNo: string;
@@ -1208,6 +1208,28 @@ export interface CalendarWeek {
   hearings: CalendarHearing[];
 }
 
+export interface CalendarMonth {
+  /** Calendar year (e.g. 2026). */
+  year: number;
+  /** Calendar month, 1-12. */
+  month: number;
+  /** ISO date YYYY-MM-01 for the first of the month. */
+  monthStart: string;
+  /**
+   * Every day within the month. Length varies 28-31. `weekdayIndex` is
+   * Mon=0..Sun=6 so the client can place the first cell into the right
+   * column of a 7-column grid.
+   */
+  days: Array<{
+    date: string;
+    weekdayIndex: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    count: number;
+    isToday: boolean;
+  }>;
+  /** All hearings across the month, sorted by date then time. */
+  hearings: CalendarHearing[];
+}
+
 export interface AnalyticsSummary {
   kpis: {
     activeMatters: number;
@@ -1215,7 +1237,7 @@ export interface AnalyticsSummary {
     billableHoursMonth: number;
     /** YTD revenue in INR (whole rupees). */
     revenueYtdInr: number;
-    /** Win rate 0–100 over closed-with-outcome cases. */
+    /** Win rate 0-100 over closed-with-outcome cases. */
     winRatePct: number;
   };
   /** Stage distribution for currently-active cases. */
