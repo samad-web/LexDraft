@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useIsFetching } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -14,6 +15,11 @@ export function Topbar() {
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = useUnreadCount();
+  // Background-fetch indicator. A small dot pulses next to the title when
+  // any react-query is in flight after the initial paint. Quiet by default
+  // — we don't want a banner for every refetch, just enough motion to tell
+  // a power user that the data they're looking at is in transit.
+  const fetchingCount = useIsFetching();
 
   const segment = location.pathname.split('/')[2] || 'dashboard';
   const meta = ROUTE_TITLES[segment] || { title: segment, eyebrow: '' };
@@ -28,9 +34,27 @@ export function Topbar() {
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
           {meta.title}
+          {fetchingCount > 0 && (
+            <span
+              aria-label="Updating"
+              title="Updating"
+              className="fetch-pulse"
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: 'var(--info)',
+                display: 'inline-block',
+                flexShrink: 0,
+              }}
+            />
+          )}
         </div>
         {meta.eyebrow && (
           <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>

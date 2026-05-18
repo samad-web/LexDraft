@@ -9,6 +9,7 @@ import { MobileNav } from '@/components/shell/MobileNav';
 import { Toast } from '@/components/shell/Toast';
 import { CmdK } from '@/components/shell/CmdK';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { SuperadminBanner } from '@/components/shell/SuperadminBanner';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
@@ -191,6 +192,7 @@ export function App() {
 
   return (
     <>
+      <OfflineBanner />
       <ImpersonationBanner />
       {user.isSuperadmin && !actAs && <SuperadminBanner />}
       <DeletionScheduledBanner />

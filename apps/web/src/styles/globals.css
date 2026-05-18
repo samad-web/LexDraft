@@ -82,6 +82,18 @@ a:focus-visible,
 .input:focus-visible,
 .btn:focus-visible { outline-offset: 1px; }
 
+/* Background-fetch pulse. Used next to the page title when any
+   react-query is in flight after first paint. Subtle by design — we
+   want a power-user signal, not a distraction. */
+@keyframes fetch-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.25); }
+}
+.fetch-pulse { animation: fetch-pulse 1200ms ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .fetch-pulse { animation: none; opacity: 0.7; }
+}
+
 /* Keyboard chip — used in the shortcuts overlay. */
 .kbd {
   display: inline-flex;
