@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 // API and the web can evolve the corpus contract independently of the
 // public type package.
 
+export type Jurisdiction = 'Central' | 'State' | 'Unknown';
+
 export interface LawHit {
   id: string;
   content: string;
@@ -19,6 +21,10 @@ export interface LawHit {
   sourceUrl: string | null;
   score: number;
   rerankScore?: number;
+  /** 'Central' (parliamentary act) or 'State' (state legislature). */
+  jurisdiction: Jurisdiction;
+  /** When jurisdiction === 'State', the canonical state name. */
+  state: string | null;
 }
 
 export interface LawsSearchRequest {

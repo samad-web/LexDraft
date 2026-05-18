@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useAskResearch } from '@/hooks/useResearch';
 import { useLawsSearch, useSignedPdfUrl, type LawHit } from '@/hooks/useLawsSearch';
+import { JurisdictionBadge } from '@/components/JurisdictionBadge';
 import { useUIStore } from '@/store/ui';
 
 type Mode = 'ask' | 'corpus';
@@ -285,6 +286,7 @@ export function ResearchView() {
                         </span>
                       </>
                     )}
+                    <JurisdictionBadge jurisdiction={hit.jurisdiction} state={hit.state} />
                     <span className="spacer" />
                     <span className="mono body-xs muted" title="Reciprocal-rank-fusion score">
                       {(hit.rerankScore ?? hit.score).toFixed(3)}

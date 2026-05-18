@@ -5,6 +5,8 @@ import { logger } from '../logger';
 
 // ---- Wire-shape returned to the web client ---------------------------------
 
+export type Jurisdiction = 'Central' | 'State' | 'Unknown';
+
 export interface LawHit {
   id: string;
   content: string;
@@ -20,6 +22,11 @@ export interface LawHit {
   score: number;
   /** Cross-encoder rerank score when reranking was applied. */
   rerankScore?: number;
+  /** Whether the act is a central (parliamentary) or state-level statute.
+   *  Derived from the act title since the corpus has no explicit column. */
+  jurisdiction: Jurisdiction;
+  /** When jurisdiction === 'State', the canonical state name. */
+  state: string | null;
 }
 
 // ---- Row shape returned by the match_laws RPC ------------------------------
@@ -39,6 +46,7 @@ interface MatchRow {
 }
 
 function fromMatchRow(r: MatchRow): LawHit {
+  const j = detectJurisdiction(r.act_title);
   return {
     id: r.id,
     content: r.content,
@@ -51,7 +59,86 @@ function fromMatchRow(r: MatchRow): LawHit {
     pdfStoragePath: r.pdf_storage_path,
     sourceUrl: r.source_url,
     score: Number(r.rrf_score),
+    jurisdiction: j.jurisdiction,
+    state: j.state,
   };
+}
+
+// ----------------------------------------------------------------------------
+// Jurisdiction detection
+// ----------------------------------------------------------------------------
+//
+// The upstream `acts` table has no jurisdiction column, but Indian state
+// acts almost always begin their title with the state name. This is
+// reliable enough for surface labelling (CENTRAL / STATE · KERALA badges
+// in the UI). Pre-existing names (Bombay → Maharashtra, Orissa → Odisha)
+// are mapped to the modern canonical state.
+
+interface StateMatcher {
+  /** Canonical modern name. */
+  canonical: string;
+  /** Patterns matched against the LEADING tokens of the act title. */
+  patterns: string[];
+}
+
+const STATES: StateMatcher[] = [
+  { canonical: 'Andhra Pradesh',    patterns: ['Andhra Pradesh', 'Andhra'] },
+  { canonical: 'Arunachal Pradesh', patterns: ['Arunachal Pradesh', 'Arunachal'] },
+  { canonical: 'Assam',             patterns: ['Assam'] },
+  { canonical: 'Bihar',             patterns: ['Bihar'] },
+  { canonical: 'Chhattisgarh',      patterns: ['Chhattisgarh'] },
+  { canonical: 'Goa',               patterns: ['Goa'] },
+  { canonical: 'Gujarat',           patterns: ['Gujarat'] },
+  { canonical: 'Haryana',           patterns: ['Haryana'] },
+  { canonical: 'Himachal Pradesh',  patterns: ['Himachal Pradesh', 'Himachal'] },
+  { canonical: 'Jharkhand',         patterns: ['Jharkhand'] },
+  { canonical: 'Karnataka',         patterns: ['Karnataka'] },
+  { canonical: 'Kerala',            patterns: ['Kerala'] },
+  { canonical: 'Madhya Pradesh',    patterns: ['Madhya Pradesh', 'M.P.', 'MP'] },
+  { canonical: 'Maharashtra',       patterns: ['Maharashtra', 'Bombay'] }, // pre-1960
+  { canonical: 'Manipur',           patterns: ['Manipur'] },
+  { canonical: 'Meghalaya',         patterns: ['Meghalaya'] },
+  { canonical: 'Mizoram',           patterns: ['Mizoram'] },
+  { canonical: 'Nagaland',          patterns: ['Nagaland'] },
+  { canonical: 'Odisha',            patterns: ['Odisha', 'Orissa'] },
+  { canonical: 'Punjab',            patterns: ['Punjab'] },
+  { canonical: 'Rajasthan',         patterns: ['Rajasthan'] },
+  { canonical: 'Sikkim',            patterns: ['Sikkim'] },
+  { canonical: 'Tamil Nadu',        patterns: ['Tamil Nadu', 'Tamilnadu'] },
+  { canonical: 'Telangana',         patterns: ['Telangana'] },
+  { canonical: 'Tripura',           patterns: ['Tripura'] },
+  { canonical: 'Uttar Pradesh',     patterns: ['Uttar Pradesh', 'U.P.', 'UP'] },
+  { canonical: 'Uttarakhand',       patterns: ['Uttarakhand', 'Uttaranchal'] },
+  { canonical: 'West Bengal',       patterns: ['West Bengal'] },
+  // Union territories with their own legislative powers.
+  { canonical: 'Delhi',             patterns: ['Delhi', 'National Capital Territory'] },
+  { canonical: 'Jammu and Kashmir', patterns: ['Jammu and Kashmir', 'Jammu & Kashmir', 'J&K'] },
+  { canonical: 'Ladakh',            patterns: ['Ladakh'] },
+  { canonical: 'Puducherry',        patterns: ['Puducherry', 'Pondicherry'] },
+  { canonical: 'Andaman and Nicobar Islands', patterns: ['Andaman and Nicobar', 'Andaman'] },
+  { canonical: 'Chandigarh',        patterns: ['Chandigarh'] },
+  { canonical: 'Dadra and Nagar Haveli and Daman and Diu', patterns: ['Dadra', 'Daman'] },
+  { canonical: 'Lakshadweep',       patterns: ['Lakshadweep'] },
+];
+
+function detectJurisdiction(actTitle: string | null): { jurisdiction: Jurisdiction; state: string | null } {
+  if (!actTitle) return { jurisdiction: 'Unknown', state: null };
+
+  // Normalise: strip leading whitespace/punctuation; lowercase for matching.
+  const trimmed = actTitle.replace(/^[\s.,_·:]+/, '').trim();
+  const lower = trimmed.toLowerCase();
+
+  for (const s of STATES) {
+    for (const p of s.patterns) {
+      const pl = p.toLowerCase();
+      // Match at the very start of the title, followed by a word boundary
+      // (space, comma, period). Avoids 'Goa' matching 'Goanese' etc.
+      if (lower.startsWith(pl) && /^[\s.,]/.test(lower.slice(pl.length) || ' ')) {
+        return { jurisdiction: 'State', state: s.canonical };
+      }
+    }
+  }
+  return { jurisdiction: 'Central', state: null };
 }
 
 // ----------------------------------------------------------------------------

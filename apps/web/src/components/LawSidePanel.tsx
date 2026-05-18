@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import { useLawsSearchSuggestions, useSignedPdfUrl, type LawHit } from '@/hooks/useLawsSearch';
 import { useUIStore } from '@/store/ui';
+import { JurisdictionBadge } from '@/components/JurisdictionBadge';
 
 interface Props {
   /**
@@ -173,6 +174,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
                 <span className="mono body-xs" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                   {hit.citation ?? `${hit.actTitle ?? 'Law'}${hit.sectionNumber ? ` § ${hit.sectionNumber}` : ''}`}
                 </span>
+                <JurisdictionBadge jurisdiction={hit.jurisdiction} state={hit.state} compact />
               </div>
               {hit.sectionHeading && (
                 <div className="body-xs" style={{ marginBottom: 4, fontStyle: 'italic', color: 'var(--text-secondary)' }}>
