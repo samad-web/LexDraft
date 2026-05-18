@@ -8,6 +8,7 @@ import { Topbar } from '@/components/shell/Topbar';
 import { MobileNav } from '@/components/shell/MobileNav';
 import { Toast } from '@/components/shell/Toast';
 import { CmdK } from '@/components/shell/CmdK';
+import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { SuperadminBanner } from '@/components/shell/SuperadminBanner';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
@@ -194,11 +195,12 @@ export function App() {
       {user.isSuperadmin && !actAs && <SuperadminBanner />}
       <DeletionScheduledBanner />
       <MfaPromptBanner />
+      <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app">
         <Sidebar />
         <div className="main">
           <Topbar />
-          <div className="content" key={location.pathname}>
+          <main className="content" id="main-content" tabIndex={-1} key={location.pathname}>
             <Routes>
               <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
               <Route path="/app/dashboard" element={<DashboardView onNav={(v) => navigate(`/app/${v}`)} />} />
@@ -236,12 +238,13 @@ export function App() {
               <Route path="/app/engagement"          element={<EngagementTemplatesView />} />
               <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
             </Routes>
-          </div>
+          </main>
         </div>
         <MobileNav />
       </div>
       <Toast />
       {cmdK && <CmdK />}
+      <KeyboardShortcuts />
     </>
   );
 }
