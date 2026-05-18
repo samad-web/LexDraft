@@ -169,9 +169,12 @@ export const lawsSearchService = {
   async lookup(actQuery: string, sectionNumber: string, k = 5): Promise<LawHit[]> {
     const sql = lawsDb();
     if (!sql) throw new Error('LAWS_DATABASE_URL not configured.');
+    // lookup_section returns section_number_out (the function renames the
+    // column to avoid colliding with the input parameter name). Alias it
+    // back to section_number for the shared fromMatchRow shape.
     const rows = await sql<MatchRow[]>`
       select id, content, section_id, act_id,
-             citation, section_number, section_heading, act_title,
+             citation, section_number_out as section_number, section_heading, act_title,
              pdf_storage_path, source_url, 1.0 as rrf_score
       from lookup_section(${actQuery}, ${sectionNumber}, ${k})
     `;
