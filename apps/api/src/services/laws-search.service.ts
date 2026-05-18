@@ -182,12 +182,26 @@ function detectJurisdiction(actTitle: string | null): { jurisdiction: Jurisdicti
 // Tamil / Malayalam sections — e.g. the Hindi version of the Electricity
 // Act, 2003 — pass through unchanged.
 
+// Common English words that appear in nearly every real legal text
+// over ~30 chars. Used as a sanity-check signal for predominantly-Latin
+// content: if NONE of these appear, the chunk is almost certainly
+// garbled OCR rather than valid English. Includes legal-domain anchors
+// (act / section / court / shall) plus the basic function-word set.
+const ENGLISH_ANCHORS = /\b(the|of|and|or|to|in|by|is|be|for|with|a|an|act|section|shall|any|no|all|such|under|this|that|government|state|central|rules|court|person|provided)\b/i;
+
+// Out-of-context symbols that legitimate legal text never sprinkles
+// through prose: currency, dagger, bullet variants, geometric shapes.
+// We DO NOT include the middle-dot '·' here — the upstream corpus uses
+// it as a section separator across many acts ('· Section 1 Short title…').
+// We also don't include § / ¶ / ° — those are legitimate legal glyphs
+// that appear in non-garbled text.
+const NOISE_SYMBOLS = /[€£¥¢†‡•◦▪▫■□¤¦]/g;
+
 function isGarbled(content: string): boolean {
   // Note: we don't treat the Unicode replacement character (U+FFFD, "�")
   // as a garbled-content signal. In this corpus it often appears where
   // the section symbol "§" failed to round-trip during ingestion, in
-  // otherwise-clean English chunks. The control-char, mangled-escape,
-  // and word-ratio checks below are stronger signals.
+  // otherwise-clean English chunks. The other checks are stronger signals.
   //
   // Control characters that should never appear in real text (excluding
   // newline U+000A and tab U+0009).
@@ -196,22 +210,44 @@ function isGarbled(content: string): boolean {
   // extractors stumbling on encrypted / custom-font streams.
   if (/\\[:0-9]/.test(content)) return true;
   // Long runs of mixed punctuation that don't appear in legitimate prose.
-  // 4+ in a row of ~ : = * \ | catches ====, ::::, :=:=, ~~~~.
   if (/[~:=*\\|]{4,}/.test(content)) return true;
 
+  const trimmed = content.trim();
+  if (trimmed.length < 30) return false; // too short to judge
+
+  // Script bias: legitimate Hindi / Tamil / Malayalam / etc. chunks are
+  // dominated by non-Latin letters and don't need the English-anchor check.
+  const allLetters = (trimmed.match(/\p{L}/gu) ?? []).length;
+  const latinLetters = (trimmed.match(/[A-Za-z]/g) ?? []).length;
+  const isPredominantlyLatin = allLetters > 0 && latinLetters / allLetters > 0.5;
+
+  if (isPredominantlyLatin) {
+    // English-language sanity: a real legal text >30 chars in Latin script
+    // has at least one common English word. Garbled OCR (random letters
+    // glued into pseudo-words) has none.
+    if (!ENGLISH_ANCHORS.test(trimmed)) return true;
+
+    // Out-of-context symbol pollution: legitimate prose rarely uses
+    // currency / degree symbols. >0.5% of chars being these is suspicious.
+    const noiseCount = (trimmed.match(NOISE_SYMBOLS) ?? []).length;
+    if (noiseCount > 0 && noiseCount / trimmed.length > 0.005) return true;
+
+    // Token-level garbage: tokens with internal underscores like
+    // 'QUIAAT_' or that mix Latin with non-Latin random codepoints
+    // ('wé', '2eQ', 'Qg'). Count tokens that look like real words —
+    // 2+ Latin letters with optional simple punctuation — vs total
+    // alpha tokens. Real text is mostly word-like; OCR garbage isn't.
+    const tokens = trimmed.split(/\s+/).filter((t) => /\p{L}/u.test(t));
+    if (tokens.length >= 8) {
+      const wordLike = tokens.filter((t) => /^[A-Za-z]{2,}[A-Za-z'.,;:!?\-]*$/.test(t)).length;
+      if (wordLike / tokens.length < 0.55) return true;
+    }
+  }
+
   // Final ratio check: how much of the non-whitespace content is
-  // recognisable word matter? Includes:
-  //   \p{L}   — letters in ANY script (Latin, Devanagari, Tamil, etc.)
-  //   \p{M}   — combining marks (Devanagari halants, matras, ZWJ; Tamil
-  //             pulli; Malayalam chillu signs). WITHOUT this Devanagari
-  //             text fails the ratio check because each consonant is
-  //             paired with one or more invisible marks.
-  //   \p{N}   — digits in any script
-  //   basic punctuation, em-dash, en-dash
-  // Only structurally-broken text fails this — legitimate non-Latin
-  // content passes regardless of script.
-  const nonSpace = content.replace(/\s+/g, '');
-  if (nonSpace.length < 30) return false; // too short to judge fairly
+  // recognisable word matter? Includes letters in any script, marks
+  // (Devanagari halants, etc.), digits, and basic punctuation.
+  const nonSpace = trimmed.replace(/\s+/g, '');
   const valid = nonSpace.match(/[\p{L}\p{M}\p{N}.,;:()'"\-–—]/gu);
   const ratio = (valid?.length ?? 0) / nonSpace.length;
   return ratio < 0.65;

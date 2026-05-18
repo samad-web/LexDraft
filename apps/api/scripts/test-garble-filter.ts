@@ -6,12 +6,33 @@ import postgres from 'postgres';
 import { env } from '../src/env';
 
 // Inline copy of the production heuristic — keep them in sync.
+const ENGLISH_ANCHORS = /\b(the|of|and|or|to|in|by|is|be|for|with|a|an|act|section|shall|any|no|all|such|under|this|that|government|state|central|rules|court|person|provided)\b/i;
+const NOISE_SYMBOLS = /[€£¥¢†‡•◦▪▫■□¤¦]/g;
+
 function isGarbled(content: string): boolean {
   if (/[\x00-\x08\x0E-\x1F]/.test(content)) return true;
   if (/\\[:0-9]/.test(content)) return true;
   if (/[~:=*\\|]{4,}/.test(content)) return true;
-  const nonSpace = content.replace(/\s+/g, '');
-  if (nonSpace.length < 30) return false;
+
+  const trimmed = content.trim();
+  if (trimmed.length < 30) return false;
+
+  const allLetters = (trimmed.match(/\p{L}/gu) ?? []).length;
+  const latinLetters = (trimmed.match(/[A-Za-z]/g) ?? []).length;
+  const isPredominantlyLatin = allLetters > 0 && latinLetters / allLetters > 0.5;
+
+  if (isPredominantlyLatin) {
+    if (!ENGLISH_ANCHORS.test(trimmed)) return true;
+    const noiseCount = (trimmed.match(NOISE_SYMBOLS) ?? []).length;
+    if (noiseCount > 0 && noiseCount / trimmed.length > 0.005) return true;
+    const tokens = trimmed.split(/\s+/).filter((t) => /\p{L}/u.test(t));
+    if (tokens.length >= 8) {
+      const wordLike = tokens.filter((t) => /^[A-Za-z]{2,}[A-Za-z'.,;:!?\-]*$/.test(t)).length;
+      if (wordLike / tokens.length < 0.55) return true;
+    }
+  }
+
+  const nonSpace = trimmed.replace(/\s+/g, '');
   const valid = nonSpace.match(/[\p{L}\p{M}\p{N}.,;:()'"\-–—]/gu);
   const ratio = (valid?.length ?? 0) / nonSpace.length;
   return ratio < 0.65;
@@ -66,9 +87,13 @@ async function main(): Promise<void> {
       console.log(`              ${r.content.slice(0, 100).replace(/\s+/g, ' ')}…`);
     }
 
-    console.log('\n--- Test 0: the kind of garbage user pasted ---');
+    console.log('\n--- Test 0a: original user paste (mangled punctuation) ---');
     const sample = "1221 ======:===-:_=================== l:l1O'Tf 'lro1fFf-{tflf'fW'fr 'for f1<mr, '1UewfT 'liT *mI'f ~.-f-'1f01''f,l1 (l'fT W-<mft 'liT lW<mT ~ <t. ~il'f)r~, ;jfr ~...:rtf(7)\"k'l.r <i fc;7{r 'fir ~\",fi ;rru lIT ~rri tl\"itrr tM7!1'fir ~r~ \"-t: f..fl' 7Jqf~,'iQ\\ erf'itf rr~f :f,r <ifTtnTt.";
-    console.log(`  [${isGarbled(sample) ? 'FILTERED' : 'KEPT    '}] (synthetic — user paste)`);
+    console.log(`  [${isGarbled(sample) ? 'FILTERED' : 'KEPT    '}] (synthetic — user paste 1)`);
+
+    console.log('\n--- Test 0b: second user paste (currency/degree noise) ---');
+    const sample2 = "GSHRA\nr'_—.—__ \"n 4 (9) 699 €896Q £Q UQR QUIAAT_ \" FIQGAR] ¥ ARICK L85 SARG wé 60 9A19 9QE Qg | WTEY 2eQ 6 9T 9QRR AAR] Qceqiq edled Qa QsAIee 6QRAIG 419 4Q, UIQQ 48 YA SICQl YeasA | (2) €99 68937, 8@, QG QUIACR, TM FIAQ W RUEA LNEH @R AR CAg GIIQ Qag S8 mL 10TQ oy Q?.IGQ COOR T 8° 9GIR ARG QAIQIe WrEs &R 6QQ Q flBSQ | 4996} 62 ML @IATQ W 496 aeq nes § LTe9 GAR AAR 8Rg T 1°° Q 34° GAlA QY";
+    console.log(`  [${isGarbled(sample2) ? 'FILTERED' : 'KEPT    '}] (synthetic — user paste 2)`);
 
     console.log('\n--- Test 3: clean English sections (BNS) ---');
     const english = await sql<{ act: string; content: string }[]>`
