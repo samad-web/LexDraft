@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
+import { LawSidePanel } from '@/components/LawSidePanel';
 import {
   useAssignableUsers,
   useCreateReview,
@@ -250,7 +251,21 @@ export function ContractReviewView() {
   const risk = riskLabel(score);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: sourceText.trim() ? 'minmax(0, 1fr) 320px' : 'minmax(0, 1fr)',
+        gap: 24,
+        alignItems: 'flex-start',
+      }}
+      className="contract-review-layout"
+    >
+    <style>{`
+      @media (max-width: 1023px) {
+        .contract-review-layout { grid-template-columns: 1fr !important; }
+      }
+    `}</style>
+    <div className="col stagger" style={{ gap: 24, minWidth: 0 }}>
       <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
         <div style={{ flex: 1 }}>
           <h1 className="heading-xl" style={{ marginBottom: 4 }}>
@@ -635,6 +650,15 @@ export function ContractReviewView() {
         onOpen={openHistory}
         onRemove={removeReview}
       />
+    </div>
+    {sourceText.trim() && (
+      <LawSidePanel
+        context={sourceText}
+        title="Related authorities"
+        k={6}
+        debounceMs={800}
+      />
+    )}
     </div>
   );
 }
