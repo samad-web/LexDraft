@@ -54,6 +54,57 @@ function fromMatchRow(r: MatchRow): LawHit {
   };
 }
 
+// ----------------------------------------------------------------------------
+// Content-quality filter
+// ----------------------------------------------------------------------------
+//
+// About 3.6% of the upstream corpus has broken PDF text extraction —
+// mostly state-level Acts in regional scripts where the PDF used custom
+// fonts the extractor couldn't map. We drop those at query time instead
+// of returning them. The proper fix lives in indiacode-rag (re-ingest
+// with a better extractor); this is the SaaS-side band-aid so users
+// never see garbage.
+//
+// The heuristic catches the *broken* shape (mangled punctuation, mojibake
+// markers, control chars), NOT non-English content. Legitimate Hindi /
+// Tamil / Malayalam sections — e.g. the Hindi version of the Electricity
+// Act, 2003 — pass through unchanged.
+
+function isGarbled(content: string): boolean {
+  // Note: we don't treat the Unicode replacement character (U+FFFD, "�")
+  // as a garbled-content signal. In this corpus it often appears where
+  // the section symbol "§" failed to round-trip during ingestion, in
+  // otherwise-clean English chunks. The control-char, mangled-escape,
+  // and word-ratio checks below are stronger signals.
+  //
+  // Control characters that should never appear in real text (excluding
+  // newline U+000A and tab U+0009).
+  if (/[\x00-\x08\x0E-\x1F]/.test(content)) return true;
+  // Mangled escape sequences like \:\1O'Tf — common output of PDF
+  // extractors stumbling on encrypted / custom-font streams.
+  if (/\\[:0-9]/.test(content)) return true;
+  // Long runs of mixed punctuation that don't appear in legitimate prose.
+  // 4+ in a row of ~ : = * \ | catches ====, ::::, :=:=, ~~~~.
+  if (/[~:=*\\|]{4,}/.test(content)) return true;
+
+  // Final ratio check: how much of the non-whitespace content is
+  // recognisable word matter? Includes:
+  //   \p{L}   — letters in ANY script (Latin, Devanagari, Tamil, etc.)
+  //   \p{M}   — combining marks (Devanagari halants, matras, ZWJ; Tamil
+  //             pulli; Malayalam chillu signs). WITHOUT this Devanagari
+  //             text fails the ratio check because each consonant is
+  //             paired with one or more invisible marks.
+  //   \p{N}   — digits in any script
+  //   basic punctuation, em-dash, en-dash
+  // Only structurally-broken text fails this — legitimate non-Latin
+  // content passes regardless of script.
+  const nonSpace = content.replace(/\s+/g, '');
+  if (nonSpace.length < 30) return false; // too short to judge fairly
+  const valid = nonSpace.match(/[\p{L}\p{M}\p{N}.,;:()'"\-–—]/gu);
+  const ratio = (valid?.length ?? 0) / nonSpace.length;
+  return ratio < 0.65;
+}
+
 // ---- In-memory query cache -------------------------------------------------
 //
 // The drafting side-panel re-emits as the user types; without a cache we'd
@@ -135,13 +186,26 @@ export const lawsSearchService = {
     // the Postgres array literal `[0.1,0.2,...]` and cast on the SQL side.
     const vecLiteral = `[${vec.join(',')}]`;
 
+    // Over-fetch from the RPC so the quality filter can drop garbled
+    // chunks without leaving the caller short. ~3.6% of the corpus is
+    // broken; doubling the request is more than enough headroom and the
+    // extra rows aren't expensive at this scale.
+    const overFetch = Math.min(50, k * 2);
     const rows = await sql<MatchRow[]>`
       select id, content, section_id, act_id,
              citation, section_number, section_heading, act_title,
              pdf_storage_path, source_url, rrf_score
-      from match_laws(${vecLiteral}::vector(1024), ${trimmed}, ${actId}::uuid, ${k})
+      from match_laws(${vecLiteral}::vector(1024), ${trimmed}, ${actId}::uuid, ${overFetch})
     `;
-    let hits = rows.map(fromMatchRow);
+    const allHits = rows.map(fromMatchRow);
+    const beforeFilter = allHits.length;
+    let hits = allHits.filter((h) => !isGarbled(h.content)).slice(0, k);
+    if (hits.length < beforeFilter) {
+      logger.debug(
+        { query: trimmed.slice(0, 80), dropped: beforeFilter - hits.length, kept: hits.length },
+        'filtered garbled chunks from search',
+      );
+    }
 
     if (opts.rerank && hits.length > 1) {
       try {
@@ -172,13 +236,14 @@ export const lawsSearchService = {
     // lookup_section returns section_number_out (the function renames the
     // column to avoid colliding with the input parameter name). Alias it
     // back to section_number for the shared fromMatchRow shape.
+    const overFetch = Math.min(20, k * 2);
     const rows = await sql<MatchRow[]>`
       select id, content, section_id, act_id,
              citation, section_number_out as section_number, section_heading, act_title,
              pdf_storage_path, source_url, 1.0 as rrf_score
-      from lookup_section(${actQuery}, ${sectionNumber}, ${k})
+      from lookup_section(${actQuery}, ${sectionNumber}, ${overFetch})
     `;
-    return rows.map(fromMatchRow);
+    return rows.map(fromMatchRow).filter((h) => !isGarbled(h.content)).slice(0, k);
   },
 
   /**
