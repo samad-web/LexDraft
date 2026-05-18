@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Case, Client, Lead } from '@lexdraft/types';
 import { Icon, type IconName } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { NAV_GROUPS } from './nav-config';
@@ -39,6 +41,7 @@ function saveRecent(id: string, current: string[]): void {
 
 export function CmdK() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const theme = useUIStore((s) => s.theme);
@@ -46,6 +49,74 @@ export function CmdK() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [recent, setRecent] = useState<string[]>(() => loadRecent());
   const listRef = useRef<HTMLDivElement>(null);
+
+  // Pull cached entity lists out of react-query. We don't refetch on
+  // open — the user is searching what they've already seen. If they
+  // haven't loaded a view yet there's nothing to search there, which
+  // is fine; the nav commands still get them to the right place.
+  const contentMatches = useMemo<Command[]>(() => {
+    if (!q.trim()) return [];
+    const needle = q.toLowerCase();
+    const matches: Command[] = [];
+
+    // Cases — match title or CNR. The query cache is keyed by ['cases', filter];
+    // grab all variants and dedupe by id so partial-filter caches don't multiply hits.
+    const seenCases = new Set<string>();
+    for (const entry of qc.getQueriesData<{ items: Case[] } | undefined>({ queryKey: ['cases'] })) {
+      const data = entry[1];
+      if (!data?.items) continue;
+      for (const c of data.items) {
+        if (seenCases.has(c.id)) continue;
+        if (c.title.toLowerCase().includes(needle) || (c.cnr ?? '').toLowerCase().includes(needle)) {
+          seenCases.add(c.id);
+          matches.push({
+            id: `case.${c.id}`,
+            label: c.title,
+            group: 'Cases',
+            icon: 'cases',
+            hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{c.cnr || c.type}</span>,
+            run: () => navigate(`/app/cases/${c.id}`),
+          });
+        }
+      }
+    }
+
+    // Leads — match name or referrer.
+    const leadsData = qc.getQueryData<{ items: Lead[] }>(['leads']);
+    if (leadsData?.items) {
+      for (const l of leadsData.items) {
+        if (l.name.toLowerCase().includes(needle) || (l.referrer ?? '').toLowerCase().includes(needle)) {
+          matches.push({
+            id: `lead.${l.id}`,
+            label: l.name,
+            group: 'Leads',
+            icon: 'leads',
+            hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{l.stage}</span>,
+            run: () => navigate('/app/leads'),
+          });
+        }
+      }
+    }
+
+    // Clients — match name or email.
+    const clientsData = qc.getQueryData<Client[]>(['clients']);
+    if (Array.isArray(clientsData)) {
+      for (const cl of clientsData) {
+        if (cl.name.toLowerCase().includes(needle) || (cl.email ?? '').toLowerCase().includes(needle)) {
+          matches.push({
+            id: `client.${cl.id}`,
+            label: cl.name,
+            group: 'Clients',
+            icon: 'clients',
+            hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{cl.type}</span>,
+            run: () => navigate('/app/clients'),
+          });
+        }
+      }
+    }
+
+    return matches.slice(0, 20); // cap so the list stays scannable
+  }, [q, qc, navigate]);
 
   // All registered commands. Nav items expand into one Command per item;
   // actions live alongside (theme toggle, sign out, etc.).
@@ -91,10 +162,13 @@ export function CmdK() {
       return [...recents, ...all.filter((c) => !recentIds.has(c.id))];
     }
     const needle = q.toLowerCase();
-    return all.filter(
+    const commandMatches = all.filter(
       (c) => c.label.toLowerCase().includes(needle) || c.group.toLowerCase().includes(needle),
     );
-  }, [q, all, recent]);
+    // Content matches surface ABOVE nav/action matches so when the user
+    // types a known case/client name the right entity is the first hit.
+    return [...contentMatches, ...commandMatches];
+  }, [q, all, recent, contentMatches]);
 
   // Reset highlight when the result set changes.
   useEffect(() => {

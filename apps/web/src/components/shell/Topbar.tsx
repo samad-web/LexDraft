@@ -37,18 +37,21 @@ export function Topbar() {
       </div>
 
       <button
-        className="btn btn-ghost"
+        className="btn btn-ghost topbar-search"
         onClick={() => toggleCmdK(true)}
+        aria-label="Open search and command palette"
         style={{
           minWidth: 240,
           justifyContent: 'flex-start',
           color: 'var(--text-tertiary)',
           borderColor: 'var(--border-default)',
           background: 'var(--bg-surface)',
+          gap: 10,
         }}
       >
         <Icon name="search" size={14} />
         <span style={{ flex: 1, textAlign: 'left' }}>Search cases, clients, docs…</span>
+        <kbd className="kbd" style={{ height: 20, minWidth: 20 }}>⌘K</kbd>
       </button>
 
       <ThemeToggle />
