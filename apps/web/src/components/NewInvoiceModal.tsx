@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Select, DatePicker } from '@lexdraft/ui';
+import { Select, DatePicker, validators } from '@lexdraft/ui';
 import type { InvoiceStatus } from '@lexdraft/types';
 import { useCreateInvoice } from '@/hooks/useInvoices';
 import { useUIStore } from '@/store/ui';
@@ -37,6 +37,9 @@ export function NewInvoiceModal({ open, onClose }: Props) {
   const [issuedDate, setIssuedDate] = useState<string>(todayIso());
   const [dueDate, setDueDate] = useState<string>(inDays(30));
   const [status, setStatus] = useState<InvoiceStatus>('pending');
+  const [amountTouched, setAmountTouched] = useState(false);
+  const amountError =
+    amountTouched && amount ? validators.positiveAmount(amount) : null;
 
   const reset = () => {
     setInvoiceNo('');
@@ -89,7 +92,7 @@ export function NewInvoiceModal({ open, onClose }: Props) {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="INVOICE NO.">
+        <Field label="INVOICE NO." hint="Auto-generated if blank">
           <input
             className="input mono"
             value={invoiceNo}
@@ -97,14 +100,14 @@ export function NewInvoiceModal({ open, onClose }: Props) {
             placeholder={placeholder}
           />
         </Field>
-        <Field label="STATUS *">
+        <Field label="STATUS" required>
           <Select
             value={status}
             onChange={(v) => setStatus(v as InvoiceStatus)}
             options={STATUSES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
           />
         </Field>
-        <Field label="CLIENT *" wide>
+        <Field label="CLIENT" required wide>
           <ClientAutocomplete
             value={client}
             onChange={setClient}
@@ -113,20 +116,22 @@ export function NewInvoiceModal({ open, onClose }: Props) {
             autoFocus
           />
         </Field>
-        <Field label="AMOUNT (INR) *">
+        <Field label="AMOUNT" hint="₹" required error={amountError}>
           <input
             className="input mono tabular"
             inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="e.g. 125000"
+            onBlur={() => setAmountTouched(true)}
+            placeholder="125000"
             required
+            aria-invalid={!!amountError}
           />
         </Field>
-        <Field label="ISSUED *">
+        <Field label="ISSUED" required>
           <DatePicker value={issuedDate} onChange={setIssuedDate} />
         </Field>
-        <Field label="DUE *">
+        <Field label="DUE" required>
           <DatePicker value={dueDate} onChange={setDueDate} />
         </Field>
       </div>

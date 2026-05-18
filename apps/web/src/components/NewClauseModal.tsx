@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Select } from '@lexdraft/ui';
 import { useCreateClause } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
+import { Field } from './Modal';
 
 interface NewClauseModalProps {
   open: boolean;
@@ -91,7 +92,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
           </p>
         </div>
 
-        <Field label="CATEGORY *">
+        <Field label="CATEGORY" required>
           <Select
             value={categoryChoice}
             onChange={setCategoryChoice}
@@ -103,7 +104,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
         </Field>
 
         {isNew && (
-          <Field label="NEW CATEGORY NAME *">
+          <Field label="NEW CATEGORY NAME" required>
             <input
               className="input"
               value={newCategory}
@@ -115,7 +116,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
           </Field>
         )}
 
-        <Field label="TITLE *">
+        <Field label="TITLE" required>
           <input
             className="input"
             value={title}
@@ -136,7 +137,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
           />
         </Field>
 
-        <Field label="BODY *">
+        <Field label="BODY" required>
           <textarea
             className="input"
             value={body}
@@ -158,11 +159,3 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
-      {children}
-    </label>
-  );
-}

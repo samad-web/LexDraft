@@ -84,7 +84,7 @@ export function NewClientModal({ open, onClose }: Props) {
         </>
       }
     >
-      <Field label="CLIENT NAME *" wide>
+      <Field label="CLIENT NAME" required wide>
         <ClientNameAutocomplete
           value={name}
           onChange={setName}
@@ -93,14 +93,14 @@ export function NewClientModal({ open, onClose }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="TYPE *">
+        <Field label="TYPE" required>
           <Select
             value={type}
             onChange={(v) => setType(v as ClientType)}
             options={TYPES.map((t) => ({ value: t, label: t }))}
           />
         </Field>
-        <Field label="STATUS *">
+        <Field label="STATUS" required>
           <Select
             value={status}
             onChange={(v) => setStatus(v as ClientStatus)}

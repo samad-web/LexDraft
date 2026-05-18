@@ -289,6 +289,19 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   text-transform: uppercase;
   color: var(--text-secondary);
 }
+.label.required::after {
+  content: ' *';
+  color: var(--danger);
+  font-weight: 700;
+}
+.label .hint {
+  margin-left: 8px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
 
 /* ---------- CARDS ---------- */
 .card {

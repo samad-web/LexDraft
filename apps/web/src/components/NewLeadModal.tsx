@@ -56,7 +56,7 @@ export function NewLeadModal({ open, onClose }: Props) {
       onClose={onClose}
       eyebrow="Capture lead"
       title="New intake enquiry"
-      description="Required fields marked with *."
+      description="Required fields are marked."
       onSubmit={handleSubmit}
       footer={
         <>
@@ -67,7 +67,7 @@ export function NewLeadModal({ open, onClose }: Props) {
         </>
       }
     >
-      <Field label="LEAD NAME *" wide>
+      <Field label="LEAD NAME" required wide>
         <input
           className="input"
           value={name}
@@ -78,23 +78,23 @@ export function NewLeadModal({ open, onClose }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="ESTIMATED VALUE (INR)">
+        <Field label="ESTIMATED VALUE" hint="₹ (optional)">
           <input
             className="input mono tabular"
             inputMode="numeric"
             value={valueInr}
             onChange={(e) => setValueInr(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="e.g. 250000"
+            placeholder="250000"
           />
         </Field>
-        <Field label="STAGE *">
+        <Field label="STAGE" required>
           <Select
             value={stage}
             onChange={(v) => setStage(v as LeadStage)}
             options={STAGES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
           />
         </Field>
-        <Field label="REFERRER" wide>
+        <Field label="REFERRER" hint="Optional" wide>
           <input
             className="input"
             value={referrer}

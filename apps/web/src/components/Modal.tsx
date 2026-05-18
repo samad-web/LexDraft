@@ -137,10 +137,16 @@ export function Modal({
 export function Field({
   label,
   wide,
+  required,
+  hint,
+  error,
   children,
 }: {
   label: string;
   wide?: boolean;
+  required?: boolean;
+  hint?: ReactNode;
+  error?: ReactNode | null | false;
   children: ReactNode;
 }) {
   return (
@@ -152,8 +158,21 @@ export function Field({
         gridColumn: wide ? '1 / -1' : undefined,
       }}
     >
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
+      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+        {label}
+        {required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
+        {hint && (
+          <span style={{ marginLeft: 8, textTransform: 'none', color: 'var(--text-tertiary)' }}>
+            {hint}
+          </span>
+        )}
+      </span>
       {children}
+      {error && (
+        <span role="alert" style={{ fontSize: 12, color: 'var(--danger)', lineHeight: 1.4 }}>
+          {error}
+        </span>
+      )}
     </label>
   );
 }

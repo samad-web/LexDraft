@@ -95,7 +95,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
         </>
       }
     >
-      <Field label="MATTER *" wide>
+      <Field label="MATTER" required wide>
         <input
           className="input"
           value={caseLabel}
@@ -106,7 +106,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="DATE *">
+        <Field label="DATE" required>
           <input
             type="date"
             className="input"
@@ -115,7 +115,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
             required
           />
         </Field>
-        <Field label="TIME *">
+        <Field label="TIME" required>
           <input
             className="input"
             value={hearingTime}
@@ -124,7 +124,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
             required
           />
         </Field>
-        <Field label="COURT *" wide>
+        <Field label="COURT" required wide>
           <input
             className="input"
             value={court}
@@ -133,7 +133,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
             required
           />
         </Field>
-        <Field label="PURPOSE *" wide>
+        <Field label="PURPOSE" required wide>
           <input
             className="input"
             value={purpose}

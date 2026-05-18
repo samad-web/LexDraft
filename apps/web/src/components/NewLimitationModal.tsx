@@ -75,7 +75,7 @@ export function NewLimitationModal({ open, onClose }: Props) {
         </>
       }
     >
-      <Field label="MATTER *" wide>
+      <Field label="MATTER" required wide>
         <input
           className="input"
           value={caseLabel}
@@ -86,18 +86,18 @@ export function NewLimitationModal({ open, onClose }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="CNR">
+        <Field label="CNR" hint="Optional">
           <input
             className="input mono"
             value={cnr}
             onChange={(e) => setCnr(e.target.value)}
-            placeholder="Optional"
+            placeholder="e.g. KAHC0100012345/2024"
           />
         </Field>
-        <Field label="DEADLINE *">
+        <Field label="DEADLINE" required>
           <DatePicker value={deadline} onChange={setDeadline} />
         </Field>
-        <Field label="FILING TYPE *">
+        <Field label="FILING TYPE" required>
           <input
             className="input"
             value={filingType}

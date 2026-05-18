@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, FieldError, validators } from '@lexdraft/ui';
 import { useSignIn, useSignUp } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { useUIStore } from '@/store/ui';
@@ -77,6 +77,8 @@ export function AuthView() {
   // Sign-in state
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
+  const [signinEmailTouched, setSigninEmailTouched] = useState(false);
+  const signinEmailError = signinEmailTouched ? validators.email(signinEmail) : null;
 
   // Sign-up state
   const [name, setName] = useState('');
@@ -86,6 +88,13 @@ export function AuthView() {
   const [firm, setFirm] = useState('');
   const [primaryCourt, setPrimaryCourt] = useState('');
   const [practiceAreas, setPracticeAreas] = useState('');
+
+  const [signupEmailTouched, setSignupEmailTouched] = useState(false);
+  const [signupPasswordTouched, setSignupPasswordTouched] = useState(false);
+  const signupEmailError = signupEmailTouched ? validators.email(email) : null;
+  const signupPasswordError = signupPasswordTouched
+    ? validators.minLength(password, 8, 'Password')
+    : null;
 
   const isSignup = tab === 'signup';
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
@@ -303,7 +312,7 @@ export function AuthView() {
             style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
           >
             <div>
-              <label className="label" htmlFor="signin-email">Email</label>
+              <label className="label required" htmlFor="signin-email">Email</label>
               <input
                 id="signin-email"
                 className="input"
@@ -311,12 +320,16 @@ export function AuthView() {
                 placeholder="advocate@chambers.law"
                 value={signinEmail}
                 onChange={(e) => setSigninEmail(e.target.value)}
+                onBlur={() => setSigninEmailTouched(true)}
                 required
                 autoComplete="email"
+                aria-invalid={!!signinEmailError}
+                aria-describedby={signinEmailError ? 'signin-email-error' : undefined}
               />
+              <FieldError id="signin-email-error" error={signinEmailError} />
             </div>
             <div>
-              <label className="label" htmlFor="signin-password">Password</label>
+              <label className="label required" htmlFor="signin-password">Password</label>
               <PasswordInput
                 id="signin-password"
                 value={signinPassword}
@@ -501,7 +514,7 @@ export function AuthView() {
             style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
           >
             <div>
-              <label className="label" htmlFor="signup-name">Full name</label>
+              <label className="label required" htmlFor="signup-name">Full name</label>
               <input
                 id="signup-name"
                 className="input"
@@ -513,21 +526,26 @@ export function AuthView() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="signup-email">Email</label>
+              <label className="label required" htmlFor="signup-email">Email</label>
               <input
                 id="signup-email"
                 className="input"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setSignupEmailTouched(true)}
                 placeholder="advocate@chambers.law"
                 required
                 autoComplete="email"
+                aria-invalid={!!signupEmailError}
+                aria-describedby={signupEmailError ? 'signup-email-error' : undefined}
               />
+              <FieldError id="signup-email-error" error={signupEmailError} />
             </div>
             <div>
               <label className="label" htmlFor="signup-enrolment">
                 Bar Council Enrolment No.
+                <span className="hint">Optional</span>
               </label>
               <input
                 id="signup-enrolment"
@@ -538,15 +556,22 @@ export function AuthView() {
               />
             </div>
             <div>
-              <label className="label" htmlFor="signup-password">Password</label>
+              <label className="label required" htmlFor="signup-password">
+                Password
+                <span className="hint">Min 8 characters</span>
+              </label>
               <PasswordInput
                 id="signup-password"
                 value={password}
                 onChange={(v) => setPassword(v)}
+                onBlur={() => setSignupPasswordTouched(true)}
                 autoComplete="new-password"
                 required
                 minLength={8}
+                aria-invalid={!!signupPasswordError}
+                aria-describedby={signupPasswordError ? 'signup-password-error' : undefined}
               />
+              <FieldError id="signup-password-error" error={signupPasswordError} />
             </div>
             <button type="submit" className="btn btn-primary btn-block btn-lg">
               Continue <Icon name="arrow" size={14} />
@@ -853,20 +878,26 @@ interface PasswordInputProps {
   id: string;
   value: string;
   onChange: (next: string) => void;
+  onBlur?: () => void;
   autoComplete?: string;
   placeholder?: string;
   required?: boolean;
   minLength?: number;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
 }
 
 function PasswordInput({
   id,
   value,
   onChange,
+  onBlur,
   autoComplete,
   placeholder,
   required,
   minLength,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedby,
 }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
   return (
@@ -877,10 +908,13 @@ function PasswordInput({
         type={visible ? 'text' : 'password'}
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         autoComplete={autoComplete}
         placeholder={placeholder}
         required={required}
         minLength={minLength}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedby}
         style={{ paddingRight: 38 }}
       />
       <button

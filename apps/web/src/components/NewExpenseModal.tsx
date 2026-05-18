@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Select, DatePicker } from '@lexdraft/ui';
+import { Select, DatePicker, validators } from '@lexdraft/ui';
 import type { ExpenseStatus } from '@lexdraft/types';
 import { useCreateExpense } from '@/hooks/useExpenses';
 import { useUIStore } from '@/store/ui';
@@ -35,6 +35,9 @@ export function NewExpenseModal({ open, onClose }: Props) {
   const [status, setStatus] = useState<ExpenseStatus>('pending');
   const [reimbursable, setReimbursable] = useState(false);
   const [billable, setBillable] = useState(true);
+  const [amountTouched, setAmountTouched] = useState(false);
+  const amountError =
+    amountTouched && amount ? validators.positiveAmount(amount) : null;
 
   const reset = () => {
     setExpenseNo('');
@@ -93,7 +96,7 @@ export function NewExpenseModal({ open, onClose }: Props) {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="REFERENCE">
+        <Field label="REFERENCE" hint="Auto-generated if blank">
           <input
             className="input mono"
             value={expenseNo}
@@ -101,10 +104,10 @@ export function NewExpenseModal({ open, onClose }: Props) {
             placeholder={placeholder}
           />
         </Field>
-        <Field label="DATE *">
+        <Field label="DATE" required>
           <DatePicker value={date} onChange={setDate} />
         </Field>
-        <Field label="DESCRIPTION *" wide>
+        <Field label="DESCRIPTION" required wide>
           <input
             className="input"
             value={description}
@@ -114,32 +117,34 @@ export function NewExpenseModal({ open, onClose }: Props) {
             autoFocus
           />
         </Field>
-        <Field label="CATEGORY *">
+        <Field label="CATEGORY" required>
           <Select
             value={category}
             onChange={setCategory}
             options={CATEGORIES.map((c) => ({ value: c, label: c }))}
           />
         </Field>
-        <Field label="MATTER">
+        <Field label="MATTER" hint="Optional">
           <input
             className="input"
             value={caseLabel}
             onChange={(e) => setCaseLabel(e.target.value)}
-            placeholder="Tag to a matter (optional)"
+            placeholder="Tag to a matter"
           />
         </Field>
-        <Field label="AMOUNT (INR) *">
+        <Field label="AMOUNT" hint="₹" required error={amountError}>
           <input
             className="input mono tabular"
             inputMode="numeric"
             value={amount}
             onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="e.g. 2500"
+            onBlur={() => setAmountTouched(true)}
+            placeholder="2500"
             required
+            aria-invalid={!!amountError}
           />
         </Field>
-        <Field label="STATUS *">
+        <Field label="STATUS" required>
           <Select
             value={status}
             onChange={(v) => setStatus(v as ExpenseStatus)}

@@ -1,6 +1,7 @@
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
+import { FieldError, validators } from '@lexdraft/ui';
 import type { PortalRequestLinkResponse, PortalSession } from '@lexdraft/types';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { usePortalAuthStore } from '@/store/portalAuth';
@@ -22,9 +23,11 @@ export function PortalLoginView() {
   const setSession = usePortalAuthStore((s) => s.setSession);
 
   const [email, setEmail] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
   const [sent, setSent] = useState(false);
   const [devLink, setDevLink] = useState<string | undefined>(undefined);
   const [verifyError, setVerifyError] = useState<string | undefined>(undefined);
+  const emailError = emailTouched ? validators.email(email) : null;
 
   const requestMutation = useMutation({
     mutationFn: (e: string) => portalApi.post<PortalRequestLinkResponse>('/auth/request-link', { email: e }),
@@ -127,7 +130,7 @@ export function PortalLoginView() {
       </p>
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <label className="label" htmlFor="portal-email">Email</label>
+          <label className="label required" htmlFor="portal-email">Email</label>
           <input
             id="portal-email"
             className="input"
@@ -136,9 +139,13 @@ export function PortalLoginView() {
             autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => setEmailTouched(true)}
             placeholder="you@example.com"
             autoComplete="email"
+            aria-invalid={!!emailError}
+            aria-describedby={emailError ? 'portal-email-error' : undefined}
           />
+          <FieldError id="portal-email-error" error={emailError} />
         </div>
         {requestMutation.isError && (
           <div

@@ -145,7 +145,7 @@ export function NewHearingModal({
         </>
       }
     >
-      <Field label="MATTER *" wide>
+      <Field label="MATTER" required wide>
         <Combobox
           value={caseLabel}
           onChange={handleMatterChange}
@@ -170,13 +170,13 @@ export function NewHearingModal({
         </span>
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="DATE *">
+        <Field label="DATE" required>
           <DatePicker value={date} onChange={setDate} />
         </Field>
-        <Field label="TIME *">
+        <Field label="TIME" required>
           <TimePicker value={time} onChange={setTime} />
         </Field>
-        <Field label="COURT *">
+        <Field label="COURT" required>
           <Combobox
             value={court}
             onChange={(v) => { setCourt(v); setCourtDirty(true); }}
@@ -185,15 +185,15 @@ export function NewHearingModal({
             required
           />
         </Field>
-        <Field label="JUDGE">
+        <Field label="JUDGE" hint="Optional">
           <input
             className="input"
             value={judge}
             onChange={(e) => setJudge(e.target.value)}
-            placeholder="Optional"
+            placeholder="e.g. Hon. Justice Singh"
           />
         </Field>
-        <Field label="PURPOSE *" wide>
+        <Field label="PURPOSE" required wide>
           <input
             className="input"
             value={purpose}
@@ -202,7 +202,7 @@ export function NewHearingModal({
             required
           />
         </Field>
-        <Field label="STATUS *">
+        <Field label="STATUS" required>
           <Select
             value={status}
             onChange={(v) => setStatus(v as Status)}

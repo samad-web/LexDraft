@@ -305,7 +305,7 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
         )}
       </Field>
 
-      <Field label="DOCUMENT NAME *" wide>
+      <Field label="DOCUMENT NAME" required wide>
         <input
           className="input"
           value={name}
@@ -316,7 +316,7 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="TYPE *">
+        <Field label="TYPE" required>
           <input
             className="input"
             value={type}
@@ -325,12 +325,12 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
             required
           />
         </Field>
-        <Field label="MATTER">
+        <Field label="MATTER" hint="Optional">
           <input
             className="input"
             value={caseLabel}
             onChange={(e) => setCaseLabel(e.target.value)}
-            placeholder="Tag to a matter (optional)"
+            placeholder="Tag to a matter"
           />
         </Field>
       </div>

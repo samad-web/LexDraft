@@ -80,28 +80,28 @@ export function NewDiaryEntryModal({ open, onClose }: Props) {
       }
     >
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="DATE *">
+        <Field label="DATE" required>
           <DatePicker value={date} onChange={setDate} />
         </Field>
         <Field label="TIME">
           <TimePicker value={time} onChange={setTime} />
         </Field>
-        <Field label="KIND *">
+        <Field label="KIND" required>
           <Select
             value={kind}
             onChange={(v) => setKind(v as DiaryKind)}
             options={KINDS.map((k) => ({ value: k, label: k.charAt(0).toUpperCase() + k.slice(1) }))}
           />
         </Field>
-        <Field label="CNR">
+        <Field label="CNR" hint="Optional">
           <input
             className="input mono"
             value={cnr}
             onChange={(e) => setCnr(e.target.value)}
-            placeholder="Optional"
+            placeholder="e.g. KAHC0100012345/2024"
           />
         </Field>
-        <Field label="MATTER *" wide>
+        <Field label="MATTER" required wide>
           <input
             className="input"
             value={caseLabel}

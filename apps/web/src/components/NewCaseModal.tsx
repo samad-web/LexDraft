@@ -5,6 +5,7 @@ import type { Case, CaseStage, CaseStatus, CaseType } from '@lexdraft/types';
 import { useCreateCase } from '@/hooks/useCases';
 import { useUIStore } from '@/store/ui';
 import { useConflictsCheck, type ConflictHit, type ConflictsResult } from '@/hooks/useConflicts';
+import { Field } from './Modal';
 
 interface NewCaseModalProps {
   open: boolean;
@@ -175,7 +176,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
           </p>
         </div>
 
-        <Field label="MATTER TITLE *" wide>
+        <Field label="MATTER TITLE" required wide>
           <input
             className="input"
             value={title}
@@ -187,7 +188,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
         </Field>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <Field label="CLIENT *">
+          <Field label="CLIENT" required>
             <input
               className="input"
               value={client}
@@ -196,7 +197,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
               required
             />
           </Field>
-          <Field label="COURT *">
+          <Field label="COURT" required>
             <input
               className="input"
               value={court}
@@ -205,7 +206,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
               required
             />
           </Field>
-          <Field label="CNR (optional)">
+          <Field label="CNR" hint="Optional">
             <input
               className="input mono"
               value={cnr}
@@ -213,24 +214,24 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
               placeholder={placeholderCnr()}
             />
           </Field>
-          <Field label="NEXT HEARING *">
+          <Field label="NEXT HEARING" required>
             <DatePicker value={next} onChange={setNext} />
           </Field>
-          <Field label="TYPE *">
+          <Field label="TYPE" required>
             <Select
               value={String(type)}
               onChange={(v) => setType(v as CaseType)}
               options={TYPES.map((t) => ({ value: t, label: t }))}
             />
           </Field>
-          <Field label="STAGE *">
+          <Field label="STAGE" required>
             <Select
               value={String(stage)}
               onChange={(v) => setStage(v as CaseStage)}
               options={STAGES.map((s) => ({ value: s, label: s }))}
             />
           </Field>
-          <Field label="STATUS *">
+          <Field label="STATUS" required>
             <Select
               value={status}
               onChange={(v) => setStatus(v as CaseStatus)}
@@ -261,15 +262,6 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
         </div>
       </form>
     </div>
-  );
-}
-
-function Field({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: wide ? '1 / -1' : undefined }}>
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
-      {children}
-    </label>
   );
 }
 

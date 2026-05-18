@@ -86,7 +86,7 @@ export function NewTaskModal({ open, onClose, defaultCase }: Props) {
         </>
       }
     >
-      <Field label="TITLE *" wide>
+      <Field label="TITLE" required wide>
         <input
           className="input"
           value={title}
@@ -97,7 +97,7 @@ export function NewTaskModal({ open, onClose, defaultCase }: Props) {
         />
       </Field>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-        <Field label="MATTER *">
+        <Field label="MATTER" required>
           <input
             className="input"
             value={caseLabel}
@@ -106,17 +106,17 @@ export function NewTaskModal({ open, onClose, defaultCase }: Props) {
             required
           />
         </Field>
-        <Field label="DUE *">
+        <Field label="DUE" required>
           <DatePicker value={due} onChange={setDue} />
         </Field>
-        <Field label="PRIORITY *">
+        <Field label="PRIORITY" required>
           <Select
             value={priority}
             onChange={(v) => setPriority(v as TaskPriority)}
             options={PRIORITY_OPTIONS.map((p) => ({ value: p.value, label: p.label }))}
           />
         </Field>
-        <Field label="COLUMN *">
+        <Field label="COLUMN" required>
           <Select
             value={column}
             onChange={(v) => setColumn(v as TaskColumn)}
