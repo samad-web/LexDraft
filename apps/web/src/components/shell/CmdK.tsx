@@ -1,33 +1,166 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, type IconName } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { NAV_GROUPS } from './nav-config';
+
+interface Command {
+  id: string;
+  label: string;
+  group: string;
+  icon: IconName;
+  /** Hint shown on the right (e.g. shortcut, target route). */
+  hint?: ReactNode;
+  run: () => void;
+}
+
+const RECENT_KEY = 'lexdraft.cmdk.recent';
+const MAX_RECENT = 5;
+
+function loadRecent(): string[] {
+  try {
+    const raw = window.localStorage.getItem(RECENT_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as string[]).slice(0, MAX_RECENT) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecent(id: string, current: string[]): void {
+  const next = [id, ...current.filter((x) => x !== id)].slice(0, MAX_RECENT);
+  try {
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    /* swallow */
+  }
+}
 
 export function CmdK() {
   const navigate = useNavigate();
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const theme = useUIStore((s) => s.theme);
   const [q, setQ] = useState('');
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [recent, setRecent] = useState<string[]>(() => loadRecent());
+  const listRef = useRef<HTMLDivElement>(null);
 
-  const all = useMemo(() => NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.title }))), []);
-  const filtered = useMemo(() => {
-    if (!q.trim()) return all;
+  // All registered commands. Nav items expand into one Command per item;
+  // actions live alongside (theme toggle, sign out, etc.).
+  const all: Command[] = useMemo(() => {
+    const navCommands: Command[] = NAV_GROUPS.flatMap((g) =>
+      g.items.map((i) => ({
+        id: `nav.${i.id}`,
+        label: i.label,
+        group: g.title,
+        icon: i.icon,
+        hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{i.to}</span>,
+        run: () => navigate(i.to),
+      })),
+    );
+    const actions: Command[] = [
+      {
+        id: 'action.toggle-theme',
+        label: theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode',
+        group: 'Preferences',
+        icon: theme === 'dark' ? 'sun' : 'moon',
+        run: () => toggleTheme(),
+      },
+      {
+        id: 'action.settings',
+        label: 'Open settings',
+        group: 'Preferences',
+        icon: 'settings',
+        run: () => navigate('/app/settings'),
+      },
+    ];
+    return [...navCommands, ...actions];
+  }, [navigate, toggleTheme, theme]);
+
+  const filtered: Command[] = useMemo(() => {
+    if (!q.trim()) {
+      // Surface recent items first when the query is empty.
+      if (recent.length === 0) return all;
+      const recents = recent
+        .map((id) => all.find((c) => c.id === id))
+        .filter((c): c is Command => c !== undefined)
+        .map((c) => ({ ...c, group: 'Recent' }));
+      const recentIds = new Set(recents.map((c) => c.id));
+      return [...recents, ...all.filter((c) => !recentIds.has(c.id))];
+    }
     const needle = q.toLowerCase();
-    return all.filter((i) => i.label.toLowerCase().includes(needle) || i.group.toLowerCase().includes(needle));
-  }, [q, all]);
+    return all.filter(
+      (c) => c.label.toLowerCase().includes(needle) || c.group.toLowerCase().includes(needle),
+    );
+  }, [q, all, recent]);
+
+  // Reset highlight when the result set changes.
+  useEffect(() => {
+    setActiveIdx(0);
+  }, [filtered.length, q]);
+
+  function execute(cmd: Command): void {
+    const nextRecent = [cmd.id, ...recent.filter((x) => x !== cmd.id)].slice(0, MAX_RECENT);
+    setRecent(nextRecent);
+    saveRecent(cmd.id, recent);
+    cmd.run();
+    toggleCmdK(false);
+  }
 
   useEffect(() => {
-    const f = (e: KeyboardEvent) => { if (e.key === 'Escape') toggleCmdK(false); };
-    window.addEventListener('keydown', f);
-    return () => window.removeEventListener('keydown', f);
-  }, [toggleCmdK]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        toggleCmdK(false);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIdx((i) => Math.min(filtered.length - 1, i + 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIdx((i) => Math.max(0, i - 1));
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const cmd = filtered[activeIdx];
+        if (cmd) execute(cmd);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // execute closes over state; we want the freshest copy each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered, activeIdx]);
+
+  // Keep the highlighted row visible as the user arrow-keys past the fold.
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const row = list.querySelector<HTMLElement>(`[data-idx="${activeIdx}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
+  }, [activeIdx]);
 
   return (
     <>
-      <div onClick={() => toggleCmdK(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 100 }} />
+      <div
+        onClick={() => toggleCmdK(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 100,
+        }}
+      />
       <div
         role="dialog"
         aria-modal="true"
+        aria-labelledby="cmdk-input"
         style={{
           position: 'fixed',
           top: '15vh',
@@ -45,44 +178,79 @@ export function CmdK() {
         <div className="row" style={{ padding: '14px 18px', borderBottom: '1px solid var(--border-subtle)', gap: 12 }}>
           <Icon name="search" size={16} />
           <input
+            id="cmdk-input"
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search the application…"
-            style={{ flex: 1, background: 'transparent', border: 0, outline: 0, fontSize: 15, color: 'var(--text-primary)' }}
+            placeholder="Type a command or search…"
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 0,
+              outline: 0,
+              fontSize: 15,
+              color: 'var(--text-primary)',
+            }}
+            aria-controls="cmdk-list"
+            aria-activedescendant={`cmdk-item-${activeIdx}`}
           />
           <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>ESC</span>
         </div>
-        <div style={{ maxHeight: 360, overflowY: 'auto', padding: 8 }}>
+        <div
+          ref={listRef}
+          id="cmdk-list"
+          role="listbox"
+          style={{ maxHeight: 400, overflowY: 'auto', padding: 8 }}
+        >
           {filtered.length === 0 && (
             <div style={{ padding: 28, textAlign: 'center' }} className="muted body-sm">
               No matches
             </div>
           )}
-          {filtered.map((i) => (
-            <button
-              key={i.id}
-              onClick={() => {
-                navigate(i.to);
-                toggleCmdK(false);
-              }}
-              className="row"
-              style={{
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 'var(--radius-md)',
-                background: 'transparent',
-                color: 'var(--text-primary)',
-                gap: 12,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-surface)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-            >
-              <Icon name={i.icon} size={16} />
-              <span style={{ flex: 1, textAlign: 'left' }}>{i.label}</span>
-              <span className="eyebrow">{i.group}</span>
-            </button>
-          ))}
+          {filtered.map((c, idx) => {
+            const isActive = idx === activeIdx;
+            return (
+              <button
+                key={c.id}
+                id={`cmdk-item-${idx}`}
+                role="option"
+                aria-selected={isActive}
+                data-idx={idx}
+                onClick={() => execute(c)}
+                onMouseMove={() => setActiveIdx(idx)}
+                className="row"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  background: isActive ? 'var(--bg-surface)' : 'transparent',
+                  color: 'var(--text-primary)',
+                  gap: 12,
+                  border: 0,
+                  textAlign: 'left',
+                }}
+              >
+                <Icon name={c.icon} size={16} />
+                <span style={{ flex: 1, textAlign: 'left' }}>{c.label}</span>
+                <span className="eyebrow">{c.group}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div
+          className="row"
+          style={{
+            padding: '8px 14px',
+            borderTop: '1px solid var(--border-subtle)',
+            gap: 12,
+            fontSize: 11,
+            color: 'var(--text-tertiary)',
+          }}
+        >
+          <span><kbd className="kbd">↑</kbd> <kbd className="kbd">↓</kbd> navigate</span>
+          <span><kbd className="kbd">Enter</kbd> select</span>
+          <span style={{ flex: 1 }} />
+          <span>{filtered.length} results</span>
         </div>
       </div>
     </>
