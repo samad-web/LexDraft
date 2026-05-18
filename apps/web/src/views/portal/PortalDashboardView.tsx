@@ -37,7 +37,9 @@ export function PortalDashboardView() {
   if (dashboard.isError || !dashboard.data) {
     return (
       <div style={pageStyle}>
-        <Empty>{portalErrorMessage(dashboard.error, t.dashboardError)}</Empty>
+        <div role="alert" style={errorStyle}>
+          {portalErrorMessage(dashboard.error, t.dashboardError)}
+        </div>
       </div>
     );
   }
@@ -225,7 +227,7 @@ function Table(props: { headers: string[]; children: React.ReactNode }) {
 }
 
 function Empty(props: { children: React.ReactNode }) {
-  return <div style={emptyStyle}>{props.children}</div>;
+  return <div role="status" style={emptyStyle}>{props.children}</div>;
 }
 
 const pageStyle: React.CSSProperties = {
@@ -246,6 +248,12 @@ const thStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   padding: '16px 12px', fontSize: 14, opacity: 0.7,
   border: '1px dashed var(--border, #e4e4e7)', borderRadius: 8,
+};
+const errorStyle: React.CSSProperties = {
+  padding: '16px 12px', fontSize: 14,
+  border: '1px solid var(--danger, #b91c1c)', borderRadius: 8,
+  color: 'var(--danger, #b91c1c)',
+  background: 'var(--danger-bg, rgba(220, 38, 38, 0.06))',
 };
 const btnLink: React.CSSProperties = {
   padding: 0, background: 'none', border: 'none', cursor: 'pointer',

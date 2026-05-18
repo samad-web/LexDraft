@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon, Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton, ErrorState } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useCalendarMonth, useCalendarWeek } from '@/hooks/useCalendar';
@@ -285,9 +285,11 @@ function MonthPane({
           ))}
         </div>
       ) : isError ? (
-        <p className="body-sm" style={{ color: 'var(--danger)', padding: '24px 0', textAlign: 'center' }}>
-          Couldn’t load month.
-        </p>
+        <ErrorState
+          variant="inline"
+          title="Couldn't load month"
+          description="Check your connection and try again."
+        />
       ) : (
         <div
           style={{
@@ -468,7 +470,11 @@ function WeekPane({
           ))}
         </div>
       ) : isError ? (
-        <p className="body-sm" style={{ color: 'var(--danger)' }}>Couldn’t load calendar.</p>
+        <ErrorState
+          variant="inline"
+          title="Couldn't load calendar"
+          description="Check your connection and try again."
+        />
       ) : (
         <div
           style={{

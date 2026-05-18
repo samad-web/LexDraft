@@ -41,12 +41,12 @@ export function PortalMatterDetailView() {
     }
   }
 
-  if (matter.isLoading) return <div style={pageStyle}><div style={emptyStyle}>Loading matter…</div></div>;
+  if (matter.isLoading) return <div style={pageStyle}><div role="status" style={emptyStyle}>Loading matter…</div></div>;
   if (matter.isError || !matter.data) {
     return (
       <div style={pageStyle}>
         <button type="button" onClick={() => navigate('/portal/dashboard')} style={btnSecondary}>← Back</button>
-        <div style={emptyStyle}>{portalErrorMessage(matter.error, 'Could not load this matter.')}</div>
+        <div role="alert" style={errorStyle}>{portalErrorMessage(matter.error, 'Could not load this matter.')}</div>
       </div>
     );
   }
@@ -160,7 +160,7 @@ function Table(props: { headers: string[]; children: React.ReactNode }) {
   );
 }
 function Empty(props: { children: React.ReactNode }) {
-  return <div style={emptyStyle}>{props.children}</div>;
+  return <div role="status" style={emptyStyle}>{props.children}</div>;
 }
 function Pill(props: { kind: 'ok' | 'warning'; children: React.ReactNode }) {
   const palette = props.kind === 'ok' ? { bg: '#dcfce7', fg: '#15803d' } : { bg: '#fef3c7', fg: '#92400e' };
@@ -193,6 +193,13 @@ const thStyle: React.CSSProperties = {
 const emptyStyle: React.CSSProperties = {
   padding: '16px 12px', fontSize: 14, opacity: 0.7,
   border: '1px dashed var(--border, #e4e4e7)', borderRadius: 8,
+};
+const errorStyle: React.CSSProperties = {
+  padding: '16px 12px', fontSize: 14,
+  border: '1px solid var(--danger, #b91c1c)', borderRadius: 8,
+  color: 'var(--danger, #b91c1c)',
+  background: 'var(--danger-bg, rgba(220, 38, 38, 0.06))',
+  marginTop: 12,
 };
 const btnSecondary: React.CSSProperties = {
   padding: '6px 12px', fontSize: 13, background: 'transparent',

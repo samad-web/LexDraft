@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useDiary } from '@/hooks/useDiary';
@@ -251,14 +251,22 @@ export function DiaryView() {
           </div>
         )}
         {isError && !isLoading && (
-          <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
-            <p className="body-md" style={{ color: 'var(--danger)' }}>Couldn’t load diary.</p>
-          </div>
+          <ErrorState
+            icon="diary"
+            title="Couldn't load diary"
+            description="Check your connection and try again."
+          />
         )}
         {!isLoading && !isError && groups.length === 0 && (
-          <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
-            <p className="body-md muted">{entries.length === 0 ? 'No diary entries yet.' : 'No diary entries match this filter.'}</p>
-          </div>
+          <EmptyState
+            icon="diary"
+            title={entries.length === 0 ? 'No diary entries yet' : 'No diary entries match'}
+            description={
+              entries.length === 0
+                ? 'Log hearings, calls, and visits to keep an audited record of your day.'
+                : 'Try a different filter or date range.'
+            }
+          />
         )}
         {!isLoading && !isError && groups.length > 0 && (
           <Pagination

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon, Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { Invoice, InvoiceStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -260,18 +260,27 @@ export function InvoicesView() {
             ))}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--danger)' }}>
-                  Couldn’t load invoices.
+                <td colSpan={6}>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load invoices"
+                    description="Check your connection and try again."
+                  />
                 </td>
               </tr>
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
                 <td colSpan={6}>
-                  <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
-                    <div className="heading-sm">{invoices.length === 0 ? 'No invoices yet' : 'No invoices to show'}</div>
-                    <p className="body-sm muted">{invoices.length === 0 ? 'Use “New invoice” to add one.' : 'Try a different status filter.'}</p>
-                  </div>
+                  <EmptyState
+                    variant="inline"
+                    title={invoices.length === 0 ? 'No invoices yet' : 'No invoices to show'}
+                    description={
+                      invoices.length === 0
+                        ? 'Bill a client to start tracking AR. New invoices appear here as drafts.'
+                        : 'Try a different status filter.'
+                    }
+                  />
                 </td>
               </tr>
             )}

@@ -230,8 +230,14 @@ export function LeadsView() {
                   </article>
                 ))}
                 {!isLoading && list.length === 0 && (
-                  <p className="body-xs muted" style={{ padding: '6px 4px' }}>
-                    {isError ? 'Couldn’t load leads' : 'No leads yet.'}
+                  <p
+                    className="body-xs muted"
+                    style={{
+                      padding: '8px 4px',
+                      color: isError ? 'var(--danger)' : 'var(--text-tertiary)',
+                    }}
+                  >
+                    {isError ? "Couldn't load leads" : 'Drop a card here.'}
                   </p>
                 )}
                 {list.map((lead) => (
@@ -240,6 +246,7 @@ export function LeadsView() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, lead)}
                     onDragEnd={handleDragEnd}
+                    className="row-clickable"
                     style={{
                       position: 'relative',
                       background: 'var(--bg-surface)',
@@ -248,7 +255,6 @@ export function LeadsView() {
                       padding: 14,
                       cursor: 'grab',
                       opacity: draggingId === lead.id ? 0.5 : 1,
-                      transition: 'opacity 120ms',
                     }}
                   >
                     <button

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, ErrorState } from '@lexdraft/ui';
 import type { Clause } from '@lexdraft/types';
 import { useClauses, useDeleteClause, useIncrementClauseUses } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
@@ -111,9 +111,11 @@ export function ClausesView() {
       </div>
 
       {isError && (
-        <div className="card" style={{ padding: 16, color: 'var(--danger)' }}>
-          Could not load clauses. Check your connection or try again.
-        </div>
+        <ErrorState
+          icon="clauses"
+          title="Couldn't load clauses"
+          description="Check your connection and try again."
+        />
       )}
 
       <div

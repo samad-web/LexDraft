@@ -305,8 +305,27 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: var(--space-6);
   color: var(--text-primary);
 }
-.card-hover { transition: border-color 150ms; }
-.card-hover:hover { border-color: var(--border-strong); }
+.card-hover { transition: border-color 150ms, transform 150ms, box-shadow 150ms; }
+.card-hover:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-hover { transition: border-color 150ms; }
+  .card-hover:hover { transform: none; box-shadow: none; }
+}
+
+/* Clickable rows (kanban cards, list items). Adds a subtle lift + ring. */
+.row-clickable { transition: background 120ms, border-color 120ms, box-shadow 120ms, transform 120ms; }
+.row-clickable:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.04));
+}
+.row-clickable:active { transform: translateY(0.5px); }
+@media (prefers-reduced-motion: reduce) {
+  .row-clickable:active { transform: none; }
+}
 
 .hairline { height: 1px; background: var(--border-subtle); border: 0; }
 .hairline-strong { height: 1px; background: var(--border-default); border: 0; }

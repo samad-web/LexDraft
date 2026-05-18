@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { useDocuments } from '@/hooks/useDocuments';
 import type { DocumentRecord } from '@lexdraft/types';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
@@ -207,9 +207,11 @@ export function DocumentsView() {
             )}
             {docs.isError && (
               <div style={{ padding: 'var(--space-6)' }}>
-                <p className="body-md" style={{ color: 'var(--danger)' }}>
-                  Couldn&apos;t load documents.
-                </p>
+                <ErrorState
+                  variant="inline"
+                  title="Couldn't load documents"
+                  description="Check your connection and try again."
+                />
               </div>
             )}
             {docs.data && (
@@ -283,9 +285,15 @@ export function DocumentsView() {
                   {filtered.length === 0 && (
                     <tr>
                       <td colSpan={8}>
-                        <p className="body-md muted" style={{ textAlign: 'center', padding: 'var(--space-4) 0' }}>
-                          No documents match the current filters.
-                        </p>
+                        <EmptyState
+                          variant="inline"
+                          title={docs.data && docs.data.length === 0 ? 'No documents yet' : 'No documents match'}
+                          description={
+                            docs.data && docs.data.length === 0
+                              ? 'Upload a pleading, notice, or contract to start the matter record.'
+                              : 'Try a different folder or clear the search.'
+                          }
+                        />
                       </td>
                     </tr>
                   )}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { Client, ClientType, ClientStatus } from '@lexdraft/types';
 import { useClients } from '@/hooks/useClients';
 import { NewClientModal } from '@/components/NewClientModal';
@@ -191,19 +191,26 @@ export function ClientsView() {
             {isError && !isLoading && (
               <tr>
                 <td colSpan={6}>
-                  <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
-                    <div className="heading-sm" style={{ color: 'var(--danger)' }}>Couldn’t load clients</div>
-                  </div>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load clients"
+                    description="Check your connection and try again."
+                  />
                 </td>
               </tr>
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
                 <td colSpan={6}>
-                  <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
-                    <div className="heading-sm">No clients yet</div>
-                    <p className="body-sm muted">{rows.length === 0 ? 'Add your first client to populate the register.' : 'Try a different search or filter.'}</p>
-                  </div>
+                  <EmptyState
+                    variant="inline"
+                    title={rows.length === 0 ? 'No clients yet' : 'No clients match'}
+                    description={
+                      rows.length === 0
+                        ? 'Add your first client to populate the register.'
+                        : 'Try a different search or filter.'
+                    }
+                  />
                 </td>
               </tr>
             )}

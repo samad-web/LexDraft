@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { Expense, ExpenseStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useExpenses } from '@/hooks/useExpenses';
@@ -179,14 +179,17 @@ export function ExpensesView() {
             <span className="muted">Loading expenses<span className="blink" /></span>
           </div>
         ) : isError ? (
-          <div className="col" style={{ padding: 'var(--space-9)', alignItems: 'center' }}>
-            <span style={{ color: 'var(--danger)' }}>Couldn’t load expenses.</span>
-          </div>
+          <ErrorState
+            icon="expenses"
+            title="Couldn't load expenses"
+            description="Check your connection and try again."
+          />
         ) : rows.length === 0 ? (
-          <div className="col" style={{ padding: 'var(--space-9)', alignItems: 'center', gap: 6 }}>
-            <div className="heading-sm">No disbursements logged</div>
-            <p className="body-sm muted">Use “Log expense” to add the first entry.</p>
-          </div>
+          <EmptyState
+            icon="expenses"
+            title="No disbursements logged"
+            description="Track court fees, travel, and other case-related costs. Approved expenses flow into the next invoice."
+          />
         ) : (
           <table className="tbl">
             <thead>

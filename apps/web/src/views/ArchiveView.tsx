@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { ArchivedMatter, CaseOutcome } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useArchive } from '@/hooks/useArchive';
@@ -92,14 +92,26 @@ export function ArchiveView() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 32 }}>
-                  <span style={{ color: 'var(--danger)' }}>Couldn’t load archive.</span>
+                <td colSpan={6}>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load archive"
+                    description="Check your connection and try again."
+                  />
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 32 }}>
-                  <span className="muted">{archive.length === 0 ? 'No closed matters yet.' : 'No archived matters match these filters.'}</span>
+                <td colSpan={6}>
+                  <EmptyState
+                    variant="inline"
+                    title={archive.length === 0 ? 'No closed matters yet' : 'No archived matters match'}
+                    description={
+                      archive.length === 0
+                        ? 'Closed matters move here automatically once you mark them complete.'
+                        : 'Try a different outcome filter or clear the search.'
+                    }
+                  />
                 </td>
               </tr>
             ) : (

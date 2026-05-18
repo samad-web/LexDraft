@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon, Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton, ErrorState } from '@lexdraft/ui';
 import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
@@ -147,11 +147,11 @@ export function TasksView() {
       )}
 
       {board.isError && (
-        <div className="card">
-          <p className="body-md" style={{ color: 'var(--danger)' }}>
-            Couldn&apos;t load the task board. Please try again.
-          </p>
-        </div>
+        <ErrorState
+          icon="tasks"
+          title="Couldn't load the task board"
+          description="Check your connection and try again."
+        />
       )}
 
       {board.data && (

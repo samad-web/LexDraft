@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { useCases } from '@/hooks/useCases';
 import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
@@ -113,10 +113,11 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
         </div>
       )}
       {isError && (
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
-          <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load cases</div>
-          <p className="body-sm muted">{error instanceof Error ? error.message : 'Unknown error'}</p>
-        </div>
+        <ErrorState
+          icon="cases"
+          title="Couldn't load cases"
+          description={error instanceof Error ? error.message : 'Check your connection and try again.'}
+        />
       )}
 
       {!isLoading && !isError && (
@@ -136,10 +137,15 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
               {cases.length === 0 && (
                 <tr>
                   <td colSpan={6}>
-                    <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
-                      <div className="heading-sm">No matters found</div>
-                      <p className="body-sm muted">Try a different search term or filter.</p>
-                    </div>
+                    <EmptyState
+                      variant="inline"
+                      title={q || filter !== 'all' ? 'No matters match' : 'No matters yet'}
+                      description={
+                        q || filter !== 'all'
+                          ? 'Try a different search term or filter.'
+                          : 'Open a new matter to start tracking hearings, parties, and documents.'
+                      }
+                    />
                   </td>
                 </tr>
               )}
