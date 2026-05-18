@@ -1,25 +1,22 @@
 import { useState } from 'react';
-import { Icon, type IconName } from '@lexdraft/ui';
+import { Icon } from '@lexdraft/ui';
+import {
+  useNotificationsStore,
+  formatRelativeTime,
+  type Notification,
+  type NotificationTone,
+} from '@/store/notifications';
 
-interface Notification {
-  id: string;
-  icon: IconName;
-  tone: 'cobalt' | 'sage' | 'vermillion' | 'amber';
-  title: string;
-  body: string;
-  time: string;
-  unread: boolean;
-  view: string;
+type Tab = 'all' | 'unread';
+
+function toneToColor(tone: NotificationTone): string {
+  switch (tone) {
+    case 'cobalt':     return 'var(--info)';
+    case 'sage':       return 'var(--success)';
+    case 'amber':      return 'var(--warning)';
+    case 'vermillion': return 'var(--danger)';
+  }
 }
-
-const SAMPLE: Notification[] = [
-  { id: 'n1', icon: 'calendar', tone: 'cobalt', title: 'Hearing tomorrow · 11:00 AM', body: 'O.S. 1247/2025 - Mehta v. Skyline Constructions, Bengaluru City Civil Court, Court Hall 4', time: '2h ago', unread: true, view: 'cases' },
-  { id: 'n2', icon: 'draft', tone: 'sage', title: 'AI draft ready for review', body: 'Legal Notice u/s 138 NI Act · Mehta Enterprises v. Verma - generated in 18 seconds', time: '4h ago', unread: true, view: 'draft' },
-  { id: 'n3', icon: 'invoices', tone: 'sage', title: 'Payment received · ₹84,000', body: 'INV-2026-018 paid by Coastal Estates Pvt Ltd via NEFT (UTR 4823910)', time: 'Today, 9:42 AM', unread: true, view: 'invoices' },
-  { id: 'n4', icon: 'limitation', tone: 'vermillion', title: 'Limitation expiring in 11 days', body: 'Filing of execution petition · Decree dated 14 Aug 2023 · Karthik Rao matter', time: 'Yesterday', unread: false, view: 'limitation' },
-  { id: 'n5', icon: 'documents', tone: 'cobalt', title: 'Vakalatnama signed by client', body: 'Rohan Mehta - High Court of Karnataka · e-signed via Aadhaar OTP', time: 'Yesterday', unread: false, view: 'documents' },
-  { id: 'n6', icon: 'leads', tone: 'amber', title: 'New enquiry · ₹35,000 estimated', body: 'Tarun Bhalla - referred by Adv. Kumar · cheque bounce, ₹2.4L', time: '2 days ago', unread: false, view: 'leads' },
-];
 
 export function NotificationPanel({
   onClose,
@@ -28,13 +25,27 @@ export function NotificationPanel({
   onClose: () => void;
   onNav: (view: string) => void;
 }) {
-  const [items, setItems] = useState(SAMPLE);
-  const markAllRead = () => setItems((p) => p.map((n) => ({ ...n, unread: false })));
+  const items = useNotificationsStore((s) => s.items);
+  const markRead = useNotificationsStore((s) => s.markRead);
+  const markAllRead = useNotificationsStore((s) => s.markAllRead);
+  const dismiss = useNotificationsStore((s) => s.dismiss);
+  const [tab, setTab] = useState<Tab>('all');
+
+  const filtered = tab === 'unread' ? items.filter((n) => n.unread) : items;
+  const unreadCount = items.filter((n) => n.unread).length;
+
+  function openNotification(n: Notification): void {
+    markRead(n.id);
+    onNav(n.view);
+    onClose();
+  }
 
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
       <div
+        role="dialog"
+        aria-label="Notifications"
         style={{
           position: 'absolute',
           top: 'calc(100% + 8px)',
@@ -61,19 +72,88 @@ export function NotificationPanel({
         >
           <div>
             <div className="eyebrow">Notifications</div>
-            <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }}>Inbox</div>
+            <div style={{ fontSize: 14, fontWeight: 500, marginTop: 2 }}>
+              Inbox
+              {unreadCount > 0 && (
+                <span
+                  className="mono"
+                  style={{
+                    marginLeft: 8,
+                    fontSize: 11,
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--danger-bg)',
+                    color: 'var(--danger)',
+                  }}
+                >
+                  {unreadCount} new
+                </span>
+              )}
+            </div>
           </div>
-          <button className="btn btn-sm btn-ghost mono" style={{ fontSize: 10, letterSpacing: '0.12em' }} onClick={markAllRead}>
+          <button
+            className="btn btn-sm btn-ghost mono"
+            style={{ fontSize: 10, letterSpacing: '0.12em' }}
+            onClick={markAllRead}
+            disabled={unreadCount === 0}
+          >
             MARK ALL READ
           </button>
         </div>
+        {/* Filter tabs */}
+        <div
+          className="row"
+          role="tablist"
+          style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)', gap: 4 }}
+        >
+          <button
+            role="tab"
+            aria-selected={tab === 'all'}
+            className={`btn btn-sm ${tab === 'all' ? '' : 'btn-ghost'}`}
+            onClick={() => setTab('all')}
+            style={{ fontSize: 12, padding: '4px 10px' }}
+          >
+            All ({items.length})
+          </button>
+          <button
+            role="tab"
+            aria-selected={tab === 'unread'}
+            className={`btn btn-sm ${tab === 'unread' ? '' : 'btn-ghost'}`}
+            onClick={() => setTab('unread')}
+            style={{ fontSize: 12, padding: '4px 10px' }}
+          >
+            Unread ({unreadCount})
+          </button>
+        </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
-          {items.map((n) => (
+          {filtered.length === 0 && (
+            <div
+              style={{
+                padding: 32,
+                textAlign: 'center',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Icon name="bell" size={20} className="muted" />
+              <div className="body-sm muted">
+                {tab === 'unread' ? "You're all caught up." : 'No notifications yet.'}
+              </div>
+            </div>
+          )}
+          {filtered.map((n) => (
             <div
               key={n.id}
-              onClick={() => {
-                onNav(n.view);
-                onClose();
+              role="button"
+              tabIndex={0}
+              onClick={() => openNotification(n)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  openNotification(n);
+                }
               }}
               style={{
                 padding: '14px 18px',
@@ -86,12 +166,13 @@ export function NotificationPanel({
               }}
             >
               <div
+                aria-hidden
                 style={{
                   width: 30,
                   height: 30,
                   flexShrink: 0,
                   background: 'var(--bg-surface)',
-                  color: `var(--${n.tone === 'cobalt' ? 'info' : n.tone === 'sage' ? 'success' : n.tone === 'amber' ? 'warning' : 'danger'})`,
+                  color: toneToColor(n.tone),
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -103,9 +184,12 @@ export function NotificationPanel({
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
-                  <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.3, flex: 1 }}>{n.title}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, lineHeight: 1.3, flex: 1 }}>
+                    {n.title}
+                  </div>
                   {n.unread && (
                     <span
+                      aria-label="Unread"
                       style={{
                         width: 7,
                         height: 7,
@@ -120,8 +204,34 @@ export function NotificationPanel({
                 <div className="muted" style={{ fontSize: 12, lineHeight: 1.45, marginTop: 3 }}>
                   {n.body}
                 </div>
-                <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.1em', marginTop: 6 }}>
-                  {n.time.toUpperCase()}
+                <div
+                  className="row"
+                  style={{ marginTop: 6, justifyContent: 'space-between' }}
+                >
+                  <span
+                    className="mono"
+                    style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.1em' }}
+                  >
+                    {formatRelativeTime(n.createdAt).toUpperCase()}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Dismiss"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      dismiss(n.id);
+                    }}
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-tertiary)',
+                      background: 'transparent',
+                      border: 0,
+                      padding: 2,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Dismiss
+                  </button>
                 </div>
               </div>
             </div>
