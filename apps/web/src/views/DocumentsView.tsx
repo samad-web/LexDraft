@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import { useDocuments } from '@/hooks/useDocuments';
 import type { DocumentRecord } from '@lexdraft/types';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
@@ -320,6 +321,9 @@ export function DocumentsView() {
       `}</style>
 
       <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <FAB ariaLabel="Upload document" onClick={() => setModalOpen(true)}>
+        <Icon name="upload" size={22} />
+      </FAB>
       <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />
     </div>
   );

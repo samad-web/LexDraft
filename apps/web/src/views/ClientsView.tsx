@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import type { Client, ClientType, ClientStatus } from '@lexdraft/types';
 import { useClients } from '@/hooks/useClients';
 import { NewClientModal } from '@/components/NewClientModal';
@@ -151,6 +152,11 @@ export function ClientsView() {
         </Gate>
       </div>
       <NewClientModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <Gate feature="client.create">
+        <FAB ariaLabel="Add client" onClick={() => setModalOpen(true)}>
+          <Icon name="plus" size={22} />
+        </FAB>
+      </Gate>
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (

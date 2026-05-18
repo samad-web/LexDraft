@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon, Skeleton, EmptyState, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import type { Invoice, InvoiceStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -192,6 +193,11 @@ export function InvoicesView() {
         </Gate>
       </div>
       <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <Gate feature="billing.invoice">
+        <FAB ariaLabel="New invoice" onClick={() => setModalOpen(true)}>
+          <Icon name="plus" size={22} />
+        </FAB>
+      </Gate>
       <InvoiceDetailModal
         open={selected !== null}
         invoice={selected}

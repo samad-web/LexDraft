@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useDiary } from '@/hooks/useDiary';
@@ -138,6 +139,9 @@ export function DiaryView() {
         </button>
       </div>
       <NewDiaryEntryModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <FAB ariaLabel="Add diary entry" onClick={() => setModalOpen(true)}>
+        <Icon name="plus" size={22} />
+      </FAB>
       <RequestCoverageModal
         open={coverageDefaults !== null}
         onClose={() => setCoverageDefaults(null)}

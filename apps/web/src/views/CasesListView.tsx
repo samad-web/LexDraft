@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { useCases } from '@/hooks/useCases';
+import { FAB } from '@/components/FAB';
 import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
 import { Gate } from '@/components/Gate';
@@ -189,6 +190,11 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
         onClose={() => setIntakeOpen(false)}
         defaultType={activeFilter.type}
       />
+      <Gate feature="matter.create">
+        <FAB ariaLabel="New case" onClick={() => setIntakeOpen(true)}>
+          <Icon name="plus" size={22} />
+        </FAB>
+      </Gate>
     </div>
   );
 }

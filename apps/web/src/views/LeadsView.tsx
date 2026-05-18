@@ -7,6 +7,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import { NewLeadModal } from '@/components/NewLeadModal';
 import { downloadCsv } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
+import { FAB } from '@/components/FAB';
 
 type StageId = LeadStage;
 
@@ -167,6 +168,11 @@ export function LeadsView() {
         </Gate>
       </div>
       <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <Gate feature="leads.create">
+        <FAB ariaLabel="Capture lead" onClick={() => setModalOpen(true)}>
+          <Icon name="plus" size={22} />
+        </FAB>
+      </Gate>
 
       <div
         className="kanban"
@@ -331,6 +337,39 @@ export function LeadsView() {
                         <Icon name="check" size={12} /> Reopen as won
                       </button>
                     )}
+                    {/* Touch fallback: native select for stage move (HTML5
+                        drag doesn't fire on touch). Hidden via CSS on
+                        viewports where drag works (>=1024px). */}
+                    <select
+                      aria-label={`Move ${lead.name} to a different stage`}
+                      className="input lead-move-select"
+                      value={lead.stage}
+                      onChange={(e) => {
+                        const next = e.target.value as LeadStage;
+                        if (next === lead.stage) return;
+                        moveLead.mutate(
+                          { id: lead.id, stage: next },
+                          {
+                            onError: () =>
+                              showToast({ type: 'vermillion', text: "Couldn't move lead" }),
+                          },
+                        );
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      style={{
+                        marginTop: 10,
+                        height: 36,
+                        fontSize: 13,
+                        padding: '0 12px',
+                      }}
+                    >
+                      {STAGES.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          Move to {s.label}
+                        </option>
+                      ))}
+                    </select>
                   </article>
                 ))}
               </div>

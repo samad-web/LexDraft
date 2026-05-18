@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import type { Expense, ExpenseStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useExpenses } from '@/hooks/useExpenses';
@@ -149,6 +150,9 @@ export function ExpensesView() {
         </button>
       </div>
       <NewExpenseModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <FAB ariaLabel="Log expense" onClick={() => setModalOpen(true)}>
+        <Icon name="plus" size={22} />
+      </FAB>
 
       <div className="stat-row">
         <div>

@@ -1274,6 +1274,140 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 }
 
 /* =================================================================
+   Modal / Dialog. Centered card on desktop; slides up as a
+   bottom-sheet on small viewports. Animation state is class-driven
+   (.is-visible) so JS only flips a boolean.
+   ================================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+.modal-overlay.is-visible { opacity: 1; }
+
+.modal-shell {
+  background: var(--bg-base);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  width: min(var(--modal-width, 640px), 100%);
+  max-height: 90vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  opacity: 0;
+  transform: scale(0.96);
+  transform-origin: center;
+  transition: opacity 160ms ease-out, transform 160ms ease-out;
+  will-change: opacity, transform;
+}
+.modal-shell.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.modal-grabber { display: none; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .modal-overlay {
+    align-items: flex-end;
+    justify-content: stretch;
+    padding: 0;
+  }
+  .modal-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-bottom: 0;
+    padding: 12px 20px 28px;
+    transform: translateY(8%);
+    /* Bottom-sheet padding for the home indicator on iOS. */
+    padding-bottom: max(28px, env(safe-area-inset-bottom));
+  }
+  .modal-shell.is-visible { transform: translateY(0); }
+  .modal-grabber {
+    display: block;
+    align-self: center;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    margin-bottom: 8px;
+  }
+  /* Stack footer buttons full-width with primary on top for thumb reach. */
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .modal-footer > .btn { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay, .modal-shell { transition: none !important; }
+  .modal-shell { transform: none !important; }
+}
+
+/* =================================================================
+   Floating Action Button (mobile-only). Pair with <FAB> component;
+   pinned to bottom-right above the mobile nav. Hidden on tablet+.
+   ================================================================= */
+.fab {
+  position: fixed;
+  right: 16px;
+  bottom: 80px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18), 0 2px 4px rgba(0, 0, 0, 0.08);
+  border: 0;
+  z-index: 40;
+  cursor: pointer;
+  transition: transform 120ms ease-out;
+}
+.fab:hover { transform: translateY(-1px); }
+.fab:active { transform: translateY(0.5px); }
+@media (max-width: 767px) {
+  .fab { display: inline-flex; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab:hover, .fab:active { transform: none; }
+}
+
+/* =================================================================
+   Kanban touch fallback. HTML5 drag-and-drop doesn't fire dragstart
+   on touch, so under 1024px we expose a native <select> on each card
+   to change its column/stage. Above 1024px we hide it.
+   ================================================================= */
+.lead-move-select, .task-move-select { display: none; }
+@media (max-width: 1023px) {
+  .lead-move-select, .task-move-select {
+    display: block;
+  }
+}
+
+/* =================================================================
    Skeleton loaders - paired with <Skeleton> / <SkeletonText> in
    @lexdraft/ui. Shimmer is a sliding gradient sweep over a neutral
    surface; reduces to a static block under prefers-reduced-motion.

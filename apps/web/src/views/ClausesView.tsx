@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Icon, ErrorState } from '@lexdraft/ui';
+import { FAB } from '@/components/FAB';
 import type { Clause } from '@lexdraft/types';
 import { useClauses, useDeleteClause, useIncrementClauseUses } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
@@ -249,6 +250,9 @@ export function ClausesView() {
         defaultCategory={activeCategory}
       />
       <ImportClausesModal open={importOpen} onClose={() => setImportOpen(false)} />
+      <FAB ariaLabel="New clause" onClick={() => setNewOpen(true)}>
+        <Icon name="plus" size={22} />
+      </FAB>
 
       <style>{`
         @media (max-width: 900px) { .clauses-grid { grid-template-columns: 1fr !important; } }

@@ -74,40 +74,20 @@ export function Modal({
       aria-modal="true"
       aria-labelledby="modal-title"
       onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(10,10,10,0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        padding: 16,
-        opacity: visible ? 1 : 0,
-        transition: `opacity ${animMs}ms ease-out`,
-      }}
+      className={`modal-overlay${visible ? ' is-visible' : ''}`}
+      style={{ transitionDuration: `${animMs}ms` }}
     >
       <Body
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
         onSubmit={onSubmit}
+        className={`modal-shell${visible ? ' is-visible' : ''}`}
         style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 28,
-          width: `min(${width}px, 100%)`,
-          maxHeight: '90vh',
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-          opacity: visible ? 1 : 0,
-          transform: visible ? 'scale(1)' : 'scale(0.96)',
-          transformOrigin: 'center',
-          transition: `opacity ${animMs}ms ease-out, transform ${animMs}ms ease-out`,
-          willChange: 'opacity, transform',
+          ['--modal-width' as string]: `${width}px`,
+          transitionDuration: `${animMs}ms`,
         }}
       >
+        {/* Mobile-only grab handle, hidden on desktop via CSS */}
+        <span aria-hidden className="modal-grabber" />
         <div>
           {eyebrow && <div className="eyebrow" style={{ marginBottom: 4 }}>{eyebrow}</div>}
           <h3
@@ -125,9 +105,7 @@ export function Modal({
         </div>
         {children}
         {footer && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-            {footer}
-          </div>
+          <div className="modal-footer">{footer}</div>
         )}
       </Body>
     </div>

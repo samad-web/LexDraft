@@ -4,6 +4,7 @@ import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
 import { NewTaskModal } from '@/components/NewTaskModal';
+import { FAB } from '@/components/FAB';
 
 interface ColumnDef {
   id: TaskColumn;
@@ -87,6 +88,9 @@ export function TasksView() {
         </button>
       </div>
       <NewTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <FAB ariaLabel="New task" onClick={() => setModalOpen(true)}>
+        <Icon name="plus" size={22} />
+      </FAB>
 
       {board.isLoading && (
         <div
@@ -251,6 +255,32 @@ export function TasksView() {
                             </span>
                           )}
                         </div>
+                        {/* Touch fallback — see LeadsView for rationale. */}
+                        <select
+                          aria-label={`Move ${task.title} to a different column`}
+                          className="input task-move-select"
+                          value={col.id}
+                          onChange={(e) => {
+                            const to = e.target.value as TaskColumn;
+                            if (to === col.id) return;
+                            moveTask.mutate(
+                              { id: task.id, to },
+                              {
+                                onError: () =>
+                                  showToast({ type: 'vermillion', text: "Couldn't move task" }),
+                              },
+                            );
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={{ marginTop: 10, height: 36, fontSize: 13, padding: '0 12px' }}
+                        >
+                          {COLUMNS.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              Move to {c.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     );
                   })}
