@@ -1,7 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Lenis from 'lenis';
 import { PillNav } from '../components/PillNav';
 import { LandingHeader } from '../components/LandingHeader';
+
+// Header offset for scrollTo targeting — matches scrollMarginTop on each section.
+const SCROLL_OFFSET = -90;
 
 type TabId = 'home' | 'features' | 'pricing' | 'faq' | 'trial';
 
@@ -381,6 +385,11 @@ export function LandingView() {
   const [billing, setBilling] = useState<'annual' | 'monthly'>('annual');
   const scrollLockRef = useRef(false);
   const scrollLockTimer = useRef<number | null>(null);
+  // Lenis instance driving momentum-based wheel/trackpad smoothing across the
+  // landing page only. Disabled under prefers-reduced-motion. Programmatic
+  // scrolls (nav clicks, anchor jumps) route through lenis.scrollTo so the
+  // animation curve is consistent with mouse-wheel input.
+  const lenisRef = useRef<Lenis | null>(null);
 
   const goAuth = () => navigate('/auth');
 
@@ -390,7 +399,13 @@ export function LandingView() {
     if (scrollLockTimer.current) window.clearTimeout(scrollLockTimer.current);
 
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      if (lenisRef.current) {
+        lenisRef.current.scrollTo(el, { offset: SCROLL_OFFSET });
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
 
     const supportsScrollend = 'onscrollend' in window;
     const release = () => {
@@ -414,7 +429,12 @@ export function LandingView() {
       return;
     }
     const el = document.getElementById(id);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!el) return;
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(el, { offset: SCROLL_OFFSET });
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const handleFooterLink = (href: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -426,6 +446,34 @@ export function LandingView() {
       navigate(href);
     }
   };
+
+  // Lenis lifecycle — momentum-based wheel/trackpad smoothing, scoped to the
+  // landing route. Disabled when the user prefers reduced motion; in that
+  // case scrollTo paths fall back to native scrollIntoView.
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;
+
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+    });
+    lenisRef.current = lenis;
+
+    let rafId = 0;
+    const raf = (time: number) => {
+      lenis.raf(time);
+      rafId = requestAnimationFrame(raf);
+    };
+    rafId = requestAnimationFrame(raf);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+      lenisRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const ids: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
