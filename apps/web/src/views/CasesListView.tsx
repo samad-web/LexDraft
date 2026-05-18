@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { useCases } from '@/hooks/useCases';
 import { FAB } from '@/components/FAB';
+import { useSavedFilter } from '@/hooks/useSavedFilter';
 import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
 import { Gate } from '@/components/Gate';
@@ -14,6 +15,7 @@ interface CasesListViewProps {
 }
 
 type FilterId = 'all' | 'civil' | 'criminal' | 'commercial' | 'property';
+const FILTER_IDS: ReadonlyArray<FilterId> = ['all', 'civil', 'criminal', 'commercial', 'property'];
 
 interface FilterOption {
   id: FilterId;
@@ -30,7 +32,9 @@ const FILTERS: ReadonlyArray<FilterOption> = [
 ];
 
 export function CasesListView({ onOpen }: CasesListViewProps) {
-  const [filter, setFilter] = useState<FilterId>('all');
+  const [filter, setFilter] = useSavedFilter<FilterId>('cases.filter', 'all', (raw) =>
+    typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
+  );
   const [q, setQ] = useState<string>('');
   const [intakeOpen, setIntakeOpen] = useState(false);
 

@@ -616,7 +616,37 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: 14px 18px;
   background: var(--bg-surface-2);
   border-bottom: 1px solid var(--border-default);
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
+
+/* Sortable column headers. Apply .th-sort to a <th> that should toggle
+   sort on click. The arrow is a CSS pseudo-element so the markup stays
+   declarative. data-sort="asc" | "desc" controls direction. */
+.th-sort {
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+}
+.th-sort:hover { color: var(--text-primary); }
+.th-sort::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  vertical-align: 1px;
+  border-right: 1.5px solid var(--text-tertiary);
+  border-bottom: 1.5px solid var(--text-tertiary);
+  transform: rotate(45deg);
+  opacity: 0.4;
+  transition: opacity 120ms, transform 120ms;
+}
+.th-sort[data-sort='asc']::after  { transform: rotate(-135deg) translate(-1px, -1px); opacity: 1; }
+.th-sort[data-sort='desc']::after { transform: rotate(45deg);   opacity: 1; }
+.th-sort:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
 .tbl td {
   padding: 16px 18px;
   border-bottom: 1px solid var(--border-subtle);

@@ -11,8 +11,12 @@ import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { apiClient } from '@/lib/api';
+import { useSort } from '@/hooks/useSort';
+import { useSavedFilter } from '@/hooks/useSavedFilter';
 
 type FilterId = 'all' | InvoiceStatus;
+const FILTER_IDS: ReadonlyArray<FilterId> = ['all', 'pending', 'overdue', 'paid'];
+type InvoiceSortKey = 'invoiceNo' | 'client' | 'amount' | 'issued' | 'due' | 'status';
 
 interface FilterOption {
   id: FilterId;
@@ -44,7 +48,9 @@ function isThisMonth(issuedIso: string): boolean {
 }
 
 export function InvoicesView() {
-  const [filter, setFilter] = useState<FilterId>('all');
+  const [filter, setFilter] = useSavedFilter<FilterId>('invoices.filter', 'all', (raw) =>
+    typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const showToast = useUIStore((s) => s.showToast);
@@ -67,10 +73,20 @@ export function InvoicesView() {
     return { billed, outstanding, overdue, thisMonth };
   }, [invoices]);
 
-  const visible = useMemo<ReadonlyArray<Invoice>>(
+  const filtered = useMemo<ReadonlyArray<Invoice>>(
     () => invoices.filter((i) => filter === 'all' || i.status === filter),
     [invoices, filter],
   );
+
+  const sort = useSort<Invoice, InvoiceSortKey>(filtered, {
+    invoiceNo: (r) => r.invoiceNo,
+    client:    (r) => r.client,
+    amount:    (r) => r.amountInr,
+    issued:    (r) => r.issuedDate,
+    due:       (r) => r.dueDate,
+    status:    (r) => r.status,
+  });
+  const visible: ReadonlyArray<Invoice> = sort.sorted;
 
   const pager = usePagination(visible);
 
@@ -245,12 +261,61 @@ export function InvoicesView() {
         <table className="tbl">
           <thead>
             <tr>
-              <th>Invoice no.</th>
-              <th>Client</th>
-              <th style={{ textAlign: 'right' }}>Amount</th>
-              <th>Issued</th>
-              <th>Due</th>
-              <th>Status</th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('invoiceNo')}
+                onClick={() => sort.toggle('invoiceNo')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('invoiceNo'); } }}
+              >
+                Invoice no.
+              </th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('client')}
+                onClick={() => sort.toggle('client')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('client'); } }}
+              >
+                Client
+              </th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('amount')}
+                onClick={() => sort.toggle('amount')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('amount'); } }}
+                style={{ textAlign: 'right' }}
+              >
+                Amount
+              </th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('issued')}
+                onClick={() => sort.toggle('issued')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('issued'); } }}
+              >
+                Issued
+              </th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('due')}
+                onClick={() => sort.toggle('due')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('due'); } }}
+              >
+                Due
+              </th>
+              <th
+                className="th-sort"
+                data-sort={sort.ariaSort('status')}
+                onClick={() => sort.toggle('status')}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); sort.toggle('status'); } }}
+              >
+                Status
+              </th>
             </tr>
           </thead>
           <tbody>

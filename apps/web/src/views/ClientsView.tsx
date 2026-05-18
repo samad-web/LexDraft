@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
+import { useSavedFilter } from '@/hooks/useSavedFilter';
 import type { Client, ClientType, ClientStatus } from '@lexdraft/types';
 import { useClients } from '@/hooks/useClients';
 import { NewClientModal } from '@/components/NewClientModal';
@@ -18,6 +19,7 @@ interface ClientRow extends Client {
 }
 
 type FilterId = 'all' | ClientType;
+const FILTER_IDS: ReadonlyArray<FilterId> = ['all', 'Individual', 'Corporate', 'Govt'];
 
 interface FilterOption {
   id: FilterId;
@@ -47,7 +49,9 @@ const STATUS_BADGE: Record<ClientStatus, { label: string; cls: string }> = {
 };
 
 export function ClientsView() {
-  const [filter, setFilter] = useState<FilterId>('all');
+  const [filter, setFilter] = useSavedFilter<FilterId>('clients.filter', 'all', (raw) =>
+    typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
+  );
   const [q, setQ] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
   const { data: clients = [], isLoading, isError } = useClients();
