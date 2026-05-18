@@ -1,20 +1,13 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PillNav } from '../components/PillNav';
 import { LandingHeader } from '../components/LandingHeader';
 
-type TabId = 'home' | 'workflow' | 'pricing' | 'trial' | 'support';
+type TabId = 'home' | 'features' | 'pricing' | 'faq' | 'trial';
 
 interface NavTab {
   id: TabId;
   label: string;
-}
-
-interface Step {
-  n: string;
-  t: string;
-  b: string;
-  out: string;
 }
 
 interface FeatureItem {
@@ -46,45 +39,22 @@ interface PricingPlan {
   featured?: boolean;
 }
 
-interface Testimonial {
-  quote: string;
-  attribution: string;
-  role: string;
-}
-
 interface FaqItem {
   q: string;
   a: string;
 }
 
-interface SupportChannel {
-  eyebrow: string;
-  title: string;
-  detail: string;
-  hours: string;
-  cta: { label: string; href: string };
-}
-
 const NAV_TABS: NavTab[] = [
   { id: 'home', label: 'Home' },
-  { id: 'workflow', label: 'Workflow' },
+  { id: 'features', label: 'Features' },
   { id: 'pricing', label: 'Pricing' },
+  { id: 'faq', label: 'FAQ' },
   { id: 'trial', label: 'Trial' },
-  { id: 'support', label: 'Support' },
 ];
 
 const BILLING_OPTIONS = [
   { id: 'annual' as const, label: 'Annual · −20%' },
   { id: 'monthly' as const, label: 'Monthly' },
-];
-
-const STEPS: Step[] = [
-  { n: '01', t: 'Capture the matter', b: 'Voice-record the client conversation. LexDraft extracts parties, facts, dates, and the cause of action - then opens the case file pre-populated.', out: 'Case file ready' },
-  { n: '02', t: 'Draft with AI', b: 'Choose from 200+ Indian-format templates. Drafts stream in seconds with citations, statutory references, and a precedent trail you can audit.', out: 'Draft ready to print' },
-  { n: '03', t: 'File and follow up', b: 'Print court-ready, e-file via integrated portals, and track limitation. Every deadline auto-syncs to your calendar and the client’s.', out: 'Calendar synced' },
-  { n: '04', t: 'Review contracts', b: 'Drop a contract in. Risk-flagged clause-by-clause output, with redlines aligned to your firm’s preferred positions.', out: 'Risk report ready' },
-  { n: '05', t: 'Bill and collect', b: 'Time entries from the case file, invoices in two clicks, payment tracking with NEFT/UPI reconciliation.', out: 'Invoice + receipt issued' },
-  { n: '06', t: 'Research instantly', b: 'Lex.AI answers questions with verified citations to SCC, Manupatra, and reportable judgments only.', out: 'Citation-grade answer' },
 ];
 
 type FeatureIconName = 'draft' | 'cases' | 'contracts' | 'billing' | 'research' | 'limitation';
@@ -98,37 +68,11 @@ const FEATURES: FeatureItem[] = [
   { t: 'Limitation', b: 'Statutory-period tracker that warns at 90, 30, 7, and 1 day. Never miss a filing window.', icon: 'limitation' },
 ];
 
-const BENEFITS: string[] = [
-  'Read briefs for ten hours without eye strain',
-  'Tabular numbers for fees, dates, and case numbers',
-  'Italic reserved for case names - never decoration',
-  'Status colour only on status, never on chrome',
-  'WCAG AA across both light and dark themes',
-];
-
 const TRUST_POINTS: string[] = [
   '200+ Indian-format templates',
   'eCourts + CNR integrated',
   'SCC · Manupatra citations',
   'NEFT / UPI reconciliation',
-];
-
-const TESTIMONIALS: Testimonial[] = [
-  {
-    quote: 'The interface stays out of the way - exactly what a brief deserves. I can read drafts for an entire afternoon without my eyes burning.',
-    attribution: 'Senior Advocate',
-    role: 'Civil practice · Madras High Court',
-  },
-  {
-    quote: 'Limitation tracking alone has saved us from two near-misses this year. The 90-30-7-1 warnings are how every diary should work.',
-    attribution: 'Managing Partner',
-    role: 'Mid-size firm · Bengaluru',
-  },
-  {
-    quote: 'Voice intake into a pre-populated case file changed how we run the first client meeting. Notes write themselves.',
-    attribution: 'Litigation Counsel',
-    role: 'Solo practice · Delhi NCR',
-  },
 ];
 
 const FAQ_ITEMS: FaqItem[] = [
@@ -213,69 +157,32 @@ const PRICING: PricingPlan[] = [
   },
 ];
 
-const SUPPORT_CHANNELS: SupportChannel[] = [
-  {
-    eyebrow: 'Email',
-    title: 'support@lexdraft.in',
-    detail: 'Detailed queries, screenshots, and audit-trail requests. Replies within four working hours on business days.',
-    hours: 'Mon-Fri · 9:00-19:00 IST',
-    cta: { label: 'Compose email', href: 'mailto:support@lexdraft.in' },
-  },
-  {
-    eyebrow: 'WhatsApp',
-    title: 'Chambers liaison',
-    detail: 'Quick questions, file attachments, escalations from the bench. A real chambers-trained liaison, not a bot.',
-    hours: 'Mon-Sat · 9:00-21:00 IST',
-    cta: { label: 'Open WhatsApp', href: 'https://wa.me/918045678900' },
-  },
-  {
-    eyebrow: 'Phone',
-    title: '+91 80 4567 8900',
-    detail: 'Calls only - no IVR, no hold music. Routed to a senior support engineer when our liaison is unavailable.',
-    hours: 'Mon-Fri · 10:00-19:00 IST',
-    cta: { label: 'Call support', href: 'tel:+918045678900' },
-  },
-];
-
 const FOOTER_GROUPS: FooterGroup[] = [
-  {
-    h: 'Try LexDraft',
-    l: [
-      { label: 'Begin trial', href: '/auth' },
-      { label: 'Book a demo', href: 'mailto:partners@lexdraft.in?subject=LexDraft%20demo%20request' },
-      { label: 'Pricing', href: '#pricing' },
-      { label: 'Sign in', href: '/auth' },
-    ],
-  },
   {
     h: 'Product',
     l: [
-      { label: 'Drafting', href: '#workflow' },
-      { label: 'Cases', href: '#workflow' },
-      { label: 'Contracts', href: '#workflow' },
-      { label: 'Billing', href: '#workflow' },
-      { label: 'Research', href: '#workflow' },
-      { label: 'Limitation', href: '#workflow' },
-    ],
-  },
-  {
-    h: 'Solutions',
-    l: [
-      { label: 'Solo advocates', href: '#pricing' },
-      { label: 'Mid-size firms', href: '#pricing' },
-      { label: 'In-house teams', href: '#trial' },
-      { label: 'Litigation', href: '#workflow' },
-      { label: 'Corporate', href: '#workflow' },
+      { label: 'Features', href: '#features' },
+      { label: 'Pricing', href: '#pricing' },
+      { label: 'FAQ', href: '#faq' },
+      { label: 'Sign in', href: '/auth' },
     ],
   },
   {
     h: 'Company',
     l: [
       { label: 'About', href: '#trial' },
-      { label: 'Customers', href: '#testimonials' },
       { label: 'Careers', href: 'mailto:careers@lexdraft.in' },
       { label: 'Press', href: 'mailto:press@lexdraft.in' },
-      { label: 'Contact', href: '#support' },
+      { label: 'Contact', href: 'mailto:partners@lexdraft.in?subject=LexDraft' },
+    ],
+  },
+  {
+    h: 'Support',
+    l: [
+      { label: 'Email support', href: 'mailto:support@lexdraft.in' },
+      { label: 'WhatsApp', href: 'https://wa.me/918045678900' },
+      { label: 'Status', href: 'https://status.lexdraft.in' },
+      { label: 'Help centre', href: 'mailto:support@lexdraft.in?subject=Help' },
     ],
   },
   {
@@ -284,8 +191,7 @@ const FOOTER_GROUPS: FooterGroup[] = [
       { label: 'Terms', href: 'mailto:legal@lexdraft.in?subject=Terms%20of%20Service' },
       { label: 'Privacy', href: 'mailto:legal@lexdraft.in?subject=Privacy%20Policy' },
       { label: 'DPA', href: 'mailto:legal@lexdraft.in?subject=Data%20Processing%20Addendum' },
-      { label: 'Security', href: '#support' },
-      { label: 'Status', href: '#support' },
+      { label: 'Security', href: 'mailto:security@lexdraft.in' },
     ],
   },
 ];
@@ -335,31 +241,6 @@ function SectionLabel({ eyebrow, title, description, maxWidth, align = 'left' }:
         </p>
       )}
     </div>
-  );
-}
-
-interface CardProps {
-  children: ReactNode;
-  variant?: 'default' | 'surface';
-  hover?: boolean;
-  style?: CSSProperties;
-}
-
-function Card({ children, variant = 'default', hover = false, style }: CardProps) {
-  return (
-    <article
-      className={hover ? 'lex-card lex-card-hover' : 'lex-card'}
-      style={{
-        background: variant === 'surface' ? 'var(--bg-surface)' : 'var(--bg-base)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 32,
-        position: 'relative',
-        ...style,
-      }}
-    >
-      {children}
-    </article>
   );
 }
 
@@ -527,7 +408,7 @@ export function LandingView() {
   const goAnchor = (hash: string) => {
     if (!hash.startsWith('#')) return;
     const id = hash.slice(1);
-    const known: TabId[] = ['home', 'workflow', 'pricing', 'trial', 'support'];
+    const known: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
     if ((known as string[]).includes(id)) {
       goSection(id as TabId);
       return;
@@ -547,7 +428,7 @@ export function LandingView() {
   };
 
   useEffect(() => {
-    const ids: TabId[] = ['home', 'workflow', 'pricing', 'trial', 'support'];
+    const ids: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
     const elements = ids
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
@@ -776,48 +657,11 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* WORKFLOW - compact connected timeline */}
+      {/* FEATURE GRID */}
       <section
-        id="workflow"
-        style={{
-          padding: '80px 48px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border-subtle)',
-          borderBottom: '1px solid var(--border-subtle)',
-          scrollMarginTop: 90,
-        }}
+        id="features"
+        style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
-        <div style={{ maxWidth: 920, margin: '0 auto' }}>
-          <div className="reveal" style={{ marginBottom: 40 }}>
-            <SectionLabel
-              eyebrow="How it works"
-              title="From client intake to court-ready filing in one workspace."
-              description="Six steps that mirror how chambers already work - only faster and with the paper trail kept for you."
-              maxWidth={760}
-            />
-          </div>
-          <ol className="reveal-stagger lex-workflow">
-            {STEPS.map((s) => (
-              <li key={s.n} className="lex-workflow-step">
-                <span className="lex-workflow-marker" aria-hidden>{s.n}</span>
-                <div className="lex-workflow-body">
-                  <div className="lex-workflow-row">
-                    <h3 className="lex-workflow-title">{s.t}</h3>
-                    <span className="lex-workflow-outcome">
-                      <span className="lex-workflow-outcome-arrow" aria-hidden>→</span>
-                      {s.out}
-                    </span>
-                  </div>
-                  <p className="lex-workflow-desc">{s.b}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      {/* FEATURE GRID - with icons */}
-      <section style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto' }}>
         <div className="reveal">
           <SectionLabel
             eyebrow="The product"
@@ -867,209 +711,6 @@ export function LandingView() {
                 {f.b}
               </p>
             </article>
-          ))}
-        </div>
-      </section>
-
-      {/* LEGIBILITY - reframed as user benefits */}
-      <section
-        style={{
-          padding: '96px 48px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border-subtle)',
-          borderBottom: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div
-          className="reveal-stagger lex-two-col"
-          style={{
-            maxWidth: 1180,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 64,
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 12 }}>Built for legibility</div>
-            <h2
-              className="display"
-              style={{
-                fontSize: 'clamp(28px, 3.6vw, 42px)',
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                marginBottom: 20,
-              }}
-            >
-              Document-first, decoration-last.
-            </h2>
-            <p style={{ fontSize: 17, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 28 }}>
-              The interface reads like a well-formatted brief: strong borders, generous line-height, tabular-aligned numbers, and a type system designed for sustained reading. No accents for personality’s sake. No floating cards.
-            </p>
-            <ul
-              style={{
-                listStyle: 'none',
-                padding: 0,
-                margin: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 14,
-              }}
-            >
-              {BENEFITS.map((item) => (
-                <li
-                  key={item}
-                  style={{ display: 'flex', gap: 12, fontSize: 15, color: 'var(--text-primary)' }}
-                >
-                  <span
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 'var(--radius-full)',
-                      border: '1px solid var(--border-default)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 11,
-                      color: 'var(--text-secondary)',
-                      flexShrink: 0,
-                      marginTop: 2,
-                    }}
-                  >
-                    ✓
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Inline brief preview */}
-          <div
-            aria-hidden
-            style={{
-              background: 'var(--bg-base)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 28,
-              boxShadow: 'var(--shadow-popover)',
-              fontFamily: 'var(--font-serif)',
-              color: 'var(--text-primary)',
-              lineHeight: 1.65,
-            }}
-          >
-            <div
-              className="mono"
-              style={{
-                fontSize: 11,
-                letterSpacing: '0.16em',
-                textTransform: 'uppercase',
-                color: 'var(--text-tertiary)',
-                marginBottom: 16,
-              }}
-            >
-              CS (OS) 412 / 2025 · Madras High Court
-            </div>
-            <div
-              className="display"
-              style={{
-                fontSize: 20,
-                fontWeight: 600,
-                marginBottom: 6,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Plaint · Recovery of Possession
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-              Drafted 2026-04-30 · Auto-cited from <span className="case-name">Olga Tellis v BMC</span>
-            </div>
-            <p style={{ fontSize: 15, marginBottom: 12 }}>
-              The plaintiff, a registered occupant under tenancy deed dated 14 March 2019, has been deprived of peaceable possession by the defendant on 22 February 2026 in violation of Section 6 of the Specific Relief Act, 1963.
-            </p>
-            <p style={{ fontSize: 15, marginBottom: 0 }}>
-              The principle in <span className="case-name">Krishna Ram Mahale v Shobha Venkat Rao</span> is squarely attracted, the defendant having entered without due process of law.
-            </p>
-            <div
-              style={{
-                marginTop: 22,
-                paddingTop: 18,
-                borderTop: '1px solid var(--border-subtle)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 12,
-                fontVariantNumeric: 'tabular-nums',
-                color: 'var(--text-tertiary)',
-              }}
-            >
-              <span>Citations · 4</span>
-              <span>Limitation · 87 days remaining</span>
-              <span>Page 1 of 6</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section
-        id="testimonials"
-        style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
-      >
-        <div className="reveal">
-          <SectionLabel
-            eyebrow="In chambers"
-            title="The advocates already practising on it."
-            maxWidth={720}
-          />
-        </div>
-        <div
-          className="lex-grid-3 reveal-stagger"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24 }}
-        >
-          {TESTIMONIALS.map((t) => (
-            <Card key={t.attribution + t.role} variant="surface" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <span
-                aria-hidden
-                className="display"
-                style={{
-                  fontSize: 36,
-                  lineHeight: 0.6,
-                  color: 'var(--text-tertiary)',
-                  fontFamily: 'var(--font-serif)',
-                }}
-              >
-                “
-              </span>
-              <p
-                style={{
-                  fontSize: 16,
-                  lineHeight: 1.65,
-                  color: 'var(--text-primary)',
-                  flex: 1,
-                }}
-              >
-                {t.quote}
-              </p>
-              <div style={{ paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  {t.attribution}
-                </div>
-                <div
-                  className="mono"
-                  style={{
-                    marginTop: 4,
-                    fontSize: 11,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-tertiary)',
-                  }}
-                >
-                  {t.role}
-                </div>
-              </div>
-            </Card>
           ))}
         </div>
       </section>
@@ -1332,183 +973,41 @@ export function LandingView() {
         </div>
       </section>
 
-      {/* TRIAL CTA - what's in the trial */}
+      {/* TRIAL CTA */}
       <section
         id="trial"
-        className="reveal-stagger"
-        style={{ padding: '120px 48px', maxWidth: 1100, margin: '0 auto', scrollMarginTop: 90 }}
+        className="reveal"
+        style={{ padding: '96px 48px 112px', maxWidth: 900, margin: '0 auto', scrollMarginTop: 90, textAlign: 'center' }}
       >
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <div className="eyebrow" style={{ marginBottom: 16 }}>Ready when you are</div>
-          <h2
-            className="display"
-            style={{
-              fontSize: 'clamp(36px, 5vw, 60px)',
-              fontWeight: 600,
-              letterSpacing: '-0.025em',
-              maxWidth: 880,
-              margin: '0 auto 20px',
-            }}
-          >
-            Fourteen-day trial. No card. Real cases.
-          </h2>
-          <p
-            className="lede"
-            style={{ maxWidth: 620, margin: '0 auto 32px', color: 'var(--text-secondary)' }}
-          >
-            Start with one matter. Move your whole practice when you’re ready.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <button className="btn btn-primary btn-lg" type="button" onClick={goAuth}>
-              Begin 14-day trial
-            </button>
-            <a
-              href="mailto:partners@lexdraft.in?subject=LexDraft%20demo%20request"
-              className="btn btn-lg"
-              style={{ textDecoration: 'none' }}
-            >
-              Talk to a partner
-            </a>
-          </div>
-        </div>
-
-        <div
-          className="lex-grid-3"
+        <div className="eyebrow" style={{ marginBottom: 16 }}>Ready when you are</div>
+        <h2
+          className="display"
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 24,
-            paddingTop: 40,
-            borderTop: '1px solid var(--border-subtle)',
+            fontSize: 'clamp(36px, 5vw, 60px)',
+            fontWeight: 600,
+            letterSpacing: '-0.025em',
+            margin: '0 auto 20px',
           }}
         >
-          {[
-            {
-              t: 'Full Practice tier',
-              b: 'Every Practice-tier feature is unlocked for 14 days - eight seats, unlimited matters, all integrations.',
-            },
-            {
-              t: 'Free 60-min onboarding',
-              b: 'A live walkthrough with our chambers liaison. Bring three matters; we’ll set them up with you.',
-            },
-            {
-              t: 'One-click data export',
-              b: 'Leave at any point and take a portable archive of every matter, draft, and document with you.',
-            },
-          ].map((item) => (
-            <div key={item.t} style={{ borderTop: '1px solid var(--border-default)', paddingTop: 20 }}>
-              <h3
-                className="display"
-                style={{ fontSize: 18, fontWeight: 600, marginBottom: 8, letterSpacing: '-0.005em' }}
-              >
-                {item.t}
-              </h3>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                {item.b}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* SUPPORT */}
-      <section
-        id="support"
-        style={{
-          padding: '96px 48px',
-          background: 'var(--bg-surface)',
-          borderTop: '1px solid var(--border-subtle)',
-          borderBottom: '1px solid var(--border-subtle)',
-          scrollMarginTop: 90,
-        }}
-      >
-        <div style={{ maxWidth: 1320, margin: '0 auto' }}>
-          <div className="reveal">
-            <SectionLabel
-              eyebrow="Support"
-              title="Always a partner away."
-              maxWidth={720}
-            />
-          </div>
-
-          <div
-            className="lex-grid-3 reveal-stagger"
-            style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 56 }}
+          Fourteen-day trial. No card. Real cases.
+        </h2>
+        <p
+          className="lede"
+          style={{ maxWidth: 560, margin: '0 auto 32px', color: 'var(--text-secondary)' }}
+        >
+          Start with one matter. Move your whole practice when you’re ready.
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary btn-lg" type="button" onClick={goAuth}>
+            Begin 14-day trial
+          </button>
+          <a
+            href="mailto:partners@lexdraft.in?subject=LexDraft%20demo%20request"
+            className="btn btn-lg"
+            style={{ textDecoration: 'none' }}
           >
-            {SUPPORT_CHANNELS.map((c) => (
-              <Card key={c.eyebrow} hover style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div className="eyebrow">{c.eyebrow}</div>
-                <h3
-                  className="display"
-                  style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em' }}
-                >
-                  {c.title}
-                </h3>
-                <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.6, flex: 1 }}>
-                  {c.detail}
-                </p>
-                <div
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-tertiary)',
-                  }}
-                >
-                  {c.hours}
-                </div>
-                <a
-                  href={c.cta.href}
-                  className="no-underline"
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: 'var(--text-primary)',
-                    marginTop: 4,
-                  }}
-                >
-                  {c.cta.label} →
-                </a>
-              </Card>
-            ))}
-          </div>
-
-          <div
-            className="reveal"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: 24,
-              padding: '32px 0 0',
-              borderTop: '1px solid var(--border-default)',
-            }}
-          >
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Help centre</div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Searchable knowledge base, video walkthroughs, and Indian-format drafting guides.
-              </p>
-            </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Status</div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Real-time uptime, eCourts sync health, and incident timelines at status.lexdraft.in.
-              </p>
-            </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>SLA</div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                99.95% on Firm-tier plans. P0 incidents responded to within 30 minutes, around the clock.
-              </p>
-            </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Compliance</div>
-              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                SOC 2 Type II · ISO 27001 · DPDP Act 2023. Indian-server residency by default.
-              </p>
-            </div>
-          </div>
+            Talk to a partner
+          </a>
         </div>
       </section>
 
@@ -1555,135 +1054,6 @@ export function LandingView() {
 
       {/* Scoped responsive overrides + animations */}
       <style>{`
-        .lex-card-hover { transition: border-color 200ms ease, transform 200ms ease; }
-        .lex-card-hover:hover { border-color: var(--border-strong); transform: translateY(-2px); }
-
-        /* ---------- WORKFLOW (compact connected timeline) ----------
-           A single vertical rail runs through all markers. Steps are tight
-           rows: numbered marker, then title + outcome on one line, body
-           below. Hover lights the marker so the eye can follow the flow. */
-        .lex-workflow {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          position: relative;
-          padding-left: 56px;
-        }
-        .lex-workflow::before {
-          content: '';
-          position: absolute;
-          top: 22px;
-          bottom: 22px;
-          left: 16px;
-          width: 1px;
-          background: linear-gradient(
-            to bottom,
-            var(--border-default) 0%,
-            var(--border-default) 80%,
-            transparent 100%
-          );
-          z-index: 0;
-        }
-
-        .lex-workflow-step {
-          position: relative;
-          padding: 14px 0;
-        }
-        .lex-workflow-step + .lex-workflow-step {
-          border-top: 1px solid var(--border-subtle);
-        }
-
-        .lex-workflow-marker {
-          position: absolute;
-          left: -56px;
-          top: 14px;
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: var(--bg-base);
-          border: 1px solid var(--border-default);
-          font-family: var(--font-mono);
-          font-size: 11px;
-          font-weight: 500;
-          color: var(--text-secondary);
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1;
-          transition:
-            background 200ms ease,
-            border-color 200ms ease,
-            color 200ms ease,
-            transform 200ms ease;
-        }
-        .lex-workflow-step:hover .lex-workflow-marker {
-          background: var(--text-primary);
-          border-color: var(--text-primary);
-          color: var(--bg-base);
-          transform: scale(1.06);
-        }
-
-        .lex-workflow-body {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .lex-workflow-row {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-        .lex-workflow-title {
-          font-family: var(--font-display);
-          font-size: 17px;
-          font-weight: 600;
-          letter-spacing: -0.01em;
-          color: var(--text-primary);
-          margin: 0;
-        }
-        .lex-workflow-outcome {
-          font-family: var(--font-mono);
-          font-size: 11px;
-          letter-spacing: 0.16em;
-          text-transform: uppercase;
-          color: var(--text-tertiary);
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          white-space: nowrap;
-          transition: color 200ms ease;
-        }
-        .lex-workflow-step:hover .lex-workflow-outcome { color: var(--text-primary); }
-        .lex-workflow-outcome-arrow {
-          color: var(--border-strong);
-          font-size: 13px;
-          line-height: 1;
-        }
-        .lex-workflow-desc {
-          font-size: 14px;
-          color: var(--text-secondary);
-          line-height: 1.6;
-          margin: 0;
-          max-width: 720px;
-        }
-
-        @media (max-width: 760px) {
-          .lex-workflow { padding-left: 44px; }
-          .lex-workflow::before { left: 11px; }
-          .lex-workflow-marker { left: -44px; width: 24px; height: 24px; font-size: 10px; }
-          .lex-workflow-row { gap: 8px; }
-          .lex-workflow-outcome { font-size: 10px; letter-spacing: 0.14em; }
-          .lex-workflow-desc { font-size: 13px; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .lex-workflow-marker,
-          .lex-workflow-outcome { transition: none !important; }
-          .lex-workflow-step:hover .lex-workflow-marker { transform: none; }
-        }
-
-
         .lex-faq[open] .lex-faq-marker { transform: rotate(45deg); border-color: var(--text-primary); color: var(--text-primary); }
         .lex-faq summary::-webkit-details-marker { display: none; }
         .lex-faq summary:hover { color: var(--text-secondary); }
@@ -1755,7 +1125,6 @@ export function LandingView() {
 
         @media (max-width: 1023px) {
           .lex-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
-          .lex-two-col { grid-template-columns: 1fr !important; gap: 40px !important; }
           .lex-trust-strip { grid-template-columns: repeat(2, 1fr) !important; }
         }
         @media (max-width: 640px) {
@@ -1765,7 +1134,6 @@ export function LandingView() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .lex-card-hover, .lex-card-hover:hover { transition: none !important; transform: none !important; }
           .lex-faq-marker { transition: none !important; }
         }
       `}</style>

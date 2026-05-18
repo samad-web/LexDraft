@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import { PillNav } from './PillNav';
 import { ThemeToggle } from './ThemeToggle';
 
-export type LandingTabId = 'home' | 'workflow' | 'pricing' | 'trial' | 'support';
+export type LandingTabId = 'home' | 'features' | 'pricing' | 'faq' | 'trial';
 
 interface LandingTab {
   id: LandingTabId;
