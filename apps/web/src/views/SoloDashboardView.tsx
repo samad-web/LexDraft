@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLimitations } from '@/hooks/useLimitations';
 import { PillNav } from '@/components/PillNav';
@@ -179,8 +179,25 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
       <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
       {isLoading && (
-        <div className="card" style={{ marginTop: 16 }}>
-          <span className="muted">Loading dashboard…</span>
+        <div className="col" style={{ marginTop: 16, gap: 16 }} aria-busy="true" aria-label="Loading dashboard">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Skeleton width="50%" height={11} />
+                <Skeleton width="35%" height={28} />
+                <Skeleton width="70%" height={11} />
+              </div>
+            ))}
+          </div>
+          <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Skeleton width="30%" height={14} />
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Skeleton width="75%" height={13} />
+                <Skeleton width="45%" height={11} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {isError && (

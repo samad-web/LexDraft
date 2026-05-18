@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import type { Invoice, InvoiceStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -248,13 +248,16 @@ export function InvoicesView() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 28 }}>
-                  <span className="muted">Loading invoices<span className="blink" /></span>
-                </td>
+            {isLoading && Array.from({ length: 6 }, (_, i) => (
+              <tr key={`sk-${i}`} aria-busy="true">
+                <td><Skeleton width={88} height={14} /></td>
+                <td><Skeleton width={140} height={14} /></td>
+                <td style={{ textAlign: 'right' }}><Skeleton width={70} height={14} /></td>
+                <td><Skeleton width={86} height={12} /></td>
+                <td><Skeleton width={86} height={12} /></td>
+                <td><Skeleton width={64} height={20} radius="pill" /></td>
               </tr>
-            )}
+            ))}
             {isError && !isLoading && (
               <tr>
                 <td colSpan={6} style={{ textAlign: 'center', padding: 28, color: 'var(--danger)' }}>

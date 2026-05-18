@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Select } from '@lexdraft/ui';
+import { Select, Skeleton, SkeletonText } from '@lexdraft/ui';
 import { CopyButton } from '@/components/CopyButton';
 import { Pagination } from '@/components/Pagination';
 import {
@@ -147,7 +147,34 @@ export function ErrorLogView() {
 
       {/* ---- table ----------------------------------------------------- */}
       {listQuery.isLoading ? (
-        <div className="muted">Loading…</div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }} aria-busy="true">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 180 }}>When</th>
+                <th style={{ width: 70 }}>Status</th>
+                <th>Route</th>
+                <th style={{ width: 140 }}>Error</th>
+                <th style={{ width: 200 }}>User</th>
+                <th style={{ width: 140 }}>Firm</th>
+                <th style={{ width: 130 }}>Request</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 8 }, (_, i) => (
+                <tr key={`sk-${i}`}>
+                  <td><Skeleton width={150} height={12} /></td>
+                  <td><Skeleton width={40} height={20} radius="pill" /></td>
+                  <td><Skeleton width={220} height={13} /></td>
+                  <td><Skeleton width={110} height={13} /></td>
+                  <td><Skeleton width={160} height={12} /></td>
+                  <td><Skeleton width={110} height={13} /></td>
+                  <td><Skeleton width={100} height={12} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : items.length === 0 ? (
         <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
           <div className="muted">No errors match the current filters.</div>
@@ -294,7 +321,17 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
         </header>
 
         {isLoading || !data ? (
-          <div className="muted">Loading…</div>
+          <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
+              {Array.from({ length: 6 }, (_, i) => (
+                <span key={i} style={{ display: 'contents' }}>
+                  <Skeleton width={80} height={11} />
+                  <Skeleton width="80%" height={13} />
+                </span>
+              ))}
+            </div>
+            <SkeletonText lines={4} />
+          </div>
         ) : (
           <>
             <section>

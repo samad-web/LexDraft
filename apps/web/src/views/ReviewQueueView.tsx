@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import { useMyReviews, type ContractReviewSummary, type ReviewDecision } from '@/hooks/useReview';
 
 /**
@@ -37,8 +37,32 @@ export function ReviewQueueView() {
       </div>
 
       {isLoading && (
-        <div className="card" style={{ padding: 24, color: 'var(--text-tertiary)' }}>
-          Loading your queue…
+        <div className="col" style={{ gap: 24 }} aria-busy="true">
+          {[1, 2].map((bucketIdx) => (
+            <section key={bucketIdx}>
+              <Skeleton width={140} height={11} style={{ marginBottom: 12 }} />
+              <div className="card" style={{ padding: 0 }}>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      padding: '14px 16px',
+                      borderBottom: i < 2 ? '1px solid var(--border-default)' : undefined,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <Skeleton width="60%" height={14} />
+                    <div style={{ display: 'flex', gap: 14 }}>
+                      <Skeleton width={80} height={11} />
+                      <Skeleton width={110} height={11} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
       )}
 

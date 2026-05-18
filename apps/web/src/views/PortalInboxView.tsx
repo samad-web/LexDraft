@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Skeleton } from '@lexdraft/ui';
 import type { FirmPortalThreadSummary, PortalMessage } from '@lexdraft/types';
 import {
   useFirmPortalInbox,
@@ -39,7 +40,29 @@ export function PortalInboxView() {
 
       <div className="inbox-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
         <aside className="card" style={{ padding: 0, overflow: 'hidden', alignSelf: 'flex-start' }}>
-          {inbox.isLoading && <div style={{ padding: 16 }} className="muted">Loading…</div>}
+          {inbox.isLoading && (
+            <div aria-busy="true" aria-label="Loading inbox">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div
+                  key={`sk-${i}`}
+                  style={{
+                    padding: '12px 14px',
+                    borderBottom: '1px solid var(--border-default)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <Skeleton width="55%" height={13} />
+                    <Skeleton width={20} height={14} radius="pill" />
+                  </div>
+                  <Skeleton width="40%" height={10} />
+                  <Skeleton width="80%" height={11} />
+                </div>
+              ))}
+            </div>
+          )}
           {inbox.isError && <div style={{ padding: 16, color: 'var(--danger)' }}>Could not load inbox.</div>}
           {!inbox.isLoading && items.length === 0 && (
             <div style={{ padding: 16 }} className="muted">No portal messages yet.</div>
@@ -146,7 +169,22 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
       </header>
 
       <div style={{ padding: 16, overflowY: 'auto', maxHeight: 480, flex: 1 }} role="log" aria-live="polite">
-        {thread.isLoading && <div className="muted">Loading messages…</div>}
+        {thread.isLoading && (
+          <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Skeleton width="40%" height={11} />
+              <Skeleton width="75%" height={32} radius="md" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+              <Skeleton width="35%" height={11} />
+              <Skeleton width="60%" height={28} radius="md" />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <Skeleton width="40%" height={11} />
+              <Skeleton width="70%" height={40} radius="md" />
+            </div>
+          </div>
+        )}
         {thread.isError && <div style={{ color: 'var(--danger)' }}>Could not load messages.</div>}
         {thread.data && thread.data.items.length === 0 && (
           <div className="muted">No messages yet - start the conversation.</div>

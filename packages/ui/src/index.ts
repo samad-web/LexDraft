@@ -6,3 +6,4 @@ export { Select, type SelectProps, type SelectOption } from './Select';
 export { Combobox, type ComboboxProps, type ComboboxOption } from './Combobox';
 export { DatePicker, type DatePickerProps } from './DatePicker';
 export { TimePicker, type TimePickerProps } from './TimePicker';
+export { Skeleton, SkeletonText, type SkeletonProps, type SkeletonTextProps } from './Skeleton';

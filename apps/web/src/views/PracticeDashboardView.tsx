@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useFirmDashboard } from '@/hooks/useFirmDashboard';
 import { useMyUsage } from '@/hooks/useMyUsage';
@@ -411,7 +411,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
 
 function Loading({ dateStr }: { dateStr: string }) {
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger" style={{ gap: 24 }} aria-busy="true" aria-label="Loading dashboard">
       <div>
         <div className="row" style={{ marginBottom: 14 }}>
           <span className="mono" style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
@@ -422,7 +422,30 @@ function Loading({ dateStr }: { dateStr: string }) {
             {dateStr.toUpperCase()}
           </span>
         </div>
-        <h1 className="display-lg muted">Loading chambers<span className="blink" /></h1>
+        <Skeleton width="60%" height={36} style={{ marginBottom: 12 }} />
+        <Skeleton width="40%" height={16} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Skeleton width="50%" height={11} />
+            <Skeleton width="35%" height={28} />
+            <Skeleton width="70%" height={11} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {Array.from({ length: 2 }, (_, i) => (
+          <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <Skeleton width="40%" height={12} />
+            {Array.from({ length: 4 }, (_, j) => (
+              <div key={j} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <Skeleton width="80%" height={13} />
+                <Skeleton width="50%" height={11} />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );

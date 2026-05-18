@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
@@ -89,10 +89,60 @@ export function TasksView() {
       <NewTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {board.isLoading && (
-        <div className="card">
-          <p className="body-md muted">
-            Loading tasks<span className="blink" />
-          </p>
+        <div
+          className="kanban"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: 16,
+          }}
+          aria-busy="true"
+          aria-label="Loading task board"
+        >
+          {COLUMNS.map((col) => (
+            <div
+              key={col.id}
+              style={{
+                background: 'var(--bg-surface-2)',
+                border: '1px solid var(--border-default)',
+                borderRadius: 'var(--radius-lg)',
+                padding: 'var(--space-4)',
+                minHeight: 420,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <div className="row">
+                <span className="eyebrow">{col.label}</span>
+                <span className="spacer" />
+                <Skeleton width={20} height={14} />
+              </div>
+              <div className="col" style={{ gap: 10 }}>
+                {Array.from({ length: 3 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="card"
+                    style={{
+                      background: 'var(--bg-base)',
+                      padding: 'var(--space-4)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Skeleton width={8} height={8} circle />
+                      <Skeleton width={80} height={11} />
+                    </div>
+                    <Skeleton height={14} />
+                    <Skeleton height={14} width="70%" />
+                    <Skeleton width={90} height={11} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

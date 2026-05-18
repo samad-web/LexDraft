@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Select } from '@lexdraft/ui';
+import { Select, Skeleton } from '@lexdraft/ui';
 import type { DocumentTemplate, TemplateScope } from '@lexdraft/types';
 import {
   useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate,
@@ -61,7 +61,28 @@ export function TemplatesView() {
       </div>
 
       {isLoading ? (
-        <div className="muted">Loading…</div>
+        <table className="tbl" aria-busy="true">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th style={{ width: 180 }}>Slug</th>
+              <th style={{ width: 130 }}>Scope</th>
+              <th style={{ width: 200 }}>Updated</th>
+              <th style={{ width: 200, textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }, (_, i) => (
+              <tr key={`sk-${i}`}>
+                <td><Skeleton width={160} height={14} /></td>
+                <td><Skeleton width={140} height={12} /></td>
+                <td><Skeleton width={80} height={20} radius="pill" /></td>
+                <td><Skeleton width={150} height={12} /></td>
+                <td style={{ textAlign: 'right' }}><Skeleton width={120} height={24} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : (
         <table className="tbl">
           <thead>

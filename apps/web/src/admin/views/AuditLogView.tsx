@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Select } from '@lexdraft/ui';
+import { Select, Skeleton } from '@lexdraft/ui';
 import { useAuditLog } from '../queries';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -47,7 +47,28 @@ export function AuditLogView() {
       </div>
 
       {isLoading ? (
-        <div className="muted">Loading…</div>
+        <table className="tbl" aria-busy="true">
+          <thead>
+            <tr>
+              <th style={{ width: 200 }}>When</th>
+              <th>Action</th>
+              <th>Target</th>
+              <th>Actor</th>
+              <th>Payload</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 8 }, (_, i) => (
+              <tr key={`sk-${i}`}>
+                <td><Skeleton width={150} height={12} /></td>
+                <td><Skeleton width={110} height={13} /></td>
+                <td><Skeleton width={130} height={13} /></td>
+                <td><Skeleton width={120} height={13} /></td>
+                <td><Skeleton width={200} height={12} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : (
         <table className="tbl">
           <thead>

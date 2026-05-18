@@ -1,10 +1,36 @@
 import { useMemo, useState } from 'react';
+import { Skeleton } from '@lexdraft/ui';
 import {
   usePracticeProfitability,
   usePracticeWorkload,
   type ProfitabilityMatter,
   type WorkloadMember,
 } from '@/hooks/usePracticeAnalytics';
+
+function AnalyticsTabSkeleton() {
+  return (
+    <div className="col" style={{ gap: 16 }} aria-busy="true" aria-label="Loading analytics">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Skeleton width="60%" height={11} />
+            <Skeleton width="40%" height={28} />
+          </div>
+        ))}
+      </div>
+      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <Skeleton width="35%" height={14} />
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <Skeleton width={120} height={13} />
+            <Skeleton height={10} style={{ flex: 1 }} />
+            <Skeleton width={48} height={13} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type TabId = 'workload' | 'profitability';
 
@@ -96,11 +122,7 @@ function WorkloadTab() {
     );
   }
   if (isLoading || !data) {
-    return (
-      <div className="card">
-        <span className="muted">Loading workload<span className="blink" /></span>
-      </div>
-    );
+    return <AnalyticsTabSkeleton />;
   }
 
   const members: WorkloadMember[] = data.members;
@@ -260,11 +282,7 @@ function ProfitabilityTab() {
         </div>
       )}
 
-      {isLoading && (
-        <div className="card">
-          <span className="muted">Loading profitability<span className="blink" /></span>
-        </div>
-      )}
+      {isLoading && <AnalyticsTabSkeleton />}
 
       {!isLoading && !isError && (
         <>

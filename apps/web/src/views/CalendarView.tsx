@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useCalendarMonth, useCalendarWeek } from '@/hooks/useCalendar';
@@ -271,9 +271,19 @@ function MonthPane({
       </div>
 
       {isLoading ? (
-        <p className="body-sm muted" style={{ padding: '24px 0', textAlign: 'center' }}>
-          Loading month<span className="blink" />
-        </p>
+        <div
+          aria-busy="true"
+          aria-label="Loading month"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+            gap: 8,
+          }}
+        >
+          {Array.from({ length: 35 }, (_, i) => (
+            <Skeleton key={`sk-day-${i}`} height={96} radius="md" />
+          ))}
+        </div>
       ) : isError ? (
         <p className="body-sm" style={{ color: 'var(--danger)', padding: '24px 0', textAlign: 'center' }}>
           Couldn’t load month.
@@ -444,7 +454,19 @@ function WeekPane({
         </div>
       </div>
       {isLoading ? (
-        <p className="body-sm muted">Loading week<span className="blink" /></p>
+        <div
+          aria-busy="true"
+          aria-label="Loading week"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+            gap: 10,
+          }}
+        >
+          {Array.from({ length: 7 }, (_, i) => (
+            <Skeleton key={`sk-wk-${i}`} height={96} radius="md" />
+          ))}
+        </div>
       ) : isError ? (
         <p className="body-sm" style={{ color: 'var(--danger)' }}>Couldn’t load calendar.</p>
       ) : (

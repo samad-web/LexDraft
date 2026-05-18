@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import { useFirmDashboard } from '@/hooks/useFirmDashboard';
 import { useCan, useFirmPracticeGroups } from '@/hooks/useFirmAdmin';
 import { useUIStore } from '@/store/ui';
@@ -380,10 +380,32 @@ export function FirmDashboardView() {
 
 function Loading() {
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger" style={{ gap: 24 }} aria-busy="true" aria-label="Loading firm dashboard">
       <div>
         <div className="eyebrow" style={{ marginBottom: 8 }}>Firm overview</div>
-        <div className="heading-xl muted">Loading<span className="blink" /></div>
+        <Skeleton width="55%" height={36} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Skeleton width="50%" height={11} />
+            <Skeleton width="35%" height={28} />
+            <Skeleton width="70%" height={11} />
+          </div>
+        ))}
+      </div>
+      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Skeleton width="30%" height={14} />
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Skeleton width={32} height={32} circle />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+              <Skeleton width="50%" height={13} />
+              <Skeleton width="35%" height={11} />
+            </div>
+            <Skeleton width={70} height={20} radius="pill" />
+          </div>
+        ))}
       </div>
     </div>
   );

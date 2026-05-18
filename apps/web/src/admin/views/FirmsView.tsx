@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Select } from '@lexdraft/ui';
+import { Select, Skeleton } from '@lexdraft/ui';
 import type { AdminCreateFirmResponse, FirmPlanTier } from '@lexdraft/types';
 import { Modal, Field } from '@/components/Modal';
 import { useUIStore } from '@/store/ui';
@@ -47,7 +47,28 @@ export function FirmsView() {
       </header>
 
       {isLoading ? (
-        <div className="muted">Loading firms…</div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }} aria-busy="true">
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Firm</th>
+                <th style={{ width: 140 }}>Plan</th>
+                <th>Members</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }, (_, i) => (
+                <tr key={`sk-${i}`}>
+                  <td><Skeleton width={180} height={14} /></td>
+                  <td><Skeleton width={70} height={20} radius="pill" /></td>
+                  <td><Skeleton width={40} height={13} /></td>
+                  <td><Skeleton width={100} height={12} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : firms.length === 0 ? (
         <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
           <div className="muted" style={{ marginBottom: 12 }}>No firms yet.</div>

@@ -1193,3 +1193,33 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .rt-content strong, .rt-content b { font-weight: 600; }
 .rt-content em, .rt-content i { font-style: italic; }
 .rt-content u { text-decoration: underline; }
+
+/* =================================================================
+   Skeleton loaders - paired with <Skeleton> / <SkeletonText> in
+   @lexdraft/ui. Shimmer is a sliding gradient sweep over a neutral
+   surface; reduces to a static block under prefers-reduced-motion.
+   ================================================================= */
+@keyframes lex-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.lex-skeleton {
+  display: inline-block;
+  vertical-align: middle;
+  background-color: var(--bg-surface-2);
+  background-image: linear-gradient(
+    90deg,
+    var(--bg-surface-2) 0%,
+    var(--bg-surface)   50%,
+    var(--bg-surface-2) 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: lex-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+  user-select: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lex-skeleton { animation: none; background-image: none; }
+}

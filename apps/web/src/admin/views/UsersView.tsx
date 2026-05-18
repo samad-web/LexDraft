@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Select } from '@lexdraft/ui';
+import { Select, Skeleton } from '@lexdraft/ui';
 import type { AdminUserSummary, UserStatus } from '@lexdraft/types';
 import { adminApi } from '../api';
 import { useAdminUsers, useDeleteUser, useResetPassword, useUpdateUser } from '../queries';
@@ -86,7 +86,30 @@ export function UsersView() {
       </div>
 
       {isLoading ? (
-        <div className="muted">Loading users…</div>
+        <table className="tbl" aria-busy="true">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Firm</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th style={{ width: 240, textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }, (_, i) => (
+              <tr key={`sk-${i}`}>
+                <td><Skeleton width={120} height={14} /></td>
+                <td><Skeleton width={180} height={12} /></td>
+                <td><Skeleton width={130} height={13} /></td>
+                <td><Skeleton width={100} height={13} /></td>
+                <td><Skeleton width={62} height={20} radius="pill" /></td>
+                <td style={{ textAlign: 'right' }}><Skeleton width={140} height={24} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       ) : (
         <table className="tbl">
           <thead>

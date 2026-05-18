@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import type { Lead, LeadStage } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useLeads, useMoveLead, useDeleteLead } from '@/hooks/useLeads';
@@ -209,9 +209,28 @@ export function LeadsView() {
               </div>
 
               <div className="col" style={{ gap: 10 }}>
-                {list.length === 0 && (
+                {isLoading && list.length === 0 && Array.from({ length: 2 }, (_, i) => (
+                  <article
+                    key={`sk-${stage.id}-${i}`}
+                    aria-busy="true"
+                    style={{
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: 14,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                    }}
+                  >
+                    <Skeleton height={14} width="70%" />
+                    <Skeleton height={11} width="50%" />
+                    <Skeleton height={11} width="35%" />
+                  </article>
+                ))}
+                {!isLoading && list.length === 0 && (
                   <p className="body-xs muted" style={{ padding: '6px 4px' }}>
-                    {isLoading ? 'Loading…' : isError ? 'Couldn’t load leads' : 'No leads yet.'}
+                    {isError ? 'Couldn’t load leads' : 'No leads yet.'}
                   </p>
                 )}
                 {list.map((lead) => (
