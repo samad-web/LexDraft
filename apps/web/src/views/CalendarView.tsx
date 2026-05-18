@@ -346,9 +346,14 @@ function MonthPane({
                     className={`badge ${d.isToday ? '' : 'badge-cobalt'}`}
                     style={{
                       fontVariantNumeric: 'tabular-nums',
-                      background: d.isToday ? 'rgba(255,255,255,0.18)' : undefined,
+                      // Today cell has `--text-primary` as its bg, so the
+                      // badge needs a contrasting overlay tinted from the
+                      // foreground colour. Using currentColor keeps it
+                      // theme-aware (light mode: light overlay on dark bg;
+                      // dark mode: dark overlay on light bg).
+                      background: d.isToday ? 'color-mix(in srgb, currentColor 18%, transparent)' : undefined,
                       color: d.isToday ? 'var(--bg-base)' : undefined,
-                      borderColor: d.isToday ? 'rgba(255,255,255,0.3)' : undefined,
+                      borderColor: d.isToday ? 'color-mix(in srgb, currentColor 30%, transparent)' : undefined,
                     }}
                   >
                     {d.count} {d.count === 1 ? 'hearing' : 'hearings'}

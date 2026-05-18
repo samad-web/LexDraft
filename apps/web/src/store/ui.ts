@@ -45,11 +45,19 @@ function applyTheme(theme: Theme): void {
   document.documentElement.style.colorScheme = theme;
 }
 
+/** Read the user's OS-level preference. Defaults to light if unknown. */
+function systemPreference(): Theme {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
       lang: 'EN',
-      theme: 'light',
+      // System-preference is the first-load default. Once the user has
+      // toggled, the persist middleware overrides this with their choice.
+      theme: systemPreference(),
       cmdK: false,
       toast: null,
       forceMfaEnrollment: false,
