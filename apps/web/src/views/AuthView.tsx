@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, FieldError, validators } from '@lexdraft/ui';
-import { useSignIn, useSignUp } from '@/hooks/useAuth';
+import { useSignIn, useSignUp, useFirmEnquiry, type FirmEnquirySize } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { useUIStore } from '@/store/ui';
 import { isMfaChallenge } from '@/lib/auth-types';
@@ -96,6 +96,15 @@ export function AuthView() {
     ? validators.minLength(password, 8, 'Password')
     : null;
 
+  // Firm-enquiry state (separate flow from self-serve sign-up). Reuses
+  // `name` + `email` from sign-up so the prospect doesn't retype if they
+  // hop between role options.
+  const firmEnquiry = useFirmEnquiry();
+  const [phone, setPhone] = useState('');
+  const [firmSize, setFirmSize] = useState<FirmEnquirySize | ''>('');
+  const [enquiryMessage, setEnquiryMessage] = useState('');
+  const [firmEnquirySent, setFirmEnquirySent] = useState(false);
+
   const isSignup = tab === 'signup';
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
   const onComplete = (resp?: { user?: { isSuperadmin?: boolean } }) =>
@@ -148,6 +157,24 @@ export function AuthView() {
         practiceAreas: practiceAreas || undefined,
       },
       { onSuccess: (resp) => onComplete(resp) },
+    );
+  };
+
+  const handleFirmEnquiry = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!firmSize) return;
+    firmEnquiry.mutate(
+      {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim() || undefined,
+        firmName: firm.trim(),
+        firmSize,
+        primaryCourt: primaryCourt.trim() || undefined,
+        practiceAreas: practiceAreas.trim() || undefined,
+        message: enquiryMessage.trim() || undefined,
+      },
+      { onSuccess: () => setFirmEnquirySent(true) },
     );
   };
 
@@ -504,8 +531,225 @@ export function AuthView() {
           </div>
         )}
 
-        {/* SIGN UP - STEP 1 (profile) */}
-        {tab === 'signup' && step === 1 && (
+        {/* SIGN UP - FIRM ENQUIRY (post-submit success) */}
+        {tab === 'signup' && step === 1 && role === 'firm' && firmEnquirySent && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '8px 4px' }}>
+            <span
+              aria-hidden
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 'var(--radius-full)',
+                background: 'var(--success-bg)',
+                color: 'var(--success)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Icon name="check" size={26} />
+            </span>
+            <div className="display" style={{ fontSize: 22, textAlign: 'center' }}>
+              Thanks, we&rsquo;re on it.
+            </div>
+            <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 380, lineHeight: 1.55 }}>
+              A LexDraft partner will reach out to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>{' '}
+              within one business day to walk through the Firm plan, custom onboarding,
+              and a tailored quote for your team.
+            </p>
+            <span
+              className="mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+                marginTop: 8,
+              }}
+            >
+              Reference #{firmEnquiry.data?.id.slice(0, 8) ?? '—'}
+            </span>
+            <button
+              type="button"
+              className="btn btn-block btn-lg"
+              style={{ marginTop: 16 }}
+              onClick={() => navigate('/')}
+            >
+              Back to home
+            </button>
+          </div>
+        )}
+
+        {/* SIGN UP - FIRM ENQUIRY (form) */}
+        {tab === 'signup' && step === 1 && role === 'firm' && !firmEnquirySent && (
+          <form
+            onSubmit={handleFirmEnquiry}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              Firm accounts are partner-onboarded. Share a few details and we&rsquo;ll
+              reach out to schedule a demo and discuss a tailored plan for your team.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="label required" htmlFor="enq-name">Your name</label>
+                <input
+                  id="enq-name"
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Aarav Sharma"
+                  required
+                  autoComplete="name"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="label required" htmlFor="enq-email">Work email</label>
+                <input
+                  id="enq-email"
+                  className="input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setSignupEmailTouched(true)}
+                  placeholder="aarav@firm.law"
+                  required
+                  autoComplete="email"
+                  aria-invalid={!!signupEmailError}
+                  aria-describedby={signupEmailError ? 'enq-email-error' : undefined}
+                />
+                <FieldError id="enq-email-error" error={signupEmailError} />
+              </div>
+              <div>
+                <label className="label" htmlFor="enq-phone">
+                  Phone <span className="hint">Optional</span>
+                </label>
+                <input
+                  id="enq-phone"
+                  className="input"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98xxx xxxxx"
+                  autoComplete="tel"
+                />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="label required" htmlFor="enq-firm">Firm name</label>
+                <input
+                  id="enq-firm"
+                  className="input"
+                  value={firm}
+                  onChange={(e) => setFirm(e.target.value)}
+                  placeholder="Sharma & Associates"
+                  required
+                  autoComplete="organization"
+                />
+              </div>
+              <div>
+                <label className="label required" htmlFor="enq-size">Firm size</label>
+                <select
+                  id="enq-size"
+                  className="input"
+                  value={firmSize}
+                  onChange={(e) => setFirmSize(e.target.value as FirmEnquirySize | '')}
+                  required
+                >
+                  <option value="" disabled>Select team size…</option>
+                  <option value="9-25">9 – 25 lawyers</option>
+                  <option value="26-50">26 – 50 lawyers</option>
+                  <option value="51-100">51 – 100 lawyers</option>
+                  <option value="100+">100+ lawyers</option>
+                </select>
+              </div>
+              <div>
+                <label className="label" htmlFor="enq-court">
+                  Primary court <span className="hint">Optional</span>
+                </label>
+                <input
+                  id="enq-court"
+                  className="input"
+                  value={primaryCourt}
+                  onChange={(e) => setPrimaryCourt(e.target.value)}
+                  placeholder="Delhi High Court"
+                />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="label" htmlFor="enq-areas">
+                  Practice areas <span className="hint">Optional</span>
+                </label>
+                <input
+                  id="enq-areas"
+                  className="input"
+                  value={practiceAreas}
+                  onChange={(e) => setPracticeAreas(e.target.value)}
+                  placeholder="Civil, Commercial, Banking"
+                />
+              </div>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="label" htmlFor="enq-message">
+                  What brings you to LexDraft? <span className="hint">Optional</span>
+                </label>
+                <textarea
+                  id="enq-message"
+                  className="input"
+                  rows={3}
+                  value={enquiryMessage}
+                  onChange={(e) => setEnquiryMessage(e.target.value)}
+                  placeholder="A short note on what you&rsquo;re looking for — drafting, matter management, compliance, etc."
+                />
+              </div>
+            </div>
+            {firmEnquiry.isError && (
+              <div
+                role="alert"
+                style={{
+                  fontSize: 13,
+                  color: 'var(--danger)',
+                  background: 'var(--danger-bg)',
+                  border: '1px solid var(--danger)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 12px',
+                }}
+              >
+                {(firmEnquiry.error as Error | null)?.message ?? "Couldn't send your enquiry. Try again in a moment."}
+              </div>
+            )}
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-block btn-lg"
+                onClick={() => setStep(0)}
+                disabled={firmEnquiry.isPending}
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary btn-block btn-lg"
+                disabled={firmEnquiry.isPending}
+              >
+                {firmEnquiry.isPending ? 'Sending…' : 'Request a call'}
+              </button>
+            </div>
+            <span
+              className="mono"
+              style={{
+                fontSize: 10,
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+                textAlign: 'center',
+              }}
+            >
+              No account is created until a partner confirms your plan.
+            </span>
+          </form>
+        )}
+
+        {/* SIGN UP - STEP 1 (profile) — Solo / Practice */}
+        {tab === 'signup' && step === 1 && role !== 'firm' && (
           <form
             onSubmit={(e) => {
               e.preventDefault();

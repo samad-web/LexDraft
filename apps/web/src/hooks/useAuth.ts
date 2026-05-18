@@ -55,6 +55,31 @@ export function useSignUp() {
   });
 }
 
+export type FirmEnquirySize = '9-25' | '26-50' | '51-100' | '100+';
+
+export interface FirmEnquiryRequest {
+  name: string;
+  email: string;
+  phone?: string;
+  firmName: string;
+  firmSize: FirmEnquirySize;
+  primaryCourt?: string;
+  practiceAreas?: string;
+  message?: string;
+}
+
+/**
+ * Firm-tier sign-up bypasses self-serve account creation. The user fills a
+ * contact form and a partner reaches out. The endpoint is public and rate-
+ * limited by the same signUpLimiter that protects /auth/sign-up.
+ */
+export function useFirmEnquiry() {
+  return useMutation({
+    mutationFn: (body: FirmEnquiryRequest) =>
+      api.post<{ ok: true; id: string }>('/auth/firm-enquiry', body),
+  });
+}
+
 export function useSignOut() {
   const clear = useAuthStore((s) => s.clear);
   const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);
