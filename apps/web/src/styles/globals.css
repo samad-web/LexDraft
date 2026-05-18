@@ -1195,6 +1195,53 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .rt-content u { text-decoration: underline; }
 
 /* =================================================================
+   Responsive helpers - tables and kanbans degrade gracefully on
+   narrow viewports without per-view rewrites.
+
+   Tables: below 1024px the .tbl element becomes a horizontally
+   scrollable block. The inner thead/tbody groups remain table-laid-
+   out at max-content width so columns don't compress to unreadable
+   widths; the user side-scrolls instead. Cards wrapping the table
+   relax their `overflow: hidden` so the scroll surface is reachable.
+
+   Kanbans: a kanban grid (.kanban) flips from a 4-column grid to a
+   horizontal scroller below 1024px. Each column gets a min-width and
+   scroll-snap so swiping lands cleanly on a column boundary.
+   ================================================================= */
+@media (max-width: 1023px) {
+  /* Allow card-wrapped tables to scroll horizontally. */
+  .card:has(.tbl) { overflow: auto !important; }
+
+  .tbl {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tbl > thead, .tbl > tbody, .tbl > tfoot {
+    display: table;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .kanban {
+    grid-template-columns: none !important;
+    display: flex !important;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    /* Bleed slightly past the content padding so the scrolled-in column
+       reads as the focal one. Use scroll-padding to set snap origin. */
+    scroll-padding-inline: 12px;
+    padding-bottom: 8px;
+  }
+  .kanban > * {
+    flex: 0 0 min(86vw, 320px);
+    scroll-snap-align: start;
+  }
+}
+
+/* =================================================================
    Skeleton loaders - paired with <Skeleton> / <SkeletonText> in
    @lexdraft/ui. Shimmer is a sliding gradient sweep over a neutral
    surface; reduces to a static block under prefers-reduced-motion.

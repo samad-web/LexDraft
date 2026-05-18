@@ -583,7 +583,7 @@ export function LandingView() {
       {/* HERO */}
       <section
         id="home"
-        style={{ padding: '96px 48px 96px', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
+        style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
         <div className="reveal-stagger" style={{ maxWidth: 880 }}>
           <div
@@ -708,7 +708,7 @@ export function LandingView() {
       {/* FEATURE GRID */}
       <section
         id="features"
-        style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
+        style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
         <div className="reveal">
           <SectionLabel
@@ -766,7 +766,7 @@ export function LandingView() {
       {/* PRICING */}
       <section
         id="pricing"
-        style={{ padding: '96px 48px', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
+        style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
         <div
           className="reveal lex-pricing-head"
@@ -816,7 +816,7 @@ export function LandingView() {
               color: featured ? 'var(--bg-base)' : 'var(--text-primary)',
               border: '1px solid var(--border-default)',
               borderRadius: 'var(--radius-xl)',
-              padding: 32,
+              padding: 'clamp(20px, 4vw, 32px)',
               display: 'flex',
               flexDirection: 'column',
               position: 'relative',
@@ -863,7 +863,7 @@ export function LandingView() {
                     <div
                       className="display"
                       style={{
-                        fontSize: 56,
+                        fontSize: 'clamp(40px, 7vw, 56px)',
                         lineHeight: 1,
                         letterSpacing: '-0.025em',
                         fontVariantNumeric: 'tabular-nums',
@@ -998,7 +998,7 @@ export function LandingView() {
       <section
         id="faq"
         style={{
-          padding: '96px 48px',
+          padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)',
           background: 'var(--bg-surface)',
           borderTop: '1px solid var(--border-subtle)',
           borderBottom: '1px solid var(--border-subtle)',
@@ -1025,7 +1025,7 @@ export function LandingView() {
       <section
         id="trial"
         className="reveal"
-        style={{ padding: '96px 48px 112px', maxWidth: 900, margin: '0 auto', scrollMarginTop: 90, textAlign: 'center' }}
+        style={{ padding: 'clamp(64px, 9vw, 96px) clamp(16px, 4vw, 48px) clamp(80px, 10vw, 112px)', maxWidth: 900, margin: '0 auto', scrollMarginTop: 90, textAlign: 'center' }}
       >
         <div className="eyebrow" style={{ marginBottom: 16 }}>Ready when you are</div>
         <h2

@@ -169,6 +169,7 @@ export function LeadsView() {
       <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <div
+        className="kanban"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${STAGES.length}, minmax(220px, 1fr))`,
