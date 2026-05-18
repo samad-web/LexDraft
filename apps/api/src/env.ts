@@ -67,9 +67,30 @@ const Schema = z.object({
   /** Research provider. 'none' (default) returns 501 from /api/research so
    *  prod never ships the canned demo answer. 'demo' returns the canned
    *  answer with a clear "Demonstration" banner - useful for sales demos
-   *  but never claims to be real legal research. Real backends ('kanoon',
-   *  'scc') would be wired here once their ingestion + retrieval is built. */
-  RESEARCH_PROVIDER: z.enum(['none', 'demo']).default('none'),
+   *  but never claims to be real legal research. 'indiacode' wires through
+   *  to the indiacode-rag corpus (see LEXDRAFT_INTEGRATION.md). */
+  RESEARCH_PROVIDER: z.enum(['none', 'demo', 'indiacode']).default('none'),
+
+  // ---- indiacode-rag integration ------------------------------------------
+  // Separate Postgres DB hosting the Indian-law corpus (acts/sections/chunks
+  // with pgvector embeddings). NOT the same as DATABASE_URL — that's
+  // LexDraft's own tenancy / matter / billing DB.
+  LAWS_DATABASE_URL: z.string().optional().default(''),
+  LAWS_DATABASE_SSL: z.enum(['true', 'false']).default('false'),
+  /** Supabase REST/Storage gateway. Only needed for signed PDF URLs. */
+  SUPABASE_URL: z.string().optional().default(''),
+  /** Bypasses RLS; OK because the corpus is public reference data. */
+  SUPABASE_SERVICE_KEY: z.string().optional().default(''),
+  SUPABASE_STORAGE_BUCKET: z.string().default('indiacode'),
+  /** Embed-service base URL. Self-hosted FastAPI; see §1 of the integration doc. */
+  EMBED_SERVICE_URL: z.string().optional().default(''),
+  /** Bearer for /embed and /rerank. Required when the service is configured
+   *  with a key; the service falls back to open mode if blank server-side. */
+  EMBED_API_KEY: z.string().optional().default(''),
+  /** Assertion fields. The corpus is built with bge-m3 @ 1024d; any other
+   *  model produces vectors in an incompatible space. */
+  EMBEDDING_MODEL: z.string().default('BAAI/bge-m3'),
+  EMBEDDING_DIMS: z.coerce.number().int().positive().default(1024),
 });
 
 const parsed = Schema.safeParse(process.env);
@@ -115,4 +136,12 @@ export const env = {
     payment: parsed.data.WEBHOOK_SECRET_PAYMENT,
     esign:   parsed.data.WEBHOOK_SECRET_ESIGN,
   } as Record<string, string>,
+  // ---- indiacode-rag derived flags ----
+  /** True when both the laws DB and the embed service are configured. The
+   *  routes return 503 with a clear message otherwise so misconfigured
+   *  envs are obvious instead of silently empty. */
+  hasLawsCorpus:
+    parsed.data.LAWS_DATABASE_URL.length > 0
+    && parsed.data.EMBED_SERVICE_URL.length > 0,
+  lawsDatabaseSsl: parsed.data.LAWS_DATABASE_SSL === 'true',
 };
