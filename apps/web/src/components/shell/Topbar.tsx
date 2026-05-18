@@ -6,6 +6,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ROUTE_TITLES } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
+import { GatePeek } from '@/components/GatePeek';
 
 export function Topbar() {
   const navigate = useNavigate();
@@ -97,13 +98,20 @@ export function Topbar() {
         )}
       </div>
 
-      <button
-        className="btn btn-primary"
-        onClick={() => navigate('/app/draft')}
-        style={{ padding: '0 14px' }}
+      <GatePeek
+        feature="drafting.ai"
+        peekTitle="AI-assisted drafting"
+        peekBody="Generate pleadings, notices, and contracts in seconds using firm-approved templates and clauses. Available on Practice plans and above."
+        unlocksOnPlan="Practice"
       >
-        <Icon name="plus" size={14} /> New
-      </button>
+        <button
+          className="btn btn-primary"
+          onClick={() => navigate('/app/draft')}
+          style={{ padding: '0 14px' }}
+        >
+          <Icon name="plus" size={14} /> New
+        </button>
+      </GatePeek>
     </div>
   );
 }
