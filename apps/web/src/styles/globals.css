@@ -735,10 +735,38 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: 14px 18px;
   z-index: 100;
   min-width: 300px;
-  max-width: 420px;
+  max-width: 460px;
   font-size: 14px;
   box-shadow: var(--shadow-popover);
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.toast > span:first-child { flex: 1; min-width: 0; }
+.toast-action {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-default);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+.toast-action:hover { background: var(--bg-surface-2); border-color: var(--border-strong); }
+.toast-action:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+
+@media (max-width: 640px) {
+  .toast {
+    left: 12px;
+    right: 12px;
+    bottom: 80px; /* clear of mobile-nav */
+    min-width: 0;
+    max-width: none;
+  }
 }
 .toast.vermillion { border-left-color: var(--danger); }
 .toast.sage { border-left-color: var(--success); }

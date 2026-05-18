@@ -1,13 +1,15 @@
 import { useMemo, useState, type DragEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import type { Lead, LeadStage } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
-import { useLeads, useMoveLead, useDeleteLead } from '@/hooks/useLeads';
-import { useConfirm } from '@/components/ConfirmDialog';
+import { useLeads, useMoveLead } from '@/hooks/useLeads';
 import { NewLeadModal } from '@/components/NewLeadModal';
 import { downloadCsv } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
 import { FAB } from '@/components/FAB';
+import { useDeleteWithUndo } from '@/hooks/useDeleteWithUndo';
+import { api } from '@/lib/api';
 
 type StageId = LeadStage;
 
@@ -50,25 +52,38 @@ function formatAge(iso: string): string {
 
 export function LeadsView() {
   const showToast = useUIStore((s) => s.showToast);
+  const qc = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<StageId | null>(null);
   const { data: leads = [], isLoading, isError } = useLeads();
   const moveLead = useMoveLead();
-  const deleteLead = useDeleteLead();
-  const confirm = useConfirm();
+  const deleteWithUndo = useDeleteWithUndo();
 
-  const handleDelete = async (lead: Lead) => {
-    const ok = await confirm({
-      title: `Delete "${lead.name}"?`,
-      message: 'This lead will be removed from the pipeline. This cannot be undone.',
-      confirmLabel: 'Delete lead',
-      danger: true,
-    });
-    if (!ok) return;
-    deleteLead.mutate(lead.id, {
-      onError: () => showToast({ type: 'vermillion', text: 'Couldn’t delete lead' }),
-      onSuccess: () => showToast({ type: 'sage', text: `Deleted "${lead.name}"` }),
+  const handleDelete = (lead: Lead) => {
+    deleteWithUndo({
+      toastText: `Deleted "${lead.name}"`,
+      errorText: "Couldn't delete lead",
+      optimisticRemove: () => {
+        const prev = qc.getQueryData<{ items: Lead[] }>(['leads']);
+        if (prev) {
+          qc.setQueryData<{ items: Lead[] }>(['leads'], {
+            items: prev.items.filter((l) => l.id !== lead.id),
+          });
+        }
+      },
+      restore: () => {
+        const cur = qc.getQueryData<{ items: Lead[] }>(['leads']);
+        if (!cur) return;
+        // Re-insert in original position if known; otherwise append.
+        const all = leads;
+        const idx = all.findIndex((l) => l.id === lead.id);
+        const restored = [...cur.items];
+        if (idx >= 0 && idx <= restored.length) restored.splice(idx, 0, lead);
+        else restored.push(lead);
+        qc.setQueryData<{ items: Lead[] }>(['leads'], { items: restored });
+      },
+      commit: () => api.delete<void>(`/leads/${lead.id}`),
     });
   };
 

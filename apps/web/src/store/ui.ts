@@ -4,11 +4,22 @@ import { persist } from 'zustand/middleware';
 export type Lang = 'EN' | 'HI' | 'TA';
 export type Theme = 'light' | 'dark';
 
+export type ToastType = 'sage' | 'cobalt' | 'amber' | 'vermillion';
+
+export interface ToastModel {
+  type: ToastType;
+  text: string;
+  /** Optional action button rendered alongside the toast text — e.g. "Undo". */
+  action?: { label: string; onClick: () => void };
+  /** Override the default auto-hide duration (ms). Default 4000. */
+  durationMs?: number;
+}
+
 interface UIState {
   lang: Lang;
   theme: Theme;
   cmdK: boolean;
-  toast: { type: 'sage' | 'cobalt' | 'amber' | 'vermillion'; text: string } | null;
+  toast: ToastModel | null;
   /**
    * Set to true on sign-in when the server reports `mustEnrollMfa` (the
    * user's role mandates MFA but no factor is on file). The MfaPromptBanner
@@ -24,7 +35,7 @@ interface UIState {
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   toggleCmdK: (open?: boolean) => void;
-  showToast: (toast: { type: 'sage' | 'cobalt' | 'amber' | 'vermillion'; text: string }) => void;
+  showToast: (toast: ToastModel) => void;
   hideToast: () => void;
   setForceMfaEnrollment: (v: boolean) => void;
 }

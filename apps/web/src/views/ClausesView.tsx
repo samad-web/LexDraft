@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
+import { useDeleteWithUndo } from '@/hooks/useDeleteWithUndo';
+import { api } from '@/lib/api';
 import type { Clause } from '@lexdraft/types';
-import { useClauses, useDeleteClause, useIncrementClauseUses } from '@/hooks/useClauses';
+import { useClauses, useIncrementClauseUses } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
 import { NewClauseModal } from '@/components/NewClauseModal';
 import { ImportClausesModal } from '@/components/ImportClausesModal';
-import { useConfirm } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
@@ -29,8 +31,8 @@ export function ClausesView() {
   const [importOpen, setImportOpen] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
   const incUses = useIncrementClauseUses();
-  const del = useDeleteClause();
-  const confirm = useConfirm();
+  const qc = useQueryClient();
+  const deleteWithUndo = useDeleteWithUndo();
 
   // Union of fallback categories ∪ categories present in actual data, in
   // insertion order with fallbacks first so the UI stays familiar.
@@ -68,20 +70,25 @@ export function ClausesView() {
     window.setTimeout(() => setCopiedId((cur) => (cur === clause.id ? null : cur)), 1400);
   };
 
-  const handleDelete = async (clause: Clause) => {
-    const ok = await confirm({
-      title: `Delete "${clause.title}"?`,
-      message: 'This clause will be removed from the bank.',
-      confirmLabel: 'Delete clause',
-      danger: true,
+  const handleDelete = (clause: Clause) => {
+    deleteWithUndo({
+      toastText: `Deleted "${clause.title}"`,
+      errorText: 'Could not delete clause',
+      optimisticRemove: () => {
+        const prev = qc.getQueryData<Clause[]>(['clauses']);
+        if (prev) qc.setQueryData<Clause[]>(['clauses'], prev.filter((c) => c.id !== clause.id));
+      },
+      restore: () => {
+        const cur = qc.getQueryData<Clause[]>(['clauses']);
+        if (!cur) return;
+        const idx = clauses.findIndex((c) => c.id === clause.id);
+        const restored = [...cur];
+        if (idx >= 0 && idx <= restored.length) restored.splice(idx, 0, clause);
+        else restored.push(clause);
+        qc.setQueryData<Clause[]>(['clauses'], restored);
+      },
+      commit: () => api.delete<void>(`/clauses/${clause.id}`),
     });
-    if (!ok) return;
-    try {
-      await del.mutateAsync(clause.id);
-      showToast({ type: 'sage', text: 'Clause deleted' });
-    } catch {
-      showToast({ type: 'vermillion', text: 'Could not delete clause' });
-    }
   };
 
   return (
