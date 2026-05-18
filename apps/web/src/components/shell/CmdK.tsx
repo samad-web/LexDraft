@@ -165,10 +165,22 @@ export function CmdK() {
     const commandMatches = all.filter(
       (c) => c.label.toLowerCase().includes(needle) || c.group.toLowerCase().includes(needle),
     );
+    // Always offer to search the Indian-law corpus with whatever the user
+    // typed. Surfaces BELOW direct content matches (cases/clients/leads)
+    // but ABOVE generic nav so it's reachable in two keystrokes when no
+    // exact entity hit exists.
+    const lawSearch: Command = {
+      id: 'action.search-laws',
+      label: `Search Indian law: "${q.trim()}"`,
+      group: 'Research',
+      icon: 'research',
+      hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>statutes & sections</span>,
+      run: () => navigate(`/app/research?mode=corpus&q=${encodeURIComponent(q.trim())}`),
+    };
     // Content matches surface ABOVE nav/action matches so when the user
     // types a known case/client name the right entity is the first hit.
-    return [...contentMatches, ...commandMatches];
-  }, [q, all, recent, contentMatches]);
+    return [...contentMatches, lawSearch, ...commandMatches];
+  }, [q, all, recent, contentMatches, navigate]);
 
   // Reset highlight when the result set changes.
   useEffect(() => {
