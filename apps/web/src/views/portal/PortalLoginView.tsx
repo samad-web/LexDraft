@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import type { PortalRequestLinkResponse, PortalSession } from '@lexdraft/types';
@@ -12,6 +12,9 @@ import { usePortalAuthStore } from '@/store/portalAuth';
  *
  * If the URL already contains `?token=…`, we short-circuit to verifyMutation
  * so an emailed link can boot the user straight into the dashboard.
+ *
+ * Visual treatment mirrors the advocate /auth page: centered elevated card
+ * on a radial-wash background, brand stack at the top, trust strip below.
  */
 export function PortalLoginView() {
   const navigate = useNavigate();
@@ -55,15 +58,32 @@ export function PortalLoginView() {
 
   if (tokenInUrl) {
     return (
-      <Shell>
-        <h1>Signing you in…</h1>
-        {verifyMutation.isPending && <p>Verifying your link.</p>}
+      <Shell eyebrow="Client portal" title="Signing you in…">
+        {verifyMutation.isPending && (
+          <p className="muted" style={{ fontSize: 14 }}>Verifying your link.</p>
+        )}
         {verifyError && (
           <>
-            <p style={{ color: 'var(--danger, #c0392b)' }}>{verifyError}</p>
-            <p>
-              <a href="/portal/login">Request a new link</a>
-            </p>
+            <div
+              role="alert"
+              style={{
+                fontSize: 13,
+                color: 'var(--danger)',
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-md)',
+                padding: '10px 12px',
+              }}
+            >
+              {verifyError}
+            </div>
+            <a
+              href="/portal/login"
+              className="btn btn-block btn-lg"
+              style={{ textDecoration: 'none', marginTop: 12 }}
+            >
+              Request a new link
+            </a>
           </>
         )}
       </Shell>
@@ -72,45 +92,74 @@ export function PortalLoginView() {
 
   if (sent) {
     return (
-      <Shell>
-        <h1>Check your email</h1>
-        <p>
-          If an account exists for <strong>{email}</strong>, we've sent a sign-in link.
-          The link expires in 15 minutes.
+      <Shell eyebrow="Client portal" title="Check your email">
+        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>,
+          we've sent a sign-in link. The link expires in 15 minutes.
         </p>
-        {devLink && (
-          <p style={{ marginTop: 24, fontSize: 13, opacity: 0.7 }}>
-            <strong>Dev:</strong> <a href={devLink}>{devLink}</a>
-          </p>
+        {devLink && import.meta.env.DEV && (
+          <div
+            className="mono"
+            style={{
+              marginTop: 16,
+              fontSize: 11,
+              padding: 12,
+              border: '1px dashed var(--border-default)',
+              borderRadius: 'var(--radius-md)',
+              wordBreak: 'break-all',
+            }}
+          >
+            <span style={{ color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>
+              DEV LINK
+            </span>
+            <a href={devLink} style={{ color: 'var(--text-primary)' }}>{devLink}</a>
+          </div>
         )}
       </Shell>
     );
   }
 
   return (
-    <Shell>
-      <h1>Client Portal</h1>
-      <p style={{ marginBottom: 24, opacity: 0.75 }}>
-        Sign in to view your matters, hearings, invoices, and shared documents.
+    <Shell eyebrow="Client portal" title="Sign in">
+      <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.55 }}>
+        Enter the email your advocate has on file. We'll send a single-use link
+        to sign you in — no password to remember.
       </p>
-      <form onSubmit={onSubmit}>
-        <label htmlFor="portal-email" style={{ display: 'block', marginBottom: 8 }}>Email</label>
-        <input
-          id="portal-email"
-          type="email"
-          required
-          autoFocus
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-          placeholder="you@example.com"
-        />
+      <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label className="label" htmlFor="portal-email">Email</label>
+          <input
+            id="portal-email"
+            className="input"
+            type="email"
+            required
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+        </div>
         {requestMutation.isError && (
-          <p style={{ color: 'var(--danger, #c0392b)', marginTop: 8 }}>
+          <div
+            role="alert"
+            style={{
+              fontSize: 13,
+              color: 'var(--danger)',
+              background: 'var(--danger-bg)',
+              border: '1px solid var(--danger)',
+              borderRadius: 'var(--radius-md)',
+              padding: '10px 12px',
+            }}
+          >
             {portalErrorMessage(requestMutation.error)}
-          </p>
+          </div>
         )}
-        <button type="submit" disabled={requestMutation.isPending} style={buttonStyle}>
+        <button
+          type="submit"
+          disabled={requestMutation.isPending}
+          className="btn btn-primary btn-lg btn-block"
+        >
           {requestMutation.isPending ? 'Sending…' : 'Send magic link'}
         </button>
       </form>
@@ -118,31 +167,105 @@ export function PortalLoginView() {
   );
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', fontSize: 15,
-  border: '1px solid var(--border, #d4d4d8)', borderRadius: 6,
-  background: 'var(--card, #fff)', color: 'inherit',
+// ---- Shell -------------------------------------------------------------
+
+interface ShellProps {
+  eyebrow: string;
+  title: string;
+  children: ReactNode;
+}
+
+const pageStyle: CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 'clamp(20px, 4vw, 32px)',
+  gap: 24,
+  background:
+    'radial-gradient(ellipse 80% 60% at 50% 50%, var(--bg-surface) 0%, var(--bg-base) 70%)',
+  fontFamily: 'var(--font-sans)',
 };
 
-const buttonStyle: React.CSSProperties = {
-  marginTop: 16, width: '100%', padding: '10px 12px', fontSize: 15,
-  background: 'var(--text, #18181b)', color: 'var(--card, #fff)',
-  border: 'none', borderRadius: 6, cursor: 'pointer',
+const cardStyle: CSSProperties = {
+  width: '100%',
+  maxWidth: 440,
+  padding: 'clamp(28px, 5vw, 40px)',
+  background: 'var(--bg-surface)',
+  border: '1px solid var(--border-default)',
+  borderRadius: 'var(--radius-xl)',
+  boxShadow: 'var(--shadow-popover)',
 };
 
-function Shell(props: { children: React.ReactNode }) {
+function Shell({ eyebrow, title, children }: ShellProps) {
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24, background: 'var(--bg, #f4f4f5)',
-    }}>
-      <div style={{
-        width: '100%', maxWidth: 420, padding: 32,
-        background: 'var(--card, #fff)',
-        border: '1px solid var(--border, #e4e4e7)', borderRadius: 12,
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-      }}>
-        {props.children}
+    <div style={pageStyle}>
+      <div style={cardStyle}>
+        {/* Brand */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 32,
+              height: 32,
+              background: 'var(--text-primary)',
+              borderRadius: 'var(--radius-md)',
+              display: 'inline-block',
+            }}
+          />
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 22,
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+            }}
+          >
+            LexDraft
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--text-tertiary)',
+              marginTop: -4,
+            }}
+          >
+            {eyebrow}
+          </div>
+        </div>
+
+        <h1
+          className="display"
+          style={{
+            fontSize: 22,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            marginBottom: 8,
+            textAlign: 'left',
+          }}
+        >
+          {title}
+        </h1>
+        {children}
+      </div>
+
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--text-tertiary)',
+          textAlign: 'center',
+          maxWidth: 440,
+          lineHeight: 1.8,
+        }}
+      >
+        Secure client portal · DPDP Act 2023 · Indian-server data residency
       </div>
     </div>
   );

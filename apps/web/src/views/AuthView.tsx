@@ -147,20 +147,26 @@ export function AuthView() {
   const pageStyle: CSSProperties = {
     minHeight: '100vh',
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
-    background: 'var(--bg-base)',
+    padding: 'clamp(20px, 4vw, 32px)',
+    gap: 24,
+    // Very subtle vertical wash to give the surface depth without competing
+    // with the card. Bg-base at the edges, bg-surface near center.
+    background:
+      'radial-gradient(ellipse 80% 60% at 50% 50%, var(--bg-surface) 0%, var(--bg-base) 70%)',
     fontFamily: 'var(--font-sans)',
   };
 
   const cardStyle: CSSProperties = {
     width: '100%',
     maxWidth: 480,
-    padding: 40,
+    padding: 'clamp(28px, 5vw, 44px)',
     background: 'var(--bg-surface)',
     border: '1px solid var(--border-default)',
     borderRadius: 'var(--radius-xl)',
+    boxShadow: 'var(--shadow-popover)',
   };
 
   const tabRowStyle: CSSProperties = {
@@ -182,32 +188,44 @@ export function AuthView() {
         <div
           style={{
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            gap: 10,
-            justifyContent: 'center',
+            gap: 14,
             marginBottom: 28,
           }}
         >
           <span
             aria-hidden
             style={{
-              width: 22,
-              height: 22,
+              width: 32,
+              height: 32,
               background: 'var(--text-primary)',
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: 'var(--radius-md)',
               display: 'inline-block',
             }}
           />
-          <span
+          <div
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: 600,
-              letterSpacing: '-0.015em',
+              letterSpacing: '-0.018em',
             }}
           >
             LexDraft
-          </span>
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 10,
+              letterSpacing: '0.18em',
+              textTransform: 'uppercase',
+              color: 'var(--text-tertiary)',
+              marginTop: -6,
+            }}
+          >
+            For Indian advocates
+          </div>
         </div>
 
         {/* Tabs OR step indicator */}
@@ -392,18 +410,20 @@ export function AuthView() {
             >
               Continue with Google
             </button>
-            <p
-              className="mono"
-              style={{
-                fontSize: 10,
-                color: 'var(--text-tertiary)',
-                textAlign: 'center',
-                marginTop: 8,
-                letterSpacing: '0.12em',
-              }}
-            >
-              TIP: USE EMAIL CONTAINING "ADMIN" FOR SUPERADMIN DEMO
-            </p>
+            {import.meta.env.DEV && (
+              <p
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  color: 'var(--text-tertiary)',
+                  textAlign: 'center',
+                  marginTop: 8,
+                  letterSpacing: '0.12em',
+                }}
+              >
+                TIP: USE EMAIL CONTAINING "ADMIN" FOR SUPERADMIN DEMO
+              </p>
+            )}
           </form>
         )}
 
@@ -597,6 +617,23 @@ export function AuthView() {
             </button>
           </form>
         )}
+      </div>
+
+      {/* Trust strip - sits below the card, reinforces the legal-tech
+          positioning without competing for attention. */}
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          color: 'var(--text-tertiary)',
+          textAlign: 'center',
+          maxWidth: 480,
+          lineHeight: 1.8,
+        }}
+      >
+        DPDP Act 2023 · Indian-server data residency · SOC 2 Type II
       </div>
     </div>
   );
