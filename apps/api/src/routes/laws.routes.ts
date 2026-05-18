@@ -15,6 +15,10 @@ const SearchBody = z.object({
   actId:  z.string().uuid().optional(),
   k:      z.number().int().min(1).max(50).optional(),
   rerank: z.boolean().optional(),
+  /** Jurisdictional scope: 'central' (parliamentary acts only),
+   *  'state' (any state legislature), or 'state:<canonical name>'
+   *  for one specific state. */
+  scope:  z.string().max(80).optional(),
 });
 
 const LookupBody = z.object({
@@ -49,10 +53,21 @@ lawsRouter.post('/search', requireFeature('research.basic'), async (req, res, ne
   try {
     ensureConfigured();
     const body = SearchBody.parse(req.body);
+    // Parse scope string into the structured form the service expects.
+    // 'central' → central only. 'state' → any state. 'state:<name>' → one.
+    let scope: { type: 'central' | 'state'; state?: string } | undefined;
+    if (body.scope) {
+      if (body.scope === 'central') scope = { type: 'central' };
+      else if (body.scope === 'state') scope = { type: 'state' };
+      else if (body.scope.startsWith('state:')) {
+        scope = { type: 'state', state: body.scope.slice('state:'.length) };
+      }
+    }
     const results = await lawsSearchService.search(body.query, {
       actId: body.actId ?? null,
       k:      body.k,
       rerank: body.rerank,
+      scope,
     });
     res.json({ query: body.query, results });
   } catch (err) {

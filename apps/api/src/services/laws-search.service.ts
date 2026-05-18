@@ -81,6 +81,21 @@ interface StateMatcher {
   patterns: string[];
 }
 
+/** All states/UTs the detector recognises, in canonical form. Exported
+ *  so the frontend dropdown can render them without hard-coding. */
+export const CANONICAL_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
+  'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+  'West Bengal',
+  // Union territories with their own legislative powers.
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
+  'Andaman and Nicobar Islands', 'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep',
+] as const;
+
 const STATES: StateMatcher[] = [
   { canonical: 'Andhra Pradesh',    patterns: ['Andhra Pradesh', 'Andhra'] },
   { canonical: 'Arunachal Pradesh', patterns: ['Arunachal Pradesh', 'Arunachal'] },
@@ -120,6 +135,16 @@ const STATES: StateMatcher[] = [
   { canonical: 'Dadra and Nagar Haveli and Daman and Diu', patterns: ['Dadra', 'Daman'] },
   { canonical: 'Lakshadweep',       patterns: ['Lakshadweep'] },
 ];
+
+function matchesScope(hit: LawHit, scope: { type: 'central' | 'state'; state?: string }): boolean {
+  if (scope.type === 'central') return hit.jurisdiction === 'Central';
+  if (scope.type === 'state') {
+    if (hit.jurisdiction !== 'State') return false;
+    if (scope.state) return hit.state === scope.state;
+    return true;
+  }
+  return true;
+}
 
 function detectJurisdiction(actTitle: string | null): { jurisdiction: Jurisdiction; state: string | null } {
   if (!actTitle) return { jurisdiction: 'Unknown', state: null };
@@ -203,8 +228,18 @@ const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 60_000;
 const CACHE_MAX = 200;
 
-function cacheKey(query: string, actId: string | null, k: number): string {
-  return `${actId ?? '*'}::${k}::${query.trim().toLowerCase()}`;
+function cacheKey(
+  query: string,
+  actId: string | null,
+  k: number,
+  scope: SearchOptions['scope'],
+): string {
+  // Scope is part of the cache identity — without it, /search?scope=central
+  // would receive cached results from an earlier unscoped query.
+  const scopeKey = scope
+    ? (scope.type === 'central' ? 'c' : `s:${scope.state ?? '*'}`)
+    : '*';
+  return `${actId ?? '*'}::${k}::${scopeKey}::${query.trim().toLowerCase()}`;
 }
 
 function cacheGet(key: string): LawHit[] | undefined {
@@ -236,6 +271,10 @@ export interface SearchOptions {
    *  but better ordering — use for one-off searches (Research view),
    *  skip for the side-panel where latency matters more. */
   rerank?: boolean;
+  /** Restrict to central, all state, or one specific state. Filter is
+   *  applied post-RPC against the derived jurisdiction; over-fetch is
+   *  bumped to compensate. */
+  scope?: { type: 'central' | 'state'; state?: string };
 }
 
 export const lawsSearchService = {
@@ -256,7 +295,7 @@ export const lawsSearchService = {
 
     // Cache only on non-reranked queries; rerank is expensive enough that
     // we want fresh ordering when the caller asks for it explicitly.
-    const cacheKey_ = !opts.rerank ? cacheKey(trimmed, actId, k) : null;
+    const cacheKey_ = !opts.rerank ? cacheKey(trimmed, actId, k, opts.scope) : null;
     if (cacheKey_) {
       const cached = cacheGet(cacheKey_);
       if (cached) return cached;
@@ -273,11 +312,12 @@ export const lawsSearchService = {
     // the Postgres array literal `[0.1,0.2,...]` and cast on the SQL side.
     const vecLiteral = `[${vec.join(',')}]`;
 
-    // Over-fetch from the RPC so the quality filter can drop garbled
-    // chunks without leaving the caller short. ~3.6% of the corpus is
-    // broken; doubling the request is more than enough headroom and the
-    // extra rows aren't expensive at this scale.
-    const overFetch = Math.min(50, k * 2);
+    // Over-fetch from the RPC so post-RPC filters (garble + jurisdiction)
+    // can drop matches without leaving the caller short. Scope filters
+    // can be quite selective (one state out of 35), so we bump over-fetch
+    // when a scope is set. RPC max is 100 to keep payloads bounded.
+    const overFetchMultiplier = opts.scope ? 5 : 2;
+    const overFetch = Math.min(100, k * overFetchMultiplier);
     const rows = await sql<MatchRow[]>`
       select id, content, section_id, act_id,
              citation, section_number, section_heading, act_title,
@@ -286,11 +326,20 @@ export const lawsSearchService = {
     `;
     const allHits = rows.map(fromMatchRow);
     const beforeFilter = allHits.length;
-    let hits = allHits.filter((h) => !isGarbled(h.content)).slice(0, k);
+    let hits = allHits.filter((h) => !isGarbled(h.content));
+    if (opts.scope) {
+      hits = hits.filter((h) => matchesScope(h, opts.scope!));
+    }
+    hits = hits.slice(0, k);
     if (hits.length < beforeFilter) {
       logger.debug(
-        { query: trimmed.slice(0, 80), dropped: beforeFilter - hits.length, kept: hits.length },
-        'filtered garbled chunks from search',
+        {
+          query: trimmed.slice(0, 80),
+          scope: opts.scope,
+          dropped: beforeFilter - hits.length,
+          kept: hits.length,
+        },
+        'filtered chunks from search',
       );
     }
 

@@ -2,8 +2,15 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useAskResearch } from '@/hooks/useResearch';
-import { useLawsSearch, useSignedPdfUrl, type LawHit } from '@/hooks/useLawsSearch';
+import {
+  useLawsSearch,
+  useSignedPdfUrl,
+  CANONICAL_STATES,
+  type LawHit,
+} from '@/hooks/useLawsSearch';
 import { JurisdictionBadge } from '@/components/JurisdictionBadge';
+
+type ScopeKind = 'all' | 'central' | 'state';
 import { useUIStore } from '@/store/ui';
 
 type Mode = 'ask' | 'corpus';
@@ -38,16 +45,56 @@ export function ResearchView() {
   const [query, setQuery] = useState<string>(searchParams.get('q') ?? '');
   const [followUp, setFollowUp] = useState<string>('');
 
+  // Jurisdiction filter — initialise from URL so deep links / shared
+  // search URLs preserve the scope. 'all' is the default, no URL param.
+  const initialScope = ((): { kind: ScopeKind; state?: string } => {
+    const raw = searchParams.get('scope') ?? '';
+    if (raw === 'central') return { kind: 'central' };
+    if (raw === 'state') return { kind: 'state' };
+    if (raw.startsWith('state:')) return { kind: 'state', state: raw.slice('state:'.length) };
+    return { kind: 'all' };
+  })();
+  const [scopeKind, setScopeKind] = useState<ScopeKind>(initialScope.kind);
+  const [scopeState, setScopeState] = useState<string>(initialScope.state ?? '');
+
+  /** Build the wire-shape scope string the API expects. */
+  function buildScope(): string | undefined {
+    if (scopeKind === 'all') return undefined;
+    if (scopeKind === 'central') return 'central';
+    return scopeState ? `state:${scopeState}` : 'state';
+  }
+
+  function runCorpusSearch(q: string): void {
+    lawsSearch.mutate({ query: q, rerank: true, scope: buildScope() });
+  }
+
   // When Cmd+K (or another deep link) lands here with ?q= + ?mode=corpus,
   // auto-run the search so the user doesn't have to hit Enter again.
   useEffect(() => {
     const q = searchParams.get('q');
     const m = searchParams.get('mode');
     if (q && m === 'corpus' && !lawsSearch.data && !lawsSearch.isPending) {
-      lawsSearch.mutate({ query: q, rerank: true });
+      lawsSearch.mutate({ query: q, rerank: true, scope: buildScope() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-run the search whenever the user changes the jurisdiction filter
+  // (but only in corpus mode, and only when there's already an active
+  // query — we don't want to fire an empty search on first mount).
+  useEffect(() => {
+    if (mode !== 'corpus') return;
+    const q = query.trim();
+    if (!q || !lawsSearch.data) return;
+    lawsSearch.mutate({ query: q, rerank: true, scope: buildScope() });
+    // Mirror to URL so the scope survives reloads / sharing.
+    const np = new URLSearchParams(searchParams);
+    const s = buildScope();
+    if (s) np.set('scope', s);
+    else np.delete('scope');
+    setSearchParams(np, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKind, scopeState]);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -64,14 +111,14 @@ export function ResearchView() {
     if (mode === 'ask') {
       ask.mutate(q);
     } else {
-      lawsSearch.mutate({ query: q, rerank: true });
+      runCorpusSearch(q);
     }
   };
 
   const runSuggestion = (s: string) => {
     setQuery(s);
     if (mode === 'ask') ask.mutate(s);
-    else lawsSearch.mutate({ query: s, rerank: true });
+    else runCorpusSearch(s);
   };
 
   const sendFollowUp = () => {
@@ -213,6 +260,51 @@ export function ResearchView() {
         </div>
       )}
 
+      {/* Jurisdiction filter — corpus mode only. */}
+      {mode === 'corpus' && (
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="eyebrow" style={{ alignSelf: 'center', marginRight: 4 }}>Scope</span>
+          <button
+            type="button"
+            className={`chip ${scopeKind === 'all' ? 'active' : ''}`}
+            aria-pressed={scopeKind === 'all'}
+            onClick={() => { setScopeKind('all'); setScopeState(''); }}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            className={`chip ${scopeKind === 'central' ? 'active' : ''}`}
+            aria-pressed={scopeKind === 'central'}
+            onClick={() => { setScopeKind('central'); setScopeState(''); }}
+          >
+            Central only
+          </button>
+          <button
+            type="button"
+            className={`chip ${scopeKind === 'state' ? 'active' : ''}`}
+            aria-pressed={scopeKind === 'state'}
+            onClick={() => setScopeKind('state')}
+          >
+            State{scopeState ? ` · ${scopeState}` : ''}
+          </button>
+          {scopeKind === 'state' && (
+            <select
+              className="input"
+              value={scopeState}
+              onChange={(e) => setScopeState(e.target.value)}
+              style={{ height: 32, fontSize: 13, padding: '0 12px', minWidth: 200 }}
+              aria-label="Filter by specific state"
+            >
+              <option value="">All states</option>
+              {CANONICAL_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       {mode === 'ask' && ask.isPending && (
         <div className="card" aria-busy="true">
           <div className="eyebrow" style={{ marginBottom: 12 }}>Lex.AI</div>
@@ -261,7 +353,11 @@ export function ResearchView() {
             <EmptyState
               icon="research"
               title="No matches"
-              description="Try a broader phrasing, drop quotes, or use a specific section number like 'BNS 103'."
+              description={
+                scopeKind !== 'all'
+                  ? `No matches in this jurisdiction. Try widening the scope${scopeState ? ` (currently ${scopeState})` : ''} or rephrasing.`
+                  : "Try a broader phrasing, drop quotes, or use a specific section number like 'BNS 103'."
+              }
             />
           ) : (
             <div className="col" style={{ gap: 12 }}>

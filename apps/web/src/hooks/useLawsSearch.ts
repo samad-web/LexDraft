@@ -32,7 +32,23 @@ export interface LawsSearchRequest {
   actId?: string;
   k?: number;
   rerank?: boolean;
+  /** Jurisdiction scope: 'central', 'state', or 'state:<canonical name>'. */
+  scope?: string;
 }
+
+/** Canonical state list — mirrors apps/api/src/services/laws-search.service.ts.
+ *  Kept in the web hook so the dropdown doesn't need a separate fetch. */
+export const CANONICAL_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+  'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+  'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
+  'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+  'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
+  'Andaman and Nicobar Islands', 'Chandigarh',
+  'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep',
+] as const;
 
 export interface LawsSearchResponse {
   query: string;
