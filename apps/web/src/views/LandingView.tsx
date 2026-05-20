@@ -65,17 +65,17 @@ type FeatureIconName = 'draft' | 'cases' | 'contracts' | 'billing' | 'research' 
 
 const FEATURES: FeatureItem[] = [
   { t: 'Drafting', b: 'Notices, plaints, written statements, vakalatnamas - every Indian-format document with statutory citations baked in.', icon: 'draft' },
-  { t: 'Cases', b: 'CNR-linked, eCourts integrated. Hearing diary, cause-list pull, party tracking, and document tagging in a single timeline.', icon: 'cases' },
+  { t: 'Cases', b: 'CNR-linked matters with a hearing diary, party tracking, and document tagging in a single timeline.', icon: 'cases' },
   { t: 'Contracts', b: 'Clause-level risk scoring with red-line suggestions. Compare against your firm’s preferred-positions library.', icon: 'contracts' },
   { t: 'Billing', b: 'Tabular-aligned invoices, retainer reconciliation, and NEFT/UPI payment receipts that match your IT-return format.', icon: 'billing' },
-  { t: 'Research', b: 'Verified citations only. SCC, Manupatra, reportable judgments. Every answer auditable to the source paragraph.', icon: 'research' },
+  { t: 'Research', b: 'Hybrid search across central and state statutes. Every answer auditable to the source section.', icon: 'research' },
   { t: 'Limitation', b: 'Statutory-period tracker that warns at 90, 30, 7, and 1 day. Never miss a filing window.', icon: 'limitation' },
 ];
 
 const TRUST_POINTS: string[] = [
   '200+ Indian-format templates',
-  'eCourts + CNR integrated',
-  'SCC · Manupatra citations',
+  'Central + state statutes indexed',
+  'CNR-linked matter records',
   'NEFT / UPI reconciliation',
 ];
 
@@ -86,7 +86,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Which courts and tribunals are supported?',
-    a: 'All District Courts, High Courts, and the Supreme Court via eCourts and CNR. Tribunal coverage includes NCLT, NCLAT, ITAT, CESTAT, DRT, and consumer commissions. New tribunals are added monthly.',
+    a: 'CNR-linked matter records work for any District Court, High Court, or the Supreme Court. Tribunal records cover NCLT, NCLAT, ITAT, CESTAT, DRT, and consumer commissions.',
   },
   {
     q: 'How does e-filing actually work?',
@@ -116,7 +116,7 @@ const PRICING: PricingPlan[] = [
     features: [
       'One advocate seat',
       'Fifty AI drafts each month',
-      'eCourts sync · five matters',
+      'Up to five active matters',
       'Client portal',
       'Email correspondence support',
     ],
@@ -132,7 +132,7 @@ const PRICING: PricingPlan[] = [
     features: [
       'Up to eight seats',
       'Five hundred AI drafts each month',
-      'eCourts sync · unlimited matters',
+      'Unlimited active matters',
       'Custom templates and styles',
       'Priority support',
       'Analytics dashboard',
@@ -392,6 +392,10 @@ export function LandingView() {
   const lenisRef = useRef<Lenis | null>(null);
 
   const goAuth = () => navigate('/auth');
+  // New funnel-aware CTAs: each lands on /signup with the right intent so
+  // the SignupView can render the matching screen (demo chooser, trial
+  // form, paid form). Keep `goAuth` for "already have an account" links.
+  const goSignup = (intent: 'demo' | 'trial' | 'paid') => navigate(`/signup?intent=${intent}`);
 
   const goSection = (id: TabId) => {
     setTab(id);
@@ -586,31 +590,6 @@ export function LandingView() {
         style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
         <div className="reveal-stagger" style={{ maxWidth: 880 }}>
-          <div
-            className="eyebrow"
-            style={{
-              marginBottom: 20,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-full)',
-              padding: '6px 14px',
-              background: 'var(--bg-surface)',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--success)',
-              }}
-            />
-            Built for Indian advocates
-          </div>
           <h1
             className="display"
             style={{
@@ -624,31 +603,26 @@ export function LandingView() {
             Practice management built for Indian advocates, not adapted for them.
           </h1>
           <p className="lede" style={{ fontSize: 19, color: 'var(--text-secondary)', maxWidth: 640, marginBottom: 36 }}>
-            Cases, drafting, billing, and research - unified under one calm, document-first interface. Indian-format templates, eCourts integrated, citations to SCC and Manupatra. Built to be read for ten hours straight.
+            Cases, drafting, billing, and research - unified under one calm, document-first interface. Indian-format templates with verified citations from central and state statutes.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="btn btn-primary btn-lg" type="button" onClick={goAuth}>
-              Begin 14-day trial
+            <button className="btn btn-primary btn-lg" type="button" onClick={() => goSignup('trial')}>
+              Start free trial
             </button>
-            <a
-              href="#support"
-              onClick={(e) => {
-                e.preventDefault();
-                goAnchor('#support');
-              }}
-              className="no-underline"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 15,
-                fontWeight: 500,
-                color: 'var(--text-primary)',
-                padding: '12px 4px',
-              }}
+            <button
+              type="button"
+              className="btn btn-lg"
+              onClick={() => goSignup('demo')}
             >
-              Book a demo →
-            </a>
+              Get a demo
+            </button>
+            <button
+              type="button"
+              className="btn btn-lg btn-ghost"
+              onClick={() => goSignup('paid')}
+            >
+              Create account
+            </button>
           </div>
           <div style={{ marginTop: 16, color: 'var(--text-tertiary)', fontSize: 14 }}>
             No card required ·{' '}
@@ -674,13 +648,11 @@ export function LandingView() {
 
         {/* Trust strip */}
         <div
-          className="reveal lex-trust-strip"
+          className="reveal lex-trust-strip grid-auto-sm"
           style={{
             marginTop: 64,
             paddingTop: 32,
             borderTop: '1px solid var(--border-subtle)',
-            display: 'grid',
-            gridTemplateColumns: `repeat(${TRUST_POINTS.length}, 1fr)`,
             gap: 32,
           }}
         >
@@ -1046,16 +1018,16 @@ export function LandingView() {
           Start with one matter. Move your whole practice when you’re ready.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button className="btn btn-primary btn-lg" type="button" onClick={goAuth}>
-            Begin 14-day trial
+          <button className="btn btn-primary btn-lg" type="button" onClick={() => goSignup('trial')}>
+            Start free trial
           </button>
-          <a
-            href="mailto:partners@lexdraft.in?subject=LexDraft%20demo%20request"
+          <button
+            type="button"
             className="btn btn-lg"
-            style={{ textDecoration: 'none' }}
+            onClick={() => goSignup('demo')}
           >
-            Talk to a partner
-          </a>
+            Get a demo
+          </button>
         </div>
       </section>
 
