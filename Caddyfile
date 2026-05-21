@@ -1,0 +1,59 @@
+# LexDraft — Caddy reverse proxy config.
+#
+# Drop this file at /etc/caddy/Caddyfile on the VPS, OR — if you already
+# have a Caddyfile fronting Supabase / Evolution API — copy just the
+# `legal.sirahagents.com { ... }` block into it and reload:
+#
+#   sudo cp Caddyfile /etc/caddy/Caddyfile
+#   sudo systemctl reload caddy
+#
+# Caddy auto-provisions a Let's Encrypt cert on first request, provided:
+#   - legal.sirahagents.com resolves (A/AAAA) to this host's public IP.
+#   - Ports 80 and 443 are reachable from the internet (UFW: `sudo ufw
+#     allow 80,443/tcp`).
+#
+# Assumes the production compose override binds the API to 127.0.0.1:4000
+# and the SPA to 127.0.0.1:8080 — i.e. you run:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+legal.sirahagents.com {
+    encode gzip zstd
+
+    # /api/* → API container. We deliberately use `handle` (not `handle_path`)
+    # because the Express app mounts routes at /api/* — stripping the prefix
+    # would 404 everything.
+    handle /api/* {
+        reverse_proxy 127.0.0.1:4000 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host  {host}
+        }
+    }
+
+    # Everything else → SPA container (nginx serving the built React app).
+    handle {
+        reverse_proxy 127.0.0.1:8080
+    }
+
+    # Edge security headers. The SPA's own nginx config sets a subset of
+    # these too; when both are present the OUTER (Caddy) wins for the
+    # browser. HSTS in particular only makes sense at the TLS terminator.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options    "nosniff"
+        X-Frame-Options           "DENY"
+        Referrer-Policy           "strict-origin-when-cross-origin"
+        Permissions-Policy        "camera=(), microphone=(), geolocation=()"
+        # Caddy adds Server: Caddy by default — strip it.
+        -Server
+    }
+
+    # Per-vhost access log. Rotation kicks in at 100 MB or 14 files.
+    log {
+        output file /var/log/caddy/legal.sirahagents.com.log {
+            roll_size 100mb
+            roll_keep 14
+        }
+        format json
+    }
+}
