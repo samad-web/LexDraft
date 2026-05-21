@@ -3,7 +3,7 @@ import type { DocumentRecord } from '@lexdraft/types';
 import { Icon } from '@lexdraft/ui';
 import { Modal } from './Modal';
 import { useDraft } from '@/hooks/useDrafts';
-import { useDocument } from '@/hooks/useDocuments';
+import { useDocument, useDocumentDownloadUrl } from '@/hooks/useDocuments';
 
 interface DocumentViewerModalProps {
   doc: DocumentRecord | null;
@@ -69,24 +69,59 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
   const data = document.data;
   const draftData = draft.data;
 
-  const isLoading = open && (isDraft ? draft.isLoading : document.isLoading);
-  const isError = open && (isDraft ? draft.isError : document.isError);
+  // Two storage paths coexist:
+  //   - Legacy: file bytes embedded as base64 in the DocumentRecord (small,
+  //     in-memory or older uploads). Render via blob URL.
+  //   - Presigned: bytes live in S3 / local-disk storage; the API returns a
+  //     short-lived presigned URL. Render that URL directly.
+  // `hasFile` here means "there's a file attached, somewhere"; the source is
+  // resolved below.
+  const hasFile = !!data?.hasFile || !!data?.fileBase64;
+  const needsPresigned = open && !isDraft && hasFile && !data?.fileBase64;
+  const downloadUrlQuery = useDocumentDownloadUrl(id, needsPresigned);
 
-  const hasFile = !!data?.fileBase64;
+  const isLoading =
+    open &&
+    (isDraft
+      ? draft.isLoading
+      : document.isLoading || (needsPresigned && downloadUrlQuery.isLoading));
+  const isError =
+    open &&
+    (isDraft
+      ? draft.isError
+      : document.isError || (needsPresigned && downloadUrlQuery.isError));
+
   const isPdf = !!data?.fileMime?.includes('pdf');
   const isImage = !!data?.fileMime?.startsWith('image/');
   const hasDraftBody = !!(draftData?.editedHtml?.trim() || draftData?.bodyText?.trim());
 
+  // The src used by the iframe/img/download anchor. Prefer the presigned URL
+  // when present (newer uploads); fall back to the inline base64 blob URL.
+  const previewUrl = data?.fileBase64 ? fileBlobUrl : downloadUrlQuery.data?.downloadUrl ?? null;
+
   const downloadFile = () => {
-    if (!data?.fileBase64 || !data.fileName) return;
-    const url = base64ToBlobUrl(data.fileBase64, data.fileMime ?? 'application/octet-stream');
+    if (data?.fileBase64 && data.fileName) {
+      const url = base64ToBlobUrl(data.fileBase64, data.fileMime ?? 'application/octet-stream');
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = data.fileName;
+      window.document.body.appendChild(a);
+      a.click();
+      window.document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return;
+    }
+    // Presigned path: browser handles the download via the URL directly.
+    const url = downloadUrlQuery.data?.downloadUrl;
+    if (!url || !data?.fileName) return;
     const a = window.document.createElement('a');
     a.href = url;
     a.download = data.fileName;
+    a.target = '_blank';
+    a.rel = 'noopener';
     window.document.body.appendChild(a);
     a.click();
     window.document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   return (
@@ -117,8 +152,11 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
           borderRadius: 'var(--radius-md)',
           padding: hasFile && (isPdf || isImage) ? 0 : '24px 16px',
           minHeight: 320,
-          maxHeight: '70vh',
-          overflow: 'auto',
+          // No outer scroll: the iframe handles its own paging, images are
+          // contained by maxHeight, and long draft text scrolls inside the
+          // surrounding modal-shell (90vh). Two stacked scroll regions look
+          // broken on Windows where each renders its own scrollbar gutter.
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -135,16 +173,25 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
         )}
 
         {/* Uploaded PDF - inline iframe preview */}
-        {!isLoading && !isError && hasFile && isPdf && fileBlobUrl && (
+        {!isLoading && !isError && hasFile && isPdf && previewUrl && (
           <iframe
-            src={fileBlobUrl}
+            src={previewUrl}
             title={doc?.name ?? 'Document'}
-            style={{ width: '100%', height: '70vh', border: 0, background: '#fff', minHeight: 480 }}
+            style={{
+              width: '100%',
+              // Fixed viewport-relative height instead of vh + minHeight: the
+              // old combo (70vh + minHeight: 480) could exceed the parent at
+              // small viewports and force a second scrollbar.
+              height: '70vh',
+              border: 0,
+              background: '#fff',
+              display: 'block',
+            }}
           />
         )}
 
         {/* Uploaded image - inline preview */}
-        {!isLoading && !isError && hasFile && isImage && fileBlobUrl && (
+        {!isLoading && !isError && hasFile && isImage && previewUrl && (
           <div
             style={{
               display: 'flex',
@@ -155,7 +202,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
             }}
           >
             <img
-              src={fileBlobUrl}
+              src={previewUrl}
               alt={doc?.name ?? 'Document'}
               style={{ maxWidth: '100%', maxHeight: '65vh', borderRadius: 'var(--radius-sm)' }}
             />
@@ -220,7 +267,19 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
       </div>
 
       {hasFile && (
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.08em' }}>
+        <div
+          className="mono"
+          style={{
+            fontSize: 11,
+            color: 'var(--text-tertiary)',
+            letterSpacing: '0.08em',
+            // Long filenames or mimes (e.g. application/vnd.openxmlformats-...)
+            // can be one unbroken token — without wrap rules they push the
+            // modal wider than its max-width.
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+          }}
+        >
           {data?.fileName}
           {typeof data?.fileSize === 'number' ? ` · ${formatBytes(data.fileSize)}` : ''}
           {data?.fileMime ? ` · ${data.fileMime}` : ''}

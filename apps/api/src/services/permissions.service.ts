@@ -48,6 +48,10 @@ const cache = new Map<string, CachedEntry>();
 const BASELINE_FEATURES: ReadonlyArray<FeatureKey> = [
   'profile.view', 'profile.update', 'announcements.view',
   'shared.documents', 'search.workspace',
+  // Matter Intelligence (migration 0041) ships with default_baseline = true;
+  // mirror that in the demo-mode fallback so the sidebar entry + Intelligence
+  // tab show up when DATABASE_URL is unset.
+  'matter.intelligence',
 ];
 
 const SOLO_FEATURES: ReadonlyArray<FeatureKey> = [
@@ -55,6 +59,8 @@ const SOLO_FEATURES: ReadonlyArray<FeatureKey> = [
   // Drafting basics (no AI, no compare on Solo plan)
   'drafting.basic', 'drafting.templates', 'drafting.clauses',
   'review.comment',
+  'mock_arguments.use',
+  'title_report.use',
   // Matter & client
   'matter.view', 'matter.create',
   'client.view', 'client.create',
@@ -114,15 +120,29 @@ function demoFallbackFor(roleText: string): FeatureKey[] {
     case 'Firm Admin':
       return [...FIRM_ADMIN_FEATURES];
     case 'Paralegal':
-    case 'Legal Secretary':
-    case 'Intern':
-      // Limited tenant access: view + drafting basics + review (as a reader/
-      // commenter). `review.comment` is granted to these roles via migration
-      // 0028 so the Review tab is reachable from every system role.
+      // Paralegal gets title_report.use to draft/edit; per-action gating in
+      // title-reports.service blocks transition.finalised / transition.issued.
       return [
         ...BASELINE_FEATURES,
         'drafting.basic', 'drafting.templates',
         'review.comment',
+        'mock_arguments.use',
+        'title_report.use',
+        'matter.view', 'client.view',
+        'firm.members.view',
+      ];
+    case 'Legal Secretary':
+    case 'Intern':
+      // Limited tenant access: view + drafting basics + review (as a reader/
+      // commenter). `review.comment` is granted to these roles via migration
+      // 0028 so the Review tab is reachable from every system role. No
+      // title_report.use — the spec explicitly excludes these roles from
+      // the Title Reports surface.
+      return [
+        ...BASELINE_FEATURES,
+        'drafting.basic', 'drafting.templates',
+        'review.comment',
+        'mock_arguments.use',
         'matter.view', 'client.view',
         'firm.members.view',
       ];

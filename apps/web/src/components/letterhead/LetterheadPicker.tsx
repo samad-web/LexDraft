@@ -32,6 +32,7 @@ export function LetterheadPicker({
 }: LetterheadPickerProps) {
   const { data, isLoading } = useLetterheads();
   const items = useMemo(() => buildOptions(data?.firmItems, data?.personalItems, data?.effectiveDefault), [data]);
+  const hasAny = (data?.firmItems?.length ?? 0) + (data?.personalItems?.length ?? 0) > 0;
 
   const selectValue =
     value === undefined ? '__default__' : value === null ? '__none__' : value;
@@ -67,6 +68,21 @@ export function LetterheadPicker({
           </optgroup>
         )}
       </select>
+      {!isLoading && !hasAny && (
+        <span
+          className="body-xs muted"
+          style={{ marginTop: 2 }}
+        >
+          No letterheads configured yet. Add one under{' '}
+          <a
+            href="/app/settings"
+            style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}
+          >
+            Settings → Letterhead
+          </a>
+          {' '}so this document picks one up automatically.
+        </span>
+      )}
     </label>
   );
 }

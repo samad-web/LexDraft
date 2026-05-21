@@ -134,6 +134,7 @@ export const practiceAnalyticsService = {
           from cases
           where firm_id = ${firmId}::uuid
             and status = 'Active'
+            and kind = 'matter'
         `,
         sql<Array<{ n: number | string }>>`
           select count(*)::int as n
@@ -261,6 +262,7 @@ export const practiceAnalyticsService = {
           on i.firm_id = c.firm_id
          and i.client  = c.client
         where c.firm_id = ${firmId}::uuid
+          and c.kind = 'matter'
           and (${sinceIso}::timestamptz is null or c.created_at >= ${sinceIso}::timestamptz)
         group by c.id, c.title, c.client
       `,

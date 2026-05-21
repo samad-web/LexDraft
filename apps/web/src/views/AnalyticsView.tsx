@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
@@ -91,16 +91,41 @@ export function AnalyticsView() {
 
   if (isError) {
     return (
-      <div className="card" style={{ borderColor: 'var(--danger)' }}>
-        <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load analytics</div>
-      </div>
+      <ErrorState
+        title="Couldn't load analytics"
+        description="Check your connection and retry. If the issue persists, the metrics service may be offline."
+      />
     );
   }
   if (isLoading) {
     return (
-      <div className="card">
-        <span className="muted">Loading analytics<span className="blink" /></span>
+      <div className="col stagger" style={{ gap: 24 }}>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Practice metrics</div>
+          <Skeleton width={180} height={32} />
+        </div>
+        <div className="stat-row">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i}>
+              <Skeleton width={120} height={12} />
+              <div style={{ marginTop: 12 }}><Skeleton width={88} height={28} /></div>
+            </div>
+          ))}
+        </div>
+        <div className="grid-2" style={{ gap: 16 }}>
+          <div className="card"><Skeleton width="100%" height={220} /></div>
+          <div className="card"><Skeleton width="100%" height={220} /></div>
+        </div>
       </div>
+    );
+  }
+  if (!data || (KPIS.every((k) => k.value === '-' || k.value === '0') && STAGES.length === 0 && REVENUE.length === 0)) {
+    return (
+      <EmptyState
+        icon="analytics"
+        title="No analytics yet"
+        description="Once you log matters, hearings, and invoices, this view will show your practice trends."
+      />
     );
   }
 

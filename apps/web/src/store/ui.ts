@@ -15,11 +15,33 @@ export interface ToastModel {
   durationMs?: number;
 }
 
+/**
+ * Cap-exceeded modal payload. Pushed by the axios interceptor when the API
+ * returns a 429 ai_quota_exceeded or 402 seat_cap_exceeded. Rendered by
+ * `<CapExceededModal />` mounted at the app shell.
+ */
+export interface CapPromptModel {
+  kind: 'ai_quota' | 'seat_cap';
+  cap: number;
+  used: number;
+  /** ISO timestamp when the quota resets — only meaningful for ai_quota. */
+  resetsAt?: string;
+  /** 'Solo' | 'Practice' | 'Firm' | null. Used to render the upgrade CTA. */
+  planTier?: string | null;
+}
+
 interface UIState {
   lang: Lang;
   theme: Theme;
   cmdK: boolean;
+  /**
+   * Mobile-only drawer state for the main sidebar. The shell renders the
+   * sidebar inline on ≥768px and as a slide-in drawer on smaller screens;
+   * this flag controls the drawer's open/closed state.
+   */
+  sidebarOpen: boolean;
   toast: ToastModel | null;
+  capPrompt: CapPromptModel | null;
   /**
    * Set to true on sign-in when the server reports `mustEnrollMfa` (the
    * user's role mandates MFA but no factor is on file). The MfaPromptBanner
@@ -35,8 +57,11 @@ interface UIState {
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   toggleCmdK: (open?: boolean) => void;
+  toggleSidebar: (open?: boolean) => void;
   showToast: (toast: ToastModel) => void;
   hideToast: () => void;
+  showCapPrompt: (p: CapPromptModel) => void;
+  hideCapPrompt: () => void;
   setForceMfaEnrollment: (v: boolean) => void;
 }
 
@@ -59,7 +84,9 @@ export const useUIStore = create<UIState>()(
       // toggled, the persist middleware overrides this with their choice.
       theme: systemPreference(),
       cmdK: false,
+      sidebarOpen: false,
       toast: null,
+      capPrompt: null,
       forceMfaEnrollment: false,
       setLang: (lang) => set({ lang }),
       setForceMfaEnrollment: (forceMfaEnrollment) => set({ forceMfaEnrollment }),
@@ -73,8 +100,11 @@ export const useUIStore = create<UIState>()(
         set({ theme: next });
       },
       toggleCmdK: (open) => set((s) => ({ cmdK: open ?? !s.cmdK })),
+      toggleSidebar: (open) => set((s) => ({ sidebarOpen: open ?? !s.sidebarOpen })),
       showToast: (toast) => set({ toast }),
       hideToast: () => set({ toast: null }),
+      showCapPrompt: (capPrompt) => set({ capPrompt }),
+      hideCapPrompt: () => set({ capPrompt: null }),
     }),
     {
       name: 'lexdraft-ui',

@@ -161,6 +161,21 @@ export interface User {
   primaryCourt?: string;
   /** Comma-separated list of practice areas captured at sign-up. */
   practiceAreas?: string;
+  /** BCP-47 default language for AI-facing features (Mock Arguments today).
+   *  Migration 0039 backfills 'en-IN'; users override via Settings. */
+  defaultLanguageCode?: string;
+  /** Lifecycle status of the user's firm — 'trial' | 'active' | 'past_due'
+   *  | 'cancelled'. Surfaced so the web shell can render the trial banner
+   *  and gates without a second round-trip. Absent for users not yet
+   *  attached to a firm. */
+  planStatus?: 'trial' | 'active' | 'past_due' | 'cancelled';
+  /** When the firm's trial ends. Null on paid/legacy firms (no trial clock).
+   *  ISO timestamp. */
+  trialEndsAt?: string | null;
+  /** True when the firm was provisioned through the interactive-demo
+   *  funnel — UI badges the session and surfaces "Convert to a real
+   *  account" CTAs. */
+  isDemo?: boolean;
 }
 
 export interface AuthResponse {
@@ -182,6 +197,10 @@ export interface SignUpRequest {
   enrolment?: string;
   primaryCourt?: string;
   practiceAreas?: string;
+  /** What landed the user here. Drives the firm's initial plan_status:
+   *  trial gets a 14-day clock; paid lands directly active; demo is a
+   *  trial with the is_demo flag set so the UI can badge / convert it. */
+  intent?: 'trial' | 'paid' | 'demo';
 }
 
 export interface DashboardSummary {
@@ -274,6 +293,63 @@ export interface DraftRequest {
   fields: Record<string, string>;
   /** ISO yyyy-mm-dd. Date the document is dated/issued. Defaults to today on the server if omitted. */
   draftDate?: string;
+  /** Optional case id - when set, the server may fold case_notes attached to
+   *  this case into the LLM prompt (governed by `includeNotes`). */
+  caseId?: ID;
+  /** Default true. When false, notes are not pulled even if `caseId` is set. */
+  includeNotes?: boolean;
+  /** Optional whitelist - when present, only these note ids are folded in.
+   *  When omitted, all notes the user can see for the case are included. */
+  noteIds?: ID[];
+}
+
+// ---- Case Notes ------------------------------------------------------------
+
+export type CaseNoteVisibility = 'shared' | 'private';
+export type CaseNoteSource = 'typed' | 'uploaded';
+export type CaseNoteExtractionStatus = 'pending' | 'ok' | 'failed';
+
+export interface CaseNote {
+  id: ID;
+  caseId: ID;
+  authorId: ID;
+  authorName: string;
+  visibility: CaseNoteVisibility;
+  source: CaseNoteSource;
+  title?: string;
+  body: string;
+  /** Upload metadata - present only when source === 'uploaded'. */
+  file?: {
+    name: string;
+    mime: string;
+    size: number;
+    storageKey: string;
+    extractionStatus: CaseNoteExtractionStatus;
+    extractionError?: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTypedNoteRequest {
+  title?: string;
+  body: string;
+  visibility?: CaseNoteVisibility;
+}
+
+export interface UpdateCaseNoteRequest {
+  title?: string;
+  body?: string;
+  visibility?: CaseNoteVisibility;
+}
+
+export interface FinalizeUploadedNoteRequest {
+  title?: string;
+  visibility?: CaseNoteVisibility;
+  storageKey: string;
+  fileName: string;
+  fileMime: string;
+  fileSize: number;
 }
 
 export interface DraftResponse {
@@ -473,12 +549,20 @@ export type AuditAction =
   | 'template.update'
   | 'template.delete'
   // Tenant-scoped CRUD audit actions.
-  | 'case.create'      | 'case.update'      | 'case.delete'
+  | 'case.create'      | 'case.update'      | 'case.delete' | 'case.transition'
   | 'client.create'    | 'client.update'    | 'client.delete'
   | 'invoice.create'   | 'invoice.update'   | 'invoice.delete'
   | 'lead.create'      | 'lead.update'      | 'lead.delete' | 'lead.stage.update'
   | 'hearing.create'   | 'hearing.update'   | 'hearing.delete'
   | 'document.create'  | 'document.update'  | 'document.delete'
+  | 'matter.notes.create' | 'matter.notes.update' | 'matter.notes.delete'
+  // Matter Intelligence (migration 0041). `ingest` covers both upload and
+  // pull-from-existing-documents; the targetType + payload distinguish.
+  | 'matter.intelligence.ingest'
+  | 'matter.intelligence.summarise'
+  | 'matter.intelligence.brief.regenerate'
+  | 'matter.intelligence.chat.message'
+  | 'matter.intelligence.remove'
   | 'limitation.create'| 'limitation.update'| 'limitation.delete'
   // Client portal - actor is the portal client (actor_user_id is null;
   // payload carries `actorKind: 'portal_client'` and the client id).
@@ -496,19 +580,34 @@ export type AuditAction =
   // Firm-side portal administration (actor is a firm user).
   | 'portal.client.enabled'
   | 'portal.client.disabled'
-  | 'portal.client.link_resent'
+  | 'portal.client.password_reset'
   | 'portal.document.shared'
   | 'portal.document.unshared'
   | 'portal.document.ack_required'
   | 'portal.document.ack_cleared'
   | 'portal.matter.visibility.updated'
   | 'portal.message.firm_sent'
-  | 'portal.message.firm_read';
+  | 'portal.message.firm_read'
+  // Title Reports (migration 0050). State transitions, AI runs, and PDF
+  // exports all write a row; payload carries the target row id + before/after.
+  | 'title_report.create'
+  | 'title_report.update'
+  | 'title_report.delete'
+  | 'title_report.transition'
+  | 'title_report.ai.run'
+  | 'title_report.export'
+  | 'title_report.document.upload'
+  | 'title_report.document.extract';
 
 export type AuditTargetType =
   | 'firm' | 'user' | 'template' | 'platform'
   | 'case' | 'client' | 'invoice' | 'lead' | 'hearing' | 'document' | 'limitation'
-  | 'portal_session' | 'portal_message';
+  | 'case_note'
+  | 'portal_session' | 'portal_message'
+  // Matter Intelligence (migration 0041).
+  | 'matter_document' | 'matter_brief' | 'matter_chat_thread'
+  // Title Reports (migration 0050).
+  | 'title_report';
 
 export interface AuditLogEntry {
   id: ID;
@@ -815,15 +914,10 @@ export interface Client {
 
 // ---- Client portal --------------------------------------------------------
 
-export interface PortalRequestLinkResponse {
-  /** Always present so the endpoint can't be used to enumerate registered
-   *  client emails - both registered and unregistered emails get the same
-   *  generic acknowledgement. */
-  ok: true;
-  /** Plaintext magic link, ONLY returned in dev (when LLM_PROVIDER === 'none'
-   *  is a sufficient signal that this is a demo run, OR explicitly when
-   *  CLIENT_PORTAL_RETURN_LINK=true). Never set in production. */
-  devMagicLink?: string;
+/** Portal sign-in request body (POST /portal/auth/sign-in). */
+export interface PortalSignInRequest {
+  email: string;
+  password: string;
 }
 
 export interface PortalSession {
@@ -905,6 +999,27 @@ export interface PortalDashboard {
   invoices: PortalInvoiceSummary[];
 }
 
+/** Pipeline summary that travels with a Case or PortalCaseSummary. The
+ *  canonical stage list is per matter-type; `currentIndex` is -1 when the
+ *  stored `stage` value doesn't match the catalog (legacy free-text drift). */
+export interface CasePipeline {
+  kind: 'civil' | 'criminal' | 'consumer' | 'writ' | 'default';
+  stages: string[];
+  currentIndex: number;
+}
+
+/** One row on the unified matter timeline. Stage transitions, hearings,
+ *  documents, and notes are merged into this shape and sorted newest-first. */
+export interface MatterTimelineEvent {
+  id: string;
+  /** ISO timestamp. */
+  at: string;
+  kind: 'stage' | 'hearing' | 'document' | 'note';
+  title: string;
+  body: string;
+  actorName?: string;
+}
+
 /** Full payload for `GET /api/portal/matters/:id`. The matter itself plus its
  *  hearings, documents, and the message thread on this matter. */
 export interface PortalMatterDetail {
@@ -912,6 +1027,11 @@ export interface PortalMatterDetail {
   hearings: PortalHearingSummary[];
   documents: PortalDocumentSummary[];
   messages: PortalMessage[];
+  /** Canonical stage list for this matter's type + current position. */
+  pipeline: CasePipeline;
+  /** Chronological event stream visible to the client (stage transitions
+   *  flagged visible_to_portal, hearings, shared documents). */
+  timeline: MatterTimelineEvent[];
 }
 
 export interface PortalMessage {
@@ -981,8 +1101,10 @@ export interface PortalForgetMeRequest {
 export interface FirmEnablePortalResponse {
   ok: true;
   clientId: ID;
-  /** Plaintext magic link, only returned in dev (CLIENT_PORTAL_RETURN_LINK=true). */
-  devMagicLink?: string;
+  /** Plaintext default password (`firstname@123`) the firm admin should
+   *  share with the client out-of-band. Set when the call minted or reset
+   *  the password; absent in demo mode. */
+  password?: string;
 }
 
 /** A row in the firm-side "Portal messages" inbox - one entry per
@@ -1121,6 +1243,13 @@ export interface DiaryEntry {
   cnr: string;
   detail: string;
   forum: string;
+  /** Optional attachment — only used for judgment entries today. Filename,
+   *  mime and size are returned on the list payload; the base64 body is
+   *  returned only by the per-entry detail endpoint to keep the list small. */
+  attachmentFileName?: string;
+  attachmentMime?: string;
+  attachmentSize?: number;
+  attachmentBase64?: string;
 }
 
 // ---- Physical documents register -----------------------------------------
@@ -1245,3 +1374,713 @@ export interface AnalyticsSummary {
   /** Trailing 12 months of revenue, oldest first, in lakhs. */
   monthlyRevenue: Array<{ label: string; value: number }>;
 }
+
+// ---------------------------------------------------------------------------
+// Matter Intelligence (migration 0041)
+//
+// Document ingestion, per-document AI summaries, matter-level brief, and
+// per-matter chat. Mirrors apps/api/src/services/matter-intel.service.ts and
+// matter-chat.service.ts.
+// ---------------------------------------------------------------------------
+
+/** Where the ingested document came from. */
+export type MatterDocumentSource = 'upload' | 'matter_document';
+
+/** Processing lifecycle for an ingested document. */
+export type MatterDocumentStatus =
+  | 'pending'      // row created, blob in storage, queued for extraction
+  | 'extracting'   // pdf-parse / mammoth running
+  | 'embedding'    // chunks generated, embedding service in flight
+  | 'ready'        // chunks + summary available; chat retrieval will hit
+  | 'failed';      // status_error carries the reason
+
+export interface MatterDocumentParty {
+  /** Free-form name as it appears in the document. */
+  name?: string | null;
+  /** Petitioner / Respondent / Complainant / Defendant / Witness / etc. */
+  role?: string | null;
+}
+
+export interface MatterDocumentKeyDate {
+  /** ISO-8601 string when the model could resolve one; else free-form. */
+  date?: string | null;
+  /** What happened on that date. */
+  event?: string | null;
+}
+
+export interface MatterDocumentCitation {
+  /** Statute name + section, case name + reporter, etc. */
+  statute_or_case?: string | null;
+  /** Pin-cite / paragraph number / page reference. */
+  reference?: string | null;
+}
+
+export interface MatterDocument {
+  id: ID;
+  firmId: ID;
+  caseId: ID;
+  ingestedBy: ID;
+  sourceType: MatterDocumentSource;
+  /** When sourceType === 'matter_document', the `documents.id` it was pulled
+   *  from. When null, the bytes belong solely to matter-intel. */
+  sourceDocumentId: ID | null;
+  fileName: string;
+  fileSizeBytes: number | null;
+  mimeType: string | null;
+  /** Storage driver key. For pulled documents this mirrors the original
+   *  documents.storage_key so we never copy bytes; for uploads it's the
+   *  canonical hash-based path the service writes to. */
+  storageRef: string | null;
+  /** SHA-256 of the file body. Drives the (case_id, content_hash) idempotency
+   *  unique constraint on matter_documents. */
+  contentHash: string | null;
+  pageCount: number | null;
+  status: MatterDocumentStatus;
+  statusError: string | null;
+  ingestedAt: string;
+  updatedAt: string;
+}
+
+export interface MatterDocumentSummary {
+  id: ID;
+  matterDocumentId: ID;
+  /** Plain-text classification ('order', 'pleading', 'contract', 'fir',
+   *  'statement_161', 'agreement'). Free-form; the UI maps known values onto
+   *  chips and falls back to title-case for everything else. */
+  documentType: string | null;
+  parties: MatterDocumentParty[];
+  keyDates: MatterDocumentKeyDate[];
+  /** The directions, dispositive clauses, or principal terms — whatever the
+   *  document actually *does* rather than what it merely says. */
+  operativeContent: string | null;
+  citations: MatterDocumentCitation[];
+  /** Three-sentence prose summary intended for the brief synthesis input. */
+  executiveSummary: string | null;
+  /** "anthropic:claude-sonnet-4-6", "xai:grok-4", or "fallback:none" when
+   *  AI is disabled in this environment. The UI surfaces a degraded-mode
+   *  badge whenever this starts with "fallback:". */
+  modelUsed: string;
+  generatedAt: string;
+}
+
+export interface MatterBriefTimelineEntry {
+  date?: string | null;
+  event?: string | null;
+}
+
+export interface MatterBrief {
+  id: ID;
+  caseId: ID;
+  /** May be null when the previous generator user has since left the firm. */
+  generatedBy: ID | null;
+  /** Current procedural posture: "PIL at admission stage", "Reply pending
+   *  on application u/s 482 BNSS", etc. */
+  posture: string | null;
+  keyFacts: string[];
+  disputedIssues: string[];
+  timeline: MatterBriefTimelineEntry[];
+  openQuestions: string[];
+  modelUsed: string;
+  generatedAt: string;
+  /** When non-null, a newer brief has been generated and this row is
+   *  historical. The current brief is the one with supersededAt === null. */
+  supersededAt: string | null;
+}
+
+export interface MatterChatThread {
+  id: ID;
+  caseId: ID;
+  /** Threads are not shared across users in v1 — every advocate has their
+   *  own conversation history per matter. */
+  userId: ID;
+  title: string | null;
+  createdAt: string;
+  /** Used as the secondary sort key in the thread switcher. */
+  lastMessageAt: string;
+}
+
+export interface MatterCitation {
+  /** UUID of the matter_documents row this citation points at. The chat UI
+   *  resolves this to a clickable pill via useMatterDocument(). */
+  matterDocumentId: ID;
+  /** 1-based page number (real for PDFs, approximate for DOCX / TXT). */
+  page: number;
+  /** Up to ~240 chars of the cited chunk. Empty string for citations the
+   *  model produced that did not match any retrieved chunk — the UI flags
+   *  these as "ungrounded" and warns the advocate to verify. */
+  snippet: string;
+}
+
+export interface MatterChatMessage {
+  id: ID;
+  threadId: ID;
+  role: 'user' | 'assistant';
+  content: string;
+  /** Empty for user messages. For assistant messages, parsed out of the
+   *  reply via the `[doc:<uuid> p:<n>]` citation contract. Zero-length on
+   *  an assistant message means the model could not ground its answer in
+   *  the retrieved corpus — the UI surfaces a soft warning. */
+  citations: MatterCitation[];
+  /** Null for user messages; "anthropic:…", "xai:…", or "fallback:none"
+   *  for assistant messages. */
+  modelUsed: string | null;
+  createdAt: string;
+}
+
+/** Streaming-event union emitted by POST /api/matter-chat/threads/:id/messages
+ *  (SSE). The route maps each variant to an `event: <type>` SSE frame. */
+export type MatterChatStreamEvent =
+  | { type: 'user_message';      message: MatterChatMessage }
+  | { type: 'delta';             text: string }
+  | { type: 'assistant_message'; message: MatterChatMessage }
+  | { type: 'error';             message: string };
+
+// ---- Title Reports (migration 0050) ---------------------------------------
+//
+// Title Investigation Report (TIR): advocate-prepared certification of
+// marketability of title to immovable property, addressed to a bank / NBFC /
+// buyer. Wizard-driven authoring; AI-assisted defect analysis + opinion
+// synthesis; PDF export on firm letterhead.
+//
+// The hydrated tree (TitleReportFull) is the shape returned by
+// GET /api/title-reports/:id and consumed by every wizard step.
+
+export type TitleReportStatus =
+  | 'draft' | 'in_review' | 'finalised' | 'issued' | 'withdrawn';
+
+export type TitleReportApplicantType = 'buyer' | 'owner' | 'borrower';
+
+export type TitleReportOpinionVerdict =
+  | 'pending' | 'clear' | 'clear_with_conditions' | 'not_clear';
+
+export type TitleReportChainLinkType =
+  | 'sale' | 'gift' | 'partition' | 'settlement' | 'will' | 'inheritance'
+  | 'decree' | 'lease' | 'mortgage_release' | 'other';
+
+export type TitleReportExtentUnit =
+  | 'sqft' | 'sqm' | 'acres' | 'cents' | 'guntas' | 'hectares';
+
+export type TitleReportDocumentType =
+  | 'sale_deed' | 'gift_deed' | 'partition_deed' | 'will'
+  | 'patta' | 'chitta' | 'adangal' | 'khata' | 'rtc' | 'seven_twelve'
+  | 'ec' | 'mutation' | 'dc_conversion'
+  | 'building_plan' | 'oc' | 'cc' | 'noc' | 'rera'
+  | 'property_tax_receipt' | 'death_certificate' | 'legal_heir_certificate'
+  | 'family_tree_affidavit' | 'other';
+
+export type TitleReportCopyType =
+  | 'original' | 'certified' | 'photocopy' | 'notarised_copy';
+
+export type TitleReportExtractionStatus =
+  | 'none' | 'pending' | 'done' | 'failed';
+
+export type TitleReportEcForm = 'form_15' | 'form_16';
+
+export type TitleReportEncumbranceStatus = 'subsisting' | 'discharged';
+
+export type TitleReportSearchType =
+  | 'sro' | 'revenue' | 'municipal'
+  | 'litigation_hc' | 'litigation_dc' | 'litigation_drt' | 'litigation_nclt'
+  | 'gst' | 'ibbi' | 'mca' | 'attachment' | 'other';
+
+export type TitleReportLitigationRelevance = 'direct' | 'indirect' | 'none';
+
+export type TitleReportApprovalType =
+  | 'rera' | 'building_plan' | 'layout' | 'oc' | 'cc'
+  | 'fire_noc' | 'pollution_noc' | 'aai_noc' | 'environment'
+  | 'dc_conversion' | 'khata_transfer' | 'other';
+
+export type TitleReportApprovalStatus =
+  | 'valid' | 'expired' | 'not_obtained' | 'not_applicable';
+
+export type TitleReportPersonalLaw =
+  | 'hindu' | 'muslim' | 'christian' | 'parsi' | 'special_marriage' | 'other';
+
+export type TitleReportConsentStatus =
+  | 'obtained' | 'pending' | 'not_required';
+
+export type TitleReportDefectCategory =
+  | 'chain_gap' | 'unregistered_link' | 'stamp_duty' | 'extent_mismatch'
+  | 'subsisting_encumbrance' | 'pending_litigation' | 'missing_noc'
+  | 'approval_lapsed' | 'inheritance_gap' | 'other';
+
+export type TitleReportDefectSeverity = 'info' | 'warning' | 'blocker';
+
+export type TitleReportDefectSource = 'ai' | 'advocate' | 'imported';
+
+export type TitleReportAiRunType = 'defects_analysis' | 'opinion_synthesis';
+
+export type TitleReportAiRunStatus = 'pending' | 'running' | 'done' | 'failed';
+
+export type TitleReportExportFormat = 'pdf' | 'docx';
+
+/** Two-letter India state code carried on the header, or 'OTHER'. The
+ *  wizard's JurisdictionFields uses this to surface the right revenue-record
+ *  vocabulary (TN: Patta/Chitta; KA: Khata/RTC; MH: 7/12; TG/AP: Dharani/1-B). */
+export type TitleReportJurisdiction =
+  | 'TN' | 'KA' | 'MH' | 'TG' | 'AP' | 'DL' | 'UP' | 'GJ' | 'RJ' | 'WB' | 'KL'
+  | 'PB' | 'HR' | 'MP' | 'CG' | 'OR' | 'JH' | 'BR' | 'AS' | 'OTHER';
+
+/** Typed ref the AI defects pass emits to point at the row that triggered
+ *  the defect. Stored as part of TitleReportDefect.refs (jsonb in the DB). */
+export interface TitleReportDefectRef {
+  kind:
+    | 'chain_link' | 'document' | 'encumbrance'
+    | 'litigation' | 'approval' | 'heir';
+  id: ID;
+}
+
+export interface TitleReportProperty {
+  id: ID;
+  titleReportId: ID;
+  address: string;
+  surveyNo: string | null;
+  subDivision: string | null;
+  extentValue: number | null;
+  extentUnit: TitleReportExtentUnit | null;
+  boundaryNorth: string | null;
+  boundarySouth: string | null;
+  boundaryEast: string | null;
+  boundaryWest: string | null;
+  scheduleA: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** Jurisdiction-specific revenue/municipal record references. Keys vary by
+   *  state (patta_no, chitta_no, khata_no, rtc_no, seven_twelve, etc.).
+   *  The wizard's JurisdictionFields component drives which keys are surfaced. */
+  jurisdictionSpecific: Record<string, string | number | null>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportChainLink {
+  id: ID;
+  titleReportId: ID;
+  sequenceNo: number;
+  linkType: TitleReportChainLinkType;
+  transferor: string;
+  transferee: string;
+  documentDate: string | null;
+  documentNo: string | null;
+  sroOffice: string | null;
+  bookNo: string | null;
+  volumeNo: string | null;
+  pages: string | null;
+  stampDutyPaid: number | null;
+  consideration: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportDocument {
+  id: ID;
+  titleReportId: ID;
+  documentType: TitleReportDocumentType;
+  documentLabel: string;
+  parties: string | null;
+  documentDate: string | null;
+  registrationNo: string | null;
+  sroOffice: string | null;
+  copyType: TitleReportCopyType | null;
+  storageRef: string | null;
+  fileName: string | null;
+  fileMime: string | null;
+  fileSize: number | null;
+  /** Heuristic-or-AI extracted values surfaced as accept/reject suggestions
+   *  in DocumentDropzone. Never overwrites user-entered fields. */
+  extractedPayload: Record<string, unknown>;
+  extractionStatus: TitleReportExtractionStatus;
+  extractionError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportEncumbrance {
+  id: ID;
+  titleReportId: ID;
+  ecPeriodFrom: string | null;
+  ecPeriodTo: string | null;
+  ecOffice: string | null;
+  ecForm: TitleReportEcForm | null;
+  transactionNo: string | null;
+  transactionDate: string | null;
+  transactionType: string | null;
+  parties: string | null;
+  consideration: number | null;
+  status: TitleReportEncumbranceStatus;
+  dischargeDocRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportSearch {
+  id: ID;
+  titleReportId: ID;
+  searchType: TitleReportSearchType;
+  searchOffice: string | null;
+  searchQuery: string | null;
+  searchDate: string | null;
+  resultSummary: string | null;
+  resultNegative: boolean;
+  attachmentRef: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportLitigation {
+  id: ID;
+  titleReportId: ID;
+  court: string | null;
+  caseNumber: string | null;
+  parties: string | null;
+  causeOfAction: string | null;
+  stage: string | null;
+  relevance: TitleReportLitigationRelevance;
+  nextDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportStatutoryApproval {
+  id: ID;
+  titleReportId: ID;
+  approvalType: TitleReportApprovalType;
+  authority: string | null;
+  referenceNo: string | null;
+  issueDate: string | null;
+  validity: string | null;
+  status: TitleReportApprovalStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportHeir {
+  id: ID;
+  titleReportId: ID;
+  predecessorName: string;
+  predecessorDod: string | null;
+  personalLaw: TitleReportPersonalLaw;
+  heirName: string;
+  relationship: string | null;
+  share: string | null;
+  consentStatus: TitleReportConsentStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportDefect {
+  id: ID;
+  titleReportId: ID;
+  category: TitleReportDefectCategory;
+  severity: TitleReportDefectSeverity;
+  description: string;
+  recommendation: string | null;
+  source: TitleReportDefectSource;
+  refs: TitleReportDefectRef[];
+  acknowledgedBy: ID | null;
+  acknowledgedAt: string | null;
+  dismissed: boolean;
+  dismissedReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TitleReportAiRun {
+  id: ID;
+  titleReportId: ID;
+  runType: TitleReportAiRunType;
+  model: string | null;
+  provider: string | null;
+  inputHash: string | null;
+  /** Typed by runType — TitleReportDefectsAnalysis or TitleReportOpinionSynthesis. */
+  output: Record<string, unknown>;
+  status: TitleReportAiRunStatus;
+  error: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  durationMs: number | null;
+  createdBy: ID | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
+export interface TitleReportExport {
+  id: ID;
+  titleReportId: ID;
+  format: TitleReportExportFormat;
+  letterheadId: ID | null;
+  storageRef: string | null;
+  fileName: string | null;
+  fileMime: string | null;
+  fileSize: number | null;
+  createdBy: ID | null;
+  createdAt: string;
+}
+
+/** Header row — what the list view renders, what PATCH /:id mutates. */
+export interface TitleReport {
+  id: ID;
+  firmId: ID;
+  caseId: ID | null;
+  clientId: ID | null;
+  createdBy: ID;
+  assignedTo: ID | null;
+  status: TitleReportStatus;
+  reportNumber: string;
+  jurisdictionState: TitleReportJurisdiction;
+  applicantName: string;
+  applicantType: TitleReportApplicantType;
+  bankName: string | null;
+  bankBranch: string | null;
+  loanReference: string | null;
+  searchPeriodFrom: string | null;
+  searchPeriodTo: string | null;
+  opinionVerdict: TitleReportOpinionVerdict;
+  opinionSummary: string | null;
+  finalisedAt: string | null;
+  issuedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Fully hydrated tree returned by GET /api/title-reports/:id. The wizard's
+ *  React Query hook caches this object and patches sub-arrays on mutations. */
+export interface TitleReportFull extends TitleReport {
+  property: TitleReportProperty | null;
+  chainLinks: TitleReportChainLink[];
+  documents: TitleReportDocument[];
+  encumbrances: TitleReportEncumbrance[];
+  searches: TitleReportSearch[];
+  litigation: TitleReportLitigation[];
+  approvals: TitleReportStatutoryApproval[];
+  heirs: TitleReportHeir[];
+  defects: TitleReportDefect[];
+  /** Latest run of each type (defects + opinion). Older runs are kept in
+   *  the DB for replay but not returned in the hydrated tree. */
+  aiRuns: TitleReportAiRun[];
+  exports: TitleReportExport[];
+}
+
+/** Output schema of the defects_analysis prompt. Validated with Zod on
+ *  the API side; the same shape lands in TitleReportAiRun.output. */
+export interface TitleReportDefectsAnalysis {
+  defects: Array<{
+    category: TitleReportDefectCategory;
+    severity: TitleReportDefectSeverity;
+    description: string;
+    recommendation: string;
+    refs: TitleReportDefectRef[];
+  }>;
+  /** Total years missing across the 30-year window. */
+  chainGapYears: number;
+  /** 0-100. Higher = more complete record. */
+  completenessScore: number;
+  notes: string;
+}
+
+/** Output schema of the opinion_synthesis prompt. */
+export interface TitleReportOpinionSynthesis {
+  verdict: 'clear' | 'clear_with_conditions' | 'not_clear';
+  conditions: string[];
+  reasoning: string;
+  listOfOriginals: string[];
+  certifications: string[];
+}
+
+// ---- DTOs ------------------------------------------------------------------
+
+export interface CreateTitleReportDto {
+  jurisdictionState: TitleReportJurisdiction;
+  applicantName: string;
+  applicantType?: TitleReportApplicantType;
+  bankName?: string;
+  bankBranch?: string;
+  loanReference?: string;
+  caseId?: ID;
+  clientId?: ID;
+  assignedTo?: ID;
+  searchPeriodFrom?: string;
+  searchPeriodTo?: string;
+}
+
+export interface UpdateTitleReportDto {
+  jurisdictionState?: TitleReportJurisdiction;
+  applicantName?: string;
+  applicantType?: TitleReportApplicantType;
+  bankName?: string | null;
+  bankBranch?: string | null;
+  loanReference?: string | null;
+  caseId?: ID | null;
+  clientId?: ID | null;
+  assignedTo?: ID | null;
+  searchPeriodFrom?: string | null;
+  searchPeriodTo?: string | null;
+  opinionVerdict?: TitleReportOpinionVerdict;
+  opinionSummary?: string | null;
+}
+
+export interface UpsertTitleReportPropertyDto {
+  address: string;
+  surveyNo?: string;
+  subDivision?: string;
+  extentValue?: number;
+  extentUnit?: TitleReportExtentUnit;
+  boundaryNorth?: string;
+  boundarySouth?: string;
+  boundaryEast?: string;
+  boundaryWest?: string;
+  scheduleA?: string;
+  latitude?: number;
+  longitude?: number;
+  jurisdictionSpecific?: Record<string, string | number | null>;
+}
+
+export interface ChainLinkDto {
+  sequenceNo: number;
+  linkType: TitleReportChainLinkType;
+  transferor: string;
+  transferee: string;
+  documentDate?: string;
+  documentNo?: string;
+  sroOffice?: string;
+  bookNo?: string;
+  volumeNo?: string;
+  pages?: string;
+  stampDutyPaid?: number;
+  consideration?: number;
+  notes?: string;
+}
+
+export interface EncumbranceDto {
+  ecPeriodFrom?: string;
+  ecPeriodTo?: string;
+  ecOffice?: string;
+  ecForm?: TitleReportEcForm;
+  transactionNo?: string;
+  transactionDate?: string;
+  transactionType?: string;
+  parties?: string;
+  consideration?: number;
+  status?: TitleReportEncumbranceStatus;
+  dischargeDocRef?: string;
+}
+
+export interface SearchEntryDto {
+  searchType: TitleReportSearchType;
+  searchOffice?: string;
+  searchQuery?: string;
+  searchDate?: string;
+  resultSummary?: string;
+  resultNegative?: boolean;
+  attachmentRef?: string;
+}
+
+export interface LitigationEntryDto {
+  court?: string;
+  caseNumber?: string;
+  parties?: string;
+  causeOfAction?: string;
+  stage?: string;
+  relevance?: TitleReportLitigationRelevance;
+  nextDate?: string;
+  notes?: string;
+}
+
+export interface StatutoryApprovalDto {
+  approvalType: TitleReportApprovalType;
+  authority?: string;
+  referenceNo?: string;
+  issueDate?: string;
+  validity?: string;
+  status?: TitleReportApprovalStatus;
+}
+
+export interface HeirDto {
+  predecessorName: string;
+  predecessorDod?: string;
+  personalLaw?: TitleReportPersonalLaw;
+  heirName: string;
+  relationship?: string;
+  share?: string;
+  consentStatus?: TitleReportConsentStatus;
+}
+
+export interface ManualDefectDto {
+  category: TitleReportDefectCategory;
+  severity: TitleReportDefectSeverity;
+  description: string;
+  recommendation?: string;
+  refs?: TitleReportDefectRef[];
+}
+
+export interface DefectAckDto {
+  /** 'ack' = accept the defect (will appear in the report); 'dismiss' = hide
+   *  it (must include reason); 'edit' = patch description / recommendation /
+   *  severity in place (used by advocates refining an AI-flagged defect). */
+  action: 'ack' | 'dismiss' | 'edit';
+  reason?: string;
+  description?: string;
+  recommendation?: string | null;
+  severity?: TitleReportDefectSeverity;
+}
+
+export interface RunAiAnalysisDto {
+  /** Force re-run even if there's already a recent run with the same inputs. */
+  force?: boolean;
+}
+
+export interface ExtractDocumentDto {
+  /** When set, only re-run extraction for this single document. */
+  documentId?: ID;
+}
+
+export interface TitleReportTransitionDto {
+  to: TitleReportStatus;
+  /** Required when transitioning to 'withdrawn'; surfaced in the audit row. */
+  reason?: string;
+}
+
+export interface TitleReportExportRequestDto {
+  format?: TitleReportExportFormat;
+  letterheadId?: ID;
+}
+
+export interface TitleReportExportResponse {
+  exportId: ID;
+  /** Signed download URL for the generated blob. Expires in 5 minutes. */
+  downloadUrl: string;
+  fileName: string;
+}
+
+/** List-view filters. All optional; the route applies AND semantics. */
+export interface TitleReportListQuery {
+  status?: TitleReportStatus;
+  jurisdictionState?: TitleReportJurisdiction;
+  assignedTo?: ID;
+  bank?: string;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface TitleReportListResponse {
+  items: TitleReport[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** Per-cycle quota status (Solo: 2 reports / billing cycle). Shape mirrors
+ *  the ai-quota service's QuotaStatus so the frontend can render the same
+ *  "X of Y used this month" chip. */
+export interface TitleReportQuotaStatus {
+  cap: number;
+  used: number;
+  remaining: number;
+  cycleStart: string;
+  cycleEnd: string;
+  planTier: UserPlan | null;
+}
+

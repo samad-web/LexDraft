@@ -130,44 +130,6 @@ async function send(args: SendArgs): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export const notify = {
-  /** Portal access enabled - fired by the firm-side "Enable portal" toggle.
-   *  System message: ignores preferences. */
-  async portalEnabled(clientId: string, magicLink: string): Promise<void> {
-    const c = await loadClient(clientId);
-    if (!c) return;
-    await send({
-      to: c.email,
-      subject: `Your portal is ready - sign in`,
-      body: [
-        `Hi ${c.name},`,
-        ``,
-        `${c.firmName} has enabled the client portal for you.`,
-        `Use this link to sign in (it expires in 15 minutes):`,
-        ``,
-        magicLink,
-        ``,
-        `If you didn't expect this, you can ignore the email.`,
-      ].join('\n'),
-    });
-  },
-
-  /** Magic-link re-sent - system message, ignores preferences. */
-  async magicLinkResent(clientId: string, magicLink: string): Promise<void> {
-    const c = await loadClient(clientId);
-    if (!c) return;
-    await send({
-      to: c.email,
-      subject: `Your new sign-in link`,
-      body: [
-        `Hi ${c.name},`,
-        ``,
-        `Your new sign-in link is below. It expires in 15 minutes:`,
-        ``,
-        magicLink,
-      ].join('\n'),
-    });
-  },
-
   /** Document shared with client. Honours `notifications.newDocument`. */
   async documentShared(clientId: string, documentName: string): Promise<void> {
     const c = await loadClient(clientId);

@@ -76,8 +76,14 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Workspace',
     items: [
       { id: 'draft',     label: 'Draft',     icon: 'draft',     badge: 'AI', to: '/app/draft',     requiresFeature: 'drafting.ai' },
+      // Matter Intelligence is matter-scoped. The sidebar entry lands on a
+      // picker that lets the advocate pick a matter; the picker then deep-
+      // links to /app/matter-intel/:caseId. The picker is also where the
+      // user is bounced after sign-out / direct URL hits.
+      { id: 'matter-intel', label: 'Matter Intelligence', icon: 'research', badge: 'AI', to: '/app/matter-intel', requiresFeature: 'matter.intelligence' },
       { id: 'review',    label: 'Review',    icon: 'review',    badge: 'AI', to: '/app/review',    requiresFeature: 'review.comment' },
-      { id: 'review-queue', label: 'My Queue', icon: 'tasks',  to: '/app/review-queue', requiresFeature: 'review.comment' },
+      { id: 'mock-arguments', label: 'Mock Arguments', icon: 'chat', badge: 'AI', to: '/app/mock-arguments', requiresFeature: 'mock_arguments.use' },
+      { id: 'title-reports', label: 'Title Reports', icon: 'shield', badge: 'AI', to: '/app/title-reports', requiresFeature: 'title_report.use' },
       { id: 'documents', label: 'Documents', icon: 'documents', to: '/app/documents', requiresFeature: 'shared.documents' },
       { id: 'clauses',   label: 'Clauses',   icon: 'clauses',   to: '/app/clauses',   requiresFeature: 'drafting.clauses' },
     ],
@@ -105,10 +111,15 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Tools',
     items: [
-      { id: 'ecourts',     label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',     requiresFeature: 'matter.view' },
-      { id: 'stamp',       label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
-      { id: 'calculators', label: 'Calculators',   icon: 'flag',    to: '/app/calculators', requiresFeature: 'tools.calculators' },
-      { id: 'archive',     label: 'Physical Docs', icon: 'archive', to: '/app/archive',     requiresFeature: 'matter.view' },
+      { id: 'ecourts',       label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',       requiresFeature: 'matter.view' },
+      { id: 'stamp',         label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
+      { id: 'calculators',   label: 'Calculators',   icon: 'flag',    to: '/app/calculators',   requiresFeature: 'tools.calculators' },
+      // Physical Docs (paper-originals register) lives at /app/physical-docs;
+      // the closed-matters Archive lives at /app/archive. Earlier the nav
+      // had `to: '/app/archive'` under the "Physical Docs" label — silently
+      // routing users to the wrong screen.
+      { id: 'physical-docs', label: 'Physical Docs', icon: 'archive', to: '/app/physical-docs', requiresFeature: 'matter.view' },
+      { id: 'archive',       label: 'Archive',       icon: 'archive', to: '/app/archive',       requiresFeature: 'matter.view' },
     ],
   },
   {
@@ -154,4 +165,12 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   coverage:          { title: 'Coverage Board',   eyebrow: 'Hearing coverage requests' },
   'practice-analytics': { title: 'Practice Insights', eyebrow: 'Workload fairness & matter profitability' },
   engagement:        { title: 'Engagement Letters', eyebrow: 'Templates & generation' },
+  'mock-arguments':  { title: 'Mock Arguments',  eyebrow: 'Practice oral advocacy against an AI opponent' },
+  'title-reports':   { title: 'Title Reports',   eyebrow: 'Indian Title Investigation Reports (TIR) with AI-assisted defects and opinion synthesis' },
+  'matter-intel':    { title: 'Matter Intelligence', eyebrow: 'Ingest · summarise · synthesise · chat — grounded in this matter' },
+  // Topbar previously fell back to the raw URL segment for these — adding
+  // them so the breadcrumb reads as a human label, not a slug.
+  'physical-docs':   { title: 'Physical Docs',   eyebrow: 'Paper-original register · vakalatnamas, sworn affidavits, signed orders' },
+  'review-queue':    { title: 'My Queue',        eyebrow: 'Reviews assigned to me' },
+  messages:          { title: 'Portal messages', eyebrow: 'Threads with clients via the portal' },
 };

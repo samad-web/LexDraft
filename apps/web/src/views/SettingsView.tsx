@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '@lexdraft/ui';
+import { Card, Select, type SelectOption } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
 import { useSignOut } from '@/hooks/useAuth';
 import { useMfaStatus, useMfaDisable } from '@/hooks/useMfa';
@@ -18,6 +18,8 @@ import {
   type ConsentRecord,
 } from '@/hooks/useDpdp';
 import { LetterheadsPanel } from '@/components/letterhead/LetterheadsPanel';
+import { LANGUAGES, findLanguage } from '@/lib/languages';
+import { useUpdatePreferences } from '@/hooks/useMePreferences';
 
 type TabId = 'account' | 'letterhead' | 'privacy';
 
@@ -69,7 +71,11 @@ function AccountPanel() {
         </div>
       </Card>
 
+      <TrialStatusPanel />
+
       <SecurityPanel />
+
+      <LanguagePreferencePanel />
 
       <Card>
         <div className="eyebrow" style={{ marginBottom: 14 }}>Session</div>
@@ -93,6 +99,143 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="muted body-sm">{label}</span>
       <span className="body-md">{value}</span>
     </div>
+  );
+}
+
+// ---- Trial / plan-status panel --------------------------------------------
+//
+// Surfaces the firm's trial state so the user can see when it ends and start
+// the conversion conversation from Settings (instead of only via the
+// dashboard-wide banner). Renders for trial firms only; paid/legacy firms
+// see nothing — the standard billing panel takes over (still TBD).
+
+function TrialStatusPanel() {
+  const user = useAuthStore((s) => s.user);
+  if (!user || user.planStatus !== 'trial' || !user.trialEndsAt) return null;
+
+  const endsAt = new Date(user.trialEndsAt);
+  if (Number.isNaN(endsAt.getTime())) return null;
+  const msLeft = endsAt.getTime() - Date.now();
+  const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+  const expired = msLeft <= 0;
+  const isDemo = !!user.isDemo;
+
+  const ends = endsAt.toLocaleString('en-IN', {
+    day: 'numeric', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <Card style={{ borderColor: expired ? 'var(--danger)' : daysLeft <= 3 ? 'var(--warning)' : 'var(--border-default)' }}>
+      <div className="eyebrow" style={{ marginBottom: 14 }}>
+        {isDemo ? 'Demo session' : 'Trial'}
+      </div>
+      <div className="col" style={{ gap: 10 }}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="muted body-sm">Status</span>
+          <span className="body-md" style={{ fontWeight: 500 }}>
+            {expired
+              ? (isDemo ? 'Demo session ended' : 'Trial ended')
+              : (isDemo ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} of demo remaining` : `${daysLeft} day${daysLeft === 1 ? '' : 's'} of trial remaining`)}
+          </span>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="muted body-sm">Ends</span>
+          <span className="body-md">{ends}</span>
+        </div>
+        <p className="muted body-sm" style={{ margin: '8px 0 0' }}>
+          {isDemo
+            ? 'This is a sandbox account so you can explore LexDraft. Convert to a real account any time — your existing work carries over.'
+            : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
+        </p>
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+          <button
+            type="button"
+            className="btn"
+            style={{
+              background: 'var(--text-primary)',
+              color: 'var(--bg-base)',
+              borderColor: 'var(--text-primary)',
+            }}
+            onClick={() => { window.location.href = '/#pricing'; }}
+          >
+            {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
+          </button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ---- Language preference panel --------------------------------------------
+//
+// Sets the default language used by AI-facing features (currently just Mock
+// Arguments — the picker on the session-setup screen pre-fills from here,
+// and the user can still override per-session). PATCH /me/preferences round-
+// trips the choice; the auth store is refreshed in-place by the hook so
+// the new default shows up immediately wherever it's read.
+
+function LanguagePreferencePanel() {
+  const user = useAuthStore((s) => s.user);
+  const update = useUpdatePreferences();
+  const showToast = useUIStore((s) => s.showToast);
+  const current = user?.defaultLanguageCode ?? 'en-IN';
+  const [value, setValue] = useState<string>(current);
+  const dirty = value !== current;
+
+  return (
+    <Card>
+      <div className="eyebrow" style={{ marginBottom: 14 }}>Language</div>
+      <div className="col" style={{ gap: 12 }}>
+        <p className="muted body-sm" style={{ margin: 0 }}>
+          Default for AI-facing features. Today this drives Mock Arguments —
+          opposing counsel will argue in this language and the review will be
+          written in it. You can still pick a different language per session.
+        </p>
+        <div style={{ maxWidth: 420 }}>
+          <Select
+            value={value}
+            onChange={(v) => setValue(v)}
+            options={LANGUAGES.map<SelectOption>((l) => ({
+              value: l.code,
+              label: `${l.englishName} (${l.nativeName})`,
+              hint: l.voiceSupport === 'full'    ? 'VOICE'
+                  : l.voiceSupport === 'partial' ? 'VOICE·PARTIAL'
+                  :                                'TEXT',
+            }))}
+          />
+        </div>
+        <div className="body-xs muted">
+          Currently: <strong>{findLanguage(current).englishName}</strong>
+        </div>
+        <div>
+          <button
+            type="button"
+            className="btn"
+            disabled={!dirty || update.isPending}
+            onClick={() => {
+              update.mutate(
+                { defaultLanguageCode: value },
+                {
+                  onSuccess: () =>
+                    showToast({ type: 'sage', text: 'Default language updated' }),
+                  onError: (err) =>
+                    showToast({
+                      type: 'vermillion',
+                      text:
+                        err instanceof Error
+                          ? err.message
+                          : 'Could not update language preference',
+                    }),
+                },
+              );
+            }}
+          >
+            {update.isPending ? 'Saving…' : 'Save language'}
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

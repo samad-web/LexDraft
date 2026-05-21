@@ -77,7 +77,7 @@ export function NewLeadModal({ open, onClose }: Props) {
           autoFocus
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="ESTIMATED VALUE" hint="₹ (optional)">
           <input
             className="input mono tabular"

@@ -68,6 +68,25 @@ export function EcourtsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
+      <div
+        role="status"
+        style={{
+          padding: '12px 16px',
+          background: 'var(--bg-surface-2)',
+          border: '1px dashed var(--border-default)',
+          borderRadius: 'var(--radius-md)',
+          fontSize: 13,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.5,
+        }}
+      >
+        <strong style={{ color: 'var(--text-primary)' }}>Demo data only.</strong>{' '}
+        This screen is a UI preview — the eCourts gateway integration is not wired yet. CNR lookups
+        return canned records and the sync feed is hardcoded. Once the webhooks endpoint dispatches
+        eCourts callbacks ({' '}
+        <span style={{ fontFamily: 'var(--font-mono)' }}>apps/api/src/routes/webhooks.routes.ts</span>
+        {' '}), this view will switch to live data.
+      </div>
       <div>
         <div className="eyebrow" style={{ marginBottom: 8 }}>§ - ECOURTS GATEWAY</div>
         <h1 className="heading-xl">eCourts lookup</h1>

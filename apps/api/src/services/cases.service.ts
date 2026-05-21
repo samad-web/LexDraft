@@ -57,6 +57,9 @@ export const casesService = {
         select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
         from cases
         where firm_id = ${filter.firmId}::uuid
+          -- Hide sandbox / quick-study cases from the canonical matters list.
+          -- They live in the same table but are managed by matter-intel UI.
+          and kind = 'matter'
           and (${filter.type ?? null}::text is null or ${filter.type ?? null}::text = 'all'
                or lower(type) = lower(${filter.type ?? null}::text))
           and (${filter.q ?? null}::text is null

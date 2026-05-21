@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Select, DatePicker } from '@lexdraft/ui';
-import type { ClientStatus, ClientType, Lead } from '@lexdraft/types';
-import { useCreateClient } from '@/hooks/useClients';
+import type { Client, ClientStatus, ClientType, Lead } from '@lexdraft/types';
+import { useCreateClient, useUpdateClient } from '@/hooks/useClients';
 import { useLeads } from '@/hooks/useLeads';
 import { useUIStore } from '@/store/ui';
 import { Modal, Field } from './Modal';
@@ -9,6 +9,9 @@ import { Modal, Field } from './Modal';
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** When provided the modal renders in edit mode — pre-fills from this row
+   *  and calls PATCH /clients/:id instead of POST /clients. */
+  existing?: Client | null;
 }
 
 const TYPES: ClientType[] = ['Individual', 'Corporate', 'Govt'];
@@ -22,23 +25,38 @@ function formatINR(value: number): string {
   return value.toLocaleString('en-IN');
 }
 
-export function NewClientModal({ open, onClose }: Props) {
+export function NewClientModal({ open, onClose, existing }: Props) {
   const create = useCreateClient();
+  const update = useUpdateClient();
   const showToast = useUIStore((s) => s.showToast);
   const { data: leads = [] } = useLeads();
   const wonLeads = useMemo(() => leads.filter((l) => l.stage === 'won'), [leads]);
 
+  const isEdit = !!existing;
   const [name, setName] = useState('');
   const [type, setType] = useState<ClientType>('Individual');
   const [status, setStatus] = useState<ClientStatus>('active');
   const [lastContact, setLastContact] = useState<string>(todayIso());
+  const [email, setEmail] = useState<string>('');
 
-  const reset = () => {
-    setName('');
-    setType('Individual');
-    setStatus('active');
-    setLastContact(todayIso());
-  };
+  // Hydrate form from `existing` when the modal opens for edit; clear it
+  // back to defaults when opening in create mode.
+  useEffect(() => {
+    if (!open) return;
+    if (existing) {
+      setName(existing.name);
+      setType(existing.type);
+      setStatus(existing.status);
+      setLastContact(existing.lastContact || todayIso());
+      setEmail(existing.email ?? '');
+    } else {
+      setName('');
+      setType('Individual');
+      setStatus('active');
+      setLastContact(todayIso());
+      setEmail('');
+    }
+  }, [open, existing]);
 
   const handlePickLead = (lead: Lead) => {
     setName(lead.name);
@@ -48,51 +66,100 @@ export function NewClientModal({ open, onClose }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim().toLowerCase();
     try {
-      const created = await create.mutateAsync({
-        name: name.trim(),
-        type,
-        status,
-        lastContact,
-      });
-      showToast({ type: 'sage', text: `Client "${created.name}" added` });
-      reset();
+      if (isEdit && existing) {
+        await update.mutateAsync({
+          id: existing.id,
+          patch: {
+            name: name.trim(),
+            type,
+            status,
+            lastContact,
+            // Send undefined (not '') so the server preserves the existing
+            // email when the field is intentionally cleared — clearing an
+            // email requires a separate UI affordance, not the edit form.
+            email: trimmedEmail || undefined,
+          },
+        });
+        showToast({ type: 'sage', text: `Client "${name.trim()}" updated` });
+      } else {
+        const created = await create.mutateAsync({
+          name: name.trim(),
+          type,
+          status,
+          lastContact,
+          email: trimmedEmail || undefined,
+        });
+        showToast({ type: 'sage', text: `Client "${created.name}" added` });
+      }
       onClose();
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
         ?? (err as Error).message
-        ?? 'Failed to add client';
+        ?? (isEdit ? 'Failed to update client' : 'Failed to add client');
       showToast({ type: 'vermillion', text: msg });
     }
   };
+
+  const busy = create.isPending || update.isPending;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="New client"
-      title="Add a client"
+      eyebrow={isEdit ? 'Edit client' : 'New client'}
+      title={isEdit ? `Edit ${existing?.name ?? 'client'}` : 'Add a client'}
       description="Required fields marked with *."
       onSubmit={handleSubmit}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={create.isPending}>
-            {create.isPending ? 'Adding…' : 'Add client'}
+          <button type="submit" className="btn btn-primary" disabled={busy}>
+            {busy
+              ? (isEdit ? 'Saving…' : 'Adding…')
+              : (isEdit ? 'Save changes' : 'Add client')}
           </button>
         </>
       }
     >
       <Field label="CLIENT NAME" required wide>
-        <ClientNameAutocomplete
-          value={name}
-          onChange={setName}
-          wonLeads={wonLeads}
-          onPickLead={handlePickLead}
+        {isEdit ? (
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+          />
+        ) : (
+          <ClientNameAutocomplete
+            value={name}
+            onChange={setName}
+            wonLeads={wonLeads}
+            onPickLead={handlePickLead}
+          />
+        )}
+      </Field>
+      <Field
+        label="CONTACT EMAIL"
+        wide
+        hint="Required before the client portal can be enabled for this client."
+      >
+        <input
+          className="input"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="e.g. mehta@example.com"
+          autoComplete="off"
+          spellCheck={false}
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="TYPE" required>
           <Select
             value={type}

@@ -18,6 +18,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { mfaService } from '../services/mfa.service';
+import { mfaChallengeLimiter } from '../middleware/rateLimit';
 import { UnauthorizedError, NotFoundError } from '../lib/errors';
 import type { MfaVerifyResponse } from '../types/mfa.types';
 
@@ -91,7 +92,11 @@ meMfaRouter.post('/verify', async (req, res, next) => {
  * orchestrator can mount this under /api/auth/mfa/verify-challenge - see
  * the report for the tradeoff. The handler itself does not require auth.
  */
-meMfaRouter.post('/verify-challenge', async (req, res, next) => {
+// Rate-limited because it's anonymous (the user hasn't completed sign-in
+// yet — a JWT isn't issued until consumeSignInChallenge succeeds). Same
+// strict bucket as the sign-in flow itself: 10 failed attempts per
+// 15 minutes per IP. Successful verifies don't burn budget.
+meMfaRouter.post('/verify-challenge', mfaChallengeLimiter, async (req, res, next) => {
   try {
     const body = VerifyChallengeBody.parse(req.body);
     const userId = await mfaService.consumeSignInChallenge(body.challengeId, body.code);

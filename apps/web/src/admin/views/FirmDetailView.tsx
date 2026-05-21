@@ -37,7 +37,7 @@ export function FirmDetailView() {
     <div className="col stagger" style={{ gap: 24 }}>
       <Header firm={firm} onBack={() => navigate('/admin/firms')} />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 24 }}>
+      <div className="split-2-wide" style={{ gap: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <BrandingCard firmId={firm.id} initial={firm.branding} />
           <FlagsCard firmId={firm.id} initial={firm.flags} />
@@ -92,7 +92,7 @@ function BrandingCard({ firmId, initial }: { firmId: string; initial: { displayN
   return (
     <section className="card" style={{ padding: 24 }}>
       <h2 className="heading-lg" style={{ marginBottom: 16 }}>Branding</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid-2" style={{ gap: 16 }}>
         <Field label="DISPLAY NAME">
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </Field>
@@ -141,7 +141,7 @@ function FlagsCard({ firmId, initial }: { firmId: string; initial: FeatureFlag[]
       <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
         Toggle modules on/off for this firm. Disabled modules are hidden in the firm's app shell.
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+      <div className="grid-2" style={{ gap: 12 }}>
         {ALL_MODULES.map((module) => (
           <label
             key={module}

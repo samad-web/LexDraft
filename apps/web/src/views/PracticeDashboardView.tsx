@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
+import { CaptureLeadCta } from '@/components/CaptureLeadCta';
 import { greetingFor } from '@/lib/greeting';
 import type { Alert, FirmMember, Hearing } from '@lexdraft/types';
 
@@ -145,6 +146,8 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
           <span className="badge mono" style={{ letterSpacing: '0.1em' }}>
             {firm.data.firm.period.toUpperCase()}
           </span>
+          <span className="spacer" />
+          <CaptureLeadCta />
         </div>
       </div>
 
@@ -193,8 +196,8 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
       {/* §I - MY DAY */}
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
         <div
-          className="dash-primary"
-          style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'flex-start' }}
+          className="dash-primary split-2-wide"
+          style={{ gap: 48 }}
         >
           <div>
             <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - My day</div>
@@ -370,12 +373,8 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
       {seatsAtCap && (
         <section style={{ padding: '24px 0 40px' }}>
           <div
-            className="card"
+            className="card upgrade-cta"
             style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto',
-              gap: 24,
-              alignItems: 'center',
               background: 'var(--bg-surface-2)',
               borderColor: 'var(--border-default)',
             }}
@@ -425,7 +424,7 @@ function Loading({ dateStr }: { dateStr: string }) {
         <Skeleton width="60%" height={36} style={{ marginBottom: 12 }} />
         <Skeleton width="40%" height={16} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+      <div className="grid-auto">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Skeleton width="50%" height={11} />
@@ -434,7 +433,7 @@ function Loading({ dateStr }: { dateStr: string }) {
           </div>
         ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid-2">
         {Array.from({ length: 2 }, (_, i) => (
           <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <Skeleton width="40%" height={12} />
@@ -569,10 +568,6 @@ function FirmHearingRow({ hearing, isLast, onNav }: { hearing: Hearing; isLast: 
     <div
       className="hearing-row"
       style={{
-        display: 'grid',
-        gridTemplateColumns: '90px 1fr auto',
-        gap: 24,
-        alignItems: 'center',
         padding: '20px 0',
         borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
       }}

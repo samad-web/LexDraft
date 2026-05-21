@@ -389,7 +389,7 @@ export function ResearchView() {
                     </span>
                   </div>
                   <p className="body-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
-                    {hit.content.length > 600 ? `${hit.content.slice(0, 600)}…` : hit.content}
+                    {hit.content}
                   </p>
                   <div className="row rule-top" style={{ gap: 8, marginTop: 14, paddingTop: 12 }}>
                     <button type="button" className="btn btn-sm" onClick={() => copyCitation(hit)}>

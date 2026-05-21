@@ -30,11 +30,47 @@ interface BuiltPrompt {
   user: string;
 }
 
+/** Case-note context folded into the user message. Title is shown as a
+ *  human-readable label; body is the typed text or PDF/DOCX extraction
+ *  output produced by case-notes.service. */
+export interface NoteContextItem {
+  id: string;
+  title: string;
+  body: string;
+}
+
+/** Trim a single note body so the combined context stays within a sane
+ *  token budget. Per-note cap keeps one giant note from crowding everything
+ *  else out; the corpus cap (in buildPrompt) is the global limit. */
+const PER_NOTE_CHAR_CAP = 8_000;
+const ALL_NOTES_CHAR_CAP = 24_000;
+
+function clipNoteBody(body: string): string {
+  if (body.length <= PER_NOTE_CHAR_CAP) return body;
+  return `${body.slice(0, PER_NOTE_CHAR_CAP)}\n[... truncated for prompt budget]`;
+}
+
+function renderNotesBlock(notes: NoteContextItem[]): string {
+  if (notes.length === 0) return '';
+  let total = 0;
+  const sections: string[] = [];
+  for (const n of notes) {
+    const clipped = clipNoteBody(n.body.trim());
+    if (total + clipped.length > ALL_NOTES_CHAR_CAP) {
+      sections.push(`\n[remaining ${notes.length - sections.length} notes omitted - prompt budget reached]`);
+      break;
+    }
+    total += clipped.length;
+    sections.push(`## ${n.title}\n${clipped}`);
+  }
+  return `\n\n# Case notes (advocate-supplied background)\n${sections.join('\n\n')}`;
+}
+
 /** Split into system + user so Anthropic's top-level `system` param and xAI's
  *  `{role:'system'}` message both carry the persona/style instructions, while
  *  the user message carries only the request-specific task and brief. Same
  *  split is applied to both providers - A/B remains apples-to-apples. */
-function buildPrompt(req: DraftRequest): BuiltPrompt {
+function buildPrompt(req: DraftRequest, notes: NoteContextItem[] = []): BuiltPrompt {
   const langName = req.language === 'EN' ? 'English' : req.language === 'HI' ? 'Hindi' : 'Tamil';
   const briefLines = Object.entries(req.fields)
     .filter(([, v]) => v && v.toString().trim())
@@ -42,17 +78,24 @@ function buildPrompt(req: DraftRequest): BuiltPrompt {
     .join('\n');
   const dated = req.draftDate ?? new Date().toISOString().slice(0, 10);
 
-  const system = `You are an experienced Indian advocate. Draft court-ready documents in ${langName} following Indian legal conventions, statutes, and pleading style. Number paragraphs where appropriate. Include proper headings, parties block, prayer/conclusion, and verification/jurat where applicable. Be precise and concise - under 500 words. Output ONLY the document text - no commentary, no markdown.`;
+  const system = `You are an experienced Indian advocate. Draft court-ready documents in ${langName} following Indian legal conventions, statutes, and pleading style. Number paragraphs where appropriate. Include proper headings, parties block, prayer/conclusion, and verification/jurat where applicable. Be precise and concise - under 500 words. Output ONLY the document text - no commentary, no markdown.${notes.length > 0 ? ' Use the case notes only when they directly inform a fact or pleading; do not pad the draft with unrelated context.' : ''}`;
 
   const user = `Draft a "${req.docType}" with tone: ${req.tone}. Date the document "${dated}".
 
 # Brief
-${briefLines}`;
+${briefLines}${renderNotesBlock(notes)}`;
 
   return { system, user };
 }
 
 type ProviderOverride = 'xai' | 'anthropic' | undefined;
+
+export interface GenerateOpts {
+  provider?: ProviderOverride;
+  /** Optional case-notes context. Caller resolves access rules before
+   *  passing them in - the drafting service trusts whatever it receives. */
+  notes?: NoteContextItem[];
+}
 
 /** Resolve which provider to actually call for this request. An explicit
  *  override beats the env default; if the override picks a provider whose
@@ -64,19 +107,20 @@ function resolveProvider(override: ProviderOverride): 'xai' | 'anthropic' | 'non
 }
 
 export const draftingService = {
-  async generate(req: DraftRequest, override?: ProviderOverride): Promise<DraftResponse> {
+  async generate(req: DraftRequest, opts: GenerateOpts = {}): Promise<DraftResponse> {
     let text: string;
-    const provider = resolveProvider(override);
+    const provider = resolveProvider(opts.provider);
+    const notes = opts.notes ?? [];
     if (provider === 'xai') {
       try {
-        text = await callGrok(req);
+        text = await callGrok(req, notes);
       } catch (err) {
         logger.warn({ err }, 'Grok call failed, falling back to template');
         text = SAMPLE_TEMPLATE(req);
       }
     } else if (provider === 'anthropic') {
       try {
-        text = await callClaude(req);
+        text = await callClaude(req, notes);
       } catch (err) {
         logger.warn({ err }, 'Claude call failed, falling back to template');
         text = SAMPLE_TEMPLATE(req);
@@ -94,18 +138,19 @@ export const draftingService = {
    */
   async *generateStream(
     req: DraftRequest,
-    override?: ProviderOverride,
+    opts: GenerateOpts = {},
   ): AsyncGenerator<string, void, void> {
-    const provider = resolveProvider(override);
+    const provider = resolveProvider(opts.provider);
+    const notes = opts.notes ?? [];
     if (provider === 'none') {
       yield SAMPLE_TEMPLATE(req);
       return;
     }
     try {
       if (provider === 'xai') {
-        yield* streamGrok(req);
+        yield* streamGrok(req, notes);
       } else {
-        yield* streamClaude(req);
+        yield* streamClaude(req, notes);
       }
     } catch (err) {
       logger.warn({ err, provider }, 'LLM stream failed, falling back to template');
@@ -114,8 +159,8 @@ export const draftingService = {
   },
 };
 
-async function callClaude(req: DraftRequest): Promise<string> {
-  const { system, user } = buildPrompt(req);
+async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<string> {
+  const { system, user } = buildPrompt(req, notes);
   return withRetry(
     async () => {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -156,8 +201,8 @@ async function callClaude(req: DraftRequest): Promise<string> {
   );
 }
 
-async function callGrok(req: DraftRequest): Promise<string> {
-  const { system, user } = buildPrompt(req);
+async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<string> {
+  const { system, user } = buildPrompt(req, notes);
   return withRetry(
     async () => {
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -191,8 +236,8 @@ async function callGrok(req: DraftRequest): Promise<string> {
   );
 }
 
-async function* streamGrok(req: DraftRequest): AsyncGenerator<string, void, void> {
-  const { system, user } = buildPrompt(req);
+async function* streamGrok(req: DraftRequest, notes: NoteContextItem[]): AsyncGenerator<string, void, void> {
+  const { system, user } = buildPrompt(req, notes);
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -247,8 +292,8 @@ async function* streamGrok(req: DraftRequest): AsyncGenerator<string, void, void
   }
 }
 
-async function* streamClaude(req: DraftRequest): AsyncGenerator<string, void, void> {
-  const { system, user } = buildPrompt(req);
+async function* streamClaude(req: DraftRequest, notes: NoteContextItem[]): AsyncGenerator<string, void, void> {
+  const { system, user } = buildPrompt(req, notes);
   // Streaming responses can't be transparently retried mid-stream (we'd
   // emit duplicate deltas), so the connection itself isn't wrapped in
   // withRetry. The non-streaming generate() path remains the resilient

@@ -11,10 +11,12 @@ import { CmdK } from '@/components/shell/CmdK';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SuperadminBanner } from '@/components/shell/SuperadminBanner';
+import { CapExceededModal } from '@/components/CapExceededModal';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { LandingView } from '@/views/LandingView';
 import { AuthView } from '@/views/AuthView';
+import { SignupView } from '@/views/SignupView';
 import { SurveyView } from '@/views/SurveyView';
 import { SurveyThanksView } from '@/views/SurveyThanksView';
 import { DashboardView } from '@/views/DashboardView';
@@ -23,6 +25,10 @@ import { CaseDetailView } from '@/views/CaseDetailView';
 import { DraftingView } from '@/views/DraftingView';
 import { ContractReviewView } from '@/views/ContractReviewView';
 import { ReviewQueueView } from '@/views/ReviewQueueView';
+import { MockArgumentsView } from '@/views/MockArgumentsView';
+import { TitleReportsView } from '@/views/TitleReportsView';
+import { TitleReportDetailView } from '@/views/TitleReportDetailView';
+import { MatterIntelView } from '@/views/MatterIntelView';
 import { TasksView } from '@/views/TasksView';
 import { DocumentsView } from '@/views/DocumentsView';
 import { ResearchView } from '@/views/ResearchView';
@@ -53,6 +59,7 @@ import { PracticeAnalyticsView } from '@/views/PracticeAnalyticsView';
 import { EngagementTemplatesView } from '@/views/EngagementTemplatesView';
 import { MfaPromptBanner } from '@/components/MfaPromptBanner';
 import { DeletionScheduledBanner } from '@/components/DeletionScheduledBanner';
+import { TrialBanner } from '@/components/TrialBanner';
 // Portal sub-app is code-split via React.lazy so the firm-side bundle does
 // not include it (CLIENT_PORTAL.md §6.5). PortalLayout is loaded eagerly
 // because every authenticated portal route mounts inside it; the views
@@ -113,6 +120,7 @@ export function App() {
   const isPublic =
     location.pathname === '/' ||
     location.pathname.startsWith('/auth') ||
+    location.pathname.startsWith('/signup') ||
     location.pathname.startsWith('/invite') ||
     location.pathname.startsWith('/survey');
 
@@ -130,7 +138,8 @@ export function App() {
           <Routes>
             <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
             <Route path="/portal/login" element={<PortalLoginView />} />
-            <Route path="/portal/verify" element={<PortalLoginView />} />
+            {/* Legacy magic-link path - bounce anyone landing here back to sign-in. */}
+            <Route path="/portal/verify" element={<Navigate to="/portal/login" replace />} />
             <Route element={<PortalLayout />}>
               <Route path="/portal/dashboard" element={<PortalDashboardView />} />
               <Route path="/portal/matters/:id" element={<PortalMatterDetailView />} />
@@ -151,6 +160,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<LandingView />} />
           <Route path="/auth/*" element={<AuthView />} />
+          <Route path="/signup" element={<SignupView />} />
           <Route path="/invite/:token" element={<InviteAcceptView />} />
           <Route path="/survey" element={<SurveyView />} />
           <Route path="/survey/thanks" element={<SurveyThanksView />} />
@@ -196,6 +206,7 @@ export function App() {
       <ImpersonationBanner />
       {user.isSuperadmin && !actAs && <SuperadminBanner />}
       <DeletionScheduledBanner />
+      <TrialBanner />
       <MfaPromptBanner />
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app">
@@ -211,6 +222,11 @@ export function App() {
               <Route path="/app/draft" element={<DraftingView />} />
               <Route path="/app/review" element={<ContractReviewView />} />
               <Route path="/app/review-queue" element={<ReviewQueueView />} />
+              <Route path="/app/mock-arguments" element={<MockArgumentsView />} />
+              <Route path="/app/title-reports" element={<TitleReportsView />} />
+              <Route path="/app/title-reports/:id" element={<TitleReportDetailView />} />
+              <Route path="/app/matter-intel"          element={<MatterIntelView />} />
+              <Route path="/app/matter-intel/:caseId" element={<MatterIntelView />} />
               <Route path="/app/tasks" element={<TasksView />} />
               <Route path="/app/documents" element={<DocumentsView />} />
               <Route path="/app/research" element={<ResearchView />} />
@@ -245,6 +261,7 @@ export function App() {
         <MobileNav />
       </div>
       <Toast />
+      <CapExceededModal />
       {cmdK && <CmdK />}
       <KeyboardShortcuts />
     </>

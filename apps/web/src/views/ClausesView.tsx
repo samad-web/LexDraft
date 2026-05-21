@@ -126,10 +126,7 @@ export function ClausesView() {
         />
       )}
 
-      <div
-        className="clauses-grid"
-        style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 24 }}
-      >
+      <div className="clauses-grid split-rail" style={{ gap: 24 }}>
         <aside
           className="col"
           style={{

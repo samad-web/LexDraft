@@ -49,7 +49,7 @@ function fromMatchRow(r: MatchRow): LawHit {
   const j = detectJurisdiction(r.act_title);
   return {
     id: r.id,
-    content: r.content,
+    content: cleanContent(r.content),
     sectionId: r.section_id,
     actId: r.act_id,
     citation: r.citation,
@@ -197,11 +197,34 @@ const ENGLISH_ANCHORS = /\b(the|of|and|or|to|in|by|is|be|for|with|a|an|act|secti
 // that appear in non-garbled text.
 const NOISE_SYMBOLS = /[€£¥¢†‡•◦▪▫■□¤¦]/g;
 
+// Restore lossy chars and strip extraction noise before the API returns the
+// chunk. Two known artefacts:
+//   1. The ingestion pipeline lost "§" in many sections - it survives the DB
+//      as U+FFFD ("�").
+//   2. Many source PDFs include signature / fill-in-the-blank lines
+//      ("________________________________") that the extractor preserves
+//      as long underscore runs. Real prose never contains 4+ consecutive
+//      underscores, so collapsing those is safe.
+// Normalising here means every consumer (search results card, drafting side-
+// panel, copy-citation) sees clean text without each having to know.
+function cleanContent(content: string): string {
+  return content
+    .replace(/�/g, '§')
+    // Collapse signature / form-field underscore runs (with optional spaces
+    // between them, e.g. "____ ____ ____") into a single newline-padded
+    // separator so the paragraph layout stays readable.
+    .replace(/(?:_{4,}\s*){1,}/g, '\n')
+    // Tidy up: more than two consecutive blank lines become exactly two.
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function isGarbled(content: string): boolean {
   // Note: we don't treat the Unicode replacement character (U+FFFD, "�")
   // as a garbled-content signal. In this corpus it often appears where
   // the section symbol "§" failed to round-trip during ingestion, in
-  // otherwise-clean English chunks. The other checks are stronger signals.
+  // otherwise-clean English chunks; cleanContent() now restores it on
+  // the way out. The other checks are stronger signals.
   //
   // Control characters that should never appear in real text (excluding
   // newline U+000A and tab U+0009).

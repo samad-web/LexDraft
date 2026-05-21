@@ -7,6 +7,7 @@ import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/
 import { CaseloadHealthWidget } from '@/components/CaseloadHealthWidget';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { greetingFor } from '@/lib/greeting';
+import { CaptureLeadCta } from '@/components/CaptureLeadCta';
 import type { Alert, DocumentRecord, Hearing } from '@lexdraft/types';
 
 type SectionId = 'today' | 'matters' | 'register' | 'practice';
@@ -43,8 +44,10 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
   const greeting = greetingFor(firstName);
   const hearingCount = data?.hearings.length ?? 0;
   const alertCount = data?.alerts.length ?? 0;
+  // Personal-dashboard tone: never sound hollow. With no hearings or
+  // notices, frame the day as space for craft rather than absence of work.
   const lede = hearingCount === 0 && alertCount === 0
-    ? 'Nothing on the bench today. A clean slate to draft, review, or open new matters.'
+    ? 'A clear day for drafting, review, and the long thinking your matters deserve.'
     : `${hearingCount} ${hearingCount === 1 ? 'hearing' : 'hearings'} listed today` +
       (alertCount > 0 ? `; ${alertCount} ${alertCount === 1 ? 'notice' : 'notices'} awaiting attention.` : '.');
 
@@ -180,7 +183,7 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
 
       {isLoading && (
         <div className="col" style={{ marginTop: 16, gap: 16 }} aria-busy="true" aria-label="Loading dashboard">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <div className="grid-auto">
             {Array.from({ length: 3 }, (_, i) => (
               <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <Skeleton width="50%" height={11} />
@@ -218,7 +221,7 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
       )}
       {data && section === 'matters'  && <MattersSection  onNav={onNav} />}
       {data && section === 'register' && <RegisterSection onNav={onNav} recentDocs={data.recentDocs} />}
-      {data && section === 'practice' && <PracticeSection />}
+      {data && section === 'practice' && <PracticeSection onNav={onNav} />}
     </div>
   );
 }
@@ -235,52 +238,38 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
   return (
     <>
       <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div
-          className="dash-primary"
-          style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 48, alignItems: 'flex-start' }}
-        >
-          <div>
-            <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - Today’s work</div>
-            <h2 className="display-md" style={{ marginBottom: 16 }}>
-              Begin a draft. <span style={{ color: 'var(--text-secondary)' }}>Or open one already started.</span>
-            </h2>
-            <p className="body-lg muted" style={{ maxWidth: 520, marginBottom: 28 }}>
-              Indian-format document templates tuned to procedure. Speak the matter and the brief - a first draft will arrive in seconds.
-            </p>
-            <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary btn-lg" onClick={() => onNav('draft')}>
-                Draft a new document <Icon name="arrow" size={14} />
-              </button>
-              <button type="button" className="btn btn-lg" onClick={() => onNav('review')}>
-                Review a contract
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <div
-              className="row"
-              style={{
-                marginBottom: 12,
-                paddingBottom: 12,
-                borderBottom: '1px solid var(--border-default)',
-              }}
-            >
-              <span className="eyebrow">Drafts in progress</span>
-              <span className="spacer" />
-            </div>
-            <p className="body-md muted" style={{ padding: '12px 0' }}>
-              No drafts yet. Start one from the <a href="#" onClick={(e) => { e.preventDefault(); onNav('draft'); }}>Draft</a> tab and it will appear here.
-            </p>
+        {/* §I header + CTAs. The legacy "Drafts in progress" side panel
+            lived in a 2-col layout; it only ever showed a "No drafts yet"
+            placeholder because draft inventory isn't fetched here. On a
+            personal Solo dashboard that empty-slot framing reads as a
+            hollow inbox, so the layout is now single-column with the
+            primary CTAs leading the section. */}
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - Today’s work</div>
+          <h2 className="display-md" style={{ marginBottom: 16 }}>
+            Begin a draft. <span style={{ color: 'var(--text-secondary)' }}>Or open one already started.</span>
+          </h2>
+          <p className="body-lg muted" style={{ maxWidth: 520, marginBottom: 28 }}>
+            Indian-format document templates tuned to procedure. Speak the matter and the brief - a first draft will arrive in seconds.
+          </p>
+          <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-primary btn-lg" onClick={() => onNav('draft')}>
+              Draft a new document <Icon name="arrow" size={14} />
+            </button>
+            <button type="button" className="btn btn-lg" onClick={() => onNav('review')}>
+              Review a contract
+            </button>
+            <CaptureLeadCta variant="prominent" />
           </div>
         </div>
       </section>
 
-      <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        <SectionHeader number="§ II" title="Today’s cause list" trailing={`${hearings.length} LISTED`} />
-        {hearings.length === 0 ? (
-          <p className="body-md muted">No hearings scheduled.</p>
-        ) : (
+      {/* §II Cause list. Hidden entirely on a clear day — a "No hearings
+          scheduled" placeholder reads like a blank inbox on the personal
+          Solo dashboard. The masthead lede already speaks to a clear day. */}
+      {hearings.length > 0 && (
+        <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+          <SectionHeader number="§ II" title="Today’s cause list" trailing={`${hearings.length} LISTED`} />
           <div className="col" style={{ gap: 0 }}>
             {hearings.map((h, i) => {
               const isNext = i === 0;
@@ -289,10 +278,6 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
                   key={h.id ?? `${h.time}-${i}`}
                   className="hearing-row"
                   style={{
-                    display: 'grid',
-                    gridTemplateColumns: '120px 1fr auto',
-                    gap: 28,
-                    alignItems: 'center',
                     padding: '24px 0',
                     borderBottom: i < hearings.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                     background: isNext ? 'var(--bg-surface-2)' : 'transparent',
@@ -336,79 +321,70 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
               );
             })}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="dash-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 48 }}>
-          <div>
-            <SubHeader number="§ III" title="Notices to the bench" />
-            {alerts.length === 0 ? (
-              <p className="body-md muted">No outstanding notices.</p>
-            ) : (
-              <div className="col" style={{ gap: 0 }}>
-                {alerts.map((a, i) => (
-                  <div
-                    key={a.id ?? i}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 16,
-                      padding: '16px 0',
-                      borderBottom: i < alerts.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 32, height: 32,
-                        border: '1px solid var(--border-default)',
-                        color: 'var(--text-secondary)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 500,
-                        flexShrink: 0,
-                        borderRadius: 'var(--radius-full)',
-                      }}
-                    >
-                      !
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="heading-sm" style={{ marginBottom: 2 }}>{a.text}</div>
-                      <div className="body-sm muted">{a.detail}</div>
-                    </div>
-                    <button type="button" className="btn btn-sm" onClick={() => onNav('cases')}>Open</button>
-                  </div>
-                ))}
+      {/* §III Notices. Renders only when there are real notices to act
+          on. The legacy §IV "Limitation index" column is removed from
+          this row — it never had data wired in, so it was always a
+          placeholder ("No limitation data yet"), which is exactly the
+          hollow framing the personal Solo view should avoid. */}
+      {alerts.length > 0 && (
+        <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+          <SubHeader number="§ III" title="Notices to the bench" />
+          <div className="col" style={{ gap: 0 }}>
+            {alerts.map((a, i) => (
+              <div
+                key={a.id ?? i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 16,
+                  padding: '16px 0',
+                  borderBottom: i < alerts.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                }}
+              >
+                <div
+                  style={{
+                    width: 32, height: 32,
+                    border: '1px solid var(--border-default)',
+                    color: 'var(--text-secondary)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 500,
+                    flexShrink: 0,
+                    borderRadius: 'var(--radius-full)',
+                  }}
+                >
+                  !
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="heading-sm" style={{ marginBottom: 2 }}>{a.text}</div>
+                  <div className="body-sm muted">{a.detail}</div>
+                </div>
+                <button type="button" className="btn btn-sm" onClick={() => onNav('cases')}>Open</button>
               </div>
-            )}
+            ))}
           </div>
+        </section>
+      )}
 
-          <div>
-            <div className="row" style={{ alignItems: 'flex-end', marginBottom: 20, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-              <div className="eyebrow">§ IV</div>
-              <h3 className="heading-lg" style={{ marginLeft: 12 }}>Limitation index</h3>
-            </div>
-            <p className="body-md muted">
-              No limitation data yet. Once matters are open and dated, the index will populate here.
-            </p>
+      {/* §V Document register. Hidden when no documents — the primary
+          "Draft a new document" CTA in §I and the Documents tab cover
+          the start-from-scratch path; an empty register on the personal
+          Solo dashboard would read as a hollow row of zeros. */}
+      {recentDocs.length > 0 && (
+        <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="row" style={{ alignItems: 'flex-end', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
+            <div className="eyebrow">§ V</div>
+            <h2 className="heading-xl" style={{ marginLeft: 16 }}>Document register</h2>
+            <span className="spacer" />
+            <a
+              href="/app/documents"
+              onClick={(e) => { e.preventDefault(); onNav('documents'); }}
+            >
+              All entries
+            </a>
           </div>
-        </div>
-      </section>
-
-      <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="row" style={{ alignItems: 'flex-end', marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
-          <div className="eyebrow">§ V</div>
-          <h2 className="heading-xl" style={{ marginLeft: 16 }}>Document register</h2>
-          <span className="spacer" />
-          <a
-            href="/app/documents"
-            onClick={(e) => { e.preventDefault(); onNav('documents'); }}
-          >
-            All entries
-          </a>
-        </div>
-        {recentDocs.length === 0 ? (
-          <p className="body-md muted">No documents yet.</p>
-        ) : (
           <div className="card">
             <table className="tbl">
               <thead>
@@ -442,8 +418,8 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
               </tbody>
             </table>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       <section style={{ padding: '32px 0' }}>
         <div className="stat-row">
@@ -456,12 +432,8 @@ function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps
 
       <section style={{ padding: '24px 0 40px' }}>
         <div
-          className="card"
+          className="card upgrade-cta"
           style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto',
-            gap: 24,
-            alignItems: 'center',
             background: 'var(--bg-surface-2)',
             borderColor: 'var(--border-default)',
           }}
@@ -525,6 +497,10 @@ function StatCell({ n, label }: { n: string; label: string }) {
 }
 
 function MattersSection({ onNav }: { onNav: (view: string) => void }) {
+  // Tab body for the "Matters" pill. Matters live on the Cases page; this
+  // tab is a launchpad rather than a redundant list. The previous body
+  // read as an empty-state placeholder, which is the framing the Solo
+  // dashboard should avoid.
   return (
     <section style={{ padding: '32px 0' }}>
       <div className="row" style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
@@ -534,9 +510,14 @@ function MattersSection({ onNav }: { onNav: (view: string) => void }) {
           Open a new matter
         </button>
       </div>
-      <p className="body-md muted">
-        Open the <a href="#" onClick={(e) => { e.preventDefault(); onNav('cases'); }}>Cases</a> tab to add and review matters. Active ones will surface here.
-      </p>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        <button type="button" className="btn btn-lg" onClick={() => onNav('cases')}>
+          Open the Cases register →
+        </button>
+        <button type="button" className="btn btn-lg btn-ghost" onClick={() => onNav('calendar')}>
+          View the hearing calendar
+        </button>
+      </div>
     </section>
   );
 }
@@ -552,9 +533,17 @@ function RegisterSection({ onNav, recentDocs }: { onNav: (view: string) => void;
         </button>
       </div>
       {recentDocs.length === 0 ? (
-        <p className="body-md muted">
-          No documents yet. Drafts will appear here once you generate or upload them.
-        </p>
+        // No "No documents yet" copy — the primary CTA above already
+        // tells the user how to start, and a placeholder line here would
+        // read as a hollow inbox on a personal dashboard.
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-lg" onClick={() => onNav('draft')}>
+            Begin your first draft →
+          </button>
+          <button type="button" className="btn btn-lg btn-ghost" onClick={() => onNav('documents')}>
+            Browse all documents
+          </button>
+        </div>
       ) : (
         <div className="card">
           <table className="tbl">
@@ -589,15 +578,29 @@ function RegisterSection({ onNav, recentDocs }: { onNav: (view: string) => void;
   );
 }
 
-function PracticeSection() {
+function PracticeSection({ onNav }: { onNav: (view: string) => void }) {
+  // Practice tab body. Real practice-health metrics live behind plan
+  // tiers that aggregate across team members; for Solo, the personal
+  // dashboard surfaces them directly inside the relevant tools
+  // (Limitation index, Cases, Invoices). Linking to those is more
+  // useful than a placeholder line about future data.
+  const go = (view: string) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    onNav(view);
+  };
   return (
     <section style={{ padding: '32px 0' }}>
       <div className="row" style={{ marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border-default)' }}>
         <h2 className="heading-xl">Practice health</h2>
       </div>
-      <p className="body-md muted">
-        Practice health metrics will populate as you accumulate matters, billing entries, and limitation events.
+      <p className="body-md muted" style={{ maxWidth: 540 }}>
+        Limitation tracking, billing health, and matter throughput live with the tools that own them:
       </p>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+        <a className="btn btn-lg" href="/app/limitation" onClick={go('limitation')}>Limitation index</a>
+        <a className="btn btn-lg" href="/app/invoices" onClick={go('invoices')}>Billing &amp; invoices</a>
+        <a className="btn btn-lg" href="/app/cases" onClick={go('cases')}>Cases register</a>
+      </div>
     </section>
   );
 }

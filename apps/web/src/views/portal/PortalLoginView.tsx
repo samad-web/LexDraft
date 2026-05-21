@@ -1,132 +1,47 @@
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { FieldError, validators } from '@lexdraft/ui';
-import type { PortalRequestLinkResponse, PortalSession } from '@lexdraft/types';
+import type { PortalSession } from '@lexdraft/types';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { usePortalAuthStore } from '@/store/portalAuth';
 
 /**
- * Magic-link sign-in for the read-only client portal. Two states:
- *  1. Enter email → POST /portal/auth/request-link
- *  2. "Check your email" - also surfaces the dev link when the API returns one.
+ * Password sign-in for the read-only client portal.
  *
- * If the URL already contains `?token=…`, we short-circuit to verifyMutation
- * so an emailed link can boot the user straight into the dashboard.
- *
- * Visual treatment mirrors the advocate /auth page: centered elevated card
- * on a radial-wash background, brand stack at the top, trust strip below.
+ * The firm admin shares a default password of the form `firstname@123` when
+ * they enable portal access; this view exchanges that + the client's email
+ * for a session JWT.
  */
 export function PortalLoginView() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   const setSession = usePortalAuthStore((s) => s.setSession);
 
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
-  const [sent, setSent] = useState(false);
-  const [devLink, setDevLink] = useState<string | undefined>(undefined);
-  const [verifyError, setVerifyError] = useState<string | undefined>(undefined);
   const emailError = emailTouched ? validators.email(email) : null;
 
-  const requestMutation = useMutation({
-    mutationFn: (e: string) => portalApi.post<PortalRequestLinkResponse>('/auth/request-link', { email: e }),
-    onSuccess: (data) => {
-      setSent(true);
-      setDevLink(data.devMagicLink);
-    },
-  });
-
-  const verifyMutation = useMutation({
-    mutationFn: (token: string) => portalApi.post<PortalSession>('/auth/verify', { token }),
+  const signInMutation = useMutation({
+    mutationFn: (vars: { email: string; password: string }) =>
+      portalApi.post<PortalSession>('/auth/sign-in', vars),
     onSuccess: (data) => {
       setSession(data);
       navigate('/portal/dashboard', { replace: true });
     },
-    onError: (err) => setVerifyError(portalErrorMessage(err, 'This link is no longer valid.')),
   });
-
-  // If we land here with a ?token= query param (i.e. clicked the email link),
-  // submit it for verification automatically.
-  const tokenInUrl = params.get('token');
-  if (tokenInUrl && verifyMutation.status === 'idle') {
-    verifyMutation.mutate(tokenInUrl);
-  }
 
   function onSubmit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    if (!email) return;
-    requestMutation.mutate(email);
-  }
-
-  if (tokenInUrl) {
-    return (
-      <Shell eyebrow="Client portal" title="Signing you in…">
-        {verifyMutation.isPending && (
-          <p className="muted" style={{ fontSize: 14 }}>Verifying your link.</p>
-        )}
-        {verifyError && (
-          <>
-            <div
-              role="alert"
-              style={{
-                fontSize: 13,
-                color: 'var(--danger)',
-                background: 'var(--danger-bg)',
-                border: '1px solid var(--danger)',
-                borderRadius: 'var(--radius-md)',
-                padding: '10px 12px',
-              }}
-            >
-              {verifyError}
-            </div>
-            <a
-              href="/portal/login"
-              className="btn btn-block btn-lg"
-              style={{ textDecoration: 'none', marginTop: 12 }}
-            >
-              Request a new link
-            </a>
-          </>
-        )}
-      </Shell>
-    );
-  }
-
-  if (sent) {
-    return (
-      <Shell eyebrow="Client portal" title="Check your email">
-        <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-          If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>,
-          we've sent a sign-in link. The link expires in 15 minutes.
-        </p>
-        {devLink && import.meta.env.DEV && (
-          <div
-            className="mono"
-            style={{
-              marginTop: 16,
-              fontSize: 11,
-              padding: 12,
-              border: '1px dashed var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              wordBreak: 'break-all',
-            }}
-          >
-            <span style={{ color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>
-              DEV LINK
-            </span>
-            <a href={devLink} style={{ color: 'var(--text-primary)' }}>{devLink}</a>
-          </div>
-        )}
-      </Shell>
-    );
+    setEmailTouched(true);
+    if (!email || !password || validators.email(email)) return;
+    signInMutation.mutate({ email, password });
   }
 
   return (
     <Shell eyebrow="Client portal" title="Sign in">
       <p style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 20, lineHeight: 1.55 }}>
-        Enter the email your advocate has on file. We'll send a single-use link
-        to sign you in — no password to remember.
+        Enter the email and password your advocate shared with you.
       </p>
       <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
@@ -147,7 +62,20 @@ export function PortalLoginView() {
           />
           <FieldError id="portal-email-error" error={emailError} />
         </div>
-        {requestMutation.isError && (
+        <div>
+          <label className="label required" htmlFor="portal-password">Password</label>
+          <input
+            id="portal-password"
+            className="input"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="firstname@123"
+            autoComplete="current-password"
+          />
+        </div>
+        {signInMutation.isError && (
           <div
             role="alert"
             style={{
@@ -159,15 +87,15 @@ export function PortalLoginView() {
               padding: '10px 12px',
             }}
           >
-            {portalErrorMessage(requestMutation.error)}
+            {portalErrorMessage(signInMutation.error, 'Email or password is incorrect.')}
           </div>
         )}
         <button
           type="submit"
-          disabled={requestMutation.isPending}
+          disabled={signInMutation.isPending}
           className="btn btn-primary btn-lg btn-block"
         >
-          {requestMutation.isPending ? 'Sending…' : 'Send magic link'}
+          {signInMutation.isPending ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
     </Shell>

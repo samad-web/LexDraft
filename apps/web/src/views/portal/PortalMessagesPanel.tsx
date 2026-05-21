@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { PortalMessage } from '@lexdraft/types';
+import { EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 
 interface Props {
@@ -79,12 +80,25 @@ export function PortalMessagesPanel({ matterId }: Props) {
       </h2>
 
       <div style={threadStyle} role="log" aria-live="polite">
-        {messages.isLoading && <Empty>Loading messages…</Empty>}
+        {messages.isLoading && (
+          <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Skeleton width="60%" height={36} radius="md" />
+            <Skeleton width="70%" height={36} radius="md" />
+          </div>
+        )}
         {messages.isError && (
-          <Empty>{portalErrorMessage(messages.error, 'Could not load messages.')}</Empty>
+          <ErrorState
+            variant="inline"
+            title="Couldn't load messages"
+            description={portalErrorMessage(messages.error, 'The next refresh will retry.')}
+          />
         )}
         {messages.data && messages.data.items.length === 0 && (
-          <Empty>No messages yet - start the conversation.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No messages yet"
+            description="Start the conversation by typing below."
+          />
         )}
         {messages.data?.items.map((m) => (
           <MessageBubble key={m.id} message={m} />
@@ -142,10 +156,6 @@ function MessageBubble({ message }: { message: PortalMessage }) {
       </div>
     </div>
   );
-}
-
-function Empty(props: { children: React.ReactNode }) {
-  return <div style={{ padding: 12, fontSize: 13, opacity: 0.6 }}>{props.children}</div>;
 }
 
 const panelStyle: React.CSSProperties = {

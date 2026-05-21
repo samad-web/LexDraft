@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useLimitations, type LimitationRow as LimitationRowType } from '@/hooks/useLimitations';
 import { NewLimitationModal } from '@/components/NewLimitationModal';
@@ -175,17 +175,26 @@ export function LimitationView() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                  <span className="muted">Loading deadlines<span className="blink" /></span>
-                </td>
+            {isLoading && Array.from({ length: 5 }, (_, i) => (
+              <tr key={`sk-${i}`}>
+                <td><Skeleton width={70} height={20} /></td>
+                <td><Skeleton width={160} height={14} /></td>
+                <td><Skeleton width={120} height={14} /></td>
+                <td><Skeleton width={120} height={14} /></td>
+                <td><Skeleton width={100} height={14} /></td>
+                <td><Skeleton width={100} height={14} /></td>
+                <td><Skeleton width={48} height={14} /></td>
+                <td><Skeleton width={28} height={28} /></td>
               </tr>
-            )}
+            ))}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--danger)' }}>
-                  Couldn’t load limitations.
+                <td colSpan={8}>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load limitations"
+                    description="Check your connection and try again."
+                  />
                 </td>
               </tr>
             )}
@@ -242,8 +251,16 @@ export function LimitationView() {
             })}
             {!isLoading && !isError && filtered.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                  <span className="body-sm muted">{rows.length === 0 ? 'No deadlines yet.' : 'No deadlines match this filter.'}</span>
+                <td colSpan={8}>
+                  <EmptyState
+                    variant="inline"
+                    title={rows.length === 0 ? 'No deadlines yet' : 'No deadlines match'}
+                    description={
+                      rows.length === 0
+                        ? 'Add a deadline to start tracking statutory limitations across your matters.'
+                        : 'Try a different filter or clear it to see all deadlines.'
+                    }
+                  />
                 </td>
               </tr>
             )}

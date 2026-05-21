@@ -209,6 +209,79 @@ export const documentsService = {
     return withFileFlags(rec);
   },
 
+  /** Patch metadata. Only the four user-editable fields are accepted; storage
+   *  and portal flags have their own endpoints. Returns `undefined` if the
+   *  row doesn't exist or is in a different firm (treated as 404 upstream). */
+  async update(
+    id: string,
+    firmId: string | null,
+    patch: { name?: string; type?: string; case?: string },
+  ): Promise<DocumentRecord | undefined> {
+    if (!firmId) return undefined;
+    const sql = db();
+    if (sql) {
+      // Only set columns that were actually supplied in the patch; coalesce
+      // through the existing value otherwise.
+      const rows = await sql<DocRow[]>`
+        update documents set
+          name          = coalesce(${patch.name ?? null}, name),
+          type          = coalesce(${patch.type ?? null}, type),
+          case_label    = coalesce(${patch.case ?? null}, case_label),
+          updated_label = 'just now'
+        where id::text = ${id} and firm_id = ${firmId}::uuid
+        returning id, case_label, name, type, updated_label,
+                  storage_key, file_name, file_mime, file_size,
+                  shared_with_client, requires_acknowledgement, signed_at
+      `;
+      const row = rows[0];
+      return row ? withFileFlags(fromRow(row)) : undefined;
+    }
+    const rec = memory.find((d) => d.id === id);
+    if (!rec) return undefined;
+    if (patch.name !== undefined) rec.name = patch.name;
+    if (patch.type !== undefined) rec.type = patch.type;
+    if (patch.case !== undefined) rec.case = patch.case;
+    rec.updated = 'just now';
+    return withFileFlags(rec);
+  },
+
+  /** Hard-delete a document and (best-effort) the attached storage object.
+   *  Returns false if the document doesn't exist in the caller's firm. */
+  async remove(id: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
+    const sql = db();
+    if (sql) {
+      // Read the storage key first so we can clean up the blob after the row
+      // is gone. Doing it in this order means a DB rollback leaves the blob
+      // intact (better than orphaning a row that points at a deleted blob).
+      const keyRows = await sql<Array<{ storage_key: string | null }>>`
+        select storage_key from documents
+        where id::text = ${id} and firm_id = ${firmId}::uuid limit 1
+      `;
+      const storageKey = keyRows[0]?.storage_key ?? null;
+      const deleted = await sql<Array<{ id: string }>>`
+        delete from documents
+        where id::text = ${id} and firm_id = ${firmId}::uuid
+        returning id
+      `;
+      if (deleted.length === 0) return false;
+      if (storageKey) {
+        // Storage failures must not bubble up — the row is already gone.
+        try {
+          await storage().delete(storageKey);
+        } catch {
+          /* swallow */
+        }
+      }
+      return true;
+    }
+    const idx = memory.findIndex((d) => d.id === id);
+    if (idx < 0) return false;
+    memory.splice(idx, 1);
+    memoryFiles.delete(id);
+    return true;
+  },
+
   async getStorageKey(id: string, firmId: string | null): Promise<{ key: string; fileMime: string } | null> {
     if (!firmId) return null;
     const sql = db();

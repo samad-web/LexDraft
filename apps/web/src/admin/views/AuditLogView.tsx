@@ -1,17 +1,27 @@
 import { useState } from 'react';
 import { Select, Skeleton } from '@lexdraft/ui';
+import type { AuditAction, AuditTargetType } from '@lexdraft/types';
 import { useAuditLog } from '../queries';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
+// Narrow the dropdown to a runtime-checkable subset of AuditTargetType. The
+// full union is open enough that a hand-typed action string from the search
+// box can't be statically narrowed — see the cast guard below.
 const TARGET_TYPES = ['', 'firm', 'user', 'template', 'platform'] as const;
+type TargetFilter = typeof TARGET_TYPES[number];
 
 export function AuditLogView() {
-  const [targetType, setTargetType] = useState<typeof TARGET_TYPES[number]>('');
+  const [targetType, setTargetType] = useState<TargetFilter>('');
   const [actionFilter, setActionFilter] = useState('');
+  // The action filter is a free-text input; it's validated server-side
+  // against the AuditAction union. Cast at the boundary with the narrowest
+  // type we can express — undefined when empty, otherwise the string as
+  // the API contract expects (AuditAction). A bad value 404s gracefully.
+  const action = actionFilter.trim() ? (actionFilter.trim() as AuditAction) : undefined;
   const { data: entries = [], isLoading } = useAuditLog({
-    targetType: targetType || undefined,
-    action: (actionFilter || undefined) as never,
+    targetType: (targetType || undefined) as AuditTargetType | undefined,
+    action,
     limit: 200,
   });
   const pager = usePagination(entries);
@@ -27,7 +37,7 @@ export function AuditLogView() {
         <div style={{ width: 200 }}>
           <Select
             value={targetType}
-            onChange={(v) => setTargetType(v as never)}
+            onChange={(v) => setTargetType(v as TargetFilter)}
             options={[
               { value: '', label: 'All targets' },
               { value: 'firm', label: 'Firm' },

@@ -12,7 +12,7 @@
 
 import { Router } from 'express';
 import { z } from 'zod';
-import { portalService, portalAdminService } from '../services/portal.service';
+import { portalAdminService } from '../services/portal.service';
 import { firmIdForUser } from '../services/tenant';
 import { authService } from '../services/auth.service';
 import { auditService } from '../services/audit.service';
@@ -69,9 +69,9 @@ portalAdminRouter.post(
         targetType: 'client',
         targetId: clientId,
       });
-      if (result.devMagicLink) {
-        notify.portalEnabled(clientId, result.devMagicLink).catch(() => {/* best-effort */});
-      }
+      // The firm admin gets the plaintext default password back to share
+      // out-of-band (SMS/WhatsApp/voice). We deliberately do NOT email the
+      // password to the client - they'll receive it from their advocate.
       res.json(result);
     } catch (err) {
       next(err);
@@ -105,7 +105,7 @@ portalAdminRouter.post(
 );
 
 portalAdminRouter.post(
-  '/clients/:id/resend-link',
+  '/clients/:id/regenerate-password',
   requireFeature('client.create'),
   validate({ params: idParam }),
   async (req, res, next) => {
@@ -113,17 +113,14 @@ portalAdminRouter.post(
       const firmId = await firmIdForUser(req.user?.id);
       if (!firmId) { res.status(403).json({ error: 'No firm attached' }); return; }
       const clientId = String(req.params.id ?? '');
-      const result = await portalAdminService.resendLink(clientId, firmId);
+      const result = await portalAdminService.regeneratePassword(clientId, firmId);
       fireAudit({
         actorUserId: req.user!.id,
         actorEmail: req.user!.email,
-        action: 'portal.client.link_resent',
+        action: 'portal.client.password_reset',
         targetType: 'client',
         targetId: clientId,
       });
-      if (result.devMagicLink) {
-        notify.magicLinkResent(clientId, result.devMagicLink).catch(() => {/* best-effort */});
-      }
       res.json(result);
     } catch (err) {
       next(err);
@@ -366,5 +363,3 @@ async function findFirstClientByName(firmId: string, name: string): Promise<stri
   return rows[0]?.id ?? null;
 }
 
-void portalService; // re-export anchor: keep portalService imported for
-                    // future endpoints that might want the read-side helpers.

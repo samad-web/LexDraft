@@ -43,9 +43,9 @@ LexDraft/
 
 - **Stack:** Express 4, TypeScript, Zod for validation, `pino` (pretty in dev) for structured logs, `helmet` + `cors` + `compression` + `morgan` + `express-rate-limit` for hardening.
 - **Auth:** JWT (HS256) via `jsonwebtoken`, passwords hashed with `bcryptjs`. Two demo accounts seeded; in dev any email + password `lexdraft` will provision a user, and emails containing `admin` are auto-promoted to superadmin.
-- **Layering:** Routes are thin adapters that validate input and delegate to a [services layer](./apps/api/src/services/) holding business logic. Persistence today is in-memory (module-level maps) — the service boundary lets the storage layer be swapped for Postgres/Drizzle/Prisma without touching routes or shared types.
-- **Drafting:** When `ANTHROPIC_API_KEY` is set, [`drafting.service.ts`](./apps/api/src/services/drafting.service.ts) calls Claude with a structured brief; otherwise it returns a deterministic template so the UI is fully usable in dev.
-- **Webhooks:** Generic `POST /api/webhooks/:source` endpoint with per-provider signature verification (eCourts, payment, e-sign).
+- **Layering:** Routes are thin adapters that validate input and delegate to a [services layer](./apps/api/src/services/) holding business logic. Persistence is Postgres (Supabase-hosted in dev/prod) accessed via the `postgres` npm package using raw SQL tagged templates — no ORM. Schema lives under [`apps/api/migrations/`](./apps/api/migrations/) as numbered `.sql` files run by [`src/scripts/migrate.ts`](./apps/api/src/scripts/migrate.ts) (`pnpm --filter @lexdraft/api db:migrate`). Demo mode (no `DATABASE_URL`) falls back to seed data via the `db()` helper returning null. (Earlier drafts of this doc described in-memory module-level maps — that was the prototype layout, replaced by migration `0001_init.sql`.)
+- **Drafting:** When `ANTHROPIC_API_KEY` or `XAI_API_KEY` is set, [`drafting.service.ts`](./apps/api/src/services/drafting.service.ts) calls the configured LLM provider with a structured brief; otherwise it returns a deterministic template so the UI is fully usable in dev.
+- **Webhooks:** Generic `POST /api/webhooks/:source` endpoint with per-provider signature verification — see [`webhooks.routes.ts`](./apps/api/src/routes/webhooks.routes.ts). Note: verification is implemented but per-source dispatch (eCourts, payment, e-sign) is not yet wired. The endpoint currently acknowledges verified payloads with `{ received: true, dispatched: false }`.
 
 ### 2.4 Route surface (high level)
 

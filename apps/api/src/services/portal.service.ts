@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type {
   PortalSession,
@@ -18,8 +18,8 @@ import type {
 } from '@lexdraft/types';
 import { env } from '../env';
 import { db } from '../db/client';
-import { jobs } from './jobs.service';
 import { logger } from '../logger';
+import { casePipelineService, snapshotFor } from './case-pipeline.service';
 
 interface ClientRow {
   id: string;
@@ -35,8 +35,17 @@ interface PortalClaims {
   email: string;
 }
 
-function sha256(s: string): Buffer {
-  return crypto.createHash('sha256').update(s).digest();
+/**
+ * Build the firm-admin-shareable default password for a client. Format is
+ * `firstname@123` where `firstname` is the first whitespace-separated token of
+ * their name, lowercased and stripped of non-alphanumerics. Empty / unparseable
+ * names fall back to `client@123` so the format never breaks - the firm admin
+ * can always reset to something else if the default is awkward.
+ */
+function defaultPasswordFor(name: string): string {
+  const first = (name ?? '').trim().split(/\s+/)[0] ?? '';
+  const cleaned = first.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${cleaned || 'client'}@123`;
 }
 
 interface DocumentRowForSummary {
@@ -151,134 +160,39 @@ function issuePortalToken(client: ClientRow): { token: string; expiresAt: string
   return { token, expiresAt: expIso };
 }
 
-export interface PortalRequestLinkResult {
-  ok: true;
-  /** Set in dev when CLIENT_PORTAL_RETURN_LINK=true; never in prod. */
-  devMagicLink?: string;
-}
-
 export const portalService = {
-  /** Issue (and "send") a magic link to every client in this firm whose
-   *  email matches. We treat unknown emails as a no-op so a stranger can't
-   *  enumerate registered client emails. The plaintext link is only ever
-   *  in this function - only its sha256 is persisted. */
-  async requestMagicLink(emailRaw: string): Promise<PortalRequestLinkResult> {
+  /**
+   * Verify the client's email + password and mint a session JWT.
+   *
+   * Unknown email and wrong password produce the *same* error so a stranger
+   * can't enumerate registered emails. We still do a dummy bcrypt compare
+   * when there's no match to keep the timing constant.
+   */
+  async signInWithPassword(emailRaw: string, password: string): Promise<PortalSession> {
     const email = emailRaw.trim().toLowerCase();
     const sql = db();
     if (!sql) {
-      // Demo mode - clients table is empty in memory anyway.
-      return { ok: true };
+      throw Object.assign(new Error('Database not configured'), { status: 500 });
     }
 
-    const matches = await sql<ClientRow[]>`
-      select id, firm_id, name, email
+    const rows = await sql<Array<ClientRow & { portal_enabled: boolean; portal_password_hash: string | null }>>`
+      select id, firm_id, name, email, portal_enabled, portal_password_hash
       from clients
       where lower(email) = ${email}
-        and portal_enabled = true
+      limit 1
     `;
-    if (matches.length === 0) {
-      // Don't leak; pretend it worked. Same surface for unknown emails AND
-      // for clients whose portal access has not been enabled by the firm.
-      return { ok: true };
+    const client = rows[0];
+
+    const generic = Object.assign(new Error('Email or password is incorrect'), { status: 401 });
+
+    if (!client || !client.portal_enabled || !client.portal_password_hash) {
+      // Equalise timing against the wrong-password branch.
+      await bcrypt.compare(password, '$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvali');
+      throw generic;
     }
 
-    const ttlMin = env.CLIENT_PORTAL_LINK_TTL_MIN;
-    const expiresAt = new Date(Date.now() + ttlMin * 60_000);
-
-    let firstLink: string | undefined;
-    for (const client of matches) {
-      // 32 random bytes encoded base64url. Sized so brute-forcing is
-      // infeasible even before the TTL; index lookup is by sha256 of the
-      // plaintext.
-      const token = crypto.randomBytes(32).toString('base64url');
-      const tokenHash = sha256(token);
-
-      await sql`
-        insert into client_portal_sessions
-          (client_id, firm_id, email, token_hash, expires_at)
-        values
-          (${client.id}::uuid, ${client.firm_id}::uuid, ${email},
-           ${tokenHash}, ${expiresAt})
-      `;
-
-      const link = `${env.webPublicBaseUrl.replace(/\/+$/, '')}/portal/verify?token=${token}`;
-      firstLink ??= link;
-
-      // Hand off to the email job. With no SMTP wired this just logs - but
-      // crucially the plaintext token never persists past this scope.
-      await jobs.enqueue('email.send', {
-        to: email,
-        subject: `Sign in to ${client.name} portal`,
-        body: [
-          `Hi,`,
-          ``,
-          `Use this link to sign in to your client portal. It expires in ${ttlMin} minutes:`,
-          ``,
-          link,
-          ``,
-          `If you didn't request this, you can ignore the email.`,
-        ].join('\n'),
-      });
-    }
-
-    if (env.clientPortalReturnLink && firstLink) {
-      return { ok: true, devMagicLink: firstLink };
-    }
-    return { ok: true };
-  },
-
-  /** Exchange a magic-link token for a portal session JWT. Single-use:
-   *  marking `used_at` on the row prevents replay. */
-  async verifyMagicLink(token: string): Promise<PortalSession> {
-    const sql = db();
-    if (!sql) throw Object.assign(new Error('Database not configured'), { status: 500 });
-    if (typeof token !== 'string' || token.length < 10) {
-      throw Object.assign(new Error('Invalid token'), { status: 400 });
-    }
-
-    const tokenHash = sha256(token);
-
-    // Atomically claim the session row and pull the client. `for update`
-    // serialises concurrent verify attempts on the same token so only one
-    // wins.
-    const session = await sql.begin(async (tx) => {
-      const rows = await tx<Array<{ id: string; client_id: string; firm_id: string; email: string; expires_at: Date; used_at: Date | null }>>`
-        select id, client_id, firm_id, email, expires_at, used_at
-        from client_portal_sessions
-        where token_hash = ${tokenHash}
-        order by created_at desc
-        limit 1
-        for update
-      `;
-      const row = rows[0];
-      if (!row) {
-        throw Object.assign(new Error('Invalid or expired link'), { status: 400 });
-      }
-      if (row.used_at) {
-        throw Object.assign(new Error('This sign-in link has already been used'), { status: 400 });
-      }
-      if (row.expires_at.getTime() < Date.now()) {
-        throw Object.assign(new Error('This sign-in link has expired'), { status: 400 });
-      }
-      await tx`
-        update client_portal_sessions set used_at = now() where id = ${row.id}::uuid
-      `;
-      return row;
-    });
-
-    const clients = await sql<Array<ClientRow & { portal_enabled: boolean }>>`
-      select id, firm_id, name, email, portal_enabled
-      from clients where id = ${session.client_id}::uuid limit 1
-    `;
-    const client = clients[0];
-    if (!client) {
-      // Client deleted between issue and verify.
-      throw Object.assign(new Error('Client no longer exists'), { status: 410 });
-    }
-    if (!client.portal_enabled) {
-      // Portal access revoked between issue and verify.
-      throw Object.assign(new Error('Portal access has been revoked'), { status: 403 });
-    }
+    const ok = await bcrypt.compare(password, client.portal_password_hash);
+    if (!ok) throw generic;
 
     const { token: jwtToken, expiresAt } = issuePortalToken(client);
     logger.info({ clientId: client.id, firmId: client.firm_id }, 'portal session issued');
@@ -530,14 +444,15 @@ export const portalService = {
         : (row.next_hearing ?? ''),
     };
 
-    const [hearings, documents, messages] = await Promise.all([
+    const [hearings, documents, messages, timeline] = await Promise.all([
       sql<Array<{
         id: string; hearing_date: Date | string | null; hearing_time: string;
         case_label: string; court: string; purpose: string;
       }>>`
         select h.id, h.hearing_date, h.hearing_time, h.case_label, h.court, h.purpose
         from hearings h
-        where h.case_label = ${row.title}
+        where h.firm_id = ${firmId}::uuid
+          and h.case_id = ${matterId}::uuid
         order by h.hearing_date nulls last, h.hearing_time
       `,
       sql<Array<{
@@ -549,11 +464,12 @@ export const portalService = {
                requires_acknowledgement, signed_at
         from documents
         where firm_id = ${firmId}::uuid
-          and case_label = ${row.title}
+          and case_id = ${matterId}::uuid
           and shared_with_client = true
         order by created_at desc
       `,
       this.listMessages(clientId, firmId, matterId),
+      casePipelineService.timeline(matterId, firmId, 'portal'),
     ]);
 
     return {
@@ -570,6 +486,10 @@ export const portalService = {
       })),
       documents: documents.map(toDocumentSummary),
       messages,
+      pipeline: snapshotFor(row.type, row.stage),
+      // Drop the internal `visibleToPortal` flag from the wire — clients
+      // don't need it once the row has been filtered upstream.
+      timeline: timeline.map(({ visibleToPortal: _v, ...e }) => e),
     };
   },
 
@@ -899,8 +819,13 @@ export const portalService = {
 interface PortalEnableOutcome {
   ok: true;
   clientId: string;
-  /** Plaintext magic link, returned only when `CLIENT_PORTAL_RETURN_LINK` is set. */
-  devMagicLink?: string;
+  /**
+   * Plaintext default password the firm admin should share with the client
+   * (format: `firstname@123`). Set when the action minted or reset the
+   * password - the firm UI surfaces this once and never again. The bcrypt
+   * hash is what's stored.
+   */
+  password?: string;
 }
 
 interface FirmMessageInput {
@@ -913,23 +838,25 @@ interface FirmMessageInput {
 
 export const portalAdminService = {
   /**
-   * Flip `clients.portal_enabled = true` for one client and emit a fresh
-   * magic link. Caller is expected to have already passed the plan-tier
-   * gate; this method does not re-check (the gate may need to surface
-   * different errors at the route layer).
+   * Flip `clients.portal_enabled = true` and mint the default password.
    *
-   * Idempotent: calling twice on an already-enabled client just emits a
-   * fresh link, which is the right behaviour for the firm's "Resend link"
-   * affordance.
+   * The default is `firstname@123` (lowercase, alphanumeric-only first name).
+   * We always reset the password on this call - it's the firm-side "give the
+   * client access" action, and the admin needs the plaintext back to share.
+   * Calling twice on an already-enabled client therefore *resets* the
+   * password, which is the right thing for "Re-enable / fresh credentials".
+   *
+   * Caller is expected to have already passed the plan-tier gate.
    */
   async enablePortal(clientId: string, firmId: string): Promise<PortalEnableOutcome> {
     const sql = db();
     if (!sql) return { ok: true, clientId };
 
     const rows = await sql<Array<{ id: string; firm_id: string; name: string; email: string | null }>>`
-      update clients set portal_enabled = true
+      select id, firm_id, name, email
+      from clients
       where id = ${clientId}::uuid and firm_id = ${firmId}::uuid
-      returning id, firm_id, name, email
+      limit 1
     `;
     const row = rows[0];
     if (!row) {
@@ -938,14 +865,18 @@ export const portalAdminService = {
     if (!row.email) {
       throw Object.assign(new Error('Client has no contact email - add one before enabling the portal'), { status: 422 });
     }
-    // Use the existing magic-link issuer so token storage + email enqueuing
-    // stays in one place. We pass the email through the standard request path.
-    const result = await portalService.requestMagicLink(row.email);
-    return {
-      ok: true,
-      clientId: row.id,
-      ...(result.devMagicLink ? { devMagicLink: result.devMagicLink } : {}),
-    };
+
+    const password = defaultPasswordFor(row.name);
+    const hash = await bcrypt.hash(password, 10);
+
+    await sql`
+      update clients
+      set portal_enabled = true,
+          portal_password_hash = ${hash}
+      where id = ${row.id}::uuid and firm_id = ${firmId}::uuid
+    `;
+
+    return { ok: true, clientId: row.id, password };
   },
 
   async disablePortal(clientId: string, firmId: string): Promise<{ ok: true; revokedSessions: number }> {
@@ -953,18 +884,21 @@ export const portalAdminService = {
     if (!sql) return { ok: true, revokedSessions: 0 };
 
     const updated = await sql<Array<{ id: string }>>`
-      update clients set portal_enabled = false
+      update clients
+      set portal_enabled = false,
+          portal_password_hash = null
       where id = ${clientId}::uuid and firm_id = ${firmId}::uuid
       returning id
     `;
     if (!updated.length) {
       throw Object.assign(new Error('Client not found in this firm'), { status: 404 });
     }
-    // Hard-revoke any unused magic-link rows. Issued JWTs cannot be revoked
-    // server-side (stateless); they fail next-request via the `portal_enabled`
-    // re-check in `verifyMagicLink` and via `portalService.clientName` returning
-    // null for read endpoints once the flag is false (because the row still
-    // matches but `portal_enabled = false` blocks token verification).
+    // Clearing `portal_password_hash` is what locks the client out: sign-in
+    // checks both `portal_enabled` and a non-null hash. Issued JWTs cannot
+    // be revoked server-side (stateless); they fail their next request via
+    // the `portal_enabled` re-check inside `portalService.clientName`.
+    // We also mark any legacy magic-link rows as used so they can't be
+    // exchanged in flight - safe to drop the table in a later migration.
     const rows = await sql<Array<{ id: string }>>`
       update client_portal_sessions
       set used_at = now()
@@ -974,14 +908,17 @@ export const portalAdminService = {
     return { ok: true, revokedSessions: rows.length };
   },
 
-  /** Issue a fresh magic link for an already-enabled client. Different from
-   *  `enablePortal` because this MUST fail when the client is disabled - we
-   *  don't silently re-enable. */
-  async resendLink(clientId: string, firmId: string): Promise<PortalEnableOutcome> {
+  /**
+   * Reset the portal password for an already-enabled client. Returns the
+   * fresh plaintext default so the firm admin can share it with the client.
+   * Fails when the client is disabled - "regenerate password" must not
+   * silently re-enable; use `enablePortal` for that.
+   */
+  async regeneratePassword(clientId: string, firmId: string): Promise<PortalEnableOutcome> {
     const sql = db();
     if (!sql) return { ok: true, clientId };
-    const rows = await sql<Array<{ id: string; email: string | null; portal_enabled: boolean }>>`
-      select id, email, portal_enabled from clients
+    const rows = await sql<Array<{ id: string; name: string; email: string | null; portal_enabled: boolean }>>`
+      select id, name, email, portal_enabled from clients
       where id = ${clientId}::uuid and firm_id = ${firmId}::uuid limit 1
     `;
     const row = rows[0];
@@ -992,8 +929,14 @@ export const portalAdminService = {
     if (!row.email) {
       throw Object.assign(new Error('Client has no contact email'), { status: 422 });
     }
-    const result = await portalService.requestMagicLink(row.email);
-    return { ok: true, clientId: row.id, ...(result.devMagicLink ? { devMagicLink: result.devMagicLink } : {}) };
+
+    const password = defaultPasswordFor(row.name);
+    const hash = await bcrypt.hash(password, 10);
+    await sql`
+      update clients set portal_password_hash = ${hash}
+      where id = ${row.id}::uuid and firm_id = ${firmId}::uuid
+    `;
+    return { ok: true, clientId: row.id, password };
   },
 
   async setMatterVisibility(matterId: string, firmId: string, visible: boolean): Promise<void> {

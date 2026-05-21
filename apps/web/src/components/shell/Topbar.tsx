@@ -7,18 +7,18 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ROUTE_TITLES } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
-import { GatePeek } from '@/components/GatePeek';
+import { useSignOut } from '@/hooks/useAuth';
 
 export function Topbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const [notifOpen, setNotifOpen] = useState(false);
   const unreadCount = useUnreadCount();
+  const signOut = useSignOut();
   // Background-fetch indicator. A small dot pulses next to the title when
-  // any react-query is in flight after the initial paint. Quiet by default
-  // — we don't want a banner for every refetch, just enough motion to tell
-  // a power user that the data they're looking at is in transit.
+  // any react-query is in flight after the initial paint.
   const fetchingCount = useIsFetching();
 
   const segment = location.pathname.split('/')[2] || 'dashboard';
@@ -26,19 +26,17 @@ export function Topbar() {
 
   return (
     <div className="topbar">
-      <div style={{ minWidth: 0, flex: 1 }}>
-        <div
-          style={{
-            fontSize: 14,
-            fontWeight: 500,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
+      <button
+        type="button"
+        className="btn btn-ghost topbar-menu"
+        onClick={() => toggleSidebar(true)}
+        aria-label="Open navigation menu"
+      >
+        <Icon name="menu" size={18} />
+      </button>
+
+      <div className="topbar-title">
+        <div className="topbar-title-row">
           {meta.title}
           {fetchingCount > 0 && (
             <span
@@ -57,9 +55,7 @@ export function Topbar() {
           )}
         </div>
         {meta.eyebrow && (
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-            {meta.eyebrow.toUpperCase()}
-          </div>
+          <div className="mono topbar-eyebrow">{meta.eyebrow.toUpperCase()}</div>
         )}
       </div>
 
@@ -67,21 +63,23 @@ export function Topbar() {
         className="btn btn-ghost topbar-search"
         onClick={() => toggleCmdK(true)}
         aria-label="Open search and command palette"
-        style={{
-          minWidth: 240,
-          justifyContent: 'flex-start',
-          color: 'var(--text-tertiary)',
-          borderColor: 'var(--border-default)',
-          background: 'var(--bg-surface)',
-          gap: 10,
-        }}
       >
         <Icon name="search" size={14} />
-        <span style={{ flex: 1, textAlign: 'left' }}>Search cases, clients, docs…</span>
-        <kbd className="kbd" style={{ height: 20, minWidth: 20 }}>⌘K</kbd>
+        <span className="topbar-search-label">Search cases, clients, docs…</span>
+        <kbd className="kbd topbar-search-kbd">⌘K</kbd>
       </button>
 
-      <ThemeToggle />
+      <button
+        className="btn btn-ghost topbar-search-mobile"
+        onClick={() => toggleCmdK(true)}
+        aria-label="Search"
+      >
+        <Icon name="search" size={16} />
+      </button>
+
+      <div className="topbar-theme">
+        <ThemeToggle />
+      </div>
 
       <div style={{ position: 'relative' }}>
         <button
@@ -122,20 +120,15 @@ export function Topbar() {
         )}
       </div>
 
-      <GatePeek
-        feature="drafting.ai"
-        peekTitle="AI-assisted drafting"
-        peekBody="Generate pleadings, notices, and contracts in seconds using firm-approved templates and clauses. Available on Practice plans and above."
-        unlocksOnPlan="Practice"
+      <button
+        className="btn btn-oxblood topbar-signout"
+        onClick={() => {
+          signOut();
+          navigate('/');
+        }}
       >
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate('/app/draft')}
-          style={{ padding: '0 14px' }}
-        >
-          <Icon name="plus" size={14} /> New
-        </button>
-      </GatePeek>
+        Sign out
+      </button>
     </div>
   );
 }

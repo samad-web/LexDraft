@@ -14,29 +14,20 @@ export const portalRouter: Router = Router();
 
 // ---- public auth endpoints --------------------------------------------------
 
-const RequestLink = z.object({ email: z.string().email() });
+const SignIn = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
+}).strict();
 
 portalRouter.post(
-  '/auth/request-link',
-  validate({ body: RequestLink }),
+  '/auth/sign-in',
+  validate({ body: SignIn }),
   async (req, res, next) => {
     try {
-      const result = await portalService.requestMagicLink(req.body.email);
-      res.json(result);
-    } catch (err) {
-      next(err);
-    }
-  },
-);
-
-const Verify = z.object({ token: z.string().min(10).max(512) });
-
-portalRouter.post(
-  '/auth/verify',
-  validate({ body: Verify }),
-  async (req, res, next) => {
-    try {
-      const session = await portalService.verifyMagicLink(req.body.token);
+      const session = await portalService.signInWithPassword(
+        req.body.email,
+        req.body.password,
+      );
       writePortalAudit({
         clientId: session.client.id,
         firmId: session.client.firmId,
@@ -220,7 +211,7 @@ portalRouter.post(
             select d.name, c.name as client_name
             from documents d
             left join clients c on c.id = ${clientId}::uuid
-            where d.id = ${id}::uuid limit 1
+            where d.id = ${id}::uuid and d.firm_id = ${firmId}::uuid limit 1
           `;
           const m = meta[0];
           if (m) {

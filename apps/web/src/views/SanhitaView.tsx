@@ -108,8 +108,15 @@ export function SanhitaView() {
         />
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <table className="tbl">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Horizontal scroller — long "Old title" / "New title" entries push
+            the table wider than narrow viewports. Scrolling lives inside the
+            card so the page itself never grows a horizontal scrollbar. */}
+        <div style={{ overflowX: 'auto' }}>
+        <table
+          className="tbl"
+          style={{ tableLayout: 'fixed', minWidth: 880, wordBreak: 'break-word' }}
+        >
           <thead>
             <tr>
               <th style={{ width: 140 }}>From</th>
@@ -181,6 +188,7 @@ export function SanhitaView() {
             )}
           </tbody>
         </table>
+        </div>
         {!isLoading && !isError && filtered.length > 0 && (
           <div style={{ padding: '0 14px' }}>
             <Pagination

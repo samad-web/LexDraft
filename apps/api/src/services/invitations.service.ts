@@ -103,6 +103,43 @@ const INVITATION_SELECT = `
   from invitations
 `;
 
+interface SeatRow { seats: number; used: number }
+
+/**
+ * Reject when (active users + pending invites) would exceed the firm's seat
+ * cap. Counted at invite time so admins get clean feedback before sending the
+ * email. Re-checked at accept() time to catch races where multiple invites
+ * land in the same window.
+ *
+ * Returns silently when firmId is null (dev fallback firm or unauthenticated
+ * paths). Returns silently when DATABASE_URL is unset (demo mode).
+ */
+async function assertSeatCapNotExceeded(firmId: string | null): Promise<void> {
+  if (!firmId) return;
+  const sql = db();
+  if (!sql) return;
+  const [row] = await sql<SeatRow[]>`
+    select
+      f.seats,
+      ((select count(*)::int from users
+        where firm_id = ${firmId}::uuid and status = 'active')
+       + (select count(*)::int from invitations
+          where firm_id = ${firmId}::uuid and status = 'pending')) as used
+    from firms f
+    where f.id = ${firmId}::uuid
+    limit 1
+  `;
+  if (!row) return;
+  if (row.used >= row.seats) {
+    throw Object.assign(
+      new Error(
+        `Seat cap reached (${row.used} of ${row.seats}). Upgrade your plan to invite more advocates.`,
+      ),
+      { status: 402, code: 'seat_cap_exceeded', cap: row.seats, used: row.used },
+    );
+  }
+}
+
 export const invitationsService = {
   async list(firmId: string | null): Promise<Invitation[]> {
     if (!firmId) return [];
@@ -133,6 +170,11 @@ export const invitationsService = {
     inviter: Inviter,
     firmId: string | null,
   ): Promise<Invitation> {
+    // Enforce seat cap before allocating the invite. Failing here keeps the
+    // pending-invites table free of unfillable entries and gives the admin
+    // an actionable 402 with the current usage in the error payload.
+    await assertSeatCapNotExceeded(firmId);
+
     const email = input.email.toLowerCase().trim();
     const id = generateId();
     const token = generateToken();
@@ -305,6 +347,11 @@ export const invitationsService = {
     if (new Date(inv.expiresAt).getTime() < Date.now()) {
       throw Object.assign(new Error('This invitation has expired'), { status: 410 });
     }
+    // Re-check the seat cap at acceptance time. The create() check counted
+    // this invite while it was pending, but if seats were reduced or another
+    // invite was accepted in the meantime, we want a clean 402 rather than a
+    // silently overpopulated firm.
+    await assertSeatCapNotExceeded(firmId);
 
     const passwordHash = await bcrypt.hash(body.password, 10);
     const provisionalId = randomBytes(8).toString('hex');

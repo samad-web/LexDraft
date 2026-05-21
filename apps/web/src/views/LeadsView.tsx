@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Icon, Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton, ErrorState } from '@lexdraft/ui';
 import type { Lead, LeadStage } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useLeads, useMoveLead } from '@/hooks/useLeads';
@@ -189,6 +189,14 @@ export function LeadsView() {
         </FAB>
       </Gate>
 
+      {isError && (
+        <ErrorState
+          variant="inline"
+          title="Couldn't load leads"
+          description="The pipeline below may be stale. Reload to retry."
+        />
+      )}
+
       <div
         className="kanban"
         style={{
@@ -250,15 +258,12 @@ export function LeadsView() {
                     <Skeleton height={11} width="35%" />
                   </article>
                 ))}
-                {!isLoading && list.length === 0 && (
+                {!isLoading && !isError && list.length === 0 && (
                   <p
                     className="body-xs muted"
-                    style={{
-                      padding: '8px 4px',
-                      color: isError ? 'var(--danger)' : 'var(--text-tertiary)',
-                    }}
+                    style={{ padding: '8px 4px', color: 'var(--text-tertiary)' }}
                   >
-                    {isError ? "Couldn't load leads" : 'Drop a card here.'}
+                    Drop a card here.
                   </p>
                 )}
                 {list.map((lead) => (

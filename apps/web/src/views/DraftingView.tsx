@@ -4,8 +4,10 @@ import { useMutation } from '@tanstack/react-query';
 import { DatePicker, Icon, Select } from '@lexdraft/ui';
 import type { DraftRequest } from '@lexdraft/types';
 import { useStreamDraft, type LlmProvider } from '@/hooks/useDrafting';
+import { useCaseNotes } from '@/hooks/useCaseNotes';
 import { useUIStore } from '@/store/ui';
 import { api } from '@/lib/api';
+import { PillNav } from '@/components/PillNav';
 import {
   RichTextEditor,
   plainTextToHtml,
@@ -18,7 +20,7 @@ import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { exportPdf, exportDocx } from '@/lib/export-doc';
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import type { DocTemplate } from '@/lib/doc-templates';
-import { useSaveDraft } from '@/hooks/useDrafts';
+import { useDraft, useSaveDraft } from '@/hooks/useDrafts';
 import type { SavedDraft } from '@lexdraft/types';
 import {
   DOC_SCHEMAS,
@@ -116,11 +118,20 @@ export function DraftingView() {
   const location = useLocation();
   const navigate = useNavigate();
   const navState = location.state as
-    | { caseContext?: CaseContext; researchCitation?: ResearchCitation }
+    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string }
     | null;
   const [caseContext, setCaseContext] = useState<CaseContext | null>(navState?.caseContext ?? null);
   const [researchCitation, setResearchCitation] = useState<ResearchCitation | null>(
     navState?.researchCitation ?? null,
+  );
+  // Drafting from a case opens an optional context channel: any case notes
+  // the user can see are folded into the LLM user message. Default ON; the
+  // banner gives the user a one-click way to skip them per-generation.
+  const [includeNotes, setIncludeNotes] = useState<boolean>(true);
+  const { data: caseNotesList } = useCaseNotes(caseContext?.id ?? null);
+  const usableNotesCount = useMemo(
+    () => (caseNotesList ?? []).filter((n) => n.body.trim().length > 0).length,
+    [caseNotesList],
   );
 
   const stream = useStreamDraft();
@@ -203,7 +214,15 @@ export function DraftingView() {
         if (v !== undefined && v.toString().trim()) fields[f.key] = v;
       }),
     );
-    void stream.generate({ docType, language: lang, tone, fields, draftDate: date, provider });
+    void stream.generate({
+      docType,
+      language: lang,
+      tone,
+      fields,
+      draftDate: date,
+      provider,
+      ...(caseContext?.id ? { caseId: caseContext.id, includeNotes } : {}),
+    });
   };
 
   const reset = () => {
@@ -450,6 +469,17 @@ export function DraftingView() {
     );
   };
 
+  // Auto-load a draft when the view is opened via /app/draft with
+  // `state.draftId` (e.g. the "Edit" button in the Documents registry).
+  // The ref guards against re-running on every re-render — we want to
+  // seed exactly once per navigation.
+  const autoLoadedDraftIdRef = useRef<string | null>(null);
+  const incomingDraftId =
+    navState?.draftId && navState.draftId !== autoLoadedDraftIdRef.current
+      ? navState.draftId
+      : null;
+  const incomingDraft = useDraft(incomingDraftId);
+
   const handleLoadDraft = (d: SavedDraft) => {
     setDocType(d.docType);
     setLang(d.language);
@@ -473,6 +503,16 @@ export function DraftingView() {
     });
     showToast({ type: 'sage', text: `Loaded: ${d.title}` });
   };
+
+  useEffect(() => {
+    if (!incomingDraftId || !incomingDraft.data) return;
+    autoLoadedDraftIdRef.current = incomingDraftId;
+    handleLoadDraft(incomingDraft.data);
+    // Clear the navigation state so a manual refresh of /app/draft doesn't
+    // reload the same draft.
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incomingDraftId, incomingDraft.data]);
 
   const resetCurrentBrief = () => {
     const sc = DOC_SCHEMAS[docType];
@@ -546,6 +586,15 @@ export function DraftingView() {
           onClick={() => setMyDraftsOpen(true)}
         >
           My drafts
+        </button>
+        <button
+          className="btn"
+          type="button"
+          onClick={reset}
+          disabled={streaming}
+          title="Clear the brief fields and the generated draft"
+        >
+          <Icon name="close" size={14} /> Clear
         </button>
       </div>
 
@@ -652,6 +701,51 @@ export function DraftingView() {
         </div>
       )}
 
+      {caseContext && usableNotesCount > 0 && (
+        <div
+          className="card"
+          style={{
+            padding: '12px 16px',
+            borderLeft: `3px solid ${includeNotes ? 'var(--success, #059669)' : 'var(--border-strong)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Icon name="draft" size={16} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+              CASE NOTES
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+              {usableNotesCount} {usableNotesCount === 1 ? 'note' : 'notes'} from this matter.{' '}
+              {includeNotes
+                ? 'These will be folded into the AI prompt as context.'
+                : 'Notes will be ignored for this generation.'}
+            </div>
+          </div>
+          <label
+            className="row"
+            style={{
+              gap: 8,
+              alignItems: 'center',
+              fontSize: 13,
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={includeNotes}
+              onChange={(e) => setIncludeNotes(e.target.checked)}
+              aria-label="Include case notes as AI context"
+            />
+            Include notes
+          </label>
+        </div>
+      )}
+
       <DocTypePicker docType={docType} onPick={setDocType} />
 
       {schema.description && (
@@ -729,7 +823,7 @@ export function DraftingView() {
               BRIEF
             </span>
             <CompletionBar percent={completion} />
-            <button className="btn btn-ghost btn-sm" onClick={reset} title="Clear all fields">
+            <button className="btn btn-sm" onClick={reset} title="Clear all fields">
               Clear
             </button>
           </div>
@@ -772,50 +866,37 @@ export function DraftingView() {
             <div className="col" style={{ gap: 14 }}>
               <div>
                 <label className="label">Language</label>
-                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {LANGUAGES.map(([l, lbl]) => (
-                    <button
-                      key={l}
-                      className={`chip${lang === l ? ' active' : ''}`}
-                      onClick={() => setLang(l)}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
+                <PillNav
+                  items={LANGUAGES.map(([l, lbl]) => ({ id: l, label: lbl }))}
+                  value={lang}
+                  onChange={setLang}
+                  ariaLabel="Draft language"
+                />
               </div>
               <div>
                 <label className="label">Tone</label>
-                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {TONES.map((t) => (
-                    <button
-                      key={t}
-                      className={`chip${tone === t ? ' active' : ''}`}
-                      onClick={() => setTone(t)}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
+                <PillNav
+                  items={TONES.map((t) => ({ id: t, label: t }))}
+                  value={tone}
+                  onChange={setTone}
+                  ariaLabel="Draft tone"
+                />
               </div>
               <div>
                 <label className="label">Model</label>
-                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                  {PROVIDERS.map(([p, lbl]) => (
-                    <button
-                      key={p}
-                      className={`chip${provider === p ? ' active' : ''}`}
-                      onClick={() => setProvider(p)}
-                      title={
-                        p === 'xai'
-                          ? 'Generate with xAI Grok (set XAI_MODEL in apps/api/.env)'
-                          : 'Generate with Anthropic Claude (set ANTHROPIC_MODEL in apps/api/.env)'
-                      }
-                    >
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
+                <PillNav
+                  items={PROVIDERS.map(([p, lbl]) => ({
+                    id: p,
+                    label: lbl,
+                    title:
+                      p === 'xai'
+                        ? 'Generate with xAI Grok (set XAI_MODEL in apps/api/.env)'
+                        : 'Generate with Anthropic Claude (set ANTHROPIC_MODEL in apps/api/.env)',
+                  }))}
+                  value={provider}
+                  onChange={setProvider}
+                  ariaLabel="LLM provider"
+                />
                 <div
                   className="mono"
                   style={{
@@ -1328,19 +1409,16 @@ function DocTypePicker({ docType, onPick }: DocTypePickerProps) {
       </div>
       <div
         key={activeTab}
-        className="row doc-chip-row"
-        style={{ gap: 6, flexWrap: 'wrap', padding: 14, alignItems: 'flex-start' }}
+        className="doc-chip-row"
+        style={{ padding: 14 }}
       >
-        {active.items.map((t) => (
-          <button
-            key={t}
-            className={`chip doc-chip${docType === t ? ' active' : ''}`}
-            onClick={() => onPick(t)}
-            style={{ fontSize: 12 }}
-          >
-            {t}
-          </button>
-        ))}
+        <PillNav
+          items={active.items.map((t) => ({ id: t, label: t }))}
+          value={docType}
+          onChange={onPick}
+          ariaLabel={`${active.group} document types`}
+          wrap
+        />
       </div>
     </div>
   );
@@ -1362,7 +1440,7 @@ function CompletionBar({ percent }: { percent: number }) {
         style={{
           width: `${percent}%`,
           height: '100%',
-          background: percent === 100 ? 'var(--success)' : 'var(--text-primary)',
+          background: 'var(--text-primary)',
           transition: 'width 0.3s',
         }}
       />

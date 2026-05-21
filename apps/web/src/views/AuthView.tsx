@@ -37,6 +37,7 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
   plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using LexDraft.',
   plan_past_due:  'Your firm subscription is past due. Update billing to continue using LexDraft.',
   plan_expired:   'Your firm subscription period has ended. Renew to continue using LexDraft.',
+  trial_expired:  'Your 14-day trial has ended. Pick a plan to keep your work.',
 };
 
 export function AuthView() {
@@ -366,26 +367,12 @@ export function AuthView() {
                 required
               />
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <label
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  fontSize: 12,
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                <input type="checkbox" /> Remember me
-              </label>
-              <span style={{ flex: 1 }} />
-              <a
-                href="#"
-                style={{ fontSize: 12, color: 'var(--text-secondary)' }}
-              >
-                Forgot?
-              </a>
-            </div>
+            {/*
+              "Remember me" + "Forgot?" affordances removed — neither was
+              wired (checkbox had no state, link was href="#"). Reintroduce
+              them only when a session-extension flag and password-reset
+              flow exist server-side.
+            */}
             {planMessage && (
               <div
                 role="status"
@@ -480,7 +467,7 @@ export function AuthView() {
             >
               Choose how you’ll use LexDraft
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+            <div className="facts-grid-3" style={{ gap: 10 }}>
               {ROLE_OPTIONS.map((r) => {
                 const active = role === r.id;
                 return (
@@ -590,7 +577,7 @@ export function AuthView() {
               Firm accounts are partner-onboarded. Share a few details and we&rsquo;ll
               reach out to schedule a demo and discuss a tailored plan for your team.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div className="facts-grid-2" style={{ gap: 14 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="label required" htmlFor="enq-name">Your name</label>
                 <input
@@ -753,6 +740,14 @@ export function AuthView() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              // Gate step transition on validation. Native required + the
+              // email validator above flag the bad fields, but the form
+              // would still advance to step 2 on every Enter press without
+              // this guard — meaning a bad email only surfaces at the
+              // final API call. Force-touch the email field so the
+              // FieldError renders if it wasn't already.
+              setSignupEmailTouched(true);
+              if (!name.trim() || signupEmailError || password.length < 8) return;
               setStep(2);
             }}
             style={{ display: 'flex', flexDirection: 'column', gap: 16 }}

@@ -75,7 +75,7 @@ export function InvoiceDetailModal({ open, invoice, onClose }: Props) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <DetailRow label="ISSUED" value={formatLongDate(invoice.issuedDate)} />
         <DetailRow label="DUE" value={formatLongDate(invoice.dueDate)} hint={dueLabel} />
       </div>

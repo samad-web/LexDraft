@@ -28,6 +28,20 @@ function formatINR(value: number): string {
   return value.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 }
 
+/**
+ * Reads what the user typed into a comma-separated currency field and returns
+ * (a) the digits-only value for state + math, and (b) the Indian-grouped
+ * string to render back in the input. Empty input is preserved so the field
+ * can be cleared without snapping back to "0".
+ */
+function parseIndianCurrency(raw: string): { digits: string; formatted: string } {
+  const digits = raw.replace(/[^0-9]/g, '');
+  if (!digits) return { digits: '', formatted: '' };
+  const n = Number(digits);
+  if (!Number.isFinite(n)) return { digits, formatted: digits };
+  return { digits, formatted: n.toLocaleString('en-IN', { maximumFractionDigits: 0 }) };
+}
+
 export function StampView() {
   const [stateCode, setStateCode]           = useState<string>('MH');
   const [instrument, setInstrument]         = useState<InstrumentKey>('sale');
@@ -199,11 +213,11 @@ export function StampView() {
               <input
                 id="cons-input"
                 className="input tabular"
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min="0"
-                value={consideration}
-                onChange={(e) => setConsideration(e.target.value)}
+                value={parseIndianCurrency(consideration).formatted}
+                onChange={(e) => setConsideration(parseIndianCurrency(e.target.value).digits)}
+                placeholder="e.g. 50,00,000"
                 style={{ fontFamily: 'var(--font-mono)' }}
               />
             </div>
@@ -212,14 +226,14 @@ export function StampView() {
               <input
                 id="pval-input"
                 className="input tabular"
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min="0"
-                value={propertyValue}
-                onChange={(e) => setPropertyValue(e.target.value)}
+                value={parseIndianCurrency(propertyValue).formatted}
+                onChange={(e) => setPropertyValue(parseIndianCurrency(e.target.value).digits)}
+                placeholder="e.g. 55,00,000"
                 style={{ fontFamily: 'var(--font-mono)' }}
               />
-              <div className="body-xs" style={{ marginTop: 6 }}>Higher of consideration & market value is dutiable.</div>
+              <div className="body-xs" style={{ marginTop: 6 }}>Higher of consideration &amp; market value is dutiable.</div>
             </div>
           </div>
         </div>

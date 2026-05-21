@@ -84,6 +84,7 @@ async function loadFirmCorpus(firmId: string, excludeMatterId?: string): Promise
     select id::text as id, title, client
     from cases
     where firm_id = ${firmId}::uuid
+      and kind = 'matter'
       and (${excludeMatterId ?? null}::text is null
            or id::text <> ${excludeMatterId ?? null}::text)
   `;

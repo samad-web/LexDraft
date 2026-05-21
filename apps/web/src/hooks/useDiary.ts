@@ -10,6 +10,14 @@ export function useDiary() {
   });
 }
 
+export function useDiaryEntry(id: string | null) {
+  return useQuery({
+    queryKey: ['diary', id],
+    queryFn: () => api.get<DiaryEntry>(`/diary/${id}`),
+    enabled: !!id,
+  });
+}
+
 export function useCreateDiaryEntry() {
   const qc = useQueryClient();
   return useMutation({

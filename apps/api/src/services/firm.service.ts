@@ -162,6 +162,8 @@ export const firmService = {
       stageRows,
       typeRows,
       memberRows,
+      memberMatterRows,
+      practiceAreaRevRows,
       clientAggRows,
       monthRows,
       hearingsToday,
@@ -169,8 +171,8 @@ export const firmService = {
     ] = await Promise.all([
       sql<FirmRow[]>`select id, name, seats from firms where id = ${firmId} limit 1`,
       sql<IntRow[]>`select count(*)::int as n from users where firm_id = ${firmId}`,
-      sql<IntRow[]>`select count(*)::int as n from cases where firm_id = ${firmId}`,
-      sql<IntRow[]>`select count(*)::int as n from cases where firm_id = ${firmId} and status = 'Active'`,
+      sql<IntRow[]>`select count(*)::int as n from cases where firm_id = ${firmId} and kind = 'matter'`,
+      sql<IntRow[]>`select count(*)::int as n from cases where firm_id = ${firmId} and kind = 'matter' and status = 'Active'`,
       sql<IntRow[]>`select count(*)::int as n from clients where firm_id = ${firmId} and status = 'active'`,
       sql<SumRow[]>`
         select coalesce(sum(amount_inr), 0)::bigint as total
@@ -187,14 +189,14 @@ export const firmService = {
       sql<CaseStageRow[]>`
         select stage, count(*)::int as n
         from cases
-        where firm_id = ${firmId}
+        where firm_id = ${firmId} and kind = 'matter'
         group by stage
         order by n desc
       `,
       sql<CaseTypeRow[]>`
         select type, count(*)::int as n
         from cases
-        where firm_id = ${firmId}
+        where firm_id = ${firmId} and kind = 'matter'
         group by type
         order by n desc
       `,
@@ -203,6 +205,29 @@ export const firmService = {
         from users
         where firm_id = ${firmId}
         order by created_at asc
+      `,
+      // Active-matter count per user, sourced from case_assignments. Cases in
+      // 'Closed' / 'Archived' status are excluded so the column shows live
+      // workload, not lifetime tally.
+      sql<{ user_id: string; n: number }[]>`
+        select ca.user_id, count(distinct ca.case_id)::int as n
+        from case_assignments ca
+        join cases c on c.id = ca.case_id
+        where c.firm_id = ${firmId}
+          and c.kind = 'matter'
+          and c.status in ('Active', 'Pending')
+        group by ca.user_id
+      `,
+      // Revenue per practice_area for the current FY. Falls back to NULL
+      // bucket (rendered as "Other") for cases that haven't been categorised.
+      sql<{ area: string | null; total: bigint | string }[]>`
+        select c.practice_area as area,
+               coalesce(sum(i.amount_inr), 0)::bigint as total
+        from invoices i
+        join cases c on c.firm_id = i.firm_id and c.client = i.client
+        where i.firm_id = ${firmId}
+          and i.issued_date between ${fy.startCurrent} and ${fy.endCurrent}
+        group by c.practice_area
       `,
       sql<ClientAggRow[]>`
         select i.client,
@@ -246,26 +271,46 @@ export const firmService = {
 
     const stages: CaseStageSlice[] = stageRows.map((r) => ({ stage: r.stage, count: r.n }));
 
+    // practice_area rollup: real revenue per area + matter counts derived
+    // from the cases table. Areas with no revenue still show their matter
+    // count; matters with null practice_area are grouped under "Other".
     const totalCasesByType = typeRows.reduce((s, r) => s + r.n, 0) || 1;
-    // Without a case→invoice link in the schema, revenue per practice area is
-    // approximated by joining invoices to cases on the freeform `client`
-    // column. Good enough for an overview; the value displayed is just the
-    // matters count for now.
-    const practiceAreas: PracticeAreaSlice[] = typeRows.map((r) => ({
-      name: r.type,
-      matters: r.n,
-      revenue: '-',
-      share: r.n / totalCasesByType,
-    }));
+    const revenueByArea = new Map<string, number>();
+    for (const r of practiceAreaRevRows) {
+      const key = r.area ?? 'Other';
+      revenueByArea.set(key, (revenueByArea.get(key) ?? 0) + Number(r.total ?? 0));
+    }
+    const mattersByArea = new Map<string, number>();
+    for (const r of typeRows) {
+      const key = r.type || 'Other';
+      mattersByArea.set(key, (mattersByArea.get(key) ?? 0) + r.n);
+    }
+    const allAreas = new Set<string>([...revenueByArea.keys(), ...mattersByArea.keys()]);
+    const practiceAreas: PracticeAreaSlice[] = [...allAreas].map((name) => {
+      const matters = mattersByArea.get(name) ?? 0;
+      const revInr = revenueByArea.get(name) ?? 0;
+      return {
+        name,
+        matters,
+        revenue: revInr > 0 ? inrLabel(revInr) : '-',
+        share: matters / totalCasesByType,
+      };
+    }).sort((a, b) => b.matters - a.matters);
 
+    // Per-user active-matter counts from case_assignments. Members with no
+    // assignments still appear, just with a 0 — useful for spotting under-
+    // utilised advocates.
+    const matterCountByUser = new Map<string, number>(
+      memberMatterRows.map((r) => [r.user_id, r.n]),
+    );
     const members: FirmMember[] = memberRows.map((r) => ({
       id: r.id,
       name: r.name,
       role: r.role,
       initials: initialsFor(r.name),
-      activeMatters: 0,   // no users↔cases assignment table yet
-      billableHours: 0,   // no time-tracking table yet
-      winRate: 0,         // no per-user case outcome link yet
+      activeMatters: matterCountByUser.get(r.id) ?? 0,
+      billableHours: 0, // no time-tracking table yet
+      winRate: 0,       // no per-user case outcome link yet
       status: 'Active',
     }));
 

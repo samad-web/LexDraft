@@ -1,5 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom';
+import { Icon } from '@lexdraft/ui';
 import { AdminSidebar } from './AdminSidebar';
+import { useUIStore } from '@/store/ui';
 
 const ROUTE_LABEL: Record<string, string> = {
   '/admin':          'Overview',
@@ -18,20 +20,21 @@ function labelFor(pathname: string): string {
 
 export function AdminShell() {
   const location = useLocation();
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+
   return (
     <div className="app">
       <AdminSidebar />
       <div className="main">
-        <header
-          style={{
-            padding: 'var(--space-5) var(--space-8)',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: 'var(--bg-base)',
-          }}
-        >
+        <header className="admin-header">
+          <button
+            type="button"
+            className="btn btn-ghost topbar-menu"
+            onClick={() => toggleSidebar(true)}
+            aria-label="Open navigation menu"
+          >
+            <Icon name="menu" size={18} />
+          </button>
           <div>
             <div className="eyebrow">Platform admin · {labelFor(location.pathname)}</div>
             <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>

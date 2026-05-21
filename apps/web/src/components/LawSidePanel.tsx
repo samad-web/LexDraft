@@ -182,7 +182,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
                 </div>
               )}
               <p className="body-xs muted" style={{ lineHeight: 1.5, marginBottom: 8 }}>
-                {hit.content.length > 220 ? `${hit.content.slice(0, 220)}…` : hit.content}
+                {hit.content}
               </p>
               <div className="row" style={{ gap: 4 }}>
                 <button

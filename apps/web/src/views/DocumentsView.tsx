@@ -2,13 +2,17 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
-import { useDocuments } from '@/hooks/useDocuments';
+import { useDeleteDocument, useDocuments } from '@/hooks/useDocuments';
+import { useDeleteDraft } from '@/hooks/useDrafts';
 import type { DocumentRecord } from '@lexdraft/types';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
 import { DocumentViewerModal } from '@/components/DocumentViewerModal';
+import { EditDocumentModal } from '@/components/EditDocumentModal';
 import { useUpdateDocumentPortalFlags } from '@/hooks/usePortalAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useConfirm } from '@/components/ConfirmDialog';
+import { useUIStore } from '@/store/ui';
 
 interface FolderDef {
   id: string;
@@ -60,7 +64,50 @@ export function DocumentsView() {
   const [query, setQuery] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
+  const [editing, setEditing] = useState<DocumentRecord | null>(null);
   const updateFlags = useUpdateDocumentPortalFlags();
+  const deleteDocument = useDeleteDocument();
+  const deleteDraft = useDeleteDraft();
+  const confirm = useConfirm();
+  const showToast = useUIStore((s) => s.showToast);
+
+  const handleEdit = (d: DocumentRecord) => {
+    if (d.kind === 'draft') {
+      // Drafts edit by loading them into the drafting workspace, not in a
+      // metadata-only dialog.
+      navigate('/app/draft', { state: { draftId: d.id } });
+      return;
+    }
+    setEditing(d);
+  };
+
+  const handleDelete = async (d: DocumentRecord) => {
+    if (!d.id) return;
+    const isDraft = d.kind === 'draft';
+    const ok = await confirm({
+      title: `Delete ${isDraft ? 'draft' : 'document'}?`,
+      message: isDraft
+        ? `"${d.name}" will be permanently removed from your saved drafts. The AI quota credit isn't refunded.`
+        : `"${d.name}" will be permanently removed, including any attached file. This can't be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      if (isDraft) {
+        await deleteDraft.mutateAsync(d.id);
+      } else {
+        await deleteDocument.mutateAsync(d.id);
+      }
+      showToast({ type: 'sage', text: `Deleted "${d.name}"` });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
+        ?? (err as Error).message
+        ?? 'Could not delete';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
 
   const all = docs.data ?? [];
 
@@ -110,10 +157,7 @@ export function DocumentsView() {
         </button>
       </div>
 
-      <div
-        className="docs-grid"
-        style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 24 }}
-      >
+      <div className="docs-grid split-rail" style={{ gap: 24 }}>
         {/* Folder rail */}
         <aside
           className="col"
@@ -216,7 +260,17 @@ export function DocumentsView() {
               </div>
             )}
             {docs.data && (
-              <table className="tbl">
+              <table className="tbl tbl-fit docs-tbl">
+                <colgroup>
+                  <col style={{ width: 'auto' }} />
+                  <col style={{ width: 140 }} />
+                  <col style={{ width: 100 }} />
+                  <col style={{ width: 96 }} />
+                  <col style={{ width: 96 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 88 }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Document</th>
@@ -235,20 +289,60 @@ export function DocumentsView() {
                     const key = d.id ?? `${d.name}-${d.updated}`;
                     const docId = d.id ?? '';
                     return (
-                      <tr key={key}>
+                      <tr
+                        key={key}
+                        className="docs-row"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Open ${d.name}`}
+                        onClick={() => setViewing(d)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            setViewing(d);
+                          }
+                        }}
+                      >
                         <td>
-                          <div className="row" style={{ gap: 10 }}>
+                          <div
+                            className="row docs-name-cell"
+                            style={{ gap: 10, minWidth: 0 }}
+                            title={d.name}
+                          >
                             <Icon name="documents" size={14} />
-                            <span style={{ fontWeight: 500 }}>{d.name}</span>
+                            <span
+                              style={{
+                                fontWeight: 500,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                minWidth: 0,
+                                flex: 1,
+                              }}
+                            >
+                              {d.name}
+                            </span>
                           </div>
                         </td>
-                        <td className="muted">{d.case}</td>
-                        <td className="muted">{d.type}</td>
+                        <td
+                          className="muted"
+                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={d.case}
+                        >
+                          {d.case}
+                        </td>
+                        <td
+                          className="muted"
+                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                          title={d.type}
+                        >
+                          {d.type}
+                        </td>
                         <td>
                           <span className={`badge ${status.cls}`}>{status.label}</span>
                         </td>
                         <td className="mono muted">{d.updated}</td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             aria-label="Share with client"
@@ -259,7 +353,7 @@ export function DocumentsView() {
                             })}
                           />
                         </td>
-                        <td>
+                        <td onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             aria-label="Requires acknowledgement"
@@ -271,14 +365,30 @@ export function DocumentsView() {
                             title={!d.sharedWithClient ? 'Share with client first' : ''}
                           />
                         </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            onClick={() => setViewing(d)}
-                          >
-                            Open
-                          </button>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost"
+                              onClick={() => handleEdit(d)}
+                              disabled={!docId}
+                              title={d.kind === 'draft' ? 'Edit draft' : 'Edit metadata'}
+                              aria-label={`Edit ${d.name}`}
+                            >
+                              <Icon name="edit" size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost"
+                              onClick={() => handleDelete(d)}
+                              disabled={!docId || deleteDocument.isPending || deleteDraft.isPending}
+                              title="Delete"
+                              aria-label={`Delete ${d.name}`}
+                              style={{ color: 'var(--danger)' }}
+                            >
+                              <Icon name="trash" size={12} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -318,6 +428,35 @@ export function DocumentsView() {
 
       <style>{`
         @media (max-width: 900px) { .docs-grid { grid-template-columns: 1fr !important; } }
+
+        /* Defeat the global \`min-width: max-content\` rule on table cards
+           (globals.css §.tbl) for the documents table — that rule forces a
+           horizontal scrollbar on wide schemas, which we don't want here.
+           Instead, use a fixed table layout with explicit column widths and
+           ellipsis-truncate the long cells. */
+        .docs-grid .card:has(> .tbl) { overflow: hidden; }
+        .docs-grid .card > .docs-tbl { min-width: 0; }
+        .docs-tbl { table-layout: fixed; width: 100%; }
+        /* The Document cell uses a flex row inside the <td>; let the span
+           inside truncate by giving the flex parent min-width: 0. Without
+           this, flex's default min-width: auto would keep the span at its
+           intrinsic width and push the table wide. */
+        .docs-tbl .docs-name-cell { min-width: 0; }
+
+        /* Trim padding at narrower widths so the action buttons + status
+           badge still fit inside the explicit column widths. */
+        @media (max-width: 1200px) {
+          .docs-tbl th, .docs-tbl td { padding-left: 12px; padding-right: 12px; }
+        }
+
+        /* Whole row is now the click target for opening the document; give
+           it an affordance so users know it. Keyboard focus uses the same
+           treatment plus a visible outline. */
+        .docs-tbl .docs-row { cursor: pointer; }
+        .docs-tbl .docs-row:focus-visible {
+          outline: 2px solid var(--text-primary);
+          outline-offset: -2px;
+        }
       `}</style>
 
       <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} />
@@ -325,6 +464,7 @@ export function DocumentsView() {
         <Icon name="upload" size={22} />
       </FAB>
       <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />
+      <EditDocumentModal doc={editing} onClose={() => setEditing(null)} />
     </div>
   );
 }

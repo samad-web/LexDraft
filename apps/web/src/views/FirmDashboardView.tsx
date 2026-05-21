@@ -6,6 +6,7 @@ import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { MonthCalendarModal } from '@/components/MonthCalendarModal';
 import { DashboardEmptyState, type DashboardEmptyStateStep } from '@/components/DashboardEmptyState';
+import { CaptureLeadCta } from '@/components/CaptureLeadCta';
 import { downloadCsv } from '@/lib/export-doc';
 import type {
   CaseStageSlice,
@@ -137,6 +138,7 @@ export function FirmDashboardView() {
         >
           <Icon name="download" size={14} /> Export report
         </button>
+        <CaptureLeadCta />
         <button
           className="btn btn-primary"
           type="button"
@@ -259,9 +261,15 @@ export function FirmDashboardView() {
               </tr>
             </thead>
             <tbody>
-              {data.members.map((m) => (
-                <MemberRow key={m.id} member={m} />
-              ))}
+              {data.members.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="body-sm muted" style={{ padding: '20px 24px' }}>
+                    No advocates on roll yet. Invite teammates from Manage Members.
+                  </td>
+                </tr>
+              ) : (
+                data.members.map((m) => <MemberRow key={m.id} member={m} />)
+              )}
             </tbody>
           </table>
         </div>
@@ -270,9 +278,13 @@ export function FirmDashboardView() {
           <div className="eyebrow" style={{ marginBottom: 6 }}>Practice mix</div>
           <div className="heading-md" style={{ marginBottom: 18 }}>Revenue by area</div>
           <div className="col" style={{ gap: 14 }}>
-            {data.practiceAreas.map((p) => (
-              <PracticeRow key={p.name} area={p} />
-            ))}
+            {data.practiceAreas.length === 0 ? (
+              <div className="body-sm muted">
+                No practice areas tracked yet. Tag matters with an area when you open them and they'll surface here.
+              </div>
+            ) : (
+              data.practiceAreas.map((p) => <PracticeRow key={p.name} area={p} />)
+            )}
           </div>
         </div>
       </div>
@@ -298,9 +310,15 @@ export function FirmDashboardView() {
               </tr>
             </thead>
             <tbody>
-              {data.topClients.map((c) => (
-                <ClientRow key={c.name} client={c} />
-              ))}
+              {data.topClients.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="body-sm muted" style={{ padding: '20px 24px' }}>
+                    No client billing recorded this financial year yet.
+                  </td>
+                </tr>
+              ) : (
+                data.topClients.map((c) => <ClientRow key={c.name} client={c} />)
+              )}
             </tbody>
           </table>
         </div>
@@ -385,7 +403,7 @@ function Loading() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Firm overview</div>
         <Skeleton width="55%" height={36} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+      <div className="grid-auto">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Skeleton width="50%" height={11} />

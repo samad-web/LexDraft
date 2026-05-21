@@ -3,7 +3,7 @@ import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
 import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
-import { useDiary } from '@/hooks/useDiary';
+import { useDiary, useDiaryEntry } from '@/hooks/useDiary';
 import { NewDiaryEntryModal } from '@/components/NewDiaryEntryModal';
 import { RequestCoverageModal } from '@/components/RequestCoverageModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
@@ -138,7 +138,11 @@ export function DiaryView() {
           <Icon name="plus" size={14} /> New entry
         </button>
       </div>
-      <NewDiaryEntryModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <NewDiaryEntryModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        defaultKind={filter === 'judgment' ? 'judgment' : 'hearing'}
+      />
       <FAB ariaLabel="Add diary entry" onClick={() => setModalOpen(true)}>
         <Icon name="plus" size={22} />
       </FAB>
@@ -243,6 +247,9 @@ export function DiaryView() {
                         <Icon name="members" size={12} /> Request coverage
                       </button>
                     )}
+                    {e.kind === 'judgment' && e.attachmentFileName && (
+                      <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
+                    )}
                   </div>
                 );
               })}
@@ -283,5 +290,52 @@ export function DiaryView() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * One-shot fetch + download for the judgment PDF attached to a diary row.
+ * Lazy because the list endpoint omits the base64 body — we only ask for it
+ * when the user actually clicks. Falls back to opening in a new tab if the
+ * blob URL can't be created (very old browsers).
+ */
+function JudgmentAttachmentButton({ entryId, fileName }: { entryId: string; fileName: string }) {
+  const [requested, setRequested] = useState(false);
+  const entryQ = useDiaryEntry(requested ? entryId : null);
+  const showToast = useUIStore((s) => s.showToast);
+
+  // When the lazy fetch resolves, trigger the download once.
+  if (requested && entryQ.data?.attachmentBase64 && entryQ.data?.attachmentMime) {
+    try {
+      const byteString = atob(entryQ.data.attachmentBase64);
+      const bytes = new Uint8Array(byteString.length);
+      for (let i = 0; i < byteString.length; i += 1) bytes[i] = byteString.charCodeAt(i);
+      const blob = new Blob([bytes], { type: entryQ.data.attachmentMime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = entryQ.data.attachmentFileName ?? fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+      setRequested(false);
+    } catch {
+      showToast({ type: 'vermillion', text: 'Could not open the attached PDF' });
+      setRequested(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      onClick={() => setRequested(true)}
+      disabled={entryQ.isFetching}
+      title="Download the attached judgment PDF"
+    >
+      <Icon name="download" size={12} />{' '}
+      {entryQ.isFetching ? 'Loading…' : 'View PDF'}
+    </button>
   );
 }

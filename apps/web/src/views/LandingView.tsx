@@ -115,7 +115,7 @@ const PRICING: PricingPlan[] = [
     annualMonthlyPrice: 1199,
     features: [
       'One advocate seat',
-      'Fifty AI drafts each month',
+      'Twenty AI drafts each month',
       'Up to five active matters',
       'Client portal',
       'Email correspondence support',
@@ -131,7 +131,7 @@ const PRICING: PricingPlan[] = [
     perSeatNote: '≈ ₹625 per advocate at a full team of eight',
     features: [
       'Up to eight seats',
-      'Five hundred AI drafts each month',
+      'Two hundred AI drafts each month',
       'Unlimited active matters',
       'Custom templates and styles',
       'Priority support',
@@ -150,7 +150,7 @@ const PRICING: PricingPlan[] = [
     customLabel: 'Custom',
     features: [
       'Unlimited seats',
-      'Unlimited AI drafts',
+      'One thousand AI drafts each month',
       'SSO and audit logs',
       'Dedicated success manager',
       'On-premise deployment available',

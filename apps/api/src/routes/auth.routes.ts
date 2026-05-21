@@ -2,20 +2,36 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { firmEnquiriesService } from '../services/firm-enquiries.service';
+import { demoRequestsService } from '../services/demo-requests.service';
 import { requireAuth } from '../middleware/auth';
 import { signInLimiter, signUpLimiter } from '../middleware/rateLimit';
 
-const SignIn = z.object({ email: z.string().email(), password: z.string().min(1) });
+const SignIn = z.object({
+  email: z.string().email().max(254),
+  password: z.string().min(1).max(128),
+}).strict();
 const SignUp = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
+  email: z.string().email().max(254),
+  // Min 8 retained for backwards-compat with existing accounts. Max 128
+  // blocks bcrypt-truncation-at-72 attacks and stops memory-exhaustion
+  // via gigabyte-long passwords.
+  password: z.string().min(8).max(128),
+  name: z.string().min(1).max(200),
   role: z.enum(['solo', 'group', 'firm']),
-  firm: z.string().optional(),
-  enrolment: z.string().optional(),
-  primaryCourt: z.string().optional(),
-  practiceAreas: z.string().optional(),
-});
+  firm: z.string().max(200).optional(),
+  enrolment: z.string().max(80).optional(),
+  primaryCourt: z.string().max(160).optional(),
+  practiceAreas: z.string().max(280).optional(),
+  /** What landed the user on the form. Determines the firm's plan_status:
+   *   - 'trial' (default) → firm.status='trial', trial_ends_at=now()+14d
+   *   - 'paid'            → firm.status='active', no trial clock
+   *   - 'demo'            → firm.status='trial' + is_demo=true; same 14d clock
+   *                         but the UI surfaces a Demo badge and pruning is
+   *                         eligible on these tenants.
+   * Existing clients that omit it default to 'trial' so behaviour matches
+   * the new self-serve funnel without breaking any current caller. */
+  intent: z.enum(['trial', 'paid', 'demo']).optional(),
+}).strict();
 
 const FirmEnquiry = z.object({
   name:          z.string().min(1).max(120),
@@ -26,6 +42,16 @@ const FirmEnquiry = z.object({
   primaryCourt:  z.string().max(160).optional(),
   practiceAreas: z.string().max(280).optional(),
   message:       z.string().max(2000).optional(),
+});
+
+const DemoRequest = z.object({
+  name:          z.string().min(1).max(120),
+  email:         z.string().email().max(254),
+  firmName:      z.string().max(160).optional(),
+  phone:         z.string().max(40).optional(),
+  preferredTime: z.string().max(120).optional(),
+  message:       z.string().max(2000).optional(),
+  demoType:      z.enum(['contact', 'schedule']),
 });
 
 export const authRouter: Router = Router();
@@ -55,6 +81,21 @@ authRouter.post('/firm-enquiry', signUpLimiter, async (req, res, next) => {
   try {
     const body = FirmEnquiry.parse(req.body);
     const created = await firmEnquiriesService.create(body, {
+      ipAddress: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    });
+    res.status(201).json({ ok: true, id: created.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Public demo capture from the landing-page "Get a demo" funnel. Same rate
+// limit as sign-up so the same IP can't flood the table.
+authRouter.post('/demo-request', signUpLimiter, async (req, res, next) => {
+  try {
+    const body = DemoRequest.parse(req.body);
+    const created = await demoRequestsService.create(body, {
       ipAddress: req.ip ?? null,
       userAgent: req.get('user-agent') ?? null,
     });

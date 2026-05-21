@@ -1,5 +1,7 @@
 import type { SavedDraft, SaveDraftRequest } from '@lexdraft/types';
 import { db } from '../db/client';
+import { aiQuotaService } from './ai-quota.service';
+import { logger } from '../logger';
 
 interface Row {
   id: string;
@@ -167,6 +169,16 @@ export const draftsService = {
   async remove(id: string, ctx: UserCtx): Promise<boolean> {
     const sql = db();
     if (!sql) return memory.delete(id);
+    // Tombstone any linked AI-generation rows BEFORE we hard-delete the
+    // draft. The on-delete-set-null FK would null out the link if we did it
+    // the other way around, leaving us unable to find the rows. The
+    // tombstone preserves the user's count against the monthly cap - a
+    // deleted draft never refunds quota.
+    try {
+      await aiQuotaService.tombstoneByDraft(id);
+    } catch (err) {
+      logger.warn({ err, draftId: id }, 'ai-quota tombstone on draft delete failed');
+    }
     const rows = await sql<{ id: string }[]>`
       delete from drafts where id = ${id} and user_id = ${ctx.userId} returning id
     `;

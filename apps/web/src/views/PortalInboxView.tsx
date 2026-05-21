@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Skeleton } from '@lexdraft/ui';
+import { Skeleton, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { FirmPortalThreadSummary, PortalMessage } from '@lexdraft/types';
 import {
   useFirmPortalInbox,
@@ -38,7 +38,7 @@ export function PortalInboxView() {
         <h1 className="heading-xl">Portal messages</h1>
       </div>
 
-      <div className="inbox-grid" style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
+      <div className="inbox-grid">
         <aside className="card" style={{ padding: 0, overflow: 'hidden', alignSelf: 'flex-start' }}>
           {inbox.isLoading && (
             <div aria-busy="true" aria-label="Loading inbox">
@@ -63,9 +63,23 @@ export function PortalInboxView() {
               ))}
             </div>
           )}
-          {inbox.isError && <div style={{ padding: 16, color: 'var(--danger)' }}>Could not load inbox.</div>}
-          {!inbox.isLoading && items.length === 0 && (
-            <div style={{ padding: 16 }} className="muted">No portal messages yet.</div>
+          {inbox.isError && (
+            <div style={{ padding: 16 }}>
+              <ErrorState
+                variant="inline"
+                title="Couldn't load inbox"
+                description="Check your connection and try again."
+              />
+            </div>
+          )}
+          {!inbox.isLoading && !inbox.isError && items.length === 0 && (
+            <div style={{ padding: 16 }}>
+              <EmptyState
+                variant="inline"
+                title="No portal messages yet"
+                description="Threads with clients via their portal will appear here."
+              />
+            </div>
           )}
           {items.map((t) => {
             const k = threadKey(t);
@@ -185,7 +199,13 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
             </div>
           </div>
         )}
-        {thread.isError && <div style={{ color: 'var(--danger)' }}>Could not load messages.</div>}
+        {thread.isError && (
+          <ErrorState
+            variant="inline"
+            title="Couldn't load messages"
+            description="The next refresh will retry."
+          />
+        )}
         {thread.data && thread.data.items.length === 0 && (
           <div className="muted">No messages yet - start the conversation.</div>
         )}

@@ -1,8 +1,16 @@
+import { Fragment } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { PortalAcknowledgeDocumentResponse, PortalMatterDetail } from '@lexdraft/types';
+import type {
+  CasePipeline,
+  MatterTimelineEvent,
+  PortalAcknowledgeDocumentResponse,
+  PortalMatterDetail,
+} from '@lexdraft/types';
+import { EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { PortalMessagesPanel } from './PortalMessagesPanel';
+import { useAlert } from '@/components/ConfirmDialog';
 
 /**
  * Single-matter view. Loads everything the client can see about this matter
@@ -13,6 +21,7 @@ export function PortalMatterDetailView() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const alertDialog = useAlert();
   const queryKey = ['portal', 'matter', id];
 
   const matter = useQuery({
@@ -29,7 +38,13 @@ export function PortalMatterDetailView() {
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['portal', 'dashboard'] });
     },
-    onError: (err) => alert(portalErrorMessage(err, 'Could not acknowledge the document.')),
+    onError: (err) => {
+      void alertDialog({
+        title: 'Could not acknowledge the document',
+        message: portalErrorMessage(err, 'Please try again.'),
+        tone: 'danger',
+      });
+    },
   });
 
   async function downloadDoc(docId: string): Promise<void> {
@@ -37,21 +52,40 @@ export function PortalMatterDetailView() {
       const res = await portalApi.get<{ downloadUrl: string }>(`/documents/${docId}/download-url`);
       window.open(res.downloadUrl, '_blank', 'noopener');
     } catch (err) {
-      alert(portalErrorMessage(err, 'Could not get the download link.'));
+      await alertDialog({
+        title: 'Could not get the download link',
+        message: portalErrorMessage(err, 'Please try again.'),
+        tone: 'danger',
+      });
     }
   }
 
-  if (matter.isLoading) return <div style={pageStyle}><div role="status" style={emptyStyle}>Loading matter…</div></div>;
+  if (matter.isLoading) {
+    return (
+      <div style={pageStyle}>
+        <Skeleton width={120} height={26} />
+        <div style={{ marginTop: 16 }}><Skeleton width="60%" height={22} /></div>
+        <div style={{ marginTop: 10 }}><Skeleton width="40%" height={13} /></div>
+        <div style={{ marginTop: 24 }}><Skeleton width="100%" height={140} radius="md" /></div>
+        <div style={{ marginTop: 16 }}><Skeleton width="100%" height={140} radius="md" /></div>
+      </div>
+    );
+  }
   if (matter.isError || !matter.data) {
     return (
       <div style={pageStyle}>
         <button type="button" onClick={() => navigate('/portal/dashboard')} style={btnSecondary}>← Back</button>
-        <div role="alert" style={errorStyle}>{portalErrorMessage(matter.error, 'Could not load this matter.')}</div>
+        <div style={{ marginTop: 16 }}>
+          <ErrorState
+            title="Couldn't load this matter"
+            description={portalErrorMessage(matter.error, 'Please try again.')}
+          />
+        </div>
       </div>
     );
   }
 
-  const { matter: m, hearings, documents } = matter.data;
+  const { matter: m, hearings, documents, pipeline, timeline } = matter.data;
 
   return (
     <div style={pageStyle}>
@@ -68,9 +102,34 @@ export function PortalMatterDetailView() {
         </div>
       </header>
 
+      {pipeline && pipeline.stages.length > 0 && (
+        <Section title="Where the matter stands">
+          <PipelineStepper pipeline={pipeline} />
+          {pipeline.currentIndex === -1 && (
+            <div style={{ fontSize: 12, opacity: 0.65, marginTop: 8 }}>
+              Your advocate is updating this matter's stage. Check back shortly.
+            </div>
+          )}
+        </Section>
+      )}
+
+      {timeline && timeline.length > 0 && (
+        <Section title="Activity">
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {timeline.map((event) => (
+              <PortalTimelineRow key={event.id} event={event} />
+            ))}
+          </ol>
+        </Section>
+      )}
+
       <Section title="Hearings">
         {hearings.length === 0 ? (
-          <Empty>No hearings on file for this matter.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No hearings on file"
+            description="Hearings on this matter will appear here once scheduled."
+          />
         ) : (
           <Table headers={['Date', 'Time', 'Court', 'Purpose']}>
             {hearings.map((h, i) => (
@@ -87,7 +146,11 @@ export function PortalMatterDetailView() {
 
       <Section title="Documents">
         {documents.length === 0 ? (
-          <Empty>No documents shared on this matter.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No documents shared"
+            description="Documents your advocate shares on this matter will appear here."
+          />
         ) : (
           <Table headers={['Name', 'Type', 'Updated', 'Status', '']}>
             {documents.map((doc) => {
@@ -159,9 +222,89 @@ function Table(props: { headers: string[]; children: React.ReactNode }) {
     </div>
   );
 }
-function Empty(props: { children: React.ReactNode }) {
-  return <div role="status" style={emptyStyle}>{props.children}</div>;
+function PipelineStepper({ pipeline }: { pipeline: CasePipeline }) {
+  const { stages, currentIndex } = pipeline;
+  return (
+    <div style={{ display: 'flex', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
+      {stages.map((s, i) => {
+        const done = i < currentIndex;
+        const active = i === currentIndex;
+        const fg = done ? '#fff' : active ? '#fff' : 'var(--muted, #71717a)';
+        const bg = done ? 'var(--accent, #2563eb)' : active ? 'var(--text, #18181b)' : 'var(--bg, #fafafa)';
+        const border = done || active ? 'transparent' : 'var(--border, #e4e4e7)';
+        return (
+          <Fragment key={s}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 96, flex: '0 0 auto' }}>
+              <div
+                style={{
+                  width: 28, height: 28, borderRadius: 999,
+                  border: `1px solid ${border}`,
+                  background: bg, color: fg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 12, fontWeight: 600,
+                }}
+              >
+                {done ? '✓' : i + 1}
+              </div>
+              <span
+                style={{
+                  fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase',
+                  fontWeight: active ? 600 : 400,
+                  color: active ? 'var(--text, #18181b)' : 'var(--muted, #71717a)',
+                  whiteSpace: 'nowrap', textAlign: 'center',
+                }}
+              >
+                {s}
+              </span>
+            </div>
+            {i < stages.length - 1 && (
+              <div
+                style={{
+                  flex: 1, minWidth: 24, height: 1,
+                  background: i < currentIndex ? 'var(--accent, #2563eb)' : 'var(--border, #e4e4e7)',
+                  marginTop: 14,
+                }}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
 }
+
+function PortalTimelineRow({ event }: { event: MatterTimelineEvent }) {
+  const date = event.at ? event.at.slice(0, 10) : '';
+  const palette: Record<MatterTimelineEvent['kind'], string> = {
+    stage: '#15803d',
+    hearing: '#2563eb',
+    document: '#b45309',
+    note: '#71717a',
+  };
+  return (
+    <li
+      style={{
+        display: 'flex', gap: 14, padding: '12px 14px', marginBottom: 8,
+        border: '1px solid var(--border, #e4e4e7)', borderRadius: 8,
+        borderLeft: `3px solid ${palette[event.kind] ?? '#71717a'}`,
+        background: 'var(--card, #fff)',
+      }}
+    >
+      <div style={{ fontSize: 11, color: 'var(--muted, #71717a)', minWidth: 80, paddingTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+        {date}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--muted, #71717a)', marginBottom: 4 }}>
+          {event.kind}
+          {event.actorName && <> · {event.actorName}</>}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 500, marginBottom: event.body ? 4 : 0 }}>{event.title}</div>
+        {event.body && <div style={{ fontSize: 13, opacity: 0.75 }}>{event.body}</div>}
+      </div>
+    </li>
+  );
+}
+
 function Pill(props: { kind: 'ok' | 'warning'; children: React.ReactNode }) {
   const palette = props.kind === 'ok' ? { bg: '#dcfce7', fg: '#15803d' } : { bg: '#fef3c7', fg: '#92400e' };
   return (
@@ -189,17 +332,6 @@ const thStyle: React.CSSProperties = {
   textAlign: 'left', padding: '10px 12px',
   background: 'var(--bg, #fafafa)', borderBottom: '1px solid var(--border, #e4e4e7)',
   fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted, #71717a)',
-};
-const emptyStyle: React.CSSProperties = {
-  padding: '16px 12px', fontSize: 14, opacity: 0.7,
-  border: '1px dashed var(--border, #e4e4e7)', borderRadius: 8,
-};
-const errorStyle: React.CSSProperties = {
-  padding: '16px 12px', fontSize: 14,
-  border: '1px solid var(--danger, #b91c1c)', borderRadius: 8,
-  color: 'var(--danger, #b91c1c)',
-  background: 'var(--danger-bg, rgba(220, 38, 38, 0.06))',
-  marginTop: 12,
 };
 const btnSecondary: React.CSSProperties = {
   padding: '6px 12px', fontSize: 13, background: 'transparent',

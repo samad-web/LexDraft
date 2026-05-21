@@ -32,6 +32,13 @@ async function start(): Promise<PgBoss | null> {
       const instance = new PgBoss({
         connectionString: env.DATABASE_URL,
         ssl: env.databaseSsl ? { rejectUnauthorized: false } : false,
+        // pg-boss defaults to ~10 connections. Supabase session-mode pooler
+        // caps at 15 per project; the main db() client takes 5 and the
+        // cache-broadcaster LISTEN takes 1, leaving ~9 for job traffic.
+        // We cap at 3 — job workloads (email send, reminders, cleanups) are
+        // low-frequency and don't need more concurrency than that. Prod on
+        // a managed Postgres can raise this via env if needed.
+        max: 3,
       });
       instance.on('error', (err) => logger.error({ err }, 'pg-boss error'));
       await instance.start();
@@ -115,9 +122,14 @@ interface EmailSendPayload {
 }
 
 jobs.register<EmailSendPayload>('email.send', async (data) => {
-  // No SMTP provider wired yet - log so it shows up in dev. Swap in nodemailer
-  // (or a transactional API like Postmark/Resend) when credentials land.
-  logger.info({ to: data.to, subject: data.subject }, 'email.send (stub)');
+  // Delegate to the centralised emailService — uses nodemailer when
+  // SMTP_HOST is configured, logs to stdout otherwise. Never throws; we
+  // don't want a transient SMTP failure to crash the job queue.
+  const { emailService } = await import('./email.service');
+  const ok = await emailService.send({ to: data.to, subject: data.subject, body: data.body });
+  if (!ok && env.hasSmtp) {
+    logger.warn({ to: data.to, subject: data.subject }, 'email.send: transport rejected');
+  }
 });
 
 interface HearingReminderPayload {
@@ -171,4 +183,40 @@ jobs.register('analytics.refresh', async () => {
   } else {
     logger.info({ count: results.length, totalMs: results.reduce((s, r) => s + r.ms, 0) }, 'analytics.refresh complete');
   }
+});
+
+// Title Reports — defects analysis (migration 0050). Heavy LLM call; route
+// enqueues, worker runs runDefectsAnalysis, UI polls GET /:id/ai/runs/:runId
+// for the result. The route's enqueue path also has a synchronous fallback
+// for memory mode, so the same handler works in dev without pg-boss.
+interface TitleReportAiAnalysePayload {
+  firmId: string;
+  titleReportId: string;
+  userId: string;
+  email: string;
+  roleName: string | null;
+}
+
+jobs.register<TitleReportAiAnalysePayload>('title-report.ai-analyse', async (data) => {
+  const { titleReportsAiService } = await import('./title-reports.ai.service');
+  await titleReportsAiService.runDefectsAnalysis(data);
+});
+
+interface TitleReportExtractPayload {
+  firmId: string;
+  titleReportId: string;
+  documentId: string;
+  userId?: string;
+  email?: string;
+}
+
+jobs.register<TitleReportExtractPayload>('title-report.extract', async (data) => {
+  const { titleReportsExtractService } = await import('./title-reports.extract.service');
+  await titleReportsExtractService.extractDocument({
+    firmId: data.firmId,
+    titleReportId: data.titleReportId,
+    documentId: data.documentId,
+    userId: data.userId ?? data.firmId,
+    email: data.email ?? 'system',
+  });
 });

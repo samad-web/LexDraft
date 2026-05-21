@@ -46,21 +46,7 @@ export function NotificationPanel({
       <div
         role="dialog"
         aria-label="Notifications"
-        style={{
-          position: 'absolute',
-          top: 'calc(100% + 8px)',
-          right: 0,
-          width: 380,
-          maxHeight: 520,
-          background: 'var(--bg-elevated)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-popover)',
-          zIndex: 41,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
+        className="notif-panel"
       >
         <div
           className="row"

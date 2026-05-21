@@ -315,7 +315,7 @@ export function NewDocumentModal({ open, onClose, defaultCase }: Props) {
           autoFocus
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="TYPE" required>
           <input
             className="input"

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import {
   useCreateEngagementTemplate,
   useDeleteEngagementTemplate,
@@ -152,34 +152,35 @@ export function EngagementTemplatesView() {
       </p>
 
       {isError && (
-        <div className="card" style={{ padding: 16, color: 'var(--danger)' }}>
-          Could not load engagement templates. Check your connection or try again.
-        </div>
+        <ErrorState
+          title="Couldn't load engagement templates"
+          description="Check your connection and try again."
+        />
       )}
 
       {isLoading ? (
-        <div className="card muted" style={{ padding: 24, textAlign: 'center' }}>
-          Loading templates…
+        <div className="card" style={{ padding: 24 }}>
+          <Skeleton width={200} height={14} />
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Skeleton width="100%" height={48} />
+            <Skeleton width="100%" height={48} />
+          </div>
         </div>
       ) : total === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
-          <Icon name="documents" size={24} className="muted" />
-          <div className="heading-sm" style={{ marginTop: 12, marginBottom: 4 }}>
-            No engagement templates yet
-          </div>
-          <p className="body-sm muted" style={{ maxWidth: 460, margin: '0 auto', marginBottom: 16 }}>
-            Add your first template to standardise the language your firm uses for new
-            engagements. You can mark one as default per matter type - the default is what
-            the "Generate engagement letter" action on a matter picks up automatically.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setNewOpen(true)}
-          >
-            <Icon name="plus" size={14} /> Add first template
-          </button>
-        </div>
+        <EmptyState
+          icon="documents"
+          title="No engagement templates yet"
+          description="Add your first template to standardise the language your firm uses for new engagements. You can mark one as default per matter type — the default is what 'Generate engagement letter' on a matter picks up automatically."
+          action={
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setNewOpen(true)}
+            >
+              <Icon name="plus" size={14} /> Add first template
+            </button>
+          }
+        />
       ) : (
         <div className="col" style={{ gap: 28 }}>
           {groups.map((group) => (

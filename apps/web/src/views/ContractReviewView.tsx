@@ -252,19 +252,9 @@ export function ContractReviewView() {
 
   return (
     <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: sourceText.trim() ? 'minmax(0, 1fr) 320px' : 'minmax(0, 1fr)',
-        gap: 24,
-        alignItems: 'flex-start',
-      }}
-      className="contract-review-layout"
+      style={{ gap: 24 }}
+      className={sourceText.trim() ? 'contract-review-layout split-2' : 'contract-review-layout'}
     >
-    <style>{`
-      @media (max-width: 1023px) {
-        .contract-review-layout { grid-template-columns: 1fr !important; }
-      }
-    `}</style>
     <div className="col stagger" style={{ gap: 24, minWidth: 0 }}>
       <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
         <div style={{ flex: 1 }}>
@@ -473,16 +463,7 @@ export function ContractReviewView() {
                 </div>
               )}
 
-              <div
-                className="card results-head"
-                style={{
-                  padding: 32,
-                  display: 'grid',
-                  gridTemplateColumns: '200px 1fr',
-                  gap: 32,
-                  alignItems: 'center',
-                }}
-              >
+              <div className="card results-head">
                 <RiskGauge score={score ?? 0} />
                 <div>
                   <div
@@ -692,16 +673,12 @@ function HistoryPanel({ items, loading, activeId, onOpen, onRemove }: HistoryPan
           return (
             <div
               key={r.id}
-              className="card"
+              className="card review-row"
               style={{
                 padding: 14,
                 borderLeft: isActive
                   ? '3px solid var(--text-primary)'
                   : '3px solid transparent',
-                display: 'grid',
-                gridTemplateColumns: '1fr auto auto auto',
-                gap: 12,
-                alignItems: 'center',
               }}
             >
               <button
@@ -803,12 +780,8 @@ function RedlineRow({ finding }: { finding: ContractReviewFinding }) {
         </span>
       </div>
       <div
-        className="redline-cols"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: hasExcerpt ? '1fr 1fr' : '1fr',
-          gap: 12,
-        }}
+        className={`redline-cols${hasExcerpt ? ' redline-cols-2' : ''}`}
+        style={{ gap: 12 }}
       >
         {hasExcerpt && (
           <div>
@@ -1020,16 +993,7 @@ function WorkflowStrip({ review }: { review: ContractReview }) {
   };
 
   return (
-    <div
-      className="card"
-      style={{
-        padding: 16,
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto',
-        gap: 16,
-        alignItems: 'center',
-      }}
-    >
+    <div className="card status-row" style={{ padding: 16 }}>
       <span className={`badge ${TOKEN_TO_BADGE[meta.token]}`}>{meta.label}</span>
 
       <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

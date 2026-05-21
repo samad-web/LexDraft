@@ -92,13 +92,7 @@ export function ErrorLogView() {
       </header>
 
       {/* ---- stats strip ----------------------------------------------- */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 12,
-        }}
-      >
+      <div className="grid-auto-sm" style={{ gap: 12 }}>
         <StatCard label="Errors (7d)" value={stats?.totalCount.toLocaleString() ?? '-'} />
         <StatCard
           label="Unresolved"
@@ -322,7 +316,7 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
 
         {isLoading || !data ? (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 10 }}>
+            <div className="meta-grid">
               {Array.from({ length: 6 }, (_, i) => (
                 <span key={i} style={{ display: 'contents' }}>
                   <Skeleton width={80} height={11} />
@@ -335,7 +329,7 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
         ) : (
           <>
             <section>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 8, fontSize: 13 }}>
+              <div className="meta-grid" style={{ fontSize: 13 }}>
                 <div className="muted">When</div>
                 <div className="mono">{new Date(data.occurredAt).toLocaleString()}</div>
                 <div className="muted">Status</div>

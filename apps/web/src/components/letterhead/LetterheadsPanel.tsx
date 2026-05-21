@@ -135,13 +135,7 @@ function Section({
       )}
 
       {!loading && items.length > 0 && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: 12,
-          }}
-        >
+        <div className="grid-auto-lg" style={{ gap: 12 }}>
           {items.map((l) => (
             <LetterheadCard key={l.id} letterhead={l} onEdit={() => onEdit(l.id)} />
           ))}

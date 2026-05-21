@@ -97,15 +97,12 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
             return (
               <li
                 key={hid || `${h.date}-${h.time}`}
+                className="day-hearing-row"
                 style={{
                   border: '1px solid var(--border-default)',
                   borderRadius: 'var(--radius-md)',
                   padding: '12px 14px',
                   background: 'var(--bg-surface)',
-                  display: 'grid',
-                  gridTemplateColumns: '78px 1fr auto',
-                  gap: 14,
-                  alignItems: 'center',
                 }}
               >
                 <span

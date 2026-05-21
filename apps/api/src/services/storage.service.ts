@@ -128,24 +128,118 @@ function localDriver(): StorageDriver {
 }
 
 // ---------------------------------------------------------------------------
-// S3 / R2 stub. Add credentials + the @aws-sdk/client-s3 dep, then implement
-// the four methods. Until then we error loudly so misconfiguration surfaces
-// during boot rather than at the first upload.
+// S3 / R2 driver (same shape — R2 is just S3 with a custom endpoint + path-
+// style URLs). Requires the storage env block in env.ts to be set:
+//   STORAGE_S3_BUCKET, STORAGE_S3_REGION, STORAGE_S3_ACCESS_KEY_ID,
+//   STORAGE_S3_SECRET_ACCESS_KEY, and (R2 only) STORAGE_S3_ENDPOINT +
+//   STORAGE_S3_FORCE_PATH_STYLE=true.
 // ---------------------------------------------------------------------------
 
-function unconfiguredDriver(name: string): StorageDriver {
-  const fail = () => {
-    throw new Error(
-      `Storage driver "${name}" is not implemented yet. ` +
-      `Wire @aws-sdk/client-s3 in services/storage.service.ts and provide credentials.`,
-    );
-  };
+function s3Driver(): StorageDriver {
+  // Lazy-import the AWS SDK so dev installs that never set STORAGE_DRIVER=s3
+  // don't pay the cold-start tax. The require() call only runs when the
+  // operator opted into S3.
+  type S3Client = import('@aws-sdk/client-s3').S3Client;
+  let clientPromise: Promise<S3Client> | null = null;
+
+  async function getClient(): Promise<S3Client> {
+    if (clientPromise) return clientPromise;
+    clientPromise = (async () => {
+      const { S3Client } = await import('@aws-sdk/client-s3');
+      if (!env.STORAGE_S3_BUCKET || !env.STORAGE_S3_REGION) {
+        throw new Error('S3 driver requires STORAGE_S3_BUCKET and STORAGE_S3_REGION');
+      }
+      return new S3Client({
+        region: env.STORAGE_S3_REGION,
+        credentials: env.STORAGE_S3_ACCESS_KEY_ID && env.STORAGE_S3_SECRET_ACCESS_KEY
+          ? {
+              accessKeyId: env.STORAGE_S3_ACCESS_KEY_ID,
+              secretAccessKey: env.STORAGE_S3_SECRET_ACCESS_KEY,
+            }
+          : undefined,
+          ...(env.STORAGE_S3_ENDPOINT ? { endpoint: env.STORAGE_S3_ENDPOINT } : {}),
+        forcePathStyle: env.storageS3ForcePathStyle,
+      });
+    })();
+    return clientPromise;
+  }
+
   return {
-    presignUpload: async () => fail(),
-    presignDownload: async () => fail(),
-    putObject: async () => fail(),
-    getObject: async () => fail(),
-    delete: async () => fail(),
+    async presignUpload({ key, contentType, expiresInSec }) {
+      const safe = safeKey(key);
+      const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+      const client = await getClient();
+      const cmd = new PutObjectCommand({
+        Bucket: env.STORAGE_S3_BUCKET,
+        Key: safe,
+        ContentType: contentType,
+      });
+      const expSec = expiresInSec ?? DEFAULT_EXPIRES_SEC;
+      const url = await getSignedUrl(client, cmd, { expiresIn: expSec });
+      return {
+        uploadUrl: url,
+        key: safe,
+        expiresAt: new Date(Date.now() + expSec * 1000).toISOString(),
+        requiredContentType: contentType,
+      };
+    },
+
+    async presignDownload({ key, expiresInSec }) {
+      const safe = safeKey(key);
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+      const client = await getClient();
+      const cmd = new GetObjectCommand({ Bucket: env.STORAGE_S3_BUCKET, Key: safe });
+      const expSec = expiresInSec ?? DEFAULT_EXPIRES_SEC;
+      const url = await getSignedUrl(client, cmd, { expiresIn: expSec });
+      return { downloadUrl: url, expiresAt: new Date(Date.now() + expSec * 1000).toISOString() };
+    },
+
+    async putObject({ key, body, contentType }) {
+      const safe = safeKey(key);
+      const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+      const client = await getClient();
+      await client.send(new PutObjectCommand({
+        Bucket: env.STORAGE_S3_BUCKET,
+        Key: safe,
+        Body: body,
+        ContentType: contentType,
+      }));
+    },
+
+    async getObject(key) {
+      const safe = safeKey(key);
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+      const client = await getClient();
+      try {
+        const res = await client.send(new GetObjectCommand({
+          Bucket: env.STORAGE_S3_BUCKET,
+          Key: safe,
+        }));
+        const stream = res.Body as NodeJS.ReadableStream | undefined;
+        if (!stream) return null;
+        const chunks: Buffer[] = [];
+        for await (const c of stream) chunks.push(c as Buffer);
+        return {
+          body: Buffer.concat(chunks),
+          contentType: res.ContentType ?? 'application/octet-stream',
+        };
+      } catch (err) {
+        if ((err as { name?: string }).name === 'NoSuchKey') return null;
+        throw err;
+      }
+    },
+
+    async delete(key) {
+      const safe = safeKey(key);
+      const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+      const client = await getClient();
+      await client.send(new DeleteObjectCommand({
+        Bucket: env.STORAGE_S3_BUCKET,
+        Key: safe,
+      }));
+    },
   };
 }
 
@@ -155,8 +249,8 @@ export function storage(): StorageDriver {
   if (cached) return cached;
   switch (env.STORAGE_DRIVER) {
     case 'local': cached = localDriver(); break;
-    case 's3':    cached = unconfiguredDriver('s3'); break;
-    case 'r2':    cached = unconfiguredDriver('r2'); break;
+    case 's3':
+    case 'r2':    cached = s3Driver(); break;
   }
   return cached!;
 }

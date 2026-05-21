@@ -96,7 +96,7 @@ export function NewTaskModal({ open, onClose, defaultCase }: Props) {
           autoFocus
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="MATTER" required>
           <input
             className="input"

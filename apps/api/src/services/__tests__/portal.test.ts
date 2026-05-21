@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import jwt from 'jsonwebtoken';
 import { portalService } from '../portal.service';
-import { authService } from '../auth.service';
 import { signInForTest } from '../../__tests__/auth-test-helpers';
 
 // These tests run against the in-memory DATABASE_URL=='' fallback. The portal
@@ -35,11 +34,14 @@ describe('portalService - JWT contract', () => {
   });
 });
 
-describe('portalService.requestMagicLink - memory fallback', () => {
-  it('returns ok=true even when no clients table exists (no enumeration leak)', async () => {
-    const res = await portalService.requestMagicLink('unknown@example.com');
-    expect(res.ok).toBe(true);
-    expect(res.devMagicLink).toBeUndefined();
+describe('portalService.signInWithPassword - boundary behaviour', () => {
+  it('throws a 500 when the DB is not configured (demo mode)', async () => {
+    // The portal sign-in path has no in-memory fallback - it requires a
+    // real clients table. Test the boundary so a misconfigured deploy
+    // surfaces a 500 instead of a 200 with garbage.
+    await expect(
+      portalService.signInWithPassword('unknown@example.com', 'whatever@123'),
+    ).rejects.toMatchObject({ status: 500 });
   });
 });
 

@@ -170,14 +170,10 @@ function QueueRow({ item, token }: { item: ContractReviewSummary; token: StatusT
   return (
     <Link
       to={`/app/review?id=${encodeURIComponent(item.id)}`}
-      className="card"
+      className="card review-row"
       style={{
         padding: 14,
         borderLeft: `3px solid var(--${token})`,
-        display: 'grid',
-        gridTemplateColumns: '1fr auto auto auto',
-        gap: 12,
-        alignItems: 'center',
         textDecoration: 'none',
         color: 'inherit',
       }}

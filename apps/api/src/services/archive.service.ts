@@ -26,6 +26,7 @@ export const archiveService = {
       select id, cnr, title, client, court, outcome, closed_at
       from cases
       where firm_id = ${firmId}::uuid
+        and kind = 'matter'
         and (status = 'Closed' or status = 'Archived')
       order by closed_at desc nulls last, title asc
     `;

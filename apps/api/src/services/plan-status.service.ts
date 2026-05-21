@@ -18,11 +18,19 @@ export interface PlanState {
   firmId: string | null;
   planStatus: PlanStatus;
   renewsAt: Date | null;
+  /** When the trial clock runs out. Null on paid/legacy firms. Only
+   *  consulted when planStatus === 'trial'. */
+  trialEndsAt: Date | null;
 }
 
 export type PlanCheck =
   | { ok: true }
-  | { ok: false; reason: 'plan_cancelled' | 'plan_past_due' | 'plan_expired'; renewsAt: Date | null };
+  | {
+      ok: false;
+      reason: 'plan_cancelled' | 'plan_past_due' | 'plan_expired' | 'trial_expired';
+      renewsAt: Date | null;
+      trialEndsAt?: Date | null;
+    };
 
 const CACHE_TTL_MS = 60_000;
 const cache = new Map<string, { state: PlanState; expiresAt: number }>();
@@ -30,14 +38,15 @@ const cache = new Map<string, { state: PlanState; expiresAt: number }>();
 async function loadPlanState(userId: string): Promise<PlanState> {
   const sql = db();
   // Dev / in-memory mode: no DB, no plan to evaluate - treat as active.
-  if (!sql) return { firmId: null, planStatus: 'active', renewsAt: null };
+  if (!sql) return { firmId: null, planStatus: 'active', renewsAt: null, trialEndsAt: null };
 
   const rows = await sql<Array<{
     firm_id: string | null;
     plan_status: PlanStatus;
     renews_at: Date | null;
+    trial_ends_at: Date | null;
   }>>`
-    select u.firm_id, f.plan_status, f.renews_at
+    select u.firm_id, f.plan_status, f.renews_at, f.trial_ends_at
     from users u
     left join firms f on f.id = u.firm_id
     where u.id = ${userId}::uuid
@@ -48,6 +57,7 @@ async function loadPlanState(userId: string): Promise<PlanState> {
     firmId: row?.firm_id ?? null,
     planStatus: row?.plan_status ?? null,
     renewsAt: row?.renews_at ?? null,
+    trialEndsAt: row?.trial_ends_at ?? null,
   };
 }
 
@@ -69,6 +79,19 @@ export function evaluatePlanState(state: PlanState): PlanCheck {
   }
   if (state.planStatus === 'past_due') {
     return { ok: false, reason: 'plan_past_due', renewsAt: state.renewsAt };
+  }
+  // Trial expiry: when the firm is on a trial AND we have a trial_ends_at
+  // in the past, block the session. The user has to convert. Compare on
+  // wall-clock now() (trials expire at the minute, not at midnight).
+  if (state.planStatus === 'trial' && state.trialEndsAt) {
+    if (state.trialEndsAt.getTime() < Date.now()) {
+      return {
+        ok: false,
+        reason: 'trial_expired',
+        renewsAt: state.renewsAt,
+        trialEndsAt: state.trialEndsAt,
+      };
+    }
   }
   if (state.renewsAt && state.planStatus !== 'trial') {
     const today = new Date();

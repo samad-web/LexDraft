@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon, Select } from '@lexdraft/ui';
+import { Icon, Select, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { PillNav } from '@/components/PillNav';
 import { useUIStore } from '@/store/ui';
 import {
@@ -72,20 +72,33 @@ export function CalculatorsView() {
       <PillNav items={TABS} value={tab} onChange={setTab} ariaLabel="Calculator type" />
 
       {statesError && (
-        <div className="card" style={{ padding: 16, color: 'var(--danger)' }}>
-          Could not load state catalogue. Check your connection or try again.
-        </div>
+        <ErrorState
+          title="Couldn't load state catalogue"
+          description="The court-fee and stamp-duty data couldn't be fetched. Reload to retry."
+        />
       )}
 
       {statesLoading && !statesError && (
-        <div className="card muted" style={{ padding: 24, textAlign: 'center' }}>
-          Loading state catalogue…
+        <div className="card" style={{ padding: 24 }}>
+          <div className="col" style={{ gap: 10 }}>
+            <Skeleton width={180} height={14} />
+            <Skeleton width="100%" height={48} />
+            <Skeleton width="100%" height={48} />
+          </div>
         </div>
       )}
 
-      {!statesLoading && !statesError && tab === 'court-fee'   && <CourtFeePanel  states={states} />}
-      {!statesLoading && !statesError && tab === 'stamp-duty'  && <StampDutyPanel states={states} />}
-      {!statesLoading && !statesError && tab === 'vakalatnama' && <VakalatnamaPanel states={states} />}
+      {!statesLoading && !statesError && states.length === 0 && (
+        <EmptyState
+          icon="flag"
+          title="No state catalogue available"
+          description="The calculators ship with a bundled state catalogue. If you're seeing this, the asset failed to load — try reloading."
+        />
+      )}
+
+      {!statesLoading && !statesError && states.length > 0 && tab === 'court-fee'   && <CourtFeePanel  states={states} />}
+      {!statesLoading && !statesError && states.length > 0 && tab === 'stamp-duty'  && <StampDutyPanel states={states} />}
+      {!statesLoading && !statesError && states.length > 0 && tab === 'vakalatnama' && <VakalatnamaPanel states={states} />}
     </div>
   );
 }

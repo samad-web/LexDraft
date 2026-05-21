@@ -1,28 +1,24 @@
 import { Fragment, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
-import { useCase } from '@/hooks/useCases';
-import type { Case } from '@lexdraft/types';
+import {
+  useCase,
+  useCaseTimeline,
+  useTransitionCase,
+  useAddFirmCaseStage,
+  type CaseWithPipeline,
+} from '@/hooks/useCases';
+import type { MatterTimelineEvent } from '@lexdraft/types';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
+import { CaseNotesPanel } from '@/components/CaseNotesPanel';
+import { MatterIntelPanel } from '@/components/matter-intel/MatterIntelPanel';
 import { CopyButton } from '@/components/CopyButton';
 import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
 import { useUIStore } from '@/store/ui';
-
-const STAGES: ReadonlyArray<string> = [
-  'Filing', 'Summons', 'WS', 'Issues', 'Evidence', 'Arguments', 'Judgment', 'Appeal',
-];
-
-interface TimelineEntry {
-  date: string;
-  title: string;
-  body: string;
-  /** Border-left tone for the entry. */
-  tone: 'info' | 'success' | 'warning' | 'danger' | 'neutral';
-}
 
 interface PartyEntry {
   side: 'Plaintiff' | 'Defendant';
@@ -31,8 +27,6 @@ interface PartyEntry {
   addr: string;
   counsel: string;
 }
-
-const TIMELINE: ReadonlyArray<TimelineEntry> = [];
 
 const PARTIES: ReadonlyArray<PartyEntry> = [];
 
@@ -43,24 +37,28 @@ interface TaskEntry {
   done?: boolean;
 }
 
-interface DocEntry {
-  name: string;
-  type: string;
-  filed: string;
-}
-
 const TASKS: ReadonlyArray<TaskEntry> = [];
-
-const RECENT_DOCS: ReadonlyArray<DocEntry> = [];
 
 export function CaseDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useCase(id);
+  const timeline = useCaseTimeline(id);
+  const transition = useTransitionCase();
+  const addStage = useAddFirmCaseStage();
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'overview' | 'intelligence'>('overview');
+  const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [transitionNote, setTransitionNote] = useState('');
+  const [shareWithClient, setShareWithClient] = useState(true);
+  // Inline "Add stage" composer at the end of the stepper. Lets the firm
+  // extend the canonical catalog with custom checkpoints (IA, Mediation,
+  // etc.) without leaving the matter page.
+  const [addingStage, setAddingStage] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
   const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
@@ -88,8 +86,50 @@ export function CaseDetailView() {
     );
   }
 
-  const c: Case = data;
-  const currentIdx = STAGES.indexOf(String(c.stage));
+  const c: CaseWithPipeline = data;
+  const STAGES: ReadonlyArray<string> = c.pipeline?.stages ?? [];
+  const currentIdx = c.pipeline?.currentIndex ?? -1;
+
+  const commitTransition = async (): Promise<void> => {
+    if (!pendingStage || !c.id) return;
+    try {
+      await transition.mutateAsync({
+        id: c.id,
+        toStage: pendingStage,
+        ...(transitionNote.trim() ? { note: transitionNote.trim() } : {}),
+        visibleToPortal: shareWithClient,
+      });
+      showToast({ type: 'sage', text: `Stage updated to ${pendingStage}` });
+      setPendingStage(null);
+      setTransitionNote('');
+      setShareWithClient(true);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not update stage';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
+
+  const commitNewStage = async (): Promise<void> => {
+    const trimmed = newStageName.trim();
+    if (!trimmed) {
+      setAddingStage(false);
+      return;
+    }
+    try {
+      await addStage.mutateAsync({
+        kind: (c.pipeline?.kind ?? 'default') as Parameters<typeof addStage.mutateAsync>[0]['kind'],
+        stageName: trimmed,
+      });
+      showToast({ type: 'sage', text: `Stage "${trimmed}" added` });
+      setNewStageName('');
+      setAddingStage(false);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not add stage';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
 
   const handleGenerateEngagement = async (): Promise<void> => {
     try {
@@ -168,15 +208,32 @@ export function CaseDetailView() {
           </div>
         </div>
 
-        {/* STAGE STEPPER */}
+        {/* STAGE STEPPER — click a stage to move the matter there. */}
         <div style={{ marginTop: 24, overflowX: 'auto', paddingBottom: 4 }}>
           <div className="row" style={{ gap: 0, minWidth: 'min-content' }}>
             {STAGES.map((s, i) => {
               const done   = i < currentIdx;
               const active = i === currentIdx;
+              const isCurrent = active;
               return (
                 <Fragment key={s}>
-                  <div className="col" style={{ alignItems: 'center', gap: 6, minWidth: 80, flex: '0 0 auto' }}>
+                  <button
+                    type="button"
+                    onClick={() => !isCurrent && setPendingStage(s)}
+                    disabled={isCurrent || transition.isPending}
+                    aria-label={`Move stage to ${s}`}
+                    className="col"
+                    style={{
+                      alignItems: 'center',
+                      gap: 6,
+                      minWidth: 80,
+                      flex: '0 0 auto',
+                      background: 'transparent',
+                      border: 'none',
+                      padding: 0,
+                      cursor: isCurrent ? 'default' : 'pointer',
+                    }}
+                  >
                     <div
                       style={{
                         width: 26,
@@ -207,7 +264,7 @@ export function CaseDetailView() {
                     >
                       {s.toUpperCase()}
                     </span>
-                  </div>
+                  </button>
                   {i < STAGES.length - 1 && (
                     <div
                       style={{
@@ -223,11 +280,106 @@ export function CaseDetailView() {
               );
             })}
           </div>
+          {currentIdx === -1 && c.stage && (
+            <div className="body-sm muted" style={{ marginTop: 10 }}>
+              Current stage <strong>{c.stage}</strong> isn't on the canonical {c.pipeline?.kind ?? 'default'} path. Click a step above to align.
+            </div>
+          )}
+          {/* Inline custom-stage composer. The new stage is added to the
+              firm's catalog (firm_custom_case_stages) for this pipeline
+              kind, so it shows up on every matter of the same type. */}
+          <div
+            className="row"
+            style={{
+              gap: 8,
+              alignItems: 'center',
+              marginTop: 12,
+              flexWrap: 'wrap',
+            }}
+          >
+            {addingStage ? (
+              <>
+                <input
+                  className="input"
+                  autoFocus
+                  value={newStageName}
+                  onChange={(e) => setNewStageName(e.target.value)}
+                  placeholder="e.g. IA, Mediation, Pre-filing review"
+                  maxLength={60}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); void commitNewStage(); }
+                    if (e.key === 'Escape') { setAddingStage(false); setNewStageName(''); }
+                  }}
+                  style={{ flex: '0 1 280px', minWidth: 200 }}
+                  disabled={addStage.isPending}
+                />
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => { void commitNewStage(); }}
+                  disabled={addStage.isPending || !newStageName.trim()}
+                >
+                  {addStage.isPending ? 'Adding…' : 'Add'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { setAddingStage(false); setNewStageName(''); }}
+                  disabled={addStage.isPending}
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setAddingStage(true)}
+                title="Add a custom stage to this firm's pipeline"
+              >
+                <Icon name="plus" size={12} /> Add stage
+              </button>
+            )}
+            <span
+              className="mono body-xs muted"
+              style={{ letterSpacing: '0.14em' }}
+            >
+              CUSTOM STAGES APPLY TO ALL {String(c.pipeline?.kind ?? 'default').toUpperCase()} MATTERS
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* Tab strip */}
+      <div className="matter-intel-tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'overview'}
+          className={`matter-intel-tab${activeTab === 'overview' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'intelligence'}
+          className={`matter-intel-tab${activeTab === 'intelligence' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('intelligence')}
+        >
+          Intelligence
+        </button>
+      </div>
+
+      {activeTab === 'intelligence' && (
+        <MatterIntelPanel caseId={c.id} matterTitle={c.title} />
+      )}
+
+      {activeTab === 'overview' && (
+      <>
       {/* BODY - two columns */}
-      <div className="case-body" style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+      <div className="case-body split-2-wide" style={{ gap: 24 }}>
         {/* LEFT */}
         <div className="col" style={{ gap: 24 }}>
           {/* Case meta */}
@@ -244,38 +396,30 @@ export function CaseDetailView() {
             </div>
           </div>
 
-          {/* Timeline */}
+          {/* Timeline — stage transitions, hearings, documents, notes,
+              merged newest-first from /api/cases/:id/timeline. */}
           <div>
             <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
               <h2 className="heading-lg">Timeline</h2>
               <span className="spacer" />
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {TIMELINE.length} EVENTS
+                {timeline.data?.length ?? 0} EVENTS
               </span>
             </div>
-            {TIMELINE.length === 0 ? (
-              <p className="body-md muted">No events recorded for this matter yet.</p>
+            {timeline.isLoading ? (
+              <p className="body-md muted">Loading timeline…</p>
+            ) : timeline.isError ? (
+              <p className="body-sm" style={{ color: 'var(--danger)' }}>
+                Could not load timeline. {(timeline.error as Error)?.message ?? ''}
+              </p>
+            ) : (timeline.data?.length ?? 0) === 0 ? (
+              <p className="body-md muted">
+                No events recorded yet. Stage changes, hearings, documents and notes will appear here.
+              </p>
             ) : (
               <div className="col" style={{ gap: 10 }}>
-                {TIMELINE.map((e, i) => (
-                  <div
-                    key={`${e.date}-${i}`}
-                    className="card"
-                    style={{ padding: 18, borderLeft: `3px solid ${toneToColor(e.tone)}` }}
-                  >
-                    <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
-                      <div
-                        className="mono tabular"
-                        style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', minWidth: 92, paddingTop: 2 }}
-                      >
-                        {e.date}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div className="heading-sm" style={{ marginBottom: 4 }}>{e.title}</div>
-                        <div className="body-sm muted">{e.body}</div>
-                      </div>
-                    </div>
-                  </div>
+                {timeline.data!.map((e) => (
+                  <TimelineRow key={e.id} event={e} />
                 ))}
               </div>
             )}
@@ -304,6 +448,10 @@ export function CaseDetailView() {
               </div>
             )}
           </div>
+
+          {/* Notes - typed memos or uploaded files; AI drafting can pull these
+              in as context when generating documents for this matter. */}
+          <CaseNotesPanel caseId={c.id} matterTitle={c.title} />
         </div>
 
         {/* RIGHT */}
@@ -413,50 +561,13 @@ export function CaseDetailView() {
             </button>
           </div>
 
-          {/* Recent documents */}
-          <div className="card">
-            <div className="row" style={{ marginBottom: 12 }}>
-              <div className="heading-md">Recent documents</div>
-              <span className="spacer" />
-              <a href="/app/documents" onClick={(e) => { e.preventDefault(); navigate('/app/documents'); }}>
-                All
-              </a>
-            </div>
-            {RECENT_DOCS.length === 0 ? (
-              <p className="body-sm muted">No documents on file.</p>
-            ) : (
-              <div className="col" style={{ gap: 0 }}>
-                {RECENT_DOCS.map((d, i) => (
-                  <div
-                    key={d.name}
-                    className="row"
-                    style={{
-                      padding: '10px 0',
-                      borderBottom: i < RECENT_DOCS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      gap: 12,
-                    }}
-                  >
-                    <Icon name="file" size={14} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500 }}>{d.name}</div>
-                      <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                        {d.type.toUpperCase()}
-                      </div>
-                    </div>
-                    <div className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{d.filed}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Recent documents have moved to the unified Timeline (left
+              column) which streams document uploads alongside hearings and
+              stage moves. A dedicated card here would duplicate that. */}
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) {
-          .case-body { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
+      </>
+      )}
 
       <EngagementLetterPreview
         text={engagementLetter}
@@ -477,6 +588,70 @@ export function CaseDetailView() {
         onClose={() => setTaskOpen(false)}
         defaultCase={c.title}
       />
+
+      <Modal
+        open={pendingStage !== null}
+        onClose={() => {
+          if (transition.isPending) return;
+          setPendingStage(null);
+          setTransitionNote('');
+        }}
+        title={`Move to ${pendingStage ?? ''}`}
+        eyebrow={c.title}
+        description={
+          c.stage
+            ? `Currently at "${c.stage}". This will be logged on the matter timeline.`
+            : 'This will be logged on the matter timeline.'
+        }
+        width={520}
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setPendingStage(null);
+                setTransitionNote('');
+              }}
+              disabled={transition.isPending}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => { void commitTransition(); }}
+              disabled={transition.isPending}
+            >
+              {transition.isPending ? 'Updating…' : 'Move stage'}
+            </button>
+          </>
+        }
+      >
+        <div className="col" style={{ gap: 12 }}>
+          <label className="col" style={{ gap: 6 }}>
+            <span className="eyebrow">Note (optional)</span>
+            <textarea
+              className="input"
+              rows={3}
+              maxLength={400}
+              placeholder="Brief context — e.g. 'WS filed today, sent to client for review'"
+              value={transitionNote}
+              onChange={(e) => setTransitionNote(e.target.value)}
+              disabled={transition.isPending}
+            />
+          </label>
+          <label className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={shareWithClient}
+              onChange={(e) => setShareWithClient(e.target.checked)}
+              disabled={transition.isPending}
+            />
+            <span className="body-sm">Visible on client portal</span>
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -598,13 +773,56 @@ function EngagementLetterPreview({
   );
 }
 
-function toneToColor(tone: TimelineEntry['tone']): string {
-  switch (tone) {
-    case 'info':    return 'var(--info)';
-    case 'success': return 'var(--success)';
-    case 'warning': return 'var(--warning)';
-    case 'danger':  return 'var(--danger)';
-    case 'neutral':
-    default:        return 'var(--border-default)';
+function kindToColor(kind: MatterTimelineEvent['kind']): string {
+  switch (kind) {
+    case 'stage':    return 'var(--success, #2f7d32)';
+    case 'hearing':  return 'var(--info, #2563eb)';
+    case 'document': return 'var(--warning, #b45309)';
+    case 'note':     return 'var(--border-default)';
+    default:         return 'var(--border-default)';
   }
+}
+
+function kindLabel(kind: MatterTimelineEvent['kind']): string {
+  switch (kind) {
+    case 'stage':    return 'STAGE';
+    case 'hearing':  return 'HEARING';
+    case 'document': return 'DOCUMENT';
+    case 'note':     return 'NOTE';
+    default:         return 'EVENT';
+  }
+}
+
+function TimelineRow({ event }: { event: MatterTimelineEvent }) {
+  const date = event.at ? event.at.slice(0, 10) : '';
+  return (
+    <div
+      className="card"
+      style={{ padding: 18, borderLeft: `3px solid ${kindToColor(event.kind)}` }}
+    >
+      <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
+        <div
+          className="mono tabular"
+          style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', minWidth: 92, paddingTop: 2 }}
+        >
+          {date}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div className="row" style={{ gap: 8, marginBottom: 4, alignItems: 'baseline' }}>
+            <span
+              className="mono"
+              style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}
+            >
+              {kindLabel(event.kind)}
+            </span>
+            {event.actorName && (
+              <span className="body-sm muted">· {event.actorName}</span>
+            )}
+          </div>
+          <div className="heading-sm" style={{ marginBottom: event.body ? 4 : 0 }}>{event.title}</div>
+          {event.body && <div className="body-sm muted">{event.body}</div>}
+        </div>
+      </div>
+    </div>
+  );
 }

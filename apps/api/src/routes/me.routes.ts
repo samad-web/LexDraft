@@ -1,7 +1,11 @@
 import { Router } from 'express';
-import { db } from '../db/client';
+import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { permissionsService } from '../services/permissions.service';
+import { aiQuotaService } from '../services/ai-quota.service';
+import { firmIdForUser } from '../services/tenant';
+import { isKnownLanguageCode } from '../lib/languages';
+import { validate } from '../middleware/validate';
 
 export const meRouter: Router = Router();
 
@@ -26,6 +30,36 @@ meRouter.get('/', async (req, res, next) => {
   }
 });
 
+// PATCH /me/preferences — update user-level preferences (currently just the
+// default language used by AI-facing features). The body is intentionally
+// narrow so adding more prefs later doesn't accidentally expose any other
+// editable field through the same shape.
+const PreferencesBody = z.object({
+  defaultLanguageCode: z.string().min(2).max(16).optional(),
+});
+meRouter.patch('/preferences', validate({ body: PreferencesBody }), async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const body = req.body as z.infer<typeof PreferencesBody>;
+    if (body.defaultLanguageCode && !isKnownLanguageCode(body.defaultLanguageCode)) {
+      res.status(422).json({ error: `Unknown languageCode: ${body.defaultLanguageCode}` });
+      return;
+    }
+    const user = await authService.updatePreferences(userId, body);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Resolved feature set for the current session (spec §9 self-service).
 meRouter.get('/features', async (req, res, next) => {
   try {
@@ -40,21 +74,10 @@ meRouter.get('/features', async (req, res, next) => {
   }
 });
 
-const PLAN_LIMITS: Record<string, number | null> = {
-  Solo: 50,
-  Practice: 500,
-  Firm: null,
-};
-
-interface PlanRow { plan_tier: string | null }
-interface CountRow { c: string | number }
-
-function limitFor(tier: string | null): number | null {
-  if (!tier) return PLAN_LIMITS.Solo ?? 50;
-  if (tier in PLAN_LIMITS) return PLAN_LIMITS[tier]!;
-  return PLAN_LIMITS.Solo ?? 50;
-}
-
+// `/usage` is now a thin shim over the canonical ai-quota service, so the
+// legacy field shape (`{ aiDocuments: { used, limit } }`) keeps working for
+// any client still calling it. `/ai-quota` is the richer endpoint that
+// includes cycle bounds and reset-at, for the upgrade-prompt UI.
 meRouter.get('/usage', async (req, res, next) => {
   try {
     const userId = req.user?.id;
@@ -62,30 +85,23 @@ meRouter.get('/usage', async (req, res, next) => {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const sql = db();
-    if (!sql) {
-      res.json({ aiDocuments: { used: 0, limit: 50 } });
+    const firmId = await firmIdForUser(userId);
+    const status = await aiQuotaService.status(firmId, userId);
+    res.json({ aiDocuments: { used: status.used, limit: status.cap } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+meRouter.get('/ai-quota', async (req, res, next) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const [planRows, countRows] = await Promise.all([
-      sql<PlanRow[]>`
-        select f.plan_tier
-        from users u
-        left join firms f on f.id = u.firm_id
-        where u.id = ${userId}
-        limit 1
-      `,
-      sql<CountRow[]>`
-        select count(*)::int as c
-        from drafts
-        where user_id = ${userId}
-          and created_at >= date_trunc('month', now())
-      `,
-    ]);
-    const tier = planRows[0]?.plan_tier ?? null;
-    const limit = limitFor(tier);
-    const used = Number(countRows[0]?.c ?? 0);
-    res.json({ aiDocuments: { used, limit } });
+    const firmId = await firmIdForUser(userId);
+    res.json(await aiQuotaService.status(firmId, userId));
   } catch (err) {
     next(err);
   }

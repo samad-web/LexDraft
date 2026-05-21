@@ -365,9 +365,8 @@ function BackupStep({
       </div>
 
       <div
+        className="form-row"
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
           gap: 8,
           padding: 16,
           background: 'var(--bg-surface)',

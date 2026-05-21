@@ -7,7 +7,8 @@ export type IconName =
   | 'archive' | 'members' | 'analytics' | 'settings' | 'search' | 'bell'
   | 'plus' | 'moon' | 'sun' | 'home' | 'chat' | 'more' | 'arrow' | 'chevron'
   | 'chevronD' | 'upload' | 'download' | 'close' | 'check' | 'flag' | 'file'
-  | 'shield' | 'globe' | 'menu' | 'eye' | 'eyeOff';
+  | 'shield' | 'globe' | 'menu' | 'eye' | 'eyeOff'
+  | 'mic' | 'micOff' | 'edit' | 'trash';
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -60,6 +61,10 @@ const PATHS: Record<IconName, ReactNode> = {
   menu: (<><path d="M3 6h18M3 12h18M3 18h18"/></>),
   eye: (<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></>),
   eyeOff: (<><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-6.5 0-10-7-10-7a18.45 18.45 0 0 1 4.06-5.06M9.9 4.24A10.94 10.94 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19M10.59 10.59a2 2 0 1 0 2.83 2.83"/><path d="M2 2l20 20"/></>),
+  mic: (<><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></>),
+  micOff: (<><path d="M2 2l20 20"/><path d="M9 4.5A3 3 0 0 1 15 5v6M15 9.34V11a3 3 0 0 1-5.12 2.12"/><path d="M19 11a7 7 0 0 1-.11 1.23M5 11a7 7 0 0 0 12 5"/><path d="M12 18v3M8 21h8"/></>),
+  edit:  (<><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></>),
+  trash: (<><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></>),
 };
 
 export function Icon({ name, size = 16, className = '', ...rest }: IconProps) {

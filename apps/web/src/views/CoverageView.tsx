@@ -14,7 +14,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useAuthStore } from '@/store/auth';
 import {
@@ -145,20 +145,41 @@ export function CoverageView() {
       <RequestCoverageModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {isLoading && (
-        <div className="card">
-          <p className="body-md muted">Loading coverage board<span className="blink" /></p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 16,
+          }}
+        >
+          {[0, 1, 2].map((c) => (
+            <div key={c} className="card" style={{ background: 'var(--bg-surface-2)', padding: 16, minHeight: 360 }}>
+              <Skeleton width={120} height={14} />
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <Skeleton width="100%" height={80} radius="md" />
+                <Skeleton width="100%" height={80} radius="md" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
       {isError && (
-        <div className="card">
-          <p className="body-md" style={{ color: 'var(--danger)' }}>
-            Couldn&apos;t load the coverage board. Please try again.
-          </p>
-        </div>
+        <ErrorState
+          title="Couldn't load the coverage board"
+          description="Check your connection and try again."
+        />
       )}
 
-      {!isLoading && !isError && (
+      {!isLoading && !isError && requests.length === 0 && (
+        <EmptyState
+          icon="members"
+          title="No coverage requests yet"
+          description="When a colleague needs another advocate to cover a hearing, their request will appear here. Click 'Request coverage' to ask for one."
+        />
+      )}
+
+      {!isLoading && !isError && requests.length > 0 && (
         <div
           className="kanban"
           style={{

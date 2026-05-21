@@ -1,8 +1,9 @@
-import { useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { IconName } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
+import { useUIStore } from '@/store/ui';
 import { useNavHighlighter } from '@/hooks/useNavHighlighter';
 
 interface AdminNavItem {
@@ -26,12 +27,32 @@ export function AdminSidebar() {
   const initials = (user?.name || 'AD').split(' ').map((s) => s[0]).slice(0, 2).join('');
   const navRef = useRef<HTMLElement>(null);
   const hl = useNavHighlighter(navRef);
+  const location = useLocation();
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+
+  useEffect(() => {
+    if (sidebarOpen) toggleSidebar(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   return (
-    <aside className="sidebar">
+    <>
+      {sidebarOpen && (
+        <div className="sidebar-scrim" aria-hidden onClick={() => toggleSidebar(false)} />
+      )}
+      <aside className={`sidebar${sidebarOpen ? ' is-open' : ''}`}>
       <div className="wordmark">
         <span className="wordmark-mark" aria-hidden />
         <span className="wordmark-full">LexDraft</span>
+        <button
+          type="button"
+          className="btn btn-ghost sidebar-close"
+          onClick={() => toggleSidebar(false)}
+          aria-label="Close navigation menu"
+        >
+          <Icon name="close" size={16} />
+        </button>
       </div>
 
       <div style={{ padding: '0 20px 8px' }}>
@@ -102,5 +123,6 @@ export function AdminSidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

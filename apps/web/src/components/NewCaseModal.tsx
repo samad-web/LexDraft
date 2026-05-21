@@ -187,7 +187,7 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
           />
         </Field>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="form-row">
           <Field label="CLIENT" required>
             <input
               className="input"

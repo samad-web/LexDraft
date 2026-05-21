@@ -169,7 +169,7 @@ export function NewHearingModal({
           Existing clients show up here. Typing a new name creates a placeholder matter you can flesh out later from <em>Cases</em>.
         </span>
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="DATE" required>
           <DatePicker value={date} onChange={setDate} />
         </Field>

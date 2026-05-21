@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   PortalNotificationPreferences, PortalProfile, PortalProfileUpdate,
 } from '@lexdraft/types';
+import { ErrorState, Skeleton } from '@lexdraft/ui';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { portalStrings as t } from './strings';
+import { useAlert, useConfirm } from '@/components/ConfirmDialog';
 
 /**
  * Profile screen - read-only identity (name + email come from the firm-side
@@ -13,6 +15,8 @@ import { portalStrings as t } from './strings';
  */
 export function PortalProfileView() {
   const queryClient = useQueryClient();
+  const alertDialog = useAlert();
+  const confirmDialog = useConfirm();
 
   const profile = useQuery({
     queryKey: ['portal', 'profile'],
@@ -35,7 +39,13 @@ export function PortalProfileView() {
       setSavedFlash(true);
       window.setTimeout(() => setSavedFlash(false), 2200);
     },
-    onError: (err) => alert(portalErrorMessage(err, 'Could not save your changes.')),
+    onError: (err) => {
+      void alertDialog({
+        title: 'Could not save your changes',
+        message: portalErrorMessage(err, 'Please try again.'),
+        tone: 'danger',
+      });
+    },
   });
 
   const forget = useMutation({
@@ -47,22 +57,41 @@ export function PortalProfileView() {
   const [forgetSubmitted, setForgetSubmitted] = useState(false);
 
   async function onForgetMe(): Promise<void> {
-    if (!window.confirm(t.profileForgetConfirm)) return;
+    const ok = await confirmDialog({
+      title: 'Request to be forgotten',
+      message: t.profileForgetConfirm,
+      confirmLabel: 'Submit request',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await forget.mutateAsync(forgetReason.trim() || undefined);
       setForgetSubmitted(true);
     } catch (err) {
-      alert(portalErrorMessage(err, 'Could not submit the request.'));
+      await alertDialog({
+        title: 'Could not submit the request',
+        message: portalErrorMessage(err, 'Please try again later.'),
+        tone: 'danger',
+      });
     }
   }
 
   if (profile.isLoading || !notifs) {
-    return <div style={pageStyle}><div style={emptyStyle}>{t.loading}</div></div>;
+    return (
+      <div style={pageStyle}>
+        <Skeleton width={180} height={22} />
+        <div style={{ marginTop: 16 }}><Skeleton width="100%" height={220} radius="md" /></div>
+        <div style={{ marginTop: 16 }}><Skeleton width="100%" height={160} radius="md" /></div>
+      </div>
+    );
   }
   if (profile.isError || !profile.data) {
     return (
       <div style={pageStyle}>
-        <div style={emptyStyle}>{portalErrorMessage(profile.error, t.profileError)}</div>
+        <ErrorState
+          title={t.profileError}
+          description={portalErrorMessage(profile.error, 'Please reload to retry.')}
+        />
       </div>
     );
   }
@@ -140,7 +169,7 @@ export function PortalProfileView() {
             <div style={{ marginTop: 12 }}>
               <button
                 type="button"
-                onClick={onForgetMe}
+                onClick={() => void onForgetMe()}
                 disabled={forget.isPending}
                 style={btnDanger}
               >
@@ -227,8 +256,4 @@ const btnDanger: React.CSSProperties = {
   padding: '8px 14px', fontSize: 13, fontWeight: 500,
   background: '#fee2e2', color: '#991b1b',
   border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer',
-};
-const emptyStyle: React.CSSProperties = {
-  padding: '16px 12px', fontSize: 14, opacity: 0.7,
-  border: '1px dashed var(--border, #e4e4e7)', borderRadius: 8,
 };

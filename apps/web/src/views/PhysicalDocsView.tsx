@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import type { PhysicalDocStatus } from '@lexdraft/types';
 import {
   usePhysicalDocuments,
@@ -9,6 +9,7 @@ import { NewPhysicalDocModal } from '@/components/NewPhysicalDocModal';
 import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 interface FilterOption {
   id: 'all' | PhysicalDocStatus;
@@ -65,8 +66,15 @@ export function PhysicalDocsView() {
   }, [items]);
 
   const remove = useDeletePhysicalDocument();
-  function onDelete(id: string, title: string): void {
-    if (!window.confirm(`Archive "${title}" from the physical-document register?`)) return;
+  const confirm = useConfirm();
+  async function onDelete(id: string, title: string): Promise<void> {
+    const ok = await confirm({
+      title: 'Archive document?',
+      message: `"${title}" will be removed from the physical-document register.`,
+      confirmLabel: 'Archive',
+      danger: true,
+    });
+    if (!ok) return;
     remove.mutate(id);
   }
 
@@ -132,19 +140,37 @@ export function PhysicalDocsView() {
             </tr>
           </thead>
           <tbody>
-            {list.isLoading && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28 }}>
-                <span className="muted">Loading register<span className="blink" /></span>
-              </td></tr>
-            )}
+            {list.isLoading && Array.from({ length: 5 }, (_, i) => (
+              <tr key={`sk-${i}`}>
+                <td><Skeleton width={80} height={12} /></td>
+                <td><Skeleton width={180} height={14} /></td>
+                <td><Skeleton width={140} height={12} /></td>
+                <td><Skeleton width={120} height={12} /></td>
+                <td><Skeleton width={110} height={12} /></td>
+                <td><Skeleton width={70} height={20} /></td>
+                <td><Skeleton width={70} height={20} /></td>
+              </tr>
+            ))}
             {list.isError && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28 }}>
-                <span style={{ color: 'var(--danger)' }}>Couldn’t load the register.</span>
+              <tr><td colSpan={7}>
+                <ErrorState
+                  variant="inline"
+                  title="Couldn't load the register"
+                  description="Check your connection and try again."
+                />
               </td></tr>
             )}
             {!list.isLoading && !list.isError && items.length === 0 && (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 28 }}>
-                <span className="muted">No physical documents tracked yet - click <strong>Add document</strong> to register one.</span>
+              <tr><td colSpan={7}>
+                <EmptyState
+                  variant="inline"
+                  title={q || filter !== 'all' ? 'No documents match' : 'No physical documents yet'}
+                  description={
+                    q || filter !== 'all'
+                      ? 'Try a different search term or clear the filter.'
+                      : 'Click "Add document" to register your first paper original.'
+                  }
+                />
               </td></tr>
             )}
             {pager.slice.map((d) => {
@@ -167,7 +193,7 @@ export function PhysicalDocsView() {
                       <button
                         type="button"
                         className="btn btn-ghost"
-                        onClick={() => onDelete(d.id, d.title)}
+                        onClick={() => void onDelete(d.id, d.title)}
                         disabled={remove.isPending}
                       >
                         Archive

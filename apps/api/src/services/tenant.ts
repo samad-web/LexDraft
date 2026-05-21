@@ -63,3 +63,23 @@ export async function firmIdForUser(userId: string | undefined): Promise<string 
   cache.set(userId, { firmId, expiresAt: now + CACHE_TTL_MS });
   return firmId;
 }
+
+/**
+ * Verify a `caseId` belongs to the caller's `firmId`. Used by every endpoint
+ * that accepts a client-supplied caseId without going through the cases
+ * service first — primarily the presigned-upload routes, which previously
+ * signed URLs containing a caseId that hadn't been ownership-checked.
+ *
+ * Returns false in demo mode (no DB) so the safe-default behaviour is to
+ * reject; demo-mode callers never get presigned URLs anyway.
+ */
+export async function caseBelongsToFirm(firmId: string, caseId: string): Promise<boolean> {
+  const sql = db();
+  if (!sql) return false;
+  const [row] = await sql<{ id: string }[]>`
+    select id from cases
+    where id = ${caseId}::uuid and firm_id = ${firmId}::uuid
+    limit 1
+  `;
+  return !!row;
+}

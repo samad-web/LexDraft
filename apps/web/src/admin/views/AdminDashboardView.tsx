@@ -22,13 +22,7 @@ export function AdminDashboardView() {
         <div className="muted">Loading platform stats…</div>
       ) : (
         <>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-              gap: 20,
-            }}
-          >
+          <div className="grid-auto-sm" style={{ gap: 20 }}>
             <StatCard label="Firms" value={String(data.firms.total)} sub={`${data.firms.active} active · ${data.firms.suspended} suspended`} />
             <StatCard label="Users" value={String(data.users.total)} sub={`${data.users.active} active · ${data.users.superadmins} admins`} />
             <StatCard label="MRR"   value={formatInr(data.mrrInr)}   sub="Across active firms" />

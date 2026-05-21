@@ -3,16 +3,18 @@
  * behind `requireAuth`. Every handler operates against `req.user.id` - there
  * is no admin equivalent; one user, one principal, one export/deletion path.
  *
- * GET    /export           streams the user's data dump as an attachment
- * POST   /deletion-request schedules a soft-delete with a retention window
- * POST   /deletion-cancel  rolls back a pending deletion if within window
- * POST   /consent          appends to the consent ledger
- * GET    /consents         returns the consent history
+ * GET    /export            streams the user's data dump as an attachment
+ * GET    /deletion-status   returns the current deletion-request state
+ * POST   /deletion-request  schedules a soft-delete with a retention window
+ * POST   /deletion-cancel   rolls back a pending deletion if within window
+ * POST   /consent           appends to the consent ledger
+ * GET    /consents          returns the consent history
  */
 
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { dpdpService } from '../services/dpdp.service';
+import { db } from '../db/client';
 import { UnauthorizedError } from '../lib/errors';
 
 export const meDpdpRouter: Router = Router();
@@ -60,6 +62,44 @@ meDpdpRouter.get('/export', async (req, res, next) => {
     // session, so memory pressure is the user's own ceiling.
     res.end(JSON.stringify(payload, null, 2));
     req.log.info({ userId }, 'dpdp.export done');
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- deletion status --------------------------------------------------------
+// Reports whether the caller has a pending deletion. The frontend reads this
+// from the canonical store so the DeletionScheduledBanner can render without
+// trusting locally-cached state.
+meDpdpRouter.get('/deletion-status', async (req, res, next) => {
+  try {
+    const userId = requireUserId(req);
+    const sql = db();
+    if (!sql) {
+      // Demo mode (no DB): nothing scheduled.
+      res.json({ deletionScheduledAt: null, scheduledPurgeAt: null, canCancel: false });
+      return;
+    }
+    const [row] = await sql<Array<{
+      deleted_at: Date | string | null;
+      scheduled_purge_at: Date | string | null;
+    }>>`
+      select deleted_at, scheduled_purge_at
+      from users
+      where id = ${userId}::uuid
+      limit 1
+    `;
+    const toIso = (v: Date | string | null) => {
+      if (!v) return null;
+      return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
+    };
+    const deletionScheduledAt = toIso(row?.deleted_at ?? null);
+    const scheduledPurgeAt = toIso(row?.scheduled_purge_at ?? null);
+    res.json({
+      deletionScheduledAt,
+      scheduledPurgeAt,
+      canCancel: !!scheduledPurgeAt && new Date(scheduledPurgeAt).getTime() > Date.now(),
+    });
   } catch (err) {
     next(err);
   }

@@ -85,7 +85,7 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
         </div>
 
         <form onSubmit={onSubmit} className="col" style={{ gap: 12 }}>
-          <div style={grid}>
+          <div className="form-row">
             <Field label="File number" required>
               <input className="input" value={fileNo} onChange={(e) => setFileNo(e.target.value)} required maxLength={80} />
             </Field>
@@ -94,7 +94,7 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
             </Field>
           </div>
 
-          <div style={grid}>
+          <div className="form-row">
             <Field label="Document type" hint="e.g. Original deed, Affidavit, Court order">
               <input className="input" value={docType} onChange={(e) => setDocType(e.target.value)} maxLength={80} />
             </Field>
@@ -108,7 +108,7 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
             </Field>
           </div>
 
-          <div style={grid}>
+          <div className="form-row">
             <Field label="Location" required hint="e.g. Cabinet B-3, Courtroom 14, Client office">
               <input className="input" value={location} onChange={(e) => setLocation(e.target.value)} required maxLength={200} />
             </Field>
@@ -117,7 +117,7 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
             </Field>
           </div>
 
-          <div style={grid}>
+          <div className="form-row">
             <Field label="Status">
               <select className="input" value={status} onChange={(e) => setStatus(e.target.value as PhysicalDocStatus)}>
                 {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}

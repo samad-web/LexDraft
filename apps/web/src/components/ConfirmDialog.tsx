@@ -15,80 +15,152 @@ export interface ConfirmOptions {
   danger?: boolean;
 }
 
+export interface AlertOptions {
+  title: string;
+  message?: string;
+  /** Label for the dismiss button. Defaults to "OK". */
+  okLabel?: string;
+  /** Visual tone for the dialog header — defaults to neutral. */
+  tone?: 'neutral' | 'danger' | 'success';
+}
+
 type ConfirmFn = (options: ConfirmOptions) => Promise<boolean>;
+type AlertFn   = (options: AlertOptions) => Promise<void>;
 
 const ConfirmCtx = createContext<ConfirmFn | null>(null);
+const AlertCtx   = createContext<AlertFn | null>(null);
 
 interface PendingConfirm extends ConfirmOptions {
   resolve: (value: boolean) => void;
 }
 
-/** Wrap the app once. Provides `useConfirm()` to descendants. Renders via the
- *  shared <Modal>, so spacing/typography/borders match every other dialog. */
-export function ConfirmProvider({ children }: { children: ReactNode }) {
-  const [pending, setPending] = useState<PendingConfirm | null>(null);
-  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+interface PendingAlert extends AlertOptions {
+  resolve: () => void;
+}
 
-  // Focus the confirm button on open so Enter resolves true.
+/** Wrap the app once. Provides `useConfirm()` and `useAlert()` to descendants.
+ *  Renders via the shared <Modal>, so spacing/typography/borders match every
+ *  other dialog. Replaces every `window.confirm()` / `window.alert()` call in
+ *  the app — the native browser dialogs are blocking and styled by the OS,
+ *  which clashes with the rest of the UI. */
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+  const [pendingAlert,   setPendingAlert]   = useState<PendingAlert | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const alertBtnRef   = useRef<HTMLButtonElement>(null);
+
+  // Focus the primary button on open so Enter resolves the dialog.
   useEffect(() => {
-    if (pending) {
+    if (pendingConfirm) {
       const t = window.setTimeout(() => confirmBtnRef.current?.focus(), 50);
       return () => window.clearTimeout(t);
     }
     return undefined;
-  }, [pending]);
+  }, [pendingConfirm]);
+
+  useEffect(() => {
+    if (pendingAlert) {
+      const t = window.setTimeout(() => alertBtnRef.current?.focus(), 50);
+      return () => window.clearTimeout(t);
+    }
+    return undefined;
+  }, [pendingAlert]);
 
   const confirm = useCallback<ConfirmFn>((options) => {
     return new Promise<boolean>((resolve) => {
-      setPending({ ...options, resolve });
+      setPendingConfirm({ ...options, resolve });
     });
   }, []);
 
-  const handleClose = (value: boolean) => {
-    if (!pending) return;
-    pending.resolve(value);
-    setPending(null);
+  const alertFn = useCallback<AlertFn>((options) => {
+    return new Promise<void>((resolve) => {
+      setPendingAlert({ ...options, resolve });
+    });
+  }, []);
+
+  const closeConfirm = (value: boolean) => {
+    if (!pendingConfirm) return;
+    pendingConfirm.resolve(value);
+    setPendingConfirm(null);
   };
+
+  const closeAlert = () => {
+    if (!pendingAlert) return;
+    pendingAlert.resolve();
+    setPendingAlert(null);
+  };
+
+  const alertAccent = (() => {
+    if (!pendingAlert) return undefined;
+    if (pendingAlert.tone === 'danger')  return { background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' };
+    if (pendingAlert.tone === 'success') return { background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' };
+    return { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: 'var(--bg-base)' };
+  })();
 
   return (
     <ConfirmCtx.Provider value={confirm}>
-      {children}
-      <Modal
-        open={!!pending}
-        onClose={() => handleClose(false)}
-        title={pending?.title ?? ''}
-        description={pending?.message}
-        width={440}
-        footer={
-          pending && (
-            <>
+      <AlertCtx.Provider value={alertFn}>
+        {children}
+        <Modal
+          open={!!pendingConfirm}
+          onClose={() => closeConfirm(false)}
+          title={pendingConfirm?.title ?? ''}
+          description={pendingConfirm?.message}
+          width={440}
+          footer={
+            pendingConfirm && (
+              <>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => closeConfirm(false)}
+                >
+                  {pendingConfirm.cancelLabel ?? 'Cancel'}
+                </button>
+                <button
+                  ref={confirmBtnRef}
+                  type="button"
+                  className="btn"
+                  style={
+                    pendingConfirm.danger
+                      ? { borderColor: 'var(--danger)', color: 'var(--danger)' }
+                      : { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: 'var(--bg-base)' }
+                  }
+                  onClick={() => closeConfirm(true)}
+                >
+                  {pendingConfirm.confirmLabel ?? 'Confirm'}
+                </button>
+              </>
+            )
+          }
+        >
+          {/* Modal already renders title + description; nothing more to add. */}
+          <></>
+        </Modal>
+
+        <Modal
+          open={!!pendingAlert}
+          onClose={closeAlert}
+          title={pendingAlert?.title ?? ''}
+          description={pendingAlert?.message}
+          width={440}
+          footer={
+            pendingAlert && (
               <button
+                ref={alertBtnRef}
                 type="button"
                 className="btn"
-                onClick={() => handleClose(false)}
+                style={alertAccent}
+                onClick={closeAlert}
               >
-                {pending.cancelLabel ?? 'Cancel'}
+                {pendingAlert.okLabel ?? 'OK'}
               </button>
-              <button
-                ref={confirmBtnRef}
-                type="button"
-                className="btn"
-                style={
-                  pending.danger
-                    ? { borderColor: 'var(--danger)', color: 'var(--danger)' }
-                    : { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: 'var(--bg-base)' }
-                }
-                onClick={() => handleClose(true)}
-              >
-                {pending.confirmLabel ?? 'Confirm'}
-              </button>
-            </>
-          )
-        }
-      >
-        {/* Modal already renders title + description; nothing more to add. */}
-        <></>
-      </Modal>
+            )
+          }
+        >
+          <></>
+        </Modal>
+      </AlertCtx.Provider>
     </ConfirmCtx.Provider>
   );
 }
@@ -98,5 +170,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmCtx);
   if (!ctx) throw new Error('useConfirm must be used inside ConfirmProvider');
+  return ctx;
+}
+
+/** Returns `(options) => Promise<void>` — resolves when the user dismisses the
+ *  alert. Throws if used outside ConfirmProvider. */
+export function useAlert(): AlertFn {
+  const ctx = useContext(AlertCtx);
+  if (!ctx) throw new Error('useAlert must be used inside ConfirmProvider');
   return ctx;
 }

@@ -35,4 +35,5 @@ _design
 
 # Local uploads dir (file-storage driver default)
 /uploads/
+apps/api/uploads/
 .test-uploads/

@@ -421,14 +421,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
 
           {/* Slot fields - paired into 2-col rows on wide screens for tighter
               vertical rhythm now that we have the full modal width. */}
-          <div
-            className="letterhead-slot-grid"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 12,
-            }}
-          >
+          <div className="letterhead-slot-grid form-row" style={{ gap: 12 }}>
             <Slot
               label="Firm name"
               value={fields.firmName}

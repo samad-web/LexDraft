@@ -95,7 +95,7 @@ export function NewExpenseModal({ open, onClose }: Props) {
         </>
       }
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="REFERENCE" hint="Auto-generated if blank">
           <input
             className="input mono"

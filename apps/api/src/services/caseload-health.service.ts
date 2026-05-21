@@ -160,7 +160,7 @@ export const caseloadHealthService = {
       select
         (
           select count(*) from cases
-          where firm_id = ${firmId}::uuid and status = 'Active'
+          where firm_id = ${firmId}::uuid and status = 'Active' and kind = 'matter'
         )::int as open_matters,
         (
           select count(*) from limitations

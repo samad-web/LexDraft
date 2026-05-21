@@ -37,6 +37,61 @@ function shiftMonth(year: number, month: number, delta: number): { year: number;
   return { year: ny, month: nm };
 }
 
+/** Bucket the calendar's flat hearings list by ISO date so each day cell can
+ *  cheaply pull its own slice for the hover popover. */
+function indexByDate(hearings: CalendarHearing[]): Map<string, CalendarHearing[]> {
+  const m = new Map<string, CalendarHearing[]>();
+  for (const h of hearings) {
+    const list = m.get(h.date) ?? [];
+    list.push(h);
+    m.set(h.date, list);
+  }
+  // Sort each day's hearings by time (lexicographic on HH:mm works).
+  for (const list of m.values()) list.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+  return m;
+}
+
+/** Hover preview rendered inside each day cell. Visibility is driven by the
+ *  parent `.calendar-day-cell:hover / :focus-visible` rule in globals.css —
+ *  no per-cell React state needed. Pointer-events stay off so the popover
+ *  never intercepts the click that opens the day modal. */
+function HearingsHoverCard({ iso, hearings }: { iso: string; hearings: CalendarHearing[] }) {
+  if (hearings.length === 0) return null;
+  const shown = hearings.slice(0, 4);
+  const overflow = hearings.length - shown.length;
+  const niceDate = new Date(iso + 'T00:00:00').toLocaleDateString(undefined, {
+    weekday: 'short', month: 'short', day: 'numeric',
+  });
+  return (
+    <div className="calendar-hover-card" role="tooltip" aria-hidden="true">
+      <div className="calendar-hover-card-title">
+        {niceDate} · {hearings.length} {hearings.length === 1 ? 'hearing' : 'hearings'}
+      </div>
+      {shown.map((h, i) => (
+        <div key={h.id ?? `${iso}-${i}`} className="calendar-hover-card-row">
+          <div className="calendar-hover-card-row-head">
+            <span className="calendar-hover-card-time">{h.time || '—'}</span>
+            <span className="calendar-hover-card-case">{h.case}</span>
+          </div>
+          <div className="calendar-hover-card-meta">
+            {h.court}
+            {h.status && (
+              <>
+                {' · '}
+                <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h.status}</span>
+              </>
+            )}
+          </div>
+          {h.purpose && <div className="calendar-hover-card-purpose">{h.purpose}</div>}
+        </div>
+      ))}
+      {overflow > 0 && (
+        <div className="calendar-hover-card-more">+ {overflow} more · click to view all</div>
+      )}
+    </div>
+  );
+}
+
 export function CalendarView() {
   const showToast = useUIStore((s) => s.showToast);
   const [mode, setMode] = useState<ViewMode>('month');
@@ -192,6 +247,7 @@ function MonthPane({
   const totalHearings = data?.hearings.length ?? 0;
   const days = data?.days ?? [];
   const leading = days[0] ? days[0].weekdayIndex : 0;
+  const hearingsByDate = useMemo(() => indexByDate(data?.hearings ?? []), [data?.hearings]);
 
   return (
     <div className="card" style={{ padding: 'var(--space-6)' }}>
@@ -318,6 +374,7 @@ function MonthPane({
                 onClick={() => onSelect(d.date)}
                 aria-pressed={isSelected}
                 aria-label={`${d.date}${d.count ? `, ${d.count} ${d.count === 1 ? 'hearing' : 'hearings'}` : ''}`}
+                className="calendar-day-cell"
                 style={{
                   appearance: 'none',
                   cursor: 'pointer',
@@ -372,6 +429,9 @@ function MonthPane({
                     Add
                   </span>
                 )}
+                {hasHearings && (
+                  <HearingsHoverCard iso={d.date} hearings={hearingsByDate.get(d.date) ?? []} />
+                )}
               </button>
             );
           })}
@@ -398,6 +458,7 @@ function WeekPane({
   const { data, isLoading, isError } = useCalendarWeek(weekStart);
 
   const days = data?.days ?? [];
+  const hearingsByDate = useMemo(() => indexByDate(data?.hearings ?? []), [data?.hearings]);
 
   const goPrev = () => {
     const start = data?.weekStart ?? todayIso();
@@ -496,6 +557,7 @@ function WeekPane({
                 key={d.date}
                 type="button"
                 onClick={() => onSelect(d.date)}
+                className="calendar-day-cell"
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -539,6 +601,9 @@ function WeekPane({
                 >
                   {d.count} {d.count === 1 ? 'hearing' : 'hearings'}
                 </span>
+                {d.count > 0 && (
+                  <HearingsHoverCard iso={d.date} hearings={hearingsByDate.get(d.date) ?? []} />
+                )}
               </button>
             );
           })}

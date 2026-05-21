@@ -52,7 +52,7 @@
 - §VI Stat row — Active matters · Clients · Open notices · Revenue.
 
 **Solo-specific elements:**
-- Usage strip in sidebar (`50 AI drafts/mo` quota — already implemented).
+- Usage strip in sidebar (`20 AI drafts/mo` quota — already implemented).
 - "Add a co-advocate" upgrade nudge below stat row when seats are saturated.
 
 ### 3.2 Practice

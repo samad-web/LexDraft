@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import type { PortalDashboard } from '@lexdraft/types';
+import { EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { usePortalAuthStore } from '@/store/portalAuth';
 import { portalStrings as t } from './strings';
+import { useAlert } from '@/components/ConfirmDialog';
 
 /**
  * Read-mostly client dashboard. One round trip to `/portal/dashboard` returns
@@ -14,6 +16,7 @@ import { portalStrings as t } from './strings';
 export function PortalDashboardView() {
   const navigate = useNavigate();
   const client = usePortalAuthStore((s) => s.client);
+  const alertDialog = useAlert();
 
   const dashboard = useQuery({
     queryKey: ['portal', 'dashboard'],
@@ -27,19 +30,40 @@ export function PortalDashboardView() {
       const res = await portalApi.get<{ downloadUrl: string }>(`/documents/${id}/download-url`);
       window.open(res.downloadUrl, '_blank', 'noopener');
     } catch (err) {
-      alert(portalErrorMessage(err, t.errDownload));
+      await alertDialog({
+        title: t.errDownload,
+        message: portalErrorMessage(err, 'Please try again.'),
+        tone: 'danger',
+      });
     }
   }
 
   if (dashboard.isLoading) {
-    return <div style={pageStyle}><Empty>{t.loading}</Empty></div>;
+    return (
+      <div style={pageStyle}>
+        <Skeleton width={220} height={22} />
+        <div style={{ marginTop: 10 }}><Skeleton width={160} height={13} /></div>
+        <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ flex: '1 1 140px', minWidth: 140 }}>
+              <Skeleton width="60%" height={11} />
+              <div style={{ marginTop: 8 }}><Skeleton width={48} height={26} /></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 28 }}>
+          <Skeleton width="100%" height={120} radius="md" />
+        </div>
+      </div>
+    );
   }
   if (dashboard.isError || !dashboard.data) {
     return (
       <div style={pageStyle}>
-        <div role="alert" style={errorStyle}>
-          {portalErrorMessage(dashboard.error, t.dashboardError)}
-        </div>
+        <ErrorState
+          title={t.dashboardError}
+          description={portalErrorMessage(dashboard.error, 'Please try again.')}
+        />
       </div>
     );
   }
@@ -57,7 +81,11 @@ export function PortalDashboardView() {
 
       <Section title="Your matters">
         {d.matters.length === 0 ? (
-          <Empty>No active matters yet.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No active matters yet"
+            description="When your advocate adds a matter, it'll show up here."
+          />
         ) : (
           <Table headers={['Title', 'CNR', 'Court', 'Stage', 'Status', 'Next hearing', '']}>
             {d.matters.map((c) => (
@@ -85,7 +113,11 @@ export function PortalDashboardView() {
 
       <Section title="Upcoming hearings">
         {d.hearings.length === 0 ? (
-          <Empty>No upcoming hearings on file.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No upcoming hearings"
+            description="Hearings will appear here once they're scheduled."
+          />
         ) : (
           <Table headers={['Date', 'Time', 'Case', 'Court', 'Purpose']}>
             {d.hearings.map((h, i) => (
@@ -103,7 +135,11 @@ export function PortalDashboardView() {
 
       <Section title="Recent documents">
         {d.documents.length === 0 ? (
-          <Empty>No documents shared with you.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No documents shared with you"
+            description="Your advocate will share signed orders, drafts, and other files here."
+          />
         ) : (
           <Table headers={['Name', 'Case', 'Type', 'Updated', '']}>
             {d.documents.map((doc) => (
@@ -133,7 +169,11 @@ export function PortalDashboardView() {
 
       <Section title="Invoices">
         {d.invoices.length === 0 ? (
-          <Empty>No invoices yet.</Empty>
+          <EmptyState
+            variant="inline"
+            title="No invoices yet"
+            description="Bills from your advocate will appear here when issued."
+          />
         ) : (
           <Table headers={['Invoice #', 'Issued', 'Due', 'Amount (₹)', 'Status']}>
             {d.invoices.map((inv) => (
@@ -226,34 +266,27 @@ function Table(props: { headers: string[]; children: React.ReactNode }) {
   );
 }
 
-function Empty(props: { children: React.ReactNode }) {
-  return <div role="status" style={emptyStyle}>{props.children}</div>;
-}
-
 const pageStyle: React.CSSProperties = {
   maxWidth: 980, margin: '0 auto', padding: '32px 24px 64px',
 };
 const tableWrap: React.CSSProperties = {
-  border: '1px solid var(--border, #e4e4e7)', borderRadius: 8, overflow: 'hidden',
+  border: '1px solid var(--border, #e4e4e7)', borderRadius: 8,
+  // Horizontal scroll when narrow (phones) so columns don't squish into
+  // unreadable stacks. Vertical clip is fine — tables paginate elsewhere.
+  overflowX: 'auto',
+  overflowY: 'hidden',
   background: 'var(--card, #fff)',
 };
 const tableStyle: React.CSSProperties = {
   width: '100%', borderCollapse: 'collapse', fontSize: 14,
+  // Minimum width to keep the layout legible — the wrap container above
+  // takes the slack with a scrollbar on narrower viewports.
+  minWidth: 600,
 };
 const thStyle: React.CSSProperties = {
   textAlign: 'left', padding: '10px 12px',
   background: 'var(--bg, #fafafa)', borderBottom: '1px solid var(--border, #e4e4e7)',
   fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--muted, #71717a)',
-};
-const emptyStyle: React.CSSProperties = {
-  padding: '16px 12px', fontSize: 14, opacity: 0.7,
-  border: '1px dashed var(--border, #e4e4e7)', borderRadius: 8,
-};
-const errorStyle: React.CSSProperties = {
-  padding: '16px 12px', fontSize: 14,
-  border: '1px solid var(--danger, #b91c1c)', borderRadius: 8,
-  color: 'var(--danger, #b91c1c)',
-  background: 'var(--danger-bg, rgba(220, 38, 38, 0.06))',
 };
 const btnLink: React.CSSProperties = {
   padding: 0, background: 'none', border: 'none', cursor: 'pointer',

@@ -80,6 +80,26 @@ export function useFirmEnquiry() {
   });
 }
 
+export type DemoType = 'contact' | 'schedule';
+export interface DemoRequestBody {
+  name: string;
+  email: string;
+  firmName?: string;
+  phone?: string;
+  preferredTime?: string;
+  message?: string;
+  demoType: DemoType;
+}
+
+/** Public demo-request capture from the landing funnel. Shares the
+ *  signUpLimiter on the server so the same IP cannot flood the table. */
+export function useDemoRequest() {
+  return useMutation({
+    mutationFn: (body: DemoRequestBody) =>
+      api.post<{ ok: true; id: string }>('/auth/demo-request', body),
+  });
+}
+
 export function useSignOut() {
   const clear = useAuthStore((s) => s.clear);
   const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);

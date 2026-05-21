@@ -50,6 +50,12 @@ interface UserRow {
   enrolment: string | null;
   primary_court: string | null;
   practice_areas: string | null;
+  /** Migration 0039. Defaults to 'en-IN' on backfilled rows. */
+  default_language_code: string | null;
+  /** Migration 0040. */
+  plan_status: 'trial' | 'active' | 'past_due' | 'cancelled' | null;
+  trial_ends_at: string | Date | null;
+  is_demo: boolean | null;
 }
 
 /**
@@ -90,14 +96,33 @@ function normalizePlan(raw: string | null | undefined): UserPlan | undefined {
 }
 
 /**
- * Default firm for self-serve sign-up and sign-in auto-provision in dev.
- * Used ONLY by those two paths - invitation acceptance derives firmId from
- * the invitation row so invitees join the inviter's tenant, not this one.
- *
- * TODO: replace with real firm-provisioning during sign-up (one firm per
- * paying customer) before going multi-tenant in production.
+ * Map the self-serve sign-up role choice to the plan tier the new firm
+ * starts on. `firm_plan_tier` defaults to 'Practice' at the column level;
+ * for self-serve we set it explicitly so a solo sign-up lands on Solo and
+ * a managing-partner sign-up lands on Firm.
  */
-const SELF_SERVE_DEFAULT_FIRM_ID = '00000000-0000-0000-0000-000000000001';
+function planTierForSignUpRole(role: SignUpRequest['role']): UserPlan {
+  switch (role) {
+    case 'solo':  return 'Solo';
+    case 'group': return 'Practice';
+    case 'firm':  return 'Firm';
+  }
+}
+
+/**
+ * Derive the new firm's display name from sign-up input. `firms.name` is
+ * NOT NULL, so we always need a non-empty string. The user-supplied firm
+ * field wins; otherwise we synthesise something readable from their name.
+ */
+function deriveFirmName(input: SignUpRequest): string {
+  const provided = input.firm?.trim();
+  if (provided) return provided;
+  switch (input.role) {
+    case 'solo':  return `${input.name} (Solo)`;
+    case 'group': return `${input.name}'s Practice`;
+    case 'firm':  return `${input.name}'s Firm`;
+  }
+}
 
 // In-memory fallback (used only when DATABASE_URL is blank).
 const memUsers = new Map<string, StoredUser>();
@@ -165,13 +190,20 @@ function rowToPublic(row: UserRow): User {
   if (row.enrolment) user.enrolment = row.enrolment;
   if (row.primary_court) user.primaryCourt = row.primary_court;
   if (row.practice_areas) user.practiceAreas = row.practice_areas;
+  user.defaultLanguageCode = row.default_language_code ?? 'en-IN';
+  if (row.plan_status) user.planStatus = row.plan_status;
+  user.trialEndsAt = row.trial_ends_at
+    ? (row.trial_ends_at instanceof Date ? row.trial_ends_at.toISOString() : row.trial_ends_at)
+    : null;
+  user.isDemo = !!row.is_demo;
   return user;
 }
 
 const USER_SELECT_WITH_FIRM = `
   select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.firm_id,
-         u.enrolment, u.primary_court, u.practice_areas,
-         f.name as firm_name, f.plan_tier
+         u.enrolment, u.primary_court, u.practice_areas, u.default_language_code,
+         f.name as firm_name, f.plan_tier,
+         f.plan_status, f.trial_ends_at, f.is_demo
   from users u
   left join firms f on f.id = u.firm_id
 `;
@@ -194,9 +226,15 @@ async function findByEmail(email: string): Promise<{ publicUser: User; passwordH
 }
 
 async function insertUser(record: StoredUser, firmId: string | null): Promise<User> {
-  const targetFirmId = firmId ?? SELF_SERVE_DEFAULT_FIRM_ID;
   const sql = db();
   if (sql) {
+    // DB mode every user must be scoped to a real firm. Self-serve sign-up
+    // and dev auto-provision go through insertUserWithNewFirm so they
+    // always supply a firmId; invitation acceptance passes the inviter's
+    // firmId. A null here is a programming error.
+    if (!firmId) {
+      throw new Error('insertUser: firmId is required when DATABASE_URL is set');
+    }
     // Resolve the system role id so the resolver's plan ∩ role intersection
     // actually grants this user something. Without role_id they'd see
     // baseline-only features.
@@ -208,7 +246,7 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
           enrolment, primary_court, practice_areas
         )
         values (
-          ${targetFirmId}, ${record.name}, ${record.email.toLowerCase()},
+          ${firmId}, ${record.name}, ${record.email.toLowerCase()},
           ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
           ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null}
         )
@@ -224,11 +262,85 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
     return rowToPublic(rows[0]!);
   }
   // In-memory mode: generate an id so downstream code (middleware, JWT,
-  // permission resolver, portal) gets a stable handle.
+  // permission resolver, portal) gets a stable handle. No firm tracking
+  // happens here - memUsers carries the user record only.
   const stored: StoredUser = { ...record, id: record.id || crypto.randomUUID() };
   memUsers.set(record.email.toLowerCase(), stored);
   const { passwordHash: _ph, ...rest } = stored;
   return rest;
+}
+
+/**
+ * Atomically provision a new firm and insert the signed-up user into it.
+ * Used by self-serve sign-up and the dev-only auto-provision path on sign-in.
+ *
+ * Firm + user are written inside a single transaction so an email-uniqueness
+ * violation on the user insert rolls back the firm row too - no orphaned
+ * tenants in the database when two clients race the same email.
+ *
+ * Memory mode (no DATABASE_URL) skips firm tracking and falls back to the
+ * plain in-memory insertUser path.
+ */
+/** Intent the caller landed on the sign-up form with. Controls plan_status
+ *  and trial_ends_at on the freshly-provisioned firm. */
+export type SignUpIntent = 'trial' | 'paid' | 'demo';
+
+const TRIAL_LENGTH_DAYS = 14;
+
+async function insertUserWithNewFirm(
+  record: StoredUser,
+  firmName: string,
+  planTier: UserPlan,
+  intent: SignUpIntent = 'trial',
+): Promise<User> {
+  const sql = db();
+  if (!sql) {
+    return insertUser(record, null);
+  }
+  const roleId = await resolveSystemRoleId(record.role);
+  // Trial bookkeeping. 'paid' starts active with no trial clock; 'trial'
+  // and 'demo' both get a 14-day window. `is_demo` is set only for the
+  // dedicated interactive-demo funnel.
+  const planStatus = intent === 'paid' ? 'active' : 'trial';
+  const trialEndsAt = intent === 'paid'
+    ? null
+    : new Date(Date.now() + TRIAL_LENGTH_DAYS * 24 * 60 * 60 * 1000);
+  const isDemo = intent === 'demo';
+  const rows = await sql.begin(async (tx) => {
+    const [firmRow] = await tx<{ id: string }[]>`
+      insert into firms (name, plan_tier, plan_status, trial_ends_at, is_demo)
+      values (
+        ${firmName},
+        ${planTier}::firm_plan_tier,
+        ${planStatus},
+        ${trialEndsAt},
+        ${isDemo}
+      )
+      returning id
+    `;
+    const newFirmId = firmRow!.id;
+    return tx<UserRow[]>`
+      with inserted as (
+        insert into users (
+          firm_id, name, email, role, role_id, is_superadmin, password_hash,
+          enrolment, primary_court, practice_areas
+        )
+        values (
+          ${newFirmId}::uuid, ${record.name}, ${record.email.toLowerCase()},
+          ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
+          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null}
+        )
+        returning id, name, email, role, is_superadmin, password_hash, firm_id,
+                  enrolment, primary_court, practice_areas
+      )
+      select i.id, i.name, i.email, i.role, i.is_superadmin, i.password_hash, i.firm_id,
+             i.enrolment, i.primary_court, i.practice_areas,
+             f.name as firm_name, f.plan_tier
+      from inserted i
+      left join firms f on f.id = i.firm_id
+    `;
+  });
+  return rowToPublic(rows[0]!);
 }
 
 export const authService = {
@@ -270,15 +382,22 @@ export const authService = {
         .filter(Boolean)
         .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
         .join(' ') || email;
-      const user = await insertUser({
-        id: '',
-        name: derivedName,
-        email: email.toLowerCase(),
-        role: 'Solo Advocate',
-        firm: '',
-        isSuperadmin: isAdminish,
-        passwordHash: bcrypt.hashSync(password, 10),
-      }, null);
+      // Dev auto-provision matches the self-serve sign-up shape - each
+      // unknown email gets a fresh Solo firm rather than landing in a
+      // shared dev seed tenant.
+      const user = await insertUserWithNewFirm(
+        {
+          id: '',
+          name: derivedName,
+          email: email.toLowerCase(),
+          role: 'Solo Advocate',
+          firm: '',
+          isSuperadmin: isAdminish,
+          passwordHash: bcrypt.hashSync(password, 10),
+        },
+        `${derivedName} (Solo)`,
+        'Solo',
+      );
       // Freshly-provisioned users can never already be enrolled. Branch 3
       // applies; a Solo Advocate doesn't trigger mustEnrollMfa either.
       return { user, token: issueToken(user) };
@@ -338,20 +457,28 @@ export const authService = {
     const role: User['role'] =
       input.role === 'solo' ? 'Solo Advocate' : input.role === 'group' ? 'Practice Lead' : 'Managing Partner';
 
-    // Self-serve sign-up lands in the default firm for now. Production
-    // should provision a new firm row here and use its id.
-    const user = await insertUser({
-      id: '',
-      name: input.name,
-      email: input.email.toLowerCase(),
-      role,
-      firm: input.firm ?? '',
-      isSuperadmin: false,
-      passwordHash: await bcrypt.hash(input.password, 10),
-      enrolment: input.enrolment,
-      primaryCourt: input.primaryCourt,
-      practiceAreas: input.practiceAreas,
-    }, null);
+    // Each self-serve sign-up provisions its own firm (one firm per paying
+    // customer). The user becomes the owner of that fresh tenant; invitees
+    // join later via the invitation flow with firmId set from the invite row.
+    // Intent decides whether the firm lands as 'trial' (with a 14-day clock),
+    // 'paid' (no trial, billing wired downstream), or 'demo' (trial + flag).
+    const user = await insertUserWithNewFirm(
+      {
+        id: '',
+        name: input.name,
+        email: input.email.toLowerCase(),
+        role,
+        firm: input.firm ?? '',
+        isSuperadmin: false,
+        passwordHash: await bcrypt.hash(input.password, 10),
+        enrolment: input.enrolment,
+        primaryCourt: input.primaryCourt,
+        practiceAreas: input.practiceAreas,
+      },
+      deriveFirmName(input),
+      planTierForSignUpRole(input.role),
+      input.intent ?? 'trial',
+    );
     return { user, token: issueToken(user) };
   },
 
@@ -394,6 +521,44 @@ export const authService = {
       }
     }
     return undefined;
+  },
+
+  /**
+   * Persist a user-level preference change. Currently scoped to
+   * `defaultLanguageCode` (the Mock-Arguments default). Validation of the
+   * code itself is done by the caller; we just round-trip the string.
+   *
+   * Returns the refreshed public User so the client can update its auth
+   * store in one round-trip.
+   */
+  async updatePreferences(
+    userId: string,
+    prefs: { defaultLanguageCode?: string },
+  ): Promise<User | undefined> {
+    const sql = db();
+    if (!sql) {
+      // Mem mode: mutate the stored copy so subsequent /me reads return the
+      // new preference within the process lifetime.
+      for (const u of memUsers.values()) {
+        if (u.id === userId) {
+          if (prefs.defaultLanguageCode !== undefined) {
+            u.defaultLanguageCode = prefs.defaultLanguageCode;
+          }
+          const { passwordHash: _ph, ...rest } = u;
+          return rest;
+        }
+      }
+      return undefined;
+    }
+    if (prefs.defaultLanguageCode !== undefined) {
+      await sql`
+        update users set
+          default_language_code = ${prefs.defaultLanguageCode},
+          updated_at = now()
+        where id = ${userId}::uuid
+      `;
+    }
+    return authService.getById(userId);
   },
 
   /**

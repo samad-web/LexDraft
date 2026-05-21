@@ -18,3 +18,30 @@ export function useCreateClient() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
+
+export type ClientUpdate = Partial<Omit<Client, 'id' | 'mattersOpen' | 'portalEnabled'>>;
+
+export function useUpdateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: ClientUpdate }) =>
+      api.patch<Client>(`/clients/${id}`, patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients'] });
+      // Cases list shows the freeform client string — if the user renamed
+      // a client the matter counts on the Cases view should re-render.
+      qc.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}
+
+export function useDeleteClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/clients/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clients'] });
+      qc.invalidateQueries({ queryKey: ['cases'] });
+    },
+  });
+}

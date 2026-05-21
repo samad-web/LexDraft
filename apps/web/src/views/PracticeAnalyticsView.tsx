@@ -10,7 +10,7 @@ import {
 function AnalyticsTabSkeleton() {
   return (
     <div className="col" style={{ gap: 16 }} aria-busy="true" aria-label="Loading analytics">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+      <div className="grid-auto-sm">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Skeleton width="60%" height={11} />

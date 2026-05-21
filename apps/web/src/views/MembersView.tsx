@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, EmptyState } from '@lexdraft/ui';
 import type { Invitation } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
@@ -63,9 +63,11 @@ export function MembersView() {
       <PendingInvitations />
 
       {MEMBERS.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
-          <p className="body-md muted">No members yet. Invite your first colleague to populate the chambers roll.</p>
-        </div>
+        <EmptyState
+          icon="members"
+          title="No members yet"
+          description="Invite your first colleague to populate the chambers roll. Roles control matter access, billing approvals, and signing authority."
+        />
       ) : (
         <>
           <div className="grid-3" style={{ gap: 20 }}>

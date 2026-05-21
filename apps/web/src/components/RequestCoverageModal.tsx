@@ -105,7 +105,7 @@ export function RequestCoverageModal({ open, onClose, defaults }: Props) {
           autoFocus={!defaults?.caseLabel}
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="DATE" required>
           <input
             type="date"

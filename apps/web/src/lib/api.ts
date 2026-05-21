@@ -1,5 +1,15 @@
 import axios, { AxiosError } from 'axios';
 import { useAuthStore } from '@/store/auth';
+import { useUIStore } from '@/store/ui';
+
+interface CapErrorPayload {
+  error?: string;
+  code?: string;
+  cap?: number;
+  used?: number;
+  resetsAt?: string;
+  planTier?: string | null;
+}
 
 // In dev the Vite proxy forwards /api/* to VITE_API_URL (default
 // http://localhost:4000) - so an empty baseURL is correct: requests go to the
@@ -21,21 +31,49 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (r) => r,
-  (err: AxiosError<{ error?: string; code?: string }>) => {
+  (err: AxiosError<CapErrorPayload>) => {
     const status = err.response?.status;
+    const code = err.response?.data?.code ?? '';
+    const payload = err.response?.data;
+
+    // Only these 402 codes mean "the subscription itself is dead" — emitted by
+    // requireActivePlan.ts. Everything else (plan_not_supported,
+    // cap_reached, etc.) is a feature-gate refusal from an active session
+    // and must bubble up so the caller can render its own error UI.
+    const INACTIVE_PLAN_CODES = new Set([
+      'plan_cancelled',
+      'plan_past_due',
+      'plan_expired',
+      'trial_expired',
+    ]);
+
     if (status === 401) {
       useAuthStore.getState().clear();
-    } else if (status === 402) {
-      // Plan inactive - the server has refused to serve this request because
-      // the firm's plan is cancelled / past due / past renews_at. Treat as
-      // a forced logout: drop the token, surface a reason on the next URL
-      // so the login page can show a "renew to continue" banner.
-      const code = err.response?.data?.code ?? 'plan_inactive';
+    } else if (status === 402 && code === 'seat_cap_exceeded') {
+      // Seat cap reached on an invite/accept. Surface an upgrade prompt
+      // modal; do NOT log the user out. The current session is still valid.
+      useUIStore.getState().showCapPrompt({
+        kind: 'seat_cap',
+        cap: payload?.cap ?? 0,
+        used: payload?.used ?? 0,
+        planTier: payload?.planTier ?? null,
+      });
+    } else if (status === 402 && INACTIVE_PLAN_CODES.has(code)) {
+      // Plan inactive (cancelled / past due / past renews_at). Forced logout
+      // with a reason on the next URL so the login page can show a banner.
       useAuthStore.getState().clear();
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
-        const sep = window.location.pathname === '/auth' ? '?' : '?';
-        window.location.assign(`/auth${sep}reason=${encodeURIComponent(code)}`);
+        window.location.assign(`/auth?reason=${encodeURIComponent(code || 'plan_inactive')}`);
       }
+    } else if (status === 429 && code === 'ai_quota_exceeded') {
+      // Monthly AI cap hit. Surface upgrade-or-wait modal.
+      useUIStore.getState().showCapPrompt({
+        kind: 'ai_quota',
+        cap: payload?.cap ?? 0,
+        used: payload?.used ?? 0,
+        ...(payload?.resetsAt ? { resetsAt: payload.resetsAt } : {}),
+        planTier: payload?.planTier ?? null,
+      });
     }
     return Promise.reject(err);
   },

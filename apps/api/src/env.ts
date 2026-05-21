@@ -34,6 +34,30 @@ const Schema = z.object({
   WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   WRITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
 
+  /** Optional Redis URL for cross-replica rate limiting + cache fanout. When
+   *  blank, the rate limiter and caches stay in-process (single replica). */
+  REDIS_URL: z.string().optional().default(''),
+
+  /** SMTP wiring for transactional email (invitations, password resets,
+   *  hearing reminders, etc.). When SMTP_HOST is blank, `email.send` logs to
+   *  stdout instead — fine for dev, never sends mail. */
+  SMTP_HOST: z.string().optional().default(''),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional().default(''),
+  SMTP_PASSWORD: z.string().optional().default(''),
+  SMTP_SECURE: z.enum(['true', 'false']).default('false'),
+  EMAIL_FROM: z.string().optional().default(''),
+
+  /** S3 / R2 credentials. Only consulted when STORAGE_DRIVER is 's3' or 'r2'. */
+  STORAGE_S3_BUCKET: z.string().optional().default(''),
+  STORAGE_S3_REGION: z.string().optional().default(''),
+  STORAGE_S3_ACCESS_KEY_ID: z.string().optional().default(''),
+  STORAGE_S3_SECRET_ACCESS_KEY: z.string().optional().default(''),
+  /** Custom endpoint, e.g. Cloudflare R2 (https://<account>.r2.cloudflarestorage.com). */
+  STORAGE_S3_ENDPOINT: z.string().optional().default(''),
+  /** When 'true', generate path-style URLs (required by some R2-compatible hosts). */
+  STORAGE_S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('false'),
+
   /** Public URL of the web app - used to build magic links so the email
    *  link lands on the right host. Falls back to the first CORS origin. */
   WEB_PUBLIC_BASE_URL: z.string().optional().default(''),
@@ -144,4 +168,9 @@ export const env = {
     parsed.data.LAWS_DATABASE_URL.length > 0
     && parsed.data.EMBED_SERVICE_URL.length > 0,
   lawsDatabaseSsl: parsed.data.LAWS_DATABASE_SSL === 'true',
+  hasSmtp: parsed.data.SMTP_HOST.length > 0,
+  smtpSecure: parsed.data.SMTP_SECURE === 'true',
+  hasRedis: parsed.data.REDIS_URL.length > 0,
+  hasS3: parsed.data.STORAGE_DRIVER === 's3' || parsed.data.STORAGE_DRIVER === 'r2',
+  storageS3ForcePathStyle: parsed.data.STORAGE_S3_FORCE_PATH_STYLE === 'true',
 };

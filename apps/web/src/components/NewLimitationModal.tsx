@@ -85,7 +85,7 @@ export function NewLimitationModal({ open, onClose }: Props) {
           autoFocus
         />
       </Field>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div className="form-row">
         <Field label="CNR" hint="Optional">
           <input
             className="input mono"

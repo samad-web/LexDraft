@@ -31,10 +31,10 @@ export function useDisableClientPortal() {
   });
 }
 
-export function useResendClientPortalLink() {
+export function useRegenerateClientPortalPassword() {
   return useMutation({
     mutationFn: (clientId: string) =>
-      api.post<FirmEnablePortalResponse>(`/portal-admin/clients/${clientId}/resend-link`),
+      api.post<FirmEnablePortalResponse>(`/portal-admin/clients/${clientId}/regenerate-password`),
   });
 }
 

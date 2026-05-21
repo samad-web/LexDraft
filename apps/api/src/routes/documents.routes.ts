@@ -23,6 +23,14 @@ const DocInput = z.object({
   fileBase64: z.string().optional(),
 });
 
+const DocPatchInput = z.object({
+  name: z.string().min(1).max(255).optional(),
+  type: z.string().min(1).max(120).optional(),
+  case: z.string().min(1).max(255).optional(),
+}).refine((p) => p.name !== undefined || p.type !== undefined || p.case !== undefined, {
+  message: 'At least one of name, type, case must be supplied',
+});
+
 const UploadUrlInput = z.object({
   fileName: z.string().min(1).max(255),
   fileMime: z.string().min(1).max(255),
@@ -157,6 +165,46 @@ documentsRouter.post(
         return;
       }
       res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+documentsRouter.patch(
+  '/:id',
+  requireFeature('drafting.basic'),
+  validate({ params: idParam, body: DocPatchInput }),
+  withAudit({ action: 'document.update', targetType: 'document' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const updated = await documentsService.update(strParam(req.params['id']), firmId, req.body);
+      if (!updated) {
+        res.status(404).json({ error: 'Document not found' });
+        return;
+      }
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+documentsRouter.delete(
+  '/:id',
+  requireFeature('drafting.basic'),
+  validate({ params: idParam }),
+  withAudit({ action: 'document.delete', targetType: 'document' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const ok = await documentsService.remove(strParam(req.params['id']), firmId);
+      if (!ok) {
+        res.status(404).json({ error: 'Document not found' });
+        return;
+      }
+      res.status(204).end();
     } catch (err) {
       next(err);
     }

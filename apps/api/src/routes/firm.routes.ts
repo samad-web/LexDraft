@@ -5,6 +5,8 @@ import { firmAdminService } from '../services/firm-admin.service';
 import { auditService } from '../services/audit.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
+import { firmStageAdmin } from '../services/case-pipeline.service';
+import { validate, idParam } from '../middleware/validate';
 
 export const firmRouter: Router = Router();
 
@@ -84,6 +86,62 @@ firmRouter.get('/practice-groups', requireFeature('admin.users'), async (req, re
     res.json({ items: await firmAdminService.listPracticeGroups(req.user!.id) });
   } catch (err) { next(err); }
 });
+
+// ---- /firm/case-stages --------------------------------------------------
+// Per-firm custom case-pipeline stages. Folded into the snapshot returned by
+// GET /api/cases/:id so the matter-detail stepper renders them inline. Lives
+// on the firm router because management is a firm-admin concern, not a
+// per-matter action.
+const PipelineKindEnum = z.enum(['civil', 'criminal', 'consumer', 'writ', 'default', 'all']);
+const CreateStageBody = z.object({
+  kind: PipelineKindEnum,
+  stageName: z.string().min(1).max(60),
+  position: z.number().int().min(0).max(10000).optional(),
+});
+
+firmRouter.get('/case-stages', requireFeature('matter.view'), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    if (!firmId) { res.json({ items: [] }); return; }
+    res.json({ items: await firmStageAdmin.list(firmId) });
+  } catch (err) { next(err); }
+});
+
+firmRouter.post(
+  '/case-stages',
+  requireFeature('admin.users'),
+  validate({ body: CreateStageBody }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) { res.status(422).json({ error: 'No firm attached' }); return; }
+      const body = req.body as z.infer<typeof CreateStageBody>;
+      const created = await firmStageAdmin.create({
+        firmId,
+        kind: body.kind,
+        stageName: body.stageName,
+        ...(body.position !== undefined ? { position: body.position } : {}),
+        createdBy: req.user?.id ?? null,
+      });
+      res.status(201).json(created);
+    } catch (err) { next(err); }
+  },
+);
+
+firmRouter.delete(
+  '/case-stages/:id',
+  requireFeature('admin.users'),
+  validate({ params: idParam }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) { res.status(422).json({ error: 'No firm attached' }); return; }
+      const removed = await firmStageAdmin.remove(firmId, String(req.params.id ?? ''));
+      if (!removed) { res.status(404).json({ error: 'Stage not found' }); return; }
+      res.status(204).end();
+    } catch (err) { next(err); }
+  },
+);
 
 // ---- /firm/audit --------------------------------------------------------
 // Tenant-scoped slice of the platform audit log. Filters to entries authored
