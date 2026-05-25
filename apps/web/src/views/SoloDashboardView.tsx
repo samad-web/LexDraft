@@ -155,9 +155,9 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
         >
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
-            <div className="heading-md" style={{ marginBottom: 2 }}>Full hearings calendar</div>
+            <div className="heading-md" style={{ marginBottom: 2 }}>Cause-list calendar</div>
             <p className="body-sm muted" style={{ margin: 0 }}>
-              See every hearing for the month. Jump between months and drill into any day's cause list.
+              Every matter posted for the month, day by day. Jump between months and drill into any day's listing.
             </p>
           </div>
           <button
@@ -512,10 +512,10 @@ function MattersSection({ onNav }: { onNav: (view: string) => void }) {
       </div>
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-lg" onClick={() => onNav('cases')}>
-          Open the Cases register →
+          Open the matters register →
         </button>
         <button type="button" className="btn btn-lg btn-ghost" onClick={() => onNav('calendar')}>
-          View the hearing calendar
+          View the cause-list calendar
         </button>
       </div>
     </section>
@@ -599,7 +599,7 @@ function PracticeSection({ onNav }: { onNav: (view: string) => void }) {
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
         <a className="btn btn-lg" href="/app/limitation" onClick={go('limitation')}>Limitation index</a>
         <a className="btn btn-lg" href="/app/invoices" onClick={go('invoices')}>Billing &amp; invoices</a>
-        <a className="btn btn-lg" href="/app/cases" onClick={go('cases')}>Cases register</a>
+        <a className="btn btn-lg" href="/app/cases" onClick={go('cases')}>Matters register</a>
       </div>
     </section>
   );

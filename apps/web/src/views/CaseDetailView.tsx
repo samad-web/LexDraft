@@ -79,7 +79,7 @@ export function CaseDetailView() {
         <div className="card" style={{ borderColor: 'var(--danger)' }}>
           <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load matter</div>
           <p className="body-sm muted">
-            {error instanceof Error ? error.message : 'The case could not be found.'}
+            {error instanceof Error ? error.message : 'The matter could not be found.'}
           </p>
         </div>
       </div>
@@ -99,13 +99,13 @@ export function CaseDetailView() {
         ...(transitionNote.trim() ? { note: transitionNote.trim() } : {}),
         visibleToPortal: shareWithClient,
       });
-      showToast({ type: 'sage', text: `Stage updated to ${pendingStage}` });
+      showToast({ type: 'sage', text: `Stage moved to ${pendingStage}` });
       setPendingStage(null);
       setTransitionNote('');
       setShareWithClient(true);
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
-        ?.response?.data?.error ?? (err as Error).message ?? 'Could not update stage';
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not move stage';
       showToast({ type: 'vermillion', text: msg });
     }
   };
@@ -385,7 +385,7 @@ export function CaseDetailView() {
           {/* Case meta */}
           <div className="card">
             <div className="eyebrow" style={{ marginBottom: 8 }}>Matter</div>
-            <h2 className="heading-md" style={{ marginBottom: 12 }}>Overview</h2>
+            <h2 className="heading-md" style={{ marginBottom: 12 }}>Particulars</h2>
             <div className="grid-2" style={{ gap: 16 }}>
               <MetaItem label="CNR"        value={c.cnr}         mono copyable />
               <MetaItem label="Court"      value={c.court} />
@@ -400,21 +400,21 @@ export function CaseDetailView() {
               merged newest-first from /api/cases/:id/timeline. */}
           <div>
             <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-              <h2 className="heading-lg">Timeline</h2>
+              <h2 className="heading-lg">Matter diary</h2>
               <span className="spacer" />
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {timeline.data?.length ?? 0} EVENTS
+                {timeline.data?.length ?? 0} ENTRIES
               </span>
             </div>
             {timeline.isLoading ? (
-              <p className="body-md muted">Loading timeline…</p>
+              <p className="body-md muted">Loading diary…</p>
             ) : timeline.isError ? (
               <p className="body-sm" style={{ color: 'var(--danger)' }}>
-                Could not load timeline. {(timeline.error as Error)?.message ?? ''}
+                Could not load diary. {(timeline.error as Error)?.message ?? ''}
               </p>
             ) : (timeline.data?.length ?? 0) === 0 ? (
               <p className="body-md muted">
-                No events recorded yet. Stage changes, hearings, documents and notes will appear here.
+                No diary entries yet. Stage moves, next dates, filings and notes will appear here.
               </p>
             ) : (
               <div className="col" style={{ gap: 10 }}>
@@ -431,7 +431,7 @@ export function CaseDetailView() {
               <h2 className="heading-lg">Parties</h2>
             </div>
             {PARTIES.length === 0 ? (
-              <p className="body-md muted">No parties on record. Add them when the case file is opened.</p>
+              <p className="body-md muted">No parties on record. Add them when the matter file is opened.</p>
             ) : (
               <div className="grid-2">
                 {PARTIES.map((p) => (
@@ -456,15 +456,15 @@ export function CaseDetailView() {
 
         {/* RIGHT */}
         <div className="col" style={{ gap: 24 }}>
-          {/* Next hearing */}
+          {/* Next date — when the matter is next posted on the cause-list. */}
           <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Next hearing</div>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>Next date</div>
             {c.next ? (
               <div className="mono tabular" style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>
                 {c.next}
               </div>
             ) : (
-              <p className="body-md muted" style={{ marginBottom: 16 }}>No date scheduled.</p>
+              <p className="body-md muted" style={{ marginBottom: 16 }}>Not posted to a date yet.</p>
             )}
             <div className="row" style={{ gap: 8 }}>
               <button
@@ -491,17 +491,17 @@ export function CaseDetailView() {
             </div>
           </div>
 
-          {/* Tasks */}
+          {/* Pendings — the advocate's word for to-dos / open work-items on the matter. */}
           <div className="card">
             <div className="row" style={{ marginBottom: 12 }}>
-              <div className="heading-md">Tasks</div>
+              <div className="heading-md">Pendings</div>
               <span className="spacer" />
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {TASKS.filter((t) => !t.done).length} OPEN
+                {TASKS.filter((t) => !t.done).length} PENDING
               </span>
             </div>
             {TASKS.length === 0 ? (
-              <p className="body-sm muted">No tasks. Add the first below.</p>
+              <p className="body-sm muted">No pendings. Add the first below.</p>
             ) : (
               <div className="col" style={{ gap: 0 }}>
                 {TASKS.map((t, i) => (
@@ -557,7 +557,7 @@ export function CaseDetailView() {
               style={{ marginTop: 12 }}
               onClick={() => setTaskOpen(true)}
             >
-              <Icon name="plus" size={12} /> Add task
+              <Icon name="plus" size={12} /> Add pending
             </button>
           </div>
 
@@ -600,8 +600,8 @@ export function CaseDetailView() {
         eyebrow={c.title}
         description={
           c.stage
-            ? `Currently at "${c.stage}". This will be logged on the matter timeline.`
-            : 'This will be logged on the matter timeline.'
+            ? `Currently at "${c.stage}". This will be entered in the matter diary.`
+            : 'This will be entered in the matter diary.'
         }
         width={520}
         footer={
@@ -666,7 +666,7 @@ function BackButton({ onBack }: { onBack: () => void }) {
       onClick={onBack}
       style={{ alignSelf: 'flex-start' }}
     >
-      <Icon name="chevron" size={14} style={{ transform: 'scaleX(-1)' }} /> Cases
+      <Icon name="chevron" size={14} style={{ transform: 'scaleX(-1)' }} /> Matters
     </button>
   );
 }
@@ -789,7 +789,7 @@ function kindLabel(kind: MatterTimelineEvent['kind']): string {
     case 'hearing':  return 'HEARING';
     case 'document': return 'DOCUMENT';
     case 'note':     return 'NOTE';
-    default:         return 'EVENT';
+    default:         return 'ENTRY';
   }
 }
 
