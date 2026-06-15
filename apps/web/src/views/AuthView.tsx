@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, FieldError, validators } from '@lexdraft/ui';
 import { useSignIn, useSignUp, useFirmEnquiry, type FirmEnquirySize } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
-import { useUIStore } from '@/store/ui';
 import { isMfaChallenge } from '@/lib/auth-types';
 
 // =============================================================================
@@ -44,7 +43,6 @@ export function AuthView() {
   const navigate = useNavigate();
   const signIn = useSignIn();
   const signUp = useSignUp();
-  const showToast = useUIStore((s) => s.showToast);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Renewal banner. Populated when the api.ts response interceptor redirects
@@ -428,14 +426,6 @@ export function AuthView() {
               disabled={signIn.isPending}
             >
               {signIn.isPending ? 'Signing in…' : 'Sign in'}
-            </button>
-            <div className="divider" />
-            <button
-              type="button"
-              className="btn btn-block"
-              onClick={() => showToast({ type: 'cobalt', text: 'Google sign-in coming soon' })}
-            >
-              Continue with Google
             </button>
             {import.meta.env.DEV && (
               <p

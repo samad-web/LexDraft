@@ -6,6 +6,9 @@ import { useUIStore } from '@/store/ui';
 import { useDiary, useDiaryEntry } from '@/hooks/useDiary';
 import { NewDiaryEntryModal } from '@/components/NewDiaryEntryModal';
 import { RequestCoverageModal } from '@/components/RequestCoverageModal';
+import { DiaryAssistantBar } from '@/components/DiaryAssistantBar';
+import { DiaryBriefing } from '@/components/DiaryBriefing';
+import { JudgmentInsightPanel } from '@/components/JudgmentInsightPanel';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -44,6 +47,19 @@ interface DateGroup {
   entries: DiaryEntry[];
 }
 
+function offsetLabel(n: number): string {
+  if (n === 0) return 'on the hearing day';
+  if (n === 1) return '1 day before';
+  if (n === 7) return '1 week before';
+  return `${n} days before`;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 function formatHeading(iso: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -63,6 +79,11 @@ export function DiaryView() {
   // Coverage modal: opens with hearing-row defaults so the user only fills in
   // the brief packet (URL + notes). `null` = closed.
   const [coverageDefaults, setCoverageDefaults] = useState<CoverageDefaults | null>(null);
+  // Assistant: briefing range + lazy-load flag (so opening the Diary doesn't
+  // spend AI quota), and the judgment entry currently being analysed.
+  const [briefRange, setBriefRange] = useState<'today' | 'week'>('today');
+  const [briefLoaded, setBriefLoaded] = useState(false);
+  const [insightEntry, setInsightEntry] = useState<{ id: string; fileName: string } | null>(null);
   const showToast = useUIStore((s) => s.showToast);
   const { data: entries = [], isLoading, isError } = useDiary();
 
@@ -82,6 +103,22 @@ export function DiaryView() {
   }, [entries, filter]);
 
   const pager = usePagination(groups);
+
+  // In-app reminders: entries that asked to be reminded N days before their
+  // next hearing, whose hearing hasn't passed. "Due" once the remind date has
+  // arrived. (No email/SMS — surfaced here only.)
+  const reminders = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return entries
+      .filter((e) => e.nextHearingDate && e.reminderOffsetDays != null)
+      .map((e) => ({
+        entry: e,
+        remindOn: addDaysIso(e.nextHearingDate as string, -(e.reminderOffsetDays as number)),
+      }))
+      .filter((r) => (r.entry.nextHearingDate as string) >= today)
+      .map((r) => ({ ...r, due: r.remindOn <= today }))
+      .sort((a, b) => a.remindOn.localeCompare(b.remindOn));
+  }, [entries]);
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
@@ -151,6 +188,75 @@ export function DiaryView() {
         onClose={() => setCoverageDefaults(null)}
         defaults={coverageDefaults ?? undefined}
       />
+      <JudgmentInsightPanel
+        open={insightEntry !== null}
+        onClose={() => setInsightEntry(null)}
+        entryId={insightEntry?.id ?? ''}
+        fileName={insightEntry?.fileName ?? ''}
+      />
+
+      <DiaryAssistantBar onBriefing={(r) => { setBriefRange(r); setBriefLoaded(true); }} />
+      <DiaryBriefing
+        range={briefRange}
+        onRangeChange={setBriefRange}
+        loaded={briefLoaded}
+        onLoad={() => setBriefLoaded(true)}
+      />
+
+      {reminders.length > 0 && (
+        <section className="col" style={{ gap: 12 }}>
+          <div className="row" style={{ gap: 12 }}>
+            <div className="heading-md">Reminders</div>
+            <span className="hairline" style={{ flex: 1 }} />
+            <span className="mono body-xs muted tabular">
+              {reminders.length} upcoming
+            </span>
+          </div>
+          <div className="card" style={{ padding: 0 }}>
+            {reminders.map(({ entry, remindOn, due }, idx) => (
+              <div
+                key={entry.id}
+                className="row"
+                style={{
+                  alignItems: 'center',
+                  gap: 16,
+                  padding: 'var(--space-4) var(--space-6)',
+                  borderBottom: idx === reminders.length - 1 ? 'none' : '1px solid var(--border-subtle)',
+                }}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-full)',
+                    color: 'var(--text-secondary)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Icon name="calendar" size={14} />
+                </div>
+                <div className="col" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <em className="case-name" style={{ fontWeight: 500 }}>{entry.caseLabel}</em>
+                    {due && <span className="badge badge-amber">Due</span>}
+                  </div>
+                  <div className="body-sm" style={{ color: 'var(--text-secondary)' }}>
+                    Remind {offsetLabel(entry.reminderOffsetDays as number)} · Next hearing {entry.nextHearingDate}
+                  </div>
+                </div>
+                <div className="mono body-xs muted tabular" title="Reminder date">
+                  {remindOn}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
@@ -248,7 +354,17 @@ export function DiaryView() {
                       </button>
                     )}
                     {e.kind === 'judgment' && e.attachmentFileName && (
-                      <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
+                      <div className="row" style={{ gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setInsightEntry({ id: e.id, fileName: e.attachmentFileName! })}
+                          title="AI summary, holding & follow-ups"
+                        >
+                          <Icon name="research" size={12} /> Analyze
+                        </button>
+                        <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
+                      </div>
                     )}
                   </div>
                 );

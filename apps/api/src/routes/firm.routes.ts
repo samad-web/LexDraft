@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { firmService } from '../services/firm.service';
 import { firmAdminService } from '../services/firm-admin.service';
+import { assignmentsService } from '../services/assignments.service';
 import { auditService } from '../services/audit.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
@@ -16,6 +17,20 @@ export const firmRouter: Router = Router();
 firmRouter.get('/dashboard', requireFeature('firm.dashboard.view'), async (req, res, next) => {
   try {
     res.json(await firmService.dashboard(req.user?.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- /firm/teammates ------------------------------------------------------
+// Lightweight roster of active firm members, for assignment / handover
+// pickers. Unlike /firm/users (admin-gated) this is open to any active-plan
+// member, since an ordinary advocate needs it to hand off their own matter or
+// hearing to a colleague. Returns minimal fields only (id, name, email, role).
+firmRouter.get('/teammates', async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: await assignmentsService.listTeammates(firmId) });
   } catch (err) {
     next(err);
   }

@@ -65,6 +65,10 @@
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.08);
   --shadow-modal:   0 24px 64px rgba(0,0,0,0.16);
 
+  /* Modal/dialog backdrop scrim. A semi-transparent near-black dims content
+     correctly in both light and dark themes, so one value serves both. */
+  --scrim: rgba(10, 10, 10, 0.4);
+
   /* Typography */
   --font-sans:    'Inter', system-ui, -apple-system, 'Helvetica Neue', sans-serif;
   --font-display: 'Inter', system-ui, sans-serif;

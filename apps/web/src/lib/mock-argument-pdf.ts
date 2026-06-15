@@ -29,7 +29,7 @@ function renderMatterSummary(session: MaSessionWithTurns): string {
   if (s.parties.petitioner) rows.push(`<tr><th>Petitioner</th><td>${esc(s.parties.petitioner)}</td></tr>`);
   if (s.parties.respondent) rows.push(`<tr><th>Respondent</th><td>${esc(s.parties.respondent)}</td></tr>`);
   rows.push(`<tr><th>Your role</th><td>${esc(session.role)}</td></tr>`);
-  rows.push(`<tr><th>Judge persona</th><td>${esc(session.judgePersona)}</td></tr>`);
+  rows.push(`<tr><th>Bench persona</th><td>${esc(session.judgePersona)}</td></tr>`);
   const list = (label: string, items: string[]): string =>
     items.length === 0 ? '' :
       `<tr><th>${esc(label)}</th><td><ul style="margin:0;padding-left:18px;">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></td></tr>`;
@@ -134,7 +134,5 @@ export async function exportMockArgumentSessionPdf(
     title: `${title} — Mock argument session`,
     bodyHtml,
     dated,
-    // We do want the AI-generated banner on this export. The default in
-    // exportPdf is exactly that, so we leave `disclaimerHtml` undefined.
   });
 }

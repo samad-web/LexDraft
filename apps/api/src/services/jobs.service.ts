@@ -18,6 +18,17 @@ export type JobHandler<T = unknown> = (data: T, meta: { id: string; attempt: num
 interface RegisteredJob {
   name: string;
   handler: JobHandler<unknown>;
+  /** When set, the job is registered on this cron schedule at worker start
+   *  (pg-boss `schedule()`). Optional `tz` (IANA name) defaults to UTC. */
+  cron?: string;
+  tz?: string;
+}
+
+interface RegisterOptions {
+  /** Cron expression for a recurring schedule (e.g. '0 3 * * 0' = Sun 03:00). */
+  cron?: string;
+  /** IANA timezone for the cron (e.g. 'Asia/Kolkata'). Defaults to UTC. */
+  tz?: string;
 }
 
 const registry: RegisteredJob[] = [];
@@ -44,6 +55,10 @@ async function start(): Promise<PgBoss | null> {
       await instance.start();
       logger.info('pg-boss queue started');
       for (const job of registry) {
+        // pg-boss v10 requires the queue to exist before work()/send()/
+        // schedule(); create_queue is INSERT … ON CONFLICT DO NOTHING, so this
+        // is idempotent and safe to run on every boot.
+        await instance.createQueue(job.name);
         await instance.work(job.name, async (msg) => {
           // pg-boss v10: msg is an array of jobs when batching, single object otherwise.
           const items = Array.isArray(msg) ? msg : [msg];
@@ -57,6 +72,13 @@ async function start(): Promise<PgBoss | null> {
           }
         });
       }
+      // Register recurring schedules after workers are up. schedule() upserts
+      // (ON CONFLICT (name) DO UPDATE), so changing a cron just re-points it.
+      for (const job of registry) {
+        if (!job.cron) continue;
+        await instance.schedule(job.name, job.cron, {}, job.tz ? { tz: job.tz } : {});
+        logger.info({ job: job.name, cron: job.cron, tz: job.tz ?? 'UTC' }, 'recurring job scheduled');
+      }
       boss = instance;
       return instance;
     })();
@@ -65,12 +87,14 @@ async function start(): Promise<PgBoss | null> {
 }
 
 export const jobs = {
-  /** Register a handler for a job name. Must be called before `start()`. */
-  register<T = unknown>(name: string, handler: JobHandler<T>): void {
+  /** Register a handler for a job name. Must be called before `start()`.
+   *  Pass `opts.cron` (+ optional `opts.tz`) to also run it on a recurring
+   *  schedule. */
+  register<T = unknown>(name: string, handler: JobHandler<T>, opts?: RegisterOptions): void {
     if (registry.some((j) => j.name === name)) {
       throw new Error(`Job "${name}" is already registered`);
     }
-    registry.push({ name, handler: handler as JobHandler<unknown> });
+    registry.push({ name, handler: handler as JobHandler<unknown>, cron: opts?.cron, tz: opts?.tz });
   },
 
   /** Boot the worker. Idempotent. */
@@ -220,3 +244,16 @@ jobs.register<TitleReportExtractPayload>('title-report.extract', async (data) =>
     email: data.email ?? 'system',
   });
 });
+
+// High Court sitting-judge roster refresh. Re-scrapes the public source and
+// wipe-and-replaces court_judges (see judges-roster.service.ts). Slow-moving
+// data — weekly is plenty. Idempotent: the sync is a single transaction.
+// Schedule: Sundays 03:00 IST (off-peak, alongside the other nightly jobs).
+jobs.register('judges.roster.sync', async () => {
+  const { syncHighCourtJudges } = await import('./judges-roster.service');
+  const summary = await syncHighCourtJudges();
+  logger.info(
+    { total: summary.totalJudges, courts: Object.keys(summary.perCourt).length, persisted: summary.persisted },
+    'judges.roster.sync complete',
+  );
+}, { cron: '0 3 * * 0', tz: 'Asia/Kolkata' });

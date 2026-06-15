@@ -283,7 +283,7 @@ function ErrorDrawer({ id, onClose }: { id: string; onClose: () => void }) {
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(10,10,10,0.4)',
+        background: 'var(--scrim)',
         zIndex: 50,
       }}
     >

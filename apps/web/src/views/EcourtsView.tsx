@@ -1,97 +1,53 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { Icon } from '@lexdraft/ui';
+import { useEcourtsCnr, useDownloadOrderPdf, type EcourtsCaseHistory, type EcourtsHearing, type EcourtsOrder, type Court } from '@/hooks/useEcourts';
+import { useUIStore } from '@/store/ui';
 
-interface CaseRecord {
-  cnr: string;
-  title: string;
-  court: string;
-  parties: string;
-  lastOrder: string;
-  nextHearing: string;
-  stage: string;
-}
+// =============================================================================
+// EcourtsView
+//
+// Live CNR lookup against the eCourts Services backend. The previous version
+// of this view was a UI-only mockup with canned data; everything below now
+// talks to the real `/api/ecourts` surface (see apps/api/src/routes/
+// ecourts.routes.ts).
+// =============================================================================
 
-interface SyncEvent {
-  id: string;
-  timestamp: string;
-  cnr: string;
-  case: string;
-  type: 'Hearing posted' | 'Order uploaded' | 'Stage updated' | 'Daily refresh' | 'Judgment uploaded';
-  status: 'success' | 'pending' | 'failed';
-}
-
-const CASE_INDEX: Record<string, CaseRecord> = {
-  'DLHC010120251': {
-    cnr: 'DLHC010120251',
-    title: 'Mehta v. Verma',
-    court: 'Delhi High Court · Court Room 12',
-    parties: 'Anjali Mehta vs. Rajesh Verma & Ors.',
-    lastOrder: '24 April 2026 - adjourned for cross-examination',
-    nextHearing: '01 May 2026, 10:30',
-    stage: 'Cross-examination of PW-1',
-  },
-  'KAHC020120253': {
-    cnr: 'KAHC020120253',
-    title: 'Patel v. Reliance Infra',
-    court: 'Karnataka High Court · Court Room 4',
-    parties: 'Hemant Patel vs. Reliance Infrastructure Ltd.',
-    lastOrder: '18 April 2026 - plaint received, defects raised',
-    nextHearing: '04 May 2026, 11:00',
-    stage: 'Plaint registration',
-  },
-};
-
-const SYNC_EVENTS: SyncEvent[] = [
-  { id: 'e1', timestamp: '02 May · 09:14', cnr: 'DLHC010120251', case: 'Mehta v. Verma',          type: 'Hearing posted',  status: 'success' },
-  { id: 'e2', timestamp: '02 May · 08:30', cnr: 'KAHC020120253', case: 'Patel v. Reliance Infra', type: 'Order uploaded',  status: 'success' },
-  { id: 'e3', timestamp: '02 May · 06:00', cnr: '-',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
-  { id: 'e4', timestamp: '01 May · 18:42', cnr: 'MHHC030120252', case: 'State v. Khanna',         type: 'Stage updated',   status: 'success' },
-  { id: 'e5', timestamp: '01 May · 16:08', cnr: 'DLDC080120254', case: 'Rao v. HDFC Bank',        type: 'Judgment uploaded', status: 'pending' },
-  { id: 'e6', timestamp: '01 May · 11:55', cnr: 'KAHC050120256', case: 'Reddy Properties - IBC',  type: 'Hearing posted',  status: 'failed'  },
-  { id: 'e7', timestamp: '30 Apr · 19:20', cnr: 'DLHC120120255', case: 'Iyer v. ICICI Lombard',   type: 'Order uploaded',  status: 'success' },
-  { id: 'e8', timestamp: '30 Apr · 06:00', cnr: '-',             case: 'Daily index refresh',     type: 'Daily refresh',   status: 'success' },
-];
+// eCourts CNRs are 16 chars: 2 letters (state) + 2 letters (district) + 2
+// alphanumeric (establishment, e.g. `0B` for Alandur JM) + 6 digits (serial)
+// + 4 digits (year). Real-world examples:
+//   KLER010001682023  — Kerala, Ernakulam, est 01
+//   TNCG0B0011172024  — Tamil Nadu, Chengalpattu, est 0B
+// We accept a permissive shape: 4 letters then 12 alphanumeric. Anything
+// stricter rejects valid CNRs like TNCG0B…
+const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 
 export function EcourtsView() {
-  const [query, setQuery] = useState<string>('DLHC010120251');
-  const [submitted, setSubmitted] = useState<string>('DLHC010120251');
+  // Two pieces of state because the input is a draft until "Look up" lands —
+  // we only want to fire the query against the *submitted* CNR, not on every
+  // keystroke.
+  const [draft, setDraft] = useState<string>('KLER010001682023');
+  const [submittedCnr, setSubmittedCnr] = useState<string>('KLER010001682023');
+  const [court, setCourt] = useState<Court>('DC');
 
-  const result = useMemo<CaseRecord | null>(() => {
-    const key = submitted.trim().toUpperCase();
-    return CASE_INDEX[key] ?? null;
-  }, [submitted]);
+  const { data: history, isLoading, isError, error, isFetching } = useEcourtsCnr(submittedCnr, court);
+
+  const draftIsValid = CNR_RE.test(draft.trim().toUpperCase());
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(query);
+    const cleaned = draft.trim().toUpperCase();
+    if (!CNR_RE.test(cleaned)) return;
+    setSubmittedCnr(cleaned);
   };
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div
-        role="status"
-        style={{
-          padding: '12px 16px',
-          background: 'var(--bg-surface-2)',
-          border: '1px dashed var(--border-default)',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 13,
-          color: 'var(--text-secondary)',
-          lineHeight: 1.5,
-        }}
-      >
-        <strong style={{ color: 'var(--text-primary)' }}>Demo data only.</strong>{' '}
-        This screen is a UI preview — the eCourts gateway integration is not wired yet. CNR lookups
-        return canned records and the sync feed is hardcoded. Once the webhooks endpoint dispatches
-        eCourts callbacks ({' '}
-        <span style={{ fontFamily: 'var(--font-mono)' }}>apps/api/src/routes/webhooks.routes.ts</span>
-        {' '}), this view will switch to live data.
-      </div>
       <div>
         <div className="eyebrow" style={{ marginBottom: 8 }}>§ - ECOURTS GATEWAY</div>
         <h1 className="heading-xl">eCourts lookup</h1>
         <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Search any matter by its CNR (Case Number Record). Live indexed across district and High Courts via the eCourts services API.
+          Search any matter by its CNR (Case Number Record) — the 16-character national identifier.
+          Data flows live from the official eCourts Services backend covering all district and high courts.
         </p>
       </div>
 
@@ -100,85 +56,312 @@ export function EcourtsView() {
         <input
           className="input"
           style={{ flex: 1, minWidth: 240, height: 48, fontSize: 16, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}
-          placeholder="Enter CNR · e.g. DLHC010120251"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Enter CNR · e.g. KLER010001682023"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           aria-label="CNR search"
+          maxLength={16}
         />
-        <button type="submit" className="btn btn-primary btn-lg">
+        <select
+          className="input"
+          style={{ height: 48, width: 120 }}
+          value={court}
+          onChange={(e) => setCourt(e.target.value as Court)}
+          aria-label="Court tier"
+        >
+          <option value="DC">District</option>
+          <option value="HC">High Court</option>
+        </select>
+        <button type="submit" className="btn btn-primary btn-lg" disabled={!draftIsValid}>
           Look up case <Icon name="arrow" size={14} />
         </button>
       </form>
 
-      {result ? (
-        <div className="card">
-          <div className="row" style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <div className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
-                CNR · {result.cnr}
-              </div>
-              <h2 className="heading-lg" style={{ marginBottom: 4 }}>
-                <em className="case-name">{result.title}</em>
-              </h2>
-              <p className="body-sm muted">{result.parties}</p>
-            </div>
-            <span className="badge badge-sage">SYNCED</span>
-          </div>
-          <hr className="hairline" style={{ margin: '20px 0' }} />
-          <div className="grid-2" style={{ gap: 24 }}>
-            <Field label="COURT"         value={result.court} />
-            <Field label="STAGE"         value={result.stage} />
-            <Field label="LAST ORDER"    value={result.lastOrder} />
-            <Field label="NEXT HEARING"  value={result.nextHearing} mono />
-          </div>
+      {!draftIsValid && draft.length > 0 && (
+        <div className="body-sm muted" style={{ paddingLeft: 4 }}>
+          CNR must be exactly 16 characters (4 letters followed by 12 alphanumeric).
         </div>
-      ) : (
+      )}
+
+      {isLoading || isFetching ? <LoadingCard cnr={submittedCnr} /> : null}
+
+      {!isLoading && isError ? <ErrorCard error={error} /> : null}
+
+      {!isLoading && !isError && history ? <CaseCard h={history} /> : null}
+
+      {!isLoading && !isError && !history && !isFetching ? (
         <div className="card" style={{ borderColor: 'var(--warning)' }}>
           <div className="row" style={{ gap: 12 }}>
             <span className="dot dot-amber" />
             <div>
-              <div className="heading-sm" style={{ marginBottom: 4 }}>No matter found for that CNR</div>
-              <p className="body-sm muted">Try DLHC010120251 or KAHC020120253 - sample records carried in this gateway demo.</p>
+              <div className="heading-sm" style={{ marginBottom: 4 }}>No case found</div>
+              <p className="body-sm muted">The eCourts backend did not return a record for this CNR.</p>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+    </div>
+  );
+}
 
-      <div>
-        <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-          <h2 className="heading-lg">Recent sync events</h2>
-          <span className="spacer" />
-          <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-            LAST 48 HOURS · {SYNC_EVENTS.length} EVENTS
-          </span>
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function LoadingCard({ cnr }: { cnr: string }) {
+  return (
+    <div className="card">
+      <div className="row" style={{ gap: 12 }}>
+        <span className="dot dot-amber" />
+        <div>
+          <div className="heading-sm" style={{ marginBottom: 4 }}>Fetching {cnr}…</div>
+          <p className="body-sm muted">eCourts upstream is famously slow; this can take 5-15 seconds.</p>
         </div>
-        <div className="card">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th style={{ width: 160 }}>Timestamp</th>
-                <th>Case / source</th>
-                <th>Event</th>
-                <th style={{ width: 120 }}>Status</th>
+      </div>
+    </div>
+  );
+}
+
+function ErrorCard({ error }: { error: unknown }) {
+  const msg = error instanceof Error ? error.message : 'Unknown error';
+  return (
+    <div className="card" style={{ borderColor: 'var(--vermillion)' }}>
+      <div className="row" style={{ gap: 12 }}>
+        <span className="dot dot-vermillion" />
+        <div>
+          <div className="heading-sm" style={{ marginBottom: 4 }}>Lookup failed</div>
+          <p className="body-sm muted">{msg}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CaseCard({ h }: { h: EcourtsCaseHistory }) {
+  const disposed = Boolean(h.date_of_decision && h.disp_name);
+  return (
+    <div className="col stagger" style={{ gap: 24 }}>
+      <div className="card">
+        <div className="row" style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+              CNR · {h.cino}
+            </div>
+            <h2 className="heading-lg" style={{ marginBottom: 4 }}>
+              <em className="case-name">{(h.petName || h.pet_name) + ' v. ' + (h.resName || h.res_name)}</em>
+            </h2>
+            <p className="body-sm muted">{h.case_no} · {h.court_name}</p>
+          </div>
+          {disposed
+            ? <span className="badge badge-sage">{(h.disp_name ?? '').toUpperCase()}</span>
+            : <span className="badge badge-amber">PENDING</span>}
+        </div>
+
+        <hr className="hairline" style={{ margin: '20px 0' }} />
+
+        <div className="grid-2" style={{ gap: 24 }}>
+          <Field label="BENCH"          value={h.desgname || '—'} />
+          <Field label="DISTRICT"       value={`${h.district_name}, ${h.state_name}`} />
+          <Field label="DATE OF FILING" value={fmtDate(h.date_of_filing)} mono />
+          <Field
+            label={disposed ? 'DATE OF DECISION' : 'NEXT HEARING'}
+            value={fmtDate(disposed ? h.date_of_decision : h.date_next_list) || '—'}
+            mono
+          />
+          {h.purpose_name && <Field label="STAGE / PURPOSE" value={h.purpose_name} />}
+          {h.pet_adv && <Field label="PETITIONER ADVOCATE" value={h.pet_adv.trim()} />}
+          {h.res_adv && <Field label="RESPONDENT ADVOCATE" value={h.res_adv.trim()} />}
+          {h.fir_no && <Field label="FIR"
+            value={`${h.fir_no}/${h.fir_year}${h.fir_details ? ` · ${h.fir_details.split('^').filter(Boolean).join(' · ')}` : ''}`} />}
+        </div>
+
+        {h.act && h.act.length > 0 ? (
+          <>
+            <hr className="hairline" style={{ margin: '20px 0' }} />
+            <div className="col" style={{ gap: 8 }}>
+              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+                ACTS & SECTIONS
+              </span>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {h.act.map((a, i) => (
+                  <span key={i} className="badge" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {a.actCodeName.trim().replace(/\\$/, '')} §{a.actSectionName}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : null}
+      </div>
+
+      {h.historyOfCaseHearing && h.historyOfCaseHearing.length > 0
+        ? <HearingsTable hearings={h.historyOfCaseHearing} />
+        : null}
+
+      {((h.finalOrder?.length ?? 0) > 0 || (h.interimOrder?.length ?? 0) > 0)
+        ? <OrdersList finalOrders={h.finalOrder ?? []} interimOrders={h.interimOrder ?? []} cino={h.cino} />
+        : null}
+
+      {h.transfer && h.transfer.length > 0 ? <TransferList transfers={h.transfer} /> : null}
+    </div>
+  );
+}
+
+function HearingsTable({ hearings }: { hearings: EcourtsHearing[] }) {
+  return (
+    <div>
+      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
+        <h2 className="heading-lg">Hearings</h2>
+        <span className="spacer" />
+        <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
+          {hearings.length} {hearings.length === 1 ? 'ENTRY' : 'ENTRIES'}
+        </span>
+      </div>
+      <div className="card">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th style={{ width: 140 }}>Date</th>
+              <th>Purpose</th>
+              <th>Bench</th>
+              <th style={{ width: 140 }}>Next date</th>
+              <th style={{ width: 120 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {hearings.map((hr, i) => (
+              <tr key={`${hr.todays_date}-${i}`}>
+                <td className="mono tabular" style={{ fontSize: 12 }}>{hr.todays_date1 || hr.todays_date}</td>
+                <td>{hr.purpose}</td>
+                <td>{hr.judge_name}</td>
+                <td className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
+                  {hr.nextdate ? fmtNextDate(hr.nextdate) : '—'}
+                </td>
+                <td>
+                  {hr.businessStatus === 'Disposed'
+                    ? <span className="badge badge-sage">DISPOSED</span>
+                    : <span className="badge badge-amber">{hr.businessStatus?.toUpperCase()}</span>}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {SYNC_EVENTS.map((ev) => (
-                <tr key={ev.id}>
-                  <td className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{ev.timestamp}</td>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function OrdersList({ finalOrders, interimOrders, cino }: { finalOrders: EcourtsOrder[]; interimOrders: EcourtsOrder[]; cino: string }) {
+  const rows = [
+    ...interimOrders.map((o) => ({ ...o, kind: 'Interim' as const })),
+    ...finalOrders.map((o) => ({ ...o, kind: 'Final' as const })),
+  ];
+  const download = useDownloadOrderPdf();
+  const showToast = useUIStore((s) => s.showToast);
+  // Track which row is in-flight so the button on that row alone shows
+  // "Fetching…"; eCourts is too slow to leave the whole table looking idle.
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+  const handleDownload = async (o: EcourtsOrder, kind: 'Interim' | 'Final', rowKey: string) => {
+    setPendingKey(rowKey);
+    try {
+      const fname = await download.mutateAsync({
+        cino,
+        filename: o.filename,
+        stateCd:   o.state_cd,
+        distCd:    o.dist_cd,
+        courtCode: o.court_code,
+      });
+      showToast({ type: 'sage', text: `Downloaded ${fname}` });
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not download PDF';
+      showToast({ type: 'vermillion', text: msg });
+    } finally {
+      setPendingKey(null);
+    }
+    // `kind` accepted just to keep the signature parallel for future filtering;
+    // currently we don't differentiate the backend call by interim/final.
+    void kind;
+  };
+
+  return (
+    <div>
+      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
+        <h2 className="heading-lg">Orders & judgments</h2>
+        <span className="spacer" />
+        <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
+          {rows.length} {rows.length === 1 ? 'DOCUMENT' : 'DOCUMENTS'}
+        </span>
+      </div>
+      <div className="card">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th style={{ width: 80 }}>Kind</th>
+              <th style={{ width: 140 }}>Date</th>
+              <th>Description</th>
+              <th style={{ width: 140 }}>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((o, i) => {
+              const rowKey = `${o.order_id}-${i}`;
+              const isPending = pendingKey === rowKey;
+              return (
+                <tr key={rowKey}>
                   <td>
-                    <div style={{ fontWeight: 500 }}>
-                      {ev.case === 'Daily index refresh' ? ev.case : <em className="case-name">{ev.case}</em>}
-                    </div>
-                    <div className="mono tabular" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{ev.cnr}</div>
+                    {o.kind === 'Final'
+                      ? <span className="badge badge-sage">FINAL</span>
+                      : <span className="badge">INTERIM</span>}
                   </td>
-                  <td>{ev.type}</td>
-                  <td><StatusBadge status={ev.status} /></td>
+                  <td className="mono tabular" style={{ fontSize: 12 }}>{o.order_date1f}</td>
+                  <td>
+                    <div>{o.order_details}</div>
+                    <div className="mono tabular" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4, wordBreak: 'break-all' }}>
+                      {o.filename}
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => { void handleDownload(o, o.kind, rowKey); }}
+                      disabled={isPending}
+                      title="Fetch the order PDF from the eCourts gateway"
+                    >
+                      {isPending ? (
+                        <>Fetching…</>
+                      ) : (
+                        <><Icon name="download" size={12} /> Download</>
+                      )}
+                    </button>
+                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function TransferList({ transfers }: { transfers: NonNullable<EcourtsCaseHistory['transfer']> }) {
+  return (
+    <div>
+      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
+        <h2 className="heading-lg">Court transfers</h2>
+      </div>
+      <div className="card">
+        <ul className="col stagger" style={{ gap: 12, listStyle: 'none', paddingLeft: 0 }}>
+          {transfers.map((t, i) => (
+            <li key={i} className="body-sm">
+              <span className="mono tabular" style={{ color: 'var(--text-tertiary)' }}>{t.transfer_date}</span>
+              <span style={{ marginLeft: 12 }}>{t.from_court} → {t.to_court}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -195,8 +378,26 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
   );
 }
 
-function StatusBadge({ status }: { status: SyncEvent['status'] }) {
-  if (status === 'success') return <span className="badge badge-sage">SUCCESS</span>;
-  if (status === 'pending') return <span className="badge badge-amber">PENDING</span>;
-  return <span className="badge badge-vermillion">FAILED</span>;
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
+
+function fmtDate(iso: string | undefined | null): string {
+  if (!iso) return '';
+  // Accept YYYY-MM-DD or DD-MM-YYYY (eCourts mixes both).
+  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  return iso;
+}
+
+function fmtNextDate(raw: string): string {
+  // Hearings sometimes deliver `20230112` (compact YYYYMMDD).
+  if (/^\d{8}$/.test(raw)) {
+    const y = raw.slice(0, 4); const m = raw.slice(4, 6); const d = raw.slice(6, 8);
+    return fmtDate(`${y}-${m}-${d}`);
+  }
+  return raw;
 }

@@ -40,9 +40,9 @@ interface ExportPayload {
   /** Date stamp shown above the document body. ISO yyyy-mm-dd or already-formatted string. */
   dated?: string;
   /**
-   * Footer banner HTML. Defaults to the AI disclaimer (intended for the
-   * drafting flow). Pass `null` to omit the footer entirely (e.g. when
-   * exporting reports that aren't AI-generated).
+   * Footer banner HTML. Defaults to no footer. Pass an explicit string
+   * (e.g. `AI_DISCLAIMER_HTML`) to render a banner at the bottom of the
+   * exported document.
    */
   disclaimerHtml?: string | null;
   /** Page orientation when printed. Reports often need landscape. Default 'portrait'. */
@@ -109,7 +109,7 @@ function buildDocumentHtml({
   const datedRow = dated
     ? `<div style="text-align:right;color:#444;font-size:12px;margin-bottom:18px;">Dated: ${escapeHtml(dated)}</div>`
     : '';
-  const footer = disclaimerHtml === null ? '' : (disclaimerHtml ?? AI_DISCLAIMER_HTML);
+  const footer = disclaimerHtml ?? '';
   const maxWidth = orientation === 'landscape' ? '10in' : '7in';
   // Resolve the signature block. `null` = explicit suppression; `undefined`
   // = fall back to the signed-in advocate so every existing exporter

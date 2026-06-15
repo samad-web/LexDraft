@@ -13,6 +13,10 @@ const Input = z.object({
   cnr: z.string().default(''),
   detail: z.string().default(''),
   forum: z.string().default(''),
+  bench: z.string().max(200).default(''),
+  // Next hearing date + in-app reminder offset (days before that date).
+  nextHearingDate: z.string().nullable().optional(),
+  reminderOffsetDays: z.number().int().min(0).max(60).nullable().optional(),
   // Judgment-PDF attachment. base64 of the file body; the row also records
   // the filename, mime and size so the diary list can render an icon + size
   // without having to ship the bytes back.

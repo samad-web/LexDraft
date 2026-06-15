@@ -13,7 +13,17 @@
  * trail lets a partner reconstruct what happened.
  */
 
+import type {
+  CasePipelineGraph,
+  PipelineNode,
+  PipelineEdge,
+  PipelineNodeStatus,
+  ApplicationKind,
+  ApplicationStatus,
+} from '@lexdraft/types';
 import { db } from '../db/client';
+
+type DbHandle = NonNullable<ReturnType<typeof db>>;
 
 export type PipelineKind = 'civil' | 'criminal' | 'consumer' | 'writ' | 'default';
 
@@ -39,7 +49,7 @@ export interface PipelineSnapshot {
   currentIndex: number;
 }
 
-export type TimelineEventKind = 'stage' | 'hearing' | 'document' | 'note';
+export type TimelineEventKind = 'stage' | 'hearing' | 'document' | 'note' | 'application';
 
 export interface TimelineEvent {
   id: string;
@@ -192,6 +202,341 @@ export const firmStageAdmin = {
   },
 };
 
+// =============================================================================
+// Per-case pipeline graph (migration 0054)
+//
+// Each matter owns its own directed graph of stage nodes + edges, seeded at
+// creation from the per-type template (STAGE_CATALOG + firm custom stages) and
+// then freely editable on that case alone. `status` carries the progression;
+// several nodes may be `active` at once when branches run in parallel.
+// `cases.stage` is kept in sync as the denormalised "primary current stage".
+// =============================================================================
+
+interface NodeRow {
+  id: string;
+  case_id: string;
+  label: string;
+  status: PipelineNodeStatus;
+  pos_x: number;
+  pos_y: number;
+  position: number;
+  application_id: string | null;
+}
+
+interface EdgeRow {
+  id: string;
+  case_id: string;
+  from_node_id: string;
+  to_node_id: string;
+  condition_label: string | null;
+}
+
+function nodeFromRow(r: NodeRow): PipelineNode {
+  return {
+    id: r.id,
+    caseId: r.case_id,
+    label: r.label,
+    status: r.status,
+    x: r.pos_x,
+    y: r.pos_y,
+    position: r.position,
+    applicationId: r.application_id,
+  };
+}
+
+function edgeFromRow(r: EdgeRow): PipelineEdge {
+  return {
+    id: r.id,
+    caseId: r.case_id,
+    fromNodeId: r.from_node_id,
+    toNodeId: r.to_node_id,
+    conditionLabel: r.condition_label,
+  };
+}
+
+/** Build the ordered template stage list for a matter — STAGE_CATALOG for the
+ *  inferred kind plus the firm's custom stages, deduped case-insensitively.
+ *  This is the same merge `snapshotFor()` does, reused as the graph seed. */
+async function buildTemplateStages(
+  firmId: string | null | undefined,
+  type: string | null | undefined,
+): Promise<string[]> {
+  const kind = kindForType(type);
+  const base = [...STAGE_CATALOG[kind]];
+  const extras = await customStagesForFirm(firmId, kind);
+  const seen = new Set(base.map((s) => s.toLowerCase()));
+  for (const extra of extras) {
+    const k = extra.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    base.push(extra);
+  }
+  return base;
+}
+
+/** Materialise a linear graph from the template. Called at case creation and
+ *  as a lazy fallback by `getGraph` for any matter that has no nodes yet
+ *  (e.g. created via a path that skipped instantiation). Accepts a tx handle
+ *  so it can fold into a create transaction. */
+export async function instantiateGraph(
+  caseId: string,
+  firmId: string,
+  type: string | null | undefined,
+  currentStage: string | null | undefined,
+  tx?: DbHandle,
+): Promise<void> {
+  const exec = tx ?? db();
+  if (!exec) return;
+  const stages = await buildTemplateStages(firmId, type);
+  if (stages.length === 0) return;
+  const activeIdx = currentStage ? stages.indexOf(currentStage) : -1;
+
+  let prevId: string | null = null;
+  let ord = 0;
+  for (const label of stages) {
+    const status: PipelineNodeStatus =
+      activeIdx === -1 ? 'pending'
+      : ord < activeIdx ? 'done'
+      : ord === activeIdx ? 'active'
+      : 'pending';
+    const [node] = await exec<Array<{ id: string }>>`
+      insert into case_pipeline_nodes
+        (case_id, firm_id, label, status, pos_x, pos_y, position)
+      values
+        (${caseId}::uuid, ${firmId}::uuid, ${label}, ${status}::pipeline_node_status,
+         ${ord * 220}, 0, ${ord})
+      returning id
+    `;
+    if (prevId && node) {
+      await exec`
+        insert into case_pipeline_edges (case_id, firm_id, from_node_id, to_node_id)
+        values (${caseId}::uuid, ${firmId}::uuid, ${prevId}::uuid, ${node.id}::uuid)
+        on conflict (from_node_id, to_node_id) do nothing
+      `;
+    }
+    prevId = node?.id ?? prevId;
+    ord += 1;
+  }
+}
+
+export interface NewNodeInput {
+  label: string;
+  x: number;
+  y: number;
+  applicationId?: string | null;
+}
+
+export interface NodePatch {
+  label?: string;
+  x?: number;
+  y?: number;
+  applicationId?: string | null;
+}
+
+export interface NewEdgeInput {
+  fromNodeId: string;
+  toNodeId: string;
+  conditionLabel?: string | null;
+}
+
+export interface SetNodeStatusInput {
+  nodeId: string;
+  firmId: string;
+  status: PipelineNodeStatus;
+  actor: { id: string | null; name: string | null };
+  note?: string | null;
+  visibleToPortal?: boolean;
+}
+
+export const pipelineGraph = {
+  /** Read the full graph for a matter. Lazily instantiates from the template
+   *  when the matter has no nodes yet (backfill-missed / freshly created via a
+   *  path that skipped instantiation). Tenant-scoped via cases.firm_id. */
+  async get(caseId: string, firmId: string): Promise<CasePipelineGraph> {
+    const sql = db();
+    if (!sql) return { nodes: [], edges: [] };
+
+    const [own] = await sql<Array<{ id: string; type: string; stage: string }>>`
+      select id, type, stage from cases
+      where id::text = ${caseId} and firm_id = ${firmId}::uuid
+      limit 1
+    `;
+    if (!own) return { nodes: [], edges: [] };
+
+    let nodes = await sql<NodeRow[]>`
+      select id, case_id, label, status, pos_x, pos_y, position, application_id
+      from case_pipeline_nodes
+      where case_id::text = ${caseId}
+      order by position, created_at
+    `;
+    if (nodes.length === 0) {
+      await instantiateGraph(caseId, firmId, own.type, own.stage);
+      nodes = await sql<NodeRow[]>`
+        select id, case_id, label, status, pos_x, pos_y, position, application_id
+        from case_pipeline_nodes
+        where case_id::text = ${caseId}
+        order by position, created_at
+      `;
+    }
+
+    const edges = await sql<EdgeRow[]>`
+      select id, case_id, from_node_id, to_node_id, condition_label
+      from case_pipeline_edges
+      where case_id::text = ${caseId}
+    `;
+
+    return { nodes: nodes.map(nodeFromRow), edges: edges.map(edgeFromRow) };
+  },
+
+  /** Add a node. Position appended after the current max; coordinates come
+   *  from the builder. Scoped + firm_id derived via insert-from-select. */
+  async addNode(caseId: string, firmId: string, input: NewNodeInput): Promise<PipelineNode | null> {
+    const sql = db();
+    if (!sql) return null;
+    const rows = await sql<NodeRow[]>`
+      insert into case_pipeline_nodes
+        (case_id, firm_id, label, status, pos_x, pos_y, position, application_id)
+      select c.id, c.firm_id, ${input.label}, 'pending'::pipeline_node_status,
+             ${input.x}, ${input.y},
+             coalesce((select max(position) + 1 from case_pipeline_nodes where case_id = c.id), 0),
+             ${input.applicationId ?? null}
+      from cases c
+      where c.id::text = ${caseId} and c.firm_id = ${firmId}::uuid
+      returning id, case_id, label, status, pos_x, pos_y, position, application_id
+    `;
+    return rows[0] ? nodeFromRow(rows[0]) : null;
+  },
+
+  /** Patch a node's label / position / application link. Status changes go
+   *  through `setStatus` so they carry an audit row. */
+  async updateNode(nodeId: string, firmId: string, patch: NodePatch): Promise<PipelineNode | null> {
+    const sql = db();
+    if (!sql) return null;
+    const rows = await sql<NodeRow[]>`
+      update case_pipeline_nodes set
+        label          = coalesce(${patch.label ?? null}, label),
+        pos_x          = coalesce(${patch.x ?? null}, pos_x),
+        pos_y          = coalesce(${patch.y ?? null}, pos_y),
+        application_id = ${patch.applicationId !== undefined ? sql`${patch.applicationId}::uuid` : sql`application_id`},
+        updated_at     = now()
+      where id::text = ${nodeId} and firm_id = ${firmId}::uuid
+      returning id, case_id, label, status, pos_x, pos_y, position, application_id
+    `;
+    return rows[0] ? nodeFromRow(rows[0]) : null;
+  },
+
+  async deleteNode(nodeId: string, firmId: string): Promise<boolean> {
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql<Array<{ id: string }>>`
+      delete from case_pipeline_nodes
+      where id::text = ${nodeId} and firm_id = ${firmId}::uuid
+      returning id
+    `;
+    return rows.length > 0;
+  },
+
+  /** Add a directed edge. Guards that both endpoints belong to the same case;
+   *  duplicate (from, to) is a no-op via the unique index. */
+  async addEdge(caseId: string, firmId: string, input: NewEdgeInput): Promise<PipelineEdge | null> {
+    const sql = db();
+    if (!sql) return null;
+    const rows = await sql<EdgeRow[]>`
+      insert into case_pipeline_edges
+        (case_id, firm_id, from_node_id, to_node_id, condition_label)
+      select c.id, c.firm_id, ${input.fromNodeId}::uuid, ${input.toNodeId}::uuid,
+             ${input.conditionLabel ?? null}
+      from cases c
+      where c.id::text = ${caseId} and c.firm_id = ${firmId}::uuid
+        and exists (select 1 from case_pipeline_nodes n where n.id = ${input.fromNodeId}::uuid and n.case_id = c.id)
+        and exists (select 1 from case_pipeline_nodes n where n.id = ${input.toNodeId}::uuid and n.case_id = c.id)
+      on conflict (from_node_id, to_node_id) do nothing
+      returning id, case_id, from_node_id, to_node_id, condition_label
+    `;
+    return rows[0] ? edgeFromRow(rows[0]) : null;
+  },
+
+  async updateEdge(edgeId: string, firmId: string, conditionLabel: string | null): Promise<PipelineEdge | null> {
+    const sql = db();
+    if (!sql) return null;
+    const rows = await sql<EdgeRow[]>`
+      update case_pipeline_edges set condition_label = ${conditionLabel}
+      where id::text = ${edgeId} and firm_id = ${firmId}::uuid
+      returning id, case_id, from_node_id, to_node_id, condition_label
+    `;
+    return rows[0] ? edgeFromRow(rows[0]) : null;
+  },
+
+  async deleteEdge(edgeId: string, firmId: string): Promise<boolean> {
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql<Array<{ id: string }>>`
+      delete from case_pipeline_edges
+      where id::text = ${edgeId} and firm_id = ${firmId}::uuid
+      returning id
+    `;
+    return rows.length > 0;
+  },
+
+  /** Set a node's status. When it becomes active/done we sync the matter's
+   *  primary `cases.stage` to that node's label and write a `case_stage_events`
+   *  audit row (the contract the timeline + portal read from). pending/skipped
+   *  are silent corrections — no stage sync, no audit. */
+  async setStatus(input: SetNodeStatusInput): Promise<{ node: PipelineNode; caseId: string } | null> {
+    const sql = db();
+    if (!sql) return null;
+    const [row] = await sql<Array<NodeRow & { c_stage: string | null }>>`
+      select n.id, n.case_id, n.label, n.status, n.pos_x, n.pos_y, n.position,
+             n.application_id, c.stage as c_stage
+      from case_pipeline_nodes n
+      join cases c on c.id = n.case_id
+      where n.id::text = ${input.nodeId} and n.firm_id = ${input.firmId}::uuid
+      limit 1
+    `;
+    if (!row) return null;
+    const fromStage = row.c_stage ?? null;
+    const advancing = input.status === 'active' || input.status === 'done';
+
+    await sql`
+      update case_pipeline_nodes
+      set status = ${input.status}::pipeline_node_status, updated_at = now()
+      where id::text = ${input.nodeId} and firm_id = ${input.firmId}::uuid
+    `;
+
+    if (advancing) {
+      await sql`
+        update cases set stage = ${row.label}, updated_at = now()
+        where id = ${row.case_id}::uuid and firm_id = ${input.firmId}::uuid
+      `;
+      await sql`
+        insert into case_stage_events
+          (case_id, from_stage, to_stage, actor_user_id, actor_name, note, visible_to_portal)
+        values
+          (${row.case_id}::uuid, ${fromStage}, ${row.label},
+           ${input.actor.id}, ${input.actor.name}, ${input.note ?? null},
+           ${input.visibleToPortal ?? true})
+      `;
+    }
+
+    return { node: nodeFromRow({ ...row, status: input.status }), caseId: row.case_id };
+  },
+};
+
+function appKindLabel(kind: ApplicationKind): string {
+  switch (kind) {
+    case 'ia':        return 'Interim application';
+    case 'appeal':    return 'Appeal';
+    case 'execution': return 'Execution';
+    case 'review':    return 'Review';
+    case 'bail':      return 'Bail application';
+    default:          return 'Application';
+  }
+}
+
+function appStatusLabel(status: ApplicationStatus): string {
+  return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
 interface StageEventRow {
   id: string;
   case_id: string;
@@ -229,6 +574,18 @@ interface NoteRow {
   author_name: string | null;
 }
 
+interface ApplicationRow {
+  id: string;
+  kind: ApplicationKind;
+  label: string | null;
+  app_type: string | null;
+  status: ApplicationStatus;
+  filed_on: string | Date | null;
+  order_on: string | Date | null;
+  created_at: string | Date;
+  visible_to_portal: boolean;
+}
+
 function toIso(v: string | Date | null | undefined): string {
   if (!v) return '';
   return v instanceof Date ? v.toISOString() : new Date(v).toISOString();
@@ -250,6 +607,13 @@ export const casePipelineService = {
     return snapshotFor(type, null);
   },
 
+  /**
+   * Legacy stage transition — kept as a thin shim over the graph so existing
+   * callers (POST /cases/:id/transition, useTransitionCase) keep working
+   * during rollout. Finds the node for `toStage` on this matter (creating it
+   * if the graph doesn't have one), then marks it active via `pipelineGraph.
+   * setStatus`, which syncs `cases.stage` and writes the audit row.
+   */
   async transition(input: TransitionInput): Promise<{ fromStage: string | null; toStage: string } | null> {
     const sql = db();
     if (!sql) return null;
@@ -261,20 +625,29 @@ export const casePipelineService = {
     if (!prev) return null;
     const fromStage = prev.stage ?? null;
 
-    await sql`
-      update cases
-      set stage = ${input.toStage}
-      where id = ${input.caseId}::uuid and firm_id = ${input.firmId}::uuid
-    `;
+    // Ensure the graph exists (lazy-instantiates for legacy matters), then
+    // resolve or create the target node by label (case-insensitive).
+    const graph = await pipelineGraph.get(input.caseId, input.firmId);
+    let node = graph.nodes.find((n) => n.label.toLowerCase() === input.toStage.toLowerCase());
+    if (!node) {
+      const created = await pipelineGraph.addNode(input.caseId, input.firmId, {
+        label: input.toStage,
+        x: graph.nodes.length * 220,
+        y: 0,
+      });
+      if (!created) return null;
+      node = created;
+    }
 
-    await sql`
-      insert into case_stage_events
-        (case_id, from_stage, to_stage, actor_user_id, actor_name, note, visible_to_portal)
-      values
-        (${input.caseId}::uuid, ${fromStage}, ${input.toStage},
-         ${input.actor.id}, ${input.actor.name}, ${input.note ?? null},
-         ${input.visibleToPortal ?? true})
-    `;
+    const result = await pipelineGraph.setStatus({
+      nodeId: node.id,
+      firmId: input.firmId,
+      status: 'active',
+      actor: input.actor,
+      note: input.note ?? null,
+      ...(input.visibleToPortal !== undefined ? { visibleToPortal: input.visibleToPortal } : {}),
+    });
+    if (!result) return null;
 
     return { fromStage, toStage: input.toStage };
   },
@@ -305,7 +678,7 @@ export const casePipelineService = {
 
     const portalFilter = viewerScope === 'portal';
 
-    const [stageRows, hearingRows, docRows, noteRows] = await Promise.all([
+    const [stageRows, hearingRows, docRows, noteRows, appRows] = await Promise.all([
       sql<StageEventRow[]>`
         select id, case_id, from_stage, to_stage, actor_user_id, actor_name,
                note, visible_to_portal, created_at
@@ -336,6 +709,14 @@ export const casePipelineService = {
             where n.case_id = ${caseId}::uuid
             order by n.created_at desc
           `,
+      sql<ApplicationRow[]>`
+        select id, kind, label, app_type, status, filed_on, order_on,
+               created_at, visible_to_portal
+        from case_applications
+        where case_id = ${caseId}::uuid
+          ${portalFilter ? sql`and visible_to_portal = true` : sql``}
+        order by created_at desc
+      `,
     ]);
 
     const events: TimelineEvent[] = [];
@@ -389,6 +770,18 @@ export const casePipelineService = {
         body: r.visibility === 'private' ? '(private to author)' : '',
         actorName: r.author_name ?? undefined,
         visibleToPortal: false,
+      });
+    }
+
+    for (const r of appRows) {
+      const name = r.label || appKindLabel(r.kind);
+      events.push({
+        id: `application:${r.id}`,
+        at: toIso(r.order_on ?? r.filed_on ?? r.created_at),
+        kind: 'application',
+        title: `${appKindLabel(r.kind)} — ${name} · ${appStatusLabel(r.status)}`,
+        body: r.app_type ?? '',
+        visibleToPortal: r.visible_to_portal,
       });
     }
 

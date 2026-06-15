@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
+  CaseApplication,
   CasePipeline,
   MatterTimelineEvent,
   PortalAcknowledgeDocumentResponse,
@@ -10,6 +11,7 @@ import type {
 import { EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { portalApi, portalErrorMessage } from '@/lib/portalApi';
 import { PortalMessagesPanel } from './PortalMessagesPanel';
+import { PipelineCanvas } from '@/components/pipeline/PipelineCanvas';
 import { useAlert } from '@/components/ConfirmDialog';
 
 /**
@@ -85,7 +87,8 @@ export function PortalMatterDetailView() {
     );
   }
 
-  const { matter: m, hearings, documents, pipeline, timeline } = matter.data;
+  const { matter: m, hearings, documents, pipeline, graph, applications, timeline } = matter.data;
+  const hasGraph = !!graph && graph.nodes.length > 0;
 
   return (
     <div style={pageStyle}>
@@ -102,7 +105,11 @@ export function PortalMatterDetailView() {
         </div>
       </header>
 
-      {pipeline && pipeline.stages.length > 0 && (
+      {hasGraph ? (
+        <Section title="Where the matter stands">
+          <PipelineCanvas graph={graph!} />
+        </Section>
+      ) : pipeline && pipeline.stages.length > 0 ? (
         <Section title="Where the matter stands">
           <PipelineStepper pipeline={pipeline} />
           {pipeline.currentIndex === -1 && (
@@ -110,6 +117,16 @@ export function PortalMatterDetailView() {
               Your advocate is updating this matter's stage. Check back shortly.
             </div>
           )}
+        </Section>
+      ) : null}
+
+      {applications && applications.length > 0 && (
+        <Section title="Applications">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {applications.map((a) => (
+              <PortalApplicationRow key={a.id} app={a} />
+            ))}
+          </div>
         </Section>
       )}
 
@@ -279,6 +296,7 @@ function PortalTimelineRow({ event }: { event: MatterTimelineEvent }) {
     stage: '#15803d',
     hearing: '#2563eb',
     document: '#b45309',
+    application: '#7c3aed',
     note: '#71717a',
   };
   return (
@@ -302,6 +320,50 @@ function PortalTimelineRow({ event }: { event: MatterTimelineEvent }) {
         {event.body && <div style={{ fontSize: 13, opacity: 0.75 }}>{event.body}</div>}
       </div>
     </li>
+  );
+}
+
+const APP_KIND_LABEL: Record<CaseApplication['kind'], string> = {
+  ia: 'Interim Application', appeal: 'Appeal', execution: 'Execution',
+  review: 'Review', bail: 'Bail', other: 'Application',
+};
+const APP_STATUS_COLOR: Record<CaseApplication['status'], string> = {
+  pending: '#b45309', allowed: '#15803d', dismissed: '#b3261e',
+  withdrawn: '#71717a', disposed: '#2563eb',
+};
+
+function PortalApplicationRow({ app }: { app: CaseApplication }) {
+  const color = APP_STATUS_COLOR[app.status];
+  return (
+    <div
+      style={{
+        display: 'flex', gap: 14, alignItems: 'center', padding: '12px 14px',
+        border: '1px solid var(--border, #e4e4e7)', borderRadius: 8,
+        borderLeft: `3px solid ${color}`, background: 'var(--card, #fff)',
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--muted, #71717a)', marginBottom: 4 }}>
+          {APP_KIND_LABEL[app.kind]}
+          {app.appType && <> · {app.appType}</>}
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 500 }}>{app.label || APP_KIND_LABEL[app.kind]}</div>
+        {(app.filedOn || app.orderOn) && (
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
+            {app.filedOn && <>Filed {app.filedOn}</>}
+            {app.filedOn && app.orderOn && <> · </>}
+            {app.orderOn && <>Order {app.orderOn}</>}
+          </div>
+        )}
+      </div>
+      <span style={{
+        display: 'inline-block', padding: '2px 8px', borderRadius: 999,
+        fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: 600,
+        color, border: `1px solid ${color}`,
+      }}>
+        {app.status}
+      </span>
+    </div>
   );
 }
 

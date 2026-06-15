@@ -25,6 +25,7 @@ function formatINR(value: number): string {
 export function ExpensesView() {
   const showToast = useUIStore((s) => s.showToast);
   const [modalOpen, setModalOpen] = useState(false);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const { data: rows = [], isLoading, isError } = useExpenses();
   const pager = usePagination(rows);
 
@@ -47,10 +48,12 @@ export function ExpensesView() {
         <button
           className="btn"
           type="button"
+          disabled={exportingCsv}
           onClick={async () => {
             // GST / Tally-compatible CSV via /api/exports/expenses.csv.
             // The view has no category filter today, so we don't pass a
             // `type` param - when one is added, mirror its value here.
+            setExportingCsv(true);
             try {
               const resp = await apiClient.get('/api/exports/expenses.csv', {
                 responseType: 'blob',
@@ -71,10 +74,12 @@ export function ExpensesView() {
                 type: 'cobalt',
                 text: err instanceof Error ? err.message : 'CSV export failed',
               });
+            } finally {
+              setExportingCsv(false);
             }
           }}
         >
-          <Icon name="download" size={14} /> Download CSV
+          <Icon name="download" size={14} /> {exportingCsv ? 'Exporting…' : 'Download CSV'}
         </button>
         <button
           className="btn"

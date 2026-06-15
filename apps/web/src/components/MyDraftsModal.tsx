@@ -3,6 +3,7 @@ import { Icon } from '@lexdraft/ui';
 import type { SavedDraft } from '@lexdraft/types';
 import { useSavedDrafts, useDeleteDraft } from '@/hooks/useDrafts';
 import { useUIStore } from '@/store/ui';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface MyDraftsModalProps {
   open: boolean;
@@ -26,6 +27,7 @@ function formatRelative(iso: string): string {
 }
 
 export function MyDraftsModal({ open, onCancel, onLoad, currentDraftId }: MyDraftsModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onCancel);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const { data: drafts = [], isLoading, isError } = useSavedDrafts();
   const remove = useDeleteDraft();
@@ -52,6 +54,7 @@ export function MyDraftsModal({ open, onCancel, onLoad, currentDraftId }: MyDraf
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal
       aria-labelledby="my-drafts-title"
@@ -59,7 +62,7 @@ export function MyDraftsModal({ open, onCancel, onLoad, currentDraftId }: MyDraf
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'var(--scrim)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

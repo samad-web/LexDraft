@@ -15,6 +15,24 @@ interface CaseRow {
   visible_to_client?: boolean;
 }
 
+/** Detail-only row shape — includes the eCourts identity columns added in
+ *  migration 0053. List queries deliberately skip these to keep the payload
+ *  thin for case-grid views. */
+interface CaseDetailRow extends CaseRow {
+  est_code: string | null;
+  court_code: number | null;
+  district_code: number | null;
+  state_code: number | null;
+  filing_no: string | null;
+  efil_no: string | null;
+  judge: string | null;
+  fir_no: string | null;
+  fir_year: number | null;
+  police_st_code: number | null;
+  fir_details: string | null;
+  ecourts_synced_at: string | Date | null;
+}
+
 function fromRow(r: CaseRow): Case {
   const next =
     r.next_hearing instanceof Date
@@ -31,6 +49,30 @@ function fromRow(r: CaseRow): Case {
     next,
     type: r.type,
     visibleToClient: r.visible_to_client ?? false,
+  };
+}
+
+function tsToIso(v: string | Date | null): string | null {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString();
+  return v;
+}
+
+function fromDetailRow(r: CaseDetailRow): Case {
+  return {
+    ...fromRow(r),
+    estCode:        r.est_code,
+    courtCode:      r.court_code,
+    districtCode:   r.district_code,
+    stateCode:      r.state_code,
+    filingNo:       r.filing_no,
+    efilNo:         r.efil_no,
+    judge:          r.judge,
+    firNo:          r.fir_no,
+    firYear:        r.fir_year,
+    policeStCode:   r.police_st_code,
+    firDetails:     r.fir_details,
+    ecourtsSyncedAt: tsToIso(r.ecourts_synced_at),
   };
 }
 
@@ -82,13 +124,17 @@ export const casesService = {
     if (!firmId) return undefined;
     const sql = db();
     if (sql) {
-      const rows = await sql<CaseRow[]>`
-        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
+      // Detail path: pull the eCourts identity columns too. List path stays
+      // lean (see `list` above) so per-row payloads on the grid don't bloat.
+      const rows = await sql<CaseDetailRow[]>`
+        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client,
+               est_code, court_code, district_code, state_code, filing_no, efil_no, judge,
+               fir_no, fir_year, police_st_code, fir_details, ecourts_synced_at
         from cases where id::text = ${id} and firm_id = ${firmId}::uuid
         limit 1
       `;
       const row = rows[0];
-      return row ? fromRow(row) : undefined;
+      return row ? fromDetailRow(row) : undefined;
     }
     return memory.find((c) => c.id === id);
   },

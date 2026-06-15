@@ -166,7 +166,7 @@ function Field(props: { label: string; required?: boolean; hint?: string; childr
 }
 
 const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+  position: 'fixed', inset: 0, background: 'var(--scrim)',
   display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
   padding: '64px 16px', zIndex: 50, overflowY: 'auto',
 };

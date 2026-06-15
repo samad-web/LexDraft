@@ -241,7 +241,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
     <div
       role="dialog"
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.4)',
+        position: 'fixed', inset: 0, background: 'var(--scrim)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
       }}
       onClick={onClose}

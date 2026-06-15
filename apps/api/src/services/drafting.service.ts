@@ -2,6 +2,7 @@ import type { DraftRequest, DraftResponse } from '@lexdraft/types';
 import { env } from '../env';
 import { logger } from '../logger';
 import { withRetry, HttpRetryError } from '../lib/retry';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 
 const SAMPLE_TEMPLATE = (req: DraftRequest): string => {
   const lines: string[] = [];
@@ -90,11 +91,21 @@ ${briefLines}${renderNotesBlock(notes)}`;
 
 type ProviderOverride = 'xai' | 'anthropic' | undefined;
 
+/** Token usage surfaced to the caller after a successful provider call, so the
+ *  route (which knows firmId/userId) can record it. Best-effort - callers must
+ *  never let an onUsage handler throw into the generation path. */
+export interface LlmUsage extends NormalizedUsage {
+  provider: 'anthropic' | 'xai';
+  model: string;
+}
+
 export interface GenerateOpts {
   provider?: ProviderOverride;
   /** Optional case-notes context. Caller resolves access rules before
    *  passing them in - the drafting service trusts whatever it receives. */
   notes?: NoteContextItem[];
+  /** Invoked once when the provider returns token usage. */
+  onUsage?: (usage: LlmUsage) => void;
 }
 
 /** Resolve which provider to actually call for this request. An explicit
@@ -113,14 +124,18 @@ export const draftingService = {
     const notes = opts.notes ?? [];
     if (provider === 'xai') {
       try {
-        text = await callGrok(req, notes);
+        const r = await callGrok(req, notes);
+        text = r.text;
+        opts.onUsage?.({ provider: 'xai', model: env.XAI_MODEL, ...r.usage });
       } catch (err) {
         logger.warn({ err }, 'Grok call failed, falling back to template');
         text = SAMPLE_TEMPLATE(req);
       }
     } else if (provider === 'anthropic') {
       try {
-        text = await callClaude(req, notes);
+        const r = await callClaude(req, notes);
+        text = r.text;
+        opts.onUsage?.({ provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...r.usage });
       } catch (err) {
         logger.warn({ err }, 'Claude call failed, falling back to template');
         text = SAMPLE_TEMPLATE(req);
@@ -148,9 +163,9 @@ export const draftingService = {
     }
     try {
       if (provider === 'xai') {
-        yield* streamGrok(req, notes);
+        yield* streamGrok(req, notes, opts.onUsage);
       } else {
-        yield* streamClaude(req, notes);
+        yield* streamClaude(req, notes, opts.onUsage);
       }
     } catch (err) {
       logger.warn({ err, provider }, 'LLM stream failed, falling back to template');
@@ -159,7 +174,12 @@ export const draftingService = {
   },
 };
 
-async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<string> {
+interface ProviderResult {
+  text: string;
+  usage: NormalizedUsage;
+}
+
+async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<ProviderResult> {
   const { system, user } = buildPrompt(req, notes);
   return withRetry(
     async () => {
@@ -188,11 +208,15 @@ async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<
         const body = await response.text();
         throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
       }
-      const data = (await response.json()) as { content: Array<{ type: string; text: string }> };
-      return data.content
+      const data = (await response.json()) as {
+        content: Array<{ type: string; text: string }>;
+        usage?: Parameters<typeof anthropicUsage>[0];
+      };
+      const text = data.content
         .filter((c) => c.type === 'text')
         .map((c) => c.text)
         .join('');
+      return { text, usage: anthropicUsage(data.usage) };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -201,7 +225,7 @@ async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<
   );
 }
 
-async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<string> {
+async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<ProviderResult> {
   const { system, user } = buildPrompt(req, notes);
   return withRetry(
     async () => {
@@ -226,8 +250,12 @@ async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<st
       }
       const data = (await response.json()) as {
         choices: Array<{ message: { content: string } }>;
+        usage?: Parameters<typeof xaiUsage>[0];
       };
-      return data.choices[0]?.message?.content ?? '';
+      return {
+        text: data.choices[0]?.message?.content ?? '',
+        usage: xaiUsage(data.usage),
+      };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -236,7 +264,11 @@ async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<st
   );
 }
 
-async function* streamGrok(req: DraftRequest, notes: NoteContextItem[]): AsyncGenerator<string, void, void> {
+async function* streamGrok(
+  req: DraftRequest,
+  notes: NoteContextItem[],
+  onUsage?: (usage: LlmUsage) => void,
+): AsyncGenerator<string, void, void> {
   const { system, user } = buildPrompt(req, notes);
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
@@ -248,6 +280,8 @@ async function* streamGrok(req: DraftRequest, notes: NoteContextItem[]): AsyncGe
       model: env.XAI_MODEL,
       max_tokens: 2048,
       stream: true,
+      // Ask xAI to emit a terminal usage chunk so we can record token spend.
+      stream_options: { include_usage: true },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -262,6 +296,7 @@ async function* streamGrok(req: DraftRequest, notes: NoteContextItem[]): AsyncGe
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let usage: NormalizedUsage = {};
 
   while (true) {
     const { value, done } = await reader.read();
@@ -281,18 +316,25 @@ async function* streamGrok(req: DraftRequest, notes: NoteContextItem[]): AsyncGe
         try {
           const evt = JSON.parse(payload) as {
             choices?: Array<{ delta?: { content?: string } }>;
+            usage?: Parameters<typeof xaiUsage>[0];
           };
           const text = evt.choices?.[0]?.delta?.content;
           if (text) yield text;
+          if (evt.usage) usage = xaiUsage(evt.usage);
         } catch {
           // ignore malformed frames - keepalive comments etc.
         }
       }
     }
   }
+  onUsage?.({ provider: 'xai', model: env.XAI_MODEL, ...usage });
 }
 
-async function* streamClaude(req: DraftRequest, notes: NoteContextItem[]): AsyncGenerator<string, void, void> {
+async function* streamClaude(
+  req: DraftRequest,
+  notes: NoteContextItem[],
+  onUsage?: (usage: LlmUsage) => void,
+): AsyncGenerator<string, void, void> {
   const { system, user } = buildPrompt(req, notes);
   // Streaming responses can't be transparently retried mid-stream (we'd
   // emit duplicate deltas), so the connection itself isn't wrapped in
@@ -321,6 +363,9 @@ async function* streamClaude(req: DraftRequest, notes: NoteContextItem[]): Async
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  // Anthropic reports input + cache tokens on `message_start` and the running
+  // output token total on `message_delta` (the last one wins).
+  let usage: NormalizedUsage = {};
 
   while (true) {
     const { value, done } = await reader.read();
@@ -343,9 +388,15 @@ async function* streamClaude(req: DraftRequest, notes: NoteContextItem[]): Async
           const evt = JSON.parse(payload) as {
             type?: string;
             delta?: { type?: string; text?: string };
+            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
+            usage?: { output_tokens?: number };
           };
           if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
             yield evt.delta.text;
+          } else if (evt.type === 'message_start' && evt.message?.usage) {
+            usage = anthropicUsage(evt.message.usage);
+          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
+            usage = { ...usage, tokensOut: evt.usage.output_tokens };
           }
         } catch {
           // ignore malformed frames - keepalive comments etc.
@@ -353,4 +404,5 @@ async function* streamClaude(req: DraftRequest, notes: NoteContextItem[]): Async
       }
     }
   }
+  onUsage?.({ provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...usage });
 }

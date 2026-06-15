@@ -3,6 +3,8 @@ import { Select, DatePicker, TimePicker, Combobox } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
 import { useCreateHearing, useUpdateHearing } from '@/hooks/useCalendar';
 import { useCases } from '@/hooks/useCases';
+import { useCourtJudges, isHighCourt } from '@/hooks/useJudges';
+import { useTeammates, useAssignHearing, useHearingAssignee, useIsHead } from '@/hooks/useAssignments';
 import { INDIAN_COURTS } from '@/lib/indian-courts';
 import { useUIStore } from '@/store/ui';
 import { Modal, Field } from './Modal';
@@ -45,12 +47,12 @@ export function NewHearingModal({
   // when the user is choosing among similarly-named matters.
   const matterOptions = useMemo(() => {
     const seen = new Set<string>();
-    const list: Array<{ value: string; hint?: string; court?: string }> = [];
+    const list: Array<{ value: string; hint?: string; court?: string; judge?: string }> = [];
     for (const c of cases.data ?? []) {
       const title = (c.title ?? '').trim();
       if (!title || seen.has(title)) continue;
       seen.add(title);
-      list.push({ value: title, hint: c.court ?? undefined, court: c.court });
+      list.push({ value: title, hint: c.court ?? undefined, court: c.court, judge: c.judge ?? undefined });
     }
     return list;
   }, [cases.data]);
@@ -64,6 +66,7 @@ export function NewHearingModal({
   // already typed a court themselves. We track this with a separate state so
   // we never overwrite a deliberate court entry.
   const [courtDirty, setCourtDirty] = useState(false);
+  const [judgeDirty, setJudgeDirty] = useState(false);
 
   const [caseLabel, setCaseLabel] = useState(existing?.case ?? defaultCase ?? '');
   const [date, setDate] = useState<string>(existing?.date ?? defaultDate ?? todayIso());
@@ -72,6 +75,35 @@ export function NewHearingModal({
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [status, setStatus] = useState<Status>((existing?.status as Status) ?? 'upcoming');
   const [judge, setJudge] = useState('');
+
+  // ASSIGN TO — per-hearing handover. Shown to firm heads (who may assign
+  // anyone); ordinary advocates reassign via the matter-level handover on the
+  // case page (which supports self-handoff). The server is the final authority.
+  const isHead = useIsHead();
+  const teammates = useTeammates();
+  const assignHearing = useAssignHearing();
+  const existingAssignee = useHearingAssignee(isEdit ? existing?.id : undefined);
+  const [assigneeId, setAssigneeId] = useState('');
+  const teammateOptions = useMemo(
+    () => [
+      { value: '', label: 'Unassigned' },
+      ...(teammates.data ?? []).map((t) => ({ value: t.id, label: `${t.name} · ${t.role}` })),
+    ],
+    [teammates.data],
+  );
+
+  // BENCH suggestions: once the user picks a High Court, list that court's
+  // sitting judges (roster synced into court_judges — see useJudges). District
+  // courts / tribunals have no roster, so the field stays free-text.
+  const judges = useCourtJudges(court);
+  const benchOptions = useMemo(
+    () =>
+      (judges.data ?? []).map((j) => ({
+        value: j.judge_name,
+        label: j.is_chief_justice ? `${j.judge_name} — Chief Justice` : j.judge_name,
+      })),
+    [judges.data],
+  );
 
   // Re-seed form when the target hearing changes (e.g., user switches which
   // row they're editing without closing the modal in between).
@@ -85,16 +117,25 @@ export function NewHearingModal({
     setStatus((existing?.status as Status) ?? 'upcoming');
     setJudge('');
     setCourtDirty(!!existing?.court || !!defaultCourt);
+    setJudgeDirty(false);
+    setAssigneeId('');
   }, [open, existing, defaultCase, defaultCourt, defaultDate]);
 
+  // Prefill the assignee from the hearing's current assignee (edit mode), once
+  // that query resolves.
+  useEffect(() => {
+    if (open && isEdit) setAssigneeId(existingAssignee.data?.id ?? '');
+  }, [open, isEdit, existingAssignee.data]);
+
   // When the user picks a matter from the suggestions that matches a case in
-  // their firm, auto-fill the court (only if they haven't already typed one).
+  // their firm, auto-fill the court + bench (the matter's last-synced presiding
+  // judge), each only if the user hasn't already typed into that field.
   const handleMatterChange = (next: string) => {
     setCaseLabel(next);
-    if (!courtDirty) {
-      const hit = matterOptions.find((m) => m.value === next);
-      if (hit?.court) setCourt(hit.court);
-    }
+    const hit = matterOptions.find((m) => m.value === next);
+    if (!hit) return;
+    if (!courtDirty && hit.court) setCourt(hit.court);
+    if (!judgeDirty && hit.judge) setJudge(hit.judge);
   };
 
   const pending = create.isPending || update.isPending;
@@ -111,12 +152,24 @@ export function NewHearingModal({
         date,
         judge: judge.trim(),
       };
+      let hearingId: string | undefined;
       if (isEdit && existing && existing.id) {
-        await update.mutateAsync({ id: existing.id, ...payload });
+        const updated = await update.mutateAsync({ id: existing.id, ...payload });
+        hearingId = updated?.id ?? existing.id;
         showToast({ type: 'sage', text: `Hearing updated` });
       } else {
-        await create.mutateAsync(payload);
+        const created = await create.mutateAsync(payload);
+        hearingId = created?.id;
         showToast({ type: 'sage', text: `Hearing scheduled for ${date}` });
+      }
+      // Apply the assignment only when a head changed it, so we never clobber
+      // an existing assignee or hit the endpoint needlessly.
+      if (isHead && hearingId && assigneeId !== (existingAssignee.data?.id ?? '')) {
+        try {
+          await assignHearing.mutateAsync({ hearingId, userId: assigneeId || null });
+        } catch {
+          showToast({ type: 'vermillion', text: 'Hearing saved, but assignment failed' });
+        }
       }
       onClose();
     } catch (err) {
@@ -185,12 +238,21 @@ export function NewHearingModal({
             required
           />
         </Field>
-        <Field label="JUDGE" hint="Optional">
-          <input
-            className="input"
+        <Field label="BENCH" hint={isHighCourt(court) ? 'Pick a judge or type' : 'Optional'}>
+          <Combobox
             value={judge}
-            onChange={(e) => setJudge(e.target.value)}
-            placeholder="e.g. Hon. Justice Singh"
+            onChange={(v) => { setJudge(v); setJudgeDirty(true); }}
+            options={benchOptions}
+            placeholder={
+              !isHighCourt(court)
+                ? "e.g. Hon'ble Justice Singh"
+                : judges.isLoading
+                  ? 'Loading judges…'
+                  : benchOptions.length > 0
+                    ? 'Pick a judge or type a bench'
+                    : "e.g. Hon'ble Justice Singh"
+            }
+            emptyMessage="No match — press Enter to keep what you typed."
           />
         </Field>
         <Field label="PURPOSE" required wide>
@@ -209,6 +271,15 @@ export function NewHearingModal({
             options={STATUSES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
           />
         </Field>
+        {isHead && (
+          <Field label="ASSIGN TO" hint="Hand this hearing to a colleague">
+            <Select
+              value={assigneeId}
+              onChange={setAssigneeId}
+              options={teammateOptions}
+            />
+          </Field>
+        )}
       </div>
     </Modal>
   );

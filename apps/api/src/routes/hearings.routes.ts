@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { hearingsService } from '../services/hearings.service';
+import { assignmentsService } from '../services/assignments.service';
 import { firmIdForUser } from '../services/tenant';
 import { validate } from '../middleware/validate';
 import { withAudit } from '../middleware/audit';
@@ -149,6 +150,46 @@ hearingsRouter.patch(
       const id = String(req.params['id']);
       const updated = await hearingsService.update(id, req.body, firmId);
       res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Hand a single hearing to a colleague (or clear with userId=null). The
+// service enforces who may reassign (firm head, the matter lead, or the
+// current assignee), so the route only needs the matter feature gate.
+const AssigneeInput = z.object({ userId: z.string().uuid().nullable() });
+
+hearingsRouter.get(
+  '/:id/assignee',
+  requireFeature('matter.view'),
+  validate({ params: IdParams }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const assignee = await assignmentsService.getHearingAssignee(String(req.params['id']), firmId);
+      res.json({ assignee });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+hearingsRouter.put(
+  '/:id/assignee',
+  requireFeature('matter.view'),
+  validate({ params: IdParams, body: AssigneeInput }),
+  withAudit({ action: 'hearing.update', targetType: 'hearing' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const id = String(req.params['id']);
+      const actor = { id: req.user!.id, role: req.user!.role, isSuperadmin: req.user!.isSuperadmin };
+      const assignee = await assignmentsService.assignHearing({
+        hearingId: id, firmId, targetUserId: req.body.userId, actor,
+      });
+      res.json({ assignee });
     } catch (err) {
       next(err);
     }

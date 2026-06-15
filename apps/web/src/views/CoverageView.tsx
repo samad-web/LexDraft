@@ -46,6 +46,13 @@ const STATUS_BADGE: Record<CoverageStatus, string> = {
   cancelled: 'badge-vermillion',
 };
 
+const STATUS_LABEL: Record<CoverageStatus, string> = {
+  open:      'Open',
+  claimed:   'Claimed',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
 function formatDate(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');
@@ -230,7 +237,7 @@ export function CoverageView() {
                       }}
                     >
                       <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-                        <span className={`badge ${STATUS_BADGE[r.status]}`}>{r.status}</span>
+                        <span className={`badge ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
                         <span className="spacer" />
                         <span className="mono body-xs muted tabular">{formatDate(r.hearingDate)}</span>
                       </div>
@@ -303,7 +310,7 @@ export function CoverageView() {
             }}
           >
             <div className="row" style={{ marginBottom: 16 }}>
-              <span className={`badge ${STATUS_BADGE[selected.status]}`}>{selected.status}</span>
+              <span className={`badge ${STATUS_BADGE[selected.status]}`}>{STATUS_LABEL[selected.status]}</span>
               <span className="spacer" />
               <button
                 type="button"

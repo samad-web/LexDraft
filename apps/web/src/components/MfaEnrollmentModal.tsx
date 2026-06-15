@@ -220,12 +220,7 @@ function ScanStep({
         <button type="button" className="btn" onClick={onCancel}>Cancel</button>
         <button
           type="button"
-          className="btn"
-          style={{
-            background: 'var(--text-primary)',
-            color: 'var(--bg-base)',
-            borderColor: 'var(--text-primary)',
-          }}
+          className="btn btn-primary"
           onClick={onContinue}
         >
           I’ve scanned it
@@ -291,14 +286,8 @@ function ConfirmStep({
         </button>
         <button
           type="submit"
-          className="btn"
+          className="btn btn-primary"
           disabled={isPending || code.length < 6}
-          style={{
-            background: 'var(--text-primary)',
-            color: 'var(--bg-base)',
-            borderColor: 'var(--text-primary)',
-            opacity: isPending || code.length < 6 ? 0.6 : 1,
-          }}
         >
           {isPending ? 'Verifying…' : 'Verify & enable'}
         </button>
@@ -425,15 +414,9 @@ function BackupStep({
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button
           type="button"
-          className="btn"
+          className="btn btn-primary"
           disabled={!acked}
           onClick={onDone}
-          style={{
-            background: 'var(--text-primary)',
-            color: 'var(--bg-base)',
-            borderColor: 'var(--text-primary)',
-            opacity: acked ? 1 : 0.4,
-          }}
         >
           Done
         </button>

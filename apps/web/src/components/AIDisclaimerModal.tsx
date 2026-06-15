@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { LetterheadPicker } from './letterhead/LetterheadPicker';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface AIDisclaimerModalProps {
   open: boolean;
@@ -12,6 +13,7 @@ interface AIDisclaimerModalProps {
 }
 
 export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDisclaimerModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onCancel);
   const [acknowledged, setAcknowledged] = useState(false);
   // Letterhead selection - defaults to the user's effective default.
   const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(undefined);
@@ -20,6 +22,7 @@ export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDiscl
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal
       aria-labelledby="disclaimer-title"

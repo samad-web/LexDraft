@@ -8,6 +8,13 @@ function formatInr(paiseFreeRupees: number): string {
   return `₹${paiseFreeRupees}`;
 }
 
+function formatTokens(n: number): string {
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 export function AdminDashboardView() {
   const { data, isLoading } = usePlatformStats();
 
@@ -27,6 +34,21 @@ export function AdminDashboardView() {
             <StatCard label="Users" value={String(data.users.total)} sub={`${data.users.active} active · ${data.users.superadmins} admins`} />
             <StatCard label="MRR"   value={formatInr(data.mrrInr)}   sub="Across active firms" />
             <StatCard label="Matters" value={String(data.caseCount)} sub="Active across platform" />
+            {data.aiUsage && (
+              <>
+                <StatCard
+                  label="AI tokens (30d)"
+                  value={formatTokens(data.aiUsage.totalTokens)}
+                  sub={`${formatTokens(data.aiUsage.tokensIn)} in · ${formatTokens(data.aiUsage.tokensOut)} out`}
+                />
+                <StatCard
+                  label="AI cost (30d)"
+                  value={formatInr(data.aiUsage.estCostInr)}
+                  sub="View all →"
+                  to="/admin/ai-usage"
+                />
+              </>
+            )}
           </div>
 
           <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -77,12 +99,24 @@ export function AdminDashboardView() {
   );
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
+function StatCard({ label, value, sub, to }: { label: string; value: string; sub: string; to?: string }) {
+  const inner = (
+    <>
       <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>
       <div className="display-md tabular" style={{ marginBottom: 6 }}>{value}</div>
       <div className="body-sm muted">{sub}</div>
+    </>
+  );
+  if (to) {
+    return (
+      <Link to={to} className="card no-underline" style={{ padding: 'var(--space-6)', display: 'block', color: 'inherit' }}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <div className="card" style={{ padding: 'var(--space-6)' }}>
+      {inner}
     </div>
   );
 }

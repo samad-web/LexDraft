@@ -20,6 +20,7 @@ import type {
 } from '@lexdraft/types';
 import { db } from '../db/client';
 import { auditService } from './audit.service';
+import { aiUsageReportService } from './ai-usage-report.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidateTenantCache } from './tenant';
@@ -620,7 +621,12 @@ export const adminService = {
         mrrInr: 0, caseCount: 0, recentAudit: [],
       };
     }
-    const [firmCounts, userCounts, mrr, cases, recentAudit] = await Promise.all([
+    // Last-30-day AI usage summary for the dashboard cards. Window is computed
+    // here (Date.now is fine server-side) and handed to the report service.
+    const aiEnd = new Date();
+    const aiStart = new Date(aiEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [firmCounts, userCounts, mrr, cases, recentAudit, aiUsage] = await Promise.all([
       sql<Array<{ total: number; active: number; suspended: number }>>`
         select count(*)::int as total,
                count(*) filter (where status = 'active')::int as active,
@@ -636,6 +642,7 @@ export const adminService = {
       sql<Array<{ mrr: number }>>`select coalesce(sum(mrr_inr), 0)::int as mrr from firms where status = 'active'`,
       sql<Array<{ cases: number }>>`select count(*)::int as cases from cases`,
       auditService.list({ limit: 10 }),
+      aiUsageReportService.summary(aiStart, aiEnd),
     ]);
     return {
       firms: firmCounts[0] ?? { total: 0, active: 0, suspended: 0 },
@@ -643,6 +650,7 @@ export const adminService = {
       mrrInr: mrr[0]?.mrr ?? 0,
       caseCount: cases[0]?.cases ?? 0,
       recentAudit,
+      aiUsage,
     };
   },
 };

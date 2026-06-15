@@ -1,4 +1,5 @@
 import { Icon } from '@lexdraft/ui';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface MemberLike {
   name: string;
@@ -17,10 +18,12 @@ interface MemberProfileModalProps {
 }
 
 export function MemberProfileModal({ open, member, onClose }: MemberProfileModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onClose);
   if (!open || !member) return null;
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal
       aria-labelledby="member-profile-title"
@@ -28,7 +31,7 @@ export function MemberProfileModal({ open, member, onClose }: MemberProfileModal
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'var(--scrim)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

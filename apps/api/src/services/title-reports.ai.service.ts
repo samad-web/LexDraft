@@ -27,6 +27,8 @@ import { env } from '../env';
 import { logger } from '../logger';
 import { withRetry, HttpRetryError } from '../lib/retry';
 import { titleReportsService, TitleReportForbidden, TitleReportError, isActionAllowedForRole } from './title-reports.service';
+import { aiUsageService } from './ai-usage.service';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 
 /** Cap re-runs of the defects analysis at this many per report per 24h.
  *  Each call consumes LLM tokens; a sane ceiling stops a user repeatedly
@@ -180,7 +182,7 @@ function opinionUserPrompt(full: TitleReportFull, defects: TitleReportDefectsAna
 
 // ---- LLM callers ----------------------------------------------------------
 
-async function callClaudeJson(system: string, user: string): Promise<{ text: string; tokensIn?: number; tokensOut?: number }> {
+async function callClaudeJson(system: string, user: string): Promise<{ text: string } & NormalizedUsage> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -203,16 +205,16 @@ async function callClaudeJson(system: string, user: string): Promise<{ text: str
       }
       const data = (await response.json()) as {
         content: Array<{ type: string; text: string }>;
-        usage?: { input_tokens?: number; output_tokens?: number };
+        usage?: Parameters<typeof anthropicUsage>[0];
       };
       const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-      return { text, tokensIn: data.usage?.input_tokens, tokensOut: data.usage?.output_tokens };
+      return { text, ...anthropicUsage(data.usage) };
     },
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'Claude call retry') },
   );
 }
 
-async function callXaiJson(system: string, user: string): Promise<{ text: string; tokensIn?: number; tokensOut?: number }> {
+async function callXaiJson(system: string, user: string): Promise<{ text: string } & NormalizedUsage> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -236,12 +238,11 @@ async function callXaiJson(system: string, user: string): Promise<{ text: string
       }
       const data = (await response.json()) as {
         choices: Array<{ message: { content: string } }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
+        usage?: Parameters<typeof xaiUsage>[0];
       };
       return {
         text: data.choices[0]?.message?.content ?? '',
-        tokensIn: data.usage?.prompt_tokens,
-        tokensOut: data.usage?.completion_tokens,
+        ...xaiUsage(data.usage),
       };
     },
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'xAI call retry') },
@@ -454,8 +455,7 @@ async function runDefectsAnalysis(
   const started = Date.now();
   try {
     let output: TitleReportDefectsAnalysis;
-    let tokensIn: number | undefined;
-    let tokensOut: number | undefined;
+    let usage: NormalizedUsage = {};
     if (provider === 'none') {
       output = templateDefects(full);
     } else {
@@ -463,8 +463,7 @@ async function runDefectsAnalysis(
       const raw = provider === 'anthropic'
         ? await callClaudeJson(DEFECTS_SYSTEM, userPrompt)
         : await callXaiJson(DEFECTS_SYSTEM, userPrompt);
-      tokensIn = raw.tokensIn;
-      tokensOut = raw.tokensOut;
+      usage = raw;
       try {
         output = parseJsonish<TitleReportDefectsAnalysis>(raw.text);
       } catch (err) {
@@ -477,8 +476,14 @@ async function runDefectsAnalysis(
     await titleReportsService.replaceAiDefects(ctx.firmId, ctx.titleReportId, output.defects, ctx.userId, ctx.email);
     await titleReportsService.finishAiRun(ctx.firmId, runId, {
       output: output as unknown as Record<string, unknown>,
-      tokensIn, tokensOut,
+      tokensIn: usage.tokensIn, tokensOut: usage.tokensOut,
       durationMs: Date.now() - started,
+    });
+    aiUsageService.recordAsync({
+      firmId: ctx.firmId, userId: ctx.userId, feature: 'title_report',
+      provider, model,
+      tokensIn: usage.tokensIn, tokensOut: usage.tokensOut,
+      cacheReadTokens: usage.cacheRead, cacheWriteTokens: usage.cacheWrite,
     });
     return { runId, output };
   } catch (err) {
@@ -555,8 +560,7 @@ async function synthesiseOpinion(ctx: RunCtx): Promise<{ runId: string; output: 
   const started = Date.now();
   try {
     let output: TitleReportOpinionSynthesis;
-    let tokensIn: number | undefined;
-    let tokensOut: number | undefined;
+    let usage: NormalizedUsage = {};
     if (provider === 'none') {
       output = templateOpinion(full, defects);
     } else {
@@ -564,8 +568,7 @@ async function synthesiseOpinion(ctx: RunCtx): Promise<{ runId: string; output: 
       const raw = provider === 'anthropic'
         ? await callClaudeJson(OPINION_SYSTEM, userPrompt)
         : await callXaiJson(OPINION_SYSTEM, userPrompt);
-      tokensIn = raw.tokensIn;
-      tokensOut = raw.tokensOut;
+      usage = raw;
       try {
         output = parseJsonish<TitleReportOpinionSynthesis>(raw.text);
       } catch (err) {
@@ -586,8 +589,14 @@ async function synthesiseOpinion(ctx: RunCtx): Promise<{ runId: string; output: 
 
     await titleReportsService.finishAiRun(ctx.firmId, runId, {
       output: output as unknown as Record<string, unknown>,
-      tokensIn, tokensOut,
+      tokensIn: usage.tokensIn, tokensOut: usage.tokensOut,
       durationMs: Date.now() - started,
+    });
+    aiUsageService.recordAsync({
+      firmId: ctx.firmId, userId: ctx.userId, feature: 'title_report',
+      provider, model,
+      tokensIn: usage.tokensIn, tokensOut: usage.tokensOut,
+      cacheReadTokens: usage.cacheRead, cacheWriteTokens: usage.cacheWrite,
     });
     return { runId, output };
   } catch (err) {

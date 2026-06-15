@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { DOC_TEMPLATES, type DocTemplate } from '@/lib/doc-templates';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface DocTemplatesModalProps {
   open: boolean;
@@ -19,6 +20,7 @@ export function DocTemplatesModal({
   onApply,
   onResetCurrent,
 }: DocTemplatesModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onCancel);
   const [filter, setFilter] = useState<'current' | 'all'>('current');
 
   const visible = useMemo(() => {
@@ -30,6 +32,7 @@ export function DocTemplatesModal({
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal
       aria-labelledby="templates-title"
@@ -37,7 +40,7 @@ export function DocTemplatesModal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'var(--scrim)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

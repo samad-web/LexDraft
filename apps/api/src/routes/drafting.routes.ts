@@ -1,6 +1,7 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { draftingService, type NoteContextItem } from '../services/drafting.service';
+import { draftExtractService } from '../services/draft-extract.service';
 import { caseNotesService } from '../services/case-notes.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
@@ -9,9 +10,28 @@ import {
   AiQuotaExceededError,
   type QuotaStatus,
 } from '../services/ai-quota.service';
+import { aiUsageService } from '../services/ai-usage.service';
 import { llmGenerationLimiter } from '../middleware/rateLimit';
 import { env } from '../env';
 import { logger } from '../logger';
+
+const ExtractFields = z.object({
+  docType: z.string().min(1),
+  brief: z.string().min(1).max(20_000),
+  provider: z.enum(['xai', 'anthropic']).optional(),
+  fields: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        label: z.string().min(1),
+        type: z.enum(['text', 'textarea', 'select', 'date', 'number', 'currency']),
+        options: z.array(z.string()).optional(),
+        required: z.boolean().optional(),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
 
 const Generate = z.object({
   docType: z.string().min(1),
@@ -93,7 +113,17 @@ draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLim
       throw err;
     }
     const notes = await resolveNotesForDraft(parsed, userId);
-    const result = await draftingService.generate(draftReq, { provider, notes });
+    const result = await draftingService.generate(draftReq, {
+      provider,
+      notes,
+      onUsage: (u) =>
+        aiUsageService.recordAsync({
+          firmId, userId, feature: 'drafting',
+          provider: u.provider, model: u.model,
+          tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+          cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
+        }),
+    });
     try {
       await aiQuotaService.record(firmId, userId, 'generate', {
         provider: provider ?? env.llmProvider,
@@ -161,7 +191,16 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
     };
 
     try {
-      for await (const chunk of draftingService.generateStream(draftReq, { provider, notes })) {
+      for await (const chunk of draftingService.generateStream(draftReq, {
+        provider,
+        notes,
+        onUsage: (u) =>
+          aiUsageService.recordAsync({
+            firmId, userId, feature: 'drafting',
+            provider: u.provider, model: u.model,
+            tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+          }),
+      })) {
         if (aborted) return;
         recordOnce();
         send('delta', { text: chunk });
@@ -178,6 +217,28 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
       res.end();
     }
   } catch (err) {
+    next(err);
+  }
+});
+
+// Extract structured field values from a free-form brief (dictated or typed) so
+// the drafting form can be pre-filled and the gaps surfaced for completion. The
+// client supplies the target doc type's field spec (the schema lives web-side).
+draftingRouter.post('/extract-fields', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const parsed = ExtractFields.parse(req.body);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const firmId = await firmIdForUser(userId);
+    res.json(await draftExtractService.extractFields(parsed, { firmId, userId }));
+  } catch (err) {
+    if (err instanceof AiQuotaExceededError) {
+      respondQuotaExceeded(res, err.status);
+      return;
+    }
     next(err);
   }
 });

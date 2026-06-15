@@ -53,6 +53,7 @@ export function InvoicesView() {
   );
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Invoice | null>(null);
+  const [exportingCsv, setExportingCsv] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
   const { data: invoices = [], isLoading, isError } = useInvoices();
 
@@ -102,11 +103,13 @@ export function InvoicesView() {
         <button
           type="button"
           className="btn"
+          disabled={exportingCsv}
           onClick={async () => {
             // GST / Tally-compatible CSV via /api/exports/invoices.csv.
             // Pass the active status filter through so the file matches
             // what the user is looking at. We download via a temporary
             // <a download> link - nothing is stored server-side.
+            setExportingCsv(true);
             try {
               const params: Record<string, string> = {};
               if (filter !== 'all') params.status = filter;
@@ -130,10 +133,12 @@ export function InvoicesView() {
                 type: 'cobalt',
                 text: err instanceof Error ? err.message : 'CSV export failed',
               });
+            } finally {
+              setExportingCsv(false);
             }
           }}
         >
-          <Icon name="download" size={14} /> Download CSV
+          <Icon name="download" size={14} /> {exportingCsv ? 'Exporting…' : 'Download CSV'}
         </button>
         <button
           type="button"

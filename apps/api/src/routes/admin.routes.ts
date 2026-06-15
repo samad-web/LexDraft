@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
+import { aiUsageReportService } from '../services/ai-usage-report.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
 import { auditService } from '../services/audit.service';
@@ -28,6 +29,26 @@ const TemplateScope = z.enum(['platform', 'firm']);
 
 adminRouter.get('/stats', async (_req, res, next) => {
   try { res.json(await adminService.platformStats()); } catch (err) { next(err); }
+});
+
+// ---- AI token usage --------------------------------------------------------
+
+// Optional ?days=7|30|90 (default 30) controls the window. We accept a bounded
+// day-count rather than free-form dates so the dashboard can't request an
+// unboundedly expensive scan.
+const AiUsageQuery = z.object({
+  days: z.coerce.number().int().min(1).max(365).optional(),
+});
+
+adminRouter.get('/ai-usage', async (req, res, next) => {
+  try {
+    const { days } = AiUsageQuery.parse(req.query);
+    const end = new Date();
+    const start = new Date(end.getTime() - (days ?? 30) * 24 * 60 * 60 * 1000);
+    res.json(await aiUsageReportService.report(start, end));
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---- firms -----------------------------------------------------------------

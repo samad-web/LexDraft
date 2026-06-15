@@ -86,7 +86,7 @@ export function NewInvoiceModal({ open, onClose }: Props) {
         <>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={create.isPending}>
-            {create.isPending ? 'Saving…' : 'Create invoice'}
+            {create.isPending ? 'Saving…' : 'Add invoice'}
           </button>
         </>
       }

@@ -38,6 +38,8 @@ import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
 import { auditService } from './audit.service';
+import { aiUsageService } from './ai-usage.service';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 
 // ---------------------------------------------------------------------------
 // Row mappers
@@ -246,7 +248,11 @@ function modelTag(): string {
 // Streaming providers
 // ---------------------------------------------------------------------------
 
-async function* streamClaude(system: string, user: string): AsyncGenerator<string, void, void> {
+/** Token-usage sink threaded through the streaming generators so the caller
+ *  (which holds firmId/userId) can record AI spend at end-of-stream. */
+type UsageSink = (u: NormalizedUsage) => void;
+
+async function* streamClaude(system: string, user: string, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -269,6 +275,7 @@ async function* streamClaude(system: string, user: string): AsyncGenerator<strin
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let usage: NormalizedUsage = {};
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -283,17 +290,27 @@ async function* streamClaude(system: string, user: string): AsyncGenerator<strin
         const payload = line.slice(5).trim();
         if (!payload || payload === '[DONE]') continue;
         try {
-          const evt = JSON.parse(payload) as { type?: string; delta?: { type?: string; text?: string } };
+          const evt = JSON.parse(payload) as {
+            type?: string;
+            delta?: { type?: string; text?: string };
+            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
+            usage?: { output_tokens?: number };
+          };
           if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
             yield evt.delta.text;
+          } else if (evt.type === 'message_start' && evt.message?.usage) {
+            usage = anthropicUsage(evt.message.usage);
+          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
+            usage = { ...usage, tokensOut: evt.usage.output_tokens };
           }
         } catch { /* ignore malformed frames */ }
       }
     }
   }
+  onUsage?.(usage);
 }
 
-async function* streamXai(system: string, user: string): AsyncGenerator<string, void, void> {
+async function* streamXai(system: string, user: string, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
   const res = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -304,6 +321,7 @@ async function* streamXai(system: string, user: string): AsyncGenerator<string, 
       model: env.XAI_MODEL,
       max_tokens: 2048,
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -317,6 +335,7 @@ async function* streamXai(system: string, user: string): AsyncGenerator<string, 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let usage: NormalizedUsage = {};
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -331,13 +350,18 @@ async function* streamXai(system: string, user: string): AsyncGenerator<string, 
         const payload = line.slice(5).trim();
         if (!payload || payload === '[DONE]') continue;
         try {
-          const evt = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string } }> };
+          const evt = JSON.parse(payload) as {
+            choices?: Array<{ delta?: { content?: string } }>;
+            usage?: Parameters<typeof xaiUsage>[0];
+          };
           const text = evt.choices?.[0]?.delta?.content;
           if (text) yield text;
+          if (evt.usage) usage = xaiUsage(evt.usage);
         } catch { /* ignore */ }
       }
     }
   }
+  onUsage?.(usage);
 }
 
 function fallbackReply(chunks: RetrievedChunk[]): string {
@@ -481,15 +505,24 @@ export const matterChatService = {
       ? `The retrieval found no documents for this question. Tell the advocate you cannot answer without supporting documents in the matter corpus.\n\n# Question\n${input.content}`
       : `# Retrieved context\n${context}\n\n# Question\n${input.content}`;
 
+    const onUsage: UsageSink = (u) =>
+      aiUsageService.recordAsync({
+        firmId: input.firmId, userId: input.userId, feature: 'matter_chat',
+        provider: env.llmProvider,
+        model: env.llmProvider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+        tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+        cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
+      });
+
     let assistantText = '';
     try {
       if (env.llmProvider === 'anthropic') {
-        for await (const delta of streamClaude(CHAT_SYSTEM, userPrompt)) {
+        for await (const delta of streamClaude(CHAT_SYSTEM, userPrompt, onUsage)) {
           assistantText += delta;
           yield { type: 'delta', text: delta };
         }
       } else if (env.llmProvider === 'xai') {
-        for await (const delta of streamXai(CHAT_SYSTEM, userPrompt)) {
+        for await (const delta of streamXai(CHAT_SYSTEM, userPrompt, onUsage)) {
           assistantText += delta;
           yield { type: 'delta', text: delta };
         }

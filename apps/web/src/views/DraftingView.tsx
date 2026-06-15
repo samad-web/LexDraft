@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
-import { DatePicker, Icon, Select } from '@lexdraft/ui';
+import { Icon } from '@lexdraft/ui';
 import type { DraftRequest } from '@lexdraft/types';
 import { useStreamDraft, type LlmProvider } from '@/hooks/useDrafting';
+import { Field } from '@/components/DraftField';
+import { DraftPromptPanel } from '@/components/DraftPromptPanel';
+import { DraftMissingFields } from '@/components/DraftMissingFields';
 import { useCaseNotes } from '@/hooks/useCaseNotes';
 import { useUIStore } from '@/store/ui';
 import { api } from '@/lib/api';
@@ -26,7 +29,6 @@ import {
   DOC_SCHEMAS,
   DOC_TYPE_GROUPS,
   getSchema,
-  type DocField,
   type DocSchema,
 } from '@/lib/doc-schemas';
 
@@ -98,6 +100,8 @@ export function DraftingView() {
   const [provider, setProvider] = useState<LlmProvider>('xai');
   const [outputProvider, setOutputProvider] = useState<LlmProvider>('xai');
   const [allValues, setAllValues] = useState<ValuesByDoc>(() => seedDefaults());
+  // Brief entry mode: the manual field form (default) or dictate/type a brief.
+  const [briefMode, setBriefMode] = useState<'form' | 'prompt'>('form');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [showMobileForm, setShowMobileForm] = useState(false);
@@ -192,6 +196,15 @@ export function DraftingView() {
       setOpenSections((prev) => ({ ...prev, ...next }));
       return;
     }
+    setError(null);
+    setDraftDate(todayIso());
+    setDateModalOpen(true);
+  };
+
+  // Prompt-mode "Generate now": skip the required-field block on purpose so the
+  // advocate gets a first draft (with gaps) straight from the dictated brief.
+  // The post-generation completion panel then surfaces the missing fields.
+  const generateNow = () => {
     setError(null);
     setDraftDate(todayIso());
     setDateModalOpen(true);
@@ -827,6 +840,35 @@ export function DraftingView() {
               Clear
             </button>
           </div>
+          <div style={{ padding: '10px 18px 0' }}>
+            <PillNav
+              items={[
+                { id: 'form', label: 'Fill form' },
+                { id: 'prompt', label: 'Dictate brief' },
+              ]}
+              value={briefMode}
+              onChange={setBriefMode}
+              ariaLabel="Brief entry mode"
+            />
+          </div>
+          {briefMode === 'prompt' ? (
+            <DraftPromptPanel
+              docType={docType}
+              schema={schema}
+              provider={provider}
+              onExtracted={(vals) => {
+                // Replace the doc's values with the extracted set (dropping the
+                // sample defaults) so missing-field detection is exact. But if
+                // nothing was extracted (AI off / unrecognised), keep the
+                // defaults so switching to the form behaves normally.
+                if (Object.keys(vals).length > 0) {
+                  setAllValues((av) => ({ ...av, [docType]: vals }));
+                }
+              }}
+              onGenerateNow={generateNow}
+              onSwitchToForm={() => setBriefMode('form')}
+            />
+          ) : (
           <div key={docType} className="draft-sections-anim">
             {schema.sections.map((sec) => {
               const open = !!openSections[`${docType}::${sec.title}`];
@@ -856,6 +898,7 @@ export function DraftingView() {
               );
             })}
           </div>
+          )}
 
           <Section
             title="Options"
@@ -1011,6 +1054,15 @@ export function DraftingView() {
             <Icon name="file" size={14} />{' '}
             {showMobileForm ? 'Close brief' : `Edit brief · ${completion}%`}
           </button>
+          {output && !streaming && (
+            <DraftMissingFields
+              schema={schema}
+              values={values}
+              setField={setField}
+              onRegenerate={() => runGeneration(draftDate)}
+              busy={streaming}
+            />
+          )}
           <div
             className="card draft-preview-card"
             style={{
@@ -1496,131 +1548,8 @@ function Section({ title, open, onToggle, children, meta }: SectionProps) {
   );
 }
 
-interface FieldProps {
-  field: DocField;
-  value: string;
-  onChange: (v: string) => void;
-}
-
-function Field({ field, value, onChange }: FieldProps) {
-  const { label, type, placeholder, options, required, optional, rows } = field;
-  const labelEl = (
-    <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span>{label}</span>
-      {required && <span style={{ color: 'var(--danger)' }}>*</span>}
-      {optional && (
-        <span
-          className="mono"
-          style={{
-            fontSize: 9,
-            color: 'var(--text-tertiary)',
-            opacity: 0.85,
-            fontWeight: 400,
-          }}
-        >
-          OPTIONAL
-        </span>
-      )}
-    </label>
-  );
-
-  if (type === 'textarea') {
-    return (
-      <div>
-        {labelEl}
-        <textarea
-          className="input"
-          rows={rows ?? 3}
-          value={value}
-          onChange={(e: ChangeEvent<HTMLTextAreaElement>) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
-      </div>
-    );
-  }
-  if (type === 'select') {
-    return (
-      <div>
-        {labelEl}
-        <Select
-          value={value}
-          onChange={onChange}
-          placeholder="- Select -"
-          options={[
-            { value: '', label: '- Select -' },
-            ...(options ?? []).map((o) => ({ value: o, label: o })),
-          ]}
-        />
-      </div>
-    );
-  }
-  if (type === 'date') {
-    return (
-      <div>
-        {labelEl}
-        <DatePicker value={value} onChange={onChange} />
-      </div>
-    );
-  }
-  if (type === 'number') {
-    return (
-      <div>
-        {labelEl}
-        <input
-          type="number"
-          className="input"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-        />
-      </div>
-    );
-  }
-  if (type === 'currency') {
-    return (
-      <div>
-        {labelEl}
-        <div style={{ position: 'relative' }}>
-          <span
-            style={{
-              position: 'absolute',
-              left: 14,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 13,
-              pointerEvents: 'none',
-            }}
-          >
-            ₹
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            className="input"
-            value={value}
-            onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder={placeholder}
-            style={{ paddingLeft: 28 }}
-          />
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div>
-      {labelEl}
-      <input
-        type="text"
-        className="input"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-    </div>
-  );
-}
+// `Field` (the per-type input) now lives in components/DraftField.tsx so it can
+// be shared with the post-generation completion panel (DraftMissingFields).
 
 interface EmptyStateProps {
   docType: string;

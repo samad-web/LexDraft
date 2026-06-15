@@ -16,6 +16,7 @@ import type {
 
 export const adminKeys = {
   stats: ['admin', 'stats'] as const,
+  aiUsage: (days: number) => ['admin', 'ai-usage', days] as const,
   firms: ['admin', 'firms'] as const,
   firm: (id: string) => ['admin', 'firm', id] as const,
   users: (q: object) => ['admin', 'users', q] as const,
@@ -27,6 +28,9 @@ export const adminKeys = {
 
 export const usePlatformStats = () =>
   useQuery({ queryKey: adminKeys.stats, queryFn: adminApi.stats });
+
+export const useAiUsage = (days: number) =>
+  useQuery({ queryKey: adminKeys.aiUsage(days), queryFn: () => adminApi.aiUsage(days) });
 
 export const useFirms = () =>
   useQuery({ queryKey: adminKeys.firms, queryFn: adminApi.listFirms });

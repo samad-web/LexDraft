@@ -140,7 +140,6 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
                         className="btn btn-sm btn-danger"
                         onClick={() => hid && handleDelete(hid)}
                         disabled={del.isPending}
-                        style={{ background: 'var(--danger)', color: 'var(--bg-base)', borderColor: 'var(--danger)' }}
                       >
                         {del.isPending ? 'Deleting…' : 'Yes, delete'}
                       </button>

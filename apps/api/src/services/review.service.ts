@@ -36,6 +36,8 @@ import { logger } from '../logger';
 import { withRetry, HttpRetryError } from '../lib/retry';
 import { ForbiddenError, NotFoundError, UnprocessableEntityError } from '../lib/errors';
 import { notify } from './notifications.service';
+import { aiUsageService } from './ai-usage.service';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 import type {
   ContractReview,
   ContractReviewFinding,
@@ -221,7 +223,11 @@ function resolveProvider(override: ProviderOverride): ResolvedProvider {
   return env.llmProvider;
 }
 
-async function callClaude(prompt: BuiltPrompt): Promise<string> {
+interface LlmResult extends NormalizedUsage {
+  text: string;
+}
+
+async function callClaude(prompt: BuiltPrompt): Promise<LlmResult> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -242,11 +248,15 @@ async function callClaude(prompt: BuiltPrompt): Promise<string> {
         const body = await response.text();
         throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
       }
-      const data = (await response.json()) as { content: Array<{ type: string; text: string }> };
-      return data.content
+      const data = (await response.json()) as {
+        content: Array<{ type: string; text: string }>;
+        usage?: Parameters<typeof anthropicUsage>[0];
+      };
+      const text = data.content
         .filter((c) => c.type === 'text')
         .map((c) => c.text)
         .join('');
+      return { text, ...anthropicUsage(data.usage) };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -255,7 +265,7 @@ async function callClaude(prompt: BuiltPrompt): Promise<string> {
   );
 }
 
-async function callGrok(prompt: BuiltPrompt): Promise<string> {
+async function callGrok(prompt: BuiltPrompt): Promise<LlmResult> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -283,8 +293,12 @@ async function callGrok(prompt: BuiltPrompt): Promise<string> {
       }
       const data = (await response.json()) as {
         choices: Array<{ message: { content: string } }>;
+        usage?: Parameters<typeof xaiUsage>[0];
       };
-      return data.choices[0]?.message?.content ?? '';
+      return {
+        text: data.choices[0]?.message?.content ?? '',
+        ...xaiUsage(data.usage),
+      };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -587,7 +601,14 @@ export const reviewService = {
         parsed = demoOutput(input.perspective);
       } else {
         const prompt = buildPrompt(input.perspective, input.sourceText);
-        const raw = provider === 'xai' ? await callGrok(prompt) : await callClaude(prompt);
+        const result = provider === 'xai' ? await callGrok(prompt) : await callClaude(prompt);
+        const raw = result.text;
+        aiUsageService.recordAsync({
+          firmId: input.firmId, userId: input.createdBy, feature: 'review',
+          provider, model: provider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+          tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+          cacheReadTokens: result.cacheRead, cacheWriteTokens: result.cacheWrite,
+        });
         try {
           parsed = parseLlmJson(raw);
         } catch (err) {

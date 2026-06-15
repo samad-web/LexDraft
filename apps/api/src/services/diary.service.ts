@@ -10,6 +10,9 @@ interface ListRow {
   cnr: string;
   detail: string;
   forum: string;
+  bench: string | null;
+  next_hearing_date: string | Date | null;
+  reminder_offset_days: number | null;
   attachment_file_name: string | null;
   attachment_mime: string | null;
   attachment_size_bytes: number | null;
@@ -33,6 +36,9 @@ function fromListRow(r: ListRow): DiaryEntry {
     cnr: r.cnr,
     detail: r.detail,
     forum: r.forum,
+    bench: r.bench ?? '',
+    nextHearingDate: r.next_hearing_date ? dateOnly(r.next_hearing_date) : null,
+    reminderOffsetDays: r.reminder_offset_days,
   };
   if (r.attachment_file_name) base.attachmentFileName = r.attachment_file_name;
   if (r.attachment_mime) base.attachmentMime = r.attachment_mime;
@@ -72,6 +78,7 @@ export const diaryService = {
     if (!sql) return [];
     const rows = await sql<ListRow[]>`
       select id, entry_date, entry_time, kind, case_label, cnr, detail, forum,
+             bench, next_hearing_date, reminder_offset_days,
              attachment_file_name, attachment_mime, attachment_size_bytes
       from diary_entries
       where firm_id = ${firmId}::uuid
@@ -86,6 +93,7 @@ export const diaryService = {
     if (!sql) return null;
     const rows = await sql<DetailRow[]>`
       select id, entry_date, entry_time, kind, case_label, cnr, detail, forum,
+             bench, next_hearing_date, reminder_offset_days,
              attachment_file_name, attachment_mime, attachment_size_bytes,
              attachment_base64
       from diary_entries
@@ -106,13 +114,16 @@ export const diaryService = {
     const rows = await sql<ListRow[]>`
       insert into diary_entries
         (firm_id, entry_date, entry_time, kind, case_label, cnr, detail, forum,
+         bench, next_hearing_date, reminder_offset_days,
          attachment_file_name, attachment_mime, attachment_size_bytes, attachment_base64)
       values
         (${firmId}::uuid, ${input.date}, ${input.time}, ${input.kind}, ${input.caseLabel},
          ${input.cnr}, ${input.detail}, ${input.forum},
+         ${input.bench ?? ''}, ${input.nextHearingDate || null}, ${input.reminderOffsetDays ?? null},
          ${input.attachmentFileName ?? null}, ${input.attachmentMime ?? null},
          ${input.attachmentSize ?? null}, ${input.attachmentBase64 ?? null})
       returning id, entry_date, entry_time, kind, case_label, cnr, detail, forum,
+                bench, next_hearing_date, reminder_offset_days,
                 attachment_file_name, attachment_mime, attachment_size_bytes
     `;
     return fromListRow(rows[0]!);

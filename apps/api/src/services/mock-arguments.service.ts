@@ -50,6 +50,8 @@ import {
 import { extractText } from '../lib/text-extraction';
 import { languageDirective, isKnownLanguageCode } from '../lib/languages';
 import { lawsSearchService, type LawHit } from './laws-search.service';
+import { aiUsageService } from './ai-usage.service';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 
 // ---- shared types ---------------------------------------------------------
 
@@ -611,7 +613,28 @@ function rowToReview(r: ReviewRow): MaReview {
 
 interface PromptPair { system: string; user: string }
 
-async function callJsonClaude(prompt: PromptPair, maxTokens = 2048): Promise<string> {
+interface LlmResult extends NormalizedUsage {
+  text: string;
+}
+
+/** Optional token-usage sink threaded through the LLM helpers so callers that
+ *  hold a MaCtx can record AI spend. */
+type UsageSink = (u: NormalizedUsage) => void;
+
+/** Build a usage sink that records against ai_token_usage for this feature. */
+function usageSink(ctx: MaCtx | undefined): UsageSink | undefined {
+  if (!ctx) return undefined;
+  return (u) =>
+    aiUsageService.recordAsync({
+      firmId: ctx.firmId, userId: ctx.userId, feature: 'mock_arguments',
+      provider: env.llmProvider,
+      model: env.llmProvider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+      tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+      cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
+    });
+}
+
+async function callJsonClaude(prompt: PromptPair, maxTokens = 2048): Promise<LlmResult> {
   return withRetry(
     async () => {
       const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -629,14 +652,18 @@ async function callJsonClaude(prompt: PromptPair, maxTokens = 2048): Promise<str
         }),
       });
       if (!r.ok) throw new HttpRetryError(r.status, `Claude ${r.status}: ${await r.text()}`);
-      const data = (await r.json()) as { content: Array<{ type: string; text: string }> };
-      return data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+      const data = (await r.json()) as {
+        content: Array<{ type: string; text: string }>;
+        usage?: Parameters<typeof anthropicUsage>[0];
+      };
+      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+      return { text, ...anthropicUsage(data.usage) };
     },
     { onRetry: (err, attempt) => logger.warn({ err, attempt }, 'mock-args Claude retry') },
   );
 }
 
-async function callJsonGrok(prompt: PromptPair, maxTokens = 2048): Promise<string> {
+async function callJsonGrok(prompt: PromptPair, maxTokens = 2048): Promise<LlmResult> {
   return withRetry(
     async () => {
       const r = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -656,17 +683,26 @@ async function callJsonGrok(prompt: PromptPair, maxTokens = 2048): Promise<strin
         }),
       });
       if (!r.ok) throw new HttpRetryError(r.status, `xAI ${r.status}: ${await r.text()}`);
-      const data = (await r.json()) as { choices: Array<{ message: { content: string } }> };
-      return data.choices[0]?.message?.content ?? '';
+      const data = (await r.json()) as {
+        choices: Array<{ message: { content: string } }>;
+        usage?: Parameters<typeof xaiUsage>[0];
+      };
+      return {
+        text: data.choices[0]?.message?.content ?? '',
+        ...xaiUsage(data.usage),
+      };
     },
     { onRetry: (err, attempt) => logger.warn({ err, attempt }, 'mock-args Grok retry') },
   );
 }
 
-async function callJson(prompt: PromptPair, maxTokens = 2048): Promise<string | null> {
+async function callJson(prompt: PromptPair, maxTokens = 2048, onUsage?: UsageSink): Promise<string | null> {
   if (env.llmProvider === 'none') return null;
-  if (env.llmProvider === 'xai') return callJsonGrok(prompt, maxTokens);
-  return callJsonClaude(prompt, maxTokens);
+  const result = env.llmProvider === 'xai'
+    ? await callJsonGrok(prompt, maxTokens)
+    : await callJsonClaude(prompt, maxTokens);
+  onUsage?.({ tokensIn: result.tokensIn, tokensOut: result.tokensOut, cacheRead: result.cacheRead, cacheWrite: result.cacheWrite });
+  return result.text;
 }
 
 function stripFences(text: string): string {
@@ -831,6 +867,7 @@ const ROLLING_SUMMARY_SYSTEM = `You compress an in-progress courtroom mock-argum
 async function summariseTurns(
   matterTitle: string,
   turns: Array<{ speaker: MaSpeaker; transcript: string }>,
+  usageCtx?: MaCtx,
 ): Promise<string> {
   if (turns.length === 0) return '';
   const rendered = turns
@@ -841,7 +878,7 @@ async function summariseTurns(
 Transcript so far (compress this into the summary requested):
 
 ${rendered}`;
-  const raw = await callJson({ system: ROLLING_SUMMARY_SYSTEM, user }, 800).catch((err) => {
+  const raw = await callJson({ system: ROLLING_SUMMARY_SYSTEM, user }, 800, usageSink(usageCtx)).catch((err) => {
     logger.warn({ err }, 'mock-args rolling summary LLM failed');
     return null;
   });
@@ -885,7 +922,7 @@ async function maybeRegenerateSummary(
         and turn_number <= ${eligible}
       order by turn_number asc
     `;
-    const newSummary = await summariseTurns(session.matterSummary.title, rows);
+    const newSummary = await summariseTurns(session.matterSummary.title, rows, ctx);
     if (!newSummary) return;
 
     await sql`
@@ -909,7 +946,7 @@ As counsel for the ${ai}, I would press the weakest premise of what my friend ha
 
 // ---- streaming Claude turn ------------------------------------------------
 
-async function* streamClaudeTurn(prompt: PromptPair): AsyncGenerator<string, void, void> {
+async function* streamClaudeTurn(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -930,6 +967,7 @@ async function* streamClaudeTurn(prompt: PromptPair): AsyncGenerator<string, voi
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let usage: NormalizedUsage = {};
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -947,9 +985,15 @@ async function* streamClaudeTurn(prompt: PromptPair): AsyncGenerator<string, voi
           const evt = JSON.parse(payload) as {
             type?: string;
             delta?: { type?: string; text?: string };
+            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
+            usage?: { output_tokens?: number };
           };
           if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
             yield evt.delta.text;
+          } else if (evt.type === 'message_start' && evt.message?.usage) {
+            usage = anthropicUsage(evt.message.usage);
+          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
+            usage = { ...usage, tokensOut: evt.usage.output_tokens };
           }
         } catch {
           // ignore malformed frames
@@ -957,9 +1001,10 @@ async function* streamClaudeTurn(prompt: PromptPair): AsyncGenerator<string, voi
       }
     }
   }
+  onUsage?.(usage);
 }
 
-async function* streamGrokTurn(prompt: PromptPair): AsyncGenerator<string, void, void> {
+async function* streamGrokTurn(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
   const r = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -970,6 +1015,7 @@ async function* streamGrokTurn(prompt: PromptPair): AsyncGenerator<string, void,
       model: env.XAI_MODEL,
       max_tokens: 1024,
       stream: true,
+      stream_options: { include_usage: true },
       messages: [
         { role: 'system', content: prompt.system },
         { role: 'user', content: prompt.user },
@@ -981,6 +1027,7 @@ async function* streamGrokTurn(prompt: PromptPair): AsyncGenerator<string, void,
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let usage: NormalizedUsage = {};
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -997,23 +1044,26 @@ async function* streamGrokTurn(prompt: PromptPair): AsyncGenerator<string, void,
         try {
           const evt = JSON.parse(payload) as {
             choices?: Array<{ delta?: { content?: string } }>;
+            usage?: Parameters<typeof xaiUsage>[0];
           };
           const t = evt.choices?.[0]?.delta?.content;
           if (t) yield t;
+          if (evt.usage) usage = xaiUsage(evt.usage);
         } catch {
           // ignore
         }
       }
     }
   }
+  onUsage?.(usage);
 }
 
-async function* streamTurnFromProvider(prompt: PromptPair): AsyncGenerator<string, void, void> {
+async function* streamTurnFromProvider(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
   if (env.llmProvider === 'xai') {
-    yield* streamGrokTurn(prompt);
+    yield* streamGrokTurn(prompt, onUsage);
     return;
   }
-  yield* streamClaudeTurn(prompt);
+  yield* streamClaudeTurn(prompt, onUsage);
 }
 
 // ----------------------------------------------------------------------------
@@ -1084,7 +1134,7 @@ const SUMMARY_SYSTEM = `You distil Indian-court case files into a structured mat
 
 Keep arrays to at most 8 items each. Be concrete and concise.`;
 
-async function distilSummary(rawText: string, fallbackTitle: string): Promise<MaMatterSummary> {
+async function distilSummary(rawText: string, fallbackTitle: string, usageCtx?: MaCtx): Promise<MaMatterSummary> {
   if (!rawText.trim()) {
     return {
       title: fallbackTitle,
@@ -1097,7 +1147,7 @@ async function distilSummary(rawText: string, fallbackTitle: string): Promise<Ma
     };
   }
   const user = `Distil the matter summary from the following case material:\n\n${rawText.slice(0, 30_000)}`;
-  const raw = await callJson({ system: SUMMARY_SYSTEM, user }, 1024).catch((err) => {
+  const raw = await callJson({ system: SUMMARY_SYSTEM, user }, 1024, usageSink(usageCtx)).catch((err) => {
     logger.warn({ err }, 'mock-args summary LLM failed');
     return null;
   });
@@ -1222,7 +1272,7 @@ function coercePerTurnArray(raw: unknown): Map<number, MaTurnRating> {
   return out;
 }
 
-async function distilReview(input: DistilReviewInput): Promise<DistilledReview | null> {
+async function distilReview(input: DistilReviewInput, usageCtx?: MaCtx): Promise<DistilledReview | null> {
   const transcript = input.turns
     .map((t) => `${t.speaker === 'user' ? `Advocate (${input.role})` : `Opposing`}: ${t.transcript}`)
     .join('\n\n');
@@ -1234,7 +1284,7 @@ ${transcript}
 
 Score the advocate's performance per the system instructions.`;
   const system = REVIEW_SYSTEM + languageDirective(input.languageCode);
-  const raw = await callJson({ system, user }, 2048).catch((err) => {
+  const raw = await callJson({ system, user }, 2048, usageSink(usageCtx)).catch((err) => {
     logger.warn({ err }, 'mock-args review LLM failed');
     return null;
   });
@@ -1397,7 +1447,7 @@ export const mockArgumentsService = {
 
     const fallbackTitle = input.fileName.replace(/\.[^.]+$/, '').slice(0, 80);
     const summary = extractionStatus === 'ok'
-      ? await distilSummary(extractedText, fallbackTitle)
+      ? await distilSummary(extractedText, fallbackTitle, ctx)
       : asMatterSummary({ title: fallbackTitle });
 
     const rows = await sql<Array<{
@@ -1722,7 +1772,7 @@ export const mockArgumentsService = {
           collected = fallback;
           yield fallback;
         } else {
-          for await (const chunk of streamTurnFromProvider(prompt)) {
+          for await (const chunk of streamTurnFromProvider(prompt, usageSink(ctx))) {
             collected += chunk;
             yield chunk;
           }
@@ -1823,7 +1873,7 @@ async function runReviewAndPersist(
         role: session.role,
         languageCode: session.languageCode,
         turns: allTurns.map((t) => ({ speaker: t.speaker, transcript: t.transcript })),
-      })) ?? demoDistilledReview();
+      }, ctx)) ?? demoDistilledReview();
   const { review, perTurnByUserPosition, llmRawResponse } = distilled;
 
   // Map LLM's 1-indexed per-USER-turn positions to actual DB turn numbers.

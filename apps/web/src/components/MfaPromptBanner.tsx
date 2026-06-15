@@ -76,13 +76,8 @@ export function MfaPromptBanner() {
       </span>
       <button
         type="button"
-        className="btn btn-sm"
-        style={{
-          background: 'var(--text-primary)',
-          color: 'var(--bg-base)',
-          borderColor: 'var(--text-primary)',
-          whiteSpace: 'nowrap',
-        }}
+        className="btn btn-sm btn-primary"
+        style={{ whiteSpace: 'nowrap' }}
         onClick={() => navigate('/app/settings')}
       >
         Set up now

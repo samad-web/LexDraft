@@ -38,6 +38,49 @@ export interface Case {
   type: CaseType | string;
   /** Firm-side toggle: surface this matter in the client portal. */
   visibleToClient?: boolean;
+
+  // ---- eCourts identity (migration 0053) ----
+  // All optional / nullable: rows pre-dating the eCourts sync have nothing
+  // here, and rows whose CNR isn't on eCourts (e.g. private arbitration,
+  // foreign matters) never populate them.
+  estCode?: string | null;
+  courtCode?: number | null;
+  districtCode?: number | null;
+  stateCode?: number | null;
+  filingNo?: string | null;
+  efilNo?: string | null;
+  judge?: string | null;
+  // FIR linkage (criminal matters).
+  firNo?: string | null;
+  firYear?: number | null;
+  policeStCode?: number | null;
+  /** Raw caret-delimited FIR detail string from eCourts ("21^Station^Year"). */
+  firDetails?: string | null;
+  /** ISO timestamp of the last successful eCourts sync; null until first sync. */
+  ecourtsSyncedAt?: string | null;
+}
+
+/** Linked Act + Section row (migration 0053, table `case_acts`). */
+export interface CaseAct {
+  id: ID;
+  caseId: ID;
+  actName: string;
+  section: string;
+  position: number;
+  source: 'ecourts' | 'manual';
+}
+
+/** Party row (migration 0053, table `case_parties`). */
+export interface CaseParty {
+  id: ID;
+  caseId: ID;
+  side: 'petitioner' | 'respondent';
+  partyName: string;
+  /** Free-text role/legal-heir/litigant-status from eCourts. */
+  roleLabel?: string | null;
+  advocateName?: string | null;
+  position: number;
+  source: 'ecourts' | 'manual';
 }
 
 export interface Hearing {
@@ -358,6 +401,40 @@ export interface DraftResponse {
   generatedAt: string;
 }
 
+// ---- Draft field extraction (dictate/type a brief -> structured fields) -----
+// The advocate dictates or types the matter in free form; the server extracts
+// values for the document type's schema fields so the form is pre-filled and
+// the gaps can be surfaced for completion. The field spec is supplied by the
+// client (the per-doc-type schema lives in the web app's doc-schemas.ts).
+
+export type DraftFieldType = 'text' | 'textarea' | 'select' | 'date' | 'number' | 'currency';
+
+export interface DraftFieldSpec {
+  key: string;
+  label: string;
+  type: DraftFieldType;
+  /** Allowed values for `select` fields. */
+  options?: string[];
+  required?: boolean;
+}
+
+export interface ExtractDraftFieldsRequest {
+  docType: string;
+  /** The advocate's free-form brief (typed or dictated). */
+  brief: string;
+  /** The fields to extract into — the target document's schema. */
+  fields: DraftFieldSpec[];
+  /** Optional per-request provider override. Falls back to env.llmProvider. */
+  provider?: 'xai' | 'anthropic';
+}
+
+export interface ExtractDraftFieldsResponse {
+  /** key -> extracted value, only for fields the brief actually covered. */
+  values: Record<string, string>;
+  /** Provider tag, e.g. 'anthropic:claude-sonnet-4-6' or 'fallback:none'. */
+  modelUsed: string;
+}
+
 export interface SavedDraft {
   id: ID;
   title: string;
@@ -549,7 +626,10 @@ export type AuditAction =
   | 'template.update'
   | 'template.delete'
   // Tenant-scoped CRUD audit actions.
-  | 'case.create'      | 'case.update'      | 'case.delete' | 'case.transition'
+  | 'case.create'      | 'case.update'      | 'case.delete' | 'case.transition' | 'case.sync_from_ecourts'
+  | 'case.pipeline.node.add'  | 'case.pipeline.node.update'  | 'case.pipeline.node.delete'
+  | 'case.pipeline.edge.add'  | 'case.pipeline.edge.update'  | 'case.pipeline.edge.delete'
+  | 'case.application.create' | 'case.application.update'    | 'case.application.delete'
   | 'client.create'    | 'client.update'    | 'client.delete'
   | 'invoice.create'   | 'invoice.update'   | 'invoice.delete'
   | 'lead.create'      | 'lead.update'      | 'lead.delete' | 'lead.stage.update'
@@ -655,6 +735,68 @@ export interface PlatformStats {
   caseCount: number;
   /** Recent audit entries (last 10) for the home feed. */
   recentAudit: AuditLogEntry[];
+  /** Last-30-day AI token usage summary for the dashboard cards. Optional so
+   *  older API builds (and demo mode without a DB) can omit it. */
+  aiUsage?: AiUsageSummary;
+}
+
+// --- AI token usage (superadmin dashboard) ---------------------------------
+
+/** Which AI feature consumed the tokens. Mirrors ai_token_usage.feature. */
+export type AiUsageFeature =
+  | 'drafting'
+  | 'matter_chat'
+  | 'diary_assistant'
+  | 'draft_extract'
+  | 'matter_intel'
+  | 'mock_arguments'
+  | 'review'
+  | 'title_report'
+  | 'laws_search';
+
+/** Headline totals for a time range. Costs are ESTIMATES from a static price
+ *  map (see apps/api/src/lib/ai-pricing.ts) - surfaced as approximate. */
+export interface AiUsageSummary {
+  tokensIn: number;
+  tokensOut: number;
+  totalTokens: number;
+  estCostUsd: number;
+  estCostInr: number;
+}
+
+export interface AiUsageByFeature {
+  feature: AiUsageFeature;
+  tokensIn: number;
+  tokensOut: number;
+  totalTokens: number;
+  estCostUsd: number;
+}
+
+export interface AiUsageByFirm {
+  firmId: ID | null;
+  firmName: string;
+  tokensIn: number;
+  tokensOut: number;
+  totalTokens: number;
+  estCostUsd: number;
+}
+
+export interface AiUsageTrendPoint {
+  /** YYYY-MM-DD (UTC day bucket). */
+  day: string;
+  tokensIn: number;
+  tokensOut: number;
+}
+
+/** Full payload for GET /admin/ai-usage. */
+export interface AdminAiUsageResponse {
+  /** Inclusive start / exclusive end of the window, ISO-8601. */
+  rangeStart: string;
+  rangeEnd: string;
+  totals: AiUsageSummary;
+  byFeature: AiUsageByFeature[];
+  byFirm: AiUsageByFirm[];
+  trend: AiUsageTrendPoint[];
 }
 
 export interface AdminCreateFirmRequest {
@@ -1001,11 +1143,78 @@ export interface PortalDashboard {
 
 /** Pipeline summary that travels with a Case or PortalCaseSummary. The
  *  canonical stage list is per matter-type; `currentIndex` is -1 when the
- *  stored `stage` value doesn't match the catalog (legacy free-text drift). */
+ *  stored `stage` value doesn't match the catalog (legacy free-text drift).
+ *
+ *  Legacy shape — superseded by `CasePipelineGraph` (migration 0054). Kept on
+ *  the wire during rollout so the portal stepper keeps rendering until it
+ *  switches to the graph. */
 export interface CasePipeline {
   kind: 'civil' | 'criminal' | 'consumer' | 'writ' | 'default';
   stages: string[];
   currentIndex: number;
+}
+
+// ---- Per-case pipeline graph (migration 0054) -----------------------------
+// Each matter owns its own directed graph of stages. `status` carries the
+// progression; several nodes may be `active` at once when branches run in
+// parallel. Positions persist the builder layout.
+
+export type PipelineNodeStatus = 'pending' | 'active' | 'done' | 'skipped';
+
+export interface PipelineNode {
+  id: ID;
+  caseId: ID;
+  label: string;
+  status: PipelineNodeStatus;
+  /** Canvas coordinates persisted from the builder. */
+  x: number;
+  y: number;
+  /** Seed ordinal; tiebreak for layout + primary-stage selection. */
+  position: number;
+  /** Optional link to a case application this node represents. */
+  applicationId?: ID | null;
+}
+
+export interface PipelineEdge {
+  id: ID;
+  caseId: ID;
+  fromNodeId: ID;
+  toNodeId: ID;
+  /** Free-text guard such as "if allowed" / "on dismissal". */
+  conditionLabel?: string | null;
+}
+
+export interface CasePipelineGraph {
+  nodes: PipelineNode[];
+  edges: PipelineEdge[];
+}
+
+// ---- Case applications (migration 0054) -----------------------------------
+// First-class child entities: interim applications, appeals, execution, review,
+// bail. Many per matter, each with its own status lifecycle — distinct from the
+// main pipeline progression.
+
+export type ApplicationKind = 'ia' | 'appeal' | 'execution' | 'review' | 'bail' | 'other';
+export type ApplicationStatus = 'pending' | 'allowed' | 'dismissed' | 'withdrawn' | 'disposed';
+
+export interface CaseApplication {
+  id: ID;
+  caseId: ID;
+  kind: ApplicationKind;
+  /** Registry number / label, e.g. "IA 412/2024". */
+  label?: string | null;
+  /** Nature of the application, e.g. "Stay", "Condonation of delay". */
+  appType?: string | null;
+  /** ISO date (YYYY-MM-DD). */
+  filedOn?: string | null;
+  status: ApplicationStatus;
+  /** ISO date of the disposing order; null while pending. */
+  orderOn?: string | null;
+  notes?: string | null;
+  position: number;
+  source: 'manual' | 'ecourts';
+  /** Firm-side toggle: surface this application in the client portal. */
+  visibleToPortal?: boolean;
 }
 
 /** One row on the unified matter timeline. Stage transitions, hearings,
@@ -1014,7 +1223,7 @@ export interface MatterTimelineEvent {
   id: string;
   /** ISO timestamp. */
   at: string;
-  kind: 'stage' | 'hearing' | 'document' | 'note';
+  kind: 'stage' | 'hearing' | 'document' | 'note' | 'application';
   title: string;
   body: string;
   actorName?: string;
@@ -1027,10 +1236,16 @@ export interface PortalMatterDetail {
   hearings: PortalHearingSummary[];
   documents: PortalDocumentSummary[];
   messages: PortalMessage[];
-  /** Canonical stage list for this matter's type + current position. */
+  /** Canonical stage list for this matter's type + current position.
+   *  Legacy — kept for back-compat; prefer `graph` when present. */
   pipeline: CasePipeline;
+  /** Per-case pipeline graph (migration 0054). Rendered read-only on the
+   *  portal; falls back to `pipeline` when absent during rollout. */
+  graph?: CasePipelineGraph;
+  /** Portal-visible applications on this matter (visible_to_portal = true). */
+  applications?: CaseApplication[];
   /** Chronological event stream visible to the client (stage transitions
-   *  flagged visible_to_portal, hearings, shared documents). */
+   *  flagged visible_to_portal, hearings, shared documents, applications). */
   timeline: MatterTimelineEvent[];
 }
 
@@ -1243,6 +1458,13 @@ export interface DiaryEntry {
   cnr: string;
   detail: string;
   forum: string;
+  /** The bench / presiding judge for this entry. UI labels it "Bench". */
+  bench?: string;
+  /** ISO date (YYYY-MM-DD) the matter is next posted to. */
+  nextHearingDate?: string | null;
+  /** When set, remind this many days before `nextHearingDate` (0 = on the
+   *  day). Surfaced in-app on the Diary; no email/SMS delivery yet. */
+  reminderOffsetDays?: number | null;
   /** Optional attachment — only used for judgment entries today. Filename,
    *  mime and size are returned on the list payload; the base64 body is
    *  returned only by the per-entry detail endpoint to keep the list small. */
@@ -1250,6 +1472,95 @@ export interface DiaryEntry {
   attachmentMime?: string;
   attachmentSize?: number;
   attachmentBase64?: string;
+}
+
+// ---- Diary assistant ------------------------------------------------------
+// The Diary assistant turns the court diary into an action-taking helper. It
+// has three jobs: parse a natural-language command into a proposed action the
+// advocate confirms (it never writes on its own), produce a day/week briefing,
+// and read judgment PDFs.
+
+export type DiaryAssistantIntent =
+  | 'create_diary_entry'
+  | 'create_hearing'
+  | 'create_filing_reminder'
+  | 'briefing_query'
+  | 'unknown';
+
+/** Fields for a proposed diary entry. Mirrors `Omit<DiaryEntry,'id'>` minus the
+ *  attachment columns, which the command bar never sets. */
+export interface DiaryEntryDraft {
+  date: string;
+  time: string;
+  kind: DiaryKind;
+  caseLabel: string;
+  cnr: string;
+  detail: string;
+  forum: string;
+}
+
+/** A parsed, NOT-yet-executed action. The UI renders this as an editable
+ *  confirmation card; on confirm it calls the existing /diary and /hearings
+ *  endpoints. The assistant never mutates data itself. */
+export interface DiaryAssistantProposal {
+  intent: DiaryAssistantIntent;
+  /** One short line summarising what confirming will do. */
+  confirmation: string;
+  /** Free-text reply for `unknown` (and surfaced on `briefing_query`). */
+  message?: string;
+  /** Present for every create_* intent. The client rebuilds the optional
+   *  calendar-hearing payload from this (edited) draft on confirm. */
+  diaryEntry?: DiaryEntryDraft;
+  /** Present for briefing_query — the range the user asked about. */
+  briefingRange?: 'today' | 'week';
+  /** Provider tag, e.g. 'anthropic:claude-sonnet-4-6' or 'fallback:none'. */
+  modelUsed: string;
+}
+
+export type DiaryBriefingItemKind = 'hearing' | 'judgment' | 'filing' | 'limitation';
+
+export interface DiaryBriefingItem {
+  /** ISO date the item falls on (used for grouping/sort). */
+  date: string;
+  /** HH:mm or ''. */
+  time: string;
+  kind: DiaryBriefingItemKind;
+  /** Matter / case label. */
+  title: string;
+  /** Purpose / note / filing type. */
+  detail: string;
+  forum: string;
+  /** Days to deadline for `limitation` rows (negative = overdue); null otherwise. */
+  daysRemaining: number | null;
+}
+
+export interface DiaryBriefing {
+  range: 'today' | 'week';
+  /** Inclusive ISO window. */
+  from: string;
+  to: string;
+  counts: { hearings: number; judgments: number; filings: number; limitations: number };
+  items: DiaryBriefingItem[];
+  /** AI narrative digest. Empty when AI is off/blocked — the UI then renders
+   *  from `counts`/`items` so the card is never blank. */
+  narrative: string;
+  modelUsed: string;
+}
+
+export interface JudgmentFollowUp {
+  title: string;
+  rationale: string;
+}
+
+export interface JudgmentInsight {
+  entryId: ID;
+  summary: string;
+  /** Ratio decidendi / operative holding. */
+  holding: string;
+  followUps: JudgmentFollowUp[];
+  modelUsed: string;
+  /** True when served from the cache (no fresh LLM call). */
+  cached: boolean;
 }
 
 // ---- Physical documents register -----------------------------------------

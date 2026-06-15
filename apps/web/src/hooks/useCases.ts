@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Case, CasePipeline, MatterTimelineEvent } from '@lexdraft/types';
+import type { Case, CaseAct, CaseParty, CasePipeline, MatterTimelineEvent } from '@lexdraft/types';
 import { api } from '@/lib/api';
 
 export type CaseWithPipeline = Case & { pipeline?: CasePipeline };
@@ -16,6 +16,28 @@ export function useCase(id: string | null | undefined) {
   return useQuery({
     queryKey: ['cases', id],
     queryFn: () => api.get<CaseWithPipeline>(`/cases/${id}`),
+    enabled: !!id,
+  });
+}
+
+/** Acts & sections the matter is filed under. Populated by the eCourts sync;
+ *  empty until the user clicks "Sync from eCourts". */
+export function useCaseActs(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['cases', id, 'acts'],
+    queryFn: () => api.get<{ items: CaseAct[] }>(`/cases/${id}/acts`),
+    select: (r) => r.items,
+    enabled: !!id,
+  });
+}
+
+/** Parties (petitioner / respondent + extras + advocates). Populated by the
+ *  eCourts sync. */
+export function useCaseParties(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['cases', id, 'parties'],
+    queryFn: () => api.get<{ items: CaseParty[] }>(`/cases/${id}/parties`),
+    select: (r) => r.items,
     enabled: !!id,
   });
 }
@@ -65,6 +87,53 @@ export function useUpdateCase() {
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Case> }) =>
       api.patch<Case>(`/cases/${id}`, patch),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['cases'] }),
+  });
+}
+
+export interface EcourtsSyncSurface {
+  finalOrders: number;
+  interimOrders: number;
+  transfers: Array<{ on: string; from: string; to: string }>;
+}
+
+export interface EcourtsSyncResult extends CaseWithPipeline {
+  sync: {
+    changes: Record<string, { from: unknown; to: unknown }>;
+    hearingsReplaced: number;
+    actsReplaced: number;
+    partiesReplaced: number;
+    sideDetected: 'petitioner' | 'respondent' | null;
+    surfaceOnly: EcourtsSyncSurface;
+  };
+}
+
+/**
+ * Pull live data from the eCourts gateway and fold it into the matter row +
+ * its hearings. Server-side mapping is documented in case-sync.service.ts.
+ *
+ * Callers may pass `side` explicitly when auto-detection (firm-client name vs
+ * petitioner/respondent) is going to be wrong; otherwise it's left undefined
+ * and the server attempts the match.
+ */
+export function useSyncCaseFromEcourts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: {
+      id: string;
+      side?: 'petitioner' | 'respondent';
+      overwriteAll?: boolean;
+      court?: 'DC' | 'HC';
+    }) =>
+      api.post<EcourtsSyncResult>(`/cases/${id}/sync-from-ecourts`, body),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['cases', variables.id, 'timeline'] });
+      qc.invalidateQueries({ queryKey: ['cases', variables.id, 'acts'] });
+      qc.invalidateQueries({ queryKey: ['cases', variables.id, 'parties'] });
+      // Hearings come back from a separate query — refetch them too.
+      qc.invalidateQueries({ queryKey: ['hearings'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+    },
   });
 }
 

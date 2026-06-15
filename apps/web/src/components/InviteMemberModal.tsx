@@ -81,7 +81,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          background: 'var(--scrim)',
           backdropFilter: 'blur(4px)',
           zIndex: 100,
         }}

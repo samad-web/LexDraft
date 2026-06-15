@@ -140,7 +140,8 @@ export function DeletionConfirmModal({
           TYPE YOUR EMAIL TO CONFIRM
         </span>
         <input
-          type="text"
+          type="email"
+          inputMode="email"
           autoComplete="off"
           spellCheck={false}
           className="input"

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DatePicker } from '@lexdraft/ui';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface DateConfirmModalProps {
   open: boolean;
@@ -9,6 +10,7 @@ interface DateConfirmModalProps {
 }
 
 export function DateConfirmModal({ open, initial, onCancel, onConfirm }: DateConfirmModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onCancel);
   const [date, setDate] = useState(initial);
 
   useEffect(() => {
@@ -19,6 +21,7 @@ export function DateConfirmModal({ open, initial, onCancel, onConfirm }: DateCon
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal
       aria-labelledby="date-confirm-title"
@@ -26,7 +29,7 @@ export function DateConfirmModal({ open, initial, onCancel, onConfirm }: DateCon
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0,0,0,0.55)',
+        background: 'var(--scrim)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

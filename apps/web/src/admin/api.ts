@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import type {
+  AdminAiUsageResponse,
   AdminCreateFirmRequest,
   AdminCreateFirmResponse,
   AdminCreateTemplateRequest,
@@ -27,6 +28,10 @@ import type {
 export const adminApi = {
   // ---- platform stats ---------------------------------------------------
   stats: () => api.get<PlatformStats>('/admin/stats'),
+
+  // ---- AI token usage ---------------------------------------------------
+  aiUsage: (days?: number) =>
+    api.get<AdminAiUsageResponse>('/admin/ai-usage', days ? { days } : {}),
 
   // ---- firms ------------------------------------------------------------
   listFirms: () => api.get<{ items: FirmSummary[] }>('/admin/firms').then((r) => r.items),

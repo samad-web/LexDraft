@@ -199,8 +199,15 @@ function DocumentsPane({ caseId, documents, isLoading, selectedDocId, onSelect }
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
         role="button"
         tabIndex={0}
+        aria-label="Upload documents — drop files or activate to browse"
       >
         <Icon name="upload" size={18} />
         <div>
@@ -277,8 +284,15 @@ function DocRow({
     <div
       className={`matter-intel-row${selected ? ' is-selected' : ''}`}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       role="button"
       tabIndex={0}
+      aria-pressed={selected}
     >
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="matter-intel-row-name" title={doc.fileName}>

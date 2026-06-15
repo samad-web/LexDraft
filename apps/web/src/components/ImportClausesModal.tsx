@@ -4,6 +4,7 @@ import mammoth from 'mammoth';
 import type { CreateClauseRequest } from '@lexdraft/types';
 import { useImportClauses } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
+import { useModalA11y } from '@/hooks/useModalA11y';
 
 interface ImportClausesModalProps {
   open: boolean;
@@ -25,6 +26,7 @@ const CSV_SAMPLE = `category,title,description,body
 Confidentiality,Standard NDA Clause,Mutual confidentiality with 3-year survival.,Each Party agrees to hold in strict confidence…`;
 
 export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
+  const shellRef = useModalA11y<HTMLDivElement>(open, onClose);
   const [tab, setTab] = useState<Tab>('json');
   const [text, setText] = useState('');
   const [parsed, setParsed] = useState<CreateClauseRequest[]>([]);
@@ -196,12 +198,13 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
 
   return (
     <div
+      ref={shellRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="import-clauses-title"
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.4)',
+        position: 'fixed', inset: 0, background: 'var(--scrim)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
         padding: 16,
       }}

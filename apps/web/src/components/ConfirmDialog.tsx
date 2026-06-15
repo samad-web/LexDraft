@@ -90,11 +90,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setPendingAlert(null);
   };
 
-  const alertAccent = (() => {
-    if (!pendingAlert) return undefined;
-    if (pendingAlert.tone === 'danger')  return { background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' };
-    if (pendingAlert.tone === 'success') return { background: 'var(--success)', borderColor: 'var(--success)', color: '#fff' };
-    return { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: 'var(--bg-base)' };
+  const alertBtnClass = (() => {
+    if (!pendingAlert) return 'btn';
+    if (pendingAlert.tone === 'danger')  return 'btn btn-danger';
+    if (pendingAlert.tone === 'success') return 'btn btn-success';
+    return 'btn btn-primary';
   })();
 
   return (
@@ -120,12 +120,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   ref={confirmBtnRef}
                   type="button"
-                  className="btn"
-                  style={
-                    pendingConfirm.danger
-                      ? { borderColor: 'var(--danger)', color: 'var(--danger)' }
-                      : { background: 'var(--text-primary)', borderColor: 'var(--text-primary)', color: 'var(--bg-base)' }
-                  }
+                  className={pendingConfirm.danger ? 'btn btn-danger' : 'btn btn-primary'}
                   onClick={() => closeConfirm(true)}
                 >
                   {pendingConfirm.confirmLabel ?? 'Confirm'}
@@ -149,8 +144,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <button
                 ref={alertBtnRef}
                 type="button"
-                className="btn"
-                style={alertAccent}
+                className={alertBtnClass}
                 onClick={closeAlert}
               >
                 {pendingAlert.okLabel ?? 'OK'}

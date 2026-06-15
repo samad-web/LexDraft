@@ -601,7 +601,7 @@ function Setup(props: {
           </div>
 
           <div>
-            <div className="label">Judge persona</div>
+            <div className="label">Bench persona</div>
             <div className="facts-grid-3" style={{ marginTop: 'var(--space-2)' }}>
               {PERSONAS.map((p) => (
                 <button
@@ -924,7 +924,7 @@ function SessionDetails(props: {
         <div className="eyebrow">At a glance</div>
         <div className="grid-auto-sm">
           <DetailField label="Your role" value={ROLES.find((r) => r.value === s.role)?.label ?? s.role} />
-          <DetailField label="Judge persona" value={s.judgePersona} />
+          <DetailField label="Bench persona" value={s.judgePersona} />
           <DetailField label="Language" value={`${language.englishName} (${language.nativeName})`} />
           <DetailField label="Input mode" value={s.inputMode === 'voice' ? 'Voice' : 'Text only'} />
           <DetailField
@@ -1268,7 +1268,7 @@ function Live(props: {
             </h2>
             <div className="row" style={{ gap: 'var(--space-2)', flexWrap: 'wrap' }}>
               <span className="badge">{ROLES.find((r) => r.value === s.role)?.label}</span>
-              <span className="badge">Judge · {s.judgePersona}</span>
+              <span className="badge">Bench · {s.judgePersona}</span>
               <span className="badge">{voiceMode ? 'Voice' : 'Text'}</span>
               <span className="badge">{findLanguage(s.languageCode).englishName}</span>
             </div>

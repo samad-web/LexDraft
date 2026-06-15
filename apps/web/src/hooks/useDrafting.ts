@@ -1,6 +1,11 @@
 import { useCallback, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import type { DraftRequest, DraftResponse } from '@lexdraft/types';
+import type {
+  DraftRequest,
+  DraftResponse,
+  ExtractDraftFieldsRequest,
+  ExtractDraftFieldsResponse,
+} from '@lexdraft/types';
 import { api, apiClient } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
@@ -10,6 +15,14 @@ export function useGenerateDraft() {
   return useMutation({
     mutationFn: (req: DraftRequest & { provider?: LlmProvider }) =>
       api.post<DraftResponse>('/drafting/generate', req),
+  });
+}
+
+/** Extract structured field values from a free-form (typed/dictated) brief. */
+export function useExtractDraftFields() {
+  return useMutation({
+    mutationFn: (req: ExtractDraftFieldsRequest) =>
+      api.post<ExtractDraftFieldsResponse>('/drafting/extract-fields', req),
   });
 }
 

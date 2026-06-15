@@ -198,6 +198,7 @@ export function Field({
   wide,
   required,
   hint,
+  help,
   error,
   children,
 }: {
@@ -205,6 +206,9 @@ export function Field({
   wide?: boolean;
   required?: boolean;
   hint?: ReactNode;
+  /** Longer guidance rendered BELOW the control, so the label line stays a
+   *  single row and side-by-side fields keep their inputs aligned. */
+  help?: ReactNode;
   error?: ReactNode | null | false;
   children: ReactNode;
 }) {
@@ -215,9 +219,15 @@ export function Field({
         flexDirection: 'column',
         gap: 6,
         gridColumn: wide ? '1 / -1' : undefined,
+        // Bottom-align so a wrapped label/help in a neighbouring field can't
+        // shove this field's input out of line with it.
+        justifyContent: 'flex-end',
       }}
     >
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+      <span
+        className="mono"
+        style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
         {label}
         {required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
         {hint && (
@@ -227,6 +237,11 @@ export function Field({
         )}
       </span>
       {children}
+      {help && (
+        <span style={{ fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
+          {help}
+        </span>
+      )}
       {error && (
         <span role="alert" style={{ fontSize: 12, color: 'var(--danger)', lineHeight: 1.4 }}>
           {error}

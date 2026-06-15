@@ -1,34 +1,29 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import {
   useCase,
   useCaseTimeline,
-  useTransitionCase,
-  useAddFirmCaseStage,
+  useSyncCaseFromEcourts,
+  useCaseActs,
+  useCaseParties,
   type CaseWithPipeline,
+  type EcourtsSyncResult,
 } from '@/hooks/useCases';
 import type { MatterTimelineEvent } from '@lexdraft/types';
+import { PipelineBuilder } from '@/components/pipeline/PipelineBuilder';
+import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
+import { CaseLeadHandover } from '@/components/CaseLeadHandover';
 import { MatterIntelPanel } from '@/components/matter-intel/MatterIntelPanel';
 import { CopyButton } from '@/components/CopyButton';
 import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
 import { useUIStore } from '@/store/ui';
-
-interface PartyEntry {
-  side: 'Plaintiff' | 'Defendant';
-  name: string;
-  role: string;
-  addr: string;
-  counsel: string;
-}
-
-const PARTIES: ReadonlyArray<PartyEntry> = [];
 
 interface TaskEntry {
   title: string;
@@ -44,24 +39,21 @@ export function CaseDetailView() {
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useCase(id);
   const timeline = useCaseTimeline(id);
-  const transition = useTransitionCase();
-  const addStage = useAddFirmCaseStage();
+  const parties = useCaseParties(id);
+  const acts = useCaseActs(id);
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'intelligence'>('overview');
-  const [pendingStage, setPendingStage] = useState<string | null>(null);
-  const [transitionNote, setTransitionNote] = useState('');
-  const [shareWithClient, setShareWithClient] = useState(true);
-  // Inline "Add stage" composer at the end of the stepper. Lets the firm
-  // extend the canonical catalog with custom checkpoints (IA, Mediation,
-  // etc.) without leaving the matter page.
-  const [addingStage, setAddingStage] = useState(false);
-  const [newStageName, setNewStageName] = useState('');
   const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
+  const syncFromEcourts = useSyncCaseFromEcourts();
+  // The sync mutation returns a rich diff payload we want to show *after* the
+  // case row finishes updating — stash it in local state so the modal stays
+  // mounted independent of the mutation lifecycle.
+  const [ecourtsSyncResult, setEcourtsSyncResult] = useState<EcourtsSyncResult | null>(null);
 
   if (isLoading) {
     return (
@@ -87,49 +79,6 @@ export function CaseDetailView() {
   }
 
   const c: CaseWithPipeline = data;
-  const STAGES: ReadonlyArray<string> = c.pipeline?.stages ?? [];
-  const currentIdx = c.pipeline?.currentIndex ?? -1;
-
-  const commitTransition = async (): Promise<void> => {
-    if (!pendingStage || !c.id) return;
-    try {
-      await transition.mutateAsync({
-        id: c.id,
-        toStage: pendingStage,
-        ...(transitionNote.trim() ? { note: transitionNote.trim() } : {}),
-        visibleToPortal: shareWithClient,
-      });
-      showToast({ type: 'sage', text: `Stage moved to ${pendingStage}` });
-      setPendingStage(null);
-      setTransitionNote('');
-      setShareWithClient(true);
-    } catch (err) {
-      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
-        ?.response?.data?.error ?? (err as Error).message ?? 'Could not move stage';
-      showToast({ type: 'vermillion', text: msg });
-    }
-  };
-
-  const commitNewStage = async (): Promise<void> => {
-    const trimmed = newStageName.trim();
-    if (!trimmed) {
-      setAddingStage(false);
-      return;
-    }
-    try {
-      await addStage.mutateAsync({
-        kind: (c.pipeline?.kind ?? 'default') as Parameters<typeof addStage.mutateAsync>[0]['kind'],
-        stageName: trimmed,
-      });
-      showToast({ type: 'sage', text: `Stage "${trimmed}" added` });
-      setNewStageName('');
-      setAddingStage(false);
-    } catch (err) {
-      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
-        ?.response?.data?.error ?? (err as Error).message ?? 'Could not add stage';
-      showToast({ type: 'vermillion', text: msg });
-    }
-  };
 
   const handleGenerateEngagement = async (): Promise<void> => {
     try {
@@ -138,6 +87,27 @@ export function CaseDetailView() {
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
         ?.response?.data?.error ?? (err as Error).message ?? 'Could not generate engagement letter';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
+
+  const handleSyncFromEcourts = async (): Promise<void> => {
+    try {
+      const result = await syncFromEcourts.mutateAsync({ id: c.id });
+      setEcourtsSyncResult(result);
+      const n = Object.keys(result.sync.changes).length;
+      const h = result.sync.hearingsReplaced;
+      const a = result.sync.actsReplaced;
+      const p = result.sync.partiesReplaced;
+      showToast({
+        type: 'sage',
+        text: n > 0 || h > 0 || a > 0 || p > 0
+          ? `Synced from eCourts: ${n} field${n === 1 ? '' : 's'}, ${h} hearing${h === 1 ? '' : 's'}, ${p} part${p === 1 ? 'y' : 'ies'}, ${a} act${a === 1 ? '' : 's'}`
+          : 'Already up to date with eCourts',
+      });
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not sync from eCourts';
       showToast({ type: 'vermillion', text: msg });
     }
   };
@@ -200,6 +170,18 @@ export function CaseDetailView() {
             </button>
             <button
               type="button"
+              className="btn"
+              onClick={() => { void handleSyncFromEcourts(); }}
+              disabled={syncFromEcourts.isPending || !c.cnr}
+              title={c.cnr
+                ? 'Pull latest case status, hearings, and orders from the eCourts gateway'
+                : 'Set a CNR on this matter before syncing'}
+            >
+              <Icon name="ecourts" size={14} />{' '}
+              {syncFromEcourts.isPending ? 'Syncing…' : 'Sync from eCourts'}
+            </button>
+            <button
+              type="button"
               className="btn btn-primary"
               onClick={() => setHearingOpen(true)}
             >
@@ -208,145 +190,10 @@ export function CaseDetailView() {
           </div>
         </div>
 
-        {/* STAGE STEPPER — click a stage to move the matter there. */}
-        <div style={{ marginTop: 24, overflowX: 'auto', paddingBottom: 4 }}>
-          <div className="row" style={{ gap: 0, minWidth: 'min-content' }}>
-            {STAGES.map((s, i) => {
-              const done   = i < currentIdx;
-              const active = i === currentIdx;
-              const isCurrent = active;
-              return (
-                <Fragment key={s}>
-                  <button
-                    type="button"
-                    onClick={() => !isCurrent && setPendingStage(s)}
-                    disabled={isCurrent || transition.isPending}
-                    aria-label={`Move stage to ${s}`}
-                    className="col"
-                    style={{
-                      alignItems: 'center',
-                      gap: 6,
-                      minWidth: 80,
-                      flex: '0 0 auto',
-                      background: 'transparent',
-                      border: 'none',
-                      padding: 0,
-                      cursor: isCurrent ? 'default' : 'pointer',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 'var(--radius-full)',
-                        border: `2px solid ${active ? 'var(--text-primary)' : done ? 'var(--text-secondary)' : 'var(--border-default)'}`,
-                        background: done ? 'var(--text-secondary)' : active ? 'var(--text-primary)' : 'var(--bg-surface)',
-                        color: done ? 'var(--bg-base)' : active ? 'var(--bg-base)' : 'var(--text-tertiary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 11,
-                        fontFamily: 'var(--font-mono)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {done ? '✓' : i + 1}
-                    </div>
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: 10,
-                        letterSpacing: '0.16em',
-                        color: active ? 'var(--text-primary)' : done ? 'var(--text-secondary)' : 'var(--text-tertiary)',
-                        fontWeight: active ? 600 : 400,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {s.toUpperCase()}
-                    </span>
-                  </button>
-                  {i < STAGES.length - 1 && (
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 24,
-                        height: 1,
-                        background: i < currentIdx ? 'var(--text-secondary)' : 'var(--border-default)',
-                        marginTop: 12,
-                      }}
-                    />
-                  )}
-                </Fragment>
-              );
-            })}
-          </div>
-          {currentIdx === -1 && c.stage && (
-            <div className="body-sm muted" style={{ marginTop: 10 }}>
-              Current stage <strong>{c.stage}</strong> isn't on the canonical {c.pipeline?.kind ?? 'default'} path. Click a step above to align.
-            </div>
-          )}
-          {/* Inline custom-stage composer. The new stage is added to the
-              firm's catalog (firm_custom_case_stages) for this pipeline
-              kind, so it shows up on every matter of the same type. */}
-          <div
-            className="row"
-            style={{
-              gap: 8,
-              alignItems: 'center',
-              marginTop: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            {addingStage ? (
-              <>
-                <input
-                  className="input"
-                  autoFocus
-                  value={newStageName}
-                  onChange={(e) => setNewStageName(e.target.value)}
-                  placeholder="e.g. IA, Mediation, Pre-filing review"
-                  maxLength={60}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') { e.preventDefault(); void commitNewStage(); }
-                    if (e.key === 'Escape') { setAddingStage(false); setNewStageName(''); }
-                  }}
-                  style={{ flex: '0 1 280px', minWidth: 200 }}
-                  disabled={addStage.isPending}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => { void commitNewStage(); }}
-                  disabled={addStage.isPending || !newStageName.trim()}
-                >
-                  {addStage.isPending ? 'Adding…' : 'Add'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => { setAddingStage(false); setNewStageName(''); }}
-                  disabled={addStage.isPending}
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setAddingStage(true)}
-                title="Add a custom stage to this firm's pipeline"
-              >
-                <Icon name="plus" size={12} /> Add stage
-              </button>
-            )}
-            <span
-              className="mono body-xs muted"
-              style={{ letterSpacing: '0.14em' }}
-            >
-              CUSTOM STAGES APPLY TO ALL {String(c.pipeline?.kind ?? 'default').toUpperCase()} MATTERS
-            </span>
-          </div>
+        {/* PIPELINE BUILDER — this matter's own branching pipeline graph.
+            Stages, branches and conditions are per-case (migration 0054). */}
+        <div style={{ marginTop: 24 }}>
+          <PipelineBuilder caseId={c.id} />
         </div>
       </div>
 
@@ -393,8 +240,40 @@ export function CaseDetailView() {
               <MetaItem label="Status"     value={c.status} />
               <MetaItem label="Client"     value={c.client} />
               <MetaItem label="Next date"  value={c.next}        mono />
+              {c.judge && <MetaItem label="Bench" value={c.judge} />}
+              {c.filingNo && <MetaItem label="Filing No." value={c.filingNo} mono copyable />}
+              {c.firNo && (
+                <MetaItem
+                  label="FIR"
+                  value={`${c.firNo}/${c.firYear ?? ''}${c.firDetails ? ` · ${c.firDetails.split('^').filter(Boolean).join(' · ')}` : ''}`}
+                />
+              )}
+              {c.ecourtsSyncedAt && (
+                <MetaItem
+                  label="Last eCourts sync"
+                  value={new Date(c.ecourtsSyncedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                />
+              )}
             </div>
           </div>
+
+          {/* Lead advocate + handover (case_assignments). */}
+          <CaseLeadHandover caseId={c.id} />
+
+          {/* Acts & sections — populated by the eCourts sync (case_acts table). */}
+          {(acts.data?.length ?? 0) > 0 && (
+            <div className="card">
+              <div className="eyebrow" style={{ marginBottom: 8 }}>Statute</div>
+              <h2 className="heading-md" style={{ marginBottom: 12 }}>Acts & sections</h2>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {acts.data!.map((a) => (
+                  <span key={a.id} className="badge" style={{ fontFamily: 'var(--font-mono)' }}>
+                    {a.actName} §{a.section}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Timeline — stage transitions, hearings, documents, notes,
               merged newest-first from /api/cases/:id/timeline. */}
@@ -425,29 +304,47 @@ export function CaseDetailView() {
             )}
           </div>
 
-          {/* Parties */}
+          {/* Parties — populated by the eCourts sync (case_parties table).
+              Falls back to a hint when the matter has never been synced. */}
           <div>
             <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
               <h2 className="heading-lg">Parties</h2>
+              <span className="spacer" />
+              {(parties.data?.length ?? 0) > 0 && (
+                <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
+                  {parties.data!.length} ON RECORD
+                </span>
+              )}
             </div>
-            {PARTIES.length === 0 ? (
-              <p className="body-md muted">No parties on record. Add them when the matter file is opened.</p>
+            {parties.isLoading ? (
+              <p className="body-md muted">Loading parties…</p>
+            ) : (parties.data?.length ?? 0) === 0 ? (
+              <p className="body-md muted">
+                No parties on record. Click <strong>Sync from eCourts</strong> in the header to import them, or add manually when the matter file is opened.
+              </p>
             ) : (
               <div className="grid-2">
-                {PARTIES.map((p) => (
-                  <div key={p.name} className="card" style={{ padding: 20 }}>
-                    <div className="eyebrow" style={{ marginBottom: 6 }}>{p.side}</div>
-                    <div className="heading-md" style={{ marginBottom: 4 }}>{p.name}</div>
-                    <div className="body-sm muted" style={{ marginBottom: 12 }}>{p.role}</div>
-                    <div className="body-sm" style={{ marginBottom: 8 }}>{p.addr}</div>
-                    <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                      COUNSEL: {p.counsel}
-                    </div>
+                {parties.data!.map((p) => (
+                  <div key={p.id} className="card" style={{ padding: 20 }}>
+                    <div className="eyebrow" style={{ marginBottom: 6, textTransform: 'uppercase' }}>{p.side}</div>
+                    <div className="heading-md" style={{ marginBottom: 4 }}>{p.partyName}</div>
+                    {p.roleLabel && (
+                      <div className="body-sm muted" style={{ marginBottom: 12 }}>{p.roleLabel}</div>
+                    )}
+                    {p.advocateName && (
+                      <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
+                        COUNSEL: {p.advocateName}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Applications — interim applications, appeals, execution, review,
+              bail. Many per matter, each with its own status lifecycle. */}
+          <ApplicationsPanel caseId={c.id} />
 
           {/* Notes - typed memos or uploaded files; AI drafting can pull these
               in as context when generating documents for this matter. */}
@@ -575,6 +472,11 @@ export function CaseDetailView() {
         onClose={() => setEngagementLetter(null)}
       />
 
+      <EcourtsSyncResultModal
+        result={ecourtsSyncResult}
+        onClose={() => setEcourtsSyncResult(null)}
+      />
+
       <NewDocumentModal open={docOpen} onClose={() => setDocOpen(false)} defaultCase={c.title} />
       <NewHearingModal
         open={hearingOpen}
@@ -589,69 +491,6 @@ export function CaseDetailView() {
         defaultCase={c.title}
       />
 
-      <Modal
-        open={pendingStage !== null}
-        onClose={() => {
-          if (transition.isPending) return;
-          setPendingStage(null);
-          setTransitionNote('');
-        }}
-        title={`Move to ${pendingStage ?? ''}`}
-        eyebrow={c.title}
-        description={
-          c.stage
-            ? `Currently at "${c.stage}". This will be entered in the matter diary.`
-            : 'This will be entered in the matter diary.'
-        }
-        width={520}
-        footer={
-          <>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setPendingStage(null);
-                setTransitionNote('');
-              }}
-              disabled={transition.isPending}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => { void commitTransition(); }}
-              disabled={transition.isPending}
-            >
-              {transition.isPending ? 'Updating…' : 'Move stage'}
-            </button>
-          </>
-        }
-      >
-        <div className="col" style={{ gap: 12 }}>
-          <label className="col" style={{ gap: 6 }}>
-            <span className="eyebrow">Note (optional)</span>
-            <textarea
-              className="input"
-              rows={3}
-              maxLength={400}
-              placeholder="Brief context — e.g. 'WS filed today, sent to client for review'"
-              value={transitionNote}
-              onChange={(e) => setTransitionNote(e.target.value)}
-              disabled={transition.isPending}
-            />
-          </label>
-          <label className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <input
-              type="checkbox"
-              checked={shareWithClient}
-              onChange={(e) => setShareWithClient(e.target.checked)}
-              disabled={transition.isPending}
-            />
-            <span className="body-sm">Visible on client portal</span>
-          </label>
-        </div>
-      </Modal>
     </div>
   );
 }
@@ -773,23 +612,137 @@ function EngagementLetterPreview({
   );
 }
 
+function EcourtsSyncResultModal({
+  result,
+  onClose,
+}: {
+  result: EcourtsSyncResult | null;
+  onClose: () => void;
+}) {
+  if (!result) return null;
+  const { sync } = result;
+  const changeEntries = Object.entries(sync.changes);
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="eCourts sync complete"
+      eyebrow={result.title}
+      description={
+        sync.sideDetected
+          ? `Detected your firm represents the ${sync.sideDetected}.`
+          : 'Could not auto-detect which side your firm represents — disposition mapping skipped. Set the client name to match the petitioner or respondent and try again.'
+      }
+      width={720}
+      footer={
+        <button type="button" className="btn btn-primary" onClick={onClose}>Close</button>
+      }
+    >
+      <div className="col stagger" style={{ gap: 20 }}>
+        <SummaryRow
+          label="FIELDS UPDATED"
+          value={String(changeEntries.length)}
+          detail={changeEntries.length === 0 ? 'Already up to date' : undefined}
+        />
+        <SummaryRow
+          label="HEARINGS REPLACED"
+          value={String(sync.hearingsReplaced)}
+          detail="The full hearing history was re-imported from eCourts."
+        />
+        <SummaryRow
+          label="ACTS / SECTIONS"
+          value={String(sync.actsReplaced)}
+          detail={sync.actsReplaced > 0 ? 'Refreshed from the court record.' : undefined}
+        />
+        <SummaryRow
+          label="PARTIES"
+          value={String(sync.partiesReplaced)}
+          detail={sync.partiesReplaced > 0 ? 'Petitioner / respondent + extras imported.' : undefined}
+        />
+
+        {changeEntries.length > 0 && (
+          <div className="col" style={{ gap: 8 }}>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+              CHANGES
+            </div>
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th style={{ width: 140 }}>Field</th>
+                  <th>Was</th>
+                  <th>Now</th>
+                </tr>
+              </thead>
+              <tbody>
+                {changeEntries.map(([field, { from, to }]) => (
+                  <tr key={field}>
+                    <td className="mono" style={{ fontSize: 12 }}>{field}</td>
+                    <td className="body-sm muted">{fmtValue(from)}</td>
+                    <td className="body-sm">{fmtValue(to)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {(sync.surfaceOnly.transfers.length > 0
+          || sync.surfaceOnly.finalOrders + sync.surfaceOnly.interimOrders > 0) && (
+          <div className="col" style={{ gap: 8 }}>
+            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+              ADDITIONAL DATA (NOT YET STORED)
+            </div>
+            <p className="body-sm muted">
+              eCourts returned these too; LexDraft doesn't have columns for them yet. They'll appear in the eCourts gateway view in full.
+            </p>
+            <ul className="col" style={{ gap: 6, paddingLeft: 18, fontSize: 13 }}>
+              {sync.surfaceOnly.transfers.length > 0
+                && <li>{sync.surfaceOnly.transfers.length} court transfer{sync.surfaceOnly.transfers.length === 1 ? '' : 's'} recorded</li>}
+              {sync.surfaceOnly.finalOrders + sync.surfaceOnly.interimOrders > 0
+                && <li>{sync.surfaceOnly.finalOrders} final + {sync.surfaceOnly.interimOrders} interim order PDFs available in the eCourts view</li>}
+            </ul>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function SummaryRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <div className="row" style={{ alignItems: 'baseline', gap: 16 }}>
+      <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', minWidth: 160 }}>{label}</span>
+      <span className="heading-md tabular">{value}</span>
+      {detail && <span className="body-sm muted">{detail}</span>}
+    </div>
+  );
+}
+
+function fmtValue(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  return String(v);
+}
+
 function kindToColor(kind: MatterTimelineEvent['kind']): string {
   switch (kind) {
-    case 'stage':    return 'var(--success, #2f7d32)';
-    case 'hearing':  return 'var(--info, #2563eb)';
-    case 'document': return 'var(--warning, #b45309)';
-    case 'note':     return 'var(--border-default)';
-    default:         return 'var(--border-default)';
+    case 'stage':       return 'var(--success, #2f7d32)';
+    case 'hearing':     return 'var(--info, #2563eb)';
+    case 'document':    return 'var(--warning, #b45309)';
+    case 'application': return 'var(--accent, #7c3aed)';
+    case 'note':        return 'var(--border-default)';
+    default:            return 'var(--border-default)';
   }
 }
 
 function kindLabel(kind: MatterTimelineEvent['kind']): string {
   switch (kind) {
-    case 'stage':    return 'STAGE';
-    case 'hearing':  return 'HEARING';
-    case 'document': return 'DOCUMENT';
-    case 'note':     return 'NOTE';
-    default:         return 'ENTRY';
+    case 'stage':       return 'STAGE';
+    case 'hearing':     return 'HEARING';
+    case 'document':    return 'DOCUMENT';
+    case 'application': return 'APPLICATION';
+    case 'note':        return 'NOTE';
+    default:            return 'ENTRY';
   }
 }
 

@@ -43,6 +43,8 @@ import { extractText, SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
 import { storage } from './storage.service';
 import { auditService } from './audit.service';
 import { jobs } from './jobs.service';
+import { aiUsageService } from './ai-usage.service';
+import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -376,7 +378,11 @@ function extractFirstJsonObject(s: string): string | null {
   return null;
 }
 
-async function callClaudeJson(system: string, user: string): Promise<string> {
+interface LlmResult extends NormalizedUsage {
+  text: string;
+}
+
+async function callClaudeJson(system: string, user: string): Promise<LlmResult> {
   return withRetry(
     async () => {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -397,8 +403,12 @@ async function callClaudeJson(system: string, user: string): Promise<string> {
         const body = await res.text();
         throw new HttpRetryError(res.status, `Claude ${res.status}: ${body}`);
       }
-      const data = (await res.json()) as { content: Array<{ type: string; text: string }> };
-      return data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+      const data = (await res.json()) as {
+        content: Array<{ type: string; text: string }>;
+        usage?: Parameters<typeof anthropicUsage>[0];
+      };
+      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+      return { text, ...anthropicUsage(data.usage) };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -407,7 +417,7 @@ async function callClaudeJson(system: string, user: string): Promise<string> {
   );
 }
 
-async function callXaiJson(system: string, user: string): Promise<string> {
+async function callXaiJson(system: string, user: string): Promise<LlmResult> {
   return withRetry(async () => {
     const res = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
@@ -429,12 +439,18 @@ async function callXaiJson(system: string, user: string): Promise<string> {
       const body = await res.text();
       throw new HttpRetryError(res.status, `xAI ${res.status}: ${body}`);
     }
-    const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
-    return data.choices[0]?.message?.content ?? '';
+    const data = (await res.json()) as {
+      choices: Array<{ message: { content: string } }>;
+      usage?: Parameters<typeof xaiUsage>[0];
+    };
+    return {
+      text: data.choices[0]?.message?.content ?? '',
+      ...xaiUsage(data.usage),
+    };
   });
 }
 
-async function llmJson(system: string, user: string): Promise<string | null> {
+async function llmJson(system: string, user: string): Promise<LlmResult | null> {
   if (env.llmProvider === 'anthropic') return callClaudeJson(system, user);
   if (env.llmProvider === 'xai')       return callXaiJson(system, user);
   return null;
@@ -443,19 +459,23 @@ async function llmJson(system: string, user: string): Promise<string | null> {
 /**
  * Call the LLM with the supplied system/user prompts, parse + validate the
  * JSON output with the supplied schema. Retries once on validation failure
- * before returning null.
+ * before returning null. `onUsage` (when supplied) is invoked with the token
+ * counts of each provider call so the caller can record AI spend.
  */
 async function llmStructured<T>(
   system: string,
   user: string,
   schema: z.ZodType<T>,
+  onUsage?: (u: NormalizedUsage) => void,
 ): Promise<T | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await llmJson(system, user).catch((err) => {
+    const result = await llmJson(system, user).catch((err) => {
       logger.warn({ err, attempt }, 'matter-intel LLM call threw');
       return null;
     });
-    if (raw == null) return null;
+    if (result == null) return null;
+    onUsage?.({ tokensIn: result.tokensIn, tokensOut: result.tokensOut, cacheRead: result.cacheRead, cacheWrite: result.cacheWrite });
+    const raw = result.text;
     const json = extractFirstJsonObject(raw);
     if (!json) {
       logger.warn({ attempt }, 'matter-intel LLM returned no JSON object');
@@ -819,7 +839,14 @@ export const matterIntelService = {
       : row.extracted_text;
 
     const userMsg = `Summarise this document. Return JSON only.\n\n# Document\n${text}`;
-    const parsed = (await llmStructured(SUMMARY_SYSTEM, userMsg, SummarySchema)) ?? fallbackSummary(text);
+    const parsed = (await llmStructured(SUMMARY_SYSTEM, userMsg, SummarySchema, (u) =>
+      aiUsageService.recordAsync({
+        firmId: input.firmId, userId: input.userId, feature: 'matter_intel',
+        provider: env.llmProvider, model: env.llmProvider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+        tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+        cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
+      }),
+    )) ?? fallbackSummary(text);
 
     const model = parsed === undefined ? 'fallback:none' : modelTag();
 
@@ -896,7 +923,14 @@ export const matterIntelService = {
           .join('\n\n')
           .slice(0, BRIEF_INPUT_CHAR_CAP);
 
-    const parsed = (await llmStructured(BRIEF_SYSTEM, `# Per-document summaries\n\n${blob}\n\nReturn JSON only.`, BriefSchema))
+    const parsed = (await llmStructured(BRIEF_SYSTEM, `# Per-document summaries\n\n${blob}\n\nReturn JSON only.`, BriefSchema, (u) =>
+      aiUsageService.recordAsync({
+        firmId: input.firmId, userId: input.userId, feature: 'matter_intel',
+        provider: env.llmProvider, model: env.llmProvider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+        tokensIn: u.tokensIn, tokensOut: u.tokensOut,
+        cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
+      }),
+    ))
       ?? fallbackBrief();
     const model = env.llmProvider === 'none' ? 'fallback:none' : modelTag();
 

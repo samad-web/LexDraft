@@ -19,7 +19,8 @@ import type {
 import { env } from '../env';
 import { db } from '../db/client';
 import { logger } from '../logger';
-import { casePipelineService, snapshotFor } from './case-pipeline.service';
+import { casePipelineService, pipelineGraph, snapshotFor } from './case-pipeline.service';
+import { caseApplicationsService } from './case-applications.service';
 
 interface ClientRow {
   id: string;
@@ -444,7 +445,7 @@ export const portalService = {
         : (row.next_hearing ?? ''),
     };
 
-    const [hearings, documents, messages, timeline] = await Promise.all([
+    const [hearings, documents, messages, timeline, graph, applications] = await Promise.all([
       sql<Array<{
         id: string; hearing_date: Date | string | null; hearing_time: string;
         case_label: string; court: string; purpose: string;
@@ -470,6 +471,8 @@ export const portalService = {
       `,
       this.listMessages(clientId, firmId, matterId),
       casePipelineService.timeline(matterId, firmId, 'portal'),
+      pipelineGraph.get(matterId, firmId),
+      caseApplicationsService.listForCase(matterId, firmId, { portalOnly: true }),
     ]);
 
     return {
@@ -486,7 +489,11 @@ export const portalService = {
       })),
       documents: documents.map(toDocumentSummary),
       messages,
+      // Legacy stepper snapshot — kept for back-compat; the portal prefers
+      // `graph` when it has nodes.
       pipeline: snapshotFor(row.type, row.stage),
+      graph,
+      applications,
       // Drop the internal `visibleToPortal` flag from the wire — clients
       // don't need it once the row has been filtered upstream.
       timeline: timeline.map(({ visibleToPortal: _v, ...e }) => e),

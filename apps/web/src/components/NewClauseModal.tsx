@@ -61,7 +61,7 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
       aria-labelledby="new-clause-title"
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(10,10,10,0.4)',
+        position: 'fixed', inset: 0, background: 'var(--scrim)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
         padding: 16,
       }}

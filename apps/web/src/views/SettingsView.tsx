@@ -151,12 +151,7 @@ function TrialStatusPanel() {
         <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           <button
             type="button"
-            className="btn"
-            style={{
-              background: 'var(--text-primary)',
-              color: 'var(--bg-base)',
-              borderColor: 'var(--text-primary)',
-            }}
+            className="btn btn-primary"
             onClick={() => { window.location.href = '/#pricing'; }}
           >
             {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
@@ -314,12 +309,7 @@ function SecurityPanel() {
             <div>
               <button
                 type="button"
-                className="btn"
-                style={{
-                  background: 'var(--text-primary)',
-                  color: 'var(--bg-base)',
-                  borderColor: 'var(--text-primary)',
-                }}
+                className="btn btn-primary"
                 onClick={openEnroll}
               >
                 Set up two-factor authentication
