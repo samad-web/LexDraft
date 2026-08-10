@@ -1,0 +1,98 @@
+{
+  "updatedAt": "2026-08-10",
+  "law": "BNSS",
+  "note": "Procedural provisions the drafting engine needs to ground bail / quashing / complaint documents under BNSS (the code that replaced the CrPC on 1 July 2024). Same discipline as offence-kb.json: every `oldRef` is cross-checked against sanhita-map.json by validate-procedure-kb.ts, and every entry is `needs-review` until counsel verifies. Built to correct a live drift — the web doc-schemas said 'Regular bail (Sec 439 BNSS)', but BNSS regular bail is 480 (or 483 for HC/Sessions special powers); 439 was the CrPC number.",
+  "entries": [
+    {
+      "id": "bnss-480-regular-bail",
+      "purpose": "regular-bail",
+      "law": "BNSS",
+      "section": "480",
+      "sectionTitle": "When bail may be taken in case of non-bailable offence",
+      "oldRef": { "act": "CrPC", "section": "437" },
+      "aliases": ["regular bail", "bail in non-bailable offence", "bail before magistrate", "grant of bail"],
+      "forum": "Magistrate (or Court of Session / High Court via BNSS 483)",
+      "whenUsed": "Accused is in custody and applies for release on bail in a non-bailable offence.",
+      "verification": "needs-review",
+      "notes": "CrPC 437 -> BNSS 480 per sanhita-map.json. For the High Court/Court of Session's special/wider powers to grant bail, cite BNSS 483 (old CrPC 439), NOT 480. The web app's '439 BNSS' label is wrong and should be 480/483."
+    },
+    {
+      "id": "bnss-483-sessions-hc-bail",
+      "purpose": "regular-bail-special-powers",
+      "law": "BNSS",
+      "section": "483",
+      "sectionTitle": "Special powers of High Court or Court of Session regarding bail",
+      "oldRef": { "act": "CrPC", "section": "439" },
+      "aliases": ["bail before sessions court", "bail before high court", "special powers bail", "sessions bail", "high court bail"],
+      "forum": "Court of Session or High Court",
+      "whenUsed": "Bail application moved before the Court of Session or High Court invoking their wider bail powers (commonly after a Magistrate's refusal, or directly for graver offences).",
+      "verification": "needs-review",
+      "notes": "CrPC 439 -> BNSS 483 per sanhita-map.json. This is the section to cite when the FORUM is Sessions/HC. Distinct from BNSS 480 (Magistrate-level)."
+    },
+    {
+      "id": "bnss-482-anticipatory-bail",
+      "purpose": "anticipatory-bail",
+      "law": "BNSS",
+      "section": "482",
+      "sectionTitle": "Direction for grant of bail to person apprehending arrest",
+      "oldRef": { "act": "CrPC", "section": "438" },
+      "aliases": ["anticipatory bail", "pre-arrest bail", "apprehending arrest", "direction for bail before arrest"],
+      "forum": "Court of Session or High Court",
+      "whenUsed": "Person apprehends arrest in a non-bailable offence and seeks a pre-arrest bail direction.",
+      "verification": "needs-review",
+      "notes": "CrPC 438 -> BNSS 482 per sanhita-map.json. CAUTION: BNSS 482 (anticipatory bail) must not be confused with CrPC 482 (inherent powers) — under BNSS, inherent powers moved to 528. The number 482 changed meaning between the codes."
+    },
+    {
+      "id": "bnss-187-default-bail",
+      "purpose": "default-bail",
+      "law": "BNSS",
+      "section": "187(3)",
+      "sectionTitle": "Procedure when investigation cannot be completed in twenty-four hours (default/statutory bail)",
+      "oldRef": { "act": "CrPC", "section": "167" },
+      "aliases": ["default bail", "statutory bail", "compulsive bail", "167 bail", "bail on non-filing of chargesheet"],
+      "forum": "Magistrate",
+      "whenUsed": "Investigation not completed and charge-sheet not filed within the statutory period; accused becomes entitled to bail as of right.",
+      "verification": "needs-review",
+      "notes": "CrPC 167 -> BNSS 187 per sanhita-map.json. Confirm the exact time limits (60/90 days equivalents) and sub-section against the bare Act — BNSS restructured custody provisions."
+    },
+    {
+      "id": "bnss-528-inherent-powers",
+      "purpose": "quashing-inherent-powers",
+      "law": "BNSS",
+      "section": "528",
+      "sectionTitle": "Saving of inherent powers of High Court",
+      "oldRef": { "act": "CrPC", "section": "482" },
+      "aliases": ["quashing", "quash fir", "inherent powers", "quash proceedings", "482 petition (old)", "quash chargesheet"],
+      "forum": "High Court",
+      "whenUsed": "Petition to quash an FIR/complaint/proceedings invoking the High Court's inherent powers.",
+      "verification": "needs-review",
+      "notes": "CrPC 482 -> BNSS 528 per sanhita-map.json. Any drafting template still saying 'quashing under Section 482 CrPC' must be updated to 'Section 528 BNSS'."
+    },
+    {
+      "id": "bnss-173-fir",
+      "purpose": "fir",
+      "law": "BNSS",
+      "section": "173",
+      "sectionTitle": "Information in cognizable cases (FIR)",
+      "oldRef": { "act": "CrPC", "section": "154" },
+      "aliases": ["fir", "first information report", "information in cognizable case", "lodging fir"],
+      "forum": "Officer in charge of a police station",
+      "whenUsed": "Registration of a First Information Report in a cognizable offence; cited in complaints and bail narratives.",
+      "verification": "needs-review",
+      "notes": "CrPC 154 -> BNSS 173 per sanhita-map.json. BNSS 173 also introduces electronic/zero-FIR provisions — verify sub-sections."
+    },
+    {
+      "id": "bnss-223-complaint-examination",
+      "purpose": "private-complaint",
+      "law": "BNSS",
+      "section": "223",
+      "sectionTitle": "Examination of complainant",
+      "oldRef": { "act": "CrPC", "section": "200" },
+      "aliases": ["private complaint", "complaint to magistrate", "examination of complainant", "cognizance on complaint"],
+      "forum": "Magistrate",
+      "whenUsed": "Filing a private complaint before a Magistrate who then examines the complainant on oath.",
+      "verification": "needs-review",
+      "notes": "CrPC 200 -> BNSS 223 per sanhita-map.json. BNSS 223 adds a proviso (opportunity of hearing to the accused in certain cases) — verify before drafting."
+    }
+  ]
+}

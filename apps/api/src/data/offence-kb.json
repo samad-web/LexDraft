@@ -1,0 +1,765 @@
+{
+  "updatedAt": "2026-08-10",
+  "laws": [
+    "BNS",
+    "BNSS"
+  ],
+  "entries": [
+    {
+      "id": "bns-103-murder",
+      "offenceName": "Murder",
+      "law": "BNS",
+      "section": "103",
+      "sectionTitle": "Punishment for murder",
+      "oldRef": {
+        "act": "IPC",
+        "section": "302"
+      },
+      "aliases": [
+        "murder",
+        "killing",
+        "homicide amounting to murder",
+        "qatl",
+        "hatya",
+        "death caused intentionally"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Death, or imprisonment for life, and fine.",
+      "essentialIngredients": [
+        "causing of death of a human being",
+        "act done with the intention of causing death, or intention/knowledge of causing such bodily injury as is likely/sufficient in ordinary course to cause death",
+        "the case does not fall within the exceptions reducing it to culpable homicide not amounting to murder"
+      ],
+      "commonlyConfusedWith": [
+        "bns-105-culpable-homicide",
+        "bns-109-attempt-to-murder",
+        "bns-106-death-by-negligence"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 302 -> BNS 103 per sanhita-map.json. Distinguish from culpable homicide not amounting to murder; check applicability of exceptions before pleading."
+    },
+    {
+      "id": "bns-106-death-by-negligence",
+      "offenceName": "Causing death by negligence",
+      "law": "BNS",
+      "section": "106(1)",
+      "sectionTitle": "Causing death by negligence",
+      "oldRef": {
+        "act": "IPC",
+        "section": "304A"
+      },
+      "aliases": [
+        "death by negligence",
+        "rash and negligent act",
+        "accident death",
+        "negligent driving death",
+        "medical negligence death"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to five years and fine (enhanced punishment applies in specified aggravated situations — verify sub-section against the Act).",
+      "essentialIngredients": [
+        "death of a human being",
+        "death caused by a rash or negligent act of the accused",
+        "the act does not amount to culpable homicide"
+      ],
+      "commonlyConfusedWith": [
+        "bns-105-culpable-homicide",
+        "bns-103-murder"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 304A -> BNS 106(1). BNS restructured negligence-death provisions and added specific sub-sections (e.g. hit-and-run / registered medical practitioner). Confirm the exact sub-section and quantum against the bare Act before citing."
+    },
+    {
+      "id": "bns-80-dowry-death",
+      "offenceName": "Dowry death",
+      "law": "BNS",
+      "section": "80",
+      "sectionTitle": "Dowry death",
+      "oldRef": {
+        "act": "IPC",
+        "section": "304B"
+      },
+      "aliases": [
+        "dowry death",
+        "dahej",
+        "bride burning",
+        "unnatural death of wife within seven years",
+        "dowry harassment death"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Imprisonment for a term not less than seven years but which may extend to imprisonment for life.",
+      "essentialIngredients": [
+        "death of a woman caused by burns/bodily injury or otherwise than under normal circumstances",
+        "death within seven years of marriage",
+        "soon before death she was subjected to cruelty or harassment by husband or his relative",
+        "such cruelty or harassment was in connection with any demand for dowry"
+      ],
+      "commonlyConfusedWith": [
+        "bns-85-cruelty-by-husband",
+        "bns-103-murder"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 304B -> BNS 80. Frequently pleaded together with BNS 85 (cruelty). Presumption provisions live in the evidence law (BSA) — cross-check."
+    },
+    {
+      "id": "bns-109-attempt-to-murder",
+      "offenceName": "Attempt to murder",
+      "law": "BNS",
+      "section": "109",
+      "sectionTitle": "Attempt to murder",
+      "oldRef": {
+        "act": "IPC",
+        "section": "307"
+      },
+      "aliases": [
+        "attempt to murder",
+        "attempt to kill",
+        "jaan se maarne ki koshish",
+        "attempted homicide"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Imprisonment which may extend to ten years and fine; if hurt is caused, up to imprisonment for life (verify sub-section against the Act).",
+      "essentialIngredients": [
+        "an act done by the accused",
+        "the act done with such intention or knowledge and under such circumstances that, if it caused death, it would amount to murder",
+        "the act was a step towards commission of the offence (more than mere preparation)"
+      ],
+      "commonlyConfusedWith": [
+        "bns-103-murder",
+        "bns-118-hurt-by-dangerous-weapon",
+        "bns-117-grievous-hurt"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 307 -> BNS 109. Enhanced limb where hurt actually caused; confirm quantum and sub-section."
+    },
+    {
+      "id": "bns-115-voluntarily-causing-hurt",
+      "offenceName": "Voluntarily causing hurt",
+      "law": "BNS",
+      "section": "115(2)",
+      "sectionTitle": "Punishment for voluntarily causing hurt",
+      "oldRef": {
+        "act": "IPC",
+        "section": "323"
+      },
+      "aliases": [
+        "hurt",
+        "simple hurt",
+        "voluntarily causing hurt",
+        "marpit",
+        "beating",
+        "assault causing hurt"
+      ],
+      "bailable": "bailable",
+      "cognizable": "non-cognizable",
+      "compoundable": true,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment which may extend to one year, or fine which may extend to ten thousand rupees, or both.",
+      "essentialIngredients": [
+        "the accused voluntarily caused hurt (bodily pain, disease or infirmity) to another",
+        "intention or knowledge that the act was likely to cause hurt"
+      ],
+      "commonlyConfusedWith": [
+        "bns-117-grievous-hurt",
+        "bns-118-hurt-by-dangerous-weapon"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 323 -> BNS 115(2). Bailable & non-cognizable & compoundable — status decisive for how the matter proceeds; verify against the First Schedule equivalent."
+    },
+    {
+      "id": "bns-117-grievous-hurt",
+      "offenceName": "Voluntarily causing grievous hurt",
+      "law": "BNS",
+      "section": "117(2)",
+      "sectionTitle": "Punishment for voluntarily causing grievous hurt",
+      "oldRef": {
+        "act": "IPC",
+        "section": "325"
+      },
+      "aliases": [
+        "grievous hurt",
+        "serious injury",
+        "gehri chot",
+        "fracture",
+        "permanent injury",
+        "voluntarily causing grievous hurt"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to seven years and fine.",
+      "essentialIngredients": [
+        "the accused voluntarily caused hurt",
+        "the hurt is grievous within the statutory definition (e.g. fracture, permanent disfiguration, endangering life, etc.)",
+        "intention or knowledge to cause grievous hurt"
+      ],
+      "commonlyConfusedWith": [
+        "bns-115-voluntarily-causing-hurt",
+        "bns-118-hurt-by-dangerous-weapon",
+        "bns-109-attempt-to-murder"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 325 -> BNS 117(2). Turn on the statutory definition of 'grievous' — confirm the injury falls within an enumerated clause before pleading."
+    },
+    {
+      "id": "bns-118-hurt-by-dangerous-weapon",
+      "offenceName": "Voluntarily causing hurt or grievous hurt by dangerous weapons or means",
+      "law": "BNS",
+      "section": "118(1)",
+      "sectionTitle": "Voluntarily causing hurt or grievous hurt by dangerous weapons or means",
+      "oldRef": {
+        "act": "IPC",
+        "section": "324"
+      },
+      "aliases": [
+        "hurt by weapon",
+        "hurt by dangerous weapon",
+        "knife attack",
+        "hathiyar se chot",
+        "sharp weapon injury"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to the term specified in the Act, and fine (verify quantum and hurt/grievous-hurt limb).",
+      "essentialIngredients": [
+        "voluntary causing of hurt or grievous hurt",
+        "by means of an instrument for shooting, stabbing or cutting, or any dangerous instrument/means",
+        "intention or knowledge of causing hurt"
+      ],
+      "commonlyConfusedWith": [
+        "bns-115-voluntarily-causing-hurt",
+        "bns-117-grievous-hurt"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 324 -> BNS 118(1). Old IPC 324 was made non-bailable/cognizable in practice; confirm current classification and the exact quantum for the hurt vs grievous-hurt limb."
+    },
+    {
+      "id": "bns-303-theft",
+      "offenceName": "Theft",
+      "law": "BNS",
+      "section": "303(2)",
+      "sectionTitle": "Punishment for theft",
+      "oldRef": {
+        "act": "IPC",
+        "section": "379"
+      },
+      "aliases": [
+        "theft",
+        "stealing",
+        "chori",
+        "took without consent",
+        "movable property stolen",
+        "larceny"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment which may extend to three years, or fine, or both (with enhanced provisions for repeat offenders — verify against the Act).",
+      "essentialIngredients": [
+        "dishonest intention to take property",
+        "the property is movable",
+        "the property is taken out of the possession of another person",
+        "taken without that person's consent",
+        "moving of the property in order to such taking"
+      ],
+      "commonlyConfusedWith": [
+        "bns-305-theft-in-dwelling",
+        "bns-309-robbery",
+        "bns-316-criminal-breach-of-trust"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 379 -> BNS 303(2). BNS 303 also carries a distinct provision for petty theft / repeat offenders and community-service option — confirm sub-section applicable to the value and history."
+    },
+    {
+      "id": "bns-305-theft-in-dwelling",
+      "offenceName": "Theft in a dwelling house etc.",
+      "law": "BNS",
+      "section": "305",
+      "sectionTitle": "Theft in a dwelling house, or means of transportation or place of worship, etc.",
+      "oldRef": {
+        "act": "IPC",
+        "section": "380"
+      },
+      "aliases": [
+        "theft in dwelling house",
+        "house theft",
+        "ghar se chori",
+        "theft from vehicle",
+        "theft in place of worship"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment which may extend to seven years and fine.",
+      "essentialIngredients": [
+        "all ingredients of theft (BNS 303)",
+        "committed in a building/tent/vessel used as a human dwelling, or a place of worship, or a means of transportation"
+      ],
+      "commonlyConfusedWith": [
+        "bns-303-theft",
+        "bns-329-criminal-trespass"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 380 -> BNS 305. Aggravated theft by locus; often charged with trespass — check whether trespass ingredients are also made out."
+    },
+    {
+      "id": "bns-309-robbery",
+      "offenceName": "Robbery",
+      "law": "BNS",
+      "section": "309(4)",
+      "sectionTitle": "Punishment for robbery",
+      "oldRef": {
+        "act": "IPC",
+        "section": "392"
+      },
+      "aliases": [
+        "robbery",
+        "loot",
+        "daketi (see dacoity)",
+        "snatching with force",
+        "theft with violence",
+        "robbed at knifepoint"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Rigorous imprisonment which may extend to ten years and fine; if committed on a highway between sunset and sunrise, up to fourteen years (verify).",
+      "essentialIngredients": [
+        "theft or extortion (robbery is aggravated theft or aggravated extortion)",
+        "in order to commit / while committing / in carrying away property, the offender voluntarily causes or attempts to cause death, hurt, or wrongful restraint, or fear thereof"
+      ],
+      "commonlyConfusedWith": [
+        "bns-303-theft",
+        "bns-310-dacoity",
+        "bns-308-extortion"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 392 -> BNS 309(4). Robbery vs dacoity turns on number of offenders (five or more => dacoity). Confirm the aggravated-locus/time limb before citing enhanced quantum."
+    },
+    {
+      "id": "bns-316-criminal-breach-of-trust",
+      "offenceName": "Criminal breach of trust",
+      "law": "BNS",
+      "section": "316(2)",
+      "sectionTitle": "Punishment for criminal breach of trust",
+      "oldRef": {
+        "act": "IPC",
+        "section": "406"
+      },
+      "aliases": [
+        "criminal breach of trust",
+        "cbt",
+        "misappropriation",
+        "entrusted property misused",
+        "vishwasghat",
+        "embezzlement"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to five years, or fine, or both.",
+      "essentialIngredients": [
+        "the accused was entrusted with property or with dominion over property",
+        "the accused dishonestly misappropriated / converted to own use / used or disposed of that property in violation of a direction or of any legal contract",
+        "the property belonged to another"
+      ],
+      "commonlyConfusedWith": [
+        "bns-318-cheating",
+        "bns-303-theft"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 406 -> BNS 316(2). KEY DISTINCTION for the engine: cheating (318) requires deception AT INCEPTION; CBT (316) starts with lawful entrustment and later dishonesty. If property was handed over voluntarily on trust, look at 316 not 318."
+    },
+    {
+      "id": "bns-318-cheating",
+      "offenceName": "Cheating and dishonestly inducing delivery of property",
+      "law": "BNS",
+      "section": "318(4)",
+      "sectionTitle": "Cheating and dishonestly inducing delivery of property",
+      "oldRef": {
+        "act": "IPC",
+        "section": "420"
+      },
+      "aliases": [
+        "cheating",
+        "fraud",
+        "dhoka",
+        "thagi",
+        "deceived",
+        "duped",
+        "cheated of money",
+        "false promise took money",
+        "420 case"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to seven years and fine.",
+      "essentialIngredients": [
+        "deception of a person by the accused",
+        "fraudulent or dishonest inducement of that person",
+        "the person so induced delivered any property to any person, or made/altered/destroyed a valuable security",
+        "dishonest intention present at the time of the inducement"
+      ],
+      "commonlyConfusedWith": [
+        "bns-316-criminal-breach-of-trust",
+        "bns-336-forgery"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 420 -> BNS 318(4). Engine check: was PROPERTY actually delivered? If deception but no delivery, it may be simple cheating (a lower limb of 318), not 318(4). If entrustment then dishonesty, consider 316 (CBT) instead."
+    },
+    {
+      "id": "bns-329-criminal-trespass",
+      "offenceName": "Criminal trespass / House-trespass",
+      "law": "BNS",
+      "section": "329(3)",
+      "sectionTitle": "Punishment for criminal trespass",
+      "oldRef": {
+        "act": "IPC",
+        "section": "447"
+      },
+      "aliases": [
+        "criminal trespass",
+        "trespass",
+        "illegal entry",
+        "entered property unlawfully",
+        "house trespass",
+        "encroachment (criminal)"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment which may extend to three months, or fine which may extend to five thousand rupees, or both (verify — house-trespass limb is higher).",
+      "essentialIngredients": [
+        "entry into or upon property in the possession of another",
+        "entry (or unlawful remaining after lawful entry) was with intent to commit an offence, or to intimidate, insult or annoy the person in possession"
+      ],
+      "commonlyConfusedWith": [
+        "bns-305-theft-in-dwelling"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 447 -> BNS 329(3). Note the distinct, heavier house-trespass limbs within the same cluster; confirm which limb the facts attract."
+    },
+    {
+      "id": "bns-336-forgery",
+      "offenceName": "Forgery",
+      "law": "BNS",
+      "section": "336(1)",
+      "sectionTitle": "Forgery",
+      "oldRef": {
+        "act": "IPC",
+        "section": "463"
+      },
+      "aliases": [
+        "forgery",
+        "forged document",
+        "jaali dastawez",
+        "fake signature",
+        "fabricated document",
+        "false document made"
+      ],
+      "bailable": "bailable",
+      "cognizable": "conditional",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to the term specified in the applicable sub-section and fine (varies by type of document forged — verify).",
+      "essentialIngredients": [
+        "making of a false document or false electronic record (or part thereof)",
+        "with intent to cause damage or injury, or to support a claim, or to cause a person to part with property, or to enter into a contract, or to commit fraud"
+      ],
+      "commonlyConfusedWith": [
+        "bns-318-cheating"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 463 -> BNS 336(1) per sanhita-map.json (forgery cluster). oldRef is 463 (the forgery definition/punishment cluster), NOT 420. Punishment quantum varies by the TYPE of document forged (e.g. court records, valuable security) — resolve the specific limb before citing quantum."
+    },
+    {
+      "id": "bns-351-criminal-intimidation",
+      "offenceName": "Criminal intimidation",
+      "law": "BNS",
+      "section": "351(2)",
+      "sectionTitle": "Punishment for criminal intimidation",
+      "oldRef": {
+        "act": "IPC",
+        "section": "506"
+      },
+      "aliases": [
+        "criminal intimidation",
+        "threat",
+        "dhamki",
+        "threatened to kill",
+        "threatened with harm",
+        "jaan se maarne ki dhamki"
+      ],
+      "bailable": "bailable",
+      "cognizable": "conditional",
+      "compoundable": "conditional",
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment which may extend to two years, or fine, or both; aggravated limb (threat to cause death/grievous hurt etc.) up to seven years (verify sub-section).",
+      "essentialIngredients": [
+        "a threat by the accused to another person",
+        "the threat is of injury to person, reputation or property of that person or of someone in whom he is interested",
+        "intent to cause alarm, or to cause the person to do/omit an act he is not legally bound to do/omit"
+      ],
+      "commonlyConfusedWith": [
+        "bns-352-insult-to-provoke-breach-of-peace"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 506 -> BNS 351(2). Two limbs (simple vs aggravated); the aggravated limb is the one usually pleaded. Cognizability often depends on State notification — flag for advocate."
+    },
+    {
+      "id": "bns-85-cruelty-by-husband",
+      "offenceName": "Cruelty by husband or relative of husband",
+      "law": "BNS",
+      "section": "85",
+      "sectionTitle": "Husband or relative of husband of a woman subjecting her to cruelty",
+      "oldRef": {
+        "act": "IPC",
+        "section": "498A"
+      },
+      "aliases": [
+        "cruelty by husband",
+        "498a",
+        "dowry harassment",
+        "domestic cruelty",
+        "mental cruelty by in-laws",
+        "sasural pratadna"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to three years and fine.",
+      "essentialIngredients": [
+        "the woman is/was married to the accused (or accused is a relative of the husband)",
+        "the accused subjected her to cruelty",
+        "cruelty means wilful conduct likely to drive her to suicide or cause grave injury/danger, OR harassment to coerce an unlawful demand for property/valuable security"
+      ],
+      "commonlyConfusedWith": [
+        "bns-80-dowry-death",
+        "bns-115-voluntarily-causing-hurt"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 498A -> BNS 85. Definition of 'cruelty' sits in the neighbouring section (BNS 86); cite both when pleading. Non-compoundable in general — advise accordingly."
+    },
+    {
+      "id": "bns-74-outrage-modesty",
+      "offenceName": "Assault or criminal force to woman with intent to outrage modesty",
+      "law": "BNS",
+      "section": "74",
+      "sectionTitle": "Assault or use of criminal force to woman with intent to outrage her modesty",
+      "oldRef": {
+        "act": "IPC",
+        "section": "354"
+      },
+      "aliases": [
+        "outraging modesty",
+        "molestation",
+        "354",
+        "criminal force to woman",
+        "chhedchhad (assault limb)",
+        "inappropriate touching"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment for a term not less than one year which may extend to five years, and fine.",
+      "essentialIngredients": [
+        "assault or use of criminal force by the accused to a woman",
+        "intention to outrage, or knowledge of likelihood of outraging, her modesty"
+      ],
+      "commonlyConfusedWith": [
+        "bns-79-insult-modesty",
+        "bns-64-rape"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 354 -> BNS 74. Distinguish from BNS 79 (word/gesture — no physical force) and from graver sexual offences. Non-compoundable."
+    },
+    {
+      "id": "bns-79-insult-modesty",
+      "offenceName": "Word, gesture or act intended to insult modesty of a woman",
+      "law": "BNS",
+      "section": "79",
+      "sectionTitle": "Word, gesture or act intended to insult the modesty of a woman",
+      "oldRef": {
+        "act": "IPC",
+        "section": "509"
+      },
+      "aliases": [
+        "insult to modesty",
+        "eve teasing",
+        "509",
+        "obscene gesture",
+        "lewd remark",
+        "verbal harassment of woman"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Simple imprisonment which may extend to three years, and fine.",
+      "essentialIngredients": [
+        "the accused uttered a word, made a sound/gesture, or exhibited an object, or intruded upon privacy",
+        "intent that it be heard/seen by the woman, intending to insult her modesty"
+      ],
+      "commonlyConfusedWith": [
+        "bns-74-outrage-modesty"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 509 -> BNS 79. No physical force — that is what separates it from BNS 74."
+    },
+    {
+      "id": "bns-64-rape",
+      "offenceName": "Rape",
+      "law": "BNS",
+      "section": "64",
+      "sectionTitle": "Punishment for rape",
+      "oldRef": {
+        "act": "IPC",
+        "section": "376"
+      },
+      "aliases": [
+        "rape",
+        "sexual assault (penetrative)",
+        "376"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Rigorous imprisonment not less than ten years, extendable to imprisonment for life, and fine (aggravated forms carry higher minimums — verify sub-section).",
+      "essentialIngredients": [
+        "the act falls within the statutory definition of rape (BNS definition section)",
+        "absence of valid consent as defined by the Act",
+        "the woman/victim and circumstances fall within the section's scope"
+      ],
+      "commonlyConfusedWith": [
+        "bns-74-outrage-modesty"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 376 -> BNS 64. Sensitive offence: the DEFINITION of rape sits in a separate section (BNS 63) and consent provisions are technical. Engine must NOT auto-draft specifics; escalate to advocate. Special protections for victim identity (BNS/BSA) apply to the document itself."
+    },
+    {
+      "id": "bns-137-kidnapping",
+      "offenceName": "Kidnapping",
+      "law": "BNS",
+      "section": "137",
+      "sectionTitle": "Kidnapping",
+      "oldRef": {
+        "act": "IPC",
+        "section": "363"
+      },
+      "aliases": [
+        "kidnapping",
+        "abduction (see distinct)",
+        "apaharan",
+        "child taken away",
+        "minor removed from guardian"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment which may extend to seven years and fine.",
+      "essentialIngredients": [
+        "kidnapping from India, or kidnapping from lawful guardianship (as defined)",
+        "for lawful-guardianship limb: taking/enticing a minor (under the specified age) or person of unsound mind out of the keeping of the lawful guardian without consent"
+      ],
+      "commonlyConfusedWith": [
+        "bns-140-abduction-cluster"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 363 -> BNS 137. Kidnapping (137) vs abduction (separate cluster) is a classic confusion — abduction requires force/deceit and is not itself punishable unless coupled with an aggravating intent. Confirm age thresholds against the Act."
+    },
+    {
+      "id": "bns-189-unlawful-assembly",
+      "offenceName": "Unlawful assembly / rioting cluster",
+      "law": "BNS",
+      "section": "189",
+      "sectionTitle": "Unlawful assembly (and punishment for being a member)",
+      "oldRef": {
+        "act": "IPC",
+        "section": "141"
+      },
+      "aliases": [
+        "unlawful assembly",
+        "rioting",
+        "mob",
+        "danga",
+        "group of five or more common object",
+        "unlawful gathering"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate",
+      "punishment": "Varies by sub-section/limb (membership vs rioting vs armed rioting) — verify each against the Act.",
+      "essentialIngredients": [
+        "an assembly of five or more persons",
+        "a common object among them that is one of the unlawful objects enumerated in the Act",
+        "for rioting limbs: use of force or violence by the assembly or any member in prosecution of the common object"
+      ],
+      "commonlyConfusedWith": [
+        "bns-190-common-object-vicarious",
+        "bns-191-rioting"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 141/143/147/149 collapse into the BNS 189-191 cluster (see sanhita-map.json). This entry is a CLUSTER pointer; when charging, resolve to the specific sub-section (membership/rioting/armed/common-object vicarious liability)."
+    },
+    {
+      "id": "bns-61-criminal-conspiracy",
+      "offenceName": "Criminal conspiracy",
+      "law": "BNS",
+      "section": "61(2)",
+      "sectionTitle": "Punishment of criminal conspiracy",
+      "oldRef": {
+        "act": "IPC",
+        "section": "120B"
+      },
+      "aliases": [
+        "criminal conspiracy",
+        "conspiracy",
+        "sazish",
+        "planned together",
+        "agreement to commit offence"
+      ],
+      "bailable": "conditional",
+      "cognizable": "conditional",
+      "compoundable": false,
+      "triableBy": "Same as the offence which is the object of the conspiracy",
+      "punishment": "Where the object is an offence punishable with death/life/2+ years rigorous imprisonment: same as abetment of that offence; otherwise up to six months, or fine, or both (verify).",
+      "essentialIngredients": [
+        "an agreement between two or more persons",
+        "to do, or cause to be done, an illegal act, or a legal act by illegal means",
+        "for offences not punishable as above, some act besides the agreement done in pursuance of it"
+      ],
+      "commonlyConfusedWith": [
+        "bns-49-abetment"
+      ],
+      "verification": "needs-review",
+      "notes": "IPC 120A/120B -> BNS 61(1)/(2). Bailability/cognizability and forum FOLLOW the object offence — the engine must resolve those from the substantive charge, not from this entry in isolation."
+    }
+  ]
+}
