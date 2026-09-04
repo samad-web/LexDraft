@@ -62,6 +62,141 @@
     ],
     "title": "Petition for Adjournment (O.XVII R.1 CPC)"
   },
+  "affidavit": {
+    "all": [
+      "address",
+      "affirm_date",
+      "age",
+      "attestor",
+      "authority_ref",
+      "body_paras",
+      "court_place",
+      "deponent_name",
+      "is_corporate",
+      "is_third_party",
+      "occupation",
+      "parentage_name",
+      "parentage_type",
+      "place",
+      "prayer",
+      "proceeding",
+      "religion",
+      "role",
+      "source_of_knowledge"
+    ],
+    "fields": [
+      {
+        "key": "deponent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "age",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "parentage_type",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "parentage_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "occupation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "proceeding",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "attestor",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "body_paras",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "prayer",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "affirm_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "religion",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "is_corporate",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "authority_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "is_third_party",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "source_of_knowledge",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "required": [
+      "address",
+      "age",
+      "attestor",
+      "body_paras",
+      "deponent_name",
+      "occupation",
+      "parentage_name",
+      "parentage_type",
+      "place",
+      "prayer",
+      "proceeding",
+      "role"
+    ],
+    "title": "Affidavit"
+  },
   "affidavit_of_service": {
     "all": [
       "affirm_date",

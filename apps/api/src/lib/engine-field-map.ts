@@ -304,6 +304,8 @@ const CUSTOM_MAPPERS: Record<string, Mapper> = {
 const ROUTABLE_DOC_TYPES: readonly string[] = [
   // pilot (bespoke map)
   's138_notice',
+  // standalone affidavit doc-type (passthrough + contract coercion)
+  'affidavit',
   // pleadings + notices (passthrough)
   's138_complaint', 'regular_bail', 'anticipatory_bail', 'default_bail',
   'general_notice', 'plaint', 'summary_suit', 'injunction', 'writ_petition',
@@ -374,6 +376,7 @@ export function mapFormToEngine(
  */
 export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Notice u/s 138 NI Act': 's138_notice',
+  Affidavit: 'affidavit',
   'Complaint u/s 138 NI Act': 's138_complaint',
   'Regular Bail Application': 'regular_bail',
   'Anticipatory Bail Application': 'anticipatory_bail',
