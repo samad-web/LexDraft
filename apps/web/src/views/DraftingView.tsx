@@ -2,11 +2,18 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
-import type { DraftRequest } from '@lexdraft/types';
-import { useStreamDraft, type LlmProvider } from '@/hooks/useDrafting';
+import type { DraftRequest, AutoDraftResponse } from '@lexdraft/types';
+import { useStreamDraft, useAutoDraft, type LlmProvider } from '@/hooks/useDrafting';
 import { Field } from '@/components/DraftField';
 import { DraftPromptPanel } from '@/components/DraftPromptPanel';
+import { DraftPipelinePanel } from '@/components/DraftPipelinePanel';
+import { DraftChatPanel } from '@/components/DraftChatPanel';
+import { DraftCasePicker } from '@/components/DraftCasePicker';
+import { type DraftCaseContext } from '@/lib/draft-case-context';
 import { DraftMissingFields } from '@/components/DraftMissingFields';
+import { DraftBotModal } from '@/components/engine/DraftBotModal';
+import type { IntakeState } from '@lexdraft/types';
+import { useEngineStatus } from '@/hooks/useEngineDraft';
 import { useCaseNotes } from '@/hooks/useCaseNotes';
 import { useUIStore } from '@/store/ui';
 import { api } from '@/lib/api';
@@ -20,6 +27,7 @@ import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
+import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { exportPdf, exportDocx } from '@/lib/export-doc';
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import type { DocTemplate } from '@/lib/doc-templates';
@@ -31,6 +39,13 @@ import {
   getSchema,
   type DocSchema,
 } from '@/lib/doc-schemas';
+import {
+  renderDraftBlocks,
+  collectOpenItems,
+  hasOpenItems,
+  emphasizeLegalTerms,
+  type OpenItems,
+} from '@/lib/draft-blocks';
 
 const DEFAULT_DOC = 'Notice u/s 138 NI Act';
 
@@ -94,14 +109,30 @@ function seedDefaults(): ValuesByDoc {
 
 export function DraftingView() {
   const [docType, setDocType] = useState<string>(DEFAULT_DOC);
+  // Engine-routed path (Phase 2, flagged): available only to allowlisted users
+  // and only for mapped document types (s.138 to start).
+  const engineStatus = useEngineStatus();
   const [lang, setLang] = useState<Language>('EN');
   const [outputLang, setOutputLang] = useState<Language>('EN');
   const [tone, setTone] = useState<Tone>('Professional');
   const [provider, setProvider] = useState<LlmProvider>('xai');
   const [outputProvider, setOutputProvider] = useState<LlmProvider>('xai');
   const [allValues, setAllValues] = useState<ValuesByDoc>(() => seedDefaults());
-  // Brief entry mode: the manual field form (default) or dictate/type a brief.
-  const [briefMode, setBriefMode] = useState<'form' | 'prompt'>('form');
+  // Brief entry mode for MANUAL drafting only. The default experience is the
+  // one-box auto flow (see `manualMode`); these modes ('form' field entry,
+  // 'prompt' dictation into the form, 'grounded' pipeline for a pre-picked doc)
+  // only apply once the advocate opts into manual control.
+  const [briefMode, setBriefMode] = useState<'form' | 'prompt' | 'grounded'>('form');
+  // The drafting screen is AGENT-ONLY: a single "Describe the matter" box. The
+  // advocate describes the matter in plain language and the agent decides the
+  // document type, resolves the law, and drafts it — there is no doc-type
+  // picker or field form to fill by hand. `manualMode` is retained as a hard
+  // `false` so the legacy manual-form JSX below is compiled out at runtime
+  // without having to be deleted.
+  const manualMode = false as const;
+  // Agent mode: run the grounded plan→draft→review→refine pipeline instead of a
+  // single-shot generation. Defaults on — it produces more filing-ready drafts.
+  const [agentMode, setAgentMode] = useState(true);
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
   const [showMobileForm, setShowMobileForm] = useState(false);
@@ -112,6 +143,16 @@ export function DraftingView() {
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'PDF' | 'DOCX' | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [formatsOpen, setFormatsOpen] = useState(false);
+  // True once the advocate explicitly chose a format (Formats picker). Until then
+  // the conversation AUTO-DETECTS the document type from their description.
+  const [formatPicked, setFormatPicked] = useState(false);
+  // The format the engine conversation is ACTUALLY drafting (picked, or auto-
+  // detected inside the intake panel). Null until the first turn settles it — the
+  // banner stays neutral until then instead of showing a stale default.
+  const [activeEngineLabel, setActiveEngineLabel] = useState<string | null>(null);
+  // DraftBot-style one-shot modal: content in → document out, no fact sheet.
+  const [draftBotOpen, setDraftBotOpen] = useState(false);
   const [myDraftsOpen, setMyDraftsOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const saveMutation = useSaveDraft();
@@ -139,9 +180,37 @@ export function DraftingView() {
   );
 
   const stream = useStreamDraft();
+  const autoDraft = useAutoDraft();
   const showToast = useUIStore((s) => s.showToast);
   const schema: DocSchema = useMemo(() => getSchema(docType), [docType]);
+
+  // True when the engine-routed card is the PRIMARY input for this doc (flag on
+  // for this user AND the doc is one the engine handles — today, s.138 only).
+  // When true, the general model auto-draft chat is demoted to a collapsed
+  // fallback so the advocate sees one clear input, not two competing boxes.
+  const engineActive = Boolean(
+    engineStatus.data?.enabled && engineStatus.data.docLabels.includes(docType),
+  );
   const values = allValues[docType] ?? {};
+
+  // Single source of truth for the document's title/type used by export,
+  // mailto, and the on-screen label. Once a draft exists in the preview,
+  // `stream.data.docType` holds the type actually seeded/generated (auto-triage
+  // detection, grounded pipeline, loaded draft, or single-shot req.docType) —
+  // which can diverge from the `docType` picker state. Prefer it so the
+  // exported/emailed title matches the drafted document; fall back to the
+  // picker state only when there is no active draft. This fixes a bail
+  // application being stamped with a stale "Notice u/s 138 NI Act" title.
+  const activeDocType = stream.data?.docType ?? docType;
+
+  // Open items (Step 9): unfilled placeholders / sections-to-verify / advisories
+  // surfaced as a SEPARATE checklist, never written into the exportable body.
+  // Captured on accept from a pipeline; null falls back to a live placeholder
+  // scan of the current draft text (see effectiveOpenItems below).
+  const [openItems, setOpenItems] = useState<OpenItems | null>(null);
+
+  // Case attached to the current draft (its court/CNR/parties feed the agent).
+  const [draftCase, setDraftCase] = useState<DraftCaseContext | null>(null);
 
   // Open the first section by default whenever the schema changes.
   useEffect(() => {
@@ -210,6 +279,111 @@ export function DraftingView() {
     setDateModalOpen(true);
   };
 
+  // Load a completed model draft (AutoDraftResponse) into the preview. Shared by
+  // the DraftChatPanel accept and the DRAFT-NOW one-shot path.
+  const acceptModelDraft = (result: AutoDraftResponse): boolean => {
+    const blocks = result.pipeline?.draft ?? {};
+    const body = renderDraftBlocks(blocks);
+    if (!body.trim()) return false;
+    const detected = result.triage.docType;
+    setDocType(detected);
+    const p = result.pipeline;
+    setOpenItems(
+      collectOpenItems({
+        bodyText: body,
+        verifyPlaceholders: p?.verify?.placeholders_remaining ?? [],
+        needsClarification: p?.facts?.needs_clarification ?? [],
+        advisories: p?.advisories ?? [],
+        toVerify: (p?.sections ?? [])
+          .filter((s) => !s.verified)
+          .map((s) => `${s.citation} — ${s.offenceName} (counsel to confirm)`),
+      }),
+    );
+    stream.reset();
+    skipResetOnSeedRef.current = true;
+    stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
+    setStageMode(true);
+    showToast({ type: 'sage', text: 'Draft loaded into preview' });
+    return true;
+  };
+
+  // Load the ENGINE's drafted IntakeState into the preview (from the DraftBot
+  // modal). The engine returns either a generated draft (blocks) or a refusal
+  // (a legal finding) — surface each honestly. NO fact sheet; the advocate edits
+  // the document text and its [placeholders] directly.
+  const acceptEngineDraft = (s: IntakeState) => {
+    if (s.status === 'refused' && s.refusal) {
+      const msg = s.refusal.reason || 'The engine can’t draft this as it stands.';
+      setError(msg);
+      showToast({ type: 'vermillion', text: 'The engine flagged a legal issue — see the note.' });
+      return;
+    }
+    if (s.status !== 'generated' || !s.draft) {
+      // Still gathering: the engine needs something it truly can't infer. Surface
+      // the first question so the advocate knows what to add, then re-open.
+      const q = s.questions?.[0]?.question;
+      setError(q ? `One more thing needed: ${q}` : 'The engine needs a little more to draft this.');
+      showToast({ type: 'amber', text: 'A required detail is missing — add it and draft again.' });
+      return;
+    }
+    const detected = s.docLabel;
+    setDocType(detected);
+    const body = s.draft.blocks.map((b) => b.text).join('\n\n');
+    if (!body.trim()) return;
+    setActiveEngineLabel(detected);
+    // Open items = the [placeholder] gaps left in the body (scanned live).
+    setOpenItems(collectOpenItems({ bodyText: body }));
+    stream.reset();
+    skipResetOnSeedRef.current = true;
+    stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
+    setStageMode(true);
+    setError(null);
+    showToast({ type: 'sage', text: 'Draft ready — review and edit below' });
+  };
+
+  // DRAFT NOW (DraftBot-style): the advocate has given content; draft the WHOLE
+  // document immediately from it (the model one-shot path — full doc, [placeholders]
+  // for genuine gaps), skipping the engine question loop entirely.
+  const handleDraftNow = async (content: string) => {
+    if (!content.trim()) return;
+    setError(null);
+    try {
+      // Prefer an explicit doc type so the auto path never stalls at the
+      // confirm-before-draft gate (which returns pipeline:null and would look
+      // like nothing happened). Use the picked format, else the engine's
+      // auto-detected label if the conversation settled one.
+      const knownDoc = formatPicked ? docType : activeEngineLabel;
+      const result = await autoDraft.mutateAsync({
+        brief: content,
+        ...(provider ? { provider } : {}),
+        ...(knownDoc ? { docTypeOverride: knownDoc } : {}),
+      });
+      // needsConfirmation / empty pipeline → no body was produced. Say so
+      // explicitly instead of silently doing nothing.
+      if (result.needsConfirmation || !result.pipeline) {
+        const guess = result.triage?.docType;
+        const msg = guess
+          ? `I read this as a ${guess} but I’m not fully sure — pick the format from “Formats” above and hit Draft now again.`
+          : 'I couldn’t confidently tell which document this is — pick a format from “Formats” above, then Draft now.';
+        setError(msg);
+        showToast({ type: 'amber', text: msg });
+        return;
+      }
+      const loaded = acceptModelDraft(result);
+      if (!loaded) {
+        const msg = 'The draft came back empty. Add a little more detail (or attach the document) and try again.';
+        setError(msg);
+        showToast({ type: 'amber', text: msg });
+      }
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Could not draft from that. Try adding a little more detail.';
+      setError(msg);
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
+
   // Step 2: user confirmed the date - kick off the stream.
   const runGeneration = (date: string) => {
     setDraftDate(date);
@@ -220,6 +394,9 @@ export function DraftingView() {
     setOutputProvider(provider);
     setStageMode(true);
     setShowMobileForm(false);
+    // Drop any captured pipeline open-items; a fresh single-shot generation
+    // falls back to a live placeholder scan of the new draft.
+    setOpenItems(null);
     const fields: Record<string, string> = {};
     schema.sections.forEach((sec) =>
       sec.fields.forEach((f) => {
@@ -227,15 +404,18 @@ export function DraftingView() {
         if (v !== undefined && v.toString().trim()) fields[f.key] = v;
       }),
     );
-    void stream.generate({
-      docType,
-      language: lang,
-      tone,
-      fields,
-      draftDate: date,
-      provider,
-      ...(caseContext?.id ? { caseId: caseContext.id, includeNotes } : {}),
-    });
+    void stream.generate(
+      {
+        docType,
+        language: lang,
+        tone,
+        fields,
+        draftDate: date,
+        provider,
+        ...(caseContext?.id ? { caseId: caseContext.id, includeNotes } : {}),
+      },
+      { agent: agentMode },
+    );
   };
 
   const reset = () => {
@@ -246,13 +426,33 @@ export function DraftingView() {
     setEditedHtml(null);
     setIsEditing(false);
     setStageMode(false);
+    setOpenItems(null);
+    // Back to the empty state; the next matter starts from the DraftBot modal.
+    setDraftBotOpen(false);
   };
 
   const output = stream.text;
   const streaming = stream.isStreaming;
   const hasOutput = Boolean(output) || streaming;
   const displayHtml = editedHtml ?? plainTextToHtml(output);
+  // The body actually shown in the read-only preview and sent to export: the
+  // same HTML, but with the legally-salient words BOLDED so every drafting path
+  // reads like a filed document (Times New Roman is enforced by .court-prose /
+  // the export stylesheet). We skip the emphasis pass while streaming (partial
+  // tokens) and when the advocate is hand-editing (their edits are authoritative).
+  const previewHtml = useMemo(
+    () => (editedHtml || streaming ? displayHtml : emphasizeLegalTerms(displayHtml)),
+    [displayHtml, editedHtml, streaming],
+  );
   const outputLangCode = LANG_HTML[outputLang];
+
+  // The open items to show below the preview: the captured set from an accepted
+  // pipeline draft when present, otherwise a live scan of the current draft text
+  // for bracketed placeholders. Derived-only — never fed back into the body.
+  const effectiveOpenItems = useMemo<OpenItems>(
+    () => openItems ?? collectOpenItems({ bodyText: htmlToPlainText(displayHtml) }),
+    [openItems, displayHtml],
+  );
 
   // Sanhita stale-IPC scan: when generation finishes (or a draft is loaded),
   // POST the body to /api/sanhita/scan and surface chips for any matches that
@@ -467,6 +667,9 @@ export function DraftingView() {
           editedHtml: editedHtmlValue,
           bodyText,
           draftDate,
+          // File the draft against the attached matter (if any) so it appears
+          // in that case's Documents tab, not just the global "My drafts".
+          ...(draftCase ? { matter: draftCase.title } : {}),
         },
       },
       {
@@ -553,8 +756,8 @@ export function DraftingView() {
       : letterheadChoice === null   ? null
       : await resolveLetterhead(letterheadChoice);
     const payload = {
-      title: docType,
-      bodyHtml: displayHtml,
+      title: activeDocType,
+      bodyHtml: previewHtml,
       dated: draftDate,
       letterhead,
     };
@@ -578,14 +781,27 @@ export function DraftingView() {
             Draft
           </h1>
           <div
-            key={docType}
+            key={activeDocType}
             className="mono draft-doctype-label"
             style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
           >
-            {docType.toUpperCase()} · {schema.category.toUpperCase()}
+            {/* Until a draft actually exists the agent hasn't decided the
+                document yet — show a neutral prompt, not a stale default type
+                (which used to read "NOTICE U/S 138 NI ACT" on an empty screen). */}
+            {hasOutput
+              ? `${activeDocType.toUpperCase()} · ${schema.category.toUpperCase()}`
+              : 'AI-ASSISTED LEGAL DRAFTING'}
           </div>
         </div>
         <span className="spacer" />
+        <button
+          className="btn"
+          type="button"
+          onClick={() => setFormatsOpen(true)}
+          title="Choose which engine format to draft"
+        >
+          Formats
+        </button>
         <button
           className="btn"
           type="button"
@@ -610,6 +826,44 @@ export function DraftingView() {
           <Icon name="close" size={14} /> Clear
         </button>
       </div>
+
+      {/* Engine-routed draft — the SINGLE drafting path when the engine is active
+          for this account. Start gate → attach/type → Draft now → preview. The
+          engine drafts accurately (no fabrication, hard-stops enforced); there is
+          no Conversation/Form toggle and no competing model-draft box. Hidden once
+          a draft exists (stageMode/hasOutput) so the preview isn't buried — e.g.
+          after "Draft now". */}
+      {engineActive && !stageMode && !hasOutput && (
+        <div className="card draftbot-launch">
+          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 10 }}>
+            {activeEngineLabel
+              ? `${activeEngineLabel.toUpperCase()} · DRAFTED BY THE ENGINE`
+              : 'THE ENGINE PICKS THE FORMAT FROM WHAT YOU GIVE IT'}
+          </div>
+          <h2 className="draftbot-launch__title">Draft a legal document</h2>
+          <p className="draftbot-launch__sub">
+            Describe the matter or attach the cheque, memo, invoice, or an existing document —
+            the engine drafts the whole document straight away, accurately, with any genuinely
+            missing details left as clearly-marked <code>[placeholders]</code> to fill.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setDraftBotOpen(true)}
+          >
+            <Icon name="draft" size={16} /> Start drafting
+          </button>
+        </div>
+      )}
+
+      {/* DraftBot-style one-shot modal — content in → document out, no fact sheet. */}
+      <DraftBotModal
+        open={draftBotOpen}
+        onClose={() => setDraftBotOpen(false)}
+        docLabel={formatPicked ? docType : null}
+        onActiveLabel={setActiveEngineLabel}
+        onDrafted={acceptEngineDraft}
+      />
 
       {researchCitation && (
         <div
@@ -759,9 +1013,22 @@ export function DraftingView() {
         </div>
       )}
 
-      <DocTypePicker docType={docType} onPick={setDocType} />
+      {/* When the engine is NOT active for this account (beta off / not
+          allowlisted), fall back to the general AI drafter so drafting still
+          works. When the engine IS active it is the single path — no competing
+          "describe the matter" box, no model-draft toggle. */}
+      {!manualMode && !stageMode && !engineActive && (
+        <DraftCasePicker selected={draftCase} onSelect={setDraftCase} />
+      )}
+      {!manualMode && !stageMode && !engineActive && (
+        <DraftChatPanel
+          provider={provider}
+          caseContext={draftCase}
+          onUseDraft={acceptModelDraft}
+        />
+      )}
 
-      {schema.description && (
+      {manualMode && schema.description && (
         <div
           key={docType}
           className="card draft-schema-desc"
@@ -799,10 +1066,16 @@ export function DraftingView() {
         </div>
       )}
 
+      {/* The grid (form + preview) renders for manual drafting, or once a draft
+          exists (accepted-from-chat draft seeds stageMode/hasOutput). In the
+          initial auto state only the DraftChatPanel above is shown. */}
+      {(manualMode || stageMode || hasOutput) && (
       <div
-        className={`draft-grid${stageMode ? ' draft-grid--stage' : ''}`}
+        className={`draft-grid${stageMode ? ' draft-grid--stage' : ''}${!manualMode ? ' draft-grid--solo' : ''}`}
       >
-        {/* Form column */}
+        {/* Form column — manual drafting only. In auto mode the advocate never
+            sees the doc-type picker or the field form. */}
+        {manualMode && (
         <div
           className={`card draft-form${showMobileForm ? ' show' : ''}`}
           style={{
@@ -845,13 +1118,50 @@ export function DraftingView() {
               items={[
                 { id: 'form', label: 'Fill form' },
                 { id: 'prompt', label: 'Dictate brief' },
+                { id: 'grounded', label: 'Grounded (BNS/BNSS)', title: 'Grounded pipeline for the doc type picked above.' },
               ]}
               value={briefMode}
               onChange={setBriefMode}
               ariaLabel="Brief entry mode"
             />
           </div>
-          {briefMode === 'prompt' ? (
+          {briefMode === 'grounded' ? (
+            <div style={{ padding: '14px 18px 18px' }}>
+              <DraftPipelinePanel
+                docType={docType}
+                forum={schema.category}
+                provider={provider}
+                onAccept={(blocks, result) => {
+                  // Fold the grounded draft's blocks into the preview: map keys
+                  // to forum-convention headings (no "CAUSETITLE" leak), then
+                  // seed the stream so the advocate can edit/export normally.
+                  const body = renderDraftBlocks(blocks);
+                  if (!body.trim()) return;
+                  // Step 9: surface open items as a separate checklist, not in body.
+                  setOpenItems(
+                    collectOpenItems({
+                      bodyText: body,
+                      verifyPlaceholders: result?.verify?.placeholders_remaining ?? [],
+                      needsClarification: result?.facts?.needs_clarification ?? [],
+                      advisories: result?.advisories ?? [],
+                      toVerify: (result?.sections ?? [])
+                        .filter((s) => !s.verified)
+                        .map((s) => `${s.citation} — ${s.offenceName} (counsel to confirm)`),
+                    }),
+                  );
+                  stream.reset();
+                  skipResetOnSeedRef.current = true;
+                  stream.seed({
+                    docType,
+                    text: body,
+                    generatedAt: new Date().toISOString(),
+                  });
+                  setStageMode(true);
+                  showToast({ type: 'sage', text: 'Grounded draft loaded into preview' });
+                }}
+              />
+            </div>
+          ) : briefMode === 'prompt' ? (
             <DraftPromptPanel
               docType={docType}
               schema={schema}
@@ -952,6 +1262,29 @@ export function DraftingView() {
                   Generate the same brief with each to compare drafts side-by-side via My drafts.
                 </div>
               </div>
+              <div>
+                <label className="label">Drafting engine</label>
+                <PillNav
+                  items={[
+                    { id: 'agent', label: 'Agent', title: 'Grounded pipeline: plans the format, drafts, self-reviews against the required structure, then refines before returning.' },
+                    { id: 'single', label: 'Single-shot', title: 'One-pass generation. Faster and cheaper; less structural checking.' },
+                  ]}
+                  value={agentMode ? 'agent' : 'single'}
+                  onChange={(v) => setAgentMode(v === 'agent')}
+                  ariaLabel="Drafting engine"
+                />
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: '0.14em',
+                    color: 'var(--text-tertiary)',
+                    marginTop: 8,
+                  }}
+                >
+                  Agent picks the correct format for {docType}, drafts it, then reviews the draft against the required structure and statutory ingredients before returning.
+                </div>
+              </div>
             </div>
           </Section>
 
@@ -993,6 +1326,7 @@ export function DraftingView() {
             )}
           </div>
         </div>
+        )}
 
         {/* Preview column */}
         <div className="col draft-preview-wrap" style={{ gap: 12 }}>
@@ -1031,6 +1365,7 @@ export function DraftingView() {
                     alignItems: 'center',
                     gap: 6,
                   }}
+                  aria-live="polite"
                 >
                   <span
                     aria-hidden
@@ -1041,7 +1376,12 @@ export function DraftingView() {
                       background: 'var(--info)',
                     }}
                   />
-                  Generating
+                  {stream.stage ? stream.stage.label : 'Generating'}
+                  {stream.stage?.detail ? (
+                    <span style={{ color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0 }}>
+                      · {stream.stage.detail}
+                    </span>
+                  ) : null}
                 </span>
               )}
             </div>
@@ -1083,7 +1423,7 @@ export function DraftingView() {
                 lang={outputLangCode}
                 dir="ltr"
                 style={{ margin: '24px auto' }}
-                dangerouslySetInnerHTML={{ __html: displayHtml }}
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             )}
             {hasOutput && !isEditing && streaming && <span className="blink" />}
@@ -1159,6 +1499,71 @@ export function DraftingView() {
             </div>
           )}
 
+          {/* Open items (Step 9): a checklist SEPARATE from the document body so
+              placeholders and unverified sections cannot be filed by accident.
+              This card sits outside the exported .court-prose div. */}
+          {hasOutput && !streaming && hasOpenItems(effectiveOpenItems) && (
+            <div
+              className="card"
+              style={{
+                padding: '12px 14px',
+                background: 'rgba(180, 83, 9, 0.06)',
+                borderLeft: '3px solid var(--warning)',
+              }}
+            >
+              <div
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  color: 'var(--text-tertiary)',
+                  marginBottom: 8,
+                }}
+              >
+                OPEN ITEMS BEFORE FILING
+              </div>
+              {effectiveOpenItems.placeholders.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Placeholders to fill
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {effectiveOpenItems.placeholders.map((p) => (
+                      <li key={p} className="body-sm">{p}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {effectiveOpenItems.toVerify.length > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Sections to verify with counsel
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {effectiveOpenItems.toVerify.map((s) => (
+                      <li key={s} className="body-sm">{s}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {effectiveOpenItems.advisories.length > 0 && (
+                <div>
+                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
+                    Confirm before filing
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {effectiveOpenItems.advisories.map((a) => (
+                      <li key={a} className="body-sm">{a}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="body-xs muted" style={{ marginTop: 8 }}>
+                These items are shown here, not in the document, so nothing incomplete is filed by accident.
+              </div>
+            </div>
+          )}
+
           {hasOutput && !streaming && (
             <div
               className="card"
@@ -1205,20 +1610,32 @@ export function DraftingView() {
                       ? 'Update'
                       : 'Save'}
                 </button>
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => triggerExport('PDF')}
-                >
-                  <Icon name="download" size={14} /> PDF
-                </button>
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => triggerExport('DOCX')}
-                >
-                  <Icon name="download" size={14} /> DOCX
-                </button>
+                {/* Client-side export (jsPDF/html2canvas PDF, HTML-wrapped .doc) is a
+                    RASTERISED working copy — wrong margins, non-selectable text. It is
+                    NOT a filing copy. When this doc is engine-handled, the engine panel
+                    renders the true filing PDF/.docx, so we hide these entirely to
+                    remove the two-renderer drift. For model-only docs we keep them but
+                    label them unmistakably so an advocate never files a screenshot. */}
+                {!engineActive && (
+                  <>
+                    <button
+                      className="btn"
+                      type="button"
+                      title="Working copy only — not a filing copy (rasterised, non-selectable text)"
+                      onClick={() => triggerExport('PDF')}
+                    >
+                      <Icon name="download" size={14} /> PDF (working copy)
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      title="Working copy only — not a filing copy"
+                      onClick={() => triggerExport('DOCX')}
+                    >
+                      <Icon name="download" size={14} /> DOCX (working copy)
+                    </button>
+                  </>
+                )}
                 <button
                   className="btn"
                   type="button"
@@ -1234,9 +1651,9 @@ export function DraftingView() {
                   className="btn btn-primary"
                   type="button"
                   onClick={() => {
-                    const subject = `${docType} - ${draftDate}`;
+                    const subject = `${activeDocType} - ${draftDate}`;
                     const text = htmlToPlainText(displayHtml);
-                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${docType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
+                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
                     const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
                     window.location.href = href;
                     showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
@@ -1245,10 +1662,18 @@ export function DraftingView() {
                   <Icon name="arrow" size={14} /> Share with client
                 </button>
               </div>
+              {!engineActive && (
+                <p className="drafting-working-copy-note" role="note">
+                  ⚠️ Downloads here are a <strong>working copy — not for filing</strong>.
+                  They are rasterised (fixed margins, non-selectable text). A court-ready
+                  filing copy is produced only for documents drafted through the engine.
+                </p>
+              )}
             </div>
           )}
         </div>
       </div>
+      )}
 
       <style>{`
         .draft-grid {
@@ -1258,6 +1683,13 @@ export function DraftingView() {
           transition:
             grid-template-columns 620ms cubic-bezier(0.32, 0.72, 0, 1),
             gap 420ms cubic-bezier(0.32, 0.72, 0, 1);
+        }
+        /* Auto mode: no form column is rendered, so the grid must be a single
+           full-width column — otherwise the lone preview lands in the narrow
+           first track and the document collapses to a one-word-wide sliver. */
+        .draft-grid--solo {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 0;
         }
         .draft-form {
           transition:
@@ -1291,6 +1723,16 @@ export function DraftingView() {
         @media (min-width: 1024px) {
           .draft-grid--stage {
             grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+            gap: 0;
+          }
+          /* Auto mode renders NO form column, so the grid carries both --solo
+             and --stage. The two-column --stage rule above would otherwise win
+             by source order and drop the lone preview into the second track
+             while the phantom first track squeezes it to a one-word sliver.
+             Force solo back to a single full-width column at desktop width. */
+          .draft-grid--solo,
+          .draft-grid--solo.draft-grid--stage {
+            grid-template-columns: minmax(0, 1fr);
             gap: 0;
           }
           .draft-grid--stage .draft-form {
@@ -1397,6 +1839,22 @@ export function DraftingView() {
         onCancel={() => setMyDraftsOpen(false)}
         onLoad={handleLoadDraft}
         currentDraftId={currentDraftId}
+      />
+
+      {/* Choose WHICH engine format to draft — the full engine catalogue (DPC
+          pleadings/deeds + TN court forms). Picking one sets the document type,
+          which activates the Engine-Routed card for it. */}
+      <FormatPickerModal
+        open={formatsOpen}
+        current={docType}
+        onClose={() => setFormatsOpen(false)}
+        onPick={(label) => {
+          setDocType(label);
+          setFormatPicked(true);
+          setActiveEngineLabel(label);
+          // Picking a format opens the DraftBot modal primed for that format.
+          setDraftBotOpen(true);
+        }}
       />
     </div>
   );
