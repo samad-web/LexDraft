@@ -14,25 +14,35 @@ export interface FieldProps {
  * "complete the missing fields" panel.
  */
 export function Field({ field, value, onChange }: FieldProps) {
-  const { label, type, placeholder, options, required, optional, rows } = field;
+  const { label, type, placeholder, options, required, optional, rows, help } = field;
   const labelEl = (
-    <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span>{label}</span>
-      {required && <span style={{ color: 'var(--danger)' }}>*</span>}
-      {optional && (
-        <span
-          className="mono"
-          style={{
-            fontSize: 9,
-            color: 'var(--text-tertiary)',
-            opacity: 0.85,
-            fontWeight: 400,
-          }}
+    <>
+      <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>{label}</span>
+        {required && <span style={{ color: 'var(--danger)' }}>*</span>}
+        {optional && (
+          <span
+            className="mono"
+            style={{
+              fontSize: 9,
+              color: 'var(--text-tertiary)',
+              opacity: 0.85,
+              fontWeight: 400,
+            }}
+          >
+            OPTIONAL
+          </span>
+        )}
+      </label>
+      {help && (
+        <p
+          className="field-help"
+          style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '2px 0 6px', lineHeight: 1.4 }}
         >
-          OPTIONAL
-        </span>
+          {help}
+        </p>
       )}
-    </label>
+    </>
   );
 
   if (type === 'textarea') {

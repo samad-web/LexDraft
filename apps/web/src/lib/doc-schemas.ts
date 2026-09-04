@@ -15,6 +15,11 @@ export interface DocField {
   optional?: boolean;
   rows?: number;
   default?: string;
+  /** Help text shown under the field (populated by the form generator). */
+  help?: string;
+  /** Conditional visibility: render only when another field equals a value.
+   *  Evaluated by the form container against the current field values. */
+  visibleWhen?: { field: string; equals: string | number | boolean };
 }
 
 export interface DocSection {
@@ -59,9 +64,20 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
         ],
       },
       {
+        title: 'Presentation',
+        fields: [
+          { key: 'presentation_date', label: 'Date the cheque was presented for payment', type: 'date', required: true, default: '2026-03-15' },
+          { key: 'presentation_bank', label: 'Bank where the cheque was presented (payee’s bank)', type: 'text', placeholder: 'e.g. City Union Bank, R.S. Puram Branch', required: true, default: 'City Union Bank, R.S. Puram Branch' },
+        ],
+      },
+      {
         title: 'Dishonour & Liability',
         fields: [
-          { key: 'dishonour_date', label: 'Date of dishonour (return memo)', type: 'date', required: true, default: '2026-03-18' },
+          // The MEMO date and its RECEIPT date are different, and the receipt
+          // date is the limitation anchor for the notice window — so it must be
+          // labelled to prevent conflation with the memo date above.
+          { key: 'dishonour_date', label: 'Date printed on the dishonour memo', type: 'date', required: true, default: '2026-03-18' },
+          { key: 'memo_received_date', label: 'Date you received the dishonour memo (starts the notice clock)', type: 'date', required: true, default: '2026-03-20' },
           {
             key: 'dishonour_reason',
             label: 'Reason for return',
@@ -88,6 +104,24 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
             optional: true,
             default: 'Invoice INV/2025/1142 dated 14.02.2026; INV/2026/0078 dated 02.03.2026',
           },
+        ],
+      },
+      {
+        title: 'Notice & Service',
+        fields: [
+          { key: 'notice_date', label: 'Date of this notice', type: 'date', required: true, default: '2026-03-25' },
+          { key: 'advocate_name', label: 'Advocate name', type: 'text', required: true, default: 'R. Sundaravadivel' },
+          { key: 'advocate_enrolment', label: 'Advocate enrolment number', type: 'text', placeholder: 'e.g. MS/2287/2011', required: true, default: 'MS/2287/2011' },
+          {
+            key: 'dispatch_mode',
+            label: 'How the notice is sent',
+            type: 'select',
+            options: ['Registered Post Acknowledgement Due', 'Speed Post', 'Courier', 'Email', 'Hand Delivery'],
+            required: true,
+            default: 'Registered Post Acknowledgement Due',
+          },
+          { key: 'dispatch_tracking', label: 'Dispatch / tracking reference (proof of service)', type: 'text', placeholder: 'RPAD consignment no. / courier AWB — leave a placeholder if posting after signing', required: true, default: '{{ rpad_consignment_no }}' },
+          { key: 'place', label: 'Place (from where the notice issues)', type: 'text', required: true, default: 'Coimbatore' },
         ],
       },
     ],
@@ -2943,6 +2977,77 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
     ],
   },
 
+  'Exemption from Personal Appearance (Section 317 CrPC)': {
+    category: 'Application',
+    description:
+      'Application by the accused to dispense with personal attendance on a hearing date, to be represented by his pleader — Section 317 of the Code of Criminal Procedure, 1973 (corresponding to Section 355 of the Bharatiya Nagarik Suraksha Sanhita, 2023). NOT a bail application and NOT a stay/interim application.',
+    sections: [
+      {
+        title: 'Court & Case',
+        fields: [
+          { key: 'court', label: 'Court', type: 'text', required: true, default: 'Court of the Chief Judicial Magistrate, Bengaluru' },
+          { key: 'case_no', label: 'Case / CC number', type: 'text', required: true, default: 'C.C. No. 4821 of 2025' },
+          { key: 'next_date', label: 'Next date of hearing', type: 'date', required: true, default: '2026-09-15' },
+          { key: 'stage', label: 'Stage of the case', type: 'text', optional: true, default: 'Matter fixed for framing of charge' },
+        ],
+      },
+      {
+        title: 'Parties',
+        fields: [
+          { key: 'accused_name', label: 'Accused / Applicant', type: 'text', required: true, default: 'Suresh Kumar (Accused No. 1)' },
+          { key: 'accused_address', label: 'Accused address', type: 'textarea', rows: 2, required: true, default: 'No. 14, 2nd Main, Jayanagar 4th Block,\nBengaluru - 560011' },
+          { key: 'complainant_name', label: 'Complainant / Prosecution', type: 'text', required: true, default: 'State of Karnataka' },
+        ],
+      },
+      {
+        title: 'Grounds',
+        fields: [
+          {
+            key: 'reason',
+            label: 'Reason personal appearance cannot be made',
+            type: 'textarea',
+            rows: 3,
+            required: true,
+            default:
+              'The Applicant is presently unwell and under medical advice to rest, and is unable to travel to attend the Court in person on the next date of hearing.',
+          },
+          {
+            key: 'no_prejudice',
+            label: 'Why absence causes no prejudice',
+            type: 'textarea',
+            rows: 2,
+            required: true,
+            default:
+              'The personal presence of the Applicant is not necessary for the proceeding fixed on the next date, and the Applicant is duly represented by his counsel who is instructed to answer on his behalf; no prejudice will be caused to the prosecution.',
+          },
+          {
+            key: 'undertaking',
+            label: 'Undertaking to appear when directed',
+            type: 'text',
+            required: true,
+            default:
+              'The Applicant undertakes to appear in person as and when specifically directed by this Hon\'ble Court and not to misuse the exemption to delay the trial.',
+          },
+        ],
+      },
+      {
+        title: 'Prayer',
+        fields: [
+          {
+            key: 'prayer',
+            label: 'Relief prayed for',
+            type: 'textarea',
+            rows: 3,
+            required: true,
+            default:
+              'It is most respectfully prayed that this Hon\'ble Court may be pleased to dispense with the personal appearance of the Applicant/Accused on the next date of hearing under Section 317 CrPC (Section 355 BNSS) and permit him to be represented through his counsel, in the interest of justice.',
+          },
+          { key: 'date_of_filing', label: 'Date of filing', type: 'date', required: true, default: '2026-09-10' },
+        ],
+      },
+    ],
+  },
+
   'Execution Petition': {
     category: 'Application',
     description:
@@ -3349,7 +3454,7 @@ export const DOC_TYPE_GROUPS: Array<{ group: string; items: string[] }> = [
     group: 'Pleadings',
     items: ['Plaint', 'Written Statement', 'Replication / Rejoinder', 'Written Arguments', 'Affidavit', 'Evidence Affidavit', 'Appeal'],
   },
-  { group: 'Applications', items: ['IA / Stay Application', 'Bail Application', 'Execution Petition', 'Caveat', 'RTI Application'] },
+  { group: 'Applications', items: ['IA / Stay Application', 'Exemption from Personal Appearance (Section 317 CrPC)', 'Bail Application', 'Execution Petition', 'Caveat', 'RTI Application'] },
   { group: 'Authority', items: ['Vakalatnama', 'Settlement Agreement'] },
   { group: 'Letters', items: ['Engagement Letter', 'Correspondence'] },
   {

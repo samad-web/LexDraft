@@ -10,6 +10,48 @@
       "posted_for",
       "respondent_name"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "posted_for",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "adjournment_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "adjournment_reason",
       "case_ref",
@@ -17,7 +59,8 @@
       "place",
       "posted_for",
       "respondent_name"
-    ]
+    ],
+    "title": "Petition for Adjournment (O.XVII R.1 CPC)"
   },
   "affidavit_of_service": {
     "all": [
@@ -36,6 +79,83 @@
       "religion",
       "respondent_name"
     ],
+    "fields": [
+      {
+        "key": "deponent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "notice_returnable_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "left",
+          "refused",
+          "unclaimed"
+        ],
+        "key": "endorsement",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "religion",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "affirm_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "deponent_name",
@@ -45,7 +165,8 @@
       "petitioner_name",
       "place",
       "respondent_name"
-    ]
+    ],
+    "title": "Affidavit of Service"
   },
   "agreement_for_sale": {
     "all": [
@@ -62,6 +183,68 @@
       "vendor_name",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "vendor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendor_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "total_consideration",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "earnest_money",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "earnest_mode",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "completion_months",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "completion_months",
       "earnest_mode",
@@ -75,7 +258,8 @@
       "vendor_description",
       "vendor_name",
       "witnesses"
-    ]
+    ],
+    "title": "Agreement for Sale"
   },
   "anticipatory_bail": {
     "all": [
@@ -100,6 +284,108 @@
       "prosecution_case",
       "sections"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "age",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "occupation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "fir_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "district",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "sections",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "apprehension_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "already_arrested",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_scst_offence",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_transit",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "prosecution_case",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "application_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "address",
@@ -111,7 +397,8 @@
       "place",
       "police_station",
       "sections"
-    ]
+    ],
+    "title": "Application for anticipatory bail (s.438)"
   },
   "appeal_record_cost_schedule": {
     "all": [
@@ -124,12 +411,55 @@
       "on_behalf_of",
       "place"
     ],
+    "fields": [
+      {
+        "key": "appeal_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "on_behalf_of",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "documents",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "copies_required",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "counsel_name",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "appeal_ref",
       "documents",
       "on_behalf_of",
       "place"
-    ]
+    ],
+    "title": "Appeal Record Cost Schedule (Form 476)"
   },
   "bail_bond": {
     "all": [
@@ -149,6 +479,83 @@
       "prison_superintendent",
       "sureties"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "offence_section",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "bail_granted",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "bail_order_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "bail_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "forfeiture_sum",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "sureties",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "committing_magistrate",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "attend_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "prison_superintendent",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bond_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "bail_granted",
@@ -159,7 +566,8 @@
       "offence_section",
       "place",
       "sureties"
-    ]
+    ],
+    "title": "Bail Bond"
   },
   "caveat": {
     "all": [
@@ -178,6 +586,78 @@
       "petitioner_parentage",
       "place"
     ],
+    "fields": [
+      {
+        "key": "caveator_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "expected_petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "lower_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "apprehended_proceeding",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "copy_served_on_petitioner",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "caveator_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "caveator_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "apprehended_proceeding",
       "caveator_name",
@@ -188,7 +668,8 @@
       "impugned_order_ref",
       "lower_court",
       "place"
-    ]
+    ],
+    "title": "Caveat u/s 148-A CPC"
   },
   "coding_sheet": {
     "all": [
@@ -214,6 +695,121 @@
       "subject_matter",
       "value_of_claim"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "original",
+          "appellate",
+          "criminal",
+          "writ",
+          "caveat_original",
+          "caveat_appellate"
+        ],
+        "key": "side",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "act_and_provision",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "subject_matter",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_counsel",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_counsel",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "subject_category_code",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "value_of_claim",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_fee",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "connected_case",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "lower_court_details",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "in_jail",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "is_hcp",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "detaining_authority",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "order_violated",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "senior_citizen",
+        "kind": "bool",
+        "required": false
+      }
+    ],
     "required": [
       "act_and_provision",
       "court_place",
@@ -221,7 +817,8 @@
       "respondent_name",
       "side",
       "subject_matter"
-    ]
+    ],
+    "title": "Registry Coding Sheet"
   },
   "consumer_complaint": {
     "all": [
@@ -243,6 +840,98 @@
       "territorial_basis",
       "transaction_date"
     ],
+    "fields": [
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "personal",
+          "self_employment_livelihood",
+          "commercial"
+        ],
+        "key": "purpose",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "consideration_paid",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "transaction_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "invoice_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "compensation",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "compensation_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "affidavit_present",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "evidence_affidavit_present",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "territorial_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defect_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complaints_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "commission_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "affidavit_present",
       "cause_of_action_date",
@@ -258,7 +947,8 @@
       "purpose",
       "territorial_basis",
       "transaction_date"
-    ]
+    ],
+    "title": "Consumer complaint (CPA 2019)"
   },
   "contempt_petition": {
     "all": [
@@ -275,6 +965,68 @@
       "place",
       "respondents"
     ],
+    "fields": [
+      {
+        "key": "petitioner_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "parent_case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "order_disobeyed_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "order_nature",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "contemnors_had_knowledge",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "disobedience_narrative",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "contempt_committed_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "high_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_addresses",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
     "required": [
       "contemnors_had_knowledge",
       "contempt_committed_date",
@@ -286,7 +1038,8 @@
       "petitioner_names",
       "place",
       "respondents"
-    ]
+    ],
+    "title": "Contempt petition (ss.11-12 CoC Act)"
   },
   "copy_application": {
     "all": [
@@ -302,6 +1055,68 @@
       "place",
       "rule_ref"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "high_court",
+          "city_civil",
+          "small_causes"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "documents",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "addressed_to",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "rule_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "applicant_name",
       "applicant_role",
@@ -309,7 +1124,8 @@
       "documents",
       "forum",
       "place"
-    ]
+    ],
+    "title": "Application for Certified Copies"
   },
   "court_notice": {
     "all": [
@@ -325,13 +1141,78 @@
       "seal_date",
       "written_statement_date"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "show_cause",
+          "appear_person",
+          "family_court",
+          "appeal_notice",
+          "produce_documents"
+        ],
+        "key": "kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_or_petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "addressee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "application_or_relief",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appearance_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "documents_description",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "written_statement_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "seal_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "addressee_name",
       "applicant_or_petitioner_name",
       "case_ref",
       "kind",
       "place"
-    ]
+    ],
+    "title": "Court Notice"
   },
   "court_warrant": {
     "all": [
@@ -349,13 +1230,87 @@
       "restraint_text",
       "seal_date"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "attach_immovable",
+          "attach_movable",
+          "possession",
+          "injunction_order"
+        ],
+        "key": "kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "decree_holder_or_petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "judgment_debtor_or_respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "decree_or_order_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "decree_or_order_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "property_schedule",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "amount_due",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "restraint_text",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "addressed_to",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "seal_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "decree_holder_or_petitioner_name",
       "judgment_debtor_or_respondent_name",
       "kind",
       "place"
-    ]
+    ],
+    "title": "Court Warrant / Order"
   },
   "default_bail": {
     "all": [
@@ -385,6 +1340,138 @@
       "sections",
       "special_statute"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "age",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "occupation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "fir_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "district",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "sections",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "first_remand_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "offence_max_punishment_years",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "offence_punishable_with_death",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "offence_punishable_with_life",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "ndps",
+          "uapa",
+          "pmla"
+        ],
+        "key": "special_statute",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "as_on",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "application_ts",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "chargesheet_filed_ts",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "readiness_to_furnish_bail",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "application_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "address",
@@ -399,7 +1486,8 @@
       "police_station",
       "readiness_to_furnish_bail",
       "sections"
-    ]
+    ],
+    "title": "Application for default bail (s.167(2))"
   },
   "dissolution_deed": {
     "all": [
@@ -413,6 +1501,53 @@
       "records_custodian",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "firm_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "partners",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "original_deed_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "dissolution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "accounts_settled",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "records_custodian",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "dissolution_date",
       "execution_date",
@@ -422,7 +1557,8 @@
       "place",
       "records_custodian",
       "witnesses"
-    ]
+    ],
+    "title": "Deed of Dissolution of Partnership"
   },
   "divorce_contested": {
     "all": [
@@ -452,6 +1588,146 @@
       "without_consent",
       "without_reasonable_cause"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "adultery",
+          "cruelty",
+          "desertion",
+          "conversion",
+          "unsound_mind"
+        ],
+        "key": "ground",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "cruelty_instances",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "separation_since",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "animus_deserendi",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "without_consent",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "without_reasonable_cause",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "adultery_instance",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "co_respondent_joined",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "non_joinder_reason",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "no_collusion",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_connivance",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_condonation",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "children",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "custody_position",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "maintenance_position",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "marriage_solemnised",
+          "last_resided_together",
+          "respondent_resides",
+          "petitioner_resides"
+        ],
+        "key": "jurisdiction_basis",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "family_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "filing_date",
       "ground",
@@ -464,7 +1740,8 @@
       "petitioner_name",
       "place",
       "respondent_name"
-    ]
+    ],
+    "title": "Petition for divorce (contested, s.13 HMA)"
   },
   "divorce_mutual_first": {
     "all": [
@@ -482,6 +1759,73 @@
       "settlement_maintenance",
       "settlement_property"
     ],
+    "fields": [
+      {
+        "key": "party_a",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "party_b",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "living_separately_since",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "first_motion_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "settlement_maintenance",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "settlement_custody",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "settlement_property",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "joint_affidavit",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "family_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "first_motion_date",
       "joint_affidavit",
@@ -494,7 +1838,8 @@
       "settlement_custody",
       "settlement_maintenance",
       "settlement_property"
-    ]
+    ],
+    "title": "Divorce by mutual consent \u2014 first motion (s.13B(1))"
   },
   "divorce_mutual_second": {
     "all": [
@@ -508,6 +1853,53 @@
       "settlement_implemented",
       "waiver_sought"
     ],
+    "fields": [
+      {
+        "key": "party_a",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "party_b",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "first_motion_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "second_motion_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "settlement_implemented",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "waiver_sought",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "family_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "first_motion_order_date",
       "party_a",
@@ -515,7 +1907,8 @@
       "place",
       "second_motion_date",
       "settlement_implemented"
-    ]
+    ],
+    "title": "Divorce by mutual consent \u2014 second motion (s.13B(2))"
   },
   "dv_application": {
     "all": [
@@ -534,6 +1927,78 @@
       "shared_household_particulars",
       "shared_household_pleaded"
     ],
+    "fields": [
+      {
+        "key": "aggrieved_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "domestic_relationship_pleaded",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "domestic_relationship_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "shared_household_pleaded",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "shared_household_particulars",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "reliefs",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "incidents",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "incidents_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "magistrate_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "aggrieved_name",
       "domestic_relationship_basis",
@@ -542,7 +2007,8 @@
       "place",
       "reliefs",
       "respondent_name"
-    ]
+    ],
+    "title": "Application under s.12 DV Act"
   },
   "ejectment": {
     "all": [
@@ -569,6 +2035,118 @@
       "tenancy_end_date",
       "wrongful_occupation_since"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "defendant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_premises",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "lease_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "lease_expiry_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "s106_notice_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "s106_notice_served_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "tenancy_end_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "damages_rate_per_day",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "wrongful_occupation_since",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "annual_rent",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "court_fee",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "outside_rent_control",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "annual_rent",
       "cause_of_action_date",
@@ -586,7 +2164,8 @@
       "s106_notice_served_date",
       "suit_premises",
       "tenancy_end_date"
-    ]
+    ],
+    "title": "Suit for ejectment and damages"
   },
   "execution_application": {
     "all": [
@@ -608,6 +2187,93 @@
       "prior_applications",
       "suit_no"
     ],
+    "fields": [
+      {
+        "key": "decree_holder_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "judgment_debtor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "execution_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "decree_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "appeal_filed",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "payment_received",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_applications",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "decretal_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_note",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "costs_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "execution_against",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "mode_of_assistance",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "certified_copy_attached",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "appeal_filed",
       "certified_copy_attached",
@@ -622,7 +2288,8 @@
       "mode_of_assistance",
       "place",
       "suit_no"
-    ]
+    ],
+    "title": "Execution application (O21 CPC)"
   },
   "general_notice": {
     "all": [
@@ -646,6 +2313,103 @@
       "statutory_minimum_days",
       "transaction_narrative"
     ],
+    "fields": [
+      {
+        "key": "client",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_enrolment",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_mode",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "demand_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "act_required",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "compliance_days",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "statutory_minimum_days",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "civil_consequence",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "criminal_consequence",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "dispatch_tracking_placeholder",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "transaction_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "breach_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_demands_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "loss_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "act_required",
       "advocate",
@@ -660,7 +2424,8 @@
       "recipient_address",
       "recipient_mode",
       "recipient_name"
-    ]
+    ],
+    "title": "General demand notice"
   },
   "gift_deed": {
     "all": [
@@ -682,6 +2447,93 @@
       "to_be_registered",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "donor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "donor_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "donee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "donee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "relation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_east",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_west",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_north",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_south",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "market_value",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "possession_delivered",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "to_be_registered",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "prior_title_recital",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "boundary_east",
       "boundary_north",
@@ -700,7 +2552,8 @@
       "relation",
       "to_be_registered",
       "witnesses"
-    ]
+    ],
+    "title": "Gift Deed"
   },
   "indigent_application": {
     "all": [
@@ -719,6 +2572,78 @@
       "suit_ref",
       "undertakes_to_pay_if_decreed"
     ],
+    "fields": [
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "indigency_pleaded",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "indigency_particulars",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "undertakes_to_pay_if_decreed",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "applicant_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "applicant_name",
       "filing_date",
@@ -728,7 +2653,8 @@
       "respondent_name",
       "suit_ref",
       "undertakes_to_pay_if_decreed"
-    ]
+    ],
+    "title": "Application to sue as an indigent person"
   },
   "injunction": {
     "all": [
@@ -751,6 +2677,98 @@
       "undertaking_as_to_damages",
       "urgency_conduct"
     ],
+    "fields": [
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "subject_matter",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "brief_facts",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prima_facie_case",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "balance_of_convenience",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "irreparable_injury",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "urgency_conduct",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "undertaking_as_to_damages",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "act_restrained",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "is_ex_parte",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "notice_futility",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "application_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "act_restrained",
       "applicant_name",
@@ -764,7 +2782,8 @@
       "suit_ref",
       "undertaking_as_to_damages",
       "urgency_conduct"
-    ]
+    ],
+    "title": "Application for temporary injunction (O39 R1&2)"
   },
   "judicial_separation": {
     "all": [
@@ -790,6 +2809,123 @@
       "respondent_name",
       "respondent_parentage"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_registered",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "cruelty",
+          "desertion",
+          "adultery",
+          "conversion",
+          "unsound_mind",
+          "venereal_disease",
+          "renunciation",
+          "other"
+        ],
+        "key": "ground",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "ground_narrative",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "no_condonation",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_connivance",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_collusion",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_undue_delay",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "last_resided_together",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "family_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "filing_date",
       "ground",
@@ -806,7 +2942,8 @@
       "petitioner_name",
       "place",
       "respondent_name"
-    ]
+    ],
+    "title": "Petition for judicial separation (s.10 HMA)"
   },
   "lease_deed": {
     "all": [
@@ -825,6 +2962,78 @@
       "term_months",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "lessor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "lessor_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "lessee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "lessee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "term_months",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "commencement_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "monthly_rent",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "escalation_note",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "security_deposit",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "notice_months",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "commencement_date",
       "execution_date",
@@ -839,7 +3048,8 @@
       "security_deposit",
       "term_months",
       "witnesses"
-    ]
+    ],
+    "title": "Lease Deed"
   },
   "mact_claim": {
     "all": [
@@ -870,6 +3080,147 @@
       "victim_age",
       "victim_annual_income"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "death",
+          "injury"
+        ],
+        "key": "claim_kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "claimants",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "accident_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "rash_negligent_pleaded",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "fir_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vehicle_number",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "owner",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "driver",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "insurer",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "policy_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "policy_valid_on_accident",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "victim_age",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "victim_annual_income",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "income_proof_present",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "permanent_salaried",
+          "self_employed",
+          "fixed_wage"
+        ],
+        "key": "employment",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "dependants",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "disability_pct",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "permanent",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "treatment_expenses",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "attendant_expenses",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "claimed_total",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accident_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "tribunal_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "accident_date",
       "attendant_expenses",
@@ -891,7 +3242,8 @@
       "vehicle_number",
       "victim_age",
       "victim_annual_income"
-    ]
+    ],
+    "title": "MACT claim petition (s.166 MV Act)"
   },
   "maintenance": {
     "all": [
@@ -918,6 +3270,124 @@
       "respondent_means",
       "respondent_name"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "wife",
+          "divorced_wife",
+          "child",
+          "parent"
+        ],
+        "key": "relationship",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "neglect_or_refusal_pleaded",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "petitioner_rajnesh_affidavit",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "respondent_means",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_inability",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "quantum",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "quantum_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "divorced_not_remarried",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "child_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "child_unable_due_to_abnormality",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "neglect_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "quantum_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "magistrate_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "jurisdiction_basis",
       "neglect_or_refusal_pleaded",
@@ -930,7 +3400,8 @@
       "relationship",
       "respondent_means",
       "respondent_name"
-    ]
+    ],
+    "title": "Petition for maintenance"
   },
   "memo_of_appearance": {
     "all": [
@@ -945,13 +3416,66 @@
       "party_represented",
       "place"
     ],
+    "fields": [
+      {
+        "key": "counsel_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "party_represented",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "party_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "addressed_to",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "enrolment_no",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "counsel_name",
       "party_name",
       "party_represented",
       "place"
-    ]
+    ],
+    "title": "Memo of Appearance"
   },
   "memorandum_furnish_sureties": {
     "all": [
@@ -966,6 +3490,58 @@
       "memo_date",
       "place"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "granting_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "bail_granted",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "bail_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "bail_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "memo_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "bail_granted",
@@ -974,7 +3550,8 @@
       "case_ref",
       "granting_court",
       "place"
-    ]
+    ],
+    "title": "Memorandum to Furnish Sureties"
   },
   "mortgage_deed": {
     "all": [
@@ -991,6 +3568,68 @@
       "repayment_terms",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "mortgagor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "mortgagor_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "mortgagee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "mortgagee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "principal",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_rate",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "repayment_terms",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "purpose_recital",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "execution_date",
       "interest_rate",
@@ -1003,7 +3642,8 @@
       "property_desc",
       "repayment_terms",
       "witnesses"
-    ]
+    ],
+    "title": "Mortgage Deed"
   },
   "o39_r2a_application": {
     "all": [
@@ -1020,6 +3660,68 @@
       "respondent_name",
       "suit_ref"
     ],
+    "fields": [
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "injunction_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "respondent_had_knowledge",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "disobedience_narrative",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "disobedience_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "property_list_attached",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "applicant_name",
       "disobedience_narrative",
@@ -1030,7 +3732,8 @@
       "respondent_had_knowledge",
       "respondent_name",
       "suit_ref"
-    ]
+    ],
+    "title": "Application u/O39 R2-A CPC"
   },
   "partnership_deed": {
     "all": [
@@ -1045,6 +3748,58 @@
       "principal_place",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "firm_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "partners",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "business_nature",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "principal_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "commencement_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "capital_note",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "at_will",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "business_nature",
       "commencement_date",
@@ -1054,7 +3809,8 @@
       "place",
       "principal_place",
       "witnesses"
-    ]
+    ],
+    "title": "Partnership Deed"
   },
   "permanent_injunction": {
     "all": [
@@ -1077,6 +3833,98 @@
       "threat_narrative",
       "valuation"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "suit_property",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "possession_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "act_restrained",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "threat_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_fee",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "valuation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_addresses",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "act_restrained",
       "cause_of_action_date",
@@ -1090,7 +3938,8 @@
       "possession_basis",
       "suit_property",
       "valuation"
-    ]
+    ],
+    "title": "Suit for permanent injunction"
   },
   "plaint": {
     "all": [
@@ -1126,6 +3975,177 @@
       "transaction_narrative",
       "variant"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "individual",
+          "partnership",
+          "company",
+          "government",
+          "minor"
+        ],
+        "key": "variant",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "district_munsif",
+          "subordinate_judge",
+          "district_court",
+          "city_civil_court",
+          "high_court_os"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "territorial_bases",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "principal",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "claimed_total",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_rate",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_is_contractual",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "interest_document_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "limitation_article",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "limitation_trigger_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "acknowledgements",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "is_government_defendant",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "s80_notice_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "is_commercial_suit",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "s12a_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "transaction_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "performance_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "default_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "notice_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_addresses",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
@@ -1143,7 +4163,8 @@
       "principal",
       "territorial_bases",
       "variant"
-    ]
+    ],
+    "title": "Plaint for recovery of money"
   },
   "power_of_attorney": {
     "all": [
@@ -1162,6 +4183,82 @@
       "sale_property",
       "witnesses"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "general",
+          "special_sale"
+        ],
+        "key": "poa_kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "executant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "executant_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "attorney_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "attorney_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "powers",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recitals",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "sale_property",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "sale_price",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "purchaser_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "sale_agreement_ref",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "attorney_description",
       "attorney_name",
@@ -1171,7 +4268,8 @@
       "place",
       "poa_kind",
       "witnesses"
-    ]
+    ],
+    "title": "Power of Attorney (general / special-sale)"
   },
   "process_application": {
     "all": [
@@ -1190,6 +4288,84 @@
       "service_mode",
       "value_of_claim"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "civil",
+          "mact",
+          "small_causes",
+          "criminal"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "rows",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "value_of_claim",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_day",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "process_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "service_mode",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "next_hearing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "applicant_name",
       "applicant_role",
@@ -1197,7 +4373,8 @@
       "forum",
       "place",
       "rows"
-    ]
+    ],
+    "title": "Application for Issue of Process"
   },
   "recall_warrant": {
     "all": [
@@ -1212,6 +4389,58 @@
       "undertaking_future_appearance",
       "warrant_pending"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "absence_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "warrant_pending",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "undertaking_future_appearance",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "state_rep_by",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "absence_reason",
       "accused_name",
@@ -1219,7 +4448,8 @@
       "place",
       "undertaking_future_appearance",
       "warrant_pending"
-    ]
+    ],
+    "title": "Petition to Recall Warrant (s.70(2) CrPC)"
   },
   "regular_bail": {
     "all": [
@@ -1252,6 +4482,154 @@
       "sections",
       "special_statute"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "age",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "occupation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "fir_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "district",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "sections",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "custody_since",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "as_on",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "prison",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "chargesheet_filed",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "ndps",
+          "pmla",
+          "uapa",
+          "scst"
+        ],
+        "key": "special_statute",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "bail_bar_addressed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_successive",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "prior_order_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "change_of_circumstance",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "parity_claims",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "court_level",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "prosecution_case",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "application_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "address",
@@ -1267,7 +4645,8 @@
       "police_station",
       "prison",
       "sections"
-    ]
+    ],
+    "title": "Application for regular bail (s.437/439)"
   },
   "relinquishment_deed": {
     "all": [
@@ -1282,6 +4661,58 @@
       "releasors_share",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "releasors",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "releasee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "releasee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deceased_owner",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "releasors_share",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "for_consideration",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "deceased_owner",
       "execution_date",
@@ -1292,7 +4723,8 @@
       "releasors",
       "releasors_share",
       "witnesses"
-    ]
+    ],
+    "title": "Relinquishment Deed"
   },
   "restitution_conjugal_rights": {
     "all": [
@@ -1316,6 +4748,103 @@
       "withdrawal_date",
       "withdrawal_narrative"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "marriage_registered",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "withdrawal_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "withdrawal_narrative",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "no_collusion",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_undue_delay",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "last_resided_together",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "family_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "filing_date",
       "jurisdiction_basis",
@@ -1330,7 +4859,8 @@
       "respondent_name",
       "withdrawal_date",
       "withdrawal_narrative"
-    ]
+    ],
+    "title": "Petition for restitution of conjugal rights (s.9 HMA)"
   },
   "s106_notice": {
     "all": [
@@ -1350,6 +4880,83 @@
       "recipient_address",
       "recipient_name"
     ],
+    "fields": [
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "client",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "monthly_rent",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "quit_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "damages_rate_note",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_chamber",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_phone",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "dispatch_line",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "client_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "client_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "advocate",
       "client",
@@ -1361,7 +4968,8 @@
       "quit_date",
       "recipient_address",
       "recipient_name"
-    ]
+    ],
+    "title": "Notice of ejectment u/s 106 TPA"
   },
   "s138_complaint": {
     "all": [
@@ -1399,6 +5007,173 @@
       "presentation_date",
       "s141_averment"
     ],
+    "fields": [
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "complainant_is_company",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "complainant_authorised_rep",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_resolution_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "is_payee",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_is_company",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "s141_averment",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cheques",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "debt_slot",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "presentation_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "memo_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "memo_received_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "dishonour_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "notice_dispatch_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "notice_delivery_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "notice_refused",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "notice_unclaimed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "payee_bank_branch_in_jurisdiction",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deemed_delivery_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "deemed_service_averment",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_location",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "extra_witnesses",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "cheques",
@@ -1414,7 +5189,8 @@
       "payee_bank_branch_in_jurisdiction",
       "place",
       "presentation_date"
-    ]
+    ],
+    "title": "Complaint under s.138 NI Act"
   },
   "s138_notice": {
     "all": [
@@ -1438,6 +5214,103 @@
       "recipient_address",
       "recipient_name"
     ],
+    "fields": [
+      {
+        "key": "client",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_enrolment",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "cheques",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "debt_nature",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "debt_documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "presentation_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "presentation_bank",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "memo_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "memo_received_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "dishonour_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "dispatch_mode",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "dispatch_tracking_placeholder",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "compliance_days",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "override_demand_amount",
+        "kind": "int",
+        "required": false
+      }
+    ],
     "required": [
       "advocate",
       "advocate_enrolment",
@@ -1455,7 +5328,8 @@
       "presentation_date",
       "recipient_address",
       "recipient_name"
-    ]
+    ],
+    "title": "Statutory notice under s.138 NI Act"
   },
   "s138_reply": {
     "all": [
@@ -1472,6 +5346,68 @@
       "opposing_advocate",
       "place"
     ],
+    "fields": [
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "client",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "opposing_advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "defence_narrative",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "liability_denied",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "cheque_in_discharge_denied",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_chamber",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_phone",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "dispatch_line",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "client_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "advocate",
       "cheque_in_discharge_denied",
@@ -1481,7 +5417,8 @@
       "notice_date",
       "opposing_advocate",
       "place"
-    ]
+    ],
+    "title": "Reply to a legal notice u/s 138 NI Act"
   },
   "s256_condone_absence": {
     "all": [
@@ -1494,13 +5431,56 @@
       "petition_date",
       "place"
     ],
+    "fields": [
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "absence_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_designation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "absence_reason",
       "accused_name",
       "case_ref",
       "complainant_name",
       "place"
-    ]
+    ],
+    "title": "Petition u/s 256 CrPC (Condone Complainant Absence)"
   },
   "s317_dispense_presence": {
     "all": [
@@ -1514,6 +5494,53 @@
       "petition_date",
       "place"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "absence_reason",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "absence_not_wanton",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "magistrate_designation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "absence_not_wanton",
       "absence_reason",
@@ -1521,7 +5548,8 @@
       "case_ref",
       "complainant_name",
       "place"
-    ]
+    ],
+    "title": "Petition u/s 317 CrPC (Dispense with Accused Presence)"
   },
   "s80_notice": {
     "all": [
@@ -1538,6 +5566,68 @@
       "plaintiff_name_description",
       "reliefs"
     ],
+    "fields": [
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "client",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "addressee",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "government_body",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_name_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "cause_of_action",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "reliefs",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_chamber",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_phone",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "dispatch_line",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "addressee",
       "advocate",
@@ -1548,7 +5638,8 @@
       "place",
       "plaintiff_name_description",
       "reliefs"
-    ]
+    ],
+    "title": "Notice u/s 80 CPC to Government"
   },
   "sale_deed": {
     "all": [
@@ -1570,6 +5661,93 @@
       "vendor_name",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "vendor_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendor_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendee_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "vendee_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "property_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_east",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_west",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_north",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "boundary_south",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "total_consideration",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "amount_already_paid",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "balance_paid_mode",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "prior_title_recital",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "to_be_registered",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      }
+    ],
     "required": [
       "amount_already_paid",
       "balance_paid_mode",
@@ -1588,7 +5766,8 @@
       "vendor_description",
       "vendor_name",
       "witnesses"
-    ]
+    ],
+    "title": "Sale Deed"
   },
   "service_of_process_application": {
     "all": [
@@ -1599,11 +5778,44 @@
       "place",
       "respondents"
     ],
+    "fields": [
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_fee_amount",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "place",
       "respondents"
-    ]
+    ],
+    "title": "Application for Service of Process"
   },
   "special_leave_petition": {
     "all": [
@@ -1624,6 +5836,92 @@
       "respondents",
       "slp_kind"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "civil",
+          "criminal"
+        ],
+        "key": "slp_kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "impugned_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_judgment_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "impugned_case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "questions_of_law",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "grounds",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "no_other_slp",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "annexures_true_copies",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "brief_facts",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "interim_relief_sought",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "annexures_true_copies",
       "filing_date",
@@ -1636,7 +5934,8 @@
       "place",
       "respondents",
       "slp_kind"
-    ]
+    ],
+    "title": "Special leave petition (Art.136)"
   },
   "specific_performance": {
     "all": [
@@ -1663,6 +5962,118 @@
       "suit_property",
       "total_consideration"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_property",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "agreement_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "agreement_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "total_consideration",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "earnest_paid",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "balance_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "readiness_and_willingness",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "refusal_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "notice_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_fee",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "agreement_date",
       "agreement_ref",
@@ -1679,7 +6090,8 @@
       "readiness_and_willingness",
       "suit_property",
       "total_consideration"
-    ]
+    ],
+    "title": "Suit for specific performance"
   },
   "substituted_service": {
     "all": [
@@ -1699,6 +6111,83 @@
       "prior_service_attempts",
       "respondent_name"
     ],
+    "fields": [
+      {
+        "key": "deponent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "prior_service_attempts",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "newspaper",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "affix_court_notice_board",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "affix_last_known_residence",
+        "kind": "bool",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "deponent_name",
@@ -1708,7 +6197,8 @@
       "place",
       "prior_service_attempts",
       "respondent_name"
-    ]
+    ],
+    "title": "Petition for Substituted Service (O.5 R.20 CPC)"
   },
   "succession_certificate": {
     "all": [
@@ -1733,6 +6223,108 @@
       "respondent_name",
       "securities"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deceased_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "death_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "deceased_residence",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "law_of_succession",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "diligent_search_no_will",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "next_of_kin",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_relation",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "securities",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "purpose",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "no_impediment_s370",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_prior_application",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "ad_valorem_duty_paid",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grant_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "ad_valorem_duty_paid",
       "death_date",
@@ -1749,7 +6341,8 @@
       "place",
       "purpose",
       "securities"
-    ]
+    ],
+    "title": "Petition for a succession certificate"
   },
   "succession_grant": {
     "all": [
@@ -1775,6 +6368,117 @@
       "will_date",
       "will_duly_executed"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "probate",
+          "letters_of_administration"
+        ],
+        "key": "grant_kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deceased_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "death_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "deceased_last_residence",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "will_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "will_duly_executed",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "bequest_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "relatives",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "petitioner_is_named_executor",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "petitioner_standing",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "assets_schedule_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "undertakes_further_court_fee",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_impediment",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "jurisdiction_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grant_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "assets_schedule_ref",
       "death_date",
@@ -1791,7 +6495,8 @@
       "undertakes_further_court_fee",
       "will_date",
       "will_duly_executed"
-    ]
+    ],
+    "title": "Petition for probate / letters of administration"
   },
   "summary_suit": {
     "all": [
@@ -1821,6 +6526,147 @@
       "territorial_bases",
       "transaction_narrative"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "written_contract",
+          "bill_of_exchange",
+          "promissory_note",
+          "enactment_debt",
+          "other"
+        ],
+        "key": "claim_basis",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "instrument_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "cause_of_action_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "district_munsif",
+          "subordinate_judge",
+          "district_court",
+          "city_civil_court",
+          "high_court_os"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "territorial_bases",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "principal",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_amount",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "claimed_total",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_rate",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "interest_is_contractual",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "interest_document_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "limitation_article",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "limitation_trigger_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "acknowledgements",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "transaction_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_addresses",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
@@ -1839,7 +6685,8 @@
       "plaintiff_name",
       "principal",
       "territorial_bases"
-    ]
+    ],
+    "title": "Summary suit (O37 CPC)"
   },
   "summons": {
     "all": [
@@ -1857,13 +6704,86 @@
       "plaintiff_name",
       "seal_date"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "civil_defendant",
+          "witness",
+          "summary_suit"
+        ],
+        "key": "kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_or_witness_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cause_of_action",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appearance_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "documents_to_produce",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "expenses_tendered",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "claim_amount",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "costs",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "seal_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "defendant_or_witness_name",
       "kind",
       "place",
       "plaintiff_name"
-    ]
+    ],
+    "title": "Court Summons"
   },
   "surety_affidavit": {
     "all": [
@@ -1886,6 +6806,98 @@
       "surety_occupation",
       "surety_relationship_to_accused"
     ],
+    "fields": [
+      {
+        "key": "surety_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "offence_section",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "bail_granted",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "bail_sum",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "id_proofs",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "surety_occupation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_relationship_to_accused",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "property_particulars",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "monthly_income",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_suretyships",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "affirm_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "state_rep_by",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "bail_granted",
@@ -1895,7 +6907,8 @@
       "offence_section",
       "place",
       "surety_name"
-    ]
+    ],
+    "title": "Surety Affidavit"
   },
   "surrender_petition": {
     "all": [
@@ -1912,6 +6925,68 @@
       "police_station",
       "state_rep_by"
     ],
+    "fields": [
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "offence_section",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "identification_marks",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "accused_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "state_rep_by",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "accused_name",
       "case_ref",
@@ -1919,7 +6994,8 @@
       "identification_marks",
       "offence_section",
       "place"
-    ]
+    ],
+    "title": "Surrender Petition"
   },
   "transfer_petition": {
     "all": [
@@ -1938,6 +7014,78 @@
       "to_court",
       "to_state"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "case_to_transfer",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "from_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "from_state",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "to_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "to_state",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "brief_facts",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "no_other_transfer_petition",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "case_to_transfer",
       "filing_date",
@@ -1950,7 +7098,8 @@
       "respondents",
       "to_court",
       "to_state"
-    ]
+    ],
+    "title": "Transfer petition (Civil) u/s 25 CPC"
   },
   "urgent_petition": {
     "all": [
@@ -1963,6 +7112,48 @@
       "respondent_name",
       "underlying_application"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "underlying_application",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "orders_prayed",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petition_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
     "required": [
       "case_ref",
       "orders_prayed",
@@ -1970,7 +7161,8 @@
       "place",
       "respondent_name",
       "underlying_application"
-    ]
+    ],
+    "title": "Urgent Petition (s.151 CPC)"
   },
   "vakalatnama": {
     "all": [
@@ -1991,6 +7183,92 @@
       "place",
       "state_language"
     ],
+    "fields": [
+      {
+        "enumValues": [
+          "long",
+          "efiling"
+        ],
+        "key": "kind",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "executant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "party_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocates",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "enrolment_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "address_for_service",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_mobile",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_email",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "party_contact",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "state_language",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "advocates",
       "case_ref",
@@ -1998,7 +7276,8 @@
       "kind",
       "party_role",
       "place"
-    ]
+    ],
+    "title": "Vakalatnama"
   },
   "will": {
     "all": [
@@ -2013,6 +7292,58 @@
       "testator_parentage",
       "witnesses"
     ],
+    "fields": [
+      {
+        "key": "testator_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "testator_parentage",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "testator_address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "execution_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "bequests",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "sound_mind_declared",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "witnesses",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "revokes_prior_wills",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "executor_name",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "bequests",
       "execution_date",
@@ -2022,7 +7353,8 @@
       "testator_name",
       "testator_parentage",
       "witnesses"
-    ]
+    ],
+    "title": "Will"
   },
   "writ_criminal": {
     "all": [
@@ -2041,6 +7373,78 @@
       "pre_execution_stage",
       "respondents"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "impugned_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "impugned_order_statute",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "pre_execution_stage",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "no_similar_petition",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "high_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "filing_date",
       "grounds",
@@ -2052,7 +7456,8 @@
       "place",
       "pre_execution_stage",
       "respondents"
-    ]
+    ],
+    "title": "Writ petition (Criminal)"
   },
   "writ_petition": {
     "all": [
@@ -2085,6 +7490,155 @@
       "writ_type",
       "year"
     ],
+    "fields": [
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondents",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "court_side",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "mandamus",
+          "certiorari",
+          "quo_warranto",
+          "prohibition",
+          "habeas_corpus"
+        ],
+        "key": "writ_type",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "legal_right",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "public_duty",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_demand_and_refusal",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "quasi_judicial_order",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "public_office",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "impugned_order_number",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "impugned_order_annexed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "alternative_remedy_addressed",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "alternative_remedy_basis",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_action_recent",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "delay_explanation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "laches_threshold_days",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "impugned_action_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "no_similar_petition",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "day",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "month",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "year",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
     "required": [
       "alternative_remedy_addressed",
       "alternative_remedy_basis",
@@ -2099,7 +7653,8 @@
       "respondents",
       "writ_type",
       "year"
-    ]
+    ],
+    "title": "Writ petition (Civil) under Art.226"
   },
   "written_statement": {
     "all": [
@@ -2115,6 +7670,63 @@
       "preliminary_objections",
       "suit_ref"
     ],
+    "fields": [
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaint_para_count",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "preliminary_objections",
+        "kind": "list",
+        "required": false
+      },
+      {
+        "key": "merit_replies",
+        "kind": "list",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "counter_claim_or_setoff",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      }
+    ],
     "required": [
       "defendant_name",
       "filing_date",
@@ -2123,6 +7735,7 @@
       "plaint_para_count",
       "plaintiff_name",
       "suit_ref"
-    ]
+    ],
+    "title": "Written statement on behalf of the defendant"
   }
 }
