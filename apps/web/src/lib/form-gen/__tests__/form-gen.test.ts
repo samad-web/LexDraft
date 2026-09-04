@@ -82,6 +82,18 @@ describe('saved-draft dual-read', () => {
     expect(dualRead('regular_bail', saved)('address')).toBe('NEW value');
   });
 
+  it('when BOTH old and new keys are populated, the NEW key wins', () => {
+    // The new engine key is checked first and returned when non-empty; the old key is
+    // only a fallback for an absent/empty new key. So a migrated draft (backfilled into
+    // the new key) or an advocate's edit under the new key always takes precedence over
+    // a stale old-key value — the new key is the current truth.
+    const saved = { address: 'NEW: 12 MG Road', accused_address: 'OLD: 47 Kamaraj Nagar' };
+    expect(dualRead('regular_bail', saved)('address')).toBe('NEW: 12 MG Road');
+    // but an empty new key still falls back to the old value (never shows blank).
+    const savedEmptyNew = { address: '', accused_address: 'OLD only' };
+    expect(dualRead('regular_bail', savedEmptyNew)('address')).toBe('OLD only');
+  });
+
   it('non-trivial reshaped fields are NOT aliased (advocate re-enters)', () => {
     // custody_days must not silently become custody_since
     expect(KEY_ALIASES.regular_bail!.renames.custody_since).toBeUndefined();
