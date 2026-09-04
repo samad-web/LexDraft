@@ -68,7 +68,34 @@ WORKDIR /app
 # tini handles SIGTERM/SIGINT cleanly so the express shutdown hooks in
 # src/index.ts actually fire on container stop instead of being killed
 # after the 10s docker-stop grace expires.
+#
+# LibreOffice (soffice) converts the engine .docx -> filing PDF in the
+# document.render pg-boss job. It is PINNED to an exact apk version: a
+# LibreOffice minor bump can shift line-breaking/pagination, which would
+# change the page count of a document the advocate already approved. When
+# bumping, re-baseline the golden PDF fixtures deliberately. The build is also
+# recorded per-render in draft_renders.soffice_version so a drift is visible.
+# Pin uses the Alpine 3.x repo pin syntax `pkg=version`. To find the exact
+# string for the base image: `docker run --rm node:22-alpine apk list libreoffice`.
+#
+# FONTS — the templates reference Calibri + Cambria (theme body/heading) and
+# Courier (explicit, for monospace/tabular content). Those are proprietary
+# Microsoft fonts we cannot ship; without a substitute LibreOffice picks an
+# arbitrary fallback and pagination silently diverges from what the advocate
+# approved. We install METRIC-COMPATIBLE substitutes so glyph widths (hence line
+# breaks and page count) match:
+#   - font-carlito   -> Calibri  (same metrics)
+#   - font-caladea    -> Cambria  (same metrics)
+#   - ttf-liberation  -> Liberation Mono/Serif/Sans (Courier/Times/Arial metrics)
+#   - font-noto       -> Devanagari/Tamil coverage for Indian-language party names.
+# NOTE: verify these package names resolve in the pinned Alpine repo at build time
+# (`apk search font-carlito font-caladea`); adjust if the repo names differ.
 RUN apk add --no-cache tini wget \
+      libreoffice=24.8.4.2-r0 \
+      font-carlito \
+      font-caladea \
+      ttf-liberation \
+      font-noto \
  && addgroup -g 1001 -S lexdraft \
  && adduser  -u 1001 -S lexdraft -G lexdraft
 
@@ -87,7 +114,8 @@ RUN mkdir -p /app/uploads && chown -R lexdraft:lexdraft /app/uploads
 
 ENV NODE_ENV=production \
     PORT=4000 \
-    STORAGE_LOCAL_DIR=/app/uploads
+    STORAGE_LOCAL_DIR=/app/uploads \
+    SOFFICE_BIN=/usr/bin/soffice
 
 EXPOSE 4000
 

@@ -226,6 +226,33 @@ jobs.register<TitleReportAiAnalysePayload>('title-report.ai-analyse', async (dat
   await titleReportsAiService.runDefectsAnalysis(data);
 });
 
+// Document render — engine .docx -> stored .docx + LibreOffice PDF (Task 4, the
+// single rendering path). The route enqueues after a 'generated' engine draft; the
+// worker stores both artifacts to S3 and marks the draft_renders row ready. The job
+// is idempotent on (matterId, factSheetVersion): a retry overwrites the same keys and
+// upserts the same row rather than duplicating S3 objects. In memory mode (no
+// pg-boss) it runs inline, so dev without Postgres still produces a PDF.
+//
+// NB: the docx base64 travels in the payload because it is the transient input to the
+// conversion and is not otherwise persisted until the handler stores it. It is the one
+// deliberate exception to "no bytes in payloads" — the alternative (a pre-store round
+// trip) buys nothing since the handler stores it immediately anyway.
+interface DocumentRenderPayload {
+  matterId: string;
+  factSheetVersion: number;
+  firmId: string | null;
+  docType: string;
+  draftId?: string | null;
+  docxBase64: string;
+  templateId: string;
+  templateVersion: number;
+}
+
+jobs.register<DocumentRenderPayload>('document.render', async (data) => {
+  const { documentRenderService } = await import('./document-render.service');
+  await documentRenderService.process(data);
+});
+
 interface TitleReportExtractPayload {
   firmId: string;
   titleReportId: string;
@@ -257,3 +284,24 @@ jobs.register('judges.roster.sync', async () => {
     'judges.roster.sync complete',
   );
 }, { cron: '0 3 * * 0', tz: 'Asia/Kolkata' });
+
+// Nightly eCourts case sync. Walks every active matter that carries a CNR,
+// re-pulls its history from eCourts, folds updates into the case + hearings,
+// and emails the matter owner when something a lawyer acts on moved (next
+// hearing date, status, stage, disposal). Sequential + throttled inside the
+// service so we don't hammer the gov backend. Schedule: 02:00 IST daily —
+// after courts have posted the day's business, before the morning rush.
+jobs.register('ecourts.sync.daily', async () => {
+  const { syncAllActiveCasesFromEcourts } = await import('./case-sync.service');
+  const summary = await syncAllActiveCasesFromEcourts();
+  logger.info(summary, 'ecourts.sync.daily complete');
+}, { cron: '0 2 * * *', tz: 'Asia/Kolkata' });
+
+// Permanently purge matters that have been soft-deleted for more than 30 days.
+// Deleting a matter marks deleted_at (recoverable via "Recently deleted"); this
+// sweep, at 03:30 IST daily, hard-removes those past the retention window.
+jobs.register('cases.purge.deleted.daily', async () => {
+  const { casesService } = await import('./cases.service');
+  const purged = await casesService.purgeExpired(30);
+  if (purged > 0) logger.info({ purged }, 'cases.purge.deleted.daily complete');
+}, { cron: '30 3 * * *', tz: 'Asia/Kolkata' });

@@ -15,6 +15,12 @@ const Schema = z.object({
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
   XAI_API_KEY: z.string().optional().default(''),
   XAI_MODEL: z.string().default('grok-4'),
+  // Conversational-intake extractor/classifier use a SEPARATE, FAST model — the
+  // heavy drafting model (grok-4 / sonnet) is overkill for extraction/routing and
+  // makes each intake turn slow. When set, intake uses these instead of the
+  // drafting provider/model above. Leave blank to reuse the drafting model.
+  INTAKE_PROVIDER: z.enum(['anthropic', 'xai', '']).default(''),
+  INTAKE_MODEL: z.string().default(''),
   // Postgres / Supabase. Optional - when blank the API falls back to its
   // in-memory store (the demo mode). Provide a Supabase pooled URI in prod.
   DATABASE_URL: z.string().optional().default(''),
@@ -37,6 +43,50 @@ const Schema = z.object({
   /** Optional Redis URL for cross-replica rate limiting + cache fanout. When
    *  blank, the rate limiter and caches stay in-process (single replica). */
   REDIS_URL: z.string().optional().default(''),
+
+  /** The co-located Python drafting-engine service (FastAPI). When blank, the
+   *  engine client is DISABLED — shadow mode and engine routing are no-ops, and
+   *  the existing model pipeline is unaffected. Set to e.g.
+   *  http://127.0.0.1:8099 to enable. */
+  ENGINE_SERVICE_URL: z.string().optional().default(''),
+  /** Shared service-to-service token; must match the engine's
+   *  LEXDRAFT_SERVICE_TOKEN. Sent as `Authorization: Bearer <token>`. */
+  ENGINE_SERVICE_TOKEN: z.string().optional().default(''),
+
+  /** Comma-separated advocate emails allowed onto the engine-routed Draft path
+   *  (Phase 2 flag). Empty = nobody (the flag is off for everyone). This is how
+   *  "me as the only user" is expressed — put your email here. */
+  ENGINE_ROUTING_ALLOWLIST: z.string().optional().default(''),
+
+  /** Absolute path to the LibreOffice `soffice` binary used to convert the engine
+   *  .docx to a filing PDF (document.render job). Defaults to the PATH lookup
+   *  `soffice`; pin the full path in the container. When the binary is missing the
+   *  render job records render_status='failed' rather than crashing the worker. */
+  SOFFICE_BIN: z.string().optional().default('soffice'),
+  /** Hard timeout (ms) for a single soffice conversion. LibreOffice hangs on
+   *  malformed input; the job kills it past this and marks the render failed. */
+  SOFFICE_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  /** Dev-only escape hatch: open the engine-routed Draft path to EVERY logged-in
+   *  user, bypassing the allowlist. Convenient for local dev where you don't want
+   *  to enumerate emails. Double-gated on NODE_ENV below (same pattern as
+   *  DEV_AUTH_AUTO_PROVISION / WEBHOOK_ALLOW_UNVERIFIED): even if set in a prod
+   *  .env by mistake, NODE_ENV='production' forces it off. */
+  ENGINE_ROUTING_ALLOW_ALL: z.enum(['true', 'false']).default('false'),
+
+  /** Run the conversational intake with ZERO LLM calls: a deterministic,
+   *  rule-based extractor (dates/amounts/cheque no/enums via regex) plus the
+   *  built-in plain-language questions (no phraser). No API cost per turn. The
+   *  trade-off is weaker handling of free natural phrasing — good for cost-free
+   *  testing, or where an LLM key isn't available. When 'false' (default) the
+   *  intake uses the LLM extractor + phraser as before. */
+  INTAKE_DETERMINISTIC: z.enum(['true', 'false']).default('false'),
+
+  /** COMPOSE (post-generation prose enrichment, see intake-compose.service) —
+   *  independent of INTAKE_DETERMINISTIC (which only controls extraction).
+   *  Default 'true' — an advocate expects filing-ready prose, not a bare
+   *  skeleton; set 'false' for ONLY the engine's plain deterministic draft
+   *  (e.g. a fully offline / no-LLM-key deployment). */
+  INTAKE_COMPOSE: z.enum(['true', 'false']).default('true'),
 
   /** SMTP wiring for transactional email (invitations, password resets,
    *  hearing reminders, etc.). When SMTP_HOST is blank, `email.send` logs to
@@ -171,6 +221,29 @@ export const env = {
   hasSmtp: parsed.data.SMTP_HOST.length > 0,
   smtpSecure: parsed.data.SMTP_SECURE === 'true',
   hasRedis: parsed.data.REDIS_URL.length > 0,
+  /** Engine client is enabled only when its URL is configured. */
+  hasEngineService: parsed.data.ENGINE_SERVICE_URL.length > 0,
+  /** Lowercased set of emails allowed onto the engine-routed Draft path. */
+  engineRoutingAllowlist: new Set(
+    parsed.data.ENGINE_ROUTING_ALLOWLIST.split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
+  ),
+  /** Dev-only: open the engine-routed path to every logged-in user. Same
+   *  double-gate as devAuthAutoProvision — inert when NODE_ENV='production'. */
+  engineRoutingAllowAll:
+    parsed.data.NODE_ENV !== 'production'
+    && parsed.data.ENGINE_ROUTING_ALLOW_ALL === 'true',
+  /** Run conversational intake with no LLM calls (deterministic extractor +
+   *  plain questions). Not NODE_ENV-gated — it's a quality/cost trade-off, safe
+   *  in any environment (it never fabricates; it just extracts less). */
+  intakeDeterministic: parsed.data.INTAKE_DETERMINISTIC === 'true',
+  intakeComposeEnabled: parsed.data.INTAKE_COMPOSE === 'true',
+  /** The FAST provider/model the conversational intake extractor+classifier use,
+   *  when configured (else they fall back to the drafting provider/model). Keeps
+   *  intake responsive without downgrading the heavy General-AI drafting model. */
+  intakeProvider: (parsed.data.INTAKE_PROVIDER || '') as 'anthropic' | 'xai' | '',
+  intakeModel: parsed.data.INTAKE_MODEL || '',
   hasS3: parsed.data.STORAGE_DRIVER === 's3' || parsed.data.STORAGE_DRIVER === 'r2',
   storageS3ForcePathStyle: parsed.data.STORAGE_S3_FORCE_PATH_STYLE === 'true',
 };

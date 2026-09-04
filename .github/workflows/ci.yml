@@ -128,3 +128,54 @@ jobs:
       # the exact same source the type checker and tests just saw.
       - name: Build
         run: pnpm build
+
+  # ---------------------------------------------------------------------------
+  # Python drafting engine (../lexdraft-engine). Separate job: different
+  # toolchain (Python/pytest), independent of the Node build, runs in parallel.
+  # Gates the template-fidelity work — drift check (a committed template can't be
+  # silently clobbered by build_templates.py), split-run placeholder check, and
+  # the golden fidelity suite.
+  #
+  # NOTE: the engine lives in a sibling directory to this repo in the dev tree.
+  # In CI it is checked out alongside; adjust `engine-dir` if the layout differs.
+  # ---------------------------------------------------------------------------
+  engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The engine is a sibling project. If CI checks out only this repo, the
+      # engine must be fetched too; this step is a placeholder that fails loudly
+      # rather than silently skipping the fidelity gates.
+      - name: Locate engine
+        id: engine
+        run: |
+          if [ -d "../lexdraft-engine" ]; then
+            echo "dir=../lexdraft-engine" >> "$GITHUB_OUTPUT"
+          elif [ -d "lexdraft-engine" ]; then
+            echo "dir=lexdraft-engine" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::lexdraft-engine not found — the engine fidelity gates cannot run. Check out the engine repo alongside this one."
+            exit 1
+          fi
+
+      - name: Install engine (+dev)
+        working-directory: ${{ steps.engine.outputs.dir }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Runs the whole engine suite, which includes:
+      #   - test_template_drift.py     (Task 2: no silent clobber)
+      #   - test_placeholder_integrity (Task 3: no split-run {{ }})
+      #   - the golden fidelity suite  (Task 5)
+      - name: Engine tests
+        working-directory: ${{ steps.engine.outputs.dir }}
+        run: python -m pytest -q
