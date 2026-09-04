@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { generateDocSchema, humanise, fallbackPresentation } from '../generate';
 import { dualRead, KEY_ALIASES } from '../key-aliases';
 import { regularBailPresentation } from '../presentation/regular_bail';
+import { s138NoticePresentation } from '../presentation/s138_notice';
 import type { EngineContractEntry } from '../types';
 
 const contract = JSON.parse(
@@ -64,6 +65,33 @@ describe('form generator', () => {
     expect(new Set(rendered)).toEqual(new Set(anyDoc.fields.map((f) => f.key)));
     // every label is non-empty (humanised)
     expect(schema.sections[0]!.fields.every((f) => f.label.length > 0)).toBe(true);
+  });
+});
+
+describe('generator — repeatable sub-record (s138 cheques)', () => {
+  it('renders a LIST field as a sub-record group with item fields, min items, and prefill', async () => {
+    
+    const schema = generateDocSchema(contract.s138_notice!, s138NoticePresentation);
+    const all = schema.sections.flatMap((s) => s.fields);
+    const cheques = all.find((f) => f.key === 'cheques')!;
+    expect(cheques.type).toBe('list');
+    expect(cheques.minItems).toBe(1);
+    expect(cheques.itemNoun).toBe('Cheque');
+    expect(cheques.prefillFromFirst).toEqual(['bank', 'branch', 'drawer', 'payee']);
+    const itemKeys = (cheques.itemFields ?? []).map((f) => f.key);
+    expect(itemKeys).toEqual(['number', 'date', 'amount', 'bank', 'branch', 'drawer', 'payee']);
+    // item sub-field types coerce from engine kinds
+    const byItem = Object.fromEntries((cheques.itemFields ?? []).map((f) => [f.key, f]));
+    expect(byItem.amount!.type).toBe('number');
+    expect(byItem.date!.type).toBe('date');
+  });
+
+  it('still places every scalar engine field alongside the list', () => {
+    
+    const schema = generateDocSchema(contract.s138_notice!, s138NoticePresentation);
+    const rendered = new Set(schema.sections.flatMap((s) => s.fields.map((f) => f.key)));
+    const engineKeys = new Set(contract.s138_notice!.fields.map((f) => f.key));
+    expect(rendered).toEqual(engineKeys);
   });
 });
 

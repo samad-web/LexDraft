@@ -9,6 +9,7 @@
 
 export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Regular Bail Application': 'regular_bail',
+  'Notice u/s 138 NI Act': 's138_notice',
   // Add more as they are flipped on (must match apps/api LABEL_TO_ENGINE_DOC exactly):
   // 'Anticipatory Bail Application': 'anticipatory_bail',
   // 'Lease Deed': 'lease_deed',

@@ -10,6 +10,9 @@ export function fieldSpecFor(schema: DocSchema): DraftFieldSpec[] {
   const out: DraftFieldSpec[] = [];
   for (const sec of schema.sections) {
     for (const f of sec.fields) {
+      // A repeatable sub-record (list) is structured, not a flat extract field — the
+      // AI-extract brief handles scalar fields only; the list is filled in the form.
+      if (f.type === 'list') continue;
       const spec: DraftFieldSpec = { key: f.key, label: f.label, type: f.type };
       if (f.options) spec.options = f.options;
       if (f.required) spec.required = true;
@@ -41,6 +44,7 @@ export function missingRequiredLabels(schema: DocSchema, values: Record<string, 
   const out: string[] = [];
   for (const sec of schema.sections) {
     for (const f of sec.fields) {
+      if (f.type === 'list') continue; // list completeness is validated in the list widget
       if (f.required && !(values[f.key] ?? '').toString().trim()) out.push(f.label);
     }
   }

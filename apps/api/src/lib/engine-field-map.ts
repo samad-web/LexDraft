@@ -44,37 +44,31 @@ function str(v: unknown): string | undefined {
  * if still absent, omitted — the engine then returns a 422 for each, which the UI
  * shows as "complete these fields", never as a legal refusal.
  */
-function mapS138(form: Record<string, unknown>, extra: Record<string, unknown>): MappedFields {
-  // A field may come from the form or (as a fallback) from `extra`.
-  const pick = (key: string): string | undefined => str(form[key]) ?? str(extra[key]);
-
-  // MULTI-CHEQUE. The engine's `cheques` is a list of N. The flat form carries
-  // the FIRST cheque under the base keys (cheque_no, cheque_date, cheque_amount,
-  // drawee_bank) and any FURTHER cheques under indexed keys (cheque_no_2,
-  // cheque_date_2, …). drawer/payee are the same parties for every cheque, so we
-  // replicate them into each item. Build one cheque object per present index.
+/**
+ * Build the engine `cheques` array from a LEGACY flat s.138 form (base keys + indexed
+ * cheque_no_2…). Exported so the saved-draft migration converts old drafts with the
+ * EXACT same logic the mapper uses — the migration can never diverge from the mapper.
+ * drawer/payee are the same parties for every cheque (drawer = notice recipient, payee
+ * = client/sender); the combined "Bank, Branch" string is split.
+ */
+export function buildChequesFromFlatForm(
+  form: Record<string, unknown>,
+): Array<Record<string, unknown>> {
   const buildCheque = (suffix: string): Record<string, unknown> | null => {
     const number = str(form[`cheque_no${suffix}`]);
     const date = str(form[`cheque_date${suffix}`]);
     const amount = toAmount(form[`cheque_amount${suffix}`]);
     const bankBranch = str(form[`drawee_bank${suffix}`]);
-    // Skip an entirely-empty slot (no number, date, or amount) so a stray indexed
-    // key never produces a blank cheque the engine would 422 on.
     if (!number && !date && amount === undefined && !bankBranch) return null;
     return {
       number,
       date,
       amount,
-      // The form's `drawee_bank` is a combined "Bank, Branch" string; split on the
-      // first comma. Both halves are required by the engine, so a form that only
-      // gave a bank leaves `branch` absent -> a 422 the advocate fixes.
       ...splitBankBranch(bankBranch),
-      drawer: str(form.recipient_name),  // drawer = the cheque's issuer = notice recipient
-      payee: str(form.sender_name),      // payee = the client sending the notice
+      drawer: str(form.recipient_name),
+      payee: str(form.sender_name),
     };
   };
-
-  // The base (unindexed) cheque, then _2, _3, … up to a sane cap.
   const cheques: Array<Record<string, unknown>> = [];
   const first = buildCheque('');
   if (first) cheques.push(first);
@@ -82,8 +76,6 @@ function mapS138(form: Record<string, unknown>, extra: Record<string, unknown>):
     const c = buildCheque(`_${i}`);
     if (c) cheques.push(c);
   }
-  // Always give the engine at least the (possibly empty) first cheque so a wholly
-  // unfilled matter still 422s on cheque fields rather than on "cheques required".
   if (cheques.length === 0) {
     cheques.push({
       number: str(form.cheque_no),
@@ -94,6 +86,15 @@ function mapS138(form: Record<string, unknown>, extra: Record<string, unknown>):
       payee: str(form.sender_name),
     });
   }
+  return cheques;
+}
+
+function mapS138(form: Record<string, unknown>, extra: Record<string, unknown>): MappedFields {
+  // A field may come from the form or (as a fallback) from `extra`.
+  const pick = (key: string): string | undefined => str(form[key]) ?? str(extra[key]);
+
+  // MULTI-CHEQUE — the engine's `cheques` is a list of N, built from the flat form.
+  const cheques = buildChequesFromFlatForm(form);
 
   const debtDocs: string[] = [];
   if (str(form.invoice_refs)) debtDocs.push(String(form.invoice_refs));
@@ -198,7 +199,12 @@ function mapPassthrough(
 // engine contract's declared `kind` for each field. This makes every generated form
 // routable with no per-doc code — the same reason describe() is the source of truth.
 
-interface ContractField { key: string; kind: string; enumValues?: string[] }
+interface ContractField {
+  key: string;
+  kind: string;
+  enumValues?: string[];
+  itemFields?: ContractField[];
+}
 type ContractEntry = { fields: ContractField[] };
 
 // The committed engine-contract snapshot (same file the alignment test uses).
@@ -234,18 +240,47 @@ function coerceKind(kind: string, v: unknown): unknown {
   }
 }
 
+/** Coerce a LIST-of-records value: an array of row objects, each coerced field-by-field
+ *  against the item schema. Rows that are entirely empty after coercion are dropped so a
+ *  stray blank row never 422s. Returns undefined if no non-empty rows remain. */
+function coerceRecordList(itemFields: ContractField[], v: unknown): unknown {
+  const rows = Array.isArray(v) ? v : undefined;
+  if (!rows) return undefined;
+  const kinds = new Map(itemFields.map((f) => [f.key, f.kind]));
+  const out: Array<Record<string, unknown>> = [];
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue;
+    const obj: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(row as Record<string, unknown>)) {
+      const kind = kinds.get(k);
+      const c = kind ? coerceKind(kind, val) : (typeof val === 'string' && val.trim() === '' ? undefined : val);
+      if (c !== undefined) obj[k] = c;
+    }
+    if (Object.keys(obj).length > 0) out.push(obj);
+  }
+  return out.length ? out : undefined;
+}
+
 /** Apply contract-driven coercion to a passthrough result for `docType`. Fields not in
  *  the contract pass through unchanged (defensive — the alignment gate keeps them in
  *  sync). Absent-after-coercion keys are dropped so the engine 422s rather than
- *  receiving a wrong-typed value. */
+ *  receiving a wrong-typed value. LIST-of-records fields (e.g. cheques) are coerced
+ *  per-item against their sub-schema. */
 function coerceToContract(docType: string, mapped: MappedFields): MappedFields {
   const entry = ENGINE_CONTRACT[docType];
   if (!entry) return mapped; // no contract -> leave as-is
-  const kinds = new Map(entry.fields.map((f) => [f.key, f.kind]));
+  const byKey = new Map(entry.fields.map((f) => [f.key, f]));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(mapped.fields)) {
-    const kind = kinds.get(k);
-    const coerced = kind ? coerceKind(kind, v) : v;
+    const spec = byKey.get(k);
+    let coerced: unknown;
+    if (spec?.kind === 'list' && spec.itemFields?.length) {
+      coerced = coerceRecordList(spec.itemFields, v);
+    } else if (spec) {
+      coerced = coerceKind(spec.kind, v);
+    } else {
+      coerced = v;
+    }
     if (coerced !== undefined) out[k] = coerced;
   }
   return { fields: out };
@@ -319,8 +354,17 @@ export function mapFormToEngine(
   if (!ROUTABLE_SET.has(docType)) {
     throw new Error(`no engine field map for doc type ${docType}`);
   }
+  // s138 is mid-migration: the LEGACY flat form (cheque_no/sender_name, one cheque)
+  // needs the bespoke reshaping mapper; the NEW generated form already submits a
+  // `cheques` array of engine-keyed records and takes the passthrough+coercion path.
+  // Detect by shape so BOTH work during the transition (no flip-day breakage), and the
+  // bespoke mapper becomes naturally dead once all traffic is the new form.
+  if (docType === 's138_notice' && !Array.isArray(form.cheques)) {
+    return mapS138(form, extra); // legacy flat form
+  }
+
   const custom = CUSTOM_MAPPERS[docType];
-  if (custom) return custom(form, extra);
+  if (custom && docType !== 's138_notice') return custom(form, extra);
   return coerceToContract(docType, mapPassthrough(form, extra));
 }
 

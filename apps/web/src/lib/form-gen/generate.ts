@@ -32,10 +32,57 @@ export function humanise(key: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** Naive singular for a group noun used in row headings ('Cheques' -> 'Cheque'). Only
+ *  the trivial plural; a presentation `itemNoun` overrides it for irregular cases. */
+export function singularise(word: string): string {
+  if (/ies$/i.test(word)) return word.replace(/ies$/i, 'y');
+  if (/ses$/i.test(word)) return word.replace(/es$/i, '');
+  if (/s$/i.test(word) && !/ss$/i.test(word)) return word.replace(/s$/i, '');
+  return word;
+}
+
+/** Build one sub-record DocField for a list item field. Same mapping as a scalar, but
+ *  driven by the item's own presentation (pres.itemFields[key]). */
+function buildItemField(ef: EngineField, itemPres: Record<string, import('./types').FieldPresentation>): DocField {
+  const p = itemPres[ef.key] ?? {};
+  const type = webType(ef.kind, p.rows);
+  const field: DocField = { key: ef.key, label: p.label ?? humanise(ef.key), type };
+  if (ef.required) field.required = true; else field.optional = true;
+  if (p.placeholder) field.placeholder = p.placeholder;
+  if (p.help) field.help = p.help;
+  if (ef.kind === 'enum' && ef.enumValues) {
+    field.options = ef.enumValues.map((v) => p.enumLabels?.[v] ?? humanise(v));
+  }
+  if (ef.kind === 'bool') field.options = ['Yes', 'No'];
+  return field;
+}
+
 /** Build one DocField from an engine field + its (optional) presentation override. */
 function buildField(ef: EngineField, pres: DocPresentation): DocField | null {
   const p = pres.fields[ef.key] ?? {};
   if (p.hidden) return null;
+
+  // LIST field -> a repeatable sub-record group.
+  if (ef.kind === 'list' && ef.itemFields?.length) {
+    const itemPres = p.itemFields ?? {};
+    // order item sub-fields by presentation order then contract order
+    const items = ef.itemFields
+      .map((it, idx) => ({ it, order: itemPres[it.key]?.order ?? idx }))
+      .sort((a, b) => a.order - b.order)
+      .map(({ it }) => buildItemField(it, itemPres));
+    const field: DocField = {
+      key: ef.key,
+      label: p.label ?? humanise(ef.key),
+      type: 'list',
+      itemFields: items,
+      minItems: ef.minItems ?? (ef.required ? 1 : 0),
+      itemNoun: p.itemNoun ?? singularise(humanise(ef.key)),
+    };
+    if (ef.required) field.required = true; else field.optional = true;
+    if (p.help) field.help = p.help;
+    if (p.prefillFromFirst) field.prefillFromFirst = p.prefillFromFirst;
+    return field;
+  }
 
   const type = webType(ef.kind, p.rows);
   const field: DocField = {

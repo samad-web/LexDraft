@@ -27,6 +27,39 @@ export interface DocKeyAliases {
 }
 
 export const KEY_ALIASES: Record<string, DocKeyAliases> = {
+  // s.138 notice: old flat "Notice u/s 138 NI Act" form -> engine s138_notice.
+  // The cheque sub-fields are handled by the backfill (flat -> cheques[]); these are the
+  // SCALAR renames the dual-read covers so an old draft's non-cheque fields aren't blank.
+  s138_notice: {
+    renames: {
+      client: 'sender_name',            // payee/holder = the sender of the notice
+      advocate: 'advocate_name',
+      debt_nature: 'underlying_liability',
+      memo_date: 'dishonour_date',      // date printed on the dishonour memo
+      dispatch_tracking_placeholder: 'dispatch_tracking',
+      // same-name across old/new (listed for completeness / clarity):
+      recipient_name: 'recipient_name',
+      recipient_address: 'recipient_address',
+      presentation_date: 'presentation_date',
+      presentation_bank: 'presentation_bank',
+      memo_received_date: 'memo_received_date',
+      dishonour_reason: 'dishonour_reason',
+      notice_date: 'notice_date',
+      advocate_enrolment: 'advocate_enrolment',
+      dispatch_mode: 'dispatch_mode',
+      place: 'place',
+    },
+    nonTrivial: [
+      // flat cheque keys -> cheques[] array: handled by the backfill script, not a
+      // simple rename (a scalar can't alias into an array element).
+      'cheque_no', 'cheque_date', 'cheque_amount', 'drawee_bank',
+    ],
+    dropped: [
+      'sender_address',  // engine derives the sender block from `client`; not a field
+      'sender_pan',
+      'invoice_refs',    // folded into debt_documents (advocate re-enters as a doc line)
+    ],
+  },
   // Regular Bail: old web "Bail Application" -> engine regular_bail.
   regular_bail: {
     renames: {

@@ -23,6 +23,11 @@ export interface EngineField {
   kind: EngineKind;
   required: boolean;
   enumValues?: string[];
+  /** For kind==='list': the sub-fields each list item collects (e.g. a cheque's
+   *  number/date/amount/bank/branch/drawer/payee). Drives a repeatable sub-record. */
+  itemFields?: EngineField[];
+  /** For kind==='list': minimum number of items (the engine's min_items). */
+  minItems?: number;
 }
 
 /** One doc type's engine contract entry (subset of engine-doc-contract.json). */
@@ -56,6 +61,16 @@ export interface FieldPresentation {
    *  never set directly — it's derived). It is still sent absent → engine 422 if required,
    *  which is the correct signal, so only hide genuinely-optional/derived fields. */
   hidden?: boolean;
+  /** For a LIST field: presentation for the item sub-fields, keyed by sub-field key.
+   *  (label/placeholder/help/order per cheque sub-field, etc.) */
+  itemFields?: Record<string, FieldPresentation>;
+  /** For a LIST field: singular noun for the group ("Cheque"), used for row headings
+   *  ("Cheque 1") and the add button ("Add cheque"). */
+  itemNoun?: string;
+  /** For a LIST field: sub-field keys to PREFILL on rows 2..N from row 1's values, so
+   *  the common case (same bank/parties across cheques) isn't extra typing. The
+   *  advocate can override any prefilled value per row. */
+  prefillFromFirst?: string[];
 }
 
 /** A doc type's presentation metadata: ordered sections + per-field overrides. */

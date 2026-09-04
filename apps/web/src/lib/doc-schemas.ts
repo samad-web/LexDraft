@@ -3,7 +3,9 @@
 // Each schema lists the structured data the AI needs to compose that document.
 // Fields ship with realistic defaults so the brief is usable immediately.
 
-export type DocFieldType = 'text' | 'textarea' | 'select' | 'date' | 'number' | 'currency';
+export type DocFieldType =
+  | 'text' | 'textarea' | 'select' | 'date' | 'number' | 'currency'
+  | 'list'; // a repeatable sub-record group (e.g. cheques)
 
 export interface DocField {
   key: string;
@@ -20,6 +22,14 @@ export interface DocField {
   /** Conditional visibility: render only when another field equals a value.
    *  Evaluated by the form container against the current field values. */
   visibleWhen?: { field: string; equals: string | number | boolean };
+  /** For type==='list': the schema of ONE sub-record (the fields each row collects). */
+  itemFields?: DocField[];
+  /** For type==='list': minimum rows (>=1 typically). */
+  minItems?: number;
+  /** For type==='list': singular noun for row headings + add button ("Cheque"). */
+  itemNoun?: string;
+  /** For type==='list': sub-field keys to prefill on rows 2..N from row 1. */
+  prefillFromFirst?: string[];
 }
 
 export interface DocSection {

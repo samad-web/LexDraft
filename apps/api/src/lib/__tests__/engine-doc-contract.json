@@ -423,8 +423,41 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "whole_or_part",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "mark_in_lower_court",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "pages_translation",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "pages_printing",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "cost_estimate",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "documents",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -511,8 +544,26 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "forfeiture_sum",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "sureties",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -1082,8 +1133,41 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "date_of_document",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "date_of_filing",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "number_of_copies",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "order_under_which",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "pending_or_final",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "documents",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -1508,8 +1592,26 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "share_pct",
+            "kind": "int",
+            "required": false
+          }
+        ],
         "key": "partners",
         "kind": "list",
+        "minItems": 2,
         "required": true
       },
       {
@@ -1627,8 +1729,21 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "cruelty_instances",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
@@ -1959,13 +2074,57 @@
         "required": false
       },
       {
+        "itemFields": [
+          {
+            "enumValues": [
+              "s.18 protection",
+              "s.19 residence",
+              "s.20 monetary",
+              "s.21 custody",
+              "s.22 compensation"
+            ],
+            "key": "head",
+            "kind": "enum",
+            "required": true
+          },
+          {
+            "key": "averment",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "reliefs",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "enumValues": [
+              "physical",
+              "sexual",
+              "verbal_emotional",
+              "economic"
+            ],
+            "key": "category",
+            "kind": "enum",
+            "required": true
+          },
+          {
+            "key": "date",
+            "kind": "date",
+            "required": false
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "incidents",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
@@ -3755,8 +3914,26 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "share_pct",
+            "kind": "int",
+            "required": true
+          }
+        ],
         "key": "partners",
         "kind": "list",
+        "minItems": 2,
         "required": true
       },
       {
@@ -4066,8 +4243,21 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "acknowledgements",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
@@ -4316,8 +4506,51 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "nature_of_process",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "on_whom",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "place_of_service",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "distance_miles",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "travelling_allowance",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "subsistence_allowance",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "process_fee",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "remarks",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "rows",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -4590,8 +4823,21 @@
         "required": false
       },
       {
+        "itemFields": [
+          {
+            "key": "co_accused",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "order_ref",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "parity_claims",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
@@ -4663,8 +4909,21 @@
     ],
     "fields": [
       {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "releasors",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -5049,8 +5308,46 @@
         "required": false
       },
       {
+        "itemFields": [
+          {
+            "key": "number",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "amount",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "key": "bank",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "branch",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "drawer",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "payee",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "cheques",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -5241,8 +5538,46 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "number",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "amount",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "key": "bank",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "branch",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "drawer",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "payee",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "cheques",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -5785,8 +6120,41 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "father_or_guardian",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "occupation",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "district",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "taluk",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "village_town_address",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "respondents",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -6265,8 +6633,21 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "value",
+            "kind": "int",
+            "required": true
+          }
+        ],
         "key": "securities",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -6414,8 +6795,26 @@
         "required": false
       },
       {
+        "itemFields": [
+          {
+            "key": "relation",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "relatives",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -6622,8 +7021,21 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": false
+          }
+        ],
         "key": "acknowledgements",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
@@ -7314,8 +7726,26 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "property_desc",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "beneficiary",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "relation",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "bequests",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -7497,8 +7927,26 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "serial",
+            "kind": "int",
+            "required": false
+          },
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "is_authority",
+            "kind": "bool",
+            "required": false
+          }
+        ],
         "key": "respondents",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
@@ -7692,13 +8140,44 @@
         "required": true
       },
       {
+        "itemFields": [
+          {
+            "key": "text",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "preliminary_objections",
         "kind": "list",
+        "minItems": 0,
         "required": false
       },
       {
+        "itemFields": [
+          {
+            "key": "plaint_para",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "enumValues": [
+              "admitted",
+              "denied",
+              "not_admitted"
+            ],
+            "key": "stance",
+            "kind": "enum",
+            "required": true
+          },
+          {
+            "key": "text",
+            "kind": "string",
+            "required": true
+          }
+        ],
         "key": "merit_replies",
         "kind": "list",
+        "minItems": 1,
         "required": true
       },
       {
