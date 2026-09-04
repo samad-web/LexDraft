@@ -172,10 +172,55 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
-      # Runs the whole engine suite, which includes:
-      #   - test_template_drift.py     (Task 2: no silent clobber)
-      #   - test_placeholder_integrity (Task 3: no split-run {{ }})
-      #   - the golden fidelity suite  (Task 5)
+      # Runs the whole engine suite, which includes the template-fidelity gates:
+      #   - test_template_drift.py        (Task 2: no silent clobber of committed .docx)
+      #   - test_placeholder_integrity.py (Task 3: no {{ }} split across runs — must be
+      #                                    green before any hand-authored template lands)
+      #   - the golden fidelity suite     (Task 5)
       - name: Engine tests
         working-directory: ${{ steps.engine.outputs.dir }}
         run: python -m pytest -q
+
+  # ---------------------------------------------------------------------------
+  # Pagination baseline — renders the gold template in the SAME pinned LibreOffice
+  # image the render worker uses, and fails if page count OR text-layout checksum
+  # drifts from the committed baseline. This is what makes "the page count the
+  # advocate approves is the page count they file" a STRUCTURAL guarantee: the
+  # approved artifact is produced server-side in this pinned image, and a
+  # LibreOffice/font/template bump that moves layout turns CI red instead of
+  # silently shipping a different document. To re-baseline after an intended
+  # change: run `python tools/pagination_baseline.py --update` in this image and
+  # commit tools/pagination_baseline.json.
+  #
+  # Runs inside the built API image (which carries the pinned LibreOffice + fonts),
+  # so it needs the Docker build. Kept a separate job so a LibreOffice-less unit run
+  # is never blocked on it.
+  pagination:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Locate engine
+        id: engine
+        run: |
+          if [ -d "../lexdraft-engine" ]; then echo "dir=../lexdraft-engine" >> "$GITHUB_OUTPUT";
+          elif [ -d "lexdraft-engine" ]; then echo "dir=lexdraft-engine" >> "$GITHUB_OUTPUT";
+          else echo "::error::lexdraft-engine not found"; exit 1; fi
+
+      - name: Build API image (pinned LibreOffice + fonts)
+        run: docker build -f apps/api/Dockerfile -t lexdraft-api:ci .
+
+      # Run the baseline check inside the pinned image, with the engine mounted so the
+      # gold template + baseline json are available. poppler-utils/pypdf are installed
+      # in the check step's venv layer; the image already has LibreOffice + fonts.
+      - name: Pagination baseline check
+        run: |
+          docker run --rm -v "${{ github.workspace }}/${{ steps.engine.outputs.dir }}:/engine" \
+            --entrypoint /bin/sh lexdraft-api:ci -c '
+              apk add --no-cache python3 py3-pip >/dev/null &&
+              cd /engine &&
+              pip install --quiet --break-system-packages -e ".[dev]" docxtpl >/dev/null &&
+              SOFFICE_BIN=/usr/bin/soffice python3 tools/pagination_baseline.py --check
+            '

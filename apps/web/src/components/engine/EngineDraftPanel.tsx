@@ -152,8 +152,16 @@ export function EngineDraftPanel({
             signOffError={signOffError}
           />
           {/* blocks[] are DISPLAY METADATA — the editable on-screen text. The FILING
-              copy is the PDF/.docx below, rendered by the engine (single path). */}
-          <article className="engine-panel__blocks" aria-label="Drafted document">
+              copy is the PDF/.docx below, rendered by the engine (single path). The
+              on-screen text is ADVISORY: what the advocate approves and files is the
+              server-rendered artifact, whose exact layout/pagination is set by the
+              pinned LibreOffice image (guaranteed stable by the CI pagination baseline). */}
+          <p className="engine-panel__advisory" role="note">
+            The text below is a preview for review. The <strong>filing copy is the
+            PDF/.docx</strong> produced by the engine (shown underneath) — that is the
+            document you approve and file.
+          </p>
+          <article className="engine-panel__blocks" aria-label="Drafted document (preview)">
             {result.blocks.map((b) => (
               <p key={b.key} className="engine-panel__block">{b.text}</p>
             ))}
