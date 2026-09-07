@@ -652,6 +652,15 @@ draftingRouter.get('/kb/search', requireFeature('drafting.ai'), async (req, res,
 // keeps using the existing model pipeline.
 // =============================================================================
 
+// KNOWN LATENT BREAK — read before widening the allowlist. The engine's
+// `affidavit` doc type now REQUIRES matter_type + affidavit_kind (and, when
+// matter_type == "s138", the cheque/dishonour fields). The web Draft form
+// (doc-schemas.ts) does not yet collect matter_type/affidavit_kind, and the
+// affidavit path is passthrough, so an engine-routed affidavit draft will 422
+// until doc-schemas.ts gains those inputs. This is inert while the allowlist is
+// empty (the default); do NOT enable engine routing for a user who will draft
+// affidavits until the web form is updated. See engine-doc-contract.json for the
+// current required-field contract.
 function engineRoutingAllowed(email: string | undefined): boolean {
   if (!engineClient.enabled) return false;
   if (!email) return false;
