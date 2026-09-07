@@ -81,7 +81,19 @@ export async function extractText(input: {
     }
     if (looksLikeMime(input.mime, ['application/pdf']) || ext === 'pdf') {
       const result = await pdfParse(input.body);
-      return { ok: true, text: truncate(normalizeWhitespace(result.text ?? '')) };
+      const layerText = normalizeWhitespace(result.text ?? '');
+      // A scanned / image-exported PDF has no text layer, so pdf-parse returns almost
+      // nothing. Detect that and OCR the rendered pages instead, so a scanned notice /
+      // agreement still yields its content (the reason attachments used to draft empty).
+      // Threshold: fewer than ~20 real characters means "no usable text layer".
+      if (layerText.replace(/\s/g, '').length < 20) {
+        const { ocrPdf } = await import('./pdf-ocr');
+        const ocr = await ocrPdf(input.body);
+        if (ocr.ok) return { ok: true, text: truncate(normalizeWhitespace(ocr.text)) };
+        // OCR also failed — return whatever the text layer had (may be empty) so the
+        // caller reports "couldn't read" rather than crashing.
+      }
+      return { ok: true, text: truncate(layerText) };
     }
     if (
       looksLikeMime(input.mime, [
