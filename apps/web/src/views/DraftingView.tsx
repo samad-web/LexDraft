@@ -39,6 +39,7 @@ import {
   getSchema,
   type DocSchema,
 } from '@/lib/doc-schemas';
+import { resolveDocSchemas } from '@/lib/form-gen/resolve';
 import {
   renderDraftBlocks,
   collectOpenItems,
@@ -155,6 +156,11 @@ export function DraftingView() {
   const [draftBotOpen, setDraftBotOpen] = useState(false);
   const [myDraftsOpen, setMyDraftsOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  // The engine-rendered .docx (base64) for the CURRENT engine draft, if any. This is
+  // the FILING-grade copy (real Word file, selectable text, correct margins) the
+  // engine produced — distinct from the rasterised client-side "working copy" export.
+  // Captured from the intake draft; null for model-only drafts (which have no engine .docx).
+  const [engineDocxBase64, setEngineDocxBase64] = useState<string | null>(null);
   const saveMutation = useSaveDraft();
   // Set true just before stream.seed() to suppress the effect that clears
   // edits when stream.data.text changes - loading a draft must preserve them.
@@ -182,7 +188,15 @@ export function DraftingView() {
   const stream = useStreamDraft();
   const autoDraft = useAutoDraft();
   const showToast = useUIStore((s) => s.showToast);
-  const schema: DocSchema = useMemo(() => getSchema(docType), [docType]);
+  // Resolve schemas through the form-generation resolver: for doc types whose generated
+  // form is ENABLED (flags.ts / VITE_FORMGEN_DOCTYPES), this returns the engine-generated
+  // schema under the engine label; every other doc type is DOC_SCHEMAS unchanged. With no
+  // flag on, this is a pure no-op, so existing doc types are untouched.
+  const resolvedSchemas = useMemo(() => resolveDocSchemas(), []);
+  const schema: DocSchema = useMemo(
+    () => resolvedSchemas[docType] ?? getSchema(docType),
+    [resolvedSchemas, docType],
+  );
 
   // True when the engine-routed card is the PRIMARY input for this doc (flag on
   // for this user AND the doc is one the engine handles — today, s.138 only).
@@ -287,6 +301,9 @@ export function DraftingView() {
     if (!body.trim()) return false;
     const detected = result.triage.docType;
     setDocType(detected);
+    // A model-only draft has no engine-rendered .docx — clear any prior one so a
+    // stale filing copy from an earlier engine draft can't be downloaded here.
+    setEngineDocxBase64(null);
     const p = result.pipeline;
     setOpenItems(
       collectOpenItems({
@@ -331,6 +348,10 @@ export function DraftingView() {
     const body = s.draft.blocks.map((b) => b.text).join('\n\n');
     if (!body.trim()) return;
     setActiveEngineLabel(detected);
+    // Keep the engine's filing-grade .docx so the advocate can download the real
+    // Word file (not just the rasterised working copy). Null-safe: absent on older
+    // engine responses, in which case only the working-copy export is offered.
+    setEngineDocxBase64(s.draft.docxBase64 ?? null);
     // Open items = the [placeholder] gaps left in the body (scanned live).
     setOpenItems(collectOpenItems({ bodyText: body }));
     stream.reset();
@@ -427,6 +448,7 @@ export function DraftingView() {
     setIsEditing(false);
     setStageMode(false);
     setOpenItems(null);
+    setEngineDocxBase64(null);
     // Back to the empty state; the next matter starts from the DraftBot modal.
     setDraftBotOpen(false);
   };
@@ -631,6 +653,32 @@ export function DraftingView() {
     setExportFormat(fmt);
   };
 
+  // Download the engine's FILING-grade .docx (the real Word file the engine
+  // rendered — selectable text, correct margins), decoded from the base64 the
+  // intake draft carried. This is the filing copy; the client-side PDF/DOCX
+  // buttons below are only a rasterised working copy.
+  const downloadEngineDocx = () => {
+    if (!engineDocxBase64) return;
+    try {
+      const bytes = Uint8Array.from(atob(engineDocxBase64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoke on the next tick so the download has committed to the object URL.
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+      showToast({ type: 'sage', text: 'Filing .docx downloaded' });
+    } catch {
+      showToast({ type: 'cobalt', text: 'Could not prepare the .docx download' });
+    }
+  };
+
   const applyTemplate = (t: DocTemplate) => {
     setDocType(t.docType);
     setAllValues((av) => ({ ...av, [t.docType]: { ...t.fields } }));
@@ -731,7 +779,7 @@ export function DraftingView() {
   }, [incomingDraftId, incomingDraft.data]);
 
   const resetCurrentBrief = () => {
-    const sc = DOC_SCHEMAS[docType];
+    const sc = resolvedSchemas[docType] ?? DOC_SCHEMAS[docType];
     if (!sc) return;
     const defaults: Record<string, string> = {};
     sc.sections.forEach((s) =>
@@ -1610,31 +1658,42 @@ export function DraftingView() {
                       ? 'Update'
                       : 'Save'}
                 </button>
-                {/* Client-side export (jsPDF/html2canvas PDF, HTML-wrapped .doc) is a
-                    RASTERISED working copy — wrong margins, non-selectable text. It is
-                    NOT a filing copy. When this doc is engine-handled, the engine panel
-                    renders the true filing PDF/.docx, so we hide these entirely to
-                    remove the two-renderer drift. For model-only docs we keep them but
-                    label them unmistakably so an advocate never files a screenshot. */}
+                {/* FILING-grade .docx: the real Word file the ENGINE rendered
+                    (selectable text, correct margins). Shown whenever the engine
+                    produced one (engineDocxBase64 present). This is the copy an
+                    advocate actually files. */}
+                {engineDocxBase64 && (
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    title="The engine-rendered Word document — filing-grade (selectable text, correct margins)"
+                    onClick={downloadEngineDocx}
+                  >
+                    <Icon name="download" size={14} /> Download .docx (filing copy)
+                  </button>
+                )}
+                {/* Client-side PDF (jsPDF/html2canvas) is a RASTERISED working copy —
+                    fixed margins, non-selectable text — for quick preview/print, never
+                    filing. Offered for BOTH engine and model drafts. The client-side
+                    .docx (HTML-wrapped) is redundant once we have the engine filing
+                    .docx, so it's only shown for model-only drafts. */}
+                <button
+                  className="btn"
+                  type="button"
+                  title="Working copy only — not a filing copy (rasterised, non-selectable text)"
+                  onClick={() => triggerExport('PDF')}
+                >
+                  <Icon name="download" size={14} /> PDF (working copy)
+                </button>
                 {!engineActive && (
-                  <>
-                    <button
-                      className="btn"
-                      type="button"
-                      title="Working copy only — not a filing copy (rasterised, non-selectable text)"
-                      onClick={() => triggerExport('PDF')}
-                    >
-                      <Icon name="download" size={14} /> PDF (working copy)
-                    </button>
-                    <button
-                      className="btn"
-                      type="button"
-                      title="Working copy only — not a filing copy"
-                      onClick={() => triggerExport('DOCX')}
-                    >
-                      <Icon name="download" size={14} /> DOCX (working copy)
-                    </button>
-                  </>
+                  <button
+                    className="btn"
+                    type="button"
+                    title="Working copy only — not a filing copy"
+                    onClick={() => triggerExport('DOCX')}
+                  >
+                    <Icon name="download" size={14} /> DOCX (working copy)
+                  </button>
                 )}
                 <button
                   className="btn"
@@ -1662,7 +1721,13 @@ export function DraftingView() {
                   <Icon name="arrow" size={14} /> Share with client
                 </button>
               </div>
-              {!engineActive && (
+              {engineDocxBase64 ? (
+                <p className="drafting-working-copy-note" role="note">
+                  ℹ️ <strong>Download .docx (filing copy)</strong> is the engine-rendered
+                  Word file — selectable text, correct margins, court-ready. The{' '}
+                  <strong>PDF (working copy)</strong> is a rasterised preview only, not for filing.
+                </p>
+              ) : (
                 <p className="drafting-working-copy-note" role="note">
                   ⚠️ Downloads here are a <strong>working copy — not for filing</strong>.
                   They are rasterised (fixed margins, non-selectable text). A court-ready

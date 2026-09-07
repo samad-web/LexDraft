@@ -24,6 +24,7 @@ import { RefusalMessage } from './RefusalMessage';
 import { FormIncompleteMessage } from './FormIncompleteMessage';
 import { ReviewBanner } from './ReviewBanner';
 import { DraftRenderView } from './DraftRenderView';
+import { DraftBlockText } from './DraftBlockText';
 
 interface Props {
   docLabel: string;          // e.g. "Notice u/s 138 NI Act"
@@ -163,7 +164,7 @@ export function EngineDraftPanel({
           </p>
           <article className="engine-panel__blocks" aria-label="Drafted document (preview)">
             {result.blocks.map((b) => (
-              <p key={b.key} className="engine-panel__block">{b.text}</p>
+              <DraftBlockText key={b.key} blockKey={b.key} text={b.text} />
             ))}
           </article>
           <DraftRenderView renderId={result.renderId} initialStatus={result.renderStatus} />
