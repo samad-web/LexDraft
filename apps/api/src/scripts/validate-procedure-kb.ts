@@ -22,6 +22,10 @@ const EntrySchema = z.object({
   law: z.literal('BNSS'),
   section: z.string().min(1),
   sectionTitle: z.string().min(1),
+  /** Verbatim BNSS section text from the official gazette, added so counsel can
+   *  verify the entry against the bare Act without leaving the tool. Optional so
+   *  older entries stay valid; required in spirit before an entry is `verified`. */
+  sectionText: z.string().min(1).optional(),
   oldRef: z.object({ act: z.enum(['IPC', 'CrPC', 'IEA']), section: z.string().min(1) }).nullable(),
   aliases: z.array(z.string().min(1)).min(1),
   forum: z.string().min(1),

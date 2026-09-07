@@ -133,8 +133,27 @@ export function search(query: string, opts: SearchOptions = {}): OffenceHit[] {
   const qTokens = tokenize(query);
   if (qTokens.size === 0) return [];
 
+  // Section-number query: when the advocate types a bare section like "316" or
+  // "318(4)", match it against each entry's actual section string so a section
+  // number resolves directly (the token index only covers names/ingredients).
+  const numMatch = query.trim().match(/^\d+[\dA-Za-z()./-]*$/);
+  const sectionQuery = numMatch ? numMatch[0].toLowerCase() : '';
+
   const hits: OffenceHit[] = [];
   for (const { entry, aliasPhrases, tokens } of INDEXED) {
+    if (sectionQuery) {
+      const sec = entry.section.toLowerCase();
+      // Exact section match ranks top; a prefix match (e.g. "316" -> "316(2)")
+      // ranks just below so all sub-clauses of a section surface together.
+      if (sec === sectionQuery) { hits.push({ entry, score: 1, reason: 'alias-phrase' }); continue; }
+      if (sec.startsWith(sectionQuery) || sec.replace(/\(.*/, '') === sectionQuery) {
+        hits.push({ entry, score: 0.95, reason: 'alias-phrase' });
+        continue;
+      }
+      // A pure-number query shouldn't fall through to token overlap (digits
+      // aren't meaningful tokens), so skip the rest for this entry.
+      continue;
+    }
     // 1) Strong signal: an alias phrase appears in the query (or vice-versa).
     //    Score by how specific the match is — the length ratio between the
     //    matched alias and the query — so a precise alias beats a generic one.

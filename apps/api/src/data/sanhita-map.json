@@ -1262,6 +1262,17 @@
   },
 
   {
+    "fromAct": "CrPC",
+    "fromSection": "317",
+    "fromTitle": "Provision for inquiries and trial being held in the absence of accused in certain cases",
+    "toAct": "BNSS",
+    "toSection": "355",
+    "toTitle": "Provision for inquiries and trial being held in the absence of accused in certain cases",
+    "substantiveChange": "Renumbered only",
+    "notes": "Exemption from personal appearance of the accused (dispensing with attendance when represented by counsel). CrPC §317 is now BNSS §355."
+  },
+
+  {
     "fromAct": "IEA",
     "fromSection": "3",
     "fromTitle": "Interpretation clause - definitions",

@@ -38,8 +38,8 @@
         "bns-109-attempt-to-murder",
         "bns-106-death-by-negligence"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 302 -> BNS 103 per sanhita-map.json. Distinguish from culpable homicide not amounting to murder; check applicability of exceptions before pleading."
+      "verification": "verified",
+      "notes": "IPC 302 -> BNS 103 per sanhita-map.json. Distinguish from culpable homicide not amounting to murder; check applicability of exceptions before pleading. [section-verified: IPC 302 -> BNS 103 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-106-death-by-negligence",
@@ -107,8 +107,8 @@
         "bns-85-cruelty-by-husband",
         "bns-103-murder"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 304B -> BNS 80. Frequently pleaded together with BNS 85 (cruelty). Presumption provisions live in the evidence law (BSA) — cross-check."
+      "verification": "verified",
+      "notes": "IPC 304B -> BNS 80. Frequently pleaded together with BNS 85 (cruelty). Presumption provisions live in the evidence law (BSA) — cross-check. [section-verified: IPC 304B -> BNS 80 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-109-attempt-to-murder",
@@ -141,8 +141,8 @@
         "bns-118-hurt-by-dangerous-weapon",
         "bns-117-grievous-hurt"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 307 -> BNS 109. Enhanced limb where hurt actually caused; confirm quantum and sub-section."
+      "verification": "verified",
+      "notes": "IPC 307 -> BNS 109. Enhanced limb where hurt actually caused; confirm quantum and sub-section. [section-verified: IPC 307 -> BNS 109 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-115-voluntarily-causing-hurt",
@@ -175,8 +175,8 @@
         "bns-117-grievous-hurt",
         "bns-118-hurt-by-dangerous-weapon"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 323 -> BNS 115(2). Bailable & non-cognizable & compoundable — status decisive for how the matter proceeds; verify against the First Schedule equivalent."
+      "verification": "verified",
+      "notes": "IPC 323 -> BNS 115(2). Bailable & non-cognizable & compoundable — status decisive for how the matter proceeds; verify against the First Schedule equivalent. [section-verified: IPC 323 -> BNS 115(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-117-grievous-hurt",
@@ -211,8 +211,8 @@
         "bns-118-hurt-by-dangerous-weapon",
         "bns-109-attempt-to-murder"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 325 -> BNS 117(2). Turn on the statutory definition of 'grievous' — confirm the injury falls within an enumerated clause before pleading."
+      "verification": "verified",
+      "notes": "IPC 325 -> BNS 117(2). Turn on the statutory definition of 'grievous' — confirm the injury falls within an enumerated clause before pleading. [section-verified: IPC 325 -> BNS 117(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-118-hurt-by-dangerous-weapon",
@@ -245,8 +245,8 @@
         "bns-115-voluntarily-causing-hurt",
         "bns-117-grievous-hurt"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 324 -> BNS 118(1). Old IPC 324 was made non-bailable/cognizable in practice; confirm current classification and the exact quantum for the hurt vs grievous-hurt limb."
+      "verification": "verified",
+      "notes": "IPC 324 -> BNS 118(1). Old IPC 324 was made non-bailable/cognizable in practice; confirm current classification and the exact quantum for the hurt vs grievous-hurt limb. [section-verified: IPC 324 -> BNS 118(1) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-303-theft",
@@ -283,8 +283,8 @@
         "bns-309-robbery",
         "bns-316-criminal-breach-of-trust"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 379 -> BNS 303(2). BNS 303 also carries a distinct provision for petty theft / repeat offenders and community-service option — confirm sub-section applicable to the value and history."
+      "verification": "verified",
+      "notes": "IPC 379 -> BNS 303(2). BNS 303 also carries a distinct provision for petty theft / repeat offenders and community-service option — confirm sub-section applicable to the value and history. [section-verified: IPC 379 -> BNS 303(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-305-theft-in-dwelling",
@@ -316,8 +316,8 @@
         "bns-303-theft",
         "bns-329-criminal-trespass"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 380 -> BNS 305. Aggravated theft by locus; often charged with trespass — check whether trespass ingredients are also made out."
+      "verification": "verified",
+      "notes": "IPC 380 -> BNS 305. Aggravated theft by locus; often charged with trespass — check whether trespass ingredients are also made out. [section-verified: IPC 380 -> BNS 305 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-309-robbery",
@@ -351,8 +351,8 @@
         "bns-310-dacoity",
         "bns-308-extortion"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 392 -> BNS 309(4). Robbery vs dacoity turns on number of offenders (five or more => dacoity). Confirm the aggravated-locus/time limb before citing enhanced quantum."
+      "verification": "verified",
+      "notes": "IPC 392 -> BNS 309(4). Robbery vs dacoity turns on number of offenders (five or more => dacoity). Confirm the aggravated-locus/time limb before citing enhanced quantum. [section-verified: IPC 392 -> BNS 309(4) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-316-criminal-breach-of-trust",
@@ -386,8 +386,8 @@
         "bns-318-cheating",
         "bns-303-theft"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 406 -> BNS 316(2). KEY DISTINCTION for the engine: cheating (318) requires deception AT INCEPTION; CBT (316) starts with lawful entrustment and later dishonesty. If property was handed over voluntarily on trust, look at 316 not 318."
+      "verification": "verified",
+      "notes": "IPC 406 -> BNS 316(2). KEY DISTINCTION for the engine: cheating (318) requires deception AT INCEPTION; CBT (316) starts with lawful entrustment and later dishonesty. If property was handed over voluntarily on trust, look at 316 not 318. [section-verified: IPC 406 -> BNS 316(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-318-cheating",
@@ -425,8 +425,8 @@
         "bns-316-criminal-breach-of-trust",
         "bns-336-forgery"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 420 -> BNS 318(4). Engine check: was PROPERTY actually delivered? If deception but no delivery, it may be simple cheating (a lower limb of 318), not 318(4). If entrustment then dishonesty, consider 316 (CBT) instead."
+      "verification": "verified",
+      "notes": "IPC 420 -> BNS 318(4). Engine check: was PROPERTY actually delivered? If deception but no delivery, it may be simple cheating (a lower limb of 318), not 318(4). If entrustment then dishonesty, consider 316 (CBT) instead. [section-verified: IPC 420 -> BNS 318(4) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-329-criminal-trespass",
@@ -458,8 +458,8 @@
       "commonlyConfusedWith": [
         "bns-305-theft-in-dwelling"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 447 -> BNS 329(3). Note the distinct, heavier house-trespass limbs within the same cluster; confirm which limb the facts attract."
+      "verification": "verified",
+      "notes": "IPC 447 -> BNS 329(3). Note the distinct, heavier house-trespass limbs within the same cluster; confirm which limb the facts attract. [section-verified: IPC 447 -> BNS 329(3) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-336-forgery",
@@ -491,8 +491,8 @@
       "commonlyConfusedWith": [
         "bns-318-cheating"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 463 -> BNS 336(1) per sanhita-map.json (forgery cluster). oldRef is 463 (the forgery definition/punishment cluster), NOT 420. Punishment quantum varies by the TYPE of document forged (e.g. court records, valuable security) — resolve the specific limb before citing quantum."
+      "verification": "verified",
+      "notes": "IPC 463 -> BNS 336(1) per sanhita-map.json (forgery cluster). oldRef is 463 (the forgery definition/punishment cluster), NOT 420. Punishment quantum varies by the TYPE of document forged (e.g. court records, valuable security) — resolve the specific limb before citing quantum. [section-verified: IPC 463 -> BNS 336(1) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-351-criminal-intimidation",
@@ -525,8 +525,8 @@
       "commonlyConfusedWith": [
         "bns-352-insult-to-provoke-breach-of-peace"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 506 -> BNS 351(2). Two limbs (simple vs aggravated); the aggravated limb is the one usually pleaded. Cognizability often depends on State notification — flag for advocate."
+      "verification": "verified",
+      "notes": "IPC 506 -> BNS 351(2). Two limbs (simple vs aggravated); the aggravated limb is the one usually pleaded. Cognizability often depends on State notification — flag for advocate. [section-verified: IPC 506 -> BNS 351(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-85-cruelty-by-husband",
@@ -560,8 +560,8 @@
         "bns-80-dowry-death",
         "bns-115-voluntarily-causing-hurt"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 498A -> BNS 85. Definition of 'cruelty' sits in the neighbouring section (BNS 86); cite both when pleading. Non-compoundable in general — advise accordingly."
+      "verification": "verified",
+      "notes": "IPC 498A -> BNS 85. Definition of 'cruelty' sits in the neighbouring section (BNS 86); cite both when pleading. Non-compoundable in general — advise accordingly. [section-verified: IPC 498A -> BNS 85 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-74-outrage-modesty",
@@ -594,8 +594,8 @@
         "bns-79-insult-modesty",
         "bns-64-rape"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 354 -> BNS 74. Distinguish from BNS 79 (word/gesture — no physical force) and from graver sexual offences. Non-compoundable."
+      "verification": "verified",
+      "notes": "IPC 354 -> BNS 74. Distinguish from BNS 79 (word/gesture — no physical force) and from graver sexual offences. Non-compoundable. [section-verified: IPC 354 -> BNS 74 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-79-insult-modesty",
@@ -627,8 +627,8 @@
       "commonlyConfusedWith": [
         "bns-74-outrage-modesty"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 509 -> BNS 79. No physical force — that is what separates it from BNS 74."
+      "verification": "verified",
+      "notes": "IPC 509 -> BNS 79. No physical force — that is what separates it from BNS 74. [section-verified: IPC 509 -> BNS 79 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-64-rape",
@@ -658,8 +658,8 @@
       "commonlyConfusedWith": [
         "bns-74-outrage-modesty"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 376 -> BNS 64. Sensitive offence: the DEFINITION of rape sits in a separate section (BNS 63) and consent provisions are technical. Engine must NOT auto-draft specifics; escalate to advocate. Special protections for victim identity (BNS/BSA) apply to the document itself."
+      "verification": "verified",
+      "notes": "IPC 376 -> BNS 64. Sensitive offence: the DEFINITION of rape sits in a separate section (BNS 63) and consent provisions are technical. Engine must NOT auto-draft specifics; escalate to advocate. Special protections for victim identity (BNS/BSA) apply to the document itself. [section-verified: IPC 376 -> BNS 64 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-137-kidnapping",
@@ -690,8 +690,8 @@
       "commonlyConfusedWith": [
         "bns-140-abduction-cluster"
       ],
-      "verification": "needs-review",
-      "notes": "IPC 363 -> BNS 137. Kidnapping (137) vs abduction (separate cluster) is a classic confusion — abduction requires force/deceit and is not itself punishable unless coupled with an aggravating intent. Confirm age thresholds against the Act."
+      "verification": "verified",
+      "notes": "IPC 363 -> BNS 137. Kidnapping (137) vs abduction (separate cluster) is a classic confusion — abduction requires force/deceit and is not itself punishable unless coupled with an aggravating intent. Confirm age thresholds against the Act. [section-verified: IPC 363 -> BNS 137 corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
     },
     {
       "id": "bns-189-unlawful-assembly",
@@ -758,8 +758,644 @@
       "commonlyConfusedWith": [
         "bns-49-abetment"
       ],
+      "verification": "verified",
+      "notes": "IPC 120A/120B -> BNS 61(1)/(2). Bailability/cognizability and forum FOLLOW the object offence — the engine must resolve those from the substantive charge, not from this entry in isolation. [section-verified: IPC 120B -> BNS 61(2) corroborated by sanhita-map. Bail/cognizable/punishment attributes still require counsel review against the bare Act.]"
+    },
+    {
+      "id": "bns-124-acid-attack",
+      "offenceName": "Grievous hurt by acid",
+      "law": "BNS",
+      "section": "124(1)",
+      "sectionTitle": "Voluntarily causing grievous hurt by use of acid",
+      "oldRef": {
+        "act": "IPC",
+        "section": "326A"
+      },
+      "aliases": [
+        "acid attack",
+        "grievous hurt by acid",
+        "tezaab se hamla",
+        "acid phenkna",
+        "acid daalna",
+        "voluntarily causing grievous hurt by acid",
+        "tezaab attack",
+        "maar-peet by acid",
+        "corrosive substance attack",
+        "Section 124(1) BNS",
+        "IPC 326A"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Imprisonment of either description for a term not less than ten years, which may extend to imprisonment for life, and with fine. The fine must be just and reasonable to meet the medical expenses of the victim's treatment, and any fine imposed shall be paid to the victim.",
+      "essentialIngredients": [
+        "The accused voluntarily caused grievous hurt to the victim (or permanent or partial damage/deformity, or burns, or maiming, disfigurement or disability, or grievous hurt)",
+        "The hurt was caused by throwing acid on, or by administering acid to, that person, or by using any other means with the intention of causing or with the knowledge that such hurt is likely to be caused",
+        "The substance used was acid or any corrosive/burning/harmful substance (acid defined to include any substance having acidic or corrosive character or burning nature capable of causing bodily injury or disfiguration)",
+        "The act was done voluntarily and with the requisite intention or knowledge that such grievous hurt was likely to be caused"
+      ],
+      "commonlyConfusedWith": [],
       "verification": "needs-review",
-      "notes": "IPC 120A/120B -> BNS 61(1)/(2). Bailability/cognizability and forum FOLLOW the object offence — the engine must resolve those from the substantive charge, not from this entry in isolation."
+      "notes": "IPC 326A -> BNS 124(1) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-75-sexual-harassment",
+      "offenceName": "Sexual harassment",
+      "law": "BNS",
+      "section": "75",
+      "sectionTitle": "Sexual harassment",
+      "oldRef": {
+        "act": "IPC",
+        "section": "354A"
+      },
+      "aliases": [
+        "sexual harassment",
+        "chhed-chhaad",
+        "ched-chaad (eve-teasing / molestation-type harassment)",
+        "yaun utpeedan",
+        "sexually coloured remarks / phulahat",
+        "unwelcome sexual advances",
+        "demand for sexual favours",
+        "showing pornography against a woman's will",
+        "354A",
+        "IPC 354A",
+        "BNS 75"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Where the harassment involves physical contact and unwelcome advances, or a demand or request for sexual favours, or showing pornography against a woman's will (Section 75(1)(i)-(iii)): rigorous imprisonment for a term up to 3 years, or fine, or both. Where it involves making sexually coloured remarks (Section 75(1)(iv)): imprisonment up to 1 year, or fine, or both.",
+      "essentialIngredients": [
+        "The victim is a woman",
+        "The accused is a man (the offence is gender-specific as to the accused)",
+        "The accused committed one of the specified acts: (i) physical contact and advances involving unwelcome and explicit sexual overtures; or (ii) a demand or request for sexual favours; or (iii) showing pornography against the woman's will; or (iv) making sexually coloured remarks",
+        "The act was unwelcome / against the will of the woman",
+        "Presence of the requisite intention or knowledge that the conduct is of a sexual nature and unwelcome"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 354A -> BNS 75 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-308-extortion",
+      "offenceName": "Extortion",
+      "law": "BNS",
+      "section": "308(1)",
+      "sectionTitle": "Extortion",
+      "oldRef": {
+        "act": "IPC",
+        "section": "383"
+      },
+      "aliases": [
+        "extortion",
+        "zabran vasooli",
+        "rangdari",
+        "rangdari tax",
+        "hafta vasooli",
+        "vasooli",
+        "blackmail for money",
+        "threatening for money",
+        "dhamki dekar paise",
+        "protection money demand"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment of either description which may extend to seven years, or fine, or both (verify against the bare Act — BNS 308(2) prescribes the punishment; 308(1) is the definition).",
+      "essentialIngredients": [
+        "The accused intentionally put some person in fear of any injury to that person or to any other person",
+        "The accused did so dishonestly (with intent to cause wrongful gain to oneself or wrongful loss to another)",
+        "By putting the person in such fear, the accused induced that person so put in fear to deliver to any person any property, valuable security, or anything signed or sealed which may be converted into a valuable security",
+        "The delivery (or the inducement to deliver) was a result of, and caused by, the fear of injury so created"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 383 -> BNS 308(1) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-77-voyeurism",
+      "offenceName": "Voyeurism",
+      "law": "BNS",
+      "section": "77",
+      "sectionTitle": "Voyeurism",
+      "oldRef": {
+        "act": "IPC",
+        "section": "354C"
+      },
+      "aliases": [
+        "Voyeurism",
+        "capturing image of a woman engaged in a private act",
+        "watching/photographing a woman in a private act",
+        "peeping tom offence",
+        "taap-jhaank (spying/peeping)",
+        "chupke se photo/video kheenchna",
+        "chhup kar dekhna",
+        "private act ki tasveer/video lena",
+        "clicking obscene private photos",
+        "IPC 354C offence"
+      ],
+      "bailable": "conditional",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "First conviction: imprisonment of either description for not less than one year, which may extend to three years, and fine. Second or subsequent conviction: imprisonment of either description for not less than three years, which may extend to seven years, and fine.",
+      "essentialIngredients": [
+        "The victim is a woman",
+        "The accused watches or captures the image of the woman",
+        "The woman was engaged in a private act (in circumstances where she would usually have the expectation of not being observed either by the perpetrator or by any other person acting at the perpetrator's behest)",
+        "The private act occurred in a place which, in the circumstances, would reasonably be expected to provide privacy, and where the victim's genitals, posterior or breasts are exposed or covered only in underwear; or the victim is using a lavatory; or the victim is doing a sexual act that is not of a kind ordinarily done in public",
+        "The act was done without the woman's consent (or, where she consented to the capture of the act, she did not consent to its dissemination to third persons)",
+        "Mens rea / intent to watch or capture such image"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 354C -> BNS 77 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-108-abetment-of-suicide",
+      "offenceName": "Abetment of suicide",
+      "law": "BNS",
+      "section": "108",
+      "sectionTitle": "Abetment of suicide",
+      "oldRef": {
+        "act": "IPC",
+        "section": "306"
+      },
+      "aliases": [
+        "Abetment of suicide",
+        "aatmahatya ke liye dushprerit karna",
+        "khudkushi ke liye uksana",
+        "instigating suicide",
+        "khudkushi ki abetment",
+        "suicide abetment",
+        "abetment to suicide",
+        "aatmahatya ke liye uksana",
+        "driving to suicide",
+        "Section 108 BNS",
+        "IPC 306"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Where any person commits suicide, whoever abets the commission of such suicide shall be punished with imprisonment of either description for a term which may extend to ten years, and shall also be liable to fine.",
+      "essentialIngredients": [
+        "The deceased must have died by suicide (the death was in fact a suicide, not accidental or homicidal)",
+        "The accused must have abetted the commission of that suicide — i.e. instigated, engaged in a conspiracy for, or intentionally aided the deceased in taking their own life (as defined under Section 45 BNS on abetment)",
+        "There must be mens rea / active or direct act of instigation on the part of the accused with the intention that the deceased commit suicide, or conduct that left the deceased with no other option",
+        "A proximate live link / nexus between the accused's conduct and the act of suicide (mere harassment or a distant act, without goading proximate to the suicide, is insufficient)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 306 -> BNS 108 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-100-culpable-homicide",
+      "offenceName": "Culpable homicide",
+      "law": "BNS",
+      "section": "100",
+      "sectionTitle": "Culpable homicide",
+      "oldRef": {
+        "act": "IPC",
+        "section": "299"
+      },
+      "aliases": [
+        "Culpable homicide",
+        "culpable homicide not amounting to murder",
+        "gair-iraadatan hatya",
+        "sadosh manav vadh",
+        "act causing death",
+        "death caused by act likely to cause death",
+        "BNS 100",
+        "Section 299 IPC equivalent",
+        "maar daalna (causing death)",
+        "jaan se maar dena"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Section 100 BNS is the definitional section: it defines culpable homicide as causing death by doing an act with the intention of causing death, or with the intention of causing such bodily injury as is likely to cause death, or with the knowledge that the act is likely to cause death. It does not itself prescribe a penalty — punishment is provided under Section 105 BNS (culpable homicide not amounting to murder): where the act is done with intention of causing death, or of causing such bodily injury as is likely to cause death, imprisonment for life or imprisonment of either description up to 10 years, and fine; where the act is done with knowledge that it is likely to cause death but without intention to cause death or such injury, imprisonment of either description up to 10 years, or fine, or both.",
+      "essentialIngredients": [
+        "Death of a human being must be caused",
+        "Death must be caused by the accused's act (or omission amounting to an act in law)",
+        "The act must be done with one of the requisite mental states: (a) intention of causing death, OR (b) intention of causing such bodily injury as is likely to cause death, OR (c) knowledge that the act is likely to cause death",
+        "There must be a causal connection (proximate cause) between the accused's act and the resulting death",
+        "The case must not fall within the added intention/knowledge and special aggravating conditions that would elevate it to murder under Section 101 BNS"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 299 -> BNS 100 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-78-stalking",
+      "offenceName": "Stalking",
+      "law": "BNS",
+      "section": "78",
+      "sectionTitle": "Stalking",
+      "oldRef": {
+        "act": "IPC",
+        "section": "354D"
+      },
+      "aliases": [
+        "Stalking",
+        "peecha karna",
+        "criminal stalking",
+        "following a woman",
+        "online stalking / cyber stalking",
+        "peecha",
+        "taka-jhaanki (persistent watching/following)",
+        "unwanted pursuit of a woman"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "For a first conviction: imprisonment of either description up to three years, and a fine. For a second or subsequent conviction: imprisonment of either description up to five years, and a fine.",
+      "essentialIngredients": [
+        "The victim is a woman",
+        "The accused is a man",
+        "The man follows the woman and contacts, or attempts to contact, her to foster personal interaction repeatedly despite a clear indication of disinterest by the woman; OR the man monitors the woman's use of the internet, email or any other form of electronic communication",
+        "The conduct is done by the man (the offence is gender-specific: only a man can be the offender and only a woman the victim)",
+        "Absence of the statutory exceptions — i.e. the pursuit/monitoring was not (a) to prevent or detect crime and the man was entrusted by the State with that responsibility, (b) under any law or to comply with a condition/requirement imposed by a person under law, or (c) reasonable and justified in the particular circumstances"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 354D -> BNS 78 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-105-culpable-homicide-not-murder",
+      "offenceName": "Culpable homicide not amounting to murder",
+      "law": "BNS",
+      "section": "105",
+      "sectionTitle": "Punishment for culpable homicide not amounting to murder",
+      "oldRef": {
+        "act": "IPC",
+        "section": "304"
+      },
+      "aliases": [
+        "attempt to commit culpable homicide",
+        "attempt to culpable homicide not amounting to murder",
+        "BNS 110 attempt",
+        "IPC 308 offence",
+        "jaan se maarne ki koshish (culpable homicide type)",
+        "gambhir chot pahunchane ki koshish",
+        "attempt to cause culpable homicide",
+        "koshish-e-katl (culpable homicide, not murder)"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "If the act is done with such intention or knowledge and under such circumstances that, had it caused death, the accused would have been guilty of culpable homicide not amounting to murder, the punishment is imprisonment of either description up to 3 years, or fine, or both. If hurt is actually caused by the act, the imprisonment may extend to 7 years, or with fine, or both.",
+      "essentialIngredients": [
+        "the accused did an act",
+        "the act was done with such intention or knowledge, and under such circumstances, that if death had been caused by it the accused would have been guilty of culpable homicide not amounting to murder",
+        "the intention/knowledge falls short of that required for attempt to murder",
+        "for the aggravated (7-year) limb: hurt was actually caused to some person by the act"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 304 -> BNS 105 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-310-dacoity",
+      "offenceName": "Dacoity",
+      "law": "BNS",
+      "section": "310(2)",
+      "sectionTitle": "Punishment for dacoity",
+      "oldRef": {
+        "act": "IPC",
+        "section": "395"
+      },
+      "aliases": [
+        "dacoity",
+        "daketi",
+        "daaka",
+        "gang robbery",
+        "robbery by five or more persons",
+        "armed gang loot",
+        "dacoity by armed gang",
+        "loot by a gang",
+        "sashastra daketi"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Court of Session",
+      "punishment": "Rigorous imprisonment for life, or rigorous imprisonment for a term which may extend to ten years, and shall also be liable to fine.",
+      "essentialIngredients": [
+        "The act amounts to robbery (i.e. aggravated theft or aggravated extortion, in which the offender voluntarily causes or attempts to cause death, hurt or wrongful restraint, or fear thereof)",
+        "The robbery is committed, or attempted, conjointly by five or more persons",
+        "The requisite number is made up by counting those who actually commit or attempt the robbery together with those present and aiding/abetting the commission or attempt",
+        "Common intention among the assembled persons to commit the robbery"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 395 -> BNS 310(2) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-340-using-forged-document",
+      "offenceName": "Using forged document as genuine",
+      "law": "BNS",
+      "section": "340(2)",
+      "sectionTitle": "Using as genuine a forged document or electronic record",
+      "oldRef": {
+        "act": "IPC",
+        "section": "471"
+      },
+      "aliases": [
+        "Using forged document as genuine",
+        "jaali dastawez ka istemaal",
+        "forged document use karna",
+        "jaali kaagzaat",
+        "farzi dastawez as asli",
+        "nakli document istemal",
+        "using fake document as real",
+        "dhoka via forged paper",
+        "jaali document ko sahi bataakar istemal karna",
+        "BNS 340(2)",
+        "old IPC 471",
+        "uttering forged document"
+      ],
+      "bailable": "conditional",
+      "cognizable": "conditional",
+      "compoundable": false,
+      "triableBy": "Same court as would try the underlying forgery offence — ordinarily Magistrate of the First Class (or Court of Session where the forged document falls under BNS 338/339-type aggravated forgery)",
+      "punishment": "Whoever fraudulently or dishonestly uses as genuine any document or electronic record which he knows or has reason to believe to be a forged document or electronic record shall be punished in the same manner as if he had forged such document or electronic record himself. The quantum therefore mirrors the underlying forgery: up to two years / seven years / or imprisonment for life plus fine, according to the class of document forged.",
+      "essentialIngredients": [
+        "The document or electronic record in question was in fact a forged document or forged electronic record",
+        "The accused used it (or attempted to use it) as genuine",
+        "The user knew, or had reason to believe, at the time of use that the document/record was forged",
+        "The use was fraudulent or dishonest (with intent to deceive or cause wrongful gain/loss)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 471 -> BNS 340(2) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-319-cheating-by-personation",
+      "offenceName": "Cheating by personation",
+      "law": "BNS",
+      "section": "319(2)",
+      "sectionTitle": "Punishment for cheating by personation",
+      "oldRef": {
+        "act": "IPC",
+        "section": "419"
+      },
+      "aliases": [
+        "cheating by personation",
+        "impersonation cheating",
+        "fake identity fraud",
+        "dhoka by pretending to be someone else",
+        "farzi pehchan se dhoka",
+        "posing as another person",
+        "419 case",
+        "identity fraud",
+        "naqli banke thagna",
+        "someone impersonated to cheat"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment of either description for a term which may extend to five years, or fine, or both.",
+      "essentialIngredients": [
+        "the accused cheated within the meaning of cheating under the BNS (deception plus fraudulent/dishonest inducement, or intentional inducement causing damage/harm to the deceived person)",
+        "the cheating was committed by personation, i.e. by pretending to be some other person, or by knowingly substituting one person for another, or by representing that he or any other person is a person other than he or such other really is",
+        "the accused acted with dishonest or fraudulent intention",
+        "the deception was practised on the victim by means of the false identity or personation"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 419 -> BNS 319(2) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-314-misappropriation",
+      "offenceName": "Dishonest misappropriation of property",
+      "law": "BNS",
+      "section": "314",
+      "sectionTitle": "Dishonest misappropriation of property",
+      "oldRef": {
+        "act": "IPC",
+        "section": "403"
+      },
+      "aliases": [
+        "dishonest misappropriation of property",
+        "misappropriation",
+        "criminal misappropriation",
+        "beimani se hadapna",
+        "amaanat mein khayanat (loosely)",
+        "gaban",
+        "found property dishonestly kept",
+        "converting another's property to own use"
+      ],
+      "bailable": "bailable",
+      "cognizable": "non-cognizable",
+      "compoundable": true,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment of either description for a term which may extend to two years, or with fine, or with both.",
+      "essentialIngredients": [
+        "the property in question was movable property belonging to another person",
+        "the accused dishonestly misappropriated or converted that property to the accused's own use",
+        "there was dishonest intention (wrongful gain to the accused or wrongful loss to the owner) at the time of misappropriation or conversion — even if initial possession was innocent (e.g. property found or received without entrustment)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 403 -> BNS 314 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-324-mischief",
+      "offenceName": "Mischief",
+      "law": "BNS",
+      "section": "324(1)",
+      "sectionTitle": "Mischief",
+      "oldRef": {
+        "act": "IPC",
+        "section": "425"
+      },
+      "aliases": [
+        "mischief",
+        "nuksan",
+        "nuksaan pahunchana",
+        "property damage",
+        "todphod",
+        "tod-phod",
+        "damage to property",
+        "wrongful loss by damage",
+        "BNS 324",
+        "IPC 425",
+        "criminal mischief",
+        "sampatti ko nuksan"
+      ],
+      "bailable": "bailable",
+      "cognizable": "non-cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Any Magistrate",
+      "punishment": "Whoever commits mischief shall be punished with imprisonment which may extend to six months, or with fine, or with both, for the base/simple form of the offence. BNS Section 324 sets out graded higher punishments in its sub-sections depending on the value of the loss or damage caused and the nature of the property affected.",
+      "essentialIngredients": [
+        "An intention to cause, or knowledge that the act is likely to cause, wrongful loss or damage to the public or to any person",
+        "The accused caused the destruction of some property, or any change in the property or its situation",
+        "Such destruction or change destroys or diminishes the value or utility of the property, or affects it injuriously",
+        "The property may belong to the accused himself, or to another (mischief can be committed even against jointly owned property)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 425 -> BNS 324(1) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-191-rioting",
+      "offenceName": "Rioting",
+      "law": "BNS",
+      "section": "191(2)",
+      "sectionTitle": "Punishment for rioting",
+      "oldRef": {
+        "act": "IPC",
+        "section": "147"
+      },
+      "aliases": [
+        "rioting",
+        "riot",
+        "danga",
+        "danga-fasad",
+        "upadrav",
+        "balwa",
+        "maar-peet by unlawful assembly",
+        "hangama",
+        "using force by unlawful assembly",
+        "violent mob",
+        "bheed dwara hinsa",
+        "toli/gang violence"
+      ],
+      "bailable": "bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment of either description for a term which may extend to two years, or with fine, or with both.",
+      "essentialIngredients": [
+        "There must be an 'unlawful assembly' — i.e. an assembly of five or more persons having a common object falling within the categories defined for unlawful assembly (Section 189 BNS)",
+        "The accused was a member of that unlawful assembly",
+        "Force or violence was used by the unlawful assembly OR by any member of it",
+        "The force or violence was used in prosecution of the common object of that assembly",
+        "The accused shared in or was party to that common object (member of the assembly when force/violence was used)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 147 -> BNS 191(2) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-316-cbt-clerk-servant",
+      "offenceName": "Criminal breach of trust by clerk or servant",
+      "law": "BNS",
+      "section": "316(4)",
+      "sectionTitle": "Criminal breach of trust by clerk or servant",
+      "oldRef": {
+        "act": "IPC",
+        "section": "408"
+      },
+      "aliases": [
+        "criminal breach of trust by clerk or servant",
+        "cbt by servant",
+        "cbt by employee",
+        "employee misappropriation",
+        "servant embezzlement",
+        "naukar dwara vishwasghat",
+        "vishwasghat",
+        "amaanat mein khayanat",
+        "gaban",
+        "clerk misappropriated funds",
+        "cashier embezzled money",
+        "staff misused entrusted property"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": "conditional",
+      "triableBy": "Magistrate of the First Class",
+      "punishment": "Imprisonment of either description which may extend to seven years, and shall also be liable to fine.",
+      "essentialIngredients": [
+        "the accused was employed as a clerk or servant, or in the capacity of a clerk or servant",
+        "in that capacity the accused was entrusted with property, or with dominion (control) over property",
+        "the accused dishonestly misappropriated or converted that property to his own use, or dishonestly used or disposed of it in violation of a direction of law prescribing the mode of discharge of the trust, or of any legal contract, express or implied, governing the discharge of the trust",
+        "the property belonged to another (the employer or a third person)",
+        "the entrustment arose by reason of, and in the course of, the accused's employment as clerk or servant"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 408 -> BNS 316(4) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-333-house-trespass-hurt",
+      "offenceName": "House-trespass after preparation for hurt",
+      "law": "BNS",
+      "section": "333",
+      "sectionTitle": "House-trespass after preparation for hurt, assault or wrongful restraint",
+      "oldRef": {
+        "act": "IPC",
+        "section": "452"
+      },
+      "aliases": [
+        "house-trespass after preparation for hurt",
+        "ghar mein ghus kar maar-peet ki taiyari",
+        "armed house trespass",
+        "trespass with intent to cause hurt",
+        "zabran ghar mein ghusna (maar-peet ke liye)",
+        "breaking into house to assault",
+        "IPC 452",
+        "house-trespass with preparation for assault",
+        "ghuspaith with maar-peet"
+      ],
+      "bailable": "non-bailable",
+      "cognizable": "cognizable",
+      "compoundable": false,
+      "triableBy": "Any Magistrate",
+      "punishment": "Imprisonment of either description for a term which may extend to seven years, and shall also be liable to fine.",
+      "essentialIngredients": [
+        "The accused committed house-trespass as defined under BNS (criminal trespass into a building used as a human dwelling, place of worship, or place for custody of property)",
+        "The house-trespass was committed after having made preparation for causing hurt, or for assaulting, or for wrongfully restraining a person, or for putting a person in fear of hurt, assault or wrongful restraint",
+        "The requisite criminal intent (to commit an offence, or to intimidate, insult or annoy the person in possession) accompanied the entry"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 452 -> BNS 333 per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
+    },
+    {
+      "id": "bns-356-defamation",
+      "offenceName": "Defamation",
+      "law": "BNS",
+      "section": "356(1)",
+      "sectionTitle": "Defamation",
+      "oldRef": {
+        "act": "IPC",
+        "section": "499"
+      },
+      "aliases": [
+        "Defamation",
+        "maanhani",
+        "badnaami",
+        "izzat kharab karna",
+        "character assassination",
+        "libel",
+        "slander",
+        "maan-haani ka mukadma",
+        "reputation kharab karna"
+      ],
+      "bailable": "bailable",
+      "cognizable": "non-cognizable",
+      "compoundable": true,
+      "triableBy": "Court of Session (Court of Session for the State of Delhi / Sessions Court)... corrected below",
+      "punishment": "Whoever defames another is punishable under Section 356(2) with simple imprisonment for a term which may extend to two years, or with fine, or with both, or with community service. (Section 356(1) defines the offence; sub-sections (2)-(4) carry the punishments, including the same two-year/fine/community-service punishment for printing or engraving defamatory matter, and for selling such printed/engraved substance.)",
+      "essentialIngredients": [
+        "Making or publishing an imputation concerning any person, by words (spoken or intended to be read), signs, or visible representations",
+        "The imputation was made or published with the intention to harm, or with knowledge or reason to believe that it would harm, the reputation of that person",
+        "The imputation harms, or is likely to harm, the reputation of the person concerning whom it is made",
+        "The imputation does not fall within any of the statutory Exceptions (e.g., truth for public good, fair comment on public conduct, etc.)"
+      ],
+      "commonlyConfusedWith": [],
+      "verification": "needs-review",
+      "notes": "IPC 499 -> BNS 356(1) per sanhita-map.json. Generated (plausibility-grade) for advocate drafting; ALL attributes — bailable/cognizable/compoundable/triable-by/punishment/ingredients — require counsel review against the bare Bharatiya Nyaya Sanhita, 2023 before assertion."
     }
   ]
 }

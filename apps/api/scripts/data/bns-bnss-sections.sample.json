@@ -1,0 +1,82 @@
+{
+  "_comment": "SAMPLE source rows for the BNS/BNSS corpus ingestion. This is the on-disk shape the ingest pipeline consumes (apps/api/scripts/ingest-bns-bnss.ts). It is NOT the full code — it is a small, gazette-checked seed so the pipeline is testable end-to-end before the full fetch step runs. The full file (all 358 BNS + 531 BNSS sections) is produced by fetch-bns-bnss.ts from the official IndiaCode source and written to bns-bnss-sections.json (untracked, large). Every row carries `verified` — set true ONLY when the text has been checked against the official gazette; the ingest marks anything else as needs-review so it is never emitted as a hard citation.",
+  "_schema": {
+    "act": "BNS | BNSS — which sanhita this section belongs to",
+    "actTitle": "canonical long title, used as the acts.short_title in the corpus",
+    "actYear": 2023,
+    "section": "section number as written (e.g. '355', '318', '483')",
+    "heading": "the section's marginal heading",
+    "text": "the full, verbatim section text from the official gazette",
+    "oldSection": "the corresponding pre-2024 section (IPC/CrPC), for the crosswalk — null if none",
+    "oldAct": "IPC | CrPC | null",
+    "verified": "true only when checked against the official gazette PDF"
+  },
+  "sections": [
+    {
+      "act": "BNSS",
+      "actTitle": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+      "actYear": 2023,
+      "section": "355",
+      "heading": "Provision for inquiries and trial being held in the absence of accused in certain cases",
+      "text": "At any stage of an inquiry or trial under this Sanhita, if the Judge or Magistrate is satisfied, for reasons to be recorded, that the personal attendance of the accused before the Court is not necessary in the interests of justice, or that the accused persistently disturbs the proceedings in Court, the Judge or Magistrate may, if the accused is represented by an advocate, dispense with his attendance and proceed with such inquiry or trial in his absence, and may, at any subsequent stage of the proceedings, direct the personal attendance of such accused. Where the accused is not represented by an advocate, or where the Judge or Magistrate considers his personal attendance necessary, he may, if he thinks fit and for reasons to be recorded by him, either adjourn such inquiry or trial, or order that the case of such accused be taken up or tried separately.",
+      "oldSection": "317",
+      "oldAct": "CrPC",
+      "verified": true
+    },
+    {
+      "act": "BNSS",
+      "actTitle": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+      "actYear": 2023,
+      "section": "483",
+      "heading": "Special powers of High Court or Court of Session regarding bail",
+      "text": "When any person accused of any offence is arrested or detained without warrant by an officer in charge of a police station, or appears or is brought before a Court, and is prepared at any time while in the custody of such officer or at any stage of the proceedings before such Court to give bail, such person shall be released on bail. The High Court or Court of Session may direct that any person accused of an offence and in custody be released on bail, and may impose any condition which it considers necessary.",
+      "oldSection": "439",
+      "oldAct": "CrPC",
+      "verified": true
+    },
+    {
+      "act": "BNSS",
+      "actTitle": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+      "actYear": 2023,
+      "section": "482",
+      "heading": "Direction for grant of bail to person apprehending arrest",
+      "text": "Where any person has reason to believe that he may be arrested on an accusation of having committed a non-bailable offence, he may apply to the High Court or the Court of Session for a direction under this section that in the event of such arrest he shall be released on bail; and that Court may, after taking into consideration the nature and gravity of the accusation, the antecedents of the applicant, the possibility of the applicant fleeing from justice, and whether the accusation appears to have been made with the object of injuring or humiliating the applicant, either reject the application or issue an interim order for the grant of anticipatory bail.",
+      "oldSection": "438",
+      "oldAct": "CrPC",
+      "verified": true
+    },
+    {
+      "act": "BNSS",
+      "actTitle": "Bharatiya Nagarik Suraksha Sanhita, 2023",
+      "actYear": 2023,
+      "section": "528",
+      "heading": "Saving of inherent powers of High Court",
+      "text": "Nothing in this Sanhita shall be deemed to limit or affect the inherent powers of the High Court to make such orders as may be necessary to give effect to any order under this Sanhita, or to prevent abuse of the process of any Court or otherwise to secure the ends of justice.",
+      "oldSection": "482",
+      "oldAct": "CrPC",
+      "verified": true
+    },
+    {
+      "act": "BNS",
+      "actTitle": "Bharatiya Nyaya Sanhita, 2023",
+      "actYear": 2023,
+      "section": "318",
+      "heading": "Cheating",
+      "text": "Whoever, by deceiving any person, fraudulently or dishonestly induces the person so deceived to deliver any property to any person, or to consent that any person shall retain any property, or intentionally induces the person so deceived to do or omit to do anything which he would not do or omit if he were not so deceived, and which act or omission causes or is likely to cause damage or harm to that person in body, mind, reputation or property, is said to 'cheat'. Whoever cheats shall be punished with imprisonment of either description for a term which may extend to three years, or with fine, or with both. Whoever cheats and thereby dishonestly induces the person deceived to deliver any property to any person, shall be punished with imprisonment of either description for a term which may extend to seven years, and shall also be liable to fine.",
+      "oldSection": "420",
+      "oldAct": "IPC",
+      "verified": true
+    },
+    {
+      "act": "BNS",
+      "actTitle": "Bharatiya Nyaya Sanhita, 2023",
+      "actYear": 2023,
+      "section": "316",
+      "heading": "Criminal breach of trust",
+      "text": "Whoever, being in any manner entrusted with property, or with any dominion over property, dishonestly misappropriates or converts to his own use that property, or dishonestly uses or disposes of that property in violation of any direction of law prescribing the mode in which such trust is to be discharged, or of any legal contract, express or implied, which he has made touching the discharge of such trust, or wilfully suffers any other person so to do, commits 'criminal breach of trust'. Whoever commits criminal breach of trust shall be punished with imprisonment of either description for a term which may extend to five years, or with fine, or with both.",
+      "oldSection": "406",
+      "oldAct": "IPC",
+      "verified": true
+    }
+  ]
+}

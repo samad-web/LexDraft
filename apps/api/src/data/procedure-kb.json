@@ -22,6 +22,7 @@
       "law": "BNSS",
       "section": "483",
       "sectionTitle": "Special powers of High Court or Court of Session regarding bail",
+      "sectionText": "(1) A High Court or Court of Session may direct— (a) that any person accused of an offence and in custody be released on bail, and if the offence is of the nature specified in sub-section (3) of section 480, may impose any condition which it considers necessary for the purposes mentioned in that sub-section; (b) that any condition imposed by a Magistrate when releasing any person on bail be set aside or modified: Provided that the High Court or the Court of Session shall, before granting bail to a person who is accused of an offence which is triable exclusively by the Court of Session or which, though not so triable, is punishable with imprisonment for life, give notice of the application for bail to the Public Prosecutor unless it is, for reasons to be recorded in writing, of opinion that it is not practicable to give such notice. (GAZETTE TEXT PENDING COUNSEL VERIFICATION against BNSS 2023 bare Act.)",
       "oldRef": { "act": "CrPC", "section": "439" },
       "aliases": ["bail before sessions court", "bail before high court", "special powers bail", "sessions bail", "high court bail"],
       "forum": "Court of Session or High Court",
@@ -61,6 +62,7 @@
       "law": "BNSS",
       "section": "528",
       "sectionTitle": "Saving of inherent powers of High Court",
+      "sectionText": "Nothing in this Sanhita shall be deemed to limit or affect the inherent powers of the High Court to make such orders as may be necessary to give effect to any order under this Sanhita, or to prevent abuse of the process of any Court or otherwise to secure the ends of justice. (GAZETTE TEXT PENDING COUNSEL VERIFICATION against BNSS 2023 bare Act.)",
       "oldRef": { "act": "CrPC", "section": "482" },
       "aliases": ["quashing", "quash fir", "inherent powers", "quash proceedings", "482 petition (old)", "quash chargesheet"],
       "forum": "High Court",
@@ -93,6 +95,20 @@
       "whenUsed": "Filing a private complaint before a Magistrate who then examines the complainant on oath.",
       "verification": "needs-review",
       "notes": "CrPC 200 -> BNSS 223 per sanhita-map.json. BNSS 223 adds a proviso (opportunity of hearing to the accused in certain cases) — verify before drafting."
+    },
+    {
+      "id": "bnss-355-exemption-appearance",
+      "purpose": "exemption-personal-appearance",
+      "law": "BNSS",
+      "section": "355",
+      "sectionTitle": "Provision for inquiries and trial being held in the absence of accused in certain cases",
+      "sectionText": "(1) At any stage of an inquiry or trial under this Sanhita, if the Judge or Magistrate is satisfied, for reasons to be recorded, that the personal attendance of the accused before the Court is not necessary in the interests of justice, or that the accused persistently disturbs the proceedings in Court, the Judge or Magistrate may, if the accused is represented by an advocate, dispense with his attendance and proceed with such inquiry or trial in his absence, and may, at any subsequent stage of the proceedings, direct the personal attendance of such accused. (2) If the accused in any such case is not represented by an advocate, or if the Judge or Magistrate considers his personal attendance necessary, he may, if he thinks fit and for reasons to be recorded by him, either adjourn such inquiry or trial, or order that the case of such accused be taken up or tried separately. (GAZETTE TEXT PENDING COUNSEL VERIFICATION against BNSS 2023 bare Act.)",
+      "oldRef": { "act": "CrPC", "section": "317" },
+      "aliases": ["exemption from personal appearance", "dispense with attendance", "absence of accused", "exemption from appearance", "personal appearance exemption", "attendance dispensation", "317 application", "presence exemption"],
+      "forum": "Magistrate or Court of Session (the court seized of the inquiry/trial)",
+      "whenUsed": "Accused (represented by an advocate) applies to be exempted from personal attendance at a hearing — e.g. illness, distance, or where presence is not necessary in the interests of justice.",
+      "verification": "needs-review",
+      "notes": "CrPC 317 -> BNSS 355 per sanhita-map.json. Requires the accused to be represented by an advocate; the court records reasons and may direct personal attendance at any later stage. This is the section behind the failed '317 exemption' draft."
     }
   ]
 }
