@@ -65,11 +65,13 @@
   "affidavit": {
     "all": [
       "address",
+      "affidavit_kind",
       "affirm_date",
       "age",
       "attestor",
       "authority_ref",
       "body_paras",
+      "cheques",
       "court_district",
       "court_name",
       "court_place",
@@ -77,8 +79,13 @@
       "defendant_name",
       "deponent_capacity",
       "deponent_name",
+      "dishonour_reason",
       "is_corporate",
       "is_third_party",
+      "matter_type",
+      "memo_date",
+      "memo_received_date",
+      "notice_date",
       "occupation",
       "parentage_name",
       "parentage_type",
@@ -86,6 +93,8 @@
       "plaintiff_description",
       "plaintiff_name",
       "prayer",
+      "presentation_bank",
+      "presentation_date",
       "proceeding",
       "religion",
       "role",
@@ -96,6 +105,28 @@
       "verification_place"
     ],
     "fields": [
+      {
+        "enumValues": [
+          "s138",
+          "civil_suit",
+          "bail",
+          "writ",
+          "other"
+        ],
+        "key": "matter_type",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "s145_proof",
+          "supporting",
+          "interlocutory"
+        ],
+        "key": "affidavit_kind",
+        "kind": "enum",
+        "required": true
+      },
       {
         "key": "deponent_name",
         "kind": "string",
@@ -245,14 +276,117 @@
         "key": "source_of_knowledge",
         "kind": "string",
         "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "number",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "date",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "amount",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "key": "bank",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "branch",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "drawer",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "payee",
+            "kind": "string",
+            "required": true
+          }
+        ],
+        "key": "cheques",
+        "kind": "list",
+        "minItems": 1,
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "presentation_date",
+        "kind": "date",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "presentation_bank",
+        "kind": "string",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "memo_date",
+        "kind": "date",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "memo_received_date",
+        "kind": "date",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "dishonour_reason",
+        "kind": "string",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
+      },
+      {
+        "key": "notice_date",
+        "kind": "date",
+        "required": false,
+        "requiredWhen": {
+          "equals": "s138",
+          "field": "matter_type"
+        }
       }
     ],
     "required": [
       "address",
+      "affidavit_kind",
       "age",
       "attestor",
       "body_paras",
       "deponent_name",
+      "matter_type",
       "occupation",
       "parentage_name",
       "parentage_type",
