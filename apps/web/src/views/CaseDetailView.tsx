@@ -16,6 +16,7 @@ import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
+import { CaseDocumentsPanel } from '@/components/CaseDocumentsPanel';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 import { CaseLeadHandover } from '@/components/CaseLeadHandover';
 import { MatterIntelPanel } from '@/components/matter-intel/MatterIntelPanel';
@@ -45,7 +46,7 @@ export function CaseDetailView() {
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'intelligence'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'intelligence'>('overview');
   const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
@@ -211,6 +212,15 @@ export function CaseDetailView() {
         <button
           type="button"
           role="tab"
+          aria-selected={activeTab === 'documents'}
+          className={`matter-intel-tab${activeTab === 'documents' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('documents')}
+        >
+          Documents
+        </button>
+        <button
+          type="button"
+          role="tab"
           aria-selected={activeTab === 'intelligence'}
           className={`matter-intel-tab${activeTab === 'intelligence' ? ' is-active' : ''}`}
           onClick={() => setActiveTab('intelligence')}
@@ -218,6 +228,12 @@ export function CaseDetailView() {
           Intelligence
         </button>
       </div>
+
+      {activeTab === 'documents' && (
+        <div style={{ marginTop: 20 }}>
+          <CaseDocumentsPanel matterTitle={c.title} />
+        </div>
+      )}
 
       {activeTab === 'intelligence' && (
         <MatterIntelPanel caseId={c.id} matterTitle={c.title} />

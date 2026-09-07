@@ -5,13 +5,20 @@ import type { Case, CaseStage, CaseStatus, CaseType } from '@lexdraft/types';
 import { useCreateCase } from '@/hooks/useCases';
 import { useUIStore } from '@/store/ui';
 import { useConflictsCheck, type ConflictHit, type ConflictsResult } from '@/hooks/useConflicts';
+import { useEcourtsCnr } from '@/hooks/useEcourts';
+import { Icon } from '@lexdraft/ui';
 import { Field } from './Modal';
+
+const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 
 interface NewCaseModalProps {
   open: boolean;
   onClose: () => void;
   /** Pre-fill the type field from the active list filter (e.g. "Civil"). */
   defaultType?: CaseType | string;
+  /** Pre-fill from a retained lead: client name, matter title, and type.
+   *  Applied when the modal opens so the advocate only confirms court/CNR. */
+  prefill?: { client?: string; title?: string; type?: string };
 }
 
 const TYPES: CaseType[] = ['Civil', 'Criminal', 'Commercial', 'Property', 'Banking', 'Family', 'Tax', 'Other'];
@@ -30,6 +37,27 @@ function todayPlus(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** eCourts party fields arrive numbered and multi-line, e.g.
+ *  "1) Thangapandian @ Ajay\n2) Another Party". Take the FIRST party and strip
+ *  the leading ordinal ("1)"/"1."), collapsing whitespace — a clean name for a
+ *  cause title. Returns '' when the field is blank. */
+function cleanParty(raw: string | null | undefined): string {
+  const first = (raw ?? '').split(/\r?\n/).map((s) => s.trim()).find(Boolean) ?? '';
+  return first.replace(/^\s*\d+\s*[).]\s*/, '').replace(/\s+/g, ' ').trim();
+}
+
+/** eCourts returns dates as "dd-mm-yyyy" (or sometimes yyyy-mm-dd). Normalise to
+ *  the yyyy-mm-dd the date input expects; return '' if it isn't a parseable date. */
+function toIsoDate(raw: string): string {
+  const s = (raw ?? '').trim();
+  if (!s) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (!m) return '';
+  const [, dd, mm, yyyy] = m;
+  return `${yyyy}-${mm!.padStart(2, '0')}-${dd!.padStart(2, '0')}`;
+}
+
 /**
  * Pull the opposing party out of the matter title. Indian filings overwhelmingly
  * use "X v. Y" / "X vs Y" / "X versus Y" - the right-hand-side is the opposing
@@ -46,7 +74,7 @@ function deriveOpposingFromTitle(title: string): string | undefined {
   return rhs.length > 0 ? rhs : undefined;
 }
 
-export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) {
+export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseModalProps) {
   const navigate = useNavigate();
   const create = useCreateCase();
   const showToast = useUIStore((s) => s.showToast);
@@ -57,9 +85,58 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
   const [court, setCourt] = useState('');
   const [cnr, setCnr] = useState('');
   const [type, setType] = useState<CaseType | string>(defaultType ?? 'Civil');
+
+  // Apply a lead-retain prefill once, when the modal opens with one. Keyed on
+  // `open` so re-opening the plain "New case" button doesn't re-inject stale
+  // values, and so the advocate can still edit the fields afterward.
+  useEffect(() => {
+    if (!open || !prefill) return;
+    if (prefill.client) setClient(prefill.client);
+    if (prefill.title) setTitle(prefill.title);
+    if (prefill.type) setType(prefill.type);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const [stage, setStage] = useState<CaseStage | string>('Filing');
   const [status, setStatus] = useState<CaseStatus>('Active');
   const [next, setNext] = useState<string>(todayPlus(14));
+
+  // ---- eCourts auto-fetch: when the advocate enters a valid 16-char CNR, look
+  // the case up on eCourts and pre-fill title / court / next-hearing so they
+  // don't retype what the record already has. The hook only fires on a valid CNR
+  // shape (built-in debounce), and we auto-apply the result once per CNR — the
+  // advocate can still edit every field afterward.
+  const cnrValid = CNR_RE.test(cnr.trim());
+  const cnrLookup = useEcourtsCnr(cnrValid ? cnr : null);
+  const [appliedCnr, setAppliedCnr] = useState<string>('');
+
+  useEffect(() => {
+    const h = cnrLookup.data;
+    if (!h) return;
+    const key = cnr.trim().toUpperCase();
+    if (key === appliedCnr) return; // already applied this CNR
+    setAppliedCnr(key);
+
+    // eCourts party names come numbered/multi-line ("1) Thangapandian @ Ajay\n
+    // 2) ...") — take the first party and strip the "1)" ordinal so the title
+    // reads cleanly. A side can also come back blank (data not on record).
+    const pet = cleanParty(h.petName || h.pet_name);
+    const res = cleanParty(h.resName || h.res_name);
+    // Only fill fields the advocate hasn't already typed — never clobber input.
+    // Build a "v." title only when BOTH sides are present; otherwise use whichever
+    // side we have, so we never produce "Ajay v. " with a dangling blank.
+    const derivedTitle =
+      pet && res ? `${pet} v. ${res}`
+      : pet || res || '';
+    if (derivedTitle) setTitle((cur) => cur.trim() ? cur : derivedTitle);
+    if (h.court_name) setCourt((cur) => cur.trim() ? cur : h.court_name.trim());
+    if (pet) setClient((cur) => cur.trim() ? cur : pet);
+    const nd = (h.date_next_list || '').trim();
+    // eCourts dates are dd-mm-yyyy; convert to yyyy-mm-dd for the date field.
+    const iso = toIsoDate(nd);
+    if (iso) setNext((cur) => (cur === todayPlus(14) || !cur ? iso : cur));
+    showToast({ type: 'sage', text: 'Case details fetched from eCourts' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cnrLookup.data]);
 
   // Conflict-check state. `lastResult` survives between debounce refires so
   // the panel doesn't flicker to empty during typing.
@@ -206,15 +283,40 @@ export function NewCaseModal({ open, onClose, defaultType }: NewCaseModalProps) 
               required
             />
           </Field>
-          <Field label="CNR" hint="Optional">
-            <input
-              className="input mono"
-              value={cnr}
-              onChange={(e) => setCnr(e.target.value)}
-              placeholder={placeholderCnr()}
-            />
+          <Field
+            label="CNR"
+            hint={
+              cnrValid && cnrLookup.isFetching ? 'Fetching from eCourts…'
+              : cnrValid && cnrLookup.data ? 'Fetched from eCourts ✓'
+              : cnrValid && cnrLookup.isError ? 'No eCourts record — enter details manually'
+              : 'Optional — enter a 16-char CNR to auto-fetch from eCourts'
+            }
+          >
+            <div style={{ position: 'relative', width: '100%' }}>
+              <input
+                className="input mono"
+                value={cnr}
+                onChange={(e) => setCnr(e.target.value)}
+                placeholder={placeholderCnr()}
+                style={{ paddingRight: 34, width: '100%', boxSizing: 'border-box' }}
+              />
+              {cnrValid && (
+                <span
+                  aria-hidden="true"
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex' }}
+                >
+                  {cnrLookup.isFetching
+                    ? <span className="blink" style={{ color: 'var(--text-tertiary)' }}>●</span>
+                    : cnrLookup.data
+                      ? <Icon name="check" size={14} />
+                      : cnrLookup.isError
+                        ? <Icon name="flag" size={14} />
+                        : null}
+                </span>
+              )}
+            </div>
           </Field>
-          <Field label="NEXT HEARING" required>
+          <Field label="NEXT HEARING" hint="Optional — leave blank if none is fixed yet">
             <DatePicker value={next} onChange={setNext} />
           </Field>
           <Field label="TYPE" required>

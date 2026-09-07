@@ -641,9 +641,45 @@ casesRouter.delete(
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
+      // Soft-delete: the matter is hidden and recoverable for 30 days.
       const removed = await casesService.remove(strParam(req.params['id']), firmId);
       if (!removed) {
         res.status(404).json({ error: 'Case not found' });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Recently-deleted matters (soft-deleted, still within the 30-day window).
+casesRouter.get(
+  '/trash/list',
+  requireFeature('matter.view'),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      res.json({ items: await casesService.listDeleted(firmId) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Restore a soft-deleted matter (the 30-day undo).
+casesRouter.post(
+  '/:id/restore',
+  requireFeature('matter.create'),
+  validate({ params: idParam }),
+  withAudit({ action: 'case.restore', targetType: 'case' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const restored = await casesService.restore(strParam(req.params['id']), firmId);
+      if (!restored) {
+        res.status(404).json({ error: 'Case not found or already restored' });
         return;
       }
       res.status(204).end();

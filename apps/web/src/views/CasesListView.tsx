@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
-import { useCases } from '@/hooks/useCases';
+import { useCases, useDeleteCase, useRestoreCase } from '@/hooks/useCases';
+import { useUIStore } from '@/store/ui';
 import { FAB } from '@/components/FAB';
 import { useSavedFilter } from '@/hooks/useSavedFilter';
 import type { Case } from '@lexdraft/types';
 import { NewCaseModal } from '@/components/NewCaseModal';
+import { RecentlyDeletedCasesModal } from '@/components/RecentlyDeletedCasesModal';
 import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { CopyButton } from '@/components/CopyButton';
@@ -37,8 +40,58 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
   );
   const [q, setQ] = useState<string>('');
   const [intakeOpen, setIntakeOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+
+  // Retain-a-lead handoff: LeadsView navigates here with ?newMatter=1&client=…
+  // &title=…&type=… so the New-matter modal opens pre-filled from the lead.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [matterPrefill, setMatterPrefill] = useState<
+    { client?: string; title?: string; type?: string } | undefined
+  >(undefined);
+  useEffect(() => {
+    if (searchParams.get('newMatter') !== '1') return;
+    setMatterPrefill({
+      client: searchParams.get('client') ?? undefined,
+      title: searchParams.get('title') ?? undefined,
+      type: searchParams.get('type') ?? undefined,
+    });
+    setIntakeOpen(true);
+    // Clear the params so a refresh / back doesn't re-trigger the modal.
+    const next = new URLSearchParams(searchParams);
+    ['newMatter', 'client', 'title', 'type'].forEach((k) => next.delete(k));
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const activeFilter: FilterOption = FILTERS.find((f) => f.id === filter) ?? FILTERS[0]!;
+
+  const deleteCase = useDeleteCase();
+  const restoreCase = useRestoreCase();
+  const showToast = useUIStore((s) => s.showToast);
+
+  // Delete is a SOFT delete — the matter is recoverable for 30 days (see the
+  // Recently-deleted view). We fire it immediately and offer an inline Undo that
+  // restores it, plus the longer 30-day safety net on the server.
+  const handleDeleteCase = (c: Case) => {
+    deleteCase.mutate(c.id, {
+      onSuccess: () => {
+        showToast({
+          type: 'sage',
+          text: `Deleted "${c.title}" — recoverable for 30 days`,
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              restoreCase.mutate(c.id, {
+                onSuccess: () => showToast({ type: 'sage', text: `Restored "${c.title}"` }),
+                onError: () => showToast({ type: 'vermillion', text: 'Could not restore' }),
+              });
+            },
+          },
+        });
+      },
+      onError: () => showToast({ type: 'vermillion', text: "Couldn't delete the matter" }),
+    });
+  };
 
   const queryParams = useMemo(
     () => ({
@@ -87,6 +140,14 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
             <Icon name="search" size={14} />
           </span>
         </div>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setTrashOpen(true)}
+          title="Matters deleted in the last 30 days"
+        >
+          <Icon name="trash" size={14} /> Recently deleted
+        </button>
         <Gate feature="matter.create">
           <button
             type="button"
@@ -136,12 +197,13 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                 <th>Stage</th>
                 <th>Client</th>
                 <th>Next date</th>
+                <th aria-label="Row actions" />
               </tr>
             </thead>
             <tbody>
               {cases.length === 0 && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <EmptyState
                       variant="inline"
                       title={q || filter !== 'all' ? 'No matters match' : 'No matters yet'}
@@ -175,6 +237,20 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                   <td><span className="badge badge-cobalt">{String(c.stage).toUpperCase()}</span></td>
                   <td>{c.client}</td>
                   <td className="mono tabular">{c.next}</td>
+                  <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
+                    <Gate feature="matter.create">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm case-row-delete"
+                        aria-label={`Delete ${c.title}`}
+                        title="Delete matter (recoverable for 30 days)"
+                        onClick={() => handleDeleteCase(c)}
+                        style={{ color: 'var(--danger)' }}
+                      >
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </Gate>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -191,9 +267,11 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
 
       <NewCaseModal
         open={intakeOpen}
-        onClose={() => setIntakeOpen(false)}
+        onClose={() => { setIntakeOpen(false); setMatterPrefill(undefined); }}
         defaultType={activeFilter.type}
+        prefill={matterPrefill}
       />
+      <RecentlyDeletedCasesModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Gate feature="matter.create">
         <FAB ariaLabel="New case" onClick={() => setIntakeOpen(true)}>
           <Icon name="plus" size={22} />

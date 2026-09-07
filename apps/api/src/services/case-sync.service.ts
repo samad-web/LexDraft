@@ -226,6 +226,122 @@ export async function syncCaseFromEcourts(
 }
 
 // ---------------------------------------------------------------------------
+// Nightly batch sync (job: ecourts.sync.daily)
+//
+// Walks every active case that carries a valid CNR and re-syncs it from
+// eCourts, one at a time. On a change that a lawyer would act on (a moved /
+// newly-listed next hearing, or a disposal), emails the matter owner (falling
+// back to firm admins).
+//
+// Design notes:
+//   - SEQUENTIAL + THROTTLED. eCourts is a government server and the client
+//     holds one shared JWT per court; hammering it concurrently invites rate
+//     limiting and token races. We sleep THROTTLE_MS between cases.
+//   - PER-CASE ISOLATION. One bad CNR or upstream 5xx must not abort the run.
+//     Each case is wrapped in try/catch; failures are counted and logged.
+//   - NOTIFY ON MEANINGFUL CHANGE ONLY. `syncCaseFromEcourts` returns a diff;
+//     we notify when `next_hearing`, `status`, or `stage` moved. Pure identity
+//     back-fill (court_code etc.) doesn't ping anyone.
+// ---------------------------------------------------------------------------
+
+/** Fields whose change is worth emailing a lawyer about. */
+const NOTIFY_ON_FIELDS = ['next_hearing', 'status', 'stage', 'closed_at'] as const;
+const THROTTLE_MS = 1_500;
+
+export interface DailySyncSummary {
+  scanned: number;
+  synced: number;
+  changed: number;
+  notified: number;
+  failed: number;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function humanizeChanges(changes: Record<string, { from: unknown; to: unknown }>): string[] {
+  const labels: Record<string, string> = {
+    next_hearing: 'Next hearing',
+    status: 'Status',
+    stage: 'Stage',
+    closed_at: 'Disposed on',
+  };
+  const out: string[] = [];
+  for (const field of NOTIFY_ON_FIELDS) {
+    const c = changes[field];
+    if (!c) continue;
+    const from = c.from == null || c.from === '' ? '—' : String(c.from).slice(0, 40);
+    const to = c.to == null || c.to === '' ? '—' : String(c.to).slice(0, 40);
+    out.push(`${labels[field]}: ${from} → ${to}`);
+  }
+  return out;
+}
+
+/**
+ * Entry point for the nightly job. Returns a summary the job handler logs.
+ * `notify` is injected lazily to avoid a module-load cycle (notifications ->
+ * jobs -> case-sync).
+ */
+export async function syncAllActiveCasesFromEcourts(): Promise<DailySyncSummary> {
+  const sql = db();
+  if (!sql) {
+    logger.warn('ecourts daily sync skipped: no DATABASE_URL');
+    return { scanned: 0, synced: 0, changed: 0, notified: 0, failed: 0 };
+  }
+
+  // Active matters that carry a CNR. `court` drives DC vs HC selection; a
+  // matter tagged "High Court" hits the HC backend, everything else DC.
+  const rows = await sql<Array<{ id: string; firm_id: string; cnr: string; court: string | null; title: string; created_by_user_id: string | null }>>`
+    select id, firm_id, cnr, court, title, created_by_user_id
+    from cases
+    where status = 'Active'
+      and cnr is not null
+      and cnr <> ''
+    order by coalesce(ecourts_synced_at, 'epoch'::timestamptz) asc
+  `;
+
+  const summary: DailySyncSummary = { scanned: rows.length, synced: 0, changed: 0, notified: 0, failed: 0 };
+  const { notify } = await import('./notifications.service');
+  const runDate = new Date().toISOString().slice(0, 10); // yyyy-mm-dd for dedupe keys
+
+  for (const row of rows) {
+    const cnr = (row.cnr ?? '').trim().toUpperCase();
+    if (!CNR_RE.test(cnr)) {
+      // Malformed CNR — skip rather than burn an eCourts call that will 400.
+      continue;
+    }
+    const court: Court = /high\s*court/i.test(row.court ?? '') ? 'HC' : 'DC';
+    try {
+      const result = await syncCaseFromEcourts(row.id, row.firm_id, { court });
+      summary.synced += 1;
+
+      const notable = humanizeChanges(result.changes);
+      if (notable.length > 0) {
+        summary.changed += 1;
+        await notify.caseUpdatedFromEcourts(row.firm_id, {
+          matterTitle: result.caseRow.title || row.title,
+          cnr,
+          changes: notable,
+          ownerUserId: row.created_by_user_id,
+          caseId: row.id,
+          runDate,
+        });
+        summary.notified += 1;
+      }
+    } catch (err) {
+      summary.failed += 1;
+      // Don't let one case abort the batch. A transient upstream failure just
+      // means this matter waits for tomorrow's run (or a manual sync).
+      logger.warn({ err, caseId: row.id, cnr }, 'ecourts daily sync: case failed');
+    }
+    await sleep(THROTTLE_MS);
+  }
+
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
 // Mapping helpers
 // ---------------------------------------------------------------------------
 

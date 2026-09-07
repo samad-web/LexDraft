@@ -738,6 +738,8 @@ export interface SavedDraft {
   editedHtml: string;
   bodyText: string;
   draftDate: string | null;
+  /** Matter (case title) this draft is filed against, '' if unfiled. */
+  matter?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -751,6 +753,8 @@ export interface SaveDraftRequest {
   editedHtml: string;
   bodyText: string;
   draftDate?: string;
+  /** Matter (case title) to file this draft against. */
+  matter?: string;
 }
 
 export interface ResearchAnswer {

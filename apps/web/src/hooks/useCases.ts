@@ -90,6 +90,42 @@ export function useUpdateCase() {
   });
 }
 
+/** Soft-delete a matter (recoverable for 30 days). */
+export function useDeleteCase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/cases/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['cases', 'trash'] });
+    },
+  });
+}
+
+/** Restore a soft-deleted matter within the 30-day window. */
+export function useRestoreCase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<void>(`/cases/${id}/restore`, {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['cases', 'trash'] });
+    },
+  });
+}
+
+/** A soft-deleted matter, with the deletion timestamp for the 30-day countdown. */
+export type DeletedCase = Case & { deletedAt: string };
+
+/** List the firm's recently-deleted matters (within the 30-day window). */
+export function useDeletedCases() {
+  return useQuery({
+    queryKey: ['cases', 'trash'],
+    queryFn: () => api.get<{ items: DeletedCase[] }>('/cases/trash/list'),
+    select: (r) => r.items,
+  });
+}
+
 export interface EcourtsSyncSurface {
   finalOrders: number;
   interimOrders: number;

@@ -78,7 +78,9 @@ documentsRouter.get('/', requireFeature('shared.documents'), async (req, res, ne
       id: d.id,
       name: d.title,
       type: d.docType,
-      case: '-',
+      // A draft filed against a matter reports that matter's label so it shows
+      // under the case's Documents tab; unfiled drafts keep the '-' placeholder.
+      case: d.matter?.trim() || '-',
       updated: relativeFromIso(d.updatedAt),
       kind: 'draft',
     }));

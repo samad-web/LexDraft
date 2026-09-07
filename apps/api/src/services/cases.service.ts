@@ -1,6 +1,7 @@
 import type { Case } from '@lexdraft/types';
 import { db } from '../db/client';
 import { SEED_CASES } from '../data/seed';
+import { clientsService } from './clients.service';
 
 interface CaseRow {
   id: string;
@@ -99,6 +100,7 @@ export const casesService = {
         select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
         from cases
         where firm_id = ${filter.firmId}::uuid
+          and deleted_at is null
           -- Hide sandbox / quick-study cases from the canonical matters list.
           -- They live in the same table but are managed by matter-intel UI.
           and kind = 'matter'
@@ -151,7 +153,12 @@ export const casesService = {
                 ${input.client}, ${input.status}, ${input.next || null}, ${input.type})
         returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;
-      return fromRow(rows[0]!);
+      const created = fromRow(rows[0]!);
+      // Register the client so it appears in the Clients directory. The
+      // cases/clients join is by name; without this a case's client never
+      // shows up in the register. No-throw and idempotent.
+      await clientsService.ensureByName(created.client, firmId);
+      return created;
     }
     const c: Case = { ...input, id: `c${memory.length + 1}` };
     memory.push(c);
@@ -176,6 +183,10 @@ export const casesService = {
         returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;
       const row = rows[0];
+      if (row) {
+        // Keep the client register in step when a case's client is (re)named.
+        await clientsService.ensureByName(row.client, firmId);
+      }
       return row ? fromRow(row) : undefined;
     }
     const i = memory.findIndex((c) => c.id === id);
@@ -184,12 +195,19 @@ export const casesService = {
     return memory[i];
   },
 
+  /**
+   * SOFT-delete a matter: mark it deleted (hidden from lists) but keep the row
+   * for 30 days so an accidental deletion can be undone. Returns true if a live
+   * row was marked. Idempotent — deleting an already-deleted row returns false.
+   */
   async remove(id: string, firmId: string | null): Promise<boolean> {
     if (!firmId) return false;
     const sql = db();
     if (sql) {
       const rows = await sql`
-        delete from cases where id::text = ${id} and firm_id = ${firmId}::uuid returning id
+        update cases set deleted_at = now()
+        where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is null
+        returning id
       `;
       return rows.length > 0;
     }
@@ -197,5 +215,49 @@ export const casesService = {
     if (i === -1) return false;
     memory.splice(i, 1);
     return true;
+  },
+
+  /** Restore a soft-deleted matter within the retention window. */
+  async restore(id: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql`
+      update cases set deleted_at = null
+      where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is not null
+      returning id
+    `;
+    return rows.length > 0;
+  },
+
+  /** List a firm's soft-deleted matters (the "Recently deleted" / trash view),
+   *  newest deletion first, with the deletion timestamp for the 30-day countdown. */
+  async listDeleted(firmId: string | null): Promise<Array<Case & { deletedAt: string }>> {
+    if (!firmId) return [];
+    const sql = db();
+    if (!sql) return [];
+    const rows = await sql<Array<CaseRow & { deleted_at: string | Date }>>`
+      select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client, deleted_at
+      from cases
+      where firm_id = ${firmId}::uuid and kind = 'matter' and deleted_at is not null
+      order by deleted_at desc
+    `;
+    return rows.map((r) => ({
+      ...fromRow(r),
+      deletedAt: r.deleted_at instanceof Date ? r.deleted_at.toISOString() : r.deleted_at,
+    }));
+  },
+
+  /** Permanently remove matters soft-deleted more than `days` ago (default 30).
+   *  Called by a scheduled purge job; returns how many rows were purged. */
+  async purgeExpired(days = 30): Promise<number> {
+    const sql = db();
+    if (!sql) return 0;
+    const rows = await sql<{ id: string }[]>`
+      delete from cases
+      where deleted_at is not null and deleted_at < now() - (${days} || ' days')::interval
+      returning id
+    `;
+    return rows.length;
   },
 };
