@@ -37,3 +37,14 @@ _design
 /uploads/
 apps/api/uploads/
 .test-uploads/
+
+# Tesseract OCR model blob. The OCR path (lib/pdf-ocr.ts, lib/image-ocr.ts)
+# calls tesseract.js createWorker('eng'), which fetches + caches the model at
+# runtime — this vendored copy is not referenced by code and must not be tracked.
+apps/api/eng.traineddata
+
+# Product spec — reference doc, not build input; kept out of the code tree.
+/LexDraft-Product-Spec.pdf
+
+# Local scratch/debug script for eyeballing PDF extraction output.
+apps/api/_verify_extract.mjs
