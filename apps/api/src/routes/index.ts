@@ -36,6 +36,7 @@ import { archiveRouter } from './archive.routes';
 import { physicalDocumentsRouter } from './physical-documents.routes';
 import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
+import { notificationsRouter } from './notifications.routes';
 import { meMfaRouter } from './me-mfa.routes';
 import { meDpdpRouter } from './me-dpdp.routes';
 import { sanhitaRouter } from './sanhita.routes';
@@ -140,6 +141,9 @@ apiRouter.use('/archive',     requireAuth, requireActivePlan, archiveRouter);
 apiRouter.use('/physical-documents', requireAuth, requireActivePlan, physicalDocumentsRouter);
 apiRouter.use('/analytics',   requireAuth, requireActivePlan, analyticsRouter);
 apiRouter.use('/me',          requireAuth, meRouter);
+// In-app notification feed. requireAuth but NOT requireActivePlan — a user
+// with a lapsed plan should still be able to read and clear their bell.
+apiRouter.use('/notifications', requireAuth, notificationsRouter);
 // MFA - `optionalAuth` instead of `requireAuth` because the
 // `verify-challenge` endpoint is the post-password handshake step where the
 // client has a challengeId but no bearer yet. Every other handler in this

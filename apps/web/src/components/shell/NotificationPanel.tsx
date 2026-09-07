@@ -21,14 +21,23 @@ function toneToColor(tone: NotificationTone): string {
 export function NotificationPanel({
   onClose,
   onNav,
+  onMarkRead,
+  onMarkAllRead,
 }: {
   onClose: () => void;
   onNav: (view: string) => void;
+  /** Server-backed mark-read handlers (from useNotifications). When omitted the
+   *  panel falls back to store-only mutations — used in contexts without the
+   *  API bridge. */
+  onMarkRead?: (id: string) => void;
+  onMarkAllRead?: () => void;
 }) {
   const items = useNotificationsStore((s) => s.items);
-  const markRead = useNotificationsStore((s) => s.markRead);
-  const markAllRead = useNotificationsStore((s) => s.markAllRead);
+  const storeMarkRead = useNotificationsStore((s) => s.markRead);
+  const storeMarkAllRead = useNotificationsStore((s) => s.markAllRead);
   const dismiss = useNotificationsStore((s) => s.dismiss);
+  const markRead = onMarkRead ?? storeMarkRead;
+  const markAllRead = onMarkAllRead ?? storeMarkAllRead;
   const [tab, setTab] = useState<Tab>('all');
 
   const filtered = tab === 'unread' ? items.filter((n) => n.unread) : items;

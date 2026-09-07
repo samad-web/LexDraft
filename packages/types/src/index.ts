@@ -1583,6 +1583,28 @@ export interface PortalNotificationPreferences {
   invoiceOverdue: boolean;
 }
 
+// ---- In-app notification feed (migration 0061) ----------------------------
+
+export type NotificationTone = 'cobalt' | 'sage' | 'amber' | 'vermillion';
+
+/** A server-persisted in-app notification, as returned by GET /notifications.
+ *  Mirrors the web notification store's shape so the panel can render it with
+ *  no translation layer. */
+export interface AppNotification {
+  id: ID;
+  tone: NotificationTone;
+  /** Icon glyph name from the shared UI icon set. */
+  icon: string;
+  title: string;
+  body: string;
+  /** App-shell route to open on click (e.g. 'cases'). */
+  view: string;
+  /** True until the recipient marks it read. */
+  unread: boolean;
+  /** ISO timestamp. */
+  createdAt: string;
+}
+
 /** v1 ships English-only; the field exists so v2 can flip it to Hindi /
  *  regional languages without a schema change. */
 export type PortalLanguage = 'en';

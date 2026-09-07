@@ -22,6 +22,10 @@ interface NotificationsState {
   items: Notification[];
   /** Push a new notification onto the inbox. Newest first. */
   add: (n: Omit<Notification, 'id' | 'createdAt' | 'unread'> & { id?: string; unread?: boolean }) => void;
+  /** Replace all server-sourced notifications with a fresh list from the API,
+   *  preserving any purely client-side ones (ids starting with `local-` or the
+   *  demo seed). Server rows are the source of truth for read/unread state. */
+  hydrateFromServer: (serverItems: Notification[]) => void;
   /** Mark a single notification read. No-op if already read. */
   markRead: (id: string) => void;
   /** Mark every notification read. */
@@ -30,6 +34,12 @@ interface NotificationsState {
   dismiss: (id: string) => void;
   /** Clear the entire inbox. */
   clear: () => void;
+}
+
+/** A server row's id is a UUID; client-only rows use these prefixes and are
+ *  never clobbered by a server hydrate. */
+function isClientOnly(id: string): boolean {
+  return id.startsWith('local-') || id.startsWith('seed-') || id.startsWith('n-');
 }
 
 // Seeded with sample notifications on first load so a brand-new account
@@ -65,6 +75,15 @@ export const useNotificationsStore = create<NotificationsState>()(
           unread: input.unread ?? true,
         };
         set({ items: [item, ...get().items].slice(0, 200) });
+      },
+      hydrateFromServer: (serverItems) => {
+        // Keep client-only rows (demo seed, any local pushes), drop the previous
+        // server snapshot, then merge the fresh server list. Sort newest-first.
+        const clientOnly = get().items.filter((n) => isClientOnly(n.id));
+        const merged = [...serverItems, ...clientOnly].sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        set({ items: merged.slice(0, 200) });
       },
       markRead: (id) =>
         set({ items: get().items.map((n) => (n.id === id ? { ...n, unread: false } : n)) }),

@@ -22,7 +22,7 @@
 import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
-import type { PortalNotificationPreferences } from '@lexdraft/types';
+import type { AppNotification, NotificationTone, PortalNotificationPreferences } from '@lexdraft/types';
 
 interface ClientLookup {
   id: string;
@@ -104,6 +104,24 @@ async function loadFirmRecipients(firmId: string): Promise<string[]> {
   return rows.map((r) => r.email).filter((e) => !!e);
 }
 
+/** Like loadFirmRecipients but returns user ids alongside emails — needed when
+ *  the caller also persists an in-app notification (which is keyed by user id).
+ *  Firm admins first, capped at 5. */
+async function loadFirmRecipientUsers(firmId: string): Promise<Array<{ id: string; email: string }>> {
+  const sql = db();
+  if (!sql) return [];
+  const rows = await sql<Array<{ id: string; email: string | null }>>`
+    select id, email from users
+    where firm_id = ${firmId}::uuid
+      and (status is null or status = 'active')
+    order by case when role = 'Firm Admin' then 0 else 1 end, email
+    limit 5
+  `;
+  return rows
+    .filter((r): r is { id: string; email: string } => !!r.email)
+    .map((r) => ({ id: r.id, email: r.email }));
+}
+
 function prefAllows(prefs: Partial<PortalNotificationPreferences>, key: keyof PortalNotificationPreferences): boolean {
   return prefs[key] ?? DEFAULT_PREFS[key];
 }
@@ -122,6 +140,136 @@ async function send(args: SendArgs): Promise<void> {
     logger.warn({ err, to: args.to, subject: args.subject }, 'notifications: enqueue failed');
   }
 }
+
+// ---------------------------------------------------------------------------
+// In-app notification feed (migration 0061). Server-persisted rows the web
+// bell/panel reads via GET /notifications. Kept independent of the email path
+// above — an event may raise an in-app row, an email, or both. Like the email
+// helpers, create() never throws into the caller: a notification is
+// observability-grade, not a correctness gate on the originating mutation.
+// ---------------------------------------------------------------------------
+
+interface CreateNotificationInput {
+  firmId: string;
+  userId: string;
+  title: string;
+  body?: string;
+  tone?: NotificationTone;
+  icon?: string;
+  view?: string;
+  /** When set, upserts on (user_id, dedupe_key) so a repeated event (e.g. the
+   *  nightly sync touching the same case) refreshes the existing row instead of
+   *  stacking duplicates. The refreshed row is bumped back to unread. */
+  dedupeKey?: string;
+}
+
+interface NotificationRow {
+  id: string;
+  tone: NotificationTone;
+  icon: string;
+  title: string;
+  body: string;
+  view: string;
+  read_at: string | Date | null;
+  created_at: string | Date;
+}
+
+function rowToDto(r: NotificationRow): AppNotification {
+  const iso = (v: string | Date): string => (v instanceof Date ? v.toISOString() : v);
+  return {
+    id: r.id,
+    tone: r.tone,
+    icon: r.icon,
+    title: r.title,
+    body: r.body,
+    view: r.view,
+    unread: r.read_at == null,
+    createdAt: iso(r.created_at),
+  };
+}
+
+export const notificationsStore = {
+  /** Insert (or upsert on dedupeKey) an in-app notification. Returns the id, or
+   *  null when there's no DB or the write failed. */
+  async create(input: CreateNotificationInput): Promise<string | null> {
+    const sql = db();
+    if (!sql) return null;
+    try {
+      const rows = await sql<Array<{ id: string }>>`
+        insert into notifications (firm_id, user_id, tone, icon, title, body, view, dedupe_key)
+        values (
+          ${input.firmId}::uuid, ${input.userId}::uuid,
+          ${input.tone ?? 'cobalt'}, ${input.icon ?? 'bell'},
+          ${input.title}, ${input.body ?? ''}, ${input.view ?? 'dashboard'},
+          ${input.dedupeKey ?? null}
+        )
+        on conflict (user_id, dedupe_key) where dedupe_key is not null
+        do update set
+          title = excluded.title,
+          body = excluded.body,
+          tone = excluded.tone,
+          icon = excluded.icon,
+          view = excluded.view,
+          read_at = null,
+          created_at = now()
+        returning id
+      `;
+      return rows[0]?.id ?? null;
+    } catch (err) {
+      logger.warn({ err, userId: input.userId }, 'notificationsStore.create failed');
+      return null;
+    }
+  },
+
+  /** Newest-first feed for one user. Caps at `limit` (default 50). */
+  async listForUser(userId: string, limit = 50): Promise<AppNotification[]> {
+    const sql = db();
+    if (!sql) return [];
+    const rows = await sql<Array<NotificationRow>>`
+      select id, tone, icon, title, body, view, read_at, created_at
+      from notifications
+      where user_id = ${userId}::uuid
+      order by created_at desc
+      limit ${Math.min(Math.max(limit, 1), 200)}
+    `;
+    return rows.map(rowToDto);
+  },
+
+  async unreadCount(userId: string): Promise<number> {
+    const sql = db();
+    if (!sql) return 0;
+    const rows = await sql<Array<{ n: number }>>`
+      select count(*)::int as n from notifications
+      where user_id = ${userId}::uuid and read_at is null
+    `;
+    return rows[0]?.n ?? 0;
+  },
+
+  /** Mark one notification read. Scoped to the owner so a user can't touch
+   *  another user's rows. Returns true when a row was updated. */
+  async markRead(userId: string, id: string): Promise<boolean> {
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql<Array<{ id: string }>>`
+      update notifications set read_at = coalesce(read_at, now())
+      where id = ${id}::uuid and user_id = ${userId}::uuid
+      returning id
+    `;
+    return rows.length > 0;
+  },
+
+  /** Mark every unread notification for the user read. Returns the count. */
+  async markAllRead(userId: string): Promise<number> {
+    const sql = db();
+    if (!sql) return 0;
+    const rows = await sql<Array<{ id: string }>>`
+      update notifications set read_at = now()
+      where user_id = ${userId}::uuid and read_at is null
+      returning id
+    `;
+    return rows.length;
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Events. Each event ignores wiring failures (no rethrow) and is keyed off
@@ -263,6 +411,70 @@ export const notify = {
           `  ${summary.documentName}`,
           ``,
           `The acknowledgement is recorded against the document in the firm-side register.`,
+        ].join('\n'),
+      });
+    }
+  },
+
+  /**
+   * A nightly eCourts sync detected a change on a matter — notify the firm
+   * side (case owner if resolvable, else firm admins). Fire-and-forget like
+   * every other event: a wiring failure logs and never bubbles into the
+   * sync batch. No per-user preference gate — this is firm-internal, not a
+   * client-portal opt-out surface.
+   */
+  async caseUpdatedFromEcourts(
+    firmId: string,
+    summary: {
+      matterTitle: string;
+      cnr: string;
+      /** Human-readable lines describing what moved, e.g.
+       *  "Next hearing: 2026-08-20 → 2026-09-14". */
+      changes: string[];
+      ownerUserId?: string | null;
+      /** Case id — used to build a per-day dedupe key so re-runs upsert. */
+      caseId?: string;
+      /** yyyy-mm-dd of the run, folded into the dedupe key. Caller passes the
+       *  batch date so the key is deterministic across the run. */
+      runDate?: string;
+    },
+  ): Promise<void> {
+    // Resolve recipient user rows: prefer the matter owner, else firm admins.
+    // We need user *ids* (for the in-app row) as well as emails.
+    let recipients: Array<{ id: string; email: string }> = [];
+    if (summary.ownerUserId) {
+      const u = await loadUser(summary.ownerUserId);
+      if (u) recipients = [{ id: u.id, email: u.email }];
+    }
+    if (recipients.length === 0) recipients = await loadFirmRecipientUsers(firmId);
+
+    const body = summary.changes.join(' · ');
+    for (const r of recipients) {
+      // In-app row (deduped per case per run-day so a nightly re-run refreshes
+      // rather than stacks).
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'cobalt',
+        icon: 'ecourts',
+        title: `Case update: ${summary.matterTitle}`,
+        body,
+        view: 'cases',
+        dedupeKey: summary.caseId ? `ecourts-sync:${summary.caseId}:${summary.runDate ?? ''}` : undefined,
+      });
+      // Email (best-effort; no-op until SMTP is configured).
+      await send({
+        to: r.email,
+        subject: `Case update from eCourts: ${summary.matterTitle}`,
+        body: [
+          `The nightly eCourts sync found new activity on:`,
+          `  Matter: ${summary.matterTitle}`,
+          `  CNR:    ${summary.cnr}`,
+          ``,
+          `What changed:`,
+          ...summary.changes.map((c) => `  • ${c}`),
+          ``,
+          `Open the matter in LexDraft for the full updated record.`,
         ].join('\n'),
       });
     }
