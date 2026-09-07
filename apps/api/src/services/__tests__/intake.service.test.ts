@@ -49,10 +49,12 @@ vi.mock('../engine-client.service', () => {
 
 // ---- mock the intake LLM: scripted extract patches + a phraser -------------
 const extractQueue: ExtractionPatch[] = [];
+const extractCalls: string[] = []; // the `latest` text each LLM extract call received
 
 vi.mock('../intake-llm.service', () => ({
   intakeLlm: {
-    async extract() {
+    async extract(args: { latest: string }) {
+      extractCalls.push(args.latest);
       return (
         extractQueue.shift() ?? {
           fields: [], unmappedNotes: [], lowConfidence: [], collisions: [], modelUsed: 'fallback:none',
@@ -158,6 +160,7 @@ const _origDeterministic = env.intakeDeterministic;
 beforeEach(() => {
   engineQueue.length = 0;
   extractQueue.length = 0;
+  extractCalls.length = 0;
   classifyQueue.length = 0;
   classifyCalls.length = 0;
   ocrQueue.length = 0;
@@ -398,13 +401,15 @@ describe('intake loop — attachments as a FREE, local extraction source', () =>
     return intakeService.start(DOC, 'Starting a s.138 matter.', CTX);
   }
 
-  it('reads an IMAGE via LOCAL OCR; values land inferred (not stated), no LLM call', async () => {
+  it('reads an IMAGE via LOCAL OCR, then the LLM extractor; values land inferred (attachment provenance)', async () => {
     let state = await startConversation();
 
-    // The image goes to local OCR (returns text), then the deterministic extractor
-    // maps that text to fields. The service re-marks them inferred.
+    // The image goes to local OCR (returns text), then — because an attached document is
+    // a substantial read and a provider is configured — the LLM extractor maps that text
+    // to fields (see intake.service attach(): attachments prefer the LLM extractor
+    // independent of INTAKE_DETERMINISTIC). The service re-marks the values inferred.
     ocrQueue.push({ ok: true, text: 'cheque no 000456789 amount Rs. 475000' });
-    detQueue.push(patch([
+    extractQueue.push(patch([
       { key: 'cheque_amount', value: '475000', confidence: 'stated', source: 'Rs. 475000' },
       { key: 'cheque_no', value: '000456789', confidence: 'stated', source: 'cheque no 000456789' },
     ]));
@@ -416,9 +421,9 @@ describe('intake loop — attachments as a FREE, local extraction source', () =>
       '', CTX,
     );
 
-    // The image went to LOCAL OCR (one call), and its text reached the extractor.
+    // The image went to LOCAL OCR (one call); its text reached the LLM extractor.
     expect(ocrCalls).toHaveLength(1);
-    expect(detCalls[0]).toContain('cheque no 000456789');
+    expect(extractCalls.at(-1)).toContain('cheque no 000456789');
 
     const amount = state.factSheet.flatMap((s) => s.fields).find((f) => f.key === 'cheque_amount');
     expect(amount?.value).toBe('475000');
@@ -432,11 +437,11 @@ describe('intake loop — attachments as a FREE, local extraction source', () =>
     expect(state.status).toBe('gathering');
   });
 
-  it('reads a PDF via LOCAL text extraction, then the deterministic extractor', async () => {
+  it('reads a PDF via LOCAL text extraction, then the LLM extractor', async () => {
     let state = await startConversation();
 
     textExtractQueue.push({ ok: true, text: 'memo received on 20-03-2026' });
-    detQueue.push(patch([
+    extractQueue.push(patch([
       { key: 'memo_received_date', value: '2026-03-20', confidence: 'stated', source: '20-03-2026' },
     ]));
     engineQueue.push({ kind: 'issues', issues: [{ field: 'notice_date', code: 'required', message: 'x' }] });
@@ -447,9 +452,9 @@ describe('intake loop — attachments as a FREE, local extraction source', () =>
       '', CTX,
     );
 
-    // A PDF is NOT an image → no OCR call; text extraction fed the deterministic reader.
+    // A PDF is NOT an image → no OCR call; text extraction fed the LLM reader.
     expect(ocrCalls).toHaveLength(0);
-    expect(detCalls[0]).toContain('20-03-2026');
+    expect(extractCalls.at(-1)).toContain('20-03-2026');
     const memo = state.factSheet.flatMap((s) => s.fields).find((f) => f.key === 'memo_received_date');
     expect(memo?.value).toBe('2026-03-20');
     expect(memo?.meta?.via).toBe('attachment');

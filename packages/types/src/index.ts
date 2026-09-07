@@ -435,6 +435,175 @@ export interface ExtractDraftFieldsResponse {
   modelUsed: string;
 }
 
+// ---------------------------------------------------------------------------
+// Conversational intake — the engine-driven, model-phrased fact-gathering loop.
+// See docs/conversational-intake-plan.md. The MODEL only translates (prose ->
+// fields, issues -> questions); the ENGINE decides which fields are required and
+// whether the matter is legally sound.
+// ---------------------------------------------------------------------------
+
+/** How sure we are of a field value, and whether the advocate stated it or the
+ *  model derived it. UI + audit metadata only — never sent to the engine. */
+export type FieldConfidence = 'stated' | 'inferred' | 'confirmed';
+
+/** How a field value arrived into the fact sheet. `attachment` = read off an
+ *  uploaded document (a cheque/memo image, a scanned PDF, a .docx). */
+export type FieldSource = 'narration' | 'question' | 'direct-edit' | 'attachment';
+
+/** Per-field provenance recorded alongside every value in the fact map. */
+export interface FieldMeta {
+  confidence: FieldConfidence;
+  /** The supporting span from what the advocate said (empty for direct edits). */
+  source: string;
+  /** For `inferred`: how the value was derived ("'yesterday' + 2026-09-01"). */
+  derivation?: string;
+  /** How the value arrived. */
+  via: FieldSource;
+}
+
+/** One question the model phrased for exactly one engine-reported missing field. */
+export interface PhrasedQuestion {
+  /** The inbound field key/path this question is for (an engine issue field). */
+  field: string;
+  /** The natural-language question. */
+  question: string;
+}
+
+/** A single turn in the intake transcript. */
+export interface IntakeTurn {
+  role: 'advocate' | 'assistant';
+  /** Free text for advocate turns; the phrased prompt / finding for assistant. */
+  text: string;
+  /** For assistant turns, which loop state produced it. */
+  kind?: 'question' | 'refusal' | 'draft' | 'note';
+}
+
+/** The engine's 422 validation issue (mirrors the wire contract). */
+export interface IntakeIssue {
+  field: string;
+  code: string; // 'required' | 'type' | 'enum' | 'malformed'
+  message: string;
+}
+
+/** One field as shown in the always-visible fact-sheet view. */
+export interface FactSheetField {
+  key: string;
+  label: string;
+  type: DraftFieldType;
+  options?: string[];
+  required: boolean;
+  /** Present when a value has been gathered. */
+  value?: string;
+  /** Present when a value has been gathered. */
+  meta?: FieldMeta;
+  /** True when this field is currently one of the engine's outstanding issues. */
+  outstanding: boolean;
+  /** The engine's issue code when outstanding (drives the "why" text). */
+  issueCode?: string;
+}
+
+/** A section of the fact-sheet view (mirrors the doc type's form sections). */
+export interface FactSheetSection {
+  title: string;
+  fields: FactSheetField[];
+}
+
+/**
+ * The whole state of an intake conversation, returned on every turn. The
+ * transcript and the fact-sheet view are two renderings of THIS one object.
+ */
+export interface IntakeState {
+  matterId: string;
+  version: number;
+  docLabel: string;
+  status: 'gathering' | 'refused' | 'generated' | 'closed';
+  transcript: IntakeTurn[];
+  /** The always-visible, section-grouped fact sheet (§10). */
+  factSheet: FactSheetSection[];
+  /** The next question(s) to ask — 1-2 per turn, or empty when none pending. */
+  questions: PhrasedQuestion[];
+  /** Fields downgraded to a typed micro-form control (ask-counter guard, §5.2). */
+  directEntryFields: string[];
+  /** The standing legal finding while status==='refused' (a pause, not an end). */
+  refusal: IntakeRefusal | null;
+  /** The rendered document when status==='generated'. */
+  draft: IntakeDraft | null;
+  /** When the format was AUTO-DETECTED from the opening description (startAuto),
+   *  the label chosen — so the UI can confirm it and offer a one-click override.
+   *  Absent when the advocate picked the format explicitly. */
+  detectedDocLabel?: string;
+  /** How confident the auto-detection was (only set alongside detectedDocLabel). */
+  detectionConfidence?: 'high' | 'medium' | 'low';
+  /** The FULL text read off any attached reference document(s) (OCR / PDF / DOCX),
+   *  accumulated across attachments. This is the whole content — not just the
+   *  fields the extractor could parse — so a "Draft now" can draft from the entire
+   *  document (DraftBot-style), and nothing the parser missed is lost. Absent when
+   *  no readable document has been attached. */
+  sourceText?: string;
+}
+
+export interface IntakeRefusal {
+  code: string;
+  severity: string;
+  reason: string;
+  computation: string | null;
+  pipeline: string;
+  spec: string;
+  fields_implicated: string[];
+  remedy_hint: string;
+}
+
+export interface IntakeDraft {
+  blocks: Array<{ key: string; text: string }>;
+  signals: { review_banner: string; unverified_marker: string };
+  unfilledSlots: string[];
+  docxBase64: string | null;
+}
+
+/** Start a new intake conversation from the advocate's opening description. */
+export interface IntakeStartRequest {
+  docLabel: string;
+  /** The advocate's free description of the matter. */
+  message: string;
+  provider?: 'xai' | 'anthropic';
+}
+
+/** Continue an intake conversation with the advocate's next message. */
+export interface IntakeReplyRequest {
+  matterId: string;
+  docLabel: string;
+  message: string;
+  provider?: 'xai' | 'anthropic';
+}
+
+/** Directly edit fact-sheet fields (§10) — equivalent to the advocate stating
+ *  them. Always lands as `stated`/`direct-edit`, never `inferred`. */
+export interface IntakeEditRequest {
+  matterId: string;
+  docLabel: string;
+  /** field key -> new value (empty string clears the field). */
+  edits: Record<string, string>;
+}
+
+/** One file attached to the intake conversation (session-only, base64). */
+export interface IntakeAttachmentFile {
+  fileName: string;
+  mime: string;
+  /** The file contents, base64-encoded (no data: prefix). */
+  dataBase64: string;
+}
+
+/** Attach files (a cheque/memo image, a scanned PDF, a .docx) as an EXTRACTION
+ *  SOURCE. Values read off the documents land `inferred` for the advocate to
+ *  confirm; the engine still enforces every hard-stop. Files are not persisted. */
+export interface IntakeAttachRequest {
+  matterId: string;
+  docLabel: string;
+  files: IntakeAttachmentFile[];
+  /** Optional note the advocate typed alongside the attachment. */
+  caption?: string;
+}
+
 export interface SavedDraft {
   id: ID;
   title: string;
