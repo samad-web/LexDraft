@@ -1696,7 +1696,28 @@ export interface LimitationCalculateRequest {
 
 // ---- Leads ----------------------------------------------------------------
 
-export type LeadStage = 'new' | 'qualified' | 'proposal' | 'won' | 'lost';
+/**
+ * Legal-intake pipeline stages, in order:
+ *   new          — enquiry received, untriaged
+ *   conflict     — conflict-of-interest check in progress (mandatory gate)
+ *   consultation — met/scoped the matter, fee estimated
+ *   proposal     — engagement letter / fee proposal sent, awaiting signature
+ *   won          — retained: client + matter opened
+ *   lost         — declined (with a reason)
+ * `qualified` is a legacy value kept so pre-existing rows still load; the app
+ * treats it as `consultation`.
+ */
+export type LeadStage =
+  | 'new'
+  | 'conflict'
+  | 'consultation'
+  | 'qualified'
+  | 'proposal'
+  | 'won'
+  | 'lost';
+
+/** Conflict-check outcome. '' = not yet checked. */
+export type ConflictStatus = '' | 'clear' | 'conflict';
 
 export interface Lead {
   id: ID;
@@ -1707,6 +1728,20 @@ export interface Lead {
   stage: LeadStage;
   /** ISO timestamp the lead was captured. */
   capturedAt: string;
+  /** Contact (email or phone) — needed to create the client + portal on retain. */
+  contact: string;
+  /** Practice area / matter type, e.g. "Criminal — Bail", "Civil — Recovery". */
+  practiceArea: string;
+  /** One-line description of the matter the prospect brought. */
+  matterSummary: string;
+  /** 0..100 likelihood of retaining; weights the pipeline value. */
+  probability: number;
+  /** Conflict-of-interest check outcome. */
+  conflictStatus: ConflictStatus;
+  /** Why the lead was declined (only in the `lost` stage). */
+  declineReason: string;
+  /** Name of the client created when this lead was retained (audit trail). */
+  convertedClient: string;
 }
 
 // ---- Invoices -------------------------------------------------------------
