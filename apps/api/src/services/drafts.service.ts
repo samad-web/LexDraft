@@ -13,6 +13,7 @@ interface Row {
   edited_html: string;
   body_text: string;
   draft_date: string | Date | null;
+  matter: string | null;
   created_at: string | Date;
   updated_at: string | Date;
 }
@@ -42,6 +43,7 @@ function fromRow(r: Row): SavedDraft {
     editedHtml: r.edited_html,
     bodyText: r.body_text,
     draftDate: toDateOnly(r.draft_date),
+    matter: r.matter ?? '',
     createdAt: toIso(r.created_at),
     updatedAt: toIso(r.updated_at),
   };
@@ -71,7 +73,7 @@ export const draftsService = {
     }
     const rows = await sql<Row[]>`
       select id, title, doc_type, language, tone, fields_json, edited_html,
-             body_text, draft_date, created_at, updated_at
+             body_text, draft_date, matter, created_at, updated_at
       from drafts
       where user_id = ${ctx.userId}
       order by updated_at desc
@@ -85,7 +87,7 @@ export const draftsService = {
     if (!sql) return memory.get(id) ?? null;
     const rows = await sql<Row[]>`
       select id, title, doc_type, language, tone, fields_json, edited_html,
-             body_text, draft_date, created_at, updated_at
+             body_text, draft_date, matter, created_at, updated_at
       from drafts
       where id = ${id} and user_id = ${ctx.userId}
       limit 1
@@ -117,13 +119,13 @@ export const draftsService = {
     }
     const rows = await sql<Row[]>`
       insert into drafts
-        (user_id, title, doc_type, language, tone, fields_json, edited_html, body_text, draft_date)
+        (user_id, title, doc_type, language, tone, fields_json, edited_html, body_text, draft_date, matter)
       values
         (${ctx.userId}, ${title}, ${req.docType}, ${req.language}, ${req.tone},
          ${sql.json(req.fields)}, ${req.editedHtml}, ${req.bodyText},
-         ${req.draftDate ?? null})
+         ${req.draftDate ?? null}, ${req.matter ?? ''})
       returning id, title, doc_type, language, tone, fields_json, edited_html,
-                body_text, draft_date, created_at, updated_at
+                body_text, draft_date, matter, created_at, updated_at
     `;
     return fromRow(rows[0]!);
   },
@@ -158,10 +160,11 @@ export const draftsService = {
         fields_json = ${sql.json(req.fields)},
         edited_html = ${req.editedHtml},
         body_text = ${req.bodyText},
-        draft_date = ${req.draftDate ?? null}
+        draft_date = ${req.draftDate ?? null},
+        matter = coalesce(${req.matter ?? null}::text, matter)
       where id = ${id} and user_id = ${ctx.userId}
       returning id, title, doc_type, language, tone, fields_json, edited_html,
-                body_text, draft_date, created_at, updated_at
+                body_text, draft_date, matter, created_at, updated_at
     `;
     return rows[0] ? fromRow(rows[0]) : null;
   },

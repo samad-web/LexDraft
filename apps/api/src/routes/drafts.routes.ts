@@ -15,6 +15,7 @@ const SaveInput = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'draftDate must be YYYY-MM-DD')
     .optional(),
+  matter: z.string().max(300).optional(),
 });
 
 export const draftsRouter: Router = Router();

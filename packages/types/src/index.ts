@@ -401,6 +401,130 @@ export interface DraftResponse {
   generatedAt: string;
 }
 
+// ---- Grounded drafting pipeline (reason -> BNS/BNSS sections -> draft) -------
+// The advocate types/dictates a plain-language matter ("the reason"); the server
+// runs EXTRACT -> CLASSIFY (KB-grounded) -> DRAFT -> VERIFY and returns a
+// review-grade result. CLASSIFY may only pick sections that exist in the offence
+// knowledge base, and VERIFY blocks export on unauthorised or repealed-law
+// citations. Shapes mirror drafting-orchestrator.service.ts on the API.
+
+/** One AI-generated block the skeleton wants written (facts/grounds/prayer). */
+export interface DraftBlockSpec {
+  block: string;
+  instruction: string;
+}
+
+export interface DraftPipelineRequest {
+  docType: string;
+  forum: string;
+  /** The advocate's brief — typed text or corrected voice transcript. */
+  brief: string;
+  requiredFields?: string[];
+  blocks: DraftBlockSpec[];
+  provider?: 'xai' | 'anthropic';
+}
+
+export interface PipelineExtractResult {
+  parties?: Record<string, unknown>;
+  case_refs?: Record<string, unknown>;
+  dates?: unknown[];
+  alleged_offences?: string[];
+  relief_sought?: string | null;
+  facts_narrative?: string;
+  needs_clarification?: string[];
+}
+
+export interface PipelineResolvedSection {
+  id: string;
+  citation: string;
+  offenceName: string;
+  verified: boolean;
+  status: string;
+  confidence?: string;
+  ingredientsMissing?: string[];
+}
+
+export interface PipelineVerifyResult {
+  pass: boolean;
+  unauthorised_citations: string[];
+  unsupported_facts: string[];
+  placeholders_remaining: string[];
+  old_law_references: string[];
+  notes: string;
+}
+
+export interface DraftPipelineResponse {
+  modelUsed: string;
+  stagesRun: { extract: boolean; classify: boolean; draft: boolean; verify: boolean };
+  facts: PipelineExtractResult;
+  sections: PipelineResolvedSection[];
+  considerInstead: Array<{ id: string; citation: string; offenceName: string; reason: string }>;
+  unresolvedOffences: string[];
+  draft: Record<string, string>;
+  verify: PipelineVerifyResult | null;
+  /** True when VERIFY flagged unauthorised/old-law citations — block export. */
+  blocked: boolean;
+  advisories: string[];
+}
+
+// ---- One-input auto draft (brief -> triage -> grounded pipeline) ------------
+// The advocate gives only a plain-language brief (typed or dictated); the server
+// decides the document type/forum and runs the grounded pipeline. No tab-picking.
+
+export interface AutoDraftRequest {
+  brief: string;
+  provider?: 'xai' | 'anthropic';
+  /** Set when the advocate corrected the detected document type. */
+  docTypeOverride?: string;
+  /** Advocate-corrected offence-KB section ids; skips auto-classification. */
+  sectionsOverride?: string[];
+  /** The advocate's own format text; the agent drafts into it. */
+  templateFormat?: string;
+}
+
+export interface AutoDraftResponse {
+  triage: {
+    docType: string;
+    forum: string;
+    confidence: 'high' | 'medium' | 'low';
+    reasoning: string;
+    alternatives: string[];
+  };
+  /** Null when the agent is uncertain and is asking the advocate to confirm the
+   *  document type before drafting (see needsConfirmation). */
+  pipeline: DraftPipelineResponse | null;
+  /** True when triage is uncertain (low confidence / snapped): confirm the
+   *  document type before the pipeline runs. */
+  needsConfirmation?: boolean;
+}
+
+// ---- Conversational drafting chat -------------------------------------------
+// A real chat brain in front of the drafting engine: it converses (greet, answer,
+// decline off-topic) and only invokes the grounded drafting engine when the
+// advocate describes a real matter. Legal content still comes from `draft`.
+
+export type DraftChatIntent = 'greeting' | 'question' | 'off_topic' | 'ready_to_draft';
+
+export interface DraftChatTurn {
+  role: 'advocate' | 'assistant';
+  text: string;
+}
+
+export interface DraftChatRequest {
+  message: string;
+  history?: DraftChatTurn[];
+  provider?: 'xai' | 'anthropic';
+}
+
+export interface DraftChatResponse {
+  intent: DraftChatIntent;
+  /** The assistant's natural-language reply. */
+  reply: string;
+  /** The grounded drafting result — present only when intent is ready_to_draft
+   *  and the engine ran. Null on a conversational-only turn. */
+  draft: AutoDraftResponse | null;
+}
+
 // ---- Draft field extraction (dictate/type a brief -> structured fields) -----
 // The advocate dictates or types the matter in free form; the server extracts
 // values for the document type's schema fields so the form is pre-filled and

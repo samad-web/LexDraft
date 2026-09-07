@@ -26,7 +26,7 @@ const SAMPLE_TEMPLATE = (req: DraftRequest): string => {
   return lines.join('\n');
 };
 
-interface BuiltPrompt {
+export interface BuiltPrompt {
   system: string;
   user: string;
 }
@@ -40,6 +40,54 @@ export interface NoteContextItem {
   body: string;
 }
 
+/** Authoritative facts pulled straight from the case record (not advocate
+ *  free-text). These are the identity of the matter — court, CNR, stage, and,
+ *  for criminal matters, the FIR particulars — that a draft for THIS case must
+ *  reference verbatim rather than leave as a placeholder. Every field is
+ *  optional because a freshly-created matter may carry only a few of them. */
+export interface CaseFacts {
+  title?: string;
+  court?: string;
+  cnr?: string;
+  stage?: string;
+  caseType?: string;
+  client?: string;
+  /** FIR particulars — the load-bearing fields for criminal drafting. */
+  firNo?: string;
+  firYear?: number;
+  policeStation?: string;
+  firDetails?: string;
+  /** Next listed date, where relevant to the relief/urgency. */
+  nextHearing?: string;
+}
+
+/** Render the case record as an AUTHORITATIVE facts block. Marked distinctly
+ *  from advocate-supplied notes so the model treats these as the ground truth
+ *  of the matter (the court, the CNR, the FIR) rather than a guess to confirm. */
+export function renderCaseFactsBlock(facts: CaseFacts | null | undefined): string {
+  if (!facts) return '';
+  const rows: Array<[string, string | number | undefined]> = [
+    ['Matter title', facts.title],
+    ['Court / jurisdiction', facts.court],
+    ['CNR / case number', facts.cnr],
+    ['Stage of proceedings', facts.stage],
+    ['Case type', facts.caseType],
+    ['Client', facts.client],
+    ['FIR number', facts.firNo],
+    ['FIR year', facts.firYear],
+    ['Police station (code)', facts.policeStation],
+    ['FIR details', facts.firDetails],
+    ['Next hearing', facts.nextHearing],
+  ];
+  const lines = rows
+    .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== '')
+    .map(([k, v]) => `- ${k}: ${v}`);
+  if (lines.length === 0) return '';
+  return `\n\n# Case record (AUTHORITATIVE — use these facts verbatim; do not contradict or re-guess them)\n${lines.join(
+    '\n',
+  )}`;
+}
+
 /** Trim a single note body so the combined context stays within a sane
  *  token budget. Per-note cap keeps one giant note from crowding everything
  *  else out; the corpus cap (in buildPrompt) is the global limit. */
@@ -51,7 +99,7 @@ function clipNoteBody(body: string): string {
   return `${body.slice(0, PER_NOTE_CHAR_CAP)}\n[... truncated for prompt budget]`;
 }
 
-function renderNotesBlock(notes: NoteContextItem[]): string {
+export function renderNotesBlock(notes: NoteContextItem[]): string {
   if (notes.length === 0) return '';
   let total = 0;
   const sections: string[] = [];
@@ -71,18 +119,32 @@ function renderNotesBlock(notes: NoteContextItem[]): string {
  *  `{role:'system'}` message both carry the persona/style instructions, while
  *  the user message carries only the request-specific task and brief. Same
  *  split is applied to both providers - A/B remains apples-to-apples. */
-function buildPrompt(req: DraftRequest, notes: NoteContextItem[] = []): BuiltPrompt {
-  const langName = req.language === 'EN' ? 'English' : req.language === 'HI' ? 'Hindi' : 'Tamil';
-  const briefLines = Object.entries(req.fields)
+export function languageName(language: DraftRequest['language']): string {
+  return language === 'EN' ? 'English' : language === 'HI' ? 'Hindi' : 'Tamil';
+}
+
+/** Render the filled brief fields as a bullet list, dropping blanks. Shared by
+ *  the single-shot prompt and the agent so both see the brief identically. */
+export function renderBriefLines(fields: DraftRequest['fields']): string {
+  return Object.entries(fields)
     .filter(([, v]) => v && v.toString().trim())
     .map(([k, v]) => `- ${k}: ${v}`)
     .join('\n');
+}
+
+function buildPrompt(
+  req: DraftRequest,
+  notes: NoteContextItem[] = [],
+  facts: CaseFacts | null = null,
+): BuiltPrompt {
+  const langName = languageName(req.language);
+  const briefLines = renderBriefLines(req.fields);
   const dated = req.draftDate ?? new Date().toISOString().slice(0, 10);
 
   const system = `You are an experienced Indian advocate. Draft court-ready documents in ${langName} following Indian legal conventions, statutes, and pleading style. Number paragraphs where appropriate. Include proper headings, parties block, prayer/conclusion, and verification/jurat where applicable. Be precise and concise - under 500 words. Output ONLY the document text - no commentary, no markdown.${notes.length > 0 ? ' Use the case notes only when they directly inform a fact or pleading; do not pad the draft with unrelated context.' : ''}`;
 
   const user = `Draft a "${req.docType}" with tone: ${req.tone}. Date the document "${dated}".
-
+${renderCaseFactsBlock(facts)}
 # Brief
 ${briefLines}${renderNotesBlock(notes)}`;
 
@@ -104,6 +166,10 @@ export interface GenerateOpts {
   /** Optional case-notes context. Caller resolves access rules before
    *  passing them in - the drafting service trusts whatever it receives. */
   notes?: NoteContextItem[];
+  /** Optional authoritative case-record facts (court, CNR, FIR, ...). Resolved
+   *  and access-checked by the caller; the service just folds them into the
+   *  prompt as ground truth. */
+  facts?: CaseFacts | null;
   /** Invoked once when the provider returns token usage. */
   onUsage?: (usage: LlmUsage) => void;
 }
@@ -122,9 +188,10 @@ export const draftingService = {
     let text: string;
     const provider = resolveProvider(opts.provider);
     const notes = opts.notes ?? [];
+    const facts = opts.facts ?? null;
     if (provider === 'xai') {
       try {
-        const r = await callGrok(req, notes);
+        const r = await callGrok(req, notes, facts);
         text = r.text;
         opts.onUsage?.({ provider: 'xai', model: env.XAI_MODEL, ...r.usage });
       } catch (err) {
@@ -133,7 +200,7 @@ export const draftingService = {
       }
     } else if (provider === 'anthropic') {
       try {
-        const r = await callClaude(req, notes);
+        const r = await callClaude(req, notes, facts);
         text = r.text;
         opts.onUsage?.({ provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...r.usage });
       } catch (err) {
@@ -157,15 +224,16 @@ export const draftingService = {
   ): AsyncGenerator<string, void, void> {
     const provider = resolveProvider(opts.provider);
     const notes = opts.notes ?? [];
+    const facts = opts.facts ?? null;
     if (provider === 'none') {
       yield SAMPLE_TEMPLATE(req);
       return;
     }
     try {
       if (provider === 'xai') {
-        yield* streamGrok(req, notes, opts.onUsage);
+        yield* streamGrok(req, notes, opts.onUsage, facts);
       } else {
-        yield* streamClaude(req, notes, opts.onUsage);
+        yield* streamClaude(req, notes, opts.onUsage, facts);
       }
     } catch (err) {
       logger.warn({ err, provider }, 'LLM stream failed, falling back to template');
@@ -179,8 +247,53 @@ interface ProviderResult {
   usage: NormalizedUsage;
 }
 
-async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<ProviderResult> {
-  const { system, user } = buildPrompt(req, notes);
+// ---- Low-level provider primitives -----------------------------------------
+// These take an already-built { system, user } prompt so any caller (e.g. the
+// drafting agent's plan/review stages) can reuse the exact same request shape,
+// retry policy, and usage normalisation as the single-shot path above.
+
+/** Which provider a raw prompt should be sent to. Mirrors resolveProvider but
+ *  is exposed so the agent can decide once and reuse for every stage. */
+export function resolveActiveProvider(override: ProviderOverride): 'xai' | 'anthropic' | 'none' {
+  return resolveProvider(override);
+}
+
+/** One non-streaming completion for an arbitrary prompt. Used by the agent's
+ *  plan and review stages, which want the full text at once, not deltas. */
+export async function runPrompt(
+  prompt: BuiltPrompt,
+  provider: 'xai' | 'anthropic',
+  maxTokens = 1024,
+): Promise<ProviderResult> {
+  return provider === 'anthropic'
+    ? callClaudeRaw(prompt, maxTokens)
+    : callGrokRaw(prompt, maxTokens);
+}
+
+/** Streaming completion for an arbitrary prompt. Used by the agent's final
+ *  draft/refine stage so the document still streams token-by-token to the UI. */
+export async function* streamPrompt(
+  prompt: BuiltPrompt,
+  provider: 'xai' | 'anthropic',
+  onUsage?: (usage: LlmUsage) => void,
+  maxTokens = 2048,
+): AsyncGenerator<string, void, void> {
+  if (provider === 'anthropic') {
+    yield* streamClaudeRaw(prompt, onUsage, maxTokens);
+  } else {
+    yield* streamGrokRaw(prompt, onUsage, maxTokens);
+  }
+}
+
+async function callClaude(
+  req: DraftRequest,
+  notes: NoteContextItem[],
+  facts: CaseFacts | null = null,
+): Promise<ProviderResult> {
+  return callClaudeRaw(buildPrompt(req, notes, facts));
+}
+
+async function callClaudeRaw({ system, user }: BuiltPrompt, maxTokens = 2048): Promise<ProviderResult> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -199,7 +312,7 @@ async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<
         // few-shot examples.
         body: JSON.stringify({
           model: env.ANTHROPIC_MODEL,
-          max_tokens: 2048,
+          max_tokens: maxTokens,
           system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: user }],
         }),
@@ -225,8 +338,15 @@ async function callClaude(req: DraftRequest, notes: NoteContextItem[]): Promise<
   );
 }
 
-async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<ProviderResult> {
-  const { system, user } = buildPrompt(req, notes);
+async function callGrok(
+  req: DraftRequest,
+  notes: NoteContextItem[],
+  facts: CaseFacts | null = null,
+): Promise<ProviderResult> {
+  return callGrokRaw(buildPrompt(req, notes, facts));
+}
+
+async function callGrokRaw({ system, user }: BuiltPrompt, maxTokens = 2048): Promise<ProviderResult> {
   return withRetry(
     async () => {
       const response = await fetch('https://api.x.ai/v1/chat/completions', {
@@ -237,7 +357,7 @@ async function callGrok(req: DraftRequest, notes: NoteContextItem[]): Promise<Pr
         },
         body: JSON.stringify({
           model: env.XAI_MODEL,
-          max_tokens: 2048,
+          max_tokens: maxTokens,
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: user },
@@ -268,8 +388,16 @@ async function* streamGrok(
   req: DraftRequest,
   notes: NoteContextItem[],
   onUsage?: (usage: LlmUsage) => void,
+  facts: CaseFacts | null = null,
 ): AsyncGenerator<string, void, void> {
-  const { system, user } = buildPrompt(req, notes);
+  yield* streamGrokRaw(buildPrompt(req, notes, facts), onUsage);
+}
+
+async function* streamGrokRaw(
+  { system, user }: BuiltPrompt,
+  onUsage?: (usage: LlmUsage) => void,
+  maxTokens = 2048,
+): AsyncGenerator<string, void, void> {
   const response = await fetch('https://api.x.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -278,7 +406,7 @@ async function* streamGrok(
     },
     body: JSON.stringify({
       model: env.XAI_MODEL,
-      max_tokens: 2048,
+      max_tokens: maxTokens,
       stream: true,
       // Ask xAI to emit a terminal usage chunk so we can record token spend.
       stream_options: { include_usage: true },
@@ -334,8 +462,16 @@ async function* streamClaude(
   req: DraftRequest,
   notes: NoteContextItem[],
   onUsage?: (usage: LlmUsage) => void,
+  facts: CaseFacts | null = null,
 ): AsyncGenerator<string, void, void> {
-  const { system, user } = buildPrompt(req, notes);
+  yield* streamClaudeRaw(buildPrompt(req, notes, facts), onUsage);
+}
+
+async function* streamClaudeRaw(
+  { system, user }: BuiltPrompt,
+  onUsage?: (usage: LlmUsage) => void,
+  maxTokens = 2048,
+): AsyncGenerator<string, void, void> {
   // Streaming responses can't be transparently retried mid-stream (we'd
   // emit duplicate deltas), so the connection itself isn't wrapped in
   // withRetry. The non-streaming generate() path remains the resilient
@@ -349,7 +485,7 @@ async function* streamClaude(
     },
     body: JSON.stringify({
       model: env.ANTHROPIC_MODEL,
-      max_tokens: 2048,
+      max_tokens: maxTokens,
       stream: true,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: user }],
