@@ -71,6 +71,12 @@ vi.mock('../intake-llm.service', () => ({
       return classifyQueue.shift() ?? { label: null, confidence: 'low' as const };
     },
   },
+  // markSyntheticDates (intake.service) imports MONTH_NAMES from this module, so the
+  // mock — a whitelist of what the module exports — must provide it too.
+  MONTH_NAMES: [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ],
 }));
 
 const classifyQueue: Array<{ label: string | null; confidence: 'high' | 'medium' | 'low' }> = [];
