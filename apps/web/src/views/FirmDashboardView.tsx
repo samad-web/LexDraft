@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import { useFirmDashboard } from '@/hooks/useFirmDashboard';
 import { useCan, useFirmPracticeGroups } from '@/hooks/useFirmAdmin';
@@ -186,14 +187,22 @@ export function FirmDashboardView() {
         />
       )}
 
-      {/* Headline KPI strip */}
+      {/* Headline KPI strip - each cell drills into the relevant view */}
       <div className="stat-row">
-        <Stat label="Total matters" value={String(data.stats.totalMatters)} hint={`${data.stats.activeMatters} active`} />
+        <Stat
+          label="Total matters"
+          value={String(data.stats.totalMatters)}
+          hint={`${data.stats.activeMatters} active`}
+          to="/app/cases"
+          drillLabel={`Total matters: ${data.stats.totalMatters}. View all matters`}
+        />
         <Stat
           label="Revenue · FY"
           value={data.stats.revenueFY}
           hint={`${data.stats.revenueDeltaPct > 0 ? '+' : ''}${data.stats.revenueDeltaPct}% vs prior year`}
           tone={data.stats.revenueDeltaPct >= 0 ? 'success' : 'danger'}
+          to="/app/invoices"
+          drillLabel={`Revenue this financial year: ${data.stats.revenueFY}. View invoices`}
         />
         <Stat
           label="Billable hours · month"
@@ -203,8 +212,16 @@ export function FirmDashboardView() {
               ? `${data.stats.realizationPct}% realisation`
               : 'Time tracking not configured'
           }
+          to="/app/analytics"
+          drillLabel="Billable hours this month. View analytics"
         />
-        <Stat label="Active advocates" value={String(data.stats.advocatesActive)} hint={`${data.stats.clientsActive} active clients`} />
+        <Stat
+          label="Active advocates"
+          value={String(data.stats.advocatesActive)}
+          hint={`${data.stats.clientsActive} active clients`}
+          to="/app/manage"
+          drillLabel={`${data.stats.advocatesActive} active advocates. Manage the firm roster`}
+        />
       </div>
 
       {/* Revenue + matters split */}
@@ -451,14 +468,22 @@ function Stat({
   value,
   hint,
   tone,
+  to,
+  drillLabel,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: 'success' | 'danger';
+  /** When set, the cell becomes an interactive button that navigates here. */
+  to?: string;
+  /** Accessible action description, e.g. "View all matters". */
+  drillLabel?: string;
 }) {
-  return (
-    <div>
+  const navigate = useNavigate();
+
+  const inner = (
+    <>
       <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
       <div className="display-md tabular" style={{ fontSize: 36, lineHeight: 1.1 }}>{value}</div>
       {hint && (
@@ -472,8 +497,28 @@ function Stat({
           {hint}
         </div>
       )}
-    </div>
+      {to && (
+        <span className="stat-cell__chevron" aria-hidden>
+          <Icon name="chevron" size={16} />
+        </span>
+      )}
+    </>
   );
+
+  if (to) {
+    return (
+      <button
+        type="button"
+        className="stat-cell"
+        onClick={() => navigate(to)}
+        aria-label={drillLabel ?? `${label}: ${value}. View details`}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <div>{inner}</div>;
 }
 
 function MemberRow({ member }: { member: FirmMember }) {

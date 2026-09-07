@@ -97,6 +97,21 @@ export async function start(): Promise<void> {
 
   starting = (async () => {
     try {
+      // postgres.js re-subscribes every listener automatically when the
+      // underlying connection drops and reconnects, and re-invokes this
+      // `onlisten` callback each time. We use it purely for observability:
+      // the first call is the initial subscribe; subsequent calls mean the
+      // LISTEN connection dropped and self-healed. Without this hook a
+      // reconnect is silent, so a stale-cache window would be invisible.
+      let subscribeCount = 0;
+      const onlisten = () => {
+        subscribeCount += 1;
+        if (subscribeCount === 1) {
+          logger.info({ channel: CHANNEL }, 'cache_invalidations LISTEN started');
+        } else {
+          logger.info({ channel: CHANNEL, resubscribes: subscribeCount - 1 }, 'cache_invalidations LISTEN reconnected');
+        }
+      };
       listener = await sql.listen(CHANNEL, (raw: string) => {
         let parsed: CacheInvalidationPayload;
         try {
@@ -111,8 +126,7 @@ export async function start(): Promise<void> {
           try { h(parsed.key); }
           catch (err) { logger.warn({ err, scope: parsed.scope }, 'cache_invalidations handler threw'); }
         }
-      });
-      logger.info({ channel: CHANNEL }, 'cache_invalidations LISTEN started');
+      }, onlisten);
       started = true;
     } catch (err) {
       logger.error({ err }, 'cache_invalidations LISTEN failed to start');

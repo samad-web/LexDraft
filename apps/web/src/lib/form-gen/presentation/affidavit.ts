@@ -12,9 +12,27 @@ export const affidavitPresentation: DocPresentation = {
     'A standalone affidavit: the deponent competence clause, numbered averments of fact, ' +
     'prayer, and attestation. Corporate and third-party deponents require the extra ' +
     'averments the law mandates (authority reference / source of knowledge).',
-  sectionOrder: ['Deponent', 'The Affidavit', 'Competence', 'Attestation'],
+  sectionOrder: ['Court & Cause Title', 'Parties', 'Deponent', 'The Affidavit', 'Competence', 'Attestation'],
   defaultSection: 'Other',
   fields: {
+    // --- Court & Cause Title (full court-affidavit format; all optional) ---
+    court_name: { label: 'Court', section: 'Court & Cause Title', order: 1,
+      placeholder: 'e.g. DISTRICT JUDGE' },
+    court_district: { label: 'District', section: 'Court & Cause Title', order: 2 },
+    suit_no: { label: 'Suit / case number', section: 'Court & Cause Title', order: 3 },
+    suit_year: { label: 'Year', section: 'Court & Cause Title', order: 4 },
+    suit_under: { label: 'Filed under (provision)', section: 'Court & Cause Title', order: 5,
+      placeholder: 'e.g. SUIT UNDER ORDER XXXVII CPC, 1908' },
+
+    // --- Parties ---
+    plaintiff_name: { label: 'Plaintiff / Petitioner name', section: 'Parties', order: 1 },
+    plaintiff_description: { label: 'Plaintiff description', section: 'Parties', order: 2, rows: 2,
+      placeholder: 'e.g. A company incorporated under the Companies Act, through its Director Shri…' },
+    defendant_name: { label: 'Defendant / Respondent name', section: 'Parties', order: 3 },
+    defendant_description: { label: 'Defendant description', section: 'Parties', order: 4, rows: 2 },
+    deponent_capacity: { label: 'Deponent capacity (for the AFFIDAVIT OF heading)', section: 'Parties', order: 5,
+      placeholder: 'e.g. the director of M/s ABC Pvt. Ltd.' },
+
     // --- Deponent ---
     deponent_name: { label: 'Deponent name', section: 'Deponent', order: 1 },
     parentage_type: { label: 'Parentage', section: 'Deponent', order: 2,

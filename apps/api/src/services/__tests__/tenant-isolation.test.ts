@@ -304,7 +304,18 @@ describe('tenant isolation - leadsService', () => {
   it('create throws 422 when firmId is null', async () => {
     await expect(
       leadsService.create(
-        { name: 'Acme inquiry', valueInr: 100_000, referrer: 'web', stage: 'new' },
+        {
+          name: 'Acme inquiry',
+          valueInr: 100_000,
+          referrer: 'web',
+          stage: 'new',
+          contact: '',
+          practiceArea: '',
+          matterSummary: '',
+          probability: 50,
+          conflictStatus: '',
+          declineReason: '',
+        },
         null,
       ),
     ).rejects.toMatchObject({ status: 422 });

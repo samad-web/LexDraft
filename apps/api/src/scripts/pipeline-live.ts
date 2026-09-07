@@ -23,6 +23,14 @@ import {
   type OffenceCandidate,
 } from '../lib/drafting-prompts';
 import type { OffenceEntry } from '../types/offence-kb.types';
+import { TRIAGE_DOC_TYPES } from '../services/draft-triage.service';
+import { findOldProvisions } from '../lib/old-to-new-law';
+
+// Use the SAME block presets the real pipeline uses (from triage), so this live
+// harness exercises the canonical grounds/prayer instructions — including the
+// upgraded grounds ordering — rather than a hand-copied instruction that can
+// silently drift from production.
+const BAIL_BLOCKS = TRIAGE_DOC_TYPES.find((t) => t.docType === 'Bail Application')!.blocks;
 
 // Scenarios, selectable via the first CLI arg (default: cheating).
 const SCENARIOS: Record<string, string> = {
@@ -71,6 +79,16 @@ async function main(): Promise<void> {
   }
   // eslint-disable-next-line no-console
   console.log(`\nSCENARIO: ${scenarioKey}\nBRIEF:\n${BRIEF}`);
+
+  // ---- STAGE 0: deterministic old->new provision advisory (Move 02) ----
+  const oldRefs = findOldProvisions(BRIEF);
+  if (oldRefs.length > 0) {
+    hr('OLD → NEW PROVISION ADVISORY (deterministic, pre-LLM)');
+    for (const m of oldRefs) {
+      // eslint-disable-next-line no-console
+      console.log(`  ${m.old} → ${m.new}${m.approximate ? ' (approx — confirm)' : ''}`);
+    }
+  }
 
   // ---- STAGE 1: EXTRACT ----
   hr('STAGE 1 — EXTRACT (real LLM)');
@@ -123,13 +141,13 @@ async function main(): Promise<void> {
 
   // ---- STAGE 3: DRAFT ----
   hr('STAGE 3 — DRAFT (real LLM)');
+  // Drive the facts/grounds/prayer blocks straight from the production preset so
+  // the live output reflects the real (upgraded) grounds-ordering instruction.
+  const wanted = new Set(['facts', 'grounds', 'prayer']);
   const s3 = buildDraftStage({
     docType: 'regular_bail', forum: 'Court of Session', factsJson: JSON.stringify(facts),
     sections: sections.map((s) => ({ citation: s.citation, offenceName: s.offenceName, verified: s.verified })),
-    blocks: [
-      { block: 'grounds', instruction: 'State the grounds for grant of bail (no prior record, roots in community, willingness to cooperate, no tampering risk).' },
-      { block: 'prayer', instruction: 'State the precise relief: regular bail pending trial.' },
-    ],
+    blocks: BAIL_BLOCKS.filter((b) => wanted.has(b.block)),
   });
   const r3 = await complete(provider, s3.system, s3.user, 4000);
   const draft = parseJsonLoose<Record<string, string>>(r3.text) ?? {};
@@ -147,8 +165,20 @@ async function main(): Promise<void> {
   const audit = parseJsonLoose<Record<string, unknown>>(r4.text) ?? {};
   // eslint-disable-next-line no-console
   console.log(JSON.stringify(audit, null, 2));
+  const unsupported = (audit.unsupported_facts as string[]) ?? [];
   const blocked = ((audit.unauthorised_citations as string[]) ?? []).length > 0 || ((audit.old_law_references as string[]) ?? []).length > 0;
-  hr(blocked ? '⛔ RESULT: BLOCKED (review before export)' : '✅ RESULT: passed audit — ready for advocate review');
+  // Report the FULL picture: hard-block (fabricated/repealed citations) vs the
+  // softer advisory (unsupported factual particulars). The pipeline only hard-
+  // blocks on the former; the latter is surfaced for the advocate, not fatal.
+  if (blocked) {
+    hr('⛔ RESULT: BLOCKED — unauthorised or repealed-law citation (export disabled)');
+  } else if (unsupported.length > 0) {
+    hr('⚠️  RESULT: not blocked, but review advisories — VERIFY flagged possible unsupported particulars');
+    // eslint-disable-next-line no-console
+    console.log(`  flagged: ${unsupported.join(' | ')}`);
+  } else {
+    hr('✅ RESULT: passed audit — ready for advocate review');
+  }
   // eslint-disable-next-line no-console
   console.log(`allowed citations: ${allowed.join(', ') || '(none)'}`);
 }

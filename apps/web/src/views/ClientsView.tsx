@@ -286,15 +286,15 @@ export function ClientsView() {
       </div>
 
       <div className="card">
-        <table className="tbl">
+        <table className="tbl clients-tbl">
           <thead>
             <tr>
               <th>Client</th>
-              <th>Type</th>
-              <th>Matters open</th>
-              <th>Last contact</th>
+              <th className="col-hide-tablet">Type</th>
+              <th className="col-hide-mobile">Matters open</th>
+              <th className="col-hide-tablet">Last contact</th>
               <th>Status</th>
-              <th>Portal</th>
+              <th className="col-hide-mobile">Portal</th>
               <th aria-label="Row actions" />
             </tr>
           </thead>
@@ -350,16 +350,28 @@ export function ClientsView() {
                     <td>
                       <div className="row" style={{ gap: 12 }}>
                         <span className="avatar" aria-hidden="true">{c.initials}</span>
-                        <div>
+                        <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 500 }}>{c.name}</div>
-                          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                            {c.id.toUpperCase()}
+                          {/* Subtitle: the client's contact email — what an
+                              advocate actually needs at a glance. Never the
+                              internal record id. Falls back to a neutral hint
+                              when no email is on file. */}
+                          <div
+                            className="body-sm muted"
+                            style={{
+                              fontSize: 12,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {c.email || 'No contact email on file'}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td><span className="badge badge-cobalt">{c.type.toUpperCase()}</span></td>
-                    <td>
+                    <td className="col-hide-tablet"><span className="badge badge-cobalt">{c.type.toUpperCase()}</span></td>
+                    <td className="col-hide-mobile">
                       {/* Click-to-expand. Shows the count, plus a chevron
                           and (when expanded) the matter list inline. We
                           surface the cases.data count when available so
@@ -380,9 +392,9 @@ export function ClientsView() {
                         <Icon name={isExpanded ? 'chevronD' : 'chevron'} size={12} />
                       </button>
                     </td>
-                    <td className="mono tabular muted">{c.lastContact}</td>
+                    <td className="mono tabular muted col-hide-tablet">{c.lastContact || '—'}</td>
                     <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
-                    <td>
+                    <td className="col-hide-mobile">
                       {c.portalEnabled ? (
                         <Gate feature="client.create">
                           <div className="row" style={{ gap: 6, alignItems: 'center' }}>

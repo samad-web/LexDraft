@@ -1,5 +1,6 @@
 import type { Client } from '@lexdraft/types';
 import { db } from '../db/client';
+import { logger } from '../logger';
 
 interface Row {
   id: string;
@@ -47,6 +48,40 @@ export const clientsService = {
       order by c.name
     `;
     return rows.map(fromRow);
+  },
+
+  /**
+   * Ensure a client row exists for this firm with the given name, creating a
+   * minimal one (Individual, active) if none matches case-insensitively. Called
+   * when a case is saved with a client name, so the client always appears in the
+   * register — the cases/clients join is by name, but nothing else populated the
+   * register from case creation. Idempotent and no-throw: a blank/placeholder
+   * name (empty, "—") is ignored, and any failure is swallowed so it can never
+   * break case saving. There is no unique (firm_id, name) constraint, so we
+   * check-then-insert rather than rely on ON CONFLICT.
+   */
+  async ensureByName(name: string | null | undefined, firmId: string | null): Promise<void> {
+    if (!firmId) return;
+    const trimmed = (name ?? '').trim();
+    // Ignore blanks and the em-dash placeholder used for client-less matters.
+    if (!trimmed || trimmed === '—' || trimmed === '-') return;
+    const sql = db();
+    if (!sql) return;
+    try {
+      const existing = await sql<{ id: string }[]>`
+        select id from clients
+        where firm_id = ${firmId}::uuid and lower(name) = lower(${trimmed})
+        limit 1
+      `;
+      if (existing.length > 0) return;
+      await sql`
+        insert into clients (firm_id, name, type, status)
+        values (${firmId}::uuid, ${trimmed}, 'Individual', 'active')
+      `;
+    } catch (err) {
+      // Never let client-register bookkeeping break the case write.
+      logger.warn({ err, name: trimmed }, 'clients.ensureByName failed');
+    }
   },
 
   async create(input: Omit<Client, 'id' | 'mattersOpen'>, firmId: string | null): Promise<Client> {

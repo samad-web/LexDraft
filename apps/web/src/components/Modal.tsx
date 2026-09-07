@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 
 interface ModalProps {
@@ -144,7 +145,12 @@ export function Modal({
 
   const Body = onSubmit ? 'form' : 'div';
 
-  return (
+  // Render through a portal to <body> so the fixed-position overlay is never a
+  // descendant of a transformed/animated ancestor (e.g. the page-level
+  // `.stagger` fadeUp animation applies `transform: translateY(...)`, which
+  // would otherwise become the containing block for our `position: fixed`
+  // overlay and clip the dialog to that element instead of the viewport).
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -189,7 +195,8 @@ export function Modal({
           <div className="modal-footer">{footer}</div>
         )}
       </Body>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

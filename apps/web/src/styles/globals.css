@@ -985,6 +985,27 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   }
 }
 
+/* ---------- RESPONSIVE COLUMN HIDING (Clients register, and any table
+   that opts in with col-hide-* on both the <th> and its <td> cells) ----------
+   The default .tbl uses min-width:max-content + horizontal scroll, which on a
+   phone buries the row actions (Edit/Delete) off-screen to the right. A table
+   marked .clients-tbl instead sheds its lower-priority columns as the viewport
+   narrows so the essential columns (client, status, actions) always fit
+   without sideways scrolling — the primary user is an advocate on a laptop or
+   phone, not a spreadsheet. */
+.clients-tbl { min-width: 0; width: 100%; }
+.card > .clients-tbl, .card > table.clients-tbl { min-width: 0; }
+
+/* Tablet and below: drop Type + Last contact (nice-to-have context). */
+@media (max-width: 1023px) {
+  .clients-tbl .col-hide-tablet { display: none; }
+}
+/* Phone: also drop Matters-open + Portal (portal admin is a desktop task).
+   What remains: Client (name + email), Status, and the action buttons. */
+@media (max-width: 640px) {
+  .clients-tbl .col-hide-mobile { display: none; }
+}
+
 /* ---------- PILL NAV (signature pattern) ---------- */
 .pill-nav {
   position: relative;
@@ -1069,6 +1090,49 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   border-right: 1px solid var(--border-subtle);
 }
 .stat-row > *:last-child { border-right: 0; }
+
+/* Interactive stat cell: rendered as a button, drills into the relevant view. */
+.stat-cell {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: background 140ms ease, box-shadow 140ms ease;
+}
+.stat-cell::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: var(--text-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 160ms ease;
+}
+.stat-cell:hover,
+.stat-cell:focus-visible { background: var(--bg-surface-2); }
+.stat-cell:hover::after,
+.stat-cell:focus-visible::after { transform: scaleX(1); }
+.stat-cell:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+.stat-cell .stat-cell__chevron {
+  position: absolute;
+  top: 24px; right: 20px;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  color: var(--text-tertiary);
+}
+.stat-cell:hover .stat-cell__chevron,
+.stat-cell:focus-visible .stat-cell__chevron { opacity: 1; transform: translateX(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-cell, .stat-cell::after, .stat-cell .stat-cell__chevron { transition: none; }
+}
 
 /* ---------- TOAST ---------- */
 .toast {
@@ -1457,6 +1521,14 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   grid-template-columns: 1fr 1fr;
   gap: 14px;
 }
+/* Grid items default to min-width:auto, which refuses to shrink below their
+   content's intrinsic size and pushes the whole row wider than the modal
+   (horizontal scroll). Force the cells to be shrinkable and their inputs to
+   fill the cell, so a two-column form always fits its container exactly. */
+.form-row > * { min-width: 0; }
+.form-row .input,
+.form-row input,
+.form-row select { width: 100%; max-width: 100%; box-sizing: border-box; }
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }
 }
@@ -2128,10 +2200,15 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   inset: 0;
   background: var(--scrim);
   display: flex;
-  align-items: center;
+  /* Center when the shell fits; when it's taller than the viewport, fall back
+     to top-aligned + scroll so the top of the dialog never gets clipped
+     above the viewport edge (align-items:center makes overflow unreachable). */
+  align-items: flex-start;
   justify-content: center;
   z-index: 50;
   padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   opacity: 0;
   transition: opacity 160ms ease-out;
 }
@@ -2143,8 +2220,16 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   border-radius: var(--radius-lg);
   padding: 28px;
   width: min(var(--modal-width, 640px), 100%);
-  max-height: 90vh;
-  overflow: auto;
+  /* Cap to the viewport minus the overlay padding (2 × 16px) so the shell can
+     never exceed the visible area; its own overflow:auto then scrolls the
+     content internally. Auto vertical margins center it when it's shorter. */
+  max-height: calc(100vh - 32px);
+  margin: auto;
+  /* Scroll tall content VERTICALLY only — a modal form must never scroll
+     sideways. overflow-x:hidden clips any stray horizontal overflow so the
+     two-column rows fit the shell exactly instead of spawning a scrollbar. */
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2166,6 +2251,15 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+  /* Keep the action buttons reachable when the body scrolls inside the shell:
+     pin the footer to the bottom edge with a matching backdrop so long forms
+     never hide "Save"/"Capture" below the fold. */
+  position: sticky;
+  bottom: -28px; /* cancels the shell's 28px bottom padding so it sits flush */
+  background: var(--bg-base);
+  padding-top: 12px;
+  padding-bottom: 28px;
+  margin-bottom: -28px;
 }
 
 @media (max-width: 640px) {
@@ -3453,3 +3547,334 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .badge--withdrawn, .badge--not_clear, .badge--expired, .badge--not_obtained { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); padding: 2px 10px; border-radius: var(--radius-full); font-size: 11px; }
 .badge--obtained, .badge--valid         { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); padding: 2px 10px; border-radius: var(--radius-full); font-size: 11px; }
 .badge--not_required, .badge--not_applicable { background: var(--bg-surface-2); color: var(--text-secondary); border: 1px solid var(--border-default); padding: 2px 10px; border-radius: var(--radius-full); font-size: 11px; }
+
+/* ============================================================================
+   Engine-routed draft path (Phase 2). The refusal reads as a considered flag
+   (amber, never danger-red — a legal finding, not a crash). The incomplete-form
+   message is neutral/info (a checklist, not a block). They are visually distinct
+   on purpose so the advocate never confuses "the law blocks this" with "the form
+   isn't finished".
+   ========================================================================== */
+
+.engine-panel__run {
+  padding: 8px 16px; border-radius: var(--radius-md);
+  background: var(--text-primary); color: var(--text-inverse);
+  border: none; font-weight: 600; cursor: pointer;
+}
+.engine-panel__run:disabled { opacity: .6; cursor: default; }
+.engine-panel__doc { margin-top: 16px; }
+.engine-panel__blocks {
+  margin-top: 12px; padding: 20px; background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  line-height: 1.55;
+}
+.engine-panel__block { margin: 0 0 10px; }
+
+/* --- Refusal: a junior flagging a problem. Amber, calm, structured. --- */
+.engine-refusal {
+  margin-top: 16px; padding: 16px 18px;
+  background: var(--warning-bg); border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+}
+.engine-refusal__head { display: flex; gap: 12px; align-items: flex-start; }
+.engine-refusal__icon { color: var(--warning); flex: 0 0 auto; margin-top: 2px; }
+.engine-refusal__lead { margin: 0 0 4px; font-weight: 600; color: var(--text-primary); }
+.engine-refusal__reason { margin: 0; color: var(--text-primary); line-height: 1.5; }
+.engine-refusal__computation { margin: 10px 0 0 30px; }
+.engine-refusal__link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--text-secondary); text-decoration: underline; font-size: 13px;
+}
+.engine-refusal__pre {
+  margin: 6px 0 0; padding: 10px 12px; background: var(--bg-surface);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  font-size: 12.5px; white-space: pre-wrap; color: var(--text-secondary);
+}
+.engine-refusal__fields { margin: 12px 0 0 30px; font-size: 14px; color: var(--text-primary); }
+.engine-refusal__fieldchip {
+  background: var(--bg-surface); border: 1px solid var(--warning);
+  border-radius: var(--radius-full); padding: 1px 10px; margin: 0 1px;
+  cursor: pointer; font-size: 13px; color: var(--text-primary);
+}
+.engine-refusal__foot { margin: 12px 0 0 30px; font-size: 12px; color: var(--text-tertiary); }
+
+/* --- Incomplete form (422): neutral checklist, distinctly NOT a refusal. --- */
+.engine-incomplete {
+  margin-top: 16px; padding: 14px 18px;
+  background: var(--bg-surface-2); border: 1px solid var(--border-default);
+  border-left: 3px solid var(--border-strong); border-radius: var(--radius-md);
+}
+.engine-incomplete__head { display: flex; gap: 10px; align-items: center; }
+.engine-incomplete__icon { color: var(--text-secondary); }
+.engine-incomplete__lead { margin: 0; font-weight: 600; color: var(--text-primary); }
+.engine-incomplete__list { margin: 8px 0 0 30px; padding: 0; }
+.engine-incomplete__list li { margin: 4px 0; color: var(--text-secondary); }
+.engine-incomplete__fieldbtn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--text-primary); font-weight: 600; text-decoration: underline;
+}
+
+/* --- On-screen review banner. Present until sign-off; then a quiet final state. --- */
+.engine-banner {
+  padding: 10px 14px; border-radius: var(--radius-md); font-size: 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.engine-banner--draft { background: var(--warning-bg); border: 1px solid var(--warning); }
+.engine-banner--final {
+  background: var(--success-bg); border: 1px solid var(--success);
+  color: var(--text-primary); flex-direction: row; align-items: center; gap: 8px;
+}
+.engine-banner__row { display: flex; align-items: center; gap: 10px; }
+.engine-banner__text { flex: 1; font-weight: 600; color: var(--text-primary); }
+.engine-banner__signoff {
+  padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  background: var(--text-primary); color: var(--text-inverse);
+  border: none; font-size: 13px; font-weight: 600;
+}
+.engine-banner__signoff:disabled { opacity: .5; cursor: default; }
+.engine-banner__cancel {
+  padding: 5px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  background: none; border: 1px solid var(--border-default); font-size: 13px;
+}
+.engine-banner__confirm { display: flex; gap: 6px; }
+.engine-banner__marker {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; color: var(--warning);
+}
+.engine-banner__error { margin: 0; font-size: 13px; color: var(--danger); }
+
+/* =========================================================================
+   Conversational intake (the engine-driven fact-gathering loop).
+   Two coordinated views: the transcript (left) and the editable fact sheet
+   (right). The refusal / banner / draft reuse the engine-* components above.
+   ========================================================================= */
+.intake {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (max-width: 860px) {
+  .intake { grid-template-columns: 1fr; }
+}
+.intake__conversation { display: flex; flex-direction: column; min-width: 0; }
+.intake__transcript {
+  display: flex; flex-direction: column; gap: 10px;
+  max-height: 460px; overflow-y: auto; padding: 4px 4px 8px;
+}
+.intake__opener { color: var(--text-secondary); font-size: 14px; line-height: 1.6; margin: 4px 0; }
+.intake__back {
+  align-self: flex-start;
+  margin-top: 2px;
+  background: none; border: none; padding: 0;
+  color: var(--info); font-size: 13px; cursor: pointer;
+}
+.intake__back:hover { text-decoration: underline; }
+
+/* DraftBot launch card + one-shot modal ------------------------------------ */
+.draftbot-launch {
+  padding: 28px 28px 30px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  border-left: 3px solid var(--accent, var(--info));
+}
+.draftbot-launch__title { font-size: 22px; font-weight: 600; color: var(--text-primary); margin: 0; }
+.draftbot-launch__sub { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 8px; max-width: 640px; }
+.draftbot-launch__sub code {
+  font-size: 12px; padding: 1px 5px; border-radius: 4px;
+  background: var(--surface-2); color: var(--text-primary);
+}
+.draftbot-modal { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.draftbot-modal__prompt {
+  width: 100%; box-sizing: border-box; resize: vertical; min-height: 140px;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text-primary); font: inherit; font-size: 14px; line-height: 1.55;
+}
+.draftbot-modal__strength { display: flex; align-items: center; gap: 4px; font-size: 12px; flex-wrap: wrap; }
+.draftbot-modal__strength-label { font-weight: 600; }
+.draftbot-modal__strength--weak .draftbot-modal__strength-label { color: var(--danger, #c0392b); }
+.draftbot-modal__strength--ok   .draftbot-modal__strength-label { color: var(--warning, #b4530a); }
+.draftbot-modal__strength--strong .draftbot-modal__strength-label { color: var(--success, #059669); }
+.draftbot-modal__strength-hint { color: var(--text-tertiary); }
+.draftbot-modal__strength-bar {
+  flex: 1 1 100%; height: 3px; border-radius: 2px; margin-top: 2px;
+  background: linear-gradient(to right, currentColor var(--w, 33%), var(--surface-2) 0);
+}
+.draftbot-modal__strength--weak .draftbot-modal__strength-bar { color: var(--danger, #c0392b); --w: 25%; }
+.draftbot-modal__strength--ok .draftbot-modal__strength-bar { color: var(--warning, #b4530a); --w: 60%; }
+.draftbot-modal__strength--strong .draftbot-modal__strength-bar { color: var(--success, #059669); --w: 100%; }
+.draftbot-modal__attach-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.draftbot-modal__file {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 240px;
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.draftbot-modal__file button { display: inline-flex; border: none; background: none; cursor: pointer; padding: 0; color: inherit; }
+.draftbot-modal__options { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+.draftbot-modal__field { display: flex; flex-direction: column; gap: 6px; }
+.draftbot-modal__field-label { font-size: 12px; color: var(--text-tertiary); }
+.draftbot-modal__field .input { min-width: 180px; }
+.draftbot-modal__check { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary); cursor: pointer; }
+.draftbot-modal__error { margin: 0; font-size: 13px; color: var(--danger, #c0392b); line-height: 1.5; }
+
+/* DraftBot-style "Start drafting by" gate ---------------------------------- */
+.draft-start-gate { display: flex; flex-direction: column; gap: 18px; padding: 8px 4px 12px; }
+.draft-start-gate__head { display: flex; flex-direction: column; gap: 4px; }
+.draft-start-gate__title { font-size: 20px; font-weight: 600; color: var(--text-primary); margin: 0; }
+.draft-start-gate__sub { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+.draft-start-gate__choices {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.draft-start-gate__choice {
+  display: flex; flex-direction: column; gap: 8px; text-align: left;
+  padding: 18px 18px 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-default);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+.draft-start-gate__choice:hover {
+  border-color: var(--info);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+.draft-start-gate__choice:focus-visible { outline: 2px solid var(--info); outline-offset: 2px; }
+.draft-start-gate__icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 42px; height: 42px; border-radius: 10px;
+  background: var(--accent-soft, rgba(37, 99, 235, 0.08));
+  color: var(--info);
+}
+.draft-start-gate__label { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.draft-start-gate__desc { font-size: 13px; color: var(--text-secondary); line-height: 1.55; }
+.intake__turn { max-width: 88%; padding: 10px 14px; border-radius: 12px; font-size: 14px; line-height: 1.55; }
+.intake__turn p { margin: 0; }
+.intake__turn--advocate {
+  align-self: flex-end; background: var(--accent-soft, var(--surface-2)); color: var(--text-primary);
+  border-bottom-right-radius: 4px;
+}
+.intake__turn--assistant {
+  align-self: flex-start; background: var(--surface-2); color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+/* A "note" turn (a change noted, a parked fact) is quieter than a question. */
+.intake__turn--note { background: none; color: var(--text-tertiary); font-size: 13px; font-style: italic; padding: 2px 6px; }
+.intake__turn--question { border-left: 2px solid var(--info); }
+.intake__composer { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.intake__input {
+  width: 100%; resize: vertical; min-height: 44px; box-sizing: border-box;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text-primary); font: inherit; font-size: 14px;
+}
+/* Action bar: Attach pinned left; Draft-now + Send grouped right (in their own
+   wrapper) so the two clusters sit at clean opposite ends instead of drifting. */
+.intake__composer-actions { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.intake__actions-right { display: flex; gap: 8px; align-items: center; }
+/* On a narrow composer, let the two clusters stack; the right group stays intact
+   and full-width so Draft-now / Send remain easy targets. */
+@media (max-width: 560px) {
+  .intake__composer-actions { flex-direction: column; align-items: stretch; }
+  .intake__actions-right { justify-content: flex-end; }
+}
+.intake__send {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer;
+  background: var(--accent, var(--info)); color: var(--on-accent, #fff);
+  font: inherit; font-size: 14px; font-weight: 600; line-height: 1;
+}
+.intake__send:disabled { opacity: 0.5; cursor: not-allowed; }
+.intake__attach {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+  background: var(--surface); color: var(--text-primary); font: inherit; font-size: 13px; font-weight: 500; line-height: 1;
+}
+.intake__attach:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Draft-now: the emphasised primary action, sits at the head of the right group. */
+.intake__draft-now {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 16px; border: 1px solid var(--accent, var(--info)); border-radius: 8px; cursor: pointer;
+  background: color-mix(in srgb, var(--accent, var(--info)) 12%, transparent);
+  color: var(--accent, var(--info)); font: inherit; font-size: 14px; font-weight: 600; line-height: 1;
+}
+.intake__draft-now:disabled { opacity: 0.5; cursor: not-allowed; }
+.intake__attachments { display: flex; flex-wrap: wrap; gap: 6px; }
+.intake__chip {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 220px;
+  padding: 4px 8px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); font-size: 12px; color: var(--text-secondary, var(--text-primary));
+}
+.intake__chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intake__chip-remove {
+  display: inline-flex; border: none; background: none; cursor: pointer; padding: 0;
+  color: var(--text-secondary, var(--text-primary));
+}
+.intake__chip-remove:disabled { opacity: 0.5; cursor: not-allowed; }
+.intake__attach-error { margin: 0; font-size: 12px; color: var(--danger, var(--vermillion, #c0392b)); }
+.intake__detected {
+  display: flex; align-items: center; gap: 8px; margin: 4px 0 12px;
+  padding: 8px 12px; border: 1px solid var(--border); border-left: 3px solid var(--sage, var(--info));
+  border-radius: 8px; background: var(--surface); font-size: 13px; color: var(--text-secondary, var(--text-primary));
+}
+.intake__detected strong { color: var(--text-primary); }
+.intake__draft { margin-top: 6px; }
+.intake__blocks { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.intake__block { margin: 0; font-size: 14px; line-height: 1.65; color: var(--text-primary); white-space: pre-wrap; }
+
+/* --- The always-visible, editable fact sheet (§10). --- */
+.intake__side { min-width: 0; }
+.intake-factsheet {
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  padding: 12px 14px; position: sticky; top: 12px;
+}
+.intake-factsheet__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.intake-factsheet__title { margin: 0; font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.intake-factsheet__count { font-size: 11px; color: var(--text-tertiary); }
+.intake-factsheet__section { border: none; margin: 0 0 10px; padding: 0; }
+.intake-factsheet__legend {
+  font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 4px; padding: 0;
+}
+.intake-field { margin-bottom: 8px; }
+.intake-field__label {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary); margin-bottom: 3px;
+}
+.intake-field__req { color: var(--danger); }
+.intake-field__derived {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: var(--info-soft, var(--surface-2)); color: var(--info); font-weight: 600; cursor: help;
+}
+.intake-field__directtag {
+  font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  background: var(--warning-soft, var(--surface-2)); color: var(--warning); font-weight: 600;
+}
+.intake-field__input {
+  width: 100%; padding: 6px 8px; font: inherit; font-size: 13px;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-primary);
+}
+.intake-field--outstanding .intake-field__input { border-color: var(--warning); background: var(--warning-soft, transparent); }
+.intake-field--direct .intake-field__input { border-color: var(--warning); }
+.intake-field__save {
+  margin-top: 4px; padding: 3px 10px; font-size: 12px; cursor: pointer;
+  border: none; border-radius: 6px; background: var(--accent, var(--info)); color: var(--on-accent, #fff);
+}
+.intake-field__hint { display: block; margin-top: 2px; font-size: 11px; color: var(--warning); }
+
+/* Composed-draft tables (cheque/invoice particulars rendered from Markdown by
+   DraftBlockText). A real bordered table instead of raw | pipes. */
+.draft-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+.draft-table th,
+.draft-table td {
+  border: 1px solid var(--border-default, #444);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.draft-table th { font-weight: 600; background: var(--bg-surface-2, rgba(255,255,255,0.03)); }

@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { ROUTE_TITLES } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useSignOut } from '@/hooks/useAuth';
 
 export function Topbar() {
@@ -15,6 +16,10 @@ export function Topbar() {
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const [notifOpen, setNotifOpen] = useState(false);
+  // Drives the server sync (poll + hydrate) and gives us API-backed mark-read
+  // handlers. The unread badge still reads the store so optimistic updates and
+  // any client-only notifications are reflected instantly.
+  const { markRead, markAllRead } = useNotifications();
   const unreadCount = useUnreadCount();
   const signOut = useSignOut();
   // Background-fetch indicator. A small dot pulses next to the title when
@@ -116,7 +121,12 @@ export function Topbar() {
           )}
         </button>
         {notifOpen && (
-          <NotificationPanel onClose={() => setNotifOpen(false)} onNav={(to) => navigate(`/app/${to}`)} />
+          <NotificationPanel
+            onClose={() => setNotifOpen(false)}
+            onNav={(to) => navigate(`/app/${to}`)}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+          />
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { createApp } from './app';
 import { env } from './env';
 import { logger } from './logger';
+import { db } from './db/client';
 import { jobs } from './services/jobs.service';
 import { cacheBroadcaster } from './services/cache-broadcaster';
 
@@ -37,8 +38,90 @@ const shutdown = (signal: string) => {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('unhandledRejection', (reason) => logger.error({ reason }, 'unhandledRejection'));
+
+// ---------------------------------------------------------------------------
+// Crash resilience
+// ---------------------------------------------------------------------------
+//
+// The DB is a remote Supabase pooler; its connection is dropped periodically
+// (idle timeout, pooler recycle, transient network blip). postgres.js and
+// pg-boss both reconnect on their own, and per-query failures reject the
+// individual promise the route handler already catches. The danger is a
+// transient DB/network error that escapes as an *unhandled* rejection or
+// exception — the previous handler called process.exit(1) on ANY uncaught
+// exception, so one dropped socket took the whole API down (this is the
+// "Network Error" the login page kept showing). We now classify these: a
+// transient connectivity error is logged and survived (the pool self-heals);
+// only a genuine programming fault is treated as fatal.
+
+/** Heuristic: does this error look like a transient DB / socket drop we can
+ *  ride out, rather than a real bug? Matches postgres.js + node net codes for
+ *  connection resets, terminations, and pooler recycles. */
+function isTransientConnectionError(err: unknown): boolean {
+  const e = err as { code?: string; message?: string; errno?: string } | null;
+  const code = (e?.code ?? e?.errno ?? '').toUpperCase();
+  const msg = (e?.message ?? '').toLowerCase();
+  if (['ECONNRESET', 'EPIPE', 'ETIMEDOUT', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'CONNECTION_ENDED', 'CONNECTION_DESTROYED', 'CONNECTION_CLOSED'].includes(code)) {
+    return true;
+  }
+  return (
+    msg.includes('connection terminated')
+    || msg.includes('connection ended')
+    || msg.includes('connection closed')
+    || msg.includes('read econnreset')
+    || msg.includes('terminating connection')
+    || msg.includes('server closed the connection')
+    || msg.includes('write epipe')
+  );
+}
+
+process.on('unhandledRejection', (reason) => {
+  if (isTransientConnectionError(reason)) {
+    logger.warn({ reason }, 'transient DB/network rejection — surviving; pool will reconnect');
+    return;
+  }
+  logger.error({ reason }, 'unhandledRejection');
+});
+
 process.on('uncaughtException', (err) => {
-  logger.fatal({ err }, 'uncaughtException');
+  if (isTransientConnectionError(err)) {
+    // A dropped DB socket must NOT kill the API. Log and keep serving —
+    // postgres.js/pg-boss reconnect, and the next query succeeds.
+    logger.warn({ err }, 'transient DB/network exception — surviving; pool will reconnect');
+    return;
+  }
+  // Genuine programming fault: state may be corrupt, so exit and let the
+  // process manager (or `tsx watch` / docker restart policy) bring us back.
+  logger.fatal({ err }, 'uncaughtException — exiting');
   process.exit(1);
 });
+
+// ---------------------------------------------------------------------------
+// DB keepalive / health probe
+// ---------------------------------------------------------------------------
+//
+// A cheap periodic `SELECT 1` serves two purposes: (1) it keeps the pooled
+// connection warm so Supabase's idle timeout doesn't silently reap it between
+// user requests, and (2) it surfaces a half-dead pool in the logs the moment
+// it goes unreachable, instead of the failure first appearing as a user-facing
+// 500. A failed probe is logged, never fatal — the next probe (or a real
+// request) drives postgres.js to reconnect.
+const DB_HEALTH_INTERVAL_MS = 60_000;
+let dbHealthy = true;
+const dbHealthTimer = setInterval(() => {
+  const sql = db();
+  if (!sql) return; // in-memory mode — nothing to probe
+  void sql`select 1`.then(
+    () => {
+      if (!dbHealthy) {
+        dbHealthy = true;
+        logger.info('DB connection recovered');
+      }
+    },
+    (err: unknown) => {
+      dbHealthy = false;
+      logger.warn({ err }, 'DB health probe failed — pool unreachable, will retry');
+    },
+  );
+}, DB_HEALTH_INTERVAL_MS);
+dbHealthTimer.unref(); // don't keep the event loop alive for the probe alone

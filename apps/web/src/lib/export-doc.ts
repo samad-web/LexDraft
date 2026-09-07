@@ -138,8 +138,11 @@ function buildDocumentHtml({
   <title>${safeTitle}</title>
   <style>
     @page { margin: 0.75in; size: ${orientation}; }
+    /* Court/legal convention: Times New Roman throughout, exported to match the
+       on-screen preview (.court-prose). Every drafted document — notice, plaint,
+       deed, application — files in the same serif face. */
     body {
-      font-family: 'Calibri', 'Helvetica', 'Arial', sans-serif;
+      font-family: 'Times New Roman', Times, Georgia, serif;
       font-size: 12pt;
       line-height: 1.6;
       color: #111;
@@ -147,16 +150,19 @@ function buildDocumentHtml({
       margin: 0 auto;
       padding: 24px;
     }
+    h1, h2, h3, h4, h5, h6, p, li, td, th, div { font-family: 'Times New Roman', Times, Georgia, serif; }
     h1 { font-size: 18pt; margin: 0 0 8px; }
     h2 { font-size: 15pt; margin: 18px 0 8px; }
     h3 { font-size: 13pt; margin: 14px 0 6px; }
     p { margin: 0 0 10pt; }
+    /* Emphasis the drafter marks as important renders BOLD (not italic/thin). */
+    strong, b { font-weight: 700; }
     ul, ol { margin: 0 0 10pt 24px; }
     table { border-collapse: collapse; width: 100%; font-size: 11pt; margin: 0 0 12pt; }
     th, td { border: 1px solid #bbb; padding: 6pt 8pt; text-align: left; vertical-align: top; }
-    th { background: #f0f0f0; font-weight: 600; }
+    th { background: #f0f0f0; font-weight: 700; }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .doc-title { text-align:center; font-weight:600; font-size:16pt; letter-spacing:0.04em; text-transform:uppercase; margin-bottom: 4px; }
+    .doc-title { text-align:center; font-weight:700; font-size:16pt; letter-spacing:0.04em; text-transform:uppercase; margin-bottom: 4px; }
     .meta-row { display:flex; justify-content:space-between; color:#444; font-size:11pt; margin-bottom:18px; }
   </style>
 </head>
