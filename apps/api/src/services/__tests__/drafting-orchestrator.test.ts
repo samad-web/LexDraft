@@ -49,14 +49,17 @@ describe('draftingOrchestratorService.run — four-stage pipeline', () => {
     replies.length = 0;
   });
 
-  it('runs all four stages and resolves a real KB section as SUGGESTED', async () => {
+  it('runs all four stages and resolves a needs-review KB section as SUGGESTED', async () => {
+    // Use an offence whose KB entry is `needs-review` so this test exercises the
+    // SUGGESTED path of the gate. (bns-318-cheating is now `verified` in the KB —
+    // see the VERIFIED test below — so it can no longer stand in for SUGGESTED.)
     queue(
       // EXTRACT
-      JSON.stringify({ alleged_offences: ['cheating'], facts_narrative: 'Ramesh took Rs 4,00,000 by false promise.', needs_clarification: [] }),
-      // CLASSIFY — picks the real cheating id
-      JSON.stringify({ selected: [{ id: 'bns-318-cheating', confidence: 'high', ingredients_met: ['deception'], ingredients_missing: [], why: 'money taken by deception' }], consider_instead: [], unresolved: [] }),
+      JSON.stringify({ alleged_offences: ['extortion'], facts_narrative: 'Ramesh was threatened and made to pay Rs 4,00,000.', needs_clarification: [] }),
+      // CLASSIFY — picks the real extortion id (needs-review in the KB)
+      JSON.stringify({ selected: [{ id: 'bns-308-extortion', confidence: 'high', ingredients_met: ['threat', 'delivery of property'], ingredients_missing: [], why: 'money extracted by threat' }], consider_instead: [], unresolved: [] }),
       // DRAFT
-      JSON.stringify({ grounds: 'It is respectfully submitted that the applicant may attract BNS 318(4), subject to confirmation.' }),
+      JSON.stringify({ grounds: 'It is respectfully submitted that the alleged offence may attract BNS 308(1), subject to confirmation.' }),
       // VERIFY — clean
       JSON.stringify({ pass: true, unauthorised_citations: [], unsupported_facts: [], placeholders_remaining: [], old_law_references: [], notes: '' }),
     );
@@ -65,11 +68,30 @@ describe('draftingOrchestratorService.run — four-stage pipeline', () => {
 
     expect(res.stagesRun).toEqual({ extract: true, classify: true, draft: true, verify: true });
     expect(res.sections).toHaveLength(1);
-    expect(res.sections[0]!.id).toBe('bns-318-cheating');
-    expect(res.sections[0]!.citation).toBe('BNS 318(4)');
+    expect(res.sections[0]!.id).toBe('bns-308-extortion');
+    expect(res.sections[0]!.citation).toBe('BNS 308(1)');
     // KB entry is needs-review -> the gate must mark it SUGGESTED, not verified.
     expect(res.sections[0]!.verified).toBe(false);
-    expect(res.draft.grounds).toContain('318(4)');
+    expect(res.draft.grounds).toContain('308(1)');
+    expect(res.blocked).toBe(false);
+  });
+
+  it('resolves a verified KB section as VERIFIED (the other gate path)', async () => {
+    // bns-318-cheating is `verified` in the KB, so the gate must mark it VERIFIED.
+    queue(
+      JSON.stringify({ alleged_offences: ['cheating'], facts_narrative: 'Ramesh took Rs 4,00,000 by false promise.', needs_clarification: [] }),
+      JSON.stringify({ selected: [{ id: 'bns-318-cheating', confidence: 'high', ingredients_met: ['deception'], ingredients_missing: [], why: 'money taken by deception' }], consider_instead: [], unresolved: [] }),
+      JSON.stringify({ grounds: 'It is respectfully submitted that the applicant committed an offence punishable under BNS 318(4).' }),
+      JSON.stringify({ pass: true, unauthorised_citations: [], unsupported_facts: [], placeholders_remaining: [], old_law_references: [], notes: '' }),
+    );
+
+    const res = await draftingOrchestratorService.run(BASE, CTX);
+
+    expect(res.sections).toHaveLength(1);
+    expect(res.sections[0]!.id).toBe('bns-318-cheating');
+    expect(res.sections[0]!.citation).toBe('BNS 318(4)');
+    // KB entry is verified -> the gate must mark it VERIFIED.
+    expect(res.sections[0]!.verified).toBe(true);
     expect(res.blocked).toBe(false);
   });
 
@@ -120,6 +142,23 @@ describe('draftingOrchestratorService.run — four-stage pipeline', () => {
     const res = await draftingOrchestratorService.run(BASE, CTX);
     expect(res.blocked).toBe(true);
     expect(res.verify?.old_law_references).toContain('Section 437 CrPC');
+  });
+
+  it('BLOCKS export when VERIFY finds leftover placeholders (no bad citations)', async () => {
+    queue(
+      JSON.stringify({ alleged_offences: ['cheating'], facts_narrative: 'x', needs_clarification: [] }),
+      JSON.stringify({ selected: [{ id: 'bns-318-cheating', confidence: 'high' }], consider_instead: [], unresolved: [] }),
+      JSON.stringify({ grounds: 'That the accused issued a cheque [to be drafted]' }),
+      // VERIFY: citations/old-law clean, but a placeholder remains — must block.
+      JSON.stringify({ pass: false, unauthorised_citations: [], unsupported_facts: [], placeholders_remaining: ['[to be drafted]'], old_law_references: [], notes: 'unfilled slot' }),
+    );
+
+    const res = await draftingOrchestratorService.run(BASE, CTX);
+    expect(res.blocked).toBe(true);
+    expect(res.verify?.placeholders_remaining).toContain('[to be drafted]');
+    expect(res.verify?.unauthorised_citations).toEqual([]);
+    expect(res.verify?.old_law_references).toEqual([]);
+    expect(res.advisories.some((a) => /AUDIT BLOCK/i.test(a))).toBe(true);
   });
 
   it('surfaces consider_instead (cheating vs criminal breach of trust)', async () => {

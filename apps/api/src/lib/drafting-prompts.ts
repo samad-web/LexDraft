@@ -70,7 +70,7 @@ Rules:
 - "alleged_offences" = the offence(s) in the advocate's OWN plain words (e.g. "cheating", "grievous hurt"). Do NOT output section numbers here — that is a later stage's job.
 - "facts_narrative" = a faithful, chronological restatement of what happened, in neutral formal English. Add nothing that is not in the brief.
 - "dates": put the raw phrasing in "as_stated" (e.g. "last Tuesday", "5th of August"); set "date" to YYYY-MM-DD only when unambiguous, else null.
-- "needs_clarification" = every REQUIRED field that the brief does not clearly supply, phrased as a short question to the advocate. List required fields: ${input.requiredFields.join(', ') || '(none specified)'}.
+- "needs_clarification" = leave this an EMPTY array in almost all cases. We DRAFT from whatever the advocate gave us and leave missing facts as [bracketed blanks] in the document — we do NOT interrogate the advocate before drafting. Only add an item here if the brief is so empty that no document could be drafted at all (e.g. a single unrelated word). A brief that names an offence or a party is ALWAYS enough to draft.
 - Do not editorialise, do not assess guilt, do not suggest strategy.`;
 
   const user = `# Advocate's brief\n${input.brief.slice(0, MAX_BRIEF_CHARS)}`;
@@ -125,6 +125,7 @@ Rules:
 - The "id" in "selected" and "consider_instead" MUST be one of the candidate ids provided. NEVER output a section number or id that is not in the candidate list. If nothing fits, leave "selected" empty and list the offence in "unresolved".
 - For each selection, test the facts against that candidate's essentialIngredients. If a key ingredient is not established by the facts, put it in "ingredients_missing" and lower the confidence.
 - If an ingredient gap points at a different candidate (e.g. entrustment-then-dishonesty suggests criminal breach of trust rather than cheating), add that candidate to "consider_instead" with a reason.
+- In "why", tie a SPECIFIC FACT to the ingredient it satisfies (e.g. "the accused received Rs. X on a promise he never intended to keep → dishonest inducement"), not a bare restatement of the offence name. Reason from the fact to the section, not from the section back to the facts.
 - Do not assert guilt. You are identifying the section that the pleaded facts attract, for the advocate to confirm.`;
 
   const candidateBlock = input.candidates
@@ -172,6 +173,54 @@ export interface DraftStageInput {
   sections: ResolvedSection[];
   /** The blocks to write, in order. */
   blocks: DraftBlockSpec[];
+  /** The advocate's own format to draft INTO (their house style / clause order
+   *  / [placeholders]). When present, follow this structure instead of the
+   *  default skeleton, filling it with grounded content. */
+  templateFormat?: string;
+}
+
+/**
+ * Document-type-specific drafting craft, appended to the DRAFT system prompt.
+ * The generic grounds/prayer rules above are strong for a bail application; a
+ * quashing petition or an exemption application argue differently and a senior
+ * advocate's draft reflects that. Keep each block tight — a handful of the
+ * distinctions that actually change how the document reads. Matched loosely on
+ * the doc-type name so aliases ("Regular Bail", "Bail Application") all hit.
+ */
+function docTypeConventions(docType: string): string {
+  const t = docType.toLowerCase();
+  const lines: string[] = [];
+
+  if (/anticipatory/.test(t)) {
+    lines.push(
+      'Anticipatory bail: establish a REASONABLE APPREHENSION of arrest first (the FIR/accusation and why arrest is imminent) — without it the application is premature. Argue that custodial interrogation is not required (documentary case / cooperation shown), address the triple test, and frame the prayer as a DIRECTION that in the event of arrest the applicant be released on bail, not as release simpliciter.',
+    );
+  } else if (/bail/.test(t)) {
+    lines.push(
+      'Regular bail: open the grounds from the record — period already in custody, whether the charge-sheet is filed (so custodial interrogation is complete), and the maximum sentence the offence carries relative to time served. State plainly whether this is a first or successive application; if successive, the change in circumstances is itself a ground. Offer concrete conditions the applicant will accept (surety, passport surrender, reporting) rather than bare assurances.',
+    );
+  }
+
+  if (/exemption|personal appearance|attendance/.test(t)) {
+    lines.push(
+      'Exemption from personal appearance: the application turns on TWO things the court must see — (1) that the accused is represented by an advocate, and (2) a concrete reason attendance is not necessary in the interests of justice on the specific date(s) (illness, distance, hardship). Confine the prayer to the identified hearing date(s); never seek an open-ended blanket exemption. Include the standard undertaking that the accused will appear whenever the court directs and does not dispute identity.',
+    );
+  }
+
+  if (/quash/.test(t)) {
+    lines.push(
+      'Quashing petition: plead the inherent-jurisdiction threshold — that no prima facie offence is made out on the FIR/complaint taken at its highest, or that continuance is an abuse of process. Argue on the FOUR CORNERS of the FIR/complaint as they stand; do not invite a mini-trial on disputed facts. Where the matter is compoundable or settled, plead the settlement and the futility of continuance as a distinct ground.',
+    );
+  }
+
+  if (/notice.*138|138.*notice|cheque/.test(t)) {
+    lines.push(
+      'Section 138 notice: the statutory limbs must all appear — the cheque particulars, its presentation within validity, the return memo and its date, the demand for the exact cheque amount, and the fifteen-day period running from receipt. The notice must demand the cheque sum specifically; a vague demand defeats the cause of action.',
+    );
+  }
+
+  if (lines.length === 0) return '';
+  return `\n\nDocument-specific drafting (for a ${docType}):\n- ${lines.join('\n- ')}`;
 }
 
 export function buildDraftStage(input: DraftStageInput): StagePrompt {
@@ -190,9 +239,15 @@ Rules on SECTIONS (strict):
 - If no section is listed for a point, write the point WITHOUT a citation rather than inventing one.
 
 Rules on FACTS:
-- Use only facts from the provided facts JSON. Do not add events, admissions, or particulars that are not there. Where a required particular is absent, leave a clearly bracketed placeholder like "[date of arrest to be confirmed]".
+- Use only facts from the provided facts JSON. Do not add events, admissions, or particulars that are not there. Where a required particular is absent, write the exact literal [to be drafted] and nothing else — do NOT name the missing item inside the brackets, do NOT use any descriptive variant. The only permitted placeholder is the exact string [to be drafted].
 - Keep each block to its instruction. Do not write blocks you were not asked for. Do not output the cause-title, party memo, or verification — those are assembled separately.
-- Neutral, respectful tone toward the court ("It is respectfully submitted that..."). No rhetoric, no assertions of fact about the merits beyond what the brief supports.`;
+
+Rules on GROUNDS and PRAYER (where such a block is requested):
+- Grounds: number them; each ground is ONE self-standing proposition (opening with "That") the court could accept on its own — never bundle two points into one ground. TEST for bundling: if a ground cannot be summarised in five words or fewer, it is doing two jobs — split it. Order them strongest-and-most-objective first: grounds resting on the record or on facts the opponent cannot dispute come before grounds that depend on inference, and any ground resting purely on a legal principle comes last.
+- Each ground must close a specific objection a court would raise (flight risk, tampering, gravity, antecedents, stage of investigation, etc.). Before writing a ground, know which objection it defeats and which fact defeats it; a ground with no identifiable objection behind it is filler — omit it. State the verifiable fact as the basis (e.g. "the charge-sheet has been filed, so custodial interrogation is complete"), never a character assurance ("he would not tamper").
+- Facts vs grounds: the facts block narrates and does not argue; the grounds block argues. Do not smuggle argument words ("illegal", "malafide", "therefore") into the facts block, and do not restate the raw narrative in the grounds block.
+- Prayer: every relief sought must correspond to a ground actually pleaded and must be within the power of THIS forum (${input.forum}) to grant. Do not pray for relief this forum cannot give.
+- Neutral, respectful tone toward the court ("It is respectfully submitted that..."). No rhetoric, no assertions of fact about the merits beyond what the brief supports.${docTypeConventions(input.docType)}`;
 
   const sectionBlock =
     [
@@ -204,7 +259,19 @@ Rules on FACTS:
     .map((b) => `- ${b.block}: ${b.instruction}`)
     .join('\n');
 
-  const user = `# Sections you may cite\n${sectionBlock}\n\n# Blocks to write (write each one)\n${blockBlock}\n\n# Case facts (JSON)\n${input.factsJson.slice(0, MAX_FACTS_CHARS)}`;
+  // When the advocate supplied their own format, instruct the model to follow
+  // that structure/house-style and fill it — while STILL obeying the section
+  // and fact rules above (the format governs form, not the law or the facts).
+  const templateBlock = input.templateFormat?.trim()
+    ? `\n\n# Firm format to follow (the advocate's house style)\n` +
+      `Draft each block so that, when assembled, it matches the STRUCTURE, clause order, ` +
+      `headings and wording style of the format below. Preserve its [placeholders] where a ` +
+      `particular is not in the facts. Do NOT copy any citation or fact from the format that ` +
+      `the case facts/sections above do not support — the format governs FORM, not the law or facts.\n` +
+      `--- FORMAT START ---\n${input.templateFormat.slice(0, 12_000)}\n--- FORMAT END ---`
+    : '';
+
+  const user = `# Sections you may cite\n${sectionBlock}\n\n# Blocks to write (write each one)\n${blockBlock}${templateBlock}\n\n# Case facts (JSON)\n${input.factsJson.slice(0, MAX_FACTS_CHARS)}`;
   return { system, user };
 }
 
@@ -231,7 +298,7 @@ Output ONLY a JSON object — no prose, no markdown fence — of this exact shap
 {
   "pass": boolean,
   "unauthorised_citations": string[],   // any section/Act cited in the draft but NOT in the allowed list
-  "unsupported_facts": string[],        // factual assertions in the draft not backed by the facts JSON
+  "unsupported_facts": string[],        // NEW FACTUAL assertions not backed by the facts JSON (see rule)
   "placeholders_remaining": string[],   // bracketed "[...]" gaps still to be filled
   "old_law_references": string[],       // any IPC/CrPC/Evidence-Act reference (should be BNS/BNSS/BSA)
   "notes": string
@@ -241,7 +308,9 @@ Rules:
 - "pass" is true ONLY when unauthorised_citations, unsupported_facts, and old_law_references are ALL empty. Remaining placeholders alone do not fail the audit (they are expected gaps) but must be listed.
 - Scan for ANY section number or statute name in the draft. If it is not in the allowed list (exact citation match), report it under unauthorised_citations.
 - Flag any reference to IPC, CrPC, or Indian Evidence Act (repealed) under old_law_references, even if the number happens to be right.
-- Be literal and strict. When unsure whether a fact is supported, treat it as unsupported and list it.`;
+- "unsupported_facts" means NEW FACTUAL PARTICULARS invented in the draft — a date, name, amount, place, or event that is not in the facts JSON. It does NOT mean legal argument, characterisation, or relief. Grounds and prayer are ADVOCACY: submissions such as "the applicant has deep roots and poses no flight risk", "does not warrant further custodial detention", "undertakes not to tamper with evidence", or "the offence is punishable under <allowed section>" are legitimate legal submissions, NOT unsupported facts — do not list them. Only flag a grounds/prayer statement if it asserts a concrete NEW FACT (e.g. a specific prior acquittal, a surety's name, a date) that the facts JSON does not contain.
+- Be strict about invented particulars, but do not penalise a draft for arguing its case. When unsure whether something is a new factual particular versus a legal submission, treat a bare argument/characterisation as supported (do not list it) and list only concrete invented particulars.
+- Also flag under "unsupported_facts" any statement that asserts the client's INNOCENCE as established fact rather than as the client's position (e.g. "the applicant is innocent" or "the case is false/baseless" stated flatly). A proper draft says the client "denies the allegations and submits...". This is a misrepresentation guard, not an argument-suppression rule: "it is submitted that no offence is made out" is legitimate advocacy and must NOT be flagged.`;
 
   const user = `# Allowed citations (exact)\n${input.allowedCitations.map((c) => `- ${c}`).join('\n') || '- (none — draft should contain NO citations)'}\n\n# Source facts (JSON)\n${input.factsJson.slice(0, MAX_FACTS_CHARS)}\n\n# Draft to audit\n${input.draftText.slice(0, MAX_DRAFT_CHARS)}`;
   return { system, user };

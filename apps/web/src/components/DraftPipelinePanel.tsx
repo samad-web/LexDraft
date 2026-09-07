@@ -133,19 +133,32 @@ function PipelineResult({
             <div className="heading-md">Review required before export</div>
           </div>
           <p className="body-sm" style={{ margin: '8px 0 0' }}>
-            The self-audit found citations that were not authorised or that reference repealed law. Export is disabled
-            until you resolve these.
+            The self-audit found {verify
+              ? [
+                  verify.unauthorised_citations.length > 0 ? 'citations that were not authorised' : null,
+                  verify.old_law_references.length > 0 ? 'references to repealed law' : null,
+                  verify.placeholders_remaining.length > 0 ? 'unfilled placeholders' : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+              : 'issues that must be resolved'}. Export is disabled until you resolve these.
           </p>
-          {verify && (verify.unauthorised_citations.length > 0 || verify.old_law_references.length > 0) && (
-            <ul className="body-sm" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-              {verify.unauthorised_citations.map((c) => (
-                <li key={`u-${c}`}>Unauthorised citation: {c}</li>
-              ))}
-              {verify.old_law_references.map((c) => (
-                <li key={`o-${c}`}>Repealed-law reference (use BNS/BNSS/BSA): {c}</li>
-              ))}
-            </ul>
-          )}
+          {verify &&
+            (verify.unauthorised_citations.length > 0 ||
+              verify.old_law_references.length > 0 ||
+              verify.placeholders_remaining.length > 0) && (
+              <ul className="body-sm" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                {verify.unauthorised_citations.map((c) => (
+                  <li key={`u-${c}`}>Unauthorised citation: {c}</li>
+                ))}
+                {verify.old_law_references.map((c) => (
+                  <li key={`o-${c}`}>Repealed-law reference (use BNS/BNSS/BSA): {c}</li>
+                ))}
+                {verify.placeholders_remaining.map((c) => (
+                  <li key={`p-${c}`}>Unfilled placeholder: {c}</li>
+                ))}
+              </ul>
+            )}
         </div>
       )}
 

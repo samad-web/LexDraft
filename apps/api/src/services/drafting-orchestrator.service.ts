@@ -43,6 +43,7 @@ import {
   type DraftBlockSpec,
 } from '../lib/drafting-prompts';
 import type { OffenceEntry } from '../types/offence-kb.types';
+import { findOldProvisions } from '../lib/old-to-new-law';
 
 // ---- Public shapes ---------------------------------------------------------
 
@@ -56,6 +57,13 @@ export interface DraftPipelineRequest {
   /** The AI-generated blocks the skeleton wants written (facts/grounds/prayer). */
   blocks: DraftBlockSpec[];
   provider?: 'xai' | 'anthropic';
+  /** Advocate-corrected offence-KB section ids. When present, CLASSIFY is
+   *  SKIPPED and the draft is grounded on exactly these sections — this is how
+   *  the "add / remove / swap sections" control re-grounds a draft. */
+  sectionsOverride?: string[];
+  /** The advocate's own document format; DRAFT fills it instead of the default
+   *  skeleton (form only — sections/facts still governed by the pipeline). */
+  templateFormat?: string;
 }
 
 export interface ExtractResult {
@@ -110,6 +118,33 @@ export interface DraftPipelineResult {
 }
 
 const MAX_BRIEF_CHARS = 40_000;
+
+/**
+ * A document's OWN governing statute is always an authorised citation, even
+ * when it isn't a BNS offence in the offence-KB. Without this, VERIFY's allowed
+ * set (built only from CLASSIFY's BNS sections) is empty for statutory notices
+ * / applications, so the audit wrongly flags the document's defining provision
+ * (e.g. "Section 138 NI Act" in a §138 notice) as an unauthorised citation and
+ * hard-blocks export. These citations are inherent to the doc type, not drawn
+ * from the offence-KB, so they are pre-authorised here.
+ */
+const DOC_TYPE_STATUTES: Record<string, string[]> = {
+  'Notice u/s 138 NI Act': ['Section 138 of the Negotiable Instruments Act, 1881', 'Section 138 NI Act', 'Section 138'],
+  Plaint: ['Order VII CPC', 'Code of Civil Procedure, 1908'],
+  'Written Statement': ['Order VIII CPC', 'Code of Civil Procedure, 1908'],
+  'Replication / Rejoinder': ['Order VIII CPC', 'Code of Civil Procedure, 1908'],
+  'Bail Application': ['Section 480 BNSS', 'Section 483 BNSS', 'Bharatiya Nagarik Suraksha Sanhita, 2023'],
+  'Anticipatory Bail Application': ['Section 482 BNSS', 'Bharatiya Nagarik Suraksha Sanhita, 2023'],
+  Caveat: ['Section 148A CPC', 'Code of Civil Procedure, 1908'],
+  'RTI Application': ['Right to Information Act, 2005', 'RTI Act, 2005'],
+  'Evidence Affidavit': ['Order XVIII CPC', 'Code of Civil Procedure, 1908'],
+  'Execution Petition': ['Order XXI CPC', 'Code of Civil Procedure, 1908'],
+};
+
+/** Inherent statutory citations authorised for a given document type. */
+function statutesForDocType(docType: string): string[] {
+  return DOC_TYPE_STATUTES[docType] ?? [];
+}
 
 function emptyExtract(): ExtractResult {
   return { alleged_offences: [], facts_narrative: '', needs_clarification: [] };
@@ -209,6 +244,19 @@ export const draftingOrchestratorService = {
       advisories.push(`Missing details the advocate should confirm: ${facts.needs_clarification.join('; ')}`);
     }
 
+    // Deterministic old->new provision check: if the brief cites repealed codes
+    // (IPC/CrPC/Evidence Act), tell the advocate the in-force equivalent up front
+    // rather than relying on the model to remember to remap. VERIFY still catches
+    // any old-law reference that survives into the draft; this is the proactive
+    // half — a concrete "cite X instead" hint instead of a bare warning.
+    const oldRefs = findOldProvisions(req.brief);
+    if (oldRefs.length > 0) {
+      const hints = oldRefs
+        .map((m) => `${m.old} → ${m.new}${m.approximate ? ' (approx. — confirm)' : ''}`)
+        .join('; ');
+      advisories.push(`The brief cites repealed provisions. Draft under the new codes: ${hints}.`);
+    }
+
     // ---- Retrieval: KB candidates for the alleged offences -----------------
     const alleged = facts.alleged_offences?.length ? facts.alleged_offences : [];
     const candidateEntries = alleged.length ? offenceKbService.candidatesFor(alleged) : [];
@@ -218,7 +266,20 @@ export const draftingOrchestratorService = {
 
     // ---- STAGE 2: CLASSIFY (only if we have candidates) --------------------
     let classify: ClassifyResult = { selected: [], consider_instead: [], unresolved: alleged };
-    if (candidateEntries.length > 0) {
+
+    // Advocate override: they corrected the section set by hand. Skip CLASSIFY
+    // entirely and ground on exactly the ids they chose (each still resolved
+    // against the KB below, so an unknown id is simply dropped). This is what
+    // makes "add / remove / swap sections" authoritative over the AI's pick.
+    const override = (req.sectionsOverride ?? []).filter((id) => offenceKbService.getById(id));
+    if (override.length > 0) {
+      classify = {
+        selected: override.map((id) => ({ id, confidence: 'advocate-selected' })),
+        consider_instead: [],
+        unresolved: [],
+      };
+      advisories.push('Sections were set by the advocate; automatic classification was skipped.');
+    } else if (candidateEntries.length > 0) {
       const s2 = buildClassifyStage({
         factsJson: JSON.stringify(facts),
         candidates: candidateEntries.map(toCandidate),
@@ -280,7 +341,11 @@ export const draftingOrchestratorService = {
         factsJson: JSON.stringify(facts),
         sections: sections.map<ResolvedSection>((s) => ({ citation: s.citation, offenceName: s.offenceName, verified: s.verified })),
         blocks: req.blocks,
+        ...(req.templateFormat ? { templateFormat: req.templateFormat } : {}),
       });
+      if (req.templateFormat) {
+        advisories.push('Drafted into your saved format — review that the structure matches your filing.');
+      }
       const raw = await callStage<Record<string, string>>('drafting', s3, 4000);
       stagesRun.draft = true;
       if (raw) {
@@ -299,7 +364,11 @@ export const draftingOrchestratorService = {
     let blocked = false;
     const draftText = Object.values(draft).join('\n\n').trim();
     if (draftText) {
-      const allowed = sections.map((s) => s.citation);
+      // Allowed citations = the KB-backed offence sections CLASSIFY resolved,
+      // PLUS the document type's own inherent governing statute(s). The latter
+      // keeps a statutory notice/application from flagging its defining
+      // provision (e.g. §138 NI Act) as unauthorised and blocking export.
+      const allowed = [...sections.map((s) => s.citation), ...statutesForDocType(req.docType)];
       const s4 = buildVerifyStage({ draftText, allowedCitations: allowed, factsJson: JSON.stringify(facts) });
       const raw = await callStage<VerifyResult>('drafting', s4, 1200);
       stagesRun.verify = true;
@@ -312,12 +381,16 @@ export const draftingOrchestratorService = {
           old_law_references: raw.old_law_references ?? [],
           notes: raw.notes ?? '',
         };
-        // Block export on the two dangerous classes: fabricated citations or
-        // repealed-law references. Placeholders/unsupported-facts are surfaced
-        // as advisories for the advocate but do not hard-block.
-        blocked = verify.unauthorised_citations.length > 0 || verify.old_law_references.length > 0;
+        // Block export on the dangerous classes: fabricated citations, repealed-law
+        // references, OR unfilled placeholders left in the draft. An unfilled slot
+        // that reaches a filing is as unacceptable as a bad citation. unsupported_facts
+        // stays advisory — that is a different judgement.
+        blocked =
+          verify.unauthorised_citations.length > 0 ||
+          verify.old_law_references.length > 0 ||
+          verify.placeholders_remaining.length > 0;
         if (blocked) {
-          advisories.push('AUDIT BLOCK: the draft contains unauthorised or repealed-law citations. Export is disabled until reviewed.');
+          advisories.push('AUDIT BLOCK: the draft contains unauthorised or repealed-law citations, or unfilled placeholders. Export is disabled until reviewed.');
         }
         if (verify.unsupported_facts.length > 0) {
           advisories.push(`Draft contains assertions not backed by the brief: ${verify.unsupported_facts.join('; ')}`);
