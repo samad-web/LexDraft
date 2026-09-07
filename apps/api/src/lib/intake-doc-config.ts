@@ -177,6 +177,13 @@ export interface EngineDescribeField {
   required: boolean;
   enum_values?: string[];
   item_fields?: EngineDescribeField[];
+  // Present only when the field is CONDITIONALLY required (engine
+  // FieldSpec.requires_when). Machine-readable: the field is required exactly when
+  // the named sibling field equals this value. Emitted by the engine's describe()
+  // for e.g. the affidavit's s.138 cheque/dishonour fields. No consumer reads it
+  // yet — the type exists so the /doc-types contract is honest; conditional form
+  // rendering is separate frontend work.
+  required_when?: { field: string; equals: string };
 }
 
 export interface EngineDescribe {

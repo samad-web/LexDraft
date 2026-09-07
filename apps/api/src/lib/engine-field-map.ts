@@ -204,6 +204,10 @@ interface ContractField {
   kind: string;
   enumValues?: string[];
   itemFields?: ContractField[];
+  // Machine-readable conditional-required marker carried in the committed engine
+  // contract snapshot (camelCase there; the runtime /doc-types uses required_when).
+  // Not consumed by coercion yet — present so the snapshot type is honest.
+  requiredWhen?: { field: string; equals: string };
 }
 type ContractEntry = { fields: ContractField[] };
 
