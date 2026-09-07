@@ -213,7 +213,26 @@ function docTypeConventions(docType: string): string {
     );
   }
 
-  if (/notice.*138|138.*notice|cheque/.test(t)) {
+  // Affidavit voice guidance. LABEL-BASED and best-effort only: this runs in the
+  // model DRAFT stage, which never sees the engine's matter_type — so an affidavit
+  // in a s.138 matter is recognised only by its docType label carrying "affidavit".
+  // Real enforcement of the s.138 window rules is engine-side (the affidavit
+  // pipeline). This branch is if/else paired with the §138-notice branch below so a
+  // label mentioning BOTH ("Affidavit under s.138") takes the affidavit line, NOT
+  // the notice line — otherwise the model drafts a demand notice in affidavit
+  // clothing (second person, addressed to the accused).
+  //
+  // NOTE for anyone tempted to add a post-hoc second-person check: it was considered
+  // and REJECTED. An affidavit legitimately recites the notice ("the said notice
+  // called upon you to pay ...") — a correct recital and an erroneous deponent-voice
+  // sentence are textually identical, and recited second person cannot be reliably
+  // delimited in free-form prose. Voice guidance at generation time (here) is the
+  // safe lever; a regex refusal would fire on correct affidavits.
+  if (/affidavit/.test(t)) {
+    lines.push(
+      'Affidavit: write in the FIRST PERSON — the deponent speaks ("I, the deponent, state that..."). Refer to the opposite party in the THIRD person (the accused / the respondent / the defendant), never in the second person and never as "my client". Do NOT address anyone directly: an affidavit is a sworn statement of facts, not a letter or a notice. The only place second person may appear is when the affidavit RECITES another document\'s words (e.g. quoting the demand the notice made). No letterhead, no addressee block, and no advocate sign-off block — an affidavit closes with the deponent\'s verification and the attestation, not "Yours faithfully".',
+    );
+  } else if (/notice.*138|138.*notice|cheque/.test(t)) {
     lines.push(
       'Section 138 notice: the statutory limbs must all appear — the cheque particulars, its presentation within validity, the return memo and its date, the demand for the exact cheque amount, and the fifteen-day period running from receipt. The notice must demand the cheque sum specifically; a vague demand defeats the cause of action.',
     );
