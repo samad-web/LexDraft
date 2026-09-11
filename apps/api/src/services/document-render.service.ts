@@ -224,6 +224,16 @@ async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
 // ---- persistence ------------------------------------------------------------
 
 export const documentRenderService = {
+  /** Convert an engine .docx (base64) straight to PDF bytes via LibreOffice, with
+   *  NO storage/DB row. Used by the on-demand "Download PDF" of a DraftBot draft,
+   *  so the PDF is the SAME document as the engine .docx (tables, backing sheet,
+   *  exact font/alignment) — not an HTML re-render. Throws on any soffice failure. */
+  async convertBase64ToPdf(docxBase64: string): Promise<Buffer> {
+    const docx = Buffer.from(docxBase64, 'base64');
+    if (docx.length === 0) throw new Error('empty docx_base64');
+    return convertDocxToPdf(docx);
+  },
+
   /** Create (or return existing) a pending render row for a request, then return its
    *  id. Idempotent on (matter_id, fact_sheet_version): a second call for the same
    *  version returns the existing row without resetting a completed render. */

@@ -1183,6 +1183,36 @@ draftingRouter.post('/engine/intake/attach', requireFeature('drafting.ai'), llmG
   }
 });
 
+// On-demand: convert an engine .docx (base64) to PDF via LibreOffice and stream it
+// back. This makes "Download PDF" produce a PDF that is IDENTICAL to the engine's
+// formatted .docx (tables, backing sheet, exact font/alignment) instead of a
+// client-side HTML rasterisation that flattens the layout. No storage, no DB row —
+// a stateless conversion of bytes the client already holds.
+const DocxToPdf = z.object({
+  docxBase64: z.string().min(1),
+  fileName: z.string().max(200).optional(),
+});
+draftingRouter.post('/engine/docx-to-pdf', requireFeature('drafting.ai'), async (req, res, next) => {
+  try {
+    const parsed = DocxToPdf.parse(req.body);
+    const { documentRenderService } = await import('../services/document-render.service');
+    let pdf: Buffer;
+    try {
+      pdf = await documentRenderService.convertBase64ToPdf(parsed.docxBase64);
+    } catch (err) {
+      logger.warn({ err }, 'docx-to-pdf conversion failed');
+      res.status(503).json({ error: 'pdf_render_unavailable', message: (err as Error)?.message });
+      return;
+    }
+    const name = (parsed.fileName ?? 'document').replace(/[^a-zA-Z0-9._ -]+/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${name}.pdf"`);
+    res.send(pdf);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Reload an existing conversation (no LLM call — re-evaluates against the engine
 // and re-renders; does not phrase new questions or advance ask counts).
 draftingRouter.post('/engine/intake/load', requireFeature('drafting.ai'), async (req, res, next) => {

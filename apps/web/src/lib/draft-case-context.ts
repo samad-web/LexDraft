@@ -26,10 +26,16 @@ export function caseToContext(c: Case): DraftCaseContext {
 
 /** Render a case context as a compact fact block the agent reads verbatim. */
 export function contextToBriefPreamble(ctx: DraftCaseContext): string {
+  // A TEMP- CNR is an internal placeholder assigned when a case is created without
+  // a real eCourts number — it is NOT a filing/registry number and must never be
+  // pleaded as the case number (it produced "TEMP-20260908-4049" in the cause-title).
+  // Omit it so the document leaves the number blank ("No. __ of 20__") until the
+  // court assigns one.
+  const realCnr = ctx.cnr && !/^TEMP-/i.test(ctx.cnr.trim()) ? ctx.cnr.trim() : '';
   const lines = [
     `Case: ${ctx.title}`,
     ctx.court ? `Court: ${ctx.court}` : '',
-    ctx.cnr ? `CNR / Case No.: ${ctx.cnr}` : '',
+    realCnr ? `CNR / Case No.: ${realCnr}` : 'Case No.: (not yet assigned by the court — leave blank)',
     ctx.client ? `Client (party we represent): ${ctx.client}` : '',
     ctx.type ? `Matter type: ${ctx.type}` : '',
   ].filter(Boolean);

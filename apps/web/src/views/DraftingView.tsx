@@ -930,7 +930,33 @@ export function DraftingView() {
 
   /** Export ONE document's HTML to a rasterised working-copy PDF, honouring the
    *  inline letterhead choice. Shared by the complaint and affidavit PDF buttons. */
-  const downloadPdfOf = async (bodyHtml: string, title: string) => {
+  const downloadPdfOf = async (bodyHtml: string, title: string, docxBase64?: string | null) => {
+    // PREFER the engine .docx -> PDF (LibreOffice) so the PDF is IDENTICAL to the
+    // formatted filing .docx — tables, backing sheet, exact font/alignment. The
+    // client-side HTML rasterisation flattens that layout, so it's only the
+    // fallback (when there's no engine .docx, or the server render is unavailable).
+    if (docxBase64) {
+      try {
+        const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
+          docxBase64,
+          fileName: `${title}-${draftDate}`,
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${title.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+        showToast({ type: 'sage', text: `${title} PDF prepared` });
+        return;
+      } catch {
+        // Server render unavailable (e.g. LibreOffice not installed) — fall back to
+        // the rasterised HTML PDF below so the advocate still gets *something*.
+        showToast({ type: 'amber', text: 'Filing-grade PDF unavailable — using a rasterised copy.' });
+      }
+    }
     if (!bodyHtml.trim()) return;
     const letterhead =
       letterheadChoice === undefined ? undefined
@@ -1865,7 +1891,7 @@ export function DraftingView() {
                       title="Complaint as a PDF (rasterised working copy — not a filing copy)"
                       onClick={() => {
                         const { primary } = splitCompanion(previewHtml);
-                        void downloadPdfOf(primary, activeDocType);
+                        void downloadPdfOf(primary, activeDocType, engineDocxBase64);
                       }}
                     >
                       <Icon name="download" size={14} /> Download complaint PDF
@@ -1876,7 +1902,7 @@ export function DraftingView() {
                       title={`${companionDoc.label} as a PDF (rasterised working copy)`}
                       onClick={() => {
                         const { companion } = splitCompanion(previewHtml);
-                        if (companion) void downloadPdfOf(companion, companionDoc.label);
+                        if (companion) void downloadPdfOf(companion, companionDoc.label, companionDoc.docxBase64);
                       }}
                     >
                       <Icon name="download" size={14} /> Download affidavit PDF
@@ -1902,10 +1928,22 @@ export function DraftingView() {
                   <button
                     className="btn"
                     type="button"
-                    title="Working copy only — not a filing copy (rasterised, non-selectable text)"
-                    onClick={() => triggerExport('PDF')}
+                    title={engineDocxBase64
+                      ? 'Filing PDF — rendered from the engine .docx (matches the .docx exactly)'
+                      : 'Working copy only — not a filing copy (rasterised, non-selectable text)'}
+                    onClick={() => {
+                      // With an engine .docx, produce a filing-grade PDF from it
+                      // (LibreOffice) so it matches the .docx; otherwise the
+                      // rasterised working-copy export.
+                      if (engineDocxBase64) {
+                        void downloadPdfOf(previewHtml, activeDocType, engineDocxBase64);
+                      } else {
+                        triggerExport('PDF');
+                      }
+                    }}
                   >
-                    <Icon name="download" size={14} /> PDF (working copy)
+                    <Icon name="download" size={14} />{' '}
+                    {engineDocxBase64 ? 'Download PDF' : 'PDF (working copy)'}
                   </button>
                 )}
                 {!engineActive && (

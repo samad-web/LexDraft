@@ -85,6 +85,11 @@ export const api = {
     apiClient.get<T>(`/api${path}`, { params }).then((r) => r.data),
   post: <T>(path: string, body?: unknown) =>
     apiClient.post<T>(`/api${path}`, body).then((r) => r.data),
+  /** POST expecting a binary (blob) response — e.g. a server-rendered PDF. */
+  postBlob: (path: string, body?: unknown) =>
+    apiClient
+      .post(`/api${path}`, body, { responseType: 'blob' })
+      .then((r) => r.data as Blob),
   put: <T>(path: string, body?: unknown) =>
     apiClient.put<T>(`/api${path}`, body).then((r) => r.data),
   patch: <T>(path: string, body?: unknown) =>
