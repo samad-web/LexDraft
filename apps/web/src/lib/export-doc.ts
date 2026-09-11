@@ -96,7 +96,10 @@ function buildSignatureHtml(advocate: ExportAdvocate): string {
     </div>`;
 }
 
-function buildDocumentHtml({
+// Exported for tests: the single source of truth for export markup + styling.
+// A test asserts this stays aligned with the preview's .court-prose rules so
+// PDF/DOCX never silently drift back to left-aligned, un-formatted output.
+export function buildDocumentHtml({
   title,
   bodyHtml,
   dated,
@@ -138,30 +141,60 @@ function buildDocumentHtml({
   <title>${safeTitle}</title>
   <style>
     @page { margin: 0.75in; size: ${orientation}; }
-    /* Court/legal convention: Times New Roman throughout, exported to match the
-       on-screen preview (.court-prose). Every drafted document — notice, plaint,
-       deed, application — files in the same serif face. */
+    /* Court/legal convention: Times New Roman throughout. The body typography
+       below is a 1:1 mirror of the on-screen preview's .court-prose rules
+       (apps/web/src/styles/globals.css) so the exported PDF/DOCX keeps the SAME
+       justification, heading centering, indents, bold/italic/underline and
+       sizing the advocate sees in the preview. If you change .court-prose,
+       change this block too. */
     body {
       font-family: 'Times New Roman', Times, Georgia, serif;
-      font-size: 12pt;
-      line-height: 1.6;
+      font-size: 14pt;
+      line-height: 1.5;
       color: #111;
       max-width: ${maxWidth};
       margin: 0 auto;
       padding: 24px;
+      text-align: justify;
+      hyphens: auto;
     }
     h1, h2, h3, h4, h5, h6, p, li, td, th, div { font-family: 'Times New Roman', Times, Georgia, serif; }
-    h1 { font-size: 18pt; margin: 0 0 8px; }
-    h2 { font-size: 15pt; margin: 18px 0 8px; }
-    h3 { font-size: 13pt; margin: 14px 0 6px; }
-    p { margin: 0 0 10pt; }
-    /* Emphasis the drafter marks as important renders BOLD (not italic/thin). */
-    strong, b { font-weight: 700; }
-    ul, ol { margin: 0 0 10pt 24px; }
-    table { border-collapse: collapse; width: 100%; font-size: 11pt; margin: 0 0 12pt; }
-    th, td { border: 1px solid #bbb; padding: 6pt 8pt; text-align: left; vertical-align: top; }
-    th { background: #f0f0f0; font-weight: 700; }
+
+    /* ---- Document body: mirror of .court-prose ---- */
+    .doc-body > *:first-child { margin-top: 0; }
+    .doc-body p { margin: 0 0 14pt; text-align: justify; }
+    .doc-body h1, .doc-body h2, .doc-body h3,
+    .doc-body h4, .doc-body h5, .doc-body h6 {
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin: 28pt 0 14pt;
+      line-height: 1.3;
+    }
+    .doc-body h1 { font-size: 18pt; }
+    .doc-body h2 { font-size: 16pt; }
+    .doc-body h3 { font-size: 14pt; text-transform: none; letter-spacing: 0; text-align: left; }
+    .doc-body h4, .doc-body h5, .doc-body h6 { font-size: 14pt; text-transform: none; text-align: left; }
+    .doc-body ol, .doc-body ul { margin: 0 0 14pt; padding-left: 36pt; }
+    .doc-body li { margin-bottom: 10pt; line-height: 1.5; text-align: justify; }
+    .doc-body ol > li::marker { font-weight: 600; }
+    .doc-body blockquote {
+      margin: 14pt 24pt; padding-left: 16pt;
+      border-left: 2px solid #999; font-style: italic;
+    }
+    .doc-body hr { border: 0; border-top: 1px solid #999; margin: 18pt 0; }
+    /* Inline emphasis — bold, italic, underline — must survive export exactly. */
+    .doc-body strong, .doc-body b { font-weight: 700; }
+    .doc-body em, .doc-body i { font-style: italic; }
+    .doc-body u { text-decoration: underline; }
+
+    /* Tables — match the preview's bordered, justified-left cells. */
+    table { border-collapse: collapse; width: 100%; margin: 14pt 0; }
+    th, td { border: 1px solid #999; padding: 8pt 10pt; text-align: left; vertical-align: top; line-height: 1.4; }
+    th { background: #f4f4f4; font-weight: 700; }
     .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
     .doc-title { text-align:center; font-weight:700; font-size:16pt; letter-spacing:0.04em; text-transform:uppercase; margin-bottom: 4px; }
     .meta-row { display:flex; justify-content:space-between; color:#444; font-size:11pt; margin-bottom:18px; }
   </style>

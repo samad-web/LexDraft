@@ -65,6 +65,8 @@
   "affidavit": {
     "all": [
       "address",
+      "advocate_contact",
+      "advocate_lines",
       "affidavit_kind",
       "affirm_date",
       "age",
@@ -274,6 +276,16 @@
       },
       {
         "key": "source_of_knowledge",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_lines",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "advocate_contact",
         "kind": "string",
         "required": false
       },
@@ -2289,7 +2301,7 @@
       "settlement_maintenance",
       "settlement_property"
     ],
-    "title": "Divorce by mutual consent \u2014 first motion (s.13B(1))"
+    "title": "Divorce by mutual consent — first motion (s.13B(1))"
   },
   "divorce_mutual_second": {
     "all": [
@@ -2358,7 +2370,7 @@
       "second_motion_date",
       "settlement_implemented"
     ],
-    "title": "Divorce by mutual consent \u2014 second motion (s.13B(2))"
+    "title": "Divorce by mutual consent — second motion (s.13B(2))"
   },
   "dv_application": {
     "all": [
@@ -5571,6 +5583,11 @@
       "accused_is_company",
       "accused_name",
       "accused_parentage",
+      "advocate_contact",
+      "advocate_enrolments",
+      "advocate_office_address",
+      "advocates",
+      "case_number_label",
       "cheques",
       "city",
       "complainant_address",
@@ -5579,17 +5596,24 @@
       "complainant_name",
       "complainant_parentage",
       "complainant_resolution_ref",
+      "court_designation",
       "court_location",
       "debt_slot",
       "deemed_delivery_date",
       "deemed_service_averment",
+      "deferment_agreement_date",
       "dishonour_reason",
+      "extra_documents",
       "extra_witnesses",
       "filing_date",
+      "is_holder_in_due_course",
       "is_payee",
+      "itemise_documents",
       "jurisdiction_basis",
       "memo_date",
       "memo_received_date",
+      "notice_ack_official_date",
+      "notice_ack_residence_date",
       "notice_date",
       "notice_delivery_date",
       "notice_dispatch_date",
@@ -5598,7 +5622,9 @@
       "payee_bank_branch_in_jurisdiction",
       "place",
       "police_station",
+      "prayer_twice_amount",
       "presentation_date",
+      "presentation_rounds",
       "s141_averment"
     ],
     "fields": [
@@ -5771,6 +5797,11 @@
         "required": false
       },
       {
+        "key": "court_designation",
+        "kind": "string",
+        "required": false
+      },
+      {
         "key": "city",
         "kind": "string",
         "required": false
@@ -5803,6 +5834,89 @@
       {
         "key": "extra_witnesses",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "extra_documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "deferment_agreement_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "presented_on",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "memo_received",
+            "kind": "date",
+            "required": true
+          },
+          {
+            "key": "reason",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "presentation_rounds",
+        "kind": "list",
+        "required": false,
+        "min_items": 0
+      },
+      {
+        "key": "notice_ack_official_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "notice_ack_residence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "itemise_documents",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "prayer_twice_amount",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_holder_in_due_course",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "advocates",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "advocate_enrolments",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "advocate_contact",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "advocate_office_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_number_label",
+        "kind": "string",
         "required": false
       }
     ],
@@ -7918,6 +8032,8 @@
       "advocate_mobile",
       "advocates",
       "case_ref",
+      "counsel_fee",
+      "court_kind",
       "court_name",
       "court_place",
       "enrolment_no",
@@ -8012,6 +8128,22 @@
       },
       {
         "key": "state_language",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "generic",
+          "criminal",
+          "small_causes",
+          "civil"
+        ],
+        "key": "court_kind",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "counsel_fee",
         "kind": "string",
         "required": false
       }

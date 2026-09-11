@@ -40,9 +40,10 @@ import {
   EngineValidationError,
   EngineDisabledError,
   type EngineDraftResult,
+  type EngineBundleDoc,
 } from './engine-client.service';
 import { mapFormToEngine, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
-import { intakeLlm, type IntakeFieldSpec } from './intake-llm.service';
+import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
 import { intakeCompose } from './intake-compose.service';
 import { extractDeterministic } from './intake-extract-rules.service';
 import { extractText } from '../lib/text-extraction';
@@ -52,6 +53,7 @@ import {
   intakeDocConfig,
   formKeyForEngineKey,
   intakeSectionsFromDescribe,
+  seedDefaults,
   type IntakeSectionSpec,
   type EngineDescribe,
 } from '../lib/intake-doc-config';
@@ -64,7 +66,11 @@ const K_TRANSCRIPT = '__transcript';
 const K_ASKS = '__askCounts';
 const K_PENDING = '__pending';
 const K_SOURCE = '__sourceText';
-const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE]);
+/** Marker: the LAST extraction FAILED (truncated past salvage) on a substantial
+ *  paste — so draftNow knows the current form may be empty because we couldn't
+ *  READ, not because the advocate gave nothing. */
+const K_LAST_EXTRACT_FAILED = '__lastExtractFailed';
+const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED]);
 
 /** How many times a single field may be asked conversationally before we fall
  *  back to a typed micro-form control (§5.2 guard; §12 open for review). */
@@ -105,6 +111,10 @@ interface StoredState {
    *  attachments — the WHOLE content, not just parsed fields. Empty until a
    *  readable document is attached. Feeds the "Draft now" one-shot brief. */
   sourceText: string;
+  /** True when the LAST turn's extraction outright FAILED on a substantial paste
+   *  (model output truncated past salvage). Lets draftNow tell "we couldn't read
+   *  it" apart from "the advocate genuinely gave nothing". */
+  lastExtractFailed: boolean;
 }
 
 function unpack(facts: Record<string, unknown>): StoredState {
@@ -121,6 +131,7 @@ function unpack(facts: Record<string, unknown>): StoredState {
     askCounts: (facts[K_ASKS] as Record<string, number>) ?? {},
     pending: (facts[K_PENDING] as string[]) ?? [],
     sourceText: (facts[K_SOURCE] as string) ?? '',
+    lastExtractFailed: Boolean(facts[K_LAST_EXTRACT_FAILED]),
   };
 }
 
@@ -133,11 +144,71 @@ function pack(s: StoredState, docLabel: string): Record<string, unknown> {
     [K_ASKS]: s.askCounts,
     [K_PENDING]: s.pending,
     [K_SOURCE]: s.sourceText,
+    [K_LAST_EXTRACT_FAILED]: s.lastExtractFailed,
   };
 }
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Pick a draft-now sentinel date for ONE missing date field. A generic
+ * cheque-date sentinel is fine for most gaps, but WRONG for a date that must sit
+ * LATE in the timeline: a notice's delivery/served/received date can only be on
+ * or after the notice was DISPATCHED — never back on a cheque date (that produced
+ * the impossible "served on 16.04.2026", which then broke the cause-of-action).
+ * For such fields, anchor to the dispatch/notice date + a small realistic transit
+ * gap (so served >= dispatch); everything else keeps the caller's base sentinel.
+ * Returns a YYYY-MM-DD string.
+ */
+function serviceDateSentinel(
+  formKey: string,
+  base: string,
+  form: Record<string, string>,
+): string {
+  if (!/(deliver|served|service|received|receipt)/i.test(formKey)) return base;
+  const anchorRaw = form.notice_dispatch_date || form.notice_date || form.notice_dispatch || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(anchorRaw))) return todayIso();
+  const d = new Date(`${anchorRaw}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 2); // deemed RPAD transit
+  return d.toISOString().slice(0, 10);
+}
+
+// ---- source-authority ordering (P0: notice/cheque beats summary agreement) ---
+// When several documents are attached together, the field extractor reads them as
+// ONE concatenated blob and the merge is last-write-wins. So two documents that
+// disagree on a fact (e.g. a deferment AGREEMENT that mis-states a cheque amount
+// vs. the statutory NOTICE / cheque image that states it correctly) would resolve
+// by document ORDER, not by which source is authoritative. We fix that by reading
+// the documents in ASCENDING authority so the most authoritative source is read
+// LAST and therefore wins the merge. Authority (low->high):
+//   summary/agreement (a party-drafted recital, error-prone)
+//     < invoice/statement
+//       < statutory notice (the formal demand; amounts are load-bearing)
+//         < cheque / return memo (the instrument itself — ground truth)
+// Ranking is by filename keywords; an unrecognised file gets a neutral middle
+// rank so it neither overrides a cheque nor is overridden by an agreement.
+export function sourceAuthorityRank(fileName: string): number {
+  const n = (fileName || '').toLowerCase();
+  // Order matters: check the party-recital keywords FIRST, because an agreement
+  // filename often also contains "cheque" (e.g. "CHEQUE PRESENTATION DEFERMENT
+  // AGREEMENT") and must NOT be mis-ranked as the instrument.
+  if (/deferment|agreement|undertaking|acknowledg/.test(n)) return 1;        // party recital
+  if (/return\s*memo|dishonou?r/.test(n)) return 5;                          // instrument (memo)
+  if (/\bcheque\b|\bcheques\b|\bcheck\b|\bchq\b|\bmemo\b/.test(n)) return 5; // instrument (cheque)
+  if (/notice/.test(n)) return 4;                                            // statutory notice
+  if (/invoice|statement|ledger|gst/.test(n)) return 3;                      // supporting
+  return 2;                                                                   // unknown: neutral
+}
+
+/** Order attachments so the LOWEST-authority document is extracted first and the
+ *  HIGHEST-authority last (stable within a rank, preserving user order). */
+export function orderByAuthorityAscending<T extends { fileName: string }>(files: readonly T[]): T[] {
+  return files
+    .map((f, i) => ({ f, i, r: sourceAuthorityRank(f.fileName) }))
+    .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+    .map((x) => x.f);
 }
 
 /** The engine's field contract for this doc, as the extractor's vocabulary. */
@@ -267,6 +338,60 @@ function toDraft(r: Extract<EngineDraftResult, { outcome: 'generated' }>): Intak
   };
 }
 
+/** A generated bundle document (complaint/affidavit) shares the single-doc
+ *  generated shape, so it maps to IntakeDraft the same way toDraft does. */
+function bundleDocToDraft(d: Extract<EngineBundleDoc, { outcome: 'generated' }>): IntakeDraft {
+  return {
+    blocks: d.blocks, signals: d.signals, unfilledSlots: d.unfilledSlots, docxBase64: d.docxBase64,
+  };
+}
+
+/**
+ * Build the proof AFFIDAVIT that pairs with a just-generated s.138 COMPLAINT,
+ * via the engine's draft-bundle endpoint. The complaint is the source of truth —
+ * the affidavit is derived from it (same facts, first-person voice) — so we
+ * re-send the SAME validated complaint `fields` and supply only the three
+ * deponent particulars the complaint doesn't carry. For the DRAFT-NOW gesture we
+ * fill those with clearly-marked gaps (a sentinel age shown as "[age to be
+ * provided]"; bracketed occupation/attestor), exactly as the complaint's own
+ * missing fields become [placeholders]. Best-effort: any failure (validation,
+ * a companion refusal, engine hiccup) returns null so the complaint still lands
+ * on its own — the affidavit is additive, never a blocker.
+ */
+async function buildS138AffidavitCompanion(
+  matterId: string,
+  fields: Record<string, unknown>,
+  slots: Record<string, string> = {},
+): Promise<(IntakeDraft & { docLabel: string }) | null> {
+  try {
+    const result = await engineClient.draftS138Bundle(
+      matterId,
+      fields,
+      {
+        // Draft-now placeholders — the advocate confirms these in the editor.
+        // Age must be a real int for the engine; 0 renders as "aged 0 years",
+        // which we rewrite to a visible gap below.
+        deponentAge: 0,
+        deponentOccupation: '[deponent occupation to be provided]',
+        attestor: '[attesting officer to be provided]',
+      },
+      { render: true, slots },
+    );
+    if (result.outcome !== 'generated') return null; // complaint-level refusal — handled by the primary path
+    if (result.affidavit.outcome !== 'generated') return null; // affidavit refused — skip the companion
+    // Mark the sentinel age (0) as a visible gap, mirroring the complaint path.
+    const draft = bundleDocToDraft(result.affidavit);
+    const blocks = draft.blocks.map((b) => ({
+      ...b,
+      text: b.text.replace(/\baged\s+0\s+years\b/gi, 'aged [age to be provided] years'),
+    }));
+    return { ...draft, blocks, docLabel: 'Affidavit (proof, u/s 138)' };
+  } catch {
+    // Never let the companion break the primary complaint draft.
+    return null;
+  }
+}
+
 // Cache of engine-derived intake sections, keyed by engine doc_type. Populated
 // lazily from GET /v1/doc-types the first time a passthrough doc is resolved, so
 // the 45 passthrough doc types need no hand-written config (s.138 keeps its own).
@@ -339,7 +464,10 @@ export const intakeService = {
   async start(docLabel: string, message: string, ctx: RunCtx): Promise<IntakeState> {
     const doc = await resolveDoc(docLabel);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
-    const initial: StoredState = { form: {}, meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '' };
+    // Seed practice defaults (e.g. TN s.138 itemised schedule + twice-amount
+    // prayer) into the fresh form before the advocate says anything. The
+    // extractor may still overwrite these from the narration.
+    const initial: StoredState = { form: seedDefaults(doc.sections), meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '', lastExtractFailed: false };
     const sheet = await factSheetService.create(pack(initial, docLabel), ctx);
     return this._turn(sheet.matterId, docLabel, message, ctx, 'narration');
   },
@@ -352,23 +480,44 @@ export const intakeService = {
    * and offer a one-click override. If nothing can be classified, throws an
    * IntakeError the route turns into a "please pick a format" prompt.
    */
-  async startAuto(message: string, ctx: RunCtx): Promise<IntakeState> {
+  async startAuto(message: string, ctx: RunCtx, instruction?: string): Promise<IntakeState> {
     const labels = routableLabels();
     // Classify the format. DETERMINISTIC mode (flag on) skips the LLM entirely and
     // uses the keyword classifier — instant, no network, no cost. Otherwise the LLM
     // classifies with the keyword classifier as a fallback.
+    //
+    // The advocate's OWN instruction ("draft a complaint u/s 138") is classified
+    // FIRST/authoritatively, so a long attached reference document (e.g. a s.138
+    // NOTICE already on the matter) can't drag the guess toward its own type. The
+    // keyword pass runs on the instruction ALONE when we have it, for the same
+    // reason (the full `message` is dominated by the document's "NOTICE" prose).
+    const forKeyword = instruction?.trim() || message;
     let label: string | null;
     let confidence: 'high' | 'medium' | 'low';
-    if (env.intakeDeterministic) {
-      label = keywordGuessLabel(message, labels);
+
+    // AUTHORITATIVE INSTRUCTION OVERRIDE. When the advocate's OWN instruction
+    // ("draft a complaint under 138") yields a confident keyword match, that WINS
+    // outright — the LLM is not even consulted. A long attached reference document
+    // (a s.138 NOTICE already on the matter, whose full text otherwise dominates
+    // the LLM's view) must never override what the advocate explicitly asked to
+    // draft. keywordGuessLabel is deterministic and only returns a label present in
+    // `labels`, so this can never route to something the engine can't draft. Only
+    // when the instruction is absent/ambiguous do we fall through to the LLM.
+    const instructionLabel = instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null;
+    if (instructionLabel) {
+      label = instructionLabel;
+      confidence = 'high';
+    } else if (env.intakeDeterministic) {
+      label = keywordGuessLabel(forKeyword, labels);
       confidence = 'low';
     } else {
       const guess = await intakeLlm.classifyDocType({
         brief: message, labels,
+        ...(instruction?.trim() ? { instruction: instruction.trim() } : {}),
         ...(ctx.provider ? { provider: ctx.provider } : {}),
         onUsage: (u) => recordUsage(ctx, u),
       });
-      label = guess.label ?? keywordGuessLabel(message, labels);
+      label = guess.label ?? keywordGuessLabel(forKeyword, labels);
       confidence = guess.label ? guess.confidence : 'low';
     }
     if (!label) {
@@ -403,6 +552,15 @@ export const intakeService = {
     const current = await factSheetService.getCurrent(matterId);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
+    // If the last read FAILED and nothing is on record, a "Draft now" would fill
+    // EVERY required field with a [placeholder] and emit a hollow all-gaps shell —
+    // misleading, because the advocate DID supply the facts (we just couldn't read
+    // them). Surface the same retryable "resend/split" signal instead, so they
+    // re-provide the text rather than getting a placeholder skeleton.
+    const hasAnyFact = Object.values(state.form).some((v) => String(v ?? '').trim());
+    if (state.lastExtractFailed && !hasAnyFact) {
+      return this._extractFailedTurn(matterId, docLabel, doc, specs, state, ctx);
+    }
     return this._evaluate(matterId, docLabel, doc, specs, state, ctx, {
       phrase: true,
       bumpAsks: false,
@@ -492,7 +650,22 @@ export const intakeService = {
     // Which fields the last assistant turn asked about (so extraction can assign a
     // bare answer like "gowtham" to the right field). Recorded on the state when the
     // questions were phrased last turn — NOT re-derived from free text.
-    const answering = state.pending ?? [];
+    //
+    // BUT: `pending` only means "these were the last questions asked"; it is not
+    // cleared until NEW questions are phrased. So on a turn that is a full document
+    // PASTE (fresh narration, not a bare answer), forwarding it makes
+    // buildExtractPrompt inject "Prioritise extracting <a,b,c>", which — on a tight
+    // output budget — biases the model toward those few fields and, together with the
+    // truncation ceiling, makes it MORE likely to drop the many other fields the paste
+    // contains (then falsely reported "couldn't find"). A substantial paste is
+    // narration over the whole contract: pass no answering hint. Only forward the hint
+    // for a short reply that really is answering the pending questions.
+    const answering = isDocumentPaste(message) ? [] : (state.pending ?? []);
+    // A paste is a fresh narration, so the old pending questions are no longer what
+    // the next turn is answering — clear them now so a stale hint can't leak forward
+    // if this turn doesn't itself phrase new questions (_evaluate overwrites
+    // state.pending only when it asks again).
+    if (isDocumentPaste(message)) state.pending = [];
 
     // EXTRACT (§3). HYBRID for cost + capability:
     //  - Short typed answers → the FREE deterministic rule extractor (no API cost).
@@ -501,7 +674,12 @@ export const intakeService = {
     //    referred to as the Role"; the LLM reads them). This costs a fraction of a
     //    cent, and ONLY on a genuine paste, not on ordinary messages.
     // When INTAKE_DETERMINISTIC is off, the LLM is always used (a paid upgrade).
-    const transcriptText = renderTranscript(state.transcript);
+    // Render PRIOR turns only. The current message was just pushed onto the
+    // transcript (above) and is already delivered to the extractor via `latest`.
+    // Including it here too would duplicate a large paste in the prompt
+    // (buildExtractPrompt concatenates both transcript and latest), roughly
+    // doubling input tokens and worsening output-JSON truncation.
+    const transcriptText = renderTranscript(state.transcript.slice(0, -1));
     const useLlmExtract = !env.intakeDeterministic || isDocumentPaste(message);
     const patch = useLlmExtract
       ? await intakeLlm.extract({
@@ -516,8 +694,68 @@ export const intakeService = {
         })
       : extractDeterministic({ fields: specs, latest: message, answering });
 
+    // EXTRACTION OUTRIGHT FAILED on a substantial paste. intakeLlm.extract tags a
+    // parse/salvage failure `fallback:error` (distinct from a successful-but-empty
+    // `fallback:none`). A failed READ is NOT an empty document: if we revised the
+    // empty patch and ran the engine, EVERY required field would 422 and be phrased
+    // as "What is the X?" — the false "Almost there — I couldn't find these" list,
+    // even though the advocate DID supply the facts. So on a failed read of a real
+    // paste, do NOT revise nothing and do NOT manufacture per-field questions —
+    // ask the advocate to resend/split, and mark the state retryable. A field is
+    // only ever reported missing after extraction SUCCEEDED and still didn't find it.
+    if (patch.modelUsed === 'fallback:error' && isDocumentPaste(message)) {
+      return this._extractFailedTurn(matterId, docLabel, doc, specs, state, ctx);
+    }
+
     // MERGE (§7 contradictions surfaced, not silently overwritten).
     const notes = mergePatch(state, patch, specs, via === 'question' ? 'question' : 'narration');
+    // A successful read clears any prior failed-read marker.
+    state.lastExtractFailed = false;
+
+    // s.138 COMPLAINT — surface the underlying INVOICES in the List of Documents.
+    // The engine's standard documentary set doesn't include them, so we pull invoice
+    // references out of the matter text and put them in `extra_documents` (numbered
+    // after the standard set, and echoed into the derived affidavit's list). Only
+    // when the advocate hasn't already supplied an extra-documents list, so we never
+    // override an explicit entry. Best-effort: empty when nothing invoice-shaped.
+    if (doc.docType === 's138_complaint' && !String(state.form.extra_documents ?? '').trim()) {
+      const invoices = invoiceRefsFromText(`${message}\n${state.sourceText ?? ''}`);
+      if (invoices.length) {
+        state.form.extra_documents = invoices.join('\n');
+      }
+    }
+    // s.138 COMPLAINT — enrich the debt paragraph (template para 3 / debt_slot)
+    // with the deferment/acknowledgement AGREEMENT terms. The extractor may already
+    // put a bare transaction recital in debt_slot; that recital rarely carries the
+    // legally-important parts — the written ADMISSION OF LIABILITY and the
+    // DEFERMENT OF PRESENTATION (which explains the s.138 presentation timeline). So
+    // we COMPOSE those from the agreement text and APPEND any clause the current
+    // slot is missing, rather than skip when a slot already exists. Deterministic;
+    // recites only what the document states.
+    if (doc.docType === 's138_complaint') {
+      const composed = debtSlotFromText(`${message}\n${state.sourceText ?? ''}`);
+      if (composed) {
+        const existing = String(state.form.debt_slot ?? '').trim();
+        if (!existing) {
+          state.form.debt_slot = composed;
+        } else {
+          // Append only the agreement clauses (acknowledgement / deferment) the
+          // existing recital doesn't already cover, so we don't duplicate the
+          // transaction line the extractor wrote.
+          const wantsAck = /written agreement|acknowledg|admit/i.test(composed)
+            && !/acknowledg|admit|written agreement/i.test(existing);
+          const wantsDefer = /defer/i.test(composed) && !/defer/i.test(existing);
+          const addl = composed
+            .split(/(?<=\.)\s+/)
+            .filter((sent) =>
+              (wantsAck && /acknowledg|admit|written agreement/i.test(sent)) ||
+              (wantsDefer && /defer/i.test(sent)) ||
+              /continuing acknowledgement/i.test(sent),
+            );
+          if (addl.length) state.form.debt_slot = `${existing} ${addl.join(' ')}`.trim();
+        }
+      }
+    }
 
     // REVISE — commit as the next immutable version.
     const revised = await factSheetService.revise(matterId, pack(state, docLabel), ctx);
@@ -527,6 +765,37 @@ export const intakeService = {
       bumpAsks: true,
       preface: notes,
     });
+  },
+
+  /**
+   * The extract-FAILED exit (shared by _turn and attach): the model output was
+   * truncated past salvage on a substantial paste, so extract() returned an empty
+   * `fallback:error` patch. We deliberately do NOT commit the empty patch and do
+   * NOT run the engine — running it would 422 every required field and produce the
+   * false "I couldn't find these" per-field list. Instead we persist a retryable
+   * marker, add one assistant note asking to resend/split, and render `gathering`
+   * with NO per-field questions and NO issues (nothing can be honestly called
+   * missing when nothing was successfully read).
+   */
+  async _extractFailedTurn(
+    matterId: string,
+    docLabel: string,
+    doc: { docType: string; sections: IntakeSectionSpec[] },
+    specs: IntakeFieldSpec[],
+    state: StoredState,
+    ctx: RunCtx,
+  ): Promise<IntakeState> {
+    state.lastExtractFailed = true;
+    state.transcript.push({
+      role: 'assistant',
+      text: 'I had trouble reading that much text in one pass — could you resend it, or split it into two messages, and I’ll extract it?',
+      kind: 'note',
+    });
+    await factSheetService.revise(matterId, pack(state, docLabel), ctx);
+    const rendered = await this._render(matterId, docLabel, doc, specs, state, {
+      status: 'gathering', issues: [], questions: [], refusal: null, draft: null,
+    });
+    return { ...rendered, retryable: true };
   },
 
   /**
@@ -557,15 +826,32 @@ export const intakeService = {
 
     // Read each file to TEXT locally: an image via OCR, a text-extractable doc via
     // mammoth/pdf-parse, or (unreadable) carried as an annexure note.
+    //
+    // Read in ASCENDING source authority so that, when documents disagree on a
+    // fact, the most authoritative one is extracted LAST and wins the merge (see
+    // orderByAuthorityAscending). This makes the statutory notice / cheque beat a
+    // party-drafted deferment agreement that mis-states a cheque number or amount.
+    const orderedFiles = orderByAuthorityAscending(files);
     const documentTexts: string[] = [];
     const readFiles: string[] = [];
     const annexures: string[] = [];
-    for (const file of files) {
+    // Label each block with a human authority tag so the extractor, on a conflict
+    // between documents, prefers the more authoritative source (the statutory
+    // notice / cheque) over a party-drafted agreement's recital.
+    const authorityTag = (fileName: string): string => {
+      const r = sourceAuthorityRank(fileName);
+      if (r >= 5) return 'AUTHORITATIVE SOURCE — the instrument itself';
+      if (r === 4) return 'AUTHORITATIVE SOURCE — statutory notice';
+      if (r <= 1) return 'SUPPORTING RECITAL — a party-drafted summary; on any conflict prefer the notice/cheque';
+      return 'SUPPORTING DOCUMENT';
+    };
+    const blockLabel = (fileName: string) => `--- ${fileName} [${authorityTag(fileName)}] ---`;
+    for (const file of orderedFiles) {
       const buf = Buffer.from(file.dataBase64, 'base64');
       if (isImageMime(file.mime, file.fileName)) {
         const ocr = await ocrImage(buf);
         if (ocr.ok && ocr.text.trim()) {
-          documentTexts.push(`--- ${file.fileName} ---\n${ocr.text}`);
+          documentTexts.push(`${blockLabel(file.fileName)}\n${ocr.text}`);
           readFiles.push(file.fileName);
         } else {
           annexures.push(file.fileName);
@@ -574,7 +860,7 @@ export const intakeService = {
       }
       const extracted = await extractText({ body: buf, mime: file.mime, fileName: file.fileName });
       if (extracted.ok && extracted.text.trim()) {
-        documentTexts.push(`--- ${file.fileName} ---\n${extracted.text}`);
+        documentTexts.push(`${blockLabel(file.fileName)}\n${extracted.text}`);
         readFiles.push(file.fileName);
       } else {
         // Unreadable / unsupported (e.g. .zip, .xlsx) -> carry as an annexure note.
@@ -655,6 +941,21 @@ export const intakeService = {
       }
     }
 
+    // EXTRACTION OUTRIGHT FAILED on a substantial attached document. Same root
+    // cause as the paste path in _turn: intakeLlm.extract tagged a parse/salvage
+    // failure `fallback:error` and (even after the focused narrative pass) we
+    // recovered ZERO fields. Committing nothing and running the engine would 422
+    // every required field into the false "I couldn't find these" list — although
+    // the document plainly contains them. So ask the advocate to resend/split and
+    // mark the state retryable, rather than manufacture per-field questions.
+    if (
+      rawPatch.modelUsed === 'fallback:error' &&
+      rawPatch.fields.length === 0 &&
+      isDocumentPaste(combinedText)
+    ) {
+      return this._extractFailedTurn(matterId, docLabel, doc, specs, state, ctx);
+    }
+
     // Observability for attachment extraction: counts only (no document text in logs),
     // so an empty/partial draft can be traced to "OCR read nothing" vs "extractor mapped
     // nothing" without leaking client content.
@@ -668,6 +969,40 @@ export const intakeService = {
       },
       'intake attach: extraction complete',
     );
+    // AUTO-LIST ATTACHMENTS. Every file the advocate attaches is also a document
+    // they are producing, so its name is appended to the doc type's `extra_documents`
+    // list (when the doc declares one) — it then appears in the complaint's LIST OF
+    // DOCUMENTS and, for s.138, is recited in the derived affidavit. Readable files
+    // AND unread annexures alike are listed (the advocate produces the file either
+    // way; whether we could parse it is irrelevant to it being relied upon).
+    // A `string_list` field folds from newline-separated text (engine-field-map.ts:237),
+    // so we merge names into the existing value on that convention, de-duplicating so
+    // re-attaching the same file never doubles the entry. Harmless for doc types with
+    // no `extra_documents` field — the patch entry is simply dropped by mergePatch's
+    // allowed-key filter.
+    if (specs.some((s) => s.key === 'extra_documents')) {
+      const attachedNames = [...readFiles, ...annexures].filter((n) => n && n.trim());
+      if (attachedNames.length) {
+        const existing = String(state.form.extra_documents ?? '')
+          .split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+        const seen = new Set(existing);
+        const merged = [...existing];
+        for (const name of attachedNames) {
+          if (!seen.has(name)) {
+            seen.add(name);
+            merged.push(name);
+          }
+        }
+        rawPatch.fields.push({
+          key: 'extra_documents',
+          value: merged.join('\n'),
+          confidence: 'inferred',
+          source: attachedNames.join(', '),
+          derivation: 'attached by the advocate',
+        });
+      }
+    }
+
     const sourceLabel = readFiles.join(', ') || 'the attached document';
     const patch = {
       ...rawPatch,
@@ -689,6 +1024,9 @@ export const intakeService = {
     if (!patch.fields.length && !annexures.length && readFiles.length) {
       notes.push('I read the attachment(s) but couldn’t pull usable details automatically. You can type them, and I’ll re-check.');
     }
+    // Reading succeeded (we got here, not the fallback:error branch above), so
+    // clear any prior failed-read marker.
+    state.lastExtractFailed = false;
 
     const revised = await factSheetService.revise(matterId, pack(state, docLabel), ctx);
     return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, {
@@ -717,11 +1055,25 @@ export const intakeService = {
   ): Promise<IntakeState> {
     const persist = opts.persist ?? true;
     const { fields } = mapFormToEngine(doc.docType, state.form, {});
+    // Free-text SLOTS the engine merges into the template (kept separate from the
+    // validated `fields`). Today: the s.138 complaint's debt paragraph (para 3),
+    // composed from a deferment/acknowledgement agreement on file. Passed to every
+    // draft attempt below so the composed narrative survives the placeholder/bypass
+    // retries too. Empty object when there's no slot content.
+    const slots: Record<string, string> = {};
+    if (String(state.form.debt_slot ?? '').trim()) {
+      slots.debt_slot = String(state.form.debt_slot).trim();
+    }
+    // The engine field-set that actually PRODUCED the generated complaint — the
+    // base `fields`, or the placeholder-filled/bypassed set when draft-now had to
+    // synthesise gaps. Captured so the paired affidavit is derived from the SAME
+    // facts the complaint was built from (not a divergent map).
+    let draftedFields: Record<string, unknown> = fields;
 
     let outcome: EngineDraftResult | null = null;
     let issues: IntakeIssue[] = [];
     try {
-      outcome = await engineClient.draft(doc.docType, matterId, fields, { render: true });
+      outcome = await engineClient.draft(doc.docType, matterId, fields, { render: true, slots });
     } catch (err) {
       if (err instanceof EngineValidationError) {
         // The engine reports issues in ENGINE keys; translate to the FORM keys
@@ -755,7 +1107,22 @@ export const intakeService = {
       // we can swap it for a visible "[DATE TO BE CONFIRMED]" marker in the
       // RENDERED text afterwards. This never fabricates a distinct date; it
       // marks the gap honestly while still letting the document generate.
-      const sentinelDate = state.form.cheque_date;
+      // A sentinel ISO date to stand in for a missing REQUIRED date so the document
+      // can generate (marked as a visible gap afterwards). Prefer a date already on
+      // record — the base cheque date, else ANY captured cheque_date_N, else any other
+      // date field the advocate supplied — so doc types whose cheques are a LIST (the
+      // s.138 COMPLAINT has no flat cheque_date) still get a stand-in and draft-now
+      // doesn't dead-end into the blocking "couldn't find these" message. Only if the
+      // advocate supplied NO date at all do we fall back to today's date; every use is
+      // marked "[DATE TO BE CONFIRMED]" in the rendered text, so no invented date shows.
+      const anyStoredDate = (): string | undefined => {
+        if (state.form.cheque_date) return state.form.cheque_date;
+        for (const [k, v] of Object.entries(state.form)) {
+          if (/date/i.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+        }
+        return undefined;
+      };
+      const sentinelDate = anyStoredDate() ?? todayIso();
       const syntheticDateValues = new Set<string>();
       // Fields the retry filled with a sentinel that must be shown as a visible gap in
       // the rendered text afterwards (numbers can't take a bracketed marker — the engine
@@ -763,11 +1130,36 @@ export const intakeService = {
       // sentinel date and get marked).
       const syntheticNumberFields: string[] = [];
       for (const iss of issues) {
+        // Never overwrite a form field the advocate already supplied. translateIssues
+        // folds several engine keys onto ONE form key (e.g. drawee_bank owns
+        // cheques[0].bank AND cheques[0].branch), so a 422 for the SECOND engine key
+        // (branch missing) surfaces on a form key whose value (the bank) IS present.
+        // Overwriting it with a placeholder can never help — the form key can't express
+        // the sibling engine key separately — and always destroys a real pasted fact.
+        if ((state.form[iss.field] ?? '').trim()) continue;
         const spec = specs.find((f) => f.key === iss.field);
         if (!spec) continue;
-        if (spec.type === 'date' && sentinelDate) {
-          placeholders[iss.field] = sentinelDate;
-          syntheticDateValues.add(sentinelDate);
+        // A required BOOLEAN (engine bool, shown as a Yes/No select) can't take a
+        // bracketed text marker — the engine coerces bool from yes/true/1 | no/false/0
+        // and DROPS anything else, so a "[... to be provided]" string leaves the field
+        // missing. For DRAFT-NOW the goal is to GENERATE with a gap the advocate fixes
+        // in the editor — NEVER to trigger a legal hard-stop. A cautious "No" backfires:
+        // some bools are affirmative-required gates (e.g. payee_bank_branch_in_jurisdiction
+        // — "No" makes the engine REFUSE "the complaint cannot be filed here"). So fill a
+        // missing bool with the value that lets the document GENERATE — the affirmative
+        // "Yes" — which is a to-be-confirmed gap, not an assertion of fact. The advocate
+        // confirms/flips it in the editor. A select whose options are exactly Yes/No is
+        // treated as a bool here.
+        const isBoolSelect =
+          spec.type === 'select' && spec.options?.length === 2 &&
+          spec.options.every((o) => /^(yes|no)$/i.test(o));
+        if (isBoolSelect) {
+          const yesOpt = spec.options!.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+          placeholders[iss.field] = yesOpt;
+        } else if (spec.type === 'date' && sentinelDate) {
+          const sv = serviceDateSentinel(iss.field, sentinelDate, state.form);
+          placeholders[iss.field] = sv;
+          syntheticDateValues.add(sv);
         } else if (spec.type === 'number' || spec.type === 'currency') {
           // A bracketed "[age]" is NOT an integer — the engine 422s on it, which used
           // to make draft-now fall back to the blocking form for any doc with a required
@@ -786,7 +1178,7 @@ export const intakeService = {
         const merged = { ...state.form, ...placeholders };
         const { fields: filledFields } = mapFormToEngine(doc.docType, merged, {});
         try {
-          const retry = await engineClient.draft(doc.docType, matterId, filledFields, { render: true });
+          const retry = await engineClient.draft(doc.docType, matterId, filledFields, { render: true, slots });
           if (retry.outcome === 'generated') {
             let marked = syntheticDateValues.size
               ? markSyntheticDates(retry, syntheticDateValues)
@@ -803,15 +1195,88 @@ export const intakeService = {
               };
             }
             outcome = marked;
+            draftedFields = filledFields;
             issues = [];
             preface.push(
               `I drafted the whole document now. The fields I couldn’t find in what you gave me are left as clearly-marked [placeholders] — fill them in the editor (or tell me and I’ll set them).`,
             );
           }
-          // If the retry now REFUSES (a hard-stop surfaced once fields were
-          // present), fall through to the refusal branch below — never bypass it.
+          // DRAFT-NOW is "generate no matter what, gaps as [placeholders]" (advocate's
+          // explicit choice — they'll fix everything in the editor). So a REFUSAL here
+          // is NOT a dead end: a legal hard-stop (e.g. s.138 complaint needs the
+          // notice-DELIVERY date to compute the cause of action) names the fact it's
+          // missing in refusal.fields_implicated. Fill each such field with a sentinel/
+          // placeholder (a real date it can compute with, marked "[… to be confirmed]"
+          // in the text; a bracketed marker for text; the permissive value for a bool)
+          // and re-draft, looping until it GENERATES or no new fillable field remains.
+          // The rendered document carries clearly-marked gaps for every synthesised
+          // value, so nothing is asserted as fact — it is the advocate's to confirm.
           else if (retry.outcome === 'refused') {
-            outcome = retry;
+            let cur: EngineDraftResult = retry;
+            const bypassed = { ...merged };
+            let progressed = true;
+            // Bound the loop: a doc can chain a few hard-stops, never dozens.
+            for (let guard = 0; guard < 8 && cur.outcome === 'refused' && progressed; guard++) {
+              progressed = false;
+              for (const engKey of cur.refusal.fields_implicated ?? []) {
+                const formKey = formKeyForEngineKey(doc.sections, engKey);
+                const spec = specs.find((f) => f.key === formKey);
+                const cur0 = (bypassed[formKey] ?? '').toString();
+                const isBool =
+                  spec?.type === 'select' && spec.options?.length === 2 &&
+                  spec.options.every((o) => /^(yes|no)$/i.test(o));
+                // A refusal means the implicated field's CURRENT value is what blocks the
+                // draft. For a BOOL gate (e.g. payee_bank_branch_in_jurisdiction: "No" ->
+                // "can't be filed here") the fix is to FLIP it to the permissive "Yes" even
+                // though it's already set — skipping it (as we do for a set date, whose
+                // value isn't the blocker) would loop forever with no progress. For a
+                // non-bool field that already has a value, its value isn't what the engine
+                // rejects on a refusal (that's a missing-fact hard-stop), so skip it.
+                if (isBool) {
+                  const yes = spec!.options!.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+                  if (cur0.trim().toLowerCase() === yes.toLowerCase()) continue; // already permissive
+                  bypassed[formKey] = yes;
+                  progressed = true;
+                  continue;
+                }
+                if (cur0.trim()) continue; // non-bool already set — not the blocker
+                // Unknown/unmapped implicated field: try a date sentinel by key-name
+                // heuristic, else a bracket marker, so the loop can still make progress.
+                if (!spec) {
+                  if (/date/i.test(formKey)) {
+                    const sv = serviceDateSentinel(formKey, sentinelDate, state.form);
+                    bypassed[formKey] = sv; syntheticDateValues.add(sv);
+                  } else {
+                    bypassed[formKey] = `[${formKey.replace(/_/g, ' ')} to be provided]`;
+                  }
+                  progressed = true;
+                  continue;
+                }
+                if (spec.type === 'date') { const sv = serviceDateSentinel(formKey, sentinelDate, state.form); bypassed[formKey] = sv; syntheticDateValues.add(sv); }
+                else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; syntheticNumberFields.push(formKey); }
+                else { bypassed[formKey] = placeholderFor(spec); }
+                progressed = true;
+              }
+              if (!progressed) break; // nothing new to fill — cannot bypass further
+              const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
+              try {
+                cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots });
+              } catch (err) {
+                if (err instanceof EngineValidationError) { progressed = false; break; }
+                throw err;
+              }
+            }
+            if (cur.outcome === 'generated') {
+              outcome = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
+              draftedFields = mapFormToEngine(doc.docType, bypassed, {}).fields;
+              issues = [];
+              preface.push(
+                `I drafted the whole document now. Anything I couldn’t find — including facts the document legally needs — is left as a clearly-marked [placeholder] for you to fill in the editor.`,
+              );
+            } else {
+              // Could not bypass (no fillable implicated field): surface the refusal.
+              outcome = cur;
+            }
           }
         } catch (err) {
           if (err instanceof EngineValidationError) {
@@ -824,6 +1289,81 @@ export const intakeService = {
           }
         }
       }
+    }
+
+    // DRAFT NOW — first-call REFUSAL bypass. The block above only runs its refusal
+    // bypass when the engine FIRST 422'd for missing values (then the placeholder
+    // retry refused). But a doc can REFUSE on the very first draft — e.g. the s.138
+    // COMPLAINT hard-stops on a missing notice_delivery_date (it fixes the cause of
+    // action) before any 422. For the draft-now gesture that must NOT dead-end:
+    // fill each implicated field with a sentinel/placeholder (a real date it can
+    // compute with, marked "[… to be confirmed]" in the text; a bracket marker for
+    // text; the permissive value for a bool) and re-draft, looping until it
+    // GENERATES or no new fillable field remains. Every synthesised value is a
+    // clearly-marked gap in the rendered document — nothing is asserted as fact.
+    if (opts.draftNow && outcome?.outcome === 'refused') {
+      const sentinelDate = (() => {
+        if (state.form.cheque_date) return state.form.cheque_date;
+        for (const [k, v] of Object.entries(state.form)) {
+          if (/date/i.test(k) && /^\d{4}-\d{2}-\d{2}$/.test(String(v))) return String(v);
+        }
+        return todayIso();
+      })();
+      const sentinelFor = (formKey: string): string =>
+        serviceDateSentinel(formKey, sentinelDate, state.form);
+      const syntheticDateValues = new Set<string>();
+      const bypassed: Record<string, string> = { ...state.form };
+      let cur: EngineDraftResult = outcome;
+      let progressed = true;
+      for (let guard = 0; guard < 8 && cur.outcome === 'refused' && progressed; guard++) {
+        progressed = false;
+        for (const engKey of cur.refusal.fields_implicated ?? []) {
+          const formKey = formKeyForEngineKey(doc.sections, engKey);
+          const spec = specs.find((f) => f.key === formKey);
+          const cur0 = (bypassed[formKey] ?? '').toString();
+          const isBool =
+            spec?.type === 'select' && spec.options?.length === 2 &&
+            spec.options.every((o) => /^(yes|no)$/i.test(o));
+          if (isBool) {
+            const yes = spec!.options!.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+            if (cur0.trim().toLowerCase() === yes.toLowerCase()) continue;
+            bypassed[formKey] = yes; progressed = true; continue;
+          }
+          if (cur0.trim()) continue; // non-bool already set — not the blocker
+          if (!spec) {
+            if (/date/i.test(formKey)) {
+              const sv = sentinelFor(formKey);
+              bypassed[formKey] = sv; syntheticDateValues.add(sv);
+            } else {
+              bypassed[formKey] = `[${formKey.replace(/_/g, ' ')} to be provided]`;
+            }
+            progressed = true; continue;
+          }
+          if (spec.type === 'date') { const sv = sentinelFor(formKey); bypassed[formKey] = sv; syntheticDateValues.add(sv); }
+          else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; }
+          else { bypassed[formKey] = placeholderFor(spec); }
+          progressed = true;
+        }
+        if (!progressed) break;
+        const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
+        try {
+          cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots });
+        } catch (err) {
+          if (err instanceof EngineValidationError) { break; }
+          throw err;
+        }
+      }
+      if (cur.outcome === 'generated') {
+        outcome = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
+        draftedFields = mapFormToEngine(doc.docType, bypassed, {}).fields;
+        issues = [];
+        state.transcript.push({
+          role: 'assistant',
+          kind: 'note',
+          text: 'I drafted the whole document now. Facts the document legally needs but I couldn’t find — including the notice delivery date — are left as clearly-marked [placeholders] for you to confirm in the editor.',
+        });
+      }
+      // else: could not bypass — the standing refusal is surfaced below as-is.
     }
 
     // GENERATED — the only success exit. Every fact is now engine-validated;
@@ -846,14 +1386,33 @@ export const intakeService = {
           draft = { ...draft, blocks: composeResult.blocks };
         }
       }
+      // A s.138 COMPLAINT pairs with a proof AFFIDAVIT (same facts, first-person
+      // voice). Now that the complaint has generated, derive the affidavit from
+      // the SAME validated fields via the engine's bundle, and attach it as a
+      // companion document. Best-effort and additive — if it can't build, the
+      // complaint still lands on its own.
+      let companionDraft: (IntakeDraft & { docLabel: string }) | null = null;
+      if (doc.docType === 's138_complaint') {
+        companionDraft = await buildS138AffidavitCompanion(matterId, draftedFields, slots);
+        if (companionDraft) {
+          state.transcript.push({
+            role: 'assistant',
+            kind: 'note',
+            text: 'I also prepared the supporting proof affidavit (first-person, sworn by the complainant) from the same facts — review both below.',
+          });
+        }
+      }
       state.transcript.push({
         role: 'assistant',
-        text: 'That’s everything the engine needs — here’s the draft, for your review before filing.',
+        text: companionDraft
+          ? 'That’s everything the engine needs — here’s the complaint and its proof affidavit, for your review before filing.'
+          : 'That’s everything the engine needs — here’s the draft, for your review before filing.',
         kind: 'draft',
       });
       if (persist) await this._persistTranscript(matterId, docLabel, state, ctx);
       return this._render(matterId, docLabel, doc, specs, state, {
         status: 'generated', issues: [], questions: [], refusal: null, draft,
+        ...(companionDraft ? { companionDraft } : {}),
       });
     }
 
@@ -957,6 +1516,7 @@ export const intakeService = {
       questions: PhrasedQuestion[];
       refusal: IntakeRefusal | null;
       draft: IntakeDraft | null;
+      companionDraft?: (IntakeDraft & { docLabel: string }) | null;
       directEntry?: string[];
     },
   ): Promise<IntakeState> {
@@ -978,6 +1538,7 @@ export const intakeService = {
       directEntryFields,
       refusal: r.refusal,
       draft: r.draft,
+      ...(r.companionDraft ? { companionDraft: r.companionDraft } : {}),
       ...(state.sourceText.trim() ? { sourceText: state.sourceText } : {}),
     };
   },
@@ -1070,6 +1631,16 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // the more-specific affidavit labels ("Affidavit of Service", "Surety Affidavit"),
     // which the advocate would name explicitly and which have their own doc types.
     [/\baffidavit\b(?!\s+of\s+service)/, 'Affidavit'],
+    // A s.138 matter splits into TWO documents: the pre-litigation demand NOTICE
+    // and the court COMPLAINT filed after the notice period lapses. When the brief
+    // shows a 138/cheque context AND a court-filing intent ("complaint", "case",
+    // "prosecute", "file"), route to the COMPLAINT — this MUST win over the generic
+    // 138→notice cue below (first match wins), otherwise "draft a complaint under
+    // 138" wrongly drafts a notice and asks for notice-only fields (enrolment no.,
+    // dispatch reference). The 138/cheque guard keeps a plain "consumer complaint"
+    // (handled lower down) from being hijacked into a s.138 complaint.
+    [/(?=.*(?:\b138\b|\bcheque\b|dishonou?r|\bbounced?\b|\bni act\b))(?=.*(?:\bcomplaint\b|\bcase\b|\bprosecut|\bfil(?:e|ing)\b)).*/, 'Complaint u/s 138 NI Act'],
+    // The demand NOTICE: a 138/cheque/dishonour cue with NO complaint intent.
     [/\bcheque\b|\b138\b|dishonou?r|\bbounced?\b/, 'Notice u/s 138 NI Act'],
     [/anticipat|pre.?arrest|apprehend/, 'Anticipatory Bail Application'],
     [/\bbail\b|\barrest(ed)?\b|\bcustody\b|\bremand\b/, 'Regular Bail Application'],
@@ -1144,11 +1715,7 @@ export function markSyntheticDates(
     if (!m) continue;
     const [, y, mo, d] = m;
     const dd = String(Number(d));
-    const monthNames = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
-    const monthName = monthNames[Number(mo) - 1];
+    const monthName = MONTH_NAMES[Number(mo) - 1];
     const isoRaw = `${y}-${mo}-${d}`;
     const dmy = `${d}[-/]${mo}[-/]${y}`;
     const long = `${dd}(?:st|nd|rd|th)?\\s+${monthName}\\.?,?\\s+${y}`;
@@ -1173,6 +1740,122 @@ export function markSyntheticDates(
     return { ...b, text };
   });
   return { ...outcome, blocks };
+}
+
+/**
+ * Pull invoice / bill references out of the matter text so they can be listed in
+ * the s.138 COMPLAINT's (and its affidavit's) "List of Documents". The engine's
+ * standard documentary set covers the cheque(s), return memo, demand notice and
+ * postal receipt — but NOT the underlying invoices, which an advocate expects
+ * cited. We surface them via the complaint's `extra_documents` (a string_list the
+ * engine numbers continuously after the standard set).
+ *
+ * Deterministic + conservative: matches the common Indian invoice idioms
+ * ("Invoice No. 12", "Bill No. 7", "TP 106 dated …", "Tax Invoice 9") and returns
+ * a de-duplicated, human-readable list. Empty when nothing invoice-shaped appears,
+ * so it never fabricates a document.
+ */
+function invoiceRefsFromText(text: string): string[] {
+  if (!text.trim()) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (label: string) => {
+    const clean = label.replace(/\s+/g, ' ').trim().replace(/[.,;:]+$/, '');
+    const key = clean.toLowerCase();
+    if (clean && !seen.has(key)) { seen.add(key); out.push(clean); }
+  };
+  // "Invoice No. TP 106 dated 27.02.2026", "Bill No. 7", "Tax Invoice 9",
+  // and the bare series token "TP 106 (27.02.2026 …)".
+  const rxInvoice = /\b(?:tax\s+)?(?:invoice|bill)\s*(?:no\.?|number|#)?\s*([A-Z]{0,3}\s?\d{1,6}(?:[/-]\d{1,4})?)\b(?:\s*(?:dated|dt\.?|of)\s*([0-9]{1,2}[.\-/][0-9]{1,2}[.\-/][0-9]{2,4}))?/gi;
+  for (const m of text.matchAll(rxInvoice)) {
+    const num = (m[1] ?? '').trim();
+    const date = (m[2] ?? '').trim();
+    if (num) push(`Invoice No. ${num}${date ? ` dated ${date}` : ''}`);
+  }
+  // Bare "TP <n>" series references (the client's own invoice numbering) when not
+  // already captured above — common in the notice's debt recital.
+  const rxSeries = /\bTP\s?(\d{2,5})\b(?:\s*\(?\s*([0-9]{1,2}[.\-/][0-9]{1,2}[.\-/][0-9]{2,4}))?/gi;
+  for (const m of text.matchAll(rxSeries)) {
+    const num = `TP ${m[1]}`;
+    const date = (m[2] ?? '').trim();
+    if (!seen.has(`invoice no. ${num.toLowerCase()}${date ? ` dated ${date}` : ''}`)) {
+      push(`Invoice ${num}${date ? ` dated ${date}` : ''}`);
+    }
+  }
+  return out.slice(0, 20); // a sane cap; never flood the list
+}
+
+/**
+ * Compose the s.138 COMPLAINT's debt paragraph (`debt_slot`, template para 3)
+ * from the matter text — chiefly a deferment / acknowledgement-of-liability
+ * AGREEMENT when one is on file. The complaint template leaves this paragraph as
+ * "[to be drafted]" unless a slot is supplied; an advocate expects the underlying
+ * transaction AND any written admission of debt / cheque-presentation deferment to
+ * be recited here (it is the strongest evidence of the legally-enforceable debt and
+ * explains the presentation timeline for a s.138 matter).
+ *
+ * Deterministic + conservative: it recites only what the document states (the
+ * supply of goods, the admitted sum, the deferment terms, the no-waiver /
+ * continuing-acknowledgement clauses), never inventing facts. Returns '' when no
+ * agreement/liability text is present, so the template's own placeholder stands.
+ */
+function debtSlotFromText(text: string): string {
+  if (!text.trim()) return '';
+  const t = text.replace(/\s+/g, ' ');
+  const has = (re: RegExp) => re.test(t);
+  // Only compose when the text actually carries a supply/liability or a deferment
+  // acknowledgement — otherwise leave the slot to the template placeholder.
+  const isAgreement = has(/deferment|acknowledg|admi(t|ssion) of liability|supplied (printed )?materials|amounts? (remain )?due/i);
+  if (!isAgreement) return '';
+
+  const parts: string[] = [];
+  // Underlying supply / transaction.
+  if (has(/supplied (printed )?materials|printed materials|books/i)) {
+    parts.push(
+      'That the accused is liable to the complainant in respect of printed materials and books '
+      + 'supplied by the complainant to the accused in the course of business, towards the price '
+      + 'whereof the amounts hereinafter mentioned became due and payable.',
+    );
+  } else {
+    parts.push(
+      'That the accused is liable to the complainant towards a legally enforceable debt arising '
+      + 'in the course of business between the parties.',
+    );
+  }
+  // Written admission of liability (a deferment/acknowledgement agreement).
+  const admittedSum = t.match(/(?:sum of\s*)?INR\s*([\d,]+)\s*(?:covered under the first two cheques|admitted|acknowledg)/i)
+    ?? t.match(/legally enforceable debt is due[^.]*?INR\s*([\d,]+)/i);
+  if (has(/agreement|deferment|acknowledg/i)) {
+    parts.push(
+      'That towards discharge of the said liability the accused executed a written agreement '
+      + 'acknowledging the debt'
+      + (admittedSum ? `, including a sum of INR ${admittedSum[1]},` : '')
+      + ' and issued the cheque(s) hereinafter described. By the said agreement the accused '
+      + 'unequivocally admitted and acknowledged that a legally enforceable debt is due and '
+      + 'payable to the complainant.',
+    );
+  }
+  // Deferment of presentation (explains the s.138 presentation timeline).
+  if (has(/defer(ment)? of presentation|defer presentation|deferred/i)) {
+    const upto = t.match(/deferment shall be strictly up to\s*([0-9]{1,2}[.\-/][0-9]{1,2}[.\-/][0-9]{2,4})/i)
+      ?? t.match(/up to\s*([0-9]{1,2}[.\-/][0-9]{1,2}[.\-/][0-9]{2,4})\s*only/i);
+    parts.push(
+      'That at the request of the accused, and as a temporary concession without waiver, '
+      + 'novation or alteration of liability, the complainant agreed to defer presentation of '
+      + 'the specified cheque(s)'
+      + (upto ? ` strictly up to ${upto[1]}` : '')
+      + ', the accused having undertaken to maintain sufficient balance to honour the cheque(s) '
+      + 'upon presentation; all rights of the complainant being expressly reserved.',
+    );
+  }
+  // Continuing acknowledgement / limitation.
+  if (has(/continuing acknowledg|extending limitation|conclusive evidence of debt/i)) {
+    parts.push(
+      'That the said agreement operates as a continuing acknowledgement of liability and '
+      + 'constitutes evidence of the debt acknowledged by the accused.',
+    );
+  }
+  return parts.join(' ');
 }
 
 /**

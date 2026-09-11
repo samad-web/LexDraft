@@ -17,13 +17,19 @@
 
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { withRetry } from '../lib/retry';
+import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { anthropic, usageFrom, asRetryError } from '../lib/anthropic-client';
+import { grok, asRetryError as asGrokRetryError } from '../lib/grok-client';
 
 type Provider = 'xai' | 'anthropic' | 'none';
 
 interface LlmResult extends NormalizedUsage {
   text: string;
+  /** Provider's stop signal: Anthropic `stop_reason` / xAI `finish_reason`. A
+   *  value of 'max_tokens' (Anthropic) / 'length' (xAI) means the output was
+   *  CUT OFF at the token cap — even when the JSON happened to stay parseable. */
+  stopReason?: string;
 }
 
 /** A field the extractor is allowed to fill — the engine's inbound contract. */
@@ -90,31 +96,31 @@ async function complete(provider: Provider, system: string, user: string, maxTok
 
 async function callClaude(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
   return withRetry(
+    // Goes through the shared SDK client (auth, prompt-cache defaults, error
+    // shaping) via anthropic() rather than claudeComplete(), because this site
+    // also needs `stop_reason` for its truncation-escalation logic, which the
+    // high-level claudeComplete() helper does not surface. Same request shape as
+    // the former hand-rolled fetch: same model, max_tokens, ephemeral-cached
+    // system block, and single user message.
     async () => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
+      let msg;
+      try {
+        msg = await anthropic().messages.create({
           model,
           max_tokens: maxTokens,
           system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
+        });
+      } catch (err) {
+        // Reshape SDK API errors into HttpRetryError so withRetry() still
+        // triggers on 429/5xx exactly as the raw-fetch path did.
+        throw asRetryError(err);
       }
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-      return { text, ...anthropicUsage(data.usage) };
+      const text = msg.content
+        .filter((c): c is Extract<typeof c, { type: 'text' }> => c.type === 'text')
+        .map((c) => c.text)
+        .join('');
+      return { text, stopReason: msg.stop_reason ?? undefined, ...usageFrom(msg.usage) };
     },
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'intake Claude retry') },
   );
@@ -122,28 +128,32 @@ async function callClaude(system: string, user: string, maxTokens: number, model
 
 async function callGrok(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
   return withRetry(
+    // Goes through the shared official-SDK client (grok-client.ts) via the raw
+    // grok() client rather than grokComplete(), because this site also needs the
+    // `finish_reason` for its truncation-escalation logic, which the high-level
+    // grokComplete() helper does not surface. Same request shape as the former
+    // hand-rolled fetch: same model, max_tokens, and system+user messages; usage
+    // still mapped through xaiUsage; SDK errors reshaped to HttpRetryError so
+    // withRetry() triggers on 429/5xx exactly as the raw-fetch path did.
     async () => {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${env.XAI_API_KEY}` },
-        body: JSON.stringify({
+      let res;
+      try {
+        res = await grok().chat.completions.create({
           model,
           max_tokens: maxTokens,
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: user },
           ],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `xAI API ${response.status}: ${body}`);
+        });
+      } catch (err) {
+        throw asGrokRetryError(err);
       }
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
+      return {
+        text: res.choices[0]?.message?.content ?? '',
+        stopReason: res.choices[0]?.finish_reason ?? undefined,
+        ...xaiUsage(res.usage as Parameters<typeof xaiUsage>[0]),
       };
-      return { text: data.choices[0]?.message?.content ?? '', ...xaiUsage(data.usage) };
     },
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'intake Grok retry') },
   );
@@ -162,6 +172,113 @@ function parseJsonLoose<T>(raw: string): T | null {
   }
 }
 
+/**
+ * Salvage a TRUNCATED extraction. On a rich paste (e.g. an s.138 complaint with
+ * 8 cheques) the model emits ~40 well-formed field objects but the JSON output
+ * is cut off at the max_tokens cap mid-object — the top-level `JSON.parse` in
+ * parseJsonLoose then throws and returns null, and extract() would treat that as
+ * TOTAL failure, dropping every field the model DID emit fully. This walks the
+ * `"fields"` array element-by-element with a brace/bracket-depth + in-string
+ * tracker, JSON.parses each COMPLETE top-level element independently, keeps every
+ * one that parses, and discards only the final partial element. It also
+ * best-effort recovers unmapped_notes / low_confidence / collisions if they
+ * appear BEFORE the truncation point (they usually don't for a truncated tail).
+ * Returns null only when not even one complete field element can be recovered —
+ * turning "lose all 60" into "keep the 55 complete ones".
+ */
+function salvageTruncatedExtraction(raw: string): RawExtraction | null {
+  if (!raw) return null;
+  const fenced = raw.replace(/```(?:json)?/gi, '');
+
+  // Locate the `"fields"` array's opening bracket.
+  const fieldsKey = fenced.search(/"fields"\s*:\s*\[/);
+  if (fieldsKey === -1) return null;
+  const arrOpen = fenced.indexOf('[', fieldsKey);
+  if (arrOpen === -1) return null;
+
+  // Walk the array collecting each top-level element substring that closes
+  // cleanly (depth returns to the array level). A brace/bracket-depth counter
+  // plus an in-string tracker (with backslash escaping) keeps us from splitting
+  // on commas/brackets inside string values.
+  const elements: string[] = [];
+  let depth = 0; // nesting depth INSIDE the fields array (0 == between elements)
+  let elStart = -1;
+  let inStr = false;
+  let esc = false;
+  for (let i = arrOpen + 1; i < fenced.length; i++) {
+    const ch = fenced[i]!;
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; continue; }
+    if (ch === '{' || ch === '[') {
+      if (depth === 0) elStart = i; // start of a new top-level element
+      depth++;
+    } else if (ch === '}' || ch === ']') {
+      if (depth === 0) break; // the array's own closing ']' — end of complete data
+      depth--;
+      if (depth === 0 && elStart !== -1) {
+        elements.push(fenced.slice(elStart, i + 1));
+        elStart = -1;
+      }
+    }
+  }
+
+  // JSON.parse each complete element independently; keep every one that parses,
+  // silently discarding the final partial (unclosed) element.
+  const fields: RawExtraction['fields'] = [];
+  for (const el of elements) {
+    try {
+      fields!.push(JSON.parse(el) as NonNullable<RawExtraction['fields']>[number]);
+    } catch {
+      // a malformed/partial element — skip it
+    }
+  }
+  if (!fields!.length) return null; // nothing complete recovered
+
+  const out: RawExtraction = { fields };
+
+  // Best-effort recover the sibling arrays if they were emitted (and closed)
+  // before the truncation point — parse just the bracketed span after each key.
+  const recoverArray = (key: string): unknown[] | undefined => {
+    const m = fenced.match(new RegExp(`"${key}"\\s*:\\s*\\[`));
+    if (!m || m.index === undefined) return undefined;
+    const open = fenced.indexOf('[', m.index);
+    if (open === -1) return undefined;
+    let d = 0, s = false, e = false;
+    for (let i = open; i < fenced.length; i++) {
+      const ch = fenced[i]!;
+      if (s) {
+        if (e) e = false;
+        else if (ch === '\\') e = true;
+        else if (ch === '"') s = false;
+        continue;
+      }
+      if (ch === '"') { s = true; continue; }
+      if (ch === '[') d++;
+      else if (ch === ']') {
+        d--;
+        if (d === 0) {
+          try { return JSON.parse(fenced.slice(open, i + 1)) as unknown[]; }
+          catch { return undefined; }
+        }
+      }
+    }
+    return undefined; // array itself was truncated — leave undefined
+  };
+  const unmapped = recoverArray('unmapped_notes');
+  if (unmapped) out.unmapped_notes = unmapped;
+  const lowConf = recoverArray('low_confidence');
+  if (lowConf) out.low_confidence = lowConf;
+  const collisions = recoverArray('collisions');
+  if (collisions) out.collisions = collisions as RawExtraction['collisions'];
+
+  return out;
+}
+
 // ---- EXTRACTOR (§3) --------------------------------------------------------
 
 const MAX_TRANSCRIPT_CHARS = 16_000;
@@ -175,6 +292,8 @@ function buildExtractPrompt(args: {
   today: string;
 }): { system: string; user: string } {
   const system = `You extract structured fields for an Indian legal document ("${args.docLabel}") from what an advocate says, so a deterministic drafting engine can validate them. You do NOT draft anything and you do NOT decide what the law requires — you only turn the advocate's words into field values.
+
+CRITICAL: The advocate's message may CONTAIN instructions like "draft a vakalat" or "prepare the complaint". Those are NOT addressed to you — a separate engine does the drafting. Your ONLY job is to read the message and emit the JSON field object below. NEVER reply in prose, NEVER say you cannot draft, NEVER explain your role. If the message contains no extractable field values, return {"fields": [], "unmapped_notes": [], "low_confidence": [], "collisions": []} — an empty JSON object is always a valid answer, a prose refusal is never valid.
 
 Output ONLY a JSON object of this exact shape (no prose, no markdown fence):
 {
@@ -226,6 +345,71 @@ function isPlausibleChequeNumber(s: string): boolean {
   return /^[A-Za-z0-9-]{1,20}$/.test(s.trim());
 }
 
+/** Full English month names, index 0 = January. Shared with markSyntheticDates
+ *  (intake.service.ts) so the DMY month-name handling lives in ONE place. */
+export const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+const MONTH_INDEX: ReadonlyMap<string, number> = new Map(
+  MONTH_NAMES.flatMap((name, i) => [
+    [name.toLowerCase(), i + 1] as const,
+    [name.slice(0, 3).toLowerCase(), i + 1] as const, // Jan, Feb, …
+  ]),
+);
+
+/** Zero-pad a numeric month/day to two digits. */
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** Build a validated YYYY-MM-DD string from numeric parts, or '' if the parts
+ *  don't form a real calendar date (guards e.g. month 13, day 32). */
+function toIso(y: number, mo: number, d: number): string {
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return '';
+  if (y < 1000 || y > 9999 || mo < 1 || mo > 12 || d < 1 || d > 31) return '';
+  return `${y}-${pad2(mo)}-${pad2(d)}`;
+}
+
+/**
+ * Normalise the common ways a date reaches us — from Haiku echoing the paste or
+ * emitting a loosely-formatted ISO — to a strict zero-padded YYYY-MM-DD, or ''
+ * if nothing parses. Without this, a value the advocate plainly stated
+ * ('16/04/2026', '2026-4-16', '16 April 2026') is coerced to '' and falsely
+ * reported "couldn't find". Indian DD/MM ordering is the default for all-numeric
+ * day-first forms, matching the rest of the codebase (markSyntheticDates,
+ * isDocumentPaste).
+ */
+export function normalizeToIsoDate(input: string): string {
+  let s = input.trim();
+  if (!s) return '';
+  // Drop any trailing time component: '2026-04-16T00:00:00', '2026-04-16 12:30'.
+  s = s.replace(/[T\s]\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/i, '').trim();
+
+  // ISO-ish 'YYYY-M-D' / 'YYYY/M/D' (already year-first) — just zero-pad.
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return toIso(Number(m[1]), Number(m[2]), Number(m[3]));
+
+  // All-numeric day-first: 'DD/MM/YYYY', 'DD-MM-YYYY', 'DD.MM.YYYY' (Indian order).
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (m) return toIso(Number(m[3]), Number(m[2]), Number(m[1]));
+
+  // 'D Month YYYY' / 'Month D, YYYY' with an ordinal suffix allowed on the day.
+  const dayFirst = s.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]+)\.?,?\s+(\d{4})$/i);
+  if (dayFirst) {
+    const mo = MONTH_INDEX.get(dayFirst[2]!.toLowerCase());
+    if (mo) return toIso(Number(dayFirst[3]), mo, Number(dayFirst[1]));
+  }
+  const monthFirst = s.match(/^([A-Za-z]+)\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})$/i);
+  if (monthFirst) {
+    const mo = MONTH_INDEX.get(monthFirst[1]!.toLowerCase());
+    if (mo) return toIso(Number(monthFirst[3]), mo, Number(monthFirst[2]));
+  }
+
+  return '';
+}
+
 function coerceValue(spec: IntakeFieldSpec, raw: unknown): string {
   if (raw === null || raw === undefined) return '';
   const s = String(raw).trim();
@@ -237,7 +421,11 @@ function coerceValue(spec: IntakeFieldSpec, raw: unknown): string {
       return spec.options.find((o) => o.toLowerCase() === s.toLowerCase()) ?? '';
     }
     case 'date':
-      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+      // Accept strict ISO as-is; otherwise normalise the common Indian/ISO forms
+      // Haiku emits ('16/04/2026', '2026-4-16', '2026-04-16T00:00:00', '16 April
+      // 2026') to zero-padded YYYY-MM-DD. Only genuinely unparseable input yields
+      // '' (dropped by patchFromRaw) — a stated date is no longer lost to format.
+      return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : normalizeToIsoDate(s);
     case 'currency': {
       const digits = s.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1').replace(/\.$/, '');
       // Guard against a stray numeral mistaken for money (the "amount = 2" bug):
@@ -324,6 +512,9 @@ export function patchFromRaw(
 ): ExtractionPatch {
   const allowed = new Map(specs.map((f) => [f.key, f]));
   const fields: ExtractedField[] = [];
+  // Keys we salvaged from a mislabelled 'inferred' (see below) — kept but flagged
+  // for the advocate to confirm, rather than silently dropped.
+  const salvagedLowConfidence: string[] = [];
   for (const f of obj.fields ?? []) {
     if (!f.key) continue;
     const spec = allowed.get(f.key);
@@ -338,12 +529,20 @@ export function patchFromRaw(
       source: typeof f.source === 'string' ? f.source.slice(0, 400) : '',
     };
     if (confidence === 'inferred') {
-      // An inferred value with no derivation is untrustworthy: demote rather than
-      // silently accept a guess dressed as a derivation.
       if (typeof f.derivation === 'string' && f.derivation.trim()) {
         field.derivation = f.derivation.slice(0, 400);
+      } else if (field.source) {
+        // Haiku routinely mislabels a plainly STATED value as 'inferred' when it
+        // merely normalised it ('3,99,088' -> '399088') and then omits the
+        // derivation. The value is grounded (a non-empty source span quotes the
+        // paste), so DON'T drop it — keep it, synthesize a derivation, and flag
+        // it low-confidence so the advocate confirms rather than losing it.
+        field.derivation = 'normalised from source span';
+        salvagedLowConfidence.push(f.key);
       } else {
-        logger.warn({ key: f.key }, 'intake extract: inferred value lacks derivation; dropping');
+        // No derivation AND no source span: truly ungrounded — demote rather than
+        // silently accept a guess dressed as a derivation.
+        logger.warn({ key: f.key }, 'intake extract: inferred value lacks derivation and source; dropping');
         continue;
       }
     }
@@ -370,7 +569,9 @@ export function patchFromRaw(
   return {
     fields: committed,
     unmappedNotes: (obj.unmapped_notes ?? []).map(String).filter(Boolean).slice(0, 10),
-    lowConfidence: (obj.low_confidence ?? []).map(String).filter((k) => allowed.has(k)),
+    lowConfidence: Array.from(
+      new Set([...(obj.low_confidence ?? []).map(String), ...salvagedLowConfidence]),
+    ).filter((k) => allowed.has(k)),
     collisions,
     modelUsed,
   };
@@ -431,28 +632,90 @@ export const intakeLlm = {
     };
     if (provider === 'none' || !args.latest.trim() || args.fields.length === 0) return empty;
 
-    let raw: string;
-    try {
-      const { system, user } = buildExtractPrompt(args);
-      const result = await complete(provider, system, user, 2000);
-      raw = result.text;
-      args.onUsage?.({
-        provider, model: intakeModelFor(provider),
-        tokensIn: result.tokensIn, tokensOut: result.tokensOut,
-        cacheRead: result.cacheRead, cacheWrite: result.cacheWrite,
-      });
-    } catch (err) {
-      logger.warn({ err }, 'intake extract LLM failed; empty patch');
-      return { ...empty, modelUsed: 'fallback:error' };
+    const { system, user } = buildExtractPrompt(args);
+    // Two attempts. A doc-rich paste over a 30+-field contract produces a large JSON
+    // object; if the model's output is TRUNCATED at the token cap, the JSON is
+    // unparseable and we used to drop the WHOLE extraction — reporting every field as
+    // "not found" even though the model had correctly extracted them (it just ran out
+    // of output room). So: a generous first cap, and on an unparseable/empty parse a
+    // single retry with a HIGHER cap + a terse "JSON only, no prose" nudge (which also
+    // recovers the occasional case where a small model answers conversationally instead
+    // of emitting JSON). Genuinely-absent fields are still simply omitted by the model
+    // and left for the engine to gap-fill — this only stops us LOSING fields that WERE
+    // extracted.
+    const CAPS = [4096, 8192];
+    // The best (most-fields) patch recovered so far. A truncated-but-parseable
+    // response commits a partial patch; if a higher CAP is still available we
+    // re-extract and keep whichever patch has MORE fields (see below).
+    let best: ExtractionPatch | null = null;
+    for (let attempt = 0; attempt < CAPS.length; attempt++) {
+      const sys = attempt === 0
+        ? system
+        : `${system}\n\nIMPORTANT: Output ONLY the JSON object — no prose, no explanation, no markdown fence. Emit the COMPLETE object; do not stop early.`;
+      let raw: string;
+      let stopReason: string | undefined;
+      try {
+        const result = await complete(provider, sys, user, CAPS[attempt]!);
+        raw = result.text;
+        stopReason = result.stopReason;
+        args.onUsage?.({
+          provider, model: intakeModelFor(provider),
+          tokensIn: result.tokensIn, tokensOut: result.tokensOut,
+          cacheRead: result.cacheRead, cacheWrite: result.cacheWrite,
+        });
+      } catch (err) {
+        logger.warn({ err, attempt }, 'intake extract LLM failed');
+        continue; // network/API error — try the next attempt, else fall through to empty
+      }
+
+      const obj = parseJsonLoose<RawExtraction>(raw);
+      if (obj) {
+        const patch = patchFromRaw(obj, args.fields, providerTag(provider));
+        // Whether the JSON parsed is INDEPENDENT of whether the output was cut
+        // off: a response truncated just after a clean outer '}' still parses,
+        // but is missing every field the model would have emitted after the cut
+        // (e.g. notice_date, advocate_name, place). The only trustworthy
+        // truncation signal is the provider's stop reason. If the output was
+        // cut off AND a higher cap is still available, DON'T commit this partial
+        // set — escalate and re-extract, then keep whichever patch has more
+        // fields. Otherwise the silently-dropped trailing fields are wrongly
+        // reported "couldn't find".
+        const truncated = stopReason === 'max_tokens' || stopReason === 'length';
+        if (!best || patch.fields.length > best.fields.length) best = patch;
+        if (truncated && attempt < CAPS.length - 1) {
+          logger.warn(
+            { recovered: patch.fields.length, attempt, cap: CAPS[attempt], stopReason },
+            'intake extract: parseable but truncated at token cap — retrying with higher cap',
+          );
+          continue; // re-extract at the next CAP; best keeps the fuller patch
+        }
+        return best;
+      }
+
+      // The top-level JSON.parse failed — almost always because the output was
+      // TRUNCATED at the token cap mid-object (a rich s.138 paste with many
+      // cheques). Rather than treat this as total failure and lose every field
+      // the model DID emit fully, salvage the complete elements of the `fields`
+      // array. This runs BEFORE the higher-cap retry, so most truncations never
+      // reach it; the retry remains as a fallback when nothing can be salvaged.
+      const salvaged = salvageTruncatedExtraction(raw);
+      if (salvaged) {
+        logger.warn(
+          { recovered: salvaged.fields?.length ?? 0, attempt, cap: CAPS[attempt] },
+          'intake extract: JSON truncated — salvaged complete fields from partial output',
+        );
+        const salvagedPatch = patchFromRaw(salvaged, args.fields, providerTag(provider));
+        // Don't regress below a fuller patch recovered on a prior (parseable but
+        // truncated) attempt.
+        return best && best.fields.length > salvagedPatch.fields.length ? best : salvagedPatch;
+      }
+
+      logger.warn({ raw: raw.slice(0, 200), attempt, cap: CAPS[attempt] }, 'intake extract: unparseable JSON (likely truncated) — retrying with higher cap');
     }
 
-    const obj = parseJsonLoose<RawExtraction>(raw);
-    if (!obj) {
-      logger.warn({ raw: raw.slice(0, 200) }, 'intake extract: unparseable JSON');
-      return { ...empty, modelUsed: 'fallback:error' };
-    }
-
-    return patchFromRaw(obj, args.fields, providerTag(provider));
+    // Exhausted all caps. Return the best patch we recovered along the way (if a
+    // truncated-but-parseable attempt gave us one) rather than an empty error.
+    return best ?? { ...empty, modelUsed: 'fallback:error' };
   },
 
   /**
@@ -501,6 +764,12 @@ export const intakeLlm = {
   async classifyDocType(args: {
     brief: string;
     labels: string[];
+    /** The advocate's OWN instruction ("draft a complaint under 138"), separate
+     *  from any attached reference-document text folded into `brief`. When set, it
+     *  is presented FIRST and authoritatively so a long reference document (e.g. a
+     *  s.138 NOTICE on file) cannot pull the classification toward its own document
+     *  type — the advocate asking for a "complaint" must beat a Notice PDF's prose. */
+    instruction?: string;
     provider?: 'xai' | 'anthropic';
     onUsage?: (u: NormalizedUsage & { provider: Provider; model: string }) => void;
   }): Promise<{ label: string | null; confidence: 'high' | 'medium' | 'low' }> {
@@ -522,12 +791,20 @@ Output ONLY a JSON object (no prose, no fence):
 { "docLabel": "<one label copied exactly from the list, or empty string if genuinely unclear>", "confidence": "high" | "medium" | "low" }
 
 Rules:
+- The advocate's OWN INSTRUCTION is authoritative. If it names or clearly implies a document type, pick THAT — even when an attached reference document is a DIFFERENT type. (A matter often INCLUDES a document of one type — e.g. a s.138 NOTICE already on file — while the advocate is asking you to draft the NEXT document — e.g. the s.138 COMPLAINT. Never let the attached document's type override what the advocate asked to draft.)
 - Pick the most specific document that fits the matter.
-- A dishonoured/bounced cheque -> the s.138 notice label.
+- A s.138 (dishonoured/bounced cheque) matter has TWO documents — distinguish by intent:
+  - the pre-litigation demand NOTICE (default when the advocate just describes the bounced cheque and wants to demand payment) -> the s.138 NOTICE label.
+  - the court COMPLAINT (when the advocate says "complaint", "case", "prosecute", "file", or the 15-day notice period has already lapsed) -> the s.138 COMPLAINT label.
 - Arrest/custody seeking release -> a bail label; apprehending arrest -> anticipatory bail.
 - If you truly cannot tell, return an empty docLabel with confidence "low" (do not guess wildly).
 - The docLabel MUST match a list entry character-for-character.`;
-    const user = `# The advocate's matter\n${args.brief.slice(0, 8000)}`;
+    // Lead with the advocate's own instruction (authoritative), THEN the matter
+    // context / attached document text. This ordering + the rule above stops a long
+    // reference document from dominating the classification.
+    const user = args.instruction?.trim()
+      ? `# The advocate's instruction (authoritative — draft THIS)\n${args.instruction.trim().slice(0, 1000)}\n\n# Matter context and attached documents (background only)\n${args.brief.slice(0, 8000)}`
+      : `# The advocate's matter\n${args.brief.slice(0, 8000)}`;
 
     try {
       const result = await complete(provider, system, user, 200);

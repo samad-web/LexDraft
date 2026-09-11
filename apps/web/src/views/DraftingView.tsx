@@ -15,6 +15,7 @@ import { DraftBotModal } from '@/components/engine/DraftBotModal';
 import type { IntakeState } from '@lexdraft/types';
 import { useEngineStatus } from '@/hooks/useEngineDraft';
 import { useCaseNotes } from '@/hooks/useCaseNotes';
+import { useCaseDocumentText, useCreateDocument } from '@/hooks/useDocuments';
 import { useUIStore } from '@/store/ui';
 import { api } from '@/lib/api';
 import { PillNav } from '@/components/PillNav';
@@ -28,6 +29,7 @@ import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
+import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
 import { exportPdf, exportDocx } from '@/lib/export-doc';
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import type { DocTemplate } from '@/lib/doc-templates';
@@ -143,6 +145,16 @@ export function DraftingView() {
   const [draftDate, setDraftDate] = useState<string>(todayIso());
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'PDF' | 'DOCX' | null>(null);
+  // Letterhead choice for the client-side (working-copy) exports, surfaced as an
+  // inline control in the toolbar next to the download buttons so the advocate
+  // decides with/without letterhead BEFORE the download dialog opens.
+  //   undefined → use effective default   null → no letterhead   string → specific id
+  // DEFAULT null (no letterhead): a filed pleading — a s.138 complaint, an
+  // affidavit — carries its own formal cause-title and must NOT be stamped with a
+  // personal advocate letterhead by default (that produced the "Aarav Sharma /
+  // Junior Advocate" header on complaint exports). The advocate can still opt in
+  // to a letterhead via the inline picker for correspondence-style documents.
+  const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [formatsOpen, setFormatsOpen] = useState(false);
   // True once the advocate explicitly chose a format (Formats picker). Until then
@@ -152,8 +164,20 @@ export function DraftingView() {
   // detected inside the intake panel). Null until the first turn settles it — the
   // banner stays neutral until then instead of showing a stale default.
   const [activeEngineLabel, setActiveEngineLabel] = useState<string | null>(null);
+
+  // Navigation context. Declared before the modal state below because that
+  // state's initial value depends on whether we arrived with a case attached.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const navState = location.state as
+    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string }
+    | null;
+
   // DraftBot-style one-shot modal: content in → document out, no fact sheet.
-  const [draftBotOpen, setDraftBotOpen] = useState(false);
+  // Auto-open when we arrived via "Draft for this case" so the advocate lands
+  // straight in the prompt (with the case already loaded) instead of having to
+  // click "Start drafting" first.
+  const [draftBotOpen, setDraftBotOpen] = useState<boolean>(!!navState?.caseContext);
   const [myDraftsOpen, setMyDraftsOpen] = useState(false);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   // The engine-rendered .docx (base64) for the CURRENT engine draft, if any. This is
@@ -161,16 +185,17 @@ export function DraftingView() {
   // engine produced — distinct from the rasterised client-side "working copy" export.
   // Captured from the intake draft; null for model-only drafts (which have no engine .docx).
   const [engineDocxBase64, setEngineDocxBase64] = useState<string | null>(null);
+  // A COMPANION document the engine produced alongside the main draft — e.g. the
+  // proof affidavit derived from a s.138 complaint. Its label + filing-grade .docx,
+  // held so the advocate can download it as its own Word file (the affidavit body
+  // is also appended into the preview below the complaint). Null for single-doc drafts.
+  const [companionDoc, setCompanionDoc] = useState<{ label: string; docxBase64: string | null } | null>(null);
   const saveMutation = useSaveDraft();
+  const createDocument = useCreateDocument();
   // Set true just before stream.seed() to suppress the effect that clears
   // edits when stream.data.text changes - loading a draft must preserve them.
   const skipResetOnSeedRef = useRef(false);
 
-  const location = useLocation();
-  const navigate = useNavigate();
-  const navState = location.state as
-    | { caseContext?: CaseContext; researchCitation?: ResearchCitation; draftId?: string }
-    | null;
   const [caseContext, setCaseContext] = useState<CaseContext | null>(navState?.caseContext ?? null);
   const [researchCitation, setResearchCitation] = useState<ResearchCitation | null>(
     navState?.researchCitation ?? null,
@@ -180,6 +205,9 @@ export function DraftingView() {
   // banner gives the user a one-click way to skip them per-generation.
   const [includeNotes, setIncludeNotes] = useState<boolean>(true);
   const { data: caseNotesList } = useCaseNotes(caseContext?.id ?? null);
+  // The case's uploaded documents, extracted to text (OCR for scans), so the
+  // engine reads the matter's papers - not just typed notes.
+  const { data: caseDocText } = useCaseDocumentText(caseContext?.title ?? null);
   const usableNotesCount = useMemo(
     () => (caseNotesList ?? []).filter((n) => n.body.trim().length > 0).length,
     [caseNotesList],
@@ -224,7 +252,22 @@ export function DraftingView() {
   const [openItems, setOpenItems] = useState<OpenItems | null>(null);
 
   // Case attached to the current draft (its court/CNR/parties feed the agent).
-  const [draftCase, setDraftCase] = useState<DraftCaseContext | null>(null);
+  // Seed it from an incoming case context (e.g. "Draft for this case" from the
+  // case page) so the draft is attached to that matter from the start: the
+  // agent gets the case particulars, and the finished draft files back to this
+  // matter's Documents tab without the user re-picking the case.
+  const [draftCase, setDraftCase] = useState<DraftCaseContext | null>(
+    navState?.caseContext
+      ? {
+          id: navState.caseContext.id,
+          title: navState.caseContext.title,
+          court: navState.caseContext.court ?? '',
+          cnr: navState.caseContext.cnr ?? '',
+          client: navState.caseContext.client ?? '',
+          type: navState.caseContext.type ?? '',
+        }
+      : null,
+  );
 
   // Open the first section by default whenever the schema changes.
   useEffect(() => {
@@ -304,6 +347,7 @@ export function DraftingView() {
     // A model-only draft has no engine-rendered .docx — clear any prior one so a
     // stale filing copy from an earlier engine draft can't be downloaded here.
     setEngineDocxBase64(null);
+    setCompanionDoc(null);
     const p = result.pipeline;
     setOpenItems(
       collectOpenItems({
@@ -345,13 +389,29 @@ export function DraftingView() {
     }
     const detected = s.docLabel;
     setDocType(detected);
-    const body = s.draft.blocks.map((b) => b.text).join('\n\n');
-    if (!body.trim()) return;
+    const primaryBody = s.draft.blocks.map((b) => b.text).join('\n\n');
+    if (!primaryBody.trim()) return;
     setActiveEngineLabel(detected);
     // Keep the engine's filing-grade .docx so the advocate can download the real
     // Word file (not just the rasterised working copy). Null-safe: absent on older
     // engine responses, in which case only the working-copy export is offered.
     setEngineDocxBase64(s.draft.docxBase64 ?? null);
+
+    // A companion document (e.g. the proof affidavit paired with a s.138 complaint):
+    // append its body below the primary draft under a clear divider so both are
+    // visible and export together in the working copy, and hold its filing-grade
+    // .docx so it can be downloaded as its own Word file. Absent for single-doc drafts.
+    const companion = s.companionDraft ?? null;
+    const companionBody = companion?.blocks.map((b) => b.text).join('\n\n').trim() ?? '';
+    if (companion && companionBody) {
+      setCompanionDoc({ label: companion.docLabel, docxBase64: companion.docxBase64 ?? null });
+    } else {
+      setCompanionDoc(null);
+    }
+    const body = companionBody
+      ? `${primaryBody}\n\n\n──────────────────────────────\n${companion!.docLabel.toUpperCase()}\n──────────────────────────────\n\n${companionBody}`
+      : primaryBody;
+
     // Open items = the [placeholder] gaps left in the body (scanned live).
     setOpenItems(collectOpenItems({ bodyText: body }));
     stream.reset();
@@ -359,7 +419,12 @@ export function DraftingView() {
     stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
     setError(null);
-    showToast({ type: 'sage', text: 'Draft ready — review and edit below' });
+    showToast({
+      type: 'sage',
+      text: companion && companionBody
+        ? 'Complaint + proof affidavit ready — review and edit below'
+        : 'Draft ready — review and edit below',
+    });
   };
 
   // DRAFT NOW (DraftBot-style): the advocate has given content; draft the WHOLE
@@ -384,8 +449,8 @@ export function DraftingView() {
       if (result.needsConfirmation || !result.pipeline) {
         const guess = result.triage?.docType;
         const msg = guess
-          ? `I read this as a ${guess} but I’m not fully sure — pick the format from “Formats” above and hit Draft now again.`
-          : 'I couldn’t confidently tell which document this is — pick a format from “Formats” above, then Draft now.';
+          ? `I read this as a ${guess} but I’m not fully sure — name the document explicitly in your description (e.g. “draft a ${guess}”) and try again.`
+          : 'I couldn’t confidently tell which document this is — name it in your description (e.g. “a s.138 notice”, “a plaint”) and try again.';
         setError(msg);
         showToast({ type: 'amber', text: msg });
         return;
@@ -449,6 +514,7 @@ export function DraftingView() {
     setStageMode(false);
     setOpenItems(null);
     setEngineDocxBase64(null);
+    setCompanionDoc(null);
     // Back to the empty state; the next matter starts from the DraftBot modal.
     setDraftBotOpen(false);
   };
@@ -653,21 +719,19 @@ export function DraftingView() {
     setExportFormat(fmt);
   };
 
-  // Download the engine's FILING-grade .docx (the real Word file the engine
-  // rendered — selectable text, correct margins), decoded from the base64 the
-  // intake draft carried. This is the filing copy; the client-side PDF/DOCX
-  // buttons below are only a rasterised working copy.
-  const downloadEngineDocx = () => {
-    if (!engineDocxBase64) return;
+  // Download a filing-grade .docx (the real Word file the engine rendered —
+  // selectable text, correct margins) from its base64. Shared by the main draft
+  // and any companion document (e.g. the paired proof affidavit).
+  const downloadDocxBase64 = (base64: string, titleForFile: string) => {
     try {
-      const bytes = Uint8Array.from(atob(engineDocxBase64), (c) => c.charCodeAt(0));
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
       const blob = new Blob([bytes], {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.docx`;
+      a.download = `${titleForFile.replace(/[^\w.-]+/g, '_')}-${draftDate}.docx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -677,6 +741,13 @@ export function DraftingView() {
     } catch {
       showToast({ type: 'cobalt', text: 'Could not prepare the .docx download' });
     }
+  };
+
+  // The main draft's filing copy; the client-side PDF/DOCX buttons below are
+  // only a rasterised working copy.
+  const downloadEngineDocx = () => {
+    if (!engineDocxBase64) return;
+    downloadDocxBase64(engineDocxBase64, activeDocType);
   };
 
   const applyTemplate = (t: DocTemplate) => {
@@ -724,6 +795,11 @@ export function DraftingView() {
         onSuccess: (saved) => {
           setCurrentDraftId(saved.id);
           showToast({ type: 'sage', text: currentDraftId ? 'Draft updated' : 'Draft saved' });
+          // Also file the filing-grade engine .docx into the CASE's Documents
+          // section (the `documents` table, keyed by case_label) so a generated
+          // draft appears alongside the case's other documents — not only under
+          // "My drafts". Best-effort: a failure here never blocks the draft save.
+          void saveDraftToCaseDocuments();
         },
         onError: (e) => {
           const msg = e instanceof Error ? e.message : 'Could not save draft';
@@ -731,6 +807,44 @@ export function DraftingView() {
         },
       },
     );
+  };
+
+  /** File the engine's filing-grade .docx (the complaint, and its companion
+   *  affidavit if any) into the attached case's Documents section. Each row is
+   *  linked by `case: draftCase.title` (the documents table keys on case_label),
+   *  which is what CaseDocumentsPanel reads. Only runs when a matter is attached
+   *  and the engine produced a .docx; downloads-only drafts are unaffected. */
+  const saveDraftToCaseDocuments = async () => {
+    if (!draftCase?.title) return; // no case attached — nothing to file against
+    const today = new Date().toISOString().slice(0, 10);
+    const toSave: Array<{ label: string; b64: string }> = [];
+    if (engineDocxBase64) toSave.push({ label: activeDocType, b64: engineDocxBase64 });
+    if (companionDoc?.docxBase64) {
+      toSave.push({ label: companionDoc.label, b64: companionDoc.docxBase64 });
+    }
+    if (toSave.length === 0) return; // no filing-grade .docx to file
+    for (const doc of toSave) {
+      const fileName = `${doc.label} - ${draftCase.title} (${today}).docx`;
+      try {
+        await createDocument.mutateAsync({
+          name: doc.label,
+          type: doc.label,
+          case: draftCase.title,
+          updated: 'just now',
+          fileName,
+          fileMime:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          fileSize: Math.floor((doc.b64.length * 3) / 4),
+          fileBase64: doc.b64,
+        });
+      } catch {
+        showToast({
+          type: 'amber',
+          text: `Saved the draft, but couldn't file "${doc.label}" into the case Documents.`,
+        });
+      }
+    }
+    showToast({ type: 'sage', text: 'Filed into the case Documents section.' });
   };
 
   // Auto-load a draft when the view is opened via /app/draft with
@@ -792,7 +906,49 @@ export function DraftingView() {
     showToast({ type: 'sage', text: 'Brief reset to default values' });
   };
 
-  const performExport = async (letterheadChoice: string | null | undefined) => {
+  // When a companion (proof affidavit) is present its body is appended to the
+  // preview below a divider (see the seed logic above). For SEPARATE PDF exports
+  // we split the preview back into the complaint half and the affidavit half on
+  // that same divider, so "Download complaint PDF" and "Download affidavit PDF"
+  // each render only their own document. The divider line is a run of box-drawing
+  // dashes; we split on the first such divider block.
+  const splitCompanion = (html: string): { primary: string; companion: string | null } => {
+    // The seeded body puts the companion (affidavit) after a divider block — a
+    // run of "─" box-drawing chars plus the doc heading — separated by a blank
+    // line, so plainTextToHtml renders that divider as its OWN <p> block. Split on
+    // <p> boundaries (never mid-tag), drop the divider block, and keep the rest as
+    // the companion. Falls back to no-split when no divider is present.
+    const blocks = html.split(/(?=<p)/i); // keep each "<p…>…</p>" as one chunk
+    const dividerIdx = blocks.findIndex((b) => /─{6,}/.test(b));
+    if (dividerIdx < 0) return { primary: html, companion: null };
+    const primary = blocks.slice(0, dividerIdx).join('').trim();
+    // Everything after the divider block is the companion; the divider block
+    // itself (dashes + heading) is dropped so the affidavit starts at its title.
+    const companion = blocks.slice(dividerIdx + 1).join('').trim();
+    return { primary: primary || html, companion: companion || null };
+  };
+
+  /** Export ONE document's HTML to a rasterised working-copy PDF, honouring the
+   *  inline letterhead choice. Shared by the complaint and affidavit PDF buttons. */
+  const downloadPdfOf = async (bodyHtml: string, title: string) => {
+    if (!bodyHtml.trim()) return;
+    const letterhead =
+      letterheadChoice === undefined ? undefined
+      : letterheadChoice === null   ? null
+      : await resolveLetterhead(letterheadChoice);
+    try {
+      // advocate: null — a pleading signs off with its own "Counsel for the
+      // Complainant / Complainant" block from the engine template; do not append
+      // the signed-in user's personal signature block on top of it.
+      await exportPdf({ title, bodyHtml, dated: draftDate, letterhead, advocate: null });
+      showToast({ type: 'sage', text: `${title} PDF prepared` });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'PDF export failed';
+      showToast({ type: 'cobalt', text: msg });
+    }
+  };
+
+  const performExport = async (choice: string | null | undefined) => {
     const fmt = exportFormat;
     if (!fmt) return;
     // Resolve the picker's choice into something exportPdf can consume:
@@ -800,9 +956,9 @@ export function DraftingView() {
     //   null      → explicit "no letterhead"
     //   string    → fetch that specific letterhead + its logo
     const letterhead =
-      letterheadChoice === undefined ? undefined
-      : letterheadChoice === null   ? null
-      : await resolveLetterhead(letterheadChoice);
+      choice === undefined ? undefined
+      : choice === null   ? null
+      : await resolveLetterhead(choice);
     const payload = {
       title: activeDocType,
       bodyHtml: previewHtml,
@@ -842,14 +998,10 @@ export function DraftingView() {
           </div>
         </div>
         <span className="spacer" />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => setFormatsOpen(true)}
-          title="Choose which engine format to draft"
-        >
-          Formats
-        </button>
+        {/* Format picking is no longer required — the engine auto-detects the
+            document type from the prompt/case content. "Formats" is kept only
+            as an optional override for the rare case the advocate wants to force
+            a specific format, tucked behind Templates. */}
         <button
           className="btn"
           type="button"
@@ -911,6 +1063,17 @@ export function DraftingView() {
         docLabel={formatPicked ? docType : null}
         onActiveLabel={setActiveEngineLabel}
         onDrafted={acceptEngineDraft}
+        caseContext={draftCase}
+        caseNotes={[
+          // Typed / dictated notes on the matter.
+          ...(caseNotesList ?? [])
+            .filter((n) => n.body.trim().length > 0)
+            .map((n) => n.body),
+          // Text extracted from the case's uploaded documents, labelled so the
+          // engine knows what each block is (e.g. the cheque, the notice).
+          ...(caseDocText?.items ?? []).map((d) => `Document "${d.name}":\n${d.text}`),
+        ]}
+        unreadableDocs={caseDocText?.unreadable ?? []}
       />
 
       {researchCitation && (
@@ -1669,22 +1832,82 @@ export function DraftingView() {
                     title="The engine-rendered Word document — filing-grade (selectable text, correct margins)"
                     onClick={downloadEngineDocx}
                   >
-                    <Icon name="download" size={14} /> Download .docx (filing copy)
+                    <Icon name="download" size={14} />{' '}
+                    {companionDoc ? 'Download complaint .docx' : 'Download .docx (filing copy)'}
                   </button>
                 )}
+                {/* The paired companion document (e.g. the proof affidavit derived
+                    from a s.138 complaint) as its OWN filing-grade Word file. The
+                    affidavit body is also visible in the preview below the complaint;
+                    this downloads it separately for filing. */}
+                {companionDoc?.docxBase64 && (
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    title={`The engine-rendered ${companionDoc.label} — filing-grade Word document`}
+                    onClick={() => downloadDocxBase64(companionDoc.docxBase64!, companionDoc.label)}
+                  >
+                    <Icon name="download" size={14} /> Download affidavit .docx
+                  </button>
+                )}
+                {/* SEPARATE PDF downloads for a paired complaint + affidavit.
+                    Rasterised working copies (LibreOffice/soffice isn't available
+                    for a true text PDF) that carry the same court formatting as the
+                    preview. Only shown when a companion affidavit exists — the
+                    single-doc case is covered by the "PDF (working copy)" button
+                    below. This fills the gap where the affidavit had a .docx button
+                    but no way to get it as a PDF. */}
+                {hasOutput && !streaming && companionDoc && (
+                  <>
+                    <button
+                      className="btn"
+                      type="button"
+                      title="Complaint as a PDF (rasterised working copy — not a filing copy)"
+                      onClick={() => {
+                        const { primary } = splitCompanion(previewHtml);
+                        void downloadPdfOf(primary, activeDocType);
+                      }}
+                    >
+                      <Icon name="download" size={14} /> Download complaint PDF
+                    </button>
+                    <button
+                      className="btn"
+                      type="button"
+                      title={`${companionDoc.label} as a PDF (rasterised working copy)`}
+                      onClick={() => {
+                        const { companion } = splitCompanion(previewHtml);
+                        if (companion) void downloadPdfOf(companion, companionDoc.label);
+                      }}
+                    >
+                      <Icon name="download" size={14} /> Download affidavit PDF
+                    </button>
+                  </>
+                )}
+                {/* Inline letterhead choice for the working-copy PDF/DOCX exports.
+                    Lets the advocate decide with / without letterhead (or a specific
+                    one) BEFORE the download dialog opens. The download dialog is
+                    pre-seeded with this same choice, so they don't pick twice. */}
+                <LetterheadPicker
+                  label="Letterhead"
+                  value={letterheadChoice}
+                  onChange={setLetterheadChoice}
+                  className="draft-inline-letterhead"
+                />
                 {/* Client-side PDF (jsPDF/html2canvas) is a RASTERISED working copy —
                     fixed margins, non-selectable text — for quick preview/print, never
-                    filing. Offered for BOTH engine and model drafts. The client-side
-                    .docx (HTML-wrapped) is redundant once we have the engine filing
-                    .docx, so it's only shown for model-only drafts. */}
-                <button
-                  className="btn"
-                  type="button"
-                  title="Working copy only — not a filing copy (rasterised, non-selectable text)"
-                  onClick={() => triggerExport('PDF')}
-                >
-                  <Icon name="download" size={14} /> PDF (working copy)
-                </button>
+                    filing. Shown for the SINGLE-doc case; when a companion affidavit
+                    exists, the two "Download complaint/affidavit PDF" buttons above
+                    replace this (so we don't also offer a merged-both PDF here). */}
+                {!companionDoc && (
+                  <button
+                    className="btn"
+                    type="button"
+                    title="Working copy only — not a filing copy (rasterised, non-selectable text)"
+                    onClick={() => triggerExport('PDF')}
+                  >
+                    <Icon name="download" size={14} /> PDF (working copy)
+                  </button>
+                )}
                 {!engineActive && (
                   <button
                     className="btn"
@@ -1741,6 +1964,24 @@ export function DraftingView() {
       )}
 
       <style>{`
+        /* Inline letterhead picker in the download toolbar. Kept compact and
+           label-beside-select so it reads as one control among the buttons
+           rather than a full-width form row. */
+        .draft-inline-letterhead {
+          flex-direction: row !important;
+          align-items: center;
+          gap: 6px !important;
+        }
+        .draft-inline-letterhead > .label {
+          white-space: nowrap;
+          color: var(--text-tertiary);
+        }
+        .draft-inline-letterhead select {
+          min-width: 0 !important;
+          width: auto;
+          padding-top: 6px;
+          padding-bottom: 6px;
+        }
         .draft-grid {
           display: grid;
           grid-template-columns: minmax(0, 42fr) minmax(0, 58fr);
@@ -1887,8 +2128,13 @@ export function DraftingView() {
       <AIDisclaimerModal
         open={exportFormat !== null}
         format={exportFormat}
+        initialChoice={letterheadChoice}
         onCancel={() => setExportFormat(null)}
-        onConfirm={performExport}
+        onConfirm={(choice) => {
+          // Keep the toolbar control in sync with any change made in the dialog.
+          setLetterheadChoice(choice);
+          void performExport(choice);
+        }}
       />
 
       <DocTemplatesModal
