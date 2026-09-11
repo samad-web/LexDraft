@@ -182,7 +182,13 @@ async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
     await fs.writeFile(inPath, docx);
 
     // file:// URL for the private profile — LibreOffice wants a URL, not a path.
-    const profileUrl = `file://${profileDir.replace(/\\/g, '/')}`;
+    // On Windows an absolute path starts with a drive letter ("C:\..."), so the
+    // correct file URL needs THREE slashes ("file:///C:/...") — a two-slash
+    // "file://C:/..." makes LibreOffice treat "C:" as a host, fail to create the
+    // profile, and HANG on first-run setup (the docx->PDF then times out). POSIX
+    // absolute paths already begin with "/", so "file://" + "/home/..." is right.
+    const fwd = profileDir.replace(/\\/g, '/');
+    const profileUrl = fwd.startsWith('/') ? `file://${fwd}` : `file:///${fwd}`;
     const args = [
       '--headless',
       '--norestore',
