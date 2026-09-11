@@ -925,16 +925,24 @@ draftingRouter.post('/engine/sign-off', requireFeature('drafting.ai'), async (re
 // Gated by the SAME engine-routing allowlist as the form path.
 // =============================================================================
 
+// The opening `message` carries the CASE CONTEXT (preamble + the extracted text of
+// every document on the matter), so it grows with the number/size of case
+// documents — a matter with several affidavits easily exceeds 20k chars. The cap
+// exists only to bound abuse; the extractor truncates its own view internally
+// (MAX_TRANSCRIPT_CHARS), so a generous 200k ceiling is safe and stops a legit
+// multi-document case from being rejected at the door with a 400.
+const CASE_CONTEXT_MAX = 200_000;
+
 const IntakeStart = z.object({
   docLabel: z.string().min(1),
-  message: z.string().min(1).max(20_000),
+  message: z.string().min(1).max(CASE_CONTEXT_MAX),
   provider: z.enum(['xai', 'anthropic']).optional(),
 });
 
 const IntakeReply = z.object({
   matterId: z.string().uuid(),
   docLabel: z.string().min(1),
-  message: z.string().min(1).max(20_000),
+  message: z.string().min(1).max(CASE_CONTEXT_MAX),
   provider: z.enum(['xai', 'anthropic']).optional(),
 });
 
@@ -1022,7 +1030,12 @@ function handleIntakeError(err: unknown, res: Response): boolean {
 }
 
 const IntakeStartAuto = z.object({
-  message: z.string().min(1).max(20_000),
+  message: z.string().min(1).max(CASE_CONTEXT_MAX),
+  /** The advocate's OWN instruction ("draft a complaint u/s 138"), separate from
+   *  the case/reference-document text folded into `message`. Used to classify the
+   *  document type authoritatively so an attached Notice/agreement can't override
+   *  what the advocate asked to draft. Optional (older clients omit it). */
+  instruction: z.string().max(2_000).optional(),
   provider: z.enum(['xai', 'anthropic']).optional(),
 });
 
@@ -1043,9 +1056,11 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
     const firmId = await firmIdForUser(userId);
     await aiQuotaService.assertCanGenerate(firmId, userId);
     try {
-      const state = await intakeService.startAuto(parsed.message, {
-        firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}),
-      });
+      const state = await intakeService.startAuto(
+        parsed.message,
+        { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
+        parsed.instruction,
+      );
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
