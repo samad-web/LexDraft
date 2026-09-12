@@ -8075,7 +8075,7 @@
       {
         "key": "case_ref",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "place",
@@ -8156,7 +8156,6 @@
     ],
     "required": [
       "advocates",
-      "case_ref",
       "executant_name",
       "kind",
       "party_role",
