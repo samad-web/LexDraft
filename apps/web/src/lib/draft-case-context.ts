@@ -36,7 +36,11 @@ export function contextToBriefPreamble(ctx: DraftCaseContext): string {
     `Case: ${ctx.title}`,
     ctx.court ? `Court: ${ctx.court}` : '',
     realCnr ? `CNR / Case No.: ${realCnr}` : 'Case No.: (not yet assigned by the court — leave blank)',
-    ctx.client ? `Client (party we represent): ${ctx.client}` : '',
+    // The client is the party we act for — i.e. the EXECUTANT of a vakalat and the
+    // named party (complainant/petitioner/plaintiff) in a pleading. State it
+    // explicitly so extraction uses THIS name, not a firm/party name scraped from
+    // an attached document body.
+    ctx.client ? `Client / party we represent (this is the executant / our named party): ${ctx.client}` : '',
     ctx.type ? `Matter type: ${ctx.type}` : '',
   ].filter(Boolean);
   return `[Authoritative case record — use these particulars verbatim, do not invent]\n${lines.join('\n')}`;

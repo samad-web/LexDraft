@@ -8041,6 +8041,7 @@
       "execution_date",
       "kind",
       "opposite_party_name",
+      "party_address",
       "party_contact",
       "party_role",
       "place",
@@ -8144,6 +8145,11 @@
       },
       {
         "key": "counsel_fee",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "party_address",
         "kind": "string",
         "required": false
       }
