@@ -1054,32 +1054,23 @@ export const intakeService = {
     opts: { phrase: boolean; bumpAsks?: boolean; preface?: string[]; persist?: boolean; draftNow?: boolean },
   ): Promise<IntakeState> {
     const persist = opts.persist ?? true;
-    // For a vakalatnama, decide WHICH court format to render (criminal / civil /
-    // small_causes) from the advocate's words + the case character, unless the
-    // form already carries an explicit court_kind (an advocate override). Without
-    // this the engine falls back to its GENERIC form, which reads as the criminal
-    // format — so a Civil case's vakalat was coming out in the criminal layout.
+    // For a vakalatnama, the court FORMAT (criminal / civil / small_causes) comes
+    // ONLY from what the advocate typed in the DRAFT CHAT — the CASE does not
+    // decide it (the same case can need a civil or a criminal vakalat). The
+    // advocate names the format each time ("civil vakalat", "criminal vakalat",
+    // "small causes vakalat"). We always re-derive and apply, overwriting any
+    // stale value persisted on the fact sheet from an earlier draft.
     //
-    // Read from EVERYTHING the advocate has said this session — the transcript
-    // (which holds every advocate message, INCLUDING the first turn carrying the
-    // authoritative case preamble "Matter type: Civil …") PLUS any attached/pasted
-    // document text in sourceText. NOTE: for a typed "draft a vakalat" the case
-    // preamble lives ONLY in the transcript, not in sourceText (sourceText is
-    // populated by attachments/pastes), so reading sourceText alone missed it.
+    // CRITICAL: derive from the advocate's TYPED chat only — strip the injected
+    // case preamble ("[Authoritative case record …]" carrying "Matter type: Civil",
+    // "s.138", "Magistrate") and matter-notes blocks, so the case NEVER influences
+    // the format. Only the words the advocate actually typed are considered.
     if (doc.docType === 'vakalatnama') {
-      // Decide the court format (criminal / civil / small_causes) from the
-      // advocate's words + the case character. We ALWAYS re-derive and apply the
-      // result: the app has no manual court_kind picker, so any value already on
-      // the form is just a PRIOR auto-derivation (possibly from an earlier, buggy
-      // run persisted onto the fact sheet), NOT a deliberate advocate choice — it
-      // must be refreshed, never treated as a locked override. (If a manual picker
-      // is added later, gate this on "not manually set" via a separate flag.)
-      const advocateSaid = (state.transcript ?? [])
+      const typedChat = (state.transcript ?? [])
         .filter((m) => m.role === 'advocate')
-        .map((m) => m.text)
+        .map((m) => stripInjectedContext(m.text))
         .join('\n');
-      const classifyText = [advocateSaid, state.sourceText ?? ''].filter(Boolean).join('\n');
-      const derived = deriveVakalatCourtKind(classifyText);
+      const derived = deriveVakalatCourtKind(typedChat);
       if (derived) {
         state.form.court_kind = derived;
       }
@@ -1699,44 +1690,60 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
 
 /**
  * Derive the vakalatnama's court format (engine `court_kind`: criminal /
- * small_causes / civil / generic) from the drafting text.
+ * small_causes / civil) from WHAT THE ADVOCATE TYPED IN THE DRAFT CHAT — and
+ * ONLY that. The CASE does not decide the format: the same case can need a civil
+ * or a criminal vakalat, so the advocate names the format in the chat every time
+ * ("civil vakalat", "criminal vakalat", "small causes vakalat").
  *
- * PRIORITY MATTERS. The same dispute can be pursued in different forums — e.g. a
- * cheque-bounce matter can be filed as a s.138 CRIMINAL complaint OR as a CIVIL
- * money/summary suit — so the CONTENT (s.138, Magistrate) does NOT fix the format.
- * Only the advocate's explicit classification does. Order:
- *   1. An EXPLICIT word the advocate typed ("civil vakalat", "criminal vakalat",
- *      "small causes vakalat") — stated intent always wins.
- *   2. The CASE's own "Matter type: <...>" tag the advocate set on the case
- *      (Civil / Criminal / Small Causes) — the advocate's classification of the
- *      case, and it OVERRIDES any content inference below.
- *   3. Only if neither above is present, a last-resort inference from the court
- *      named in the text (Court of Small Causes / a civil court). We deliberately
- *      do NOT infer "criminal" from s.138 / Magistrate content, because that
- *      content is forum-ambiguous (see above) — guessing criminal there is what
- *      made a Civil-tagged cheque case come out as a criminal vakalat.
- * Returns undefined when nothing classifies it, so the engine keeps its GENERIC
- * default. Deterministic (no LLM).
+ * IMPORTANT: pass ONLY the advocate's typed chat text here — NOT the case preamble
+ * or matter notes. Those contain "Matter type: Civil", "s.138", "Magistrate" etc.
+ * which must be IGNORED (see the caller, which strips the preamble before calling).
+ *
+ * Returns undefined when the chat names no format, so the caller can ask the
+ * advocate which one instead of guessing. Deterministic (no LLM).
  */
-export function deriveVakalatCourtKind(sourceText: string): string | undefined {
-  const t = (sourceText || '').toLowerCase();
+export function deriveVakalatCourtKind(chatText: string): string | undefined {
+  const t = (chatText || '').toLowerCase();
   if (!t.trim()) return undefined;
-  // 1) Explicit advocate intent (a court-kind word adjacent to "vakalat", either
-  //    order) — this is the strongest signal and always wins.
-  if (/\bsmall\s*causes?\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bsmall\s*causes?\b/.test(t)) return 'small_causes';
-  if (/\bcivil\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcivil\b/.test(t)) return 'civil';
-  if (/\bcriminal\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcriminal\b/.test(t)) return 'criminal';
-  // 2) The case's own Matter type tag (the advocate's classification). This wins
-  //    over content inference — a "Civil" tag on a cheque case means the advocate
-  //    is pursuing the civil route, so render the civil vakalat.
-  if (/\bmatter type\s*:\s*small\s*causes?\b/.test(t)) return 'small_causes';
-  if (/\bmatter type\s*:\s*civil\b/.test(t)) return 'civil';
-  if (/\bmatter type\s*:\s*criminal\b/.test(t)) return 'criminal';
-  // 3) Last-resort inference from the named COURT only (not from s.138/Magistrate,
-  //    which is forum-ambiguous). Small Causes is the most specific, check first.
-  if (/\bcourt of small causes\b|\bsmall causes court\b/.test(t)) return 'small_causes';
-  if (/\bcivil (court|suit|judge)\b|\bcity civil court\b/.test(t)) return 'civil';
+  // Match a court-kind word the advocate typed. Small Causes first (most specific).
+  if (/\bsmall\s*causes?\b/.test(t)) return 'small_causes';
+  if (/\bcivil\b/.test(t)) return 'civil';
+  if (/\bcriminal\b/.test(t)) return 'criminal';
   return undefined;
+}
+
+/**
+ * Strip the app-INJECTED context from an advocate message, leaving only what the
+ * advocate actually TYPED. The web PREPENDS an "[Authoritative case record …]"
+ * case preamble (separated from the typed words by a blank line) and may append
+ * "[Matter notes on record]" document dumps. Those blocks carry the case's matter
+ * type, court, and on-record documents (s.138, Magistrate, "Matter type: Civil")
+ * — which must NOT influence the vakalat court-format decision. This removes those
+ * bracketed blocks so only the advocate's own words remain.
+ *
+ * Layout (see DraftChatPanel): `<preamble>\n\n<typed words><extra>`. So we drop
+ * any line that belongs to a bracketed injected block, keeping the rest.
+ */
+export function stripInjectedContext(text: string): string {
+  if (!text) return '';
+  const lines = text.split(/\r?\n/);
+  const out: string[] = [];
+  let inInjected = false;
+  for (const line of lines) {
+    const l = line.trim();
+    // A bracketed injected-block header turns stripping ON; it stays on until a
+    // blank line ends that block (the preamble is followed by "\n\n").
+    if (/^\[(authoritative case record|matter notes on record|matter on record)/i.test(l)) {
+      inInjected = true;
+      continue;
+    }
+    if (inInjected) {
+      if (l === '') { inInjected = false; }   // blank line ends the injected block
+      continue;                                // drop lines inside the block
+    }
+    out.push(line);
+  }
+  return out.join('\n').trim();
 }
 
 /**
