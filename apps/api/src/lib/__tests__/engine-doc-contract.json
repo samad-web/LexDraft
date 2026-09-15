@@ -435,27 +435,27 @@
       {
         "key": "deponent_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "deponent_role",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "petitioner_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "respondent_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "notice_returnable_date",
         "kind": "date",
-        "required": true
+        "required": false
       },
       {
         "enumValues": [
@@ -465,17 +465,17 @@
         ],
         "key": "endorsement",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "case_ref",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "place",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "deponent_parentage",
@@ -533,16 +533,7 @@
         "required": false
       }
     ],
-    "required": [
-      "case_ref",
-      "deponent_name",
-      "deponent_role",
-      "endorsement",
-      "notice_returnable_date",
-      "petitioner_name",
-      "place",
-      "respondent_name"
-    ],
+    "required": [],
     "title": "Affidavit of Service"
   },
   "agreement_for_sale": {
