@@ -1646,6 +1646,13 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
   // Word-boundaried cues — avoid substring false positives (e.g. "please" must not
   // match "lease", "will" the verb must not match a Will document loosely).
   const cues: Array<[RegExp, string]> = [
+    // "Affidavit of Service" (proof a notice was taken out and returned unserved)
+    // is its OWN doc type with the advocate's TN format — it must be matched BEFORE
+    // the generic "affidavit" cue below (first match wins), which is why that cue
+    // has a negative lookahead for "of service". Also accept the common short forms
+    // "service affidavit" / "affidavit for service".
+    [/\baffidavit\s+of\s+service\b|\bservice\s+affidavit\b|\baffidavit\s+for\s+service\b/,
+     'Affidavit of Service'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against
