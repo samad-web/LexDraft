@@ -1054,6 +1054,15 @@ export const intakeService = {
     opts: { phrase: boolean; bumpAsks?: boolean; preface?: string[]; persist?: boolean; draftNow?: boolean },
   ): Promise<IntakeState> {
     const persist = opts.persist ?? true;
+    // For a vakalatnama, decide WHICH court format to render (criminal / civil /
+    // small_causes) from the advocate's words + the case character, unless the
+    // form already carries an explicit court_kind (an advocate override). Without
+    // this the engine falls back to its GENERIC form, which reads as the criminal
+    // format — so a Civil case's vakalat was coming out in the criminal layout.
+    if (doc.docType === 'vakalatnama' && !String(state.form.court_kind ?? '').trim()) {
+      const derived = deriveVakalatCourtKind(state.sourceText ?? '');
+      if (derived) state.form.court_kind = derived;
+    }
     const { fields } = mapFormToEngine(doc.docType, state.form, {});
     // Free-text SLOTS the engine merges into the template (kept separate from the
     // validated `fields`). Today: the s.138 complaint's debt paragraph (para 3),
@@ -1665,6 +1674,49 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     if (re.test(t) && has(label)) return label;
   }
   return null;
+}
+
+/**
+ * Derive the vakalatnama's court format (engine `court_kind`: criminal /
+ * small_causes / civil / generic) from the drafting text. Two signals, in
+ * priority order:
+ *   1. An EXPLICIT word the advocate typed ("civil vakalat", "criminal vakalat",
+ *      "small causes vakalat") — the advocate's stated intent always wins.
+ *   2. The CASE's own character, inferred from the authoritative case preamble
+ *      ("Matter type: Civil", "Court: ... Magistrate", "Case: ... u/s 138 ...")
+ *      and the surrounding narration — a s.138 / criminal matter → criminal, a
+ *      Small Causes court → small_causes, an ordinary civil suit → civil.
+ * Returns undefined when nothing indicates a specific format, so the engine keeps
+ * its GENERIC default. This is deterministic (no LLM) so "draft a vakalat" for a
+ * Civil case reliably produces the CIVIL form, matching the advocate's practice.
+ */
+export function deriveVakalatCourtKind(sourceText: string): string | undefined {
+  const t = (sourceText || '').toLowerCase();
+  if (!t.trim()) return undefined;
+  // 1) Explicit advocate intent (word adjacent to "vakalat", either order).
+  if (/\bsmall\s*causes?\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bsmall\s*causes?\b/.test(t)) return 'small_causes';
+  if (/\bcivil\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcivil\b/.test(t)) return 'civil';
+  if (/\bcriminal\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcriminal\b/.test(t)) return 'criminal';
+  // 2) Case character. Small Causes is the most specific court, check it first.
+  if (/\bcourt of small causes\b|\bsmall causes court\b|\bsmall\s*causes\b/.test(t)) return 'small_causes';
+  // Criminal signals: a s.138 / NI-Act matter, a Magistrate/Sessions court, an
+  // FIR/crime number, or an explicit "criminal" matter type.
+  if (
+    /\bmatter type\s*:\s*criminal\b/.test(t) ||
+    /\bsection\s*138\b|\bs\.?\s*138\b|\b138\b|\bni act\b|negotiable instrument/.test(t) ||
+    /\bmagistrate\b|\bsessions?\b|\bjudicial magistrate\b|\bmetropolitan magistrate\b/.test(t) ||
+    /\bf\.?i\.?r\.?\b|\bcrime no\b|\bcr\.? no\b|\baccused\b|\bbail\b/.test(t)
+  ) {
+    return 'criminal';
+  }
+  // Civil signals: an explicit civil matter type, or a civil court/suit.
+  if (
+    /\bmatter type\s*:\s*civil\b/.test(t) ||
+    /\bcivil (court|suit|judge|case)\b|\bcity civil court\b|\bo\.?s\.?\s*no\b|\bsuit\b|\bplaint\b/.test(t)
+  ) {
+    return 'civil';
+  }
+  return undefined;
 }
 
 /**
