@@ -1705,10 +1705,24 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
 export function deriveVakalatCourtKind(chatText: string): string | undefined {
   const t = (chatText || '').toLowerCase();
   if (!t.trim()) return undefined;
-  // Match a court-kind word the advocate typed. Small Causes first (most specific).
+  // PRIMARY: match the court-kind word DIRECTLY MODIFYING "vakalat" — i.e. the
+  // exact phrase the advocate types ("criminal vakalat" / "civil vakalatnama" /
+  // "small causes vakalat", in either order). Only a short filler ("a", "the",
+  // "an") may sit between the word and "vakalat" — the word must be ADJACENT, so a
+  // stray "civil"/"criminal" elsewhere in the text (e.g. leaked from a case
+  // description) cannot hijack the choice. This is what fixes "criminal vakalat"
+  // wrongly rendering civil when the case said "Matter type: Civil".
+  const gap = '(?:\\s+(?:a|an|the))?\\s+'; // optional article, then whitespace
+  const adj = (word: string) =>
+    new RegExp(`\\b${word}\\b${gap}\\bvakalat|\\bvakalat${gap}\\b${word}\\b`);
+  if (adj('small\\s*causes?').test(t)) return 'small_causes';
+  if (adj('criminal').test(t)) return 'criminal';
+  if (adj('civil').test(t)) return 'civil';
+  // FALLBACK: no court-kind word next to "vakalat". Match a bare court-kind word
+  // anywhere (kept for messages that don't repeat "vakalat"). Small Causes first.
   if (/\bsmall\s*causes?\b/.test(t)) return 'small_causes';
-  if (/\bcivil\b/.test(t)) return 'civil';
   if (/\bcriminal\b/.test(t)) return 'criminal';
+  if (/\bcivil\b/.test(t)) return 'civil';
   return undefined;
 }
 

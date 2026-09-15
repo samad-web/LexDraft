@@ -25,8 +25,25 @@ describe('deriveVakalatCourtKind (chat words only)', () => {
     expect(deriveVakalatCourtKind('')).toBeUndefined();
   });
 
-  it('small_causes wins over civil/criminal when both words appear', () => {
-    expect(deriveVakalatCourtKind('small causes civil vakalat')).toBe('small_causes');
+  it('picks the format word ADJACENT to "vakalat"', () => {
+    // "small causes vakalat" -> small_causes (adjacent).
+    expect(deriveVakalatCourtKind('draft a small causes vakalat')).toBe('small_causes');
+    // "civil vakalat" -> civil, even though "small causes" appears earlier but is
+    // NOT the word attached to vakalat.
+    expect(deriveVakalatCourtKind('for the small causes court, draft a civil vakalat')).toBe('civil');
+  });
+
+  // THE REPORTED BUG: "criminal vakalat" was coming out CIVIL because a stray
+  // "civil" (from the case's "Matter type: Civil") sat in the text and civil was
+  // checked first. The word ATTACHED to "vakalat" must decide, so a stray civil
+  // elsewhere cannot hijack a criminal request (and vice-versa).
+  it('criminal vakalat wins even when a stray "civil" is in the text', () => {
+    expect(deriveVakalatCourtKind('matter type: civil ... draft a criminal vakalat')).toBe('criminal');
+    expect(deriveVakalatCourtKind('this is a civil case but prepare the criminal vakalat')).toBe('criminal');
+  });
+
+  it('civil vakalat wins even when a stray "criminal" is in the text', () => {
+    expect(deriveVakalatCourtKind('the criminal complaint is filed; draft a civil vakalat')).toBe('civil');
   });
 });
 
