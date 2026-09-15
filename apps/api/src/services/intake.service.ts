@@ -1066,14 +1066,23 @@ export const intakeService = {
     // document text in sourceText. NOTE: for a typed "draft a vakalat" the case
     // preamble lives ONLY in the transcript, not in sourceText (sourceText is
     // populated by attachments/pastes), so reading sourceText alone missed it.
-    if (doc.docType === 'vakalatnama' && !String(state.form.court_kind ?? '').trim()) {
+    if (doc.docType === 'vakalatnama') {
+      // Decide the court format (criminal / civil / small_causes) from the
+      // advocate's words + the case character. We ALWAYS re-derive and apply the
+      // result: the app has no manual court_kind picker, so any value already on
+      // the form is just a PRIOR auto-derivation (possibly from an earlier, buggy
+      // run persisted onto the fact sheet), NOT a deliberate advocate choice — it
+      // must be refreshed, never treated as a locked override. (If a manual picker
+      // is added later, gate this on "not manually set" via a separate flag.)
       const advocateSaid = (state.transcript ?? [])
         .filter((m) => m.role === 'advocate')
         .map((m) => m.text)
         .join('\n');
       const classifyText = [advocateSaid, state.sourceText ?? ''].filter(Boolean).join('\n');
       const derived = deriveVakalatCourtKind(classifyText);
-      if (derived) state.form.court_kind = derived;
+      if (derived) {
+        state.form.court_kind = derived;
+      }
     }
     const { fields } = mapFormToEngine(doc.docType, state.form, {});
     // Free-text SLOTS the engine merges into the template (kept separate from the
