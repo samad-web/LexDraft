@@ -1678,44 +1678,43 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
 
 /**
  * Derive the vakalatnama's court format (engine `court_kind`: criminal /
- * small_causes / civil / generic) from the drafting text. Two signals, in
- * priority order:
+ * small_causes / civil / generic) from the drafting text.
+ *
+ * PRIORITY MATTERS. The same dispute can be pursued in different forums — e.g. a
+ * cheque-bounce matter can be filed as a s.138 CRIMINAL complaint OR as a CIVIL
+ * money/summary suit — so the CONTENT (s.138, Magistrate) does NOT fix the format.
+ * Only the advocate's explicit classification does. Order:
  *   1. An EXPLICIT word the advocate typed ("civil vakalat", "criminal vakalat",
- *      "small causes vakalat") — the advocate's stated intent always wins.
- *   2. The CASE's own character, inferred from the authoritative case preamble
- *      ("Matter type: Civil", "Court: ... Magistrate", "Case: ... u/s 138 ...")
- *      and the surrounding narration — a s.138 / criminal matter → criminal, a
- *      Small Causes court → small_causes, an ordinary civil suit → civil.
- * Returns undefined when nothing indicates a specific format, so the engine keeps
- * its GENERIC default. This is deterministic (no LLM) so "draft a vakalat" for a
- * Civil case reliably produces the CIVIL form, matching the advocate's practice.
+ *      "small causes vakalat") — stated intent always wins.
+ *   2. The CASE's own "Matter type: <...>" tag the advocate set on the case
+ *      (Civil / Criminal / Small Causes) — the advocate's classification of the
+ *      case, and it OVERRIDES any content inference below.
+ *   3. Only if neither above is present, a last-resort inference from the court
+ *      named in the text (Court of Small Causes / a civil court). We deliberately
+ *      do NOT infer "criminal" from s.138 / Magistrate content, because that
+ *      content is forum-ambiguous (see above) — guessing criminal there is what
+ *      made a Civil-tagged cheque case come out as a criminal vakalat.
+ * Returns undefined when nothing classifies it, so the engine keeps its GENERIC
+ * default. Deterministic (no LLM).
  */
 export function deriveVakalatCourtKind(sourceText: string): string | undefined {
   const t = (sourceText || '').toLowerCase();
   if (!t.trim()) return undefined;
-  // 1) Explicit advocate intent (word adjacent to "vakalat", either order).
+  // 1) Explicit advocate intent (a court-kind word adjacent to "vakalat", either
+  //    order) — this is the strongest signal and always wins.
   if (/\bsmall\s*causes?\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bsmall\s*causes?\b/.test(t)) return 'small_causes';
   if (/\bcivil\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcivil\b/.test(t)) return 'civil';
   if (/\bcriminal\b[^.\n]*\bvakalat|\bvakalat[^.\n]*\bcriminal\b/.test(t)) return 'criminal';
-  // 2) Case character. Small Causes is the most specific court, check it first.
-  if (/\bcourt of small causes\b|\bsmall causes court\b|\bsmall\s*causes\b/.test(t)) return 'small_causes';
-  // Criminal signals: a s.138 / NI-Act matter, a Magistrate/Sessions court, an
-  // FIR/crime number, or an explicit "criminal" matter type.
-  if (
-    /\bmatter type\s*:\s*criminal\b/.test(t) ||
-    /\bsection\s*138\b|\bs\.?\s*138\b|\b138\b|\bni act\b|negotiable instrument/.test(t) ||
-    /\bmagistrate\b|\bsessions?\b|\bjudicial magistrate\b|\bmetropolitan magistrate\b/.test(t) ||
-    /\bf\.?i\.?r\.?\b|\bcrime no\b|\bcr\.? no\b|\baccused\b|\bbail\b/.test(t)
-  ) {
-    return 'criminal';
-  }
-  // Civil signals: an explicit civil matter type, or a civil court/suit.
-  if (
-    /\bmatter type\s*:\s*civil\b/.test(t) ||
-    /\bcivil (court|suit|judge|case)\b|\bcity civil court\b|\bo\.?s\.?\s*no\b|\bsuit\b|\bplaint\b/.test(t)
-  ) {
-    return 'civil';
-  }
+  // 2) The case's own Matter type tag (the advocate's classification). This wins
+  //    over content inference — a "Civil" tag on a cheque case means the advocate
+  //    is pursuing the civil route, so render the civil vakalat.
+  if (/\bmatter type\s*:\s*small\s*causes?\b/.test(t)) return 'small_causes';
+  if (/\bmatter type\s*:\s*civil\b/.test(t)) return 'civil';
+  if (/\bmatter type\s*:\s*criminal\b/.test(t)) return 'criminal';
+  // 3) Last-resort inference from the named COURT only (not from s.138/Magistrate,
+  //    which is forum-ambiguous). Small Causes is the most specific, check first.
+  if (/\bcourt of small causes\b|\bsmall causes court\b/.test(t)) return 'small_causes';
+  if (/\bcivil (court|suit|judge)\b|\bcity civil court\b/.test(t)) return 'civil';
   return undefined;
 }
 

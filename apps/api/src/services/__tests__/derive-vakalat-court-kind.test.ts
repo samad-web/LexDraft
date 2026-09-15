@@ -20,32 +20,54 @@ describe('deriveVakalatCourtKind', () => {
     expect(deriveVakalatCourtKind('vakalat for the Small Causes court')).toBe('small_causes');
   });
 
-  it('derives CIVIL from the case preamble matter type (the reported bug)', () => {
+  it('the case Matter type tag decides, over content inference (the reported bug)', () => {
     const preamble =
       '[Authoritative case record]\nCase: Matter for Ambeth (Thoorigai Prints)\n' +
       'Court: City Civil Court\nMatter type: Civil\n\ndraft a vakalat';
     expect(deriveVakalatCourtKind(preamble)).toBe('civil');
   });
 
-  it('derives CRIMINAL from a s.138 / Magistrate case', () => {
+  it('derives CRIMINAL from a case tagged Matter type: Criminal', () => {
     const preamble =
       'Case: complaint under Section 138 NI Act\nCourt: Judicial Magistrate First Class\n' +
       'Matter type: Criminal\n\ndraft a vakalat';
     expect(deriveVakalatCourtKind(preamble)).toBe('criminal');
   });
 
-  it('an explicit "civil vakalat" still wins even in a s.138 case context', () => {
-    const t = 'Court: Judicial Magistrate\nSection 138 NI Act matter\n\ndraft a civil vakalat';
+  it('a Civil-tagged CHEQUE case renders civil (a cheque matter can be a money suit)', () => {
+    // The exact conflict from the bug: a s.138 / Magistrate CONTENT but the
+    // advocate classified the case as Civil (pursuing the civil money-suit route).
+    // The tag must win over the s.138/Magistrate content.
+    const t =
+      'Case: cheque bounce, Section 138 NI Act\nCourt: Magistrate First Class Court, Chennai\n' +
+      'Matter type: Civil\n\ndraft a vakalat';
     expect(deriveVakalatCourtKind(t)).toBe('civil');
   });
 
-  it('derives SMALL_CAUSES from a Court of Small Causes matter', () => {
+  it('an explicit "civil vakalat" wins even over a Criminal tag', () => {
+    const t = 'Matter type: Criminal\nSection 138 NI Act matter\n\ndraft a civil vakalat';
+    expect(deriveVakalatCourtKind(t)).toBe('civil');
+  });
+
+  it('does NOT infer criminal from s.138 / Magistrate content alone (forum-ambiguous)', () => {
+    // No Matter type tag, no explicit word: a bare s.138/Magistrate mention must
+    // NOT force criminal — it could be filed civilly. Leave it to the engine
+    // GENERIC default rather than guessing the forum.
+    const t = 'Section 138 NI Act, cheque dishonoured\nCourt: Judicial Magistrate\n\ndraft a vakalat';
+    expect(deriveVakalatCourtKind(t)).toBeUndefined();
+  });
+
+  it('infers SMALL_CAUSES from a Court of Small Causes matter (no tag)', () => {
     expect(deriveVakalatCourtKind('Court: Court of Small Causes at Madras\ndraft a vakalat')).toBe(
       'small_causes',
     );
   });
 
-  it('returns undefined when nothing indicates a format (engine keeps GENERIC)', () => {
+  it('infers CIVIL from a civil court named in the text (no tag)', () => {
+    expect(deriveVakalatCourtKind('Court: City Civil Court, Chennai\ndraft a vakalat')).toBe('civil');
+  });
+
+  it('returns undefined when nothing classifies it (engine keeps GENERIC)', () => {
     expect(deriveVakalatCourtKind('draft a vakalat')).toBeUndefined();
     expect(deriveVakalatCourtKind('')).toBeUndefined();
   });
