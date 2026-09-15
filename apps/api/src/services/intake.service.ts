@@ -1059,8 +1059,20 @@ export const intakeService = {
     // form already carries an explicit court_kind (an advocate override). Without
     // this the engine falls back to its GENERIC form, which reads as the criminal
     // format — so a Civil case's vakalat was coming out in the criminal layout.
+    //
+    // Read from EVERYTHING the advocate has said this session — the transcript
+    // (which holds every advocate message, INCLUDING the first turn carrying the
+    // authoritative case preamble "Matter type: Civil …") PLUS any attached/pasted
+    // document text in sourceText. NOTE: for a typed "draft a vakalat" the case
+    // preamble lives ONLY in the transcript, not in sourceText (sourceText is
+    // populated by attachments/pastes), so reading sourceText alone missed it.
     if (doc.docType === 'vakalatnama' && !String(state.form.court_kind ?? '').trim()) {
-      const derived = deriveVakalatCourtKind(state.sourceText ?? '');
+      const advocateSaid = (state.transcript ?? [])
+        .filter((m) => m.role === 'advocate')
+        .map((m) => m.text)
+        .join('\n');
+      const classifyText = [advocateSaid, state.sourceText ?? ''].filter(Boolean).join('\n');
+      const derived = deriveVakalatCourtKind(classifyText);
       if (derived) state.form.court_kind = derived;
     }
     const { fields } = mapFormToEngine(doc.docType, state.form, {});
