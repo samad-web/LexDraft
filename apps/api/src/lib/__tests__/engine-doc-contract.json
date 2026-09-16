@@ -8170,6 +8170,74 @@
     ],
     "title": "Surety Affidavit"
   },
+  "surety_memo": {
+    "all": [
+      "accused_name",
+      "case_ref",
+      "court_name",
+      "court_place",
+      "crime_no",
+      "crime_year",
+      "filing_date",
+      "place",
+      "police_inspector",
+      "state_name"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "state_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_inspector",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Surety Memo"
+  },
   "surrender_petition": {
     "all": [
       "accused_address",

@@ -1666,6 +1666,9 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // address. Matched BEFORE the batta "issue of process" cue so "process memo"
     // routes here, not to batta.
     [/\bprocess\s+memo\b/, 'Process Memo'],
+    // "Surety Memo" — memo furnishing sureties so the accused is released on bail.
+    // Requires the word "memo" (a bare "surety" could be the surety affidavit).
+    [/\bsurety\s+memo\b/, 'Surety Memo'],
     // "Batta Witness" — application for issue of process + deposit of witness
     // batta (the wide 10-column form). Accept "batta", "witness batta",
     // "issue of process".
