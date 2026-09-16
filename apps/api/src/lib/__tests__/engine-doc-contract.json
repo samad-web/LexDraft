@@ -1466,11 +1466,15 @@
       "applicant_name",
       "applicant_role",
       "case_ref",
+      "court_name",
       "court_place",
       "documents",
       "filing_date",
       "forum",
       "opposite_party_name",
+      "opposite_role",
+      "os_no",
+      "os_year",
       "place",
       "rule_ref"
     ],
@@ -1483,22 +1487,22 @@
         ],
         "key": "forum",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "case_ref",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "applicant_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "applicant_role",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "itemFields": [
@@ -1535,13 +1539,13 @@
         ],
         "key": "documents",
         "kind": "list",
-        "minItems": 1,
-        "required": true
+        "minItems": 0,
+        "required": false
       },
       {
         "key": "place",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "court_place",
@@ -1549,7 +1553,17 @@
         "required": false
       },
       {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
         "key": "opposite_party_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "opposite_role",
         "kind": "string",
         "required": false
       },
@@ -1567,16 +1581,19 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "os_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "os_year",
+        "kind": "string",
+        "required": false
       }
     ],
-    "required": [
-      "applicant_name",
-      "applicant_role",
-      "case_ref",
-      "documents",
-      "forum",
-      "place"
-    ],
+    "required": [],
     "title": "Application for Certified Copies"
   },
   "court_notice": {

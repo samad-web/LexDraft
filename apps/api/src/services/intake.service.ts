@@ -1653,6 +1653,12 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "service affidavit" / "affidavit for service".
     [/\baffidavit\s+of\s+service\b|\bservice\s+affidavit\b|\baffidavit\s+for\s+service\b/,
      'Affidavit of Service'],
+    // "Copy Application" (application for certified/true copies of documents on the
+    // record) — its own doc type with the advocate's TN form. Accept the common
+    // phrasings: "copy application", "certified copies", "true copies",
+    // "application for copies".
+    [/\bcopy\s+application\b|\bcertified\s+cop(?:y|ies)\b|\btrue\s+cop(?:y|ies)\b|\bapplication\s+for\s+cop(?:y|ies)\b/,
+     'Application for Certified Copies'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against
