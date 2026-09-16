@@ -977,6 +977,44 @@ export function DraftingView() {
   const performExport = async (choice: string | null | undefined) => {
     const fmt = exportFormat;
     if (!fmt) return;
+    // FILING-GRADE FIRST. When the engine produced a formatted .docx for this
+    // draft, that IS the real filing artifact (exact court format — tables,
+    // backing sheet, alignment, fonts). The client-side HTML rasterisation
+    // (exportPdf/exportDocx from previewHtml) flattens all that into a generic
+    // left-aligned layout with a synthetic title/"Dated:" banner — which is wrong
+    // for the advocate court forms. So if we have the engine .docx, export FROM it
+    // (PDF via LibreOffice, or the .docx itself for Word), exactly like the
+    // "Download PDF" button does. Only fall through to the HTML export when there
+    // is no engine .docx (model-only drafts) or the server render is unavailable.
+    if (engineDocxBase64) {
+      if (fmt === 'DOCX') {
+        downloadDocxBase64(engineDocxBase64, activeDocType);
+        showToast({ type: 'sage', text: `${fmt} prepared` });
+        return;
+      }
+      if (fmt === 'PDF') {
+        try {
+          const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
+            docxBase64: engineDocxBase64,
+            fileName: `${activeDocType}-${draftDate}`,
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 0);
+          showToast({ type: 'sage', text: `${fmt} prepared` });
+          return;
+        } catch {
+          // Server render unavailable — fall through to the rasterised HTML export
+          // so the advocate still gets something.
+          showToast({ type: 'amber', text: 'Filing-grade PDF unavailable — using a rasterised copy.' });
+        }
+      }
+    }
     // Resolve the picker's choice into something exportPdf can consume:
     //   undefined → leave undefined, exportPdf auto-fetches effective default
     //   null      → explicit "no letterhead"
