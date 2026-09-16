@@ -536,6 +536,122 @@
     "required": [],
     "title": "Affidavit of Service"
   },
+  "affidavit_of_surety": {
+    "all": [
+      "accused_name",
+      "bail_order_date",
+      "bail_sum",
+      "bail_sum_words",
+      "case_ref",
+      "court_name",
+      "court_place",
+      "crime_no",
+      "crime_year",
+      "filing_date",
+      "offence_sections",
+      "place",
+      "police_station",
+      "state_name",
+      "surety_address",
+      "surety_age",
+      "surety_name",
+      "surety_parentage"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "state_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "offence_sections",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_sum",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_sum_words",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bail_order_date",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Affidavit of Surety"
+  },
   "agreement_for_sale": {
     "all": [
       "completion_months",

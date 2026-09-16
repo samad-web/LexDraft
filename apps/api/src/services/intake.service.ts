@@ -1653,6 +1653,11 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "service affidavit" / "affidavit for service".
     [/\baffidavit\s+of\s+service\b|\bservice\s+affidavit\b|\baffidavit\s+for\s+service\b/,
      'Affidavit of Service'],
+    // "Affidavit of Surety" — the long statutory Rule-14 surety affidavit. Its own
+    // doc type; matched BEFORE the generic "affidavit" cue (which excludes it via a
+    // negative lookahead). Accept "affidavit of surety" / "surety affidavit form".
+    [/\baffidavit\s+of\s+surety\b|\bsurety\s+affidavit\s+form\b/,
+     'Affidavit of Surety'],
     // "Copy Application" (application for certified/true copies of documents on the
     // record) — its own doc type with the advocate's TN form. Accept the common
     // phrasings: "copy application", "certified copies", "true copies",
@@ -1683,7 +1688,7 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against
     // the more-specific affidavit labels ("Affidavit of Service", "Surety Affidavit"),
     // which the advocate would name explicitly and which have their own doc types.
-    [/\baffidavit\b(?!\s+of\s+service)/, 'Affidavit'],
+    [/\baffidavit\b(?!\s+of\s+(?:service|surety))/, 'Affidavit'],
     // A s.138 matter splits into TWO documents: the pre-litigation demand NOTICE
     // and the court COMPLAINT filed after the notice period lapses. When the brief
     // shows a 138/cheque context AND a court-filing intent ("complaint", "case",
