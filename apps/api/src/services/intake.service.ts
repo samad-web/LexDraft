@@ -1662,6 +1662,11 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "Call for Memo" — the memo to release applied-for certified copies against
     // the court fee deposited. Its own doc type with the advocate's TN form.
     [/\bcall\s+for\s+memo\b|\bcall\s+memo\b/, 'Call for Memo'],
+    // "Batta Witness" — application for issue of process + deposit of witness
+    // batta (the wide 10-column form). Accept "batta", "witness batta",
+    // "issue of process".
+    [/\bbatta\b|\bwitness\s+batta\b|\bissue\s+of\s+process\b/,
+     'Batta Witness (Issue of Process)'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against

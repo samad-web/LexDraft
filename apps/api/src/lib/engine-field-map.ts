@@ -481,7 +481,7 @@ const ROUTABLE_DOC_TYPES: readonly string[] = [
   'gift_deed',
   // TN / Madras court forms set — generalised for any state (passthrough).
   'vakalatnama', 'memo_of_appearance', 'coding_sheet', 'process_application',
-  'copy_application', 'call_for_memo', 'service_of_process_application', 'affidavit_of_service',
+  'copy_application', 'call_for_memo', 'batta_witness', 'service_of_process_application', 'affidavit_of_service',
   'substituted_service', 'bail_bond', 'surety_affidavit',
   'memorandum_furnish_sureties', 'surrender_petition', 's256_condone_absence',
   's317_dispense_presence', 'recall_warrant', 'adjournment_petition',
@@ -587,6 +587,7 @@ export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Application for Issue of Process': 'process_application',
   'Application for Certified Copies': 'copy_application',
   'Call for Memo': 'call_for_memo',
+  'Batta Witness (Issue of Process)': 'batta_witness',
   'Application for Service of Process': 'service_of_process_application',
   'Affidavit of Service': 'affidavit_of_service',
   'Petition for Substituted Service (O.5 R.20 CPC)': 'substituted_service',

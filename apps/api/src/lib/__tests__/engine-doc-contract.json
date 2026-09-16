@@ -988,6 +988,145 @@
     ],
     "title": "Bail Bond"
   },
+  "batta_witness": {
+    "all": [
+      "applicant_role",
+      "case_ref",
+      "court_day",
+      "court_name",
+      "court_place",
+      "defendant_name",
+      "filing_date",
+      "os_no",
+      "os_year",
+      "place",
+      "plaintiff_name",
+      "rows",
+      "value_of_claim"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "os_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "os_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "defendant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "value_of_claim",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_day",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "nature_of_process",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "person_description",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "place_of_service",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "distance_miles",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "travelling_allowance",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "class_of_allowance",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "amount",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "for_how_many_days",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "process_fees",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "remarks",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "rows",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Batta Witness (Issue of Process)"
+  },
   "call_for_memo": {
     "all": [
       "accused_name",
