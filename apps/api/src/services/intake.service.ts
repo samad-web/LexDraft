@@ -1662,6 +1662,10 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "Call for Memo" — the memo to release applied-for certified copies against
     // the court fee deposited. Its own doc type with the advocate's TN form.
     [/\bcall\s+for\s+memo\b|\bcall\s+memo\b/, 'Call for Memo'],
+    // "Process Memo" — memo praying the court to issue summons/warrant at an
+    // address. Matched BEFORE the batta "issue of process" cue so "process memo"
+    // routes here, not to batta.
+    [/\bprocess\s+memo\b/, 'Process Memo'],
     // "Batta Witness" — application for issue of process + deposit of witness
     // batta (the wide 10-column form). Accept "batta", "witness batta",
     // "issue of process".

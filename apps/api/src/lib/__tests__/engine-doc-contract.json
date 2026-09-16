@@ -5219,6 +5219,80 @@
     ],
     "title": "Application for Issue of Process"
   },
+  "process_memo": {
+    "all": [
+      "address_for_service",
+      "case_no",
+      "case_ref",
+      "case_year",
+      "court_name",
+      "court_place",
+      "filing_date",
+      "petitioner_name",
+      "place",
+      "process_type",
+      "respondent_name"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "process_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "address_for_service",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Process Memo"
+  },
   "recall_petition": {
     "all": [
       "accused_name",
