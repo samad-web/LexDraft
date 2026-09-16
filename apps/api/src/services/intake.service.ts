@@ -1667,6 +1667,10 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "issue of process".
     [/\bbatta\b|\bwitness\s+batta\b|\bissue\s+of\s+process\b/,
      'Batta Witness (Issue of Process)'],
+    // "Recall Petition" — Petition u/s 70(2) Cr.P.C. to recall a warrant. Accept
+    // "recall petition", "recall warrant", "recall the warrant", "s.70(2)".
+    [/\brecall\s+petition\b|\brecall\s+(the\s+)?warrant\b|\b70\s*\(?2\)?\b/,
+     'Recall Petition (s.70(2) CrPC)'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against

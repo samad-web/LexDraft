@@ -5219,6 +5219,68 @@
     ],
     "title": "Application for Issue of Process"
   },
+  "recall_petition": {
+    "all": [
+      "accused_name",
+      "case_ref",
+      "cc_no",
+      "complainant_name",
+      "court_name",
+      "court_place",
+      "filing_date",
+      "place",
+      "warrant_type"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cc_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "warrant_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Recall Petition (s.70(2) CrPC)"
+  },
   "recall_warrant": {
     "all": [
       "absence_reason",
