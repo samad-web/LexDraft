@@ -988,6 +988,92 @@
     ],
     "title": "Bail Bond"
   },
+  "call_for_memo": {
+    "all": [
+      "accused_name",
+      "case_ref",
+      "cc_no",
+      "cc_year",
+      "complainant_name",
+      "court_fee",
+      "court_name",
+      "court_place",
+      "documents",
+      "filing_date",
+      "pincode",
+      "place",
+      "purpose"
+    ],
+    "fields": [
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "pincode",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cc_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cc_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "complainant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "purpose",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_fee",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      }
+    ],
+    "required": [],
+    "title": "Call for Memo"
+  },
   "caveat": {
     "all": [
       "apprehended_proceeding",

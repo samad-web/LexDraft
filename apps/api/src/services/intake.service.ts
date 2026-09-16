@@ -1659,6 +1659,9 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "application for copies".
     [/\bcopy\s+application\b|\bcertified\s+cop(?:y|ies)\b|\btrue\s+cop(?:y|ies)\b|\bapplication\s+for\s+cop(?:y|ies)\b/,
      'Application for Certified Copies'],
+    // "Call for Memo" — the memo to release applied-for certified copies against
+    // the court fee deposited. Its own doc type with the advocate's TN form.
+    [/\bcall\s+for\s+memo\b|\bcall\s+memo\b/, 'Call for Memo'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against

@@ -13,6 +13,8 @@
 // for the 422 channel.
 // =============================================================================
 
+import { logger } from '../logger';
+
 export interface MappedFields {
   fields: Record<string, unknown>;
 }
@@ -244,12 +246,83 @@ function coerceKind(kind: string, v: unknown): unknown {
   }
 }
 
+/**
+ * Fold INDEXED FLAT form keys (`<listKey>_<row>_<subKey>`, e.g. `cheques_0_number`,
+ * `cheques_0_amount`, `cheques_1_number`) back into an array of row records keyed by
+ * the item sub-field name — the inverse of intake-doc-config's listFieldToFlatKeys.
+ *
+ * Derived (passthrough) doc types expose a required engine `list` (e.g.
+ * s138_complaint.cheques) as these flat per-row keys because the extractor cannot
+ * fill a single opaque list textarea. This rebuilds the `<listKey>[]` records so
+ * coerceRecordList / the engine receive real rows. A row is emitted only if at least
+ * one of its cells is present; blank rows are skipped. Values stay strings here —
+ * coerceRecordList applies the per-item kind coercion afterwards.
+ *
+ * Returns undefined when the form carries no flat keys for this list (so a caller
+ * that already submitted a native `<listKey>` array is left untouched).
+ */
+export function buildRecordListFromFlatForm(
+  listKey: string,
+  itemFields: ContractField[],
+  form: Record<string, unknown>,
+): Array<Record<string, unknown>> | undefined {
+  const rowRe = new RegExp(`^${listKey}_(\\d+)_(.+)$`);
+  const rows = new Map<number, Record<string, unknown>>();
+  let sawAny = false;
+  for (const [k, v] of Object.entries(form)) {
+    const m = rowRe.exec(k);
+    if (!m) continue;
+    if (typeof v === 'string' && v.trim() === '') continue;
+    if (v === undefined || v === null) continue;
+    const idx = Number.parseInt(m[1]!, 10);
+    const sub = m[2]!;
+    // Only fold sub-keys the list's item schema declares (ignore stray matches).
+    if (!itemFields.some((f) => f.key === sub)) continue;
+    sawAny = true;
+    const row = rows.get(idx) ?? {};
+    row[sub] = v;
+    rows.set(idx, row);
+  }
+  if (!sawAny) return undefined;
+  // Emit rows in ascending index order; a row with no non-empty cell never lands here.
+  return [...rows.keys()].sort((a, b) => a - b).map((i) => rows.get(i)!);
+}
+
 /** Coerce a LIST-of-records value: an array of row objects, each coerced field-by-field
  *  against the item schema. Rows that are entirely empty after coercion are dropped so a
  *  stray blank row never 422s. Returns undefined if no non-empty rows remain. */
 function coerceRecordList(itemFields: ContractField[], v: unknown): unknown {
-  const rows = Array.isArray(v) ? v : undefined;
-  if (!rows) return undefined;
+  // Distinguish "no rows provided" (v empty/nullish -> silently absent, correct) from
+  // "rows provided but wrong-shaped" (which must NOT be silently dropped into a false
+  // 'required'). Tolerate the shapes the extractor / callers can plausibly emit:
+  //   - a JSON string (a stringified array or object) -> parse then re-enter
+  //   - a single non-null row object not wrapped in an array -> wrap as [v]
+  // A genuinely undroppable-but-empty input is logged so the drop is traceable.
+  let rows: unknown[] | undefined;
+  if (Array.isArray(v)) {
+    rows = v;
+  } else if (typeof v === 'string') {
+    const s = v.trim();
+    if (s === '') return undefined; // blank textarea -> legitimately absent, no warn
+    try {
+      const parsed = JSON.parse(s);
+      rows = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : undefined);
+    } catch {
+      rows = undefined; // unparseable prose -> not fabricated into rows
+    }
+  } else if (v && typeof v === 'object') {
+    rows = [v as Record<string, unknown>]; // single row object -> wrap
+  } else {
+    rows = undefined;
+  }
+  if (!rows) {
+    // Only warn when a non-empty value was actually received but yielded no rows —
+    // an empty/nullish input is a legitimate absent list, not a dropped one.
+    if (v !== undefined && v !== null && v !== '') {
+      logger.warn({ key: 'list', type: typeof v }, 'coerceRecordList dropped a non-array list value (wrong-shaped) — surfaces as a false engine required');
+    }
+    return undefined;
+  }
   const kinds = new Map(itemFields.map((f) => [f.key, f.kind]));
   const out: Array<Record<string, unknown>> = [];
   for (const row of rows) {
@@ -262,7 +335,13 @@ function coerceRecordList(itemFields: ContractField[], v: unknown): unknown {
     }
     if (Object.keys(obj).length > 0) out.push(obj);
   }
-  return out.length ? out : undefined;
+  if (out.length === 0) {
+    // rows were present (non-empty input reached here) but coerced to nothing — the
+    // list is about to be dropped and 422 as a false 'required'. Make it traceable.
+    logger.warn({ key: 'list', type: typeof v, rows: rows.length }, 'coerceRecordList yielded zero rows from a non-empty list value — surfaces as a false engine required');
+    return undefined;
+  }
+  return out;
 }
 
 /** Apply contract-driven coercion to a passthrough result for `docType`. Fields not in
@@ -275,7 +354,28 @@ function coerceToContract(docType: string, mapped: MappedFields): MappedFields {
   if (!entry) return mapped; // no contract -> leave as-is
   const byKey = new Map(entry.fields.map((f) => [f.key, f]));
   const out: Record<string, unknown> = {};
+  // Track which flat per-row list keys we consume so they don't also leak through
+  // as stray top-level fields the engine doesn't recognise.
+  const consumedFlat = new Set<string>();
+  // FIRST fold any indexed flat form keys (`cheques_0_number` …) back into their
+  // `list` records. Derived doc types expose a required engine `list` as these flat
+  // keys (see intake-doc-config.listFieldToFlatKeys) because the extractor cannot fill
+  // one opaque list textarea. When the caller already supplied a native array under
+  // the list key, that value wins and the flat fold is skipped.
+  for (const spec of entry.fields) {
+    if (spec.kind !== 'list' || !spec.itemFields?.length) continue;
+    if (Array.isArray(mapped.fields[spec.key])) continue; // native array already present
+    const rows = buildRecordListFromFlatForm(spec.key, spec.itemFields, mapped.fields);
+    if (rows === undefined) continue;
+    const coerced = coerceRecordList(spec.itemFields, rows);
+    // Mark every flat key for this list consumed regardless of coercion outcome.
+    for (const k of Object.keys(mapped.fields)) {
+      if (new RegExp(`^${spec.key}_\\d+_.+$`).test(k)) consumedFlat.add(k);
+    }
+    if (coerced !== undefined) out[spec.key] = coerced;
+  }
   for (const [k, v] of Object.entries(mapped.fields)) {
+    if (consumedFlat.has(k)) continue; // already folded into a list record above
     const spec = byKey.get(k);
     let coerced: unknown;
     if (spec?.kind === 'list' && spec.itemFields?.length) {
@@ -296,8 +396,62 @@ function coerceToContract(docType: string, mapped: MappedFields): MappedFields {
  * explicit set (rather than a big per-doc table) means new doc types are routable
  * the moment their engine adapter + form exist, with no field-map edit.
  */
+/**
+ * s.138 COMPLAINT mapper. The complaint's intake config collects cheques as the
+ * flat `cheque_no` / `cheque_date` / `cheque_amount` / `drawee_bank` (+ indexed
+ * `_2`…`_N`) keys — the same shape the extractor fills — NOT the generic
+ * `cheques_0_number` fold keys. The passthrough `coerceToContract` fold only
+ * understands `cheques_<row>_<sub>`, so without this mapper the cheques silently
+ * drop and the engine refuses "provide the cheque details" even though the facts
+ * are on record. Here we fold the flat cheque keys into the engine's `cheques[]`
+ * list (drawer = accused, payee = complainant for a complaint), then pass every
+ * other field through the contract coercion.
+ */
+function mapS138Complaint(form: Record<string, unknown>, extra: Record<string, unknown>): MappedFields {
+  const cheques = buildComplaintChequesFromFlatForm(form);
+  // Everything else flows through the generic contract coercion, MINUS the flat
+  // cheque keys we just consumed (so they don't leak as stray top-level fields).
+  const withoutFlatCheques: Record<string, unknown> = {};
+  const flatChequeRe = /^(cheque_no|cheque_date|cheque_amount|drawee_bank)(_\d+)?$/;
+  for (const [k, v] of Object.entries(form)) {
+    if (flatChequeRe.test(k)) continue;
+    withoutFlatCheques[k] = v;
+  }
+  const passthrough = coerceToContract('s138_complaint', mapPassthrough(withoutFlatCheques, extra));
+  const fields: Record<string, unknown> = { ...passthrough.fields };
+  if (cheques.length > 0) fields.cheques = cheques;
+  return { fields };
+}
+
+/** Build the complaint's `cheques[]` from the flat form keys, with drawer =
+ *  accused and payee = complainant (a complaint's parties), unlike the notice's
+ *  builder which uses recipient/sender. */
+function buildComplaintChequesFromFlatForm(
+  form: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const drawer = str(form.accused_name);
+  const payee = str(form.complainant_name);
+  const buildCheque = (suffix: string): Record<string, unknown> | null => {
+    const number = str(form[`cheque_no${suffix}`]);
+    const date = str(form[`cheque_date${suffix}`]);
+    const amount = toAmount(form[`cheque_amount${suffix}`]);
+    const bankBranch = str(form[`drawee_bank${suffix}`]);
+    if (!number && !date && amount === undefined && !bankBranch) return null;
+    return { number, date, amount, ...splitBankBranch(bankBranch), drawer, payee };
+  };
+  const cheques: Array<Record<string, unknown>> = [];
+  const first = buildCheque('');
+  if (first) cheques.push(first);
+  for (let i = 2; i <= MAX_CHEQUES; i += 1) {
+    const c = buildCheque(`_${i}`);
+    if (c) cheques.push(c);
+  }
+  return cheques;
+}
+
 const CUSTOM_MAPPERS: Record<string, Mapper> = {
   s138_notice: mapS138,
+  s138_complaint: mapS138Complaint,
 };
 
 /**
@@ -327,7 +481,7 @@ const ROUTABLE_DOC_TYPES: readonly string[] = [
   'gift_deed',
   // TN / Madras court forms set — generalised for any state (passthrough).
   'vakalatnama', 'memo_of_appearance', 'coding_sheet', 'process_application',
-  'copy_application', 'service_of_process_application', 'affidavit_of_service',
+  'copy_application', 'call_for_memo', 'service_of_process_application', 'affidavit_of_service',
   'substituted_service', 'bail_bond', 'surety_affidavit',
   'memorandum_furnish_sureties', 'surrender_petition', 's256_condone_absence',
   's317_dispense_presence', 'recall_warrant', 'adjournment_petition',
@@ -432,6 +586,7 @@ export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Registry Coding Sheet': 'coding_sheet',
   'Application for Issue of Process': 'process_application',
   'Application for Certified Copies': 'copy_application',
+  'Call for Memo': 'call_for_memo',
   'Application for Service of Process': 'service_of_process_application',
   'Affidavit of Service': 'affidavit_of_service',
   'Petition for Substituted Service (O.5 R.20 CPC)': 'substituted_service',
