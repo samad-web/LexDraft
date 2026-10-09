@@ -18,7 +18,7 @@ import { LABEL_TO_ENGINE_DOC, LEGACY_LABEL_FOR_SLUG } from './engine-labels';
 import { generateDocSchema, fallbackPresentation } from './generate';
 import { isGeneratedFormEnabled } from './flags';
 import { PRESENTATIONS } from './presentation';
-import engineContract from '../../../../../packages/types/src/data/engine-doc-contract.json';
+import engineContract from '@lexdraft/types/engine-doc-contract.json';
 import type { EngineContractEntry } from './types';
 
 const CONTRACT = engineContract as unknown as Record<string, EngineContractEntry>;

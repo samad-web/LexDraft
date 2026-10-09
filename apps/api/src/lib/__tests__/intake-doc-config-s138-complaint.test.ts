@@ -3,7 +3,7 @@
 // engine field (so passthrough can't 422 on an unknown key).
 import { describe, expect, it } from 'vitest';
 import { intakeDocConfig, seedDefaults } from '../intake-doc-config';
-import engineDocContract from '../../../../../packages/types/src/data/engine-doc-contract.json';
+import engineDocContract from '@lexdraft/types/engine-doc-contract.json';
 
 const contract = engineDocContract as unknown as Record<string, { all: string[]; required: string[] }>;
 

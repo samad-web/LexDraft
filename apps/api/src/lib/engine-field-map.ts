@@ -14,7 +14,7 @@
 // =============================================================================
 
 import { logger } from '../logger';
-import engineDocContract from '../../../../packages/types/src/data/engine-doc-contract.json';
+import engineDocContract from '@lexdraft/types/engine-doc-contract.json';
 
 export interface MappedFields {
   fields: Record<string, unknown>;

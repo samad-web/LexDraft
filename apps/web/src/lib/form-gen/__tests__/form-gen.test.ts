@@ -4,7 +4,7 @@ import { dualRead, KEY_ALIASES } from '../key-aliases';
 import { regularBailPresentation } from '../presentation/regular_bail';
 import { s138NoticePresentation } from '../presentation/s138_notice';
 import type { EngineContractEntry } from '../types';
-import engineContract from '../../../../../../packages/types/src/data/engine-doc-contract.json';
+import engineContract from '@lexdraft/types/engine-doc-contract.json';
 
 const contract = engineContract as unknown as Record<string, EngineContractEntry>;
 
