@@ -78,6 +78,15 @@ WORKDIR /app
 # Pin uses the Alpine 3.x repo pin syntax `pkg=version`. To find the exact
 # string for the base image: `docker run --rm node:22-alpine apk list libreoffice`.
 #
+# BUMPED 24.8.4.2-r0 -> 25.8.7.3-r0 (2026-10): the pinned 24.8.x build was
+# removed from Alpine's repo entirely (not just superseded - `apk` could no
+# longer resolve it at all), which had been silently breaking every image
+# rebuild since ~May 2026 - `docker compose up --build` logs a build error
+# but still brings up whatever image last built successfully, so this went
+# unnoticed for months. Per the policy above: RE-BASELINE THE GOLDEN PDF
+# FIXTURES before trusting this build's output pagination-for-pagination
+# against documents rendered under 24.8.x.
+#
 # FONTS — the templates reference Calibri + Cambria (theme body/heading) and
 # Courier (explicit, for monospace/tabular content). Those are proprietary
 # Microsoft fonts we cannot ship; without a substitute LibreOffice picks an
@@ -85,15 +94,22 @@ WORKDIR /app
 # approved. We install METRIC-COMPATIBLE substitutes so glyph widths (hence line
 # breaks and page count) match:
 #   - font-carlito   -> Calibri  (same metrics)
-#   - font-caladea    -> Cambria  (same metrics)
 #   - ttf-liberation  -> Liberation Mono/Serif/Sans (Courier/Times/Arial metrics)
 #   - font-noto       -> Devanagari/Tamil coverage for Indian-language party names.
+# font-caladea (Cambria substitute) was DROPPED from this list (2026-10): it no
+# longer exists in Alpine's repo at all (confirmed via `apk search caladea` /
+# `apk search crosextra` returning nothing - not a rename, genuinely removed
+# upstream). Documents whose template uses the Cambria heading style now
+# render with LibreOffice's own fallback font instead of a metric-compatible
+# substitute; re-baseline those specific golden fixtures and watch for
+# pagination drift. If a true fix is wanted later: download the Caladea font
+# files directly (e.g. from the Google metric-compatible font archive) and
+# COPY them into the image instead of relying on apk.
 # NOTE: verify these package names resolve in the pinned Alpine repo at build time
-# (`apk search font-carlito font-caladea`); adjust if the repo names differ.
+# (`apk search font-carlito`); adjust if the repo names differ.
 RUN apk add --no-cache tini wget \
-      libreoffice=24.8.4.2-r0 \
+      libreoffice=25.8.7.3-r0 \
       font-carlito \
-      font-caladea \
       ttf-liberation \
       font-noto \
  && addgroup -g 1001 -S lexdraft \
