@@ -14,6 +14,7 @@
 // =============================================================================
 
 import { logger } from '../logger';
+import engineDocContract from '../../../../packages/types/src/data/engine-doc-contract.json';
 
 export interface MappedFields {
   fields: Record<string, unknown>;
@@ -214,9 +215,13 @@ interface ContractField {
 type ContractEntry = { fields: ContractField[] };
 
 // The committed engine-contract snapshot (same file the alignment test uses).
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// Lives in @lexdraft/types since both apps' production code and tests
+// depend on it - it used to sit under apps/api's __tests__ directory,
+// which broke the web Docker build (can't reach across app boundaries
+// into a sibling app's build context) and was never a true test-only
+// fixture to begin with.
 const ENGINE_CONTRACT: Record<string, ContractEntry> =
-  require('./__tests__/engine-doc-contract.json');
+  engineDocContract as unknown as Record<string, ContractEntry>;
 
 /** Coerce one web value to the engine kind. Blank/absent -> undefined (dropped ->
  *  engine 422 "required", the correct signal — never a fabricated value). */

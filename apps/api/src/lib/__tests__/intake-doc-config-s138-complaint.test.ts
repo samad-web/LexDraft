@@ -2,13 +2,10 @@
 // Tamil-Nadu practice defaults, and that every field key it exposes is a real
 // engine field (so passthrough can't 422 on an unknown key).
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { intakeDocConfig, seedDefaults } from '../intake-doc-config';
+import engineDocContract from '../../../../../packages/types/src/data/engine-doc-contract.json';
 
-const contract = JSON.parse(
-  readFileSync(join(__dirname, 'engine-doc-contract.json'), 'utf8'),
-) as Record<string, { all: string[]; required: string[] }>;
+const contract = engineDocContract as unknown as Record<string, { all: string[]; required: string[] }>;
 
 describe('s138_complaint intake config', () => {
   const sections = intakeDocConfig['s138_complaint']!;

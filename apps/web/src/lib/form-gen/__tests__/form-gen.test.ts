@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { generateDocSchema, humanise, fallbackPresentation } from '../generate';
 import { dualRead, KEY_ALIASES } from '../key-aliases';
 import { regularBailPresentation } from '../presentation/regular_bail';
 import { s138NoticePresentation } from '../presentation/s138_notice';
 import type { EngineContractEntry } from '../types';
+import engineContract from '../../../../../../packages/types/src/data/engine-doc-contract.json';
 
-const contract = JSON.parse(
-  readFileSync(join(__dirname, '../../../../../api/src/lib/__tests__/engine-doc-contract.json'), 'utf8'),
-) as Record<string, EngineContractEntry>;
+const contract = engineContract as unknown as Record<string, EngineContractEntry>;
 
 describe('form generator', () => {
   it('places every engine field for regular_bail', () => {

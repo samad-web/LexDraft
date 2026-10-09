@@ -31,7 +31,9 @@ import { join } from 'node:path';
 import { LABEL_TO_ENGINE_DOC } from '../engine-field-map';
 
 const WEB_SCHEMAS = join(__dirname, '../../../../web/src/lib/doc-schemas.ts');
-const CONTRACT = join(__dirname, 'engine-doc-contract.json');
+// Canonical location is @lexdraft/types (both apps' production code depends
+// on it - it used to live here, which broke the web Docker build).
+const CONTRACT = join(__dirname, '../../../../../packages/types/src/data/engine-doc-contract.json');
 const BASELINE = join(__dirname, 'engine-alignment-baseline.json');
 
 interface Baseline {
