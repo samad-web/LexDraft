@@ -45,13 +45,13 @@ services:
     # Production secrets live outside the repo. Provision this file via
     # config management (Ansible / Terraform / Nix) with mode 0600 owned
     # by the docker user.
-    env_file: !reset
+    env_file: !override
       - /etc/lexdraft/api.env
     # Don't expose 4000 to the public internet — a reverse proxy
     # (Caddy / Traefik / nginx) terminates TLS and forwards to this port
     # over the internal docker network. If you must expose it (e.g. an
     # IP-allowlisted admin host), bind to localhost only.
-    ports: !reset
+    ports: !override
       - "127.0.0.1:4000:4000"
     deploy:
       resources:
@@ -64,8 +64,8 @@ services:
   web:
     restart: unless-stopped
     # Same reasoning as api — TLS termination at the edge proxy.
-    ports: !reset
-      - "127.0.0.1:8080:80"
+    ports: !override
+      - "127.0.0.1:8081:80"
     deploy:
       resources:
         limits:
