@@ -26,8 +26,10 @@
 
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { withRetry } from '../lib/retry';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grokComplete } from '../lib/grok-client';
 import type { IntakeDraft } from '@lexdraft/types';
 
 type Provider = 'xai' | 'anthropic' | 'none';
@@ -77,61 +79,20 @@ async function complete(provider: Provider, system: string, user: string, maxTok
 
 async function callClaude(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-      return { text, ...anthropicUsage(data.usage) };
-    },
+    // claudeComplete uses the shared SDK client, applies the ephemeral cache_control
+    // on the system block, and throws HttpRetryError on API errors so withRetry still
+    // triggers on 429/5xx exactly as the raw-fetch path did.
+    () => claudeComplete({ system, user, maxTokens, model }),
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'compose Claude retry') },
   );
 }
 
 async function callGrok(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${env.XAI_API_KEY}` },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `xAI API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
-      };
-      return { text: data.choices[0]?.message?.content ?? '', ...xaiUsage(data.usage) };
-    },
+    // grokComplete uses the shared SDK client and throws HttpRetryError on API errors
+    // so withRetry still triggers on 429/5xx exactly as the raw-fetch path did; its
+    // returned usage is the same NormalizedUsage the former xaiUsage mapping produced.
+    () => grokComplete({ system, user, maxTokens, model }),
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'compose Grok retry') },
   );
 }

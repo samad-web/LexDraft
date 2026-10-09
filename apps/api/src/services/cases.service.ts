@@ -2,6 +2,7 @@ import type { Case } from '@lexdraft/types';
 import { db } from '../db/client';
 import { SEED_CASES } from '../data/seed';
 import { clientsService } from './clients.service';
+import { ConflictError } from '../lib/errors';
 
 interface CaseRow {
   id: string;
@@ -132,7 +133,7 @@ export const casesService = {
         select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client,
                est_code, court_code, district_code, state_code, filing_no, efil_no, judge,
                fir_no, fir_year, police_st_code, fir_details, ecourts_synced_at
-        from cases where id::text = ${id} and firm_id = ${firmId}::uuid
+        from cases where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is null
         limit 1
       `;
       const row = rows[0];
@@ -147,12 +148,24 @@ export const casesService = {
     }
     const sql = db();
     if (sql) {
-      const rows = await sql<CaseRow[]>`
-        insert into cases (firm_id, cnr, title, court, stage, client, status, next_hearing, type)
-        values (${firmId}::uuid, ${input.cnr}, ${input.title}, ${input.court}, ${input.stage},
-                ${input.client}, ${input.status}, ${input.next || null}, ${input.type})
-        returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
-      `;
+      let rows: CaseRow[];
+      try {
+        rows = await sql<CaseRow[]>`
+          insert into cases (firm_id, cnr, title, court, stage, client, status, next_hearing, type)
+          values (${firmId}::uuid, ${input.cnr}, ${input.title}, ${input.court}, ${input.stage},
+                  ${input.client}, ${input.status}, ${input.next || null}, ${input.type})
+          returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
+        `;
+      } catch (err) {
+        // A case with this CNR already exists for the firm (cases_firm_cnr_uq)
+        // - e.g. clicking "Add to my cases" twice on the same eCourts result.
+        // Surface a clear, actionable 409 instead of a raw 500 "Internal
+        // Server Error" with no explanation.
+        if (input.cnr && (err as { code?: string }).code === '23505') {
+          throw new ConflictError(`A case with CNR ${input.cnr} is already in your matters.`, { code: 'duplicate_cnr' });
+        }
+        throw err;
+      }
       const created = fromRow(rows[0]!);
       // Register the client so it appears in the Clients directory. The
       // cases/clients join is by name; without this a case's client never
@@ -179,7 +192,7 @@ export const casesService = {
           status        = coalesce(${(patch.status ?? null) as string | null}, status),
           next_hearing  = coalesce(${patch.next ?? null}, next_hearing),
           type          = coalesce(${patch.type ?? null}, type)
-        where id::text = ${id} and firm_id = ${firmId}::uuid
+        where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is null
         returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;
       const row = rows[0];

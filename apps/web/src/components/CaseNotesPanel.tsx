@@ -9,6 +9,7 @@ import {
 } from '@/hooks/useCaseNotes';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
+import { useDictation } from '@/hooks/useDictation';
 import { Modal, Field } from './Modal';
 import { useConfirm } from './ConfirmDialog';
 
@@ -255,7 +256,19 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Voice note = dictation-to-text. Each final transcript is appended to the
+  // body with a leading space so successive utterances read as continuous
+  // prose. Browsers without the Web Speech API report unsupported and we hide
+  // the mic entirely rather than showing a dead button.
+  const dictation = useDictation();
+  const startDictation = () => {
+    dictation.toggle((text) => {
+      setBody((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+    });
+  };
+
   const reset = () => {
+    if (dictation.listening) dictation.stop();
     setMode('typed');
     setTitle('');
     setBody('');
@@ -355,11 +368,30 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
 
       {mode === 'typed' ? (
         <Field label="NOTE *" wide>
+          {dictation.supported && (
+            <div className="row" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <button
+                type="button"
+                className={`btn btn-sm${dictation.listening ? ' btn-primary' : ''}`}
+                onClick={startDictation}
+                aria-pressed={dictation.listening}
+                title={dictation.listening ? 'Stop dictation' : 'Dictate a voice note'}
+              >
+                <Icon name="mic" size={12} />
+                {dictation.listening ? 'Listening… tap to stop' : 'Voice note'}
+              </button>
+              {dictation.listening && (
+                <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--danger)' }}>
+                  ● REC
+                </span>
+              )}
+            </div>
+          )}
           <textarea
             className="input"
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="Facts, theory, references, anything you'd want to recall on this matter."
+            placeholder="Facts, theory, references, anything you'd want to recall on this matter. Or tap Voice note and speak."
             required
             rows={8}
             style={{ resize: 'vertical', minHeight: 140, fontFamily: 'inherit' }}

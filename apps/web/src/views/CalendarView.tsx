@@ -70,7 +70,7 @@ function HearingsHoverCard({ iso, hearings }: { iso: string; hearings: CalendarH
       {shown.map((h, i) => (
         <div key={h.id ?? `${iso}-${i}`} className="calendar-hover-card-row">
           <div className="calendar-hover-card-row-head">
-            <span className="calendar-hover-card-time">{h.time || '—'}</span>
+            <span className="calendar-hover-card-time">{h.time || '-'}</span>
             <span className="calendar-hover-card-case">{h.case}</span>
           </div>
           <div className="calendar-hover-card-meta">

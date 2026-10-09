@@ -52,7 +52,7 @@ export function DraftMissingFields({ schema, values, setField, onRegenerate, bus
         <Icon name="flag" size={15} />
         <span className="body-sm">
           Draft ready. <strong>{missing.length}</strong> detail{missing.length === 1 ? '' : 's'} left as
-          {' '}<code>[placeholders]</code> — edit them in the document, or click to fill here.
+          {' '}<code>[placeholders]</code>. Edit them in the document, or click to fill here.
         </span>
         <span className="spacer" style={{ flex: 1 }} />
         <Icon name="chevronD" size={16} />
@@ -84,7 +84,7 @@ export function DraftMissingFields({ schema, values, setField, onRegenerate, bus
           type="button"
           className="btn btn-ghost btn-sm"
           onClick={() => setOpen(false)}
-          title="Collapse — the draft is ready; fill these in the document instead"
+          title="Collapse: the draft is ready, fill these in the document instead"
         >
           <Icon name="chevron" size={16} />
         </button>

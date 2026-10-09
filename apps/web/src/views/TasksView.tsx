@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Icon, Skeleton, ErrorState } from '@lexdraft/ui';
+import { Icon, Skeleton, ErrorState, EmptyState } from '@lexdraft/ui';
 import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
@@ -158,7 +158,15 @@ export function TasksView() {
         />
       )}
 
-      {board.data && (
+      {board.data && COLUMNS.every((col) => board.data[col.id].length === 0) && (
+        <EmptyState
+          icon="tasks"
+          title="No tasks yet"
+          description="Add your first task to start tracking work across pending, in progress, under review, and done."
+        />
+      )}
+
+      {board.data && !COLUMNS.every((col) => board.data[col.id].length === 0) && (
         <div
           className="kanban"
           style={{

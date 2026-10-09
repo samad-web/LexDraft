@@ -147,6 +147,34 @@ export function useCreateReview() {
   });
 }
 
+/**
+ * Server-side text extraction with OCR fallback for uploads the browser
+ * couldn't read (scanned / image-only PDFs). Sends the raw file as base64 to
+ * `POST /api/review/extract`; the server runs pdf-parse and, when there's no
+ * text layer, on-device Tesseract OCR. Returns the extracted contract text.
+ */
+export function useExtractContractText() {
+  return useMutation({
+    mutationFn: async (file: File): Promise<{ text: string; chars: number }> => {
+      const buffer = await file.arrayBuffer();
+      // Chunked base64 encode - btoa on one giant string can blow the call
+      // stack for multi-MB files.
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      const dataBase64 = btoa(binary);
+      return api.post<{ text: string; chars: number }>('/review/extract', {
+        filename: file.name,
+        mime: file.type || undefined,
+        dataBase64,
+      });
+    },
+  });
+}
+
 export function useDeleteReview() {
   const qc = useQueryClient();
   return useMutation({

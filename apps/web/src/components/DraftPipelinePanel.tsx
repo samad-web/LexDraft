@@ -164,7 +164,7 @@ function PipelineResult({
 
       {offline && (
         <div className="card" style={{ padding: 'var(--space-4)' }}>
-          <span className="body-sm muted">AI is offline — resolve sections and draft manually.</span>
+          <span className="body-sm muted">AI is offline. Resolve sections and draft manually.</span>
         </div>
       )}
 
@@ -198,7 +198,7 @@ function PipelineResult({
               {s.verified ? (
                 <span className="badge badge-sage">Verified</span>
               ) : (
-                <span className="badge badge-amber" title="Not counsel-verified — cited hedged; confirm before filing.">
+                <span className="badge badge-amber" title="Not counsel-verified; citation hedged, confirm before filing.">
                   Suggested
                 </span>
               )}
@@ -206,7 +206,7 @@ function PipelineResult({
           ))}
           {sections.some((s) => s.ingredientsMissing && s.ingredientsMissing.length > 0) && (
             <p className="body-sm muted" style={{ margin: 0 }}>
-              Some ingredients may not be established by the facts — review each highlighted section.
+              Some ingredients may not be established by the facts; review each highlighted section.
             </p>
           )}
         </div>
@@ -219,7 +219,7 @@ function PipelineResult({
           <ul className="body-sm" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
             {considerInstead.map((c) => (
               <li key={c.id}>
-                <strong>{c.citation}</strong> ({c.offenceName}) — {c.reason}
+                <strong>{c.citation}</strong> ({c.offenceName}): {c.reason}
               </li>
             ))}
           </ul>

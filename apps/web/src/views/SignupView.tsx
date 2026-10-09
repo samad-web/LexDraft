@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, FieldError, validators } from '@lexdraft/ui';
 import { useSignUp, useDemoRequest } from '@/hooks/useAuth';
 import { useUIStore } from '@/store/ui';
 
@@ -101,7 +101,7 @@ function DemoChoiceScreen(): JSX.Element {
       <div className="eyebrow" style={{ marginBottom: 8 }}>See LexDraft</div>
       <h1 className="heading-xl" style={{ marginBottom: 8 }}>How would you like the demo?</h1>
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
-        Three ways — pick the one that suits your week.
+        Three ways: pick the one that suits your week.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <DemoChoiceCard
@@ -112,7 +112,7 @@ function DemoChoiceScreen(): JSX.Element {
         />
         <DemoChoiceCard
           title="Try the interactive demo"
-          desc="Spin up a sandbox account in seconds — no card, no commitment. Argue against opposing counsel, draft a notice, browse the matter shell."
+          desc="Spin up a sandbox account in seconds, no card, no commitment. Argue against opposing counsel, draft a notice, browse the matter shell."
           chevronLabel="Open sandbox"
           onClick={() => setChoice('interactive')}
         />
@@ -170,20 +170,25 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
   const [preferredTime, setPreferredTime] = useState('');
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [popupBlocked, setPopupBlocked] = useState(false);
 
   // Schedule path: open the external calendar in a new tab so the user can
   // pick a slot, then still post the request so sales has the context. If
   // they close the tab without picking, the lead row is still on file.
+  // window.open returns null (or a closed-looking window) when the browser's
+  // popup blocker intercepts it — surface that instead of asserting it opened.
   useEffect(() => {
     if (props.demoType === 'schedule' && typeof window !== 'undefined') {
-      window.open(SCHEDULE_URL, '_blank', 'noopener,noreferrer');
+      const win = window.open(SCHEDULE_URL, '_blank', 'noopener,noreferrer');
+      if (!win) setPopupBlocked(true);
     }
   }, [props.demoType]);
 
   if (submitted) {
     return (
       <DonePanel
-        title={props.demoType === 'schedule' ? 'You\'re scheduled' : 'Got it — we\'ll be in touch'}
+        title={props.demoType === 'schedule' ? 'You\'re scheduled' : 'Got it, we\'ll be in touch'}
         body={
           props.demoType === 'schedule'
             ? 'A confirmation email is on its way. Reply if you need to move the slot.'
@@ -195,6 +200,8 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await demo.mutateAsync({
         name: name.trim(),
@@ -208,6 +215,7 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
       setSubmitted(true);
     } catch (err) {
       showToast({ type: 'vermillion', text: (err as Error)?.message ?? 'Could not submit the form.' });
+      setIsSubmitting(false);
     }
   };
 
@@ -219,21 +227,32 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
       </h1>
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
         {props.demoType === 'schedule'
-          ? 'A calendar opened in a new tab. Drop your details so we have context when we connect.'
+          ? popupBlocked
+            ? 'Your browser blocked the calendar pop-up.'
+            : 'A calendar opened in a new tab. Drop your details so we have context when we connect.'
           : 'A few details and a partner will be in touch within a business day.'}
+        {props.demoType === 'schedule' && popupBlocked && (
+          <>
+            {' '}
+            <a href={SCHEDULE_URL} target="_blank" rel="noopener noreferrer">
+              Click here to open the calendar
+            </a>
+            .
+          </>
+        )}
       </p>
       <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Labelled label="Your name *">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
         </Labelled>
         <Labelled label="Work email *">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </Labelled>
         <Labelled label="Firm or practice name">
-          <input className="input" value={firmName} onChange={(e) => setFirmName(e.target.value)} />
+          <input className="input" value={firmName} onChange={(e) => setFirmName(e.target.value)} autoComplete="organization" />
         </Labelled>
         <Labelled label="Phone (optional)">
-          <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
         </Labelled>
         {props.demoType === 'schedule' && (
           <Labelled label="Preferred time window">
@@ -250,8 +269,8 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
           />
         </Labelled>
         <div style={{ marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={demo.isPending}>
-            {demo.isPending ? 'Sending…' : 'Send'}
+          <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || demo.isPending}>
+            {isSubmitting || demo.isPending ? 'Sending…' : 'Send'}
           </button>
         </div>
       </form>
@@ -269,9 +288,14 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const passwordError = passwordTouched ? validators.minLength(password, 8, 'Password') : null;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         email: email.trim(),
@@ -284,6 +308,7 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
       navigate('/app/dashboard', { replace: true });
     } catch (err) {
       showToast({ type: 'vermillion', text: (err as Error)?.message ?? 'Could not start the demo.' });
+      setIsSubmitting(false);
     }
   };
 
@@ -297,18 +322,30 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
       </p>
       <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Labelled label="Your name">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
         </Labelled>
         <Labelled label="Email *">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </Labelled>
         <Labelled label="Password *">
-          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+            aria-invalid={!!passwordError}
+            aria-describedby={passwordError ? 'interactive-demo-password-error' : undefined}
+          />
           <div className="body-xs muted" style={{ marginTop: 4 }}>At least 8 characters.</div>
+          <FieldError id="interactive-demo-password-error" error={passwordError} />
         </Labelled>
         <div style={{ marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={signUp.isPending}>
-            {signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
+          <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+            {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
           </button>
         </div>
       </form>
@@ -327,8 +364,11 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordTouched, setPasswordTouched] = useState(false);
+  const passwordError = passwordTouched ? validators.minLength(password, 8, 'Password') : null;
   const [role, setRole] = useState<'solo' | 'group' | 'firm'>('solo');
   const [firm, setFirm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTrial = props.intent === 'trial';
   const eyebrow = isTrial ? 'Trial · 14 days, no card' : 'Create account';
@@ -342,6 +382,8 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         email: email.trim(),
@@ -354,6 +396,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
       navigate('/app/dashboard', { replace: true });
     } catch (err) {
       showToast({ type: 'vermillion', text: (err as Error)?.message ?? 'Could not create your account.' });
+      setIsSubmitting(false);
     }
   };
 
@@ -366,14 +409,26 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
       </p>
       <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
         <Labelled label="Your name *">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required />
+          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
         </Labelled>
         <Labelled label="Work email *">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </Labelled>
         <Labelled label="Password *">
-          <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => setPasswordTouched(true)}
+            required
+            minLength={8}
+            autoComplete="new-password"
+            aria-invalid={!!passwordError}
+            aria-describedby={passwordError ? 'signup-form-password-error' : undefined}
+          />
           <div className="body-xs muted" style={{ marginTop: 4 }}>At least 8 characters.</div>
+          <FieldError id="signup-form-password-error" error={passwordError} />
         </Labelled>
         <Labelled label="Practice setup">
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
@@ -391,12 +446,12 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
         </Labelled>
         {role !== 'solo' && (
           <Labelled label="Practice or firm name">
-            <input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="e.g. Mehta & Co." />
+            <input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="e.g. Mehta & Co." autoComplete="organization" />
           </Labelled>
         )}
         <div style={{ marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={signUp.isPending}>
-            {signUp.isPending ? 'Creating…' : ctaLabel}
+          <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+            {isSubmitting || signUp.isPending ? 'Creating…' : ctaLabel}
           </button>
         </div>
         <div className="body-xs muted" style={{ marginTop: 4 }}>

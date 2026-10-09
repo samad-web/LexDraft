@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import * as ecourts from '../services/ecourts.service';
+import * as ecourtsLive from '../services/ecourts-live.service';
 import { logger } from '../logger';
-import { BadRequestError } from '../lib/errors';
+import { BadRequestError, UnauthorizedError } from '../lib/errors';
 
 // =============================================================================
 // /api/ecourts — live data from the eCourts Services backend (district + high
@@ -79,6 +80,130 @@ ecourtsRouter.get(
       const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
       const items = await ecourts.listCourtEstablishments(stateCode, distCode, court);
       res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Court-complex directory served from our own cache (migration
+// 0071_ecourts_court_complexes.sql), not a live eCourts call - the live
+// lookup is blocked for automated callers. Empty array means we haven't
+// captured that district yet; the UI falls back to a manual code field.
+ecourtsRouter.get(
+  '/reference/court-complexes/:stateCode/:distCode',
+  validate({
+    params: z.object({
+      stateCode: z.coerce.number().int().positive(),
+      distCode:  z.coerce.number().int().positive(),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode } = req.params as unknown as { stateCode: number; distCode: number };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listCachedCourtComplexes(stateCode, distCode, court);
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Individual courts within a complex, served from our own cache (migration
+// 0072_ecourts_courts.sql). A case is filed at a specific court, not just a
+// complex - this is what search endpoints actually need as `estCode`.
+ecourtsRouter.get(
+  '/reference/courts/:stateCode/:distCode/:complexCode',
+  validate({
+    params: z.object({
+      stateCode:   z.coerce.number().int().positive(),
+      distCode:    z.coerce.number().int().positive(),
+      complexCode: z.string().min(1).max(20),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, complexCode } = req.params as unknown as { stateCode: number; distCode: number; complexCode: string };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listCachedCourts(stateCode, distCode, complexCode, court);
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// CNR-direct live lookup - the path used inline on search results (Party
+// Name, Advocate, etc. from the fast mobile API all return a `cino` per
+// case). Single page, no state/district/complex selection - see
+// ecourts-live.service.ts's startCnrSession doc comment.
+// ---------------------------------------------------------------------------
+
+const SessionIdParam = z.object({ sessionId: z.string().uuid() });
+const LiveCaptchaBody = z.object({
+  captchaCode: z.string().min(1).max(20),
+  // Required, not re-derived from the page: see submitCnrCaptcha's doc
+  // comment - reading #cino from the DOM after a wrong-captcha error is
+  // unreliable (the field can already be hidden/cleared by the page's own
+  // JS at that point), which caused a second wrong-captcha attempt to fail
+  // with eCourts' own "Enter 16 digit CNR number" instead of a captcha error.
+  cino: z.string().regex(/^[A-Za-z]{4}[A-Za-z0-9]{12}$/, 'CNR must be 16 chars (4 letters + 12 alphanumeric)'),
+});
+
+ecourtsRouter.post('/live/cnr-session', async (req, res, next) => {
+  try {
+    if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+    const result = await ecourtsLive.startCnrSession(req.user.id);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const CnrLookupBody = z.object({ cino: z.string().regex(/^[A-Za-z]{4}[A-Za-z0-9]{12}$/, 'CNR must be 16 chars (4 letters + 12 alphanumeric)') });
+ecourtsRouter.post(
+  '/live/session/:sessionId/cnr',
+  validate({ params: SessionIdParam, body: CnrLookupBody }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const result = await ecourtsLive.openCnrLookup(sessionId, req.user.id, req.body.cino);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+ecourtsRouter.post(
+  '/live/session/:sessionId/cnr/captcha/refresh',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const result = await ecourtsLive.refreshCnrCaptcha(sessionId, req.user.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+ecourtsRouter.post(
+  '/live/session/:sessionId/cnr/captcha',
+  validate({ params: SessionIdParam, body: LiveCaptchaBody }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const result = await ecourtsLive.submitCnrCaptcha(sessionId, req.user.id, req.body.captchaCode, req.body.cino);
+      res.json(result);
     } catch (err) {
       next(err);
     }
@@ -184,6 +309,12 @@ const CommonSearchScope = {
   stateCode: z.number().int().positive(),
   distCode:  z.number().int().positive(),
   courtCode: z.number().int().nonnegative(),
+  // REQUIRED. An earlier version of this made it optional on the theory that
+  // eCourts falls back to a whole-district search - that was wrong. Omitting
+  // it makes the upstream `court_code_arr` empty, so eCourts searches ZERO
+  // establishments and replies `{"no_of_establishments":0}` - which looks
+  // exactly like a real "no matches" result but isn't one. Verified live: the
+  // identical query with a real establishment code returns real case rows.
   estCode:   z.string().min(1).max(20),
 };
 
@@ -318,6 +449,10 @@ ecourtsRouter.post(
 
 const CauseListInput = z.object({
   ...CommonSearchScope,
+  // A cause list is inherently per-court - unlike the case searches, there's
+  // no "whole district" cause list to fall back to - so re-require it here
+  // even though CommonSearchScope made it optional for the search endpoints.
+  estCode: z.string().min(1).max(20),
   date:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
   court: CourtParam.optional(),
 });
@@ -342,10 +477,24 @@ ecourtsRouter.post(
 const CaveatSearchInput = z.object({
   stateCode:    z.number().int().positive(),
   distCode:     z.number().int().positive(),
+  // REQUIRED (added 2026-10, live-probed): `court_code_arr` turns out to be
+  // the numeric `court_code`, not `estCode` - see searchCaveat's doc comment
+  // in ecourts.service.ts. Every caller already sends this (the frontend's
+  // shared `EcourtsCourtScope` includes it for every search tab, caveat
+  // included) - this schema had simply never captured it.
+  courtCode:    z.number().int().nonnegative(),
+  // Still accepted/required for API-shape compatibility with the other
+  // search endpoints, though it's no longer what scopes the court_code_arr
+  // search - see CommonSearchScope's estCode comment for the original
+  // (superseded) reasoning.
   estCode:      z.string().min(1).max(20),
   caveatorName: z.string().max(120).optional(),
   caveateeName: z.string().max(120).optional(),
-  year:         z.number().int().min(1900).max(2100).optional(),
+  // Which name field eCourts should match against — the official app's own
+  // default is 'Caveator'. Confirmed via decompile, see searchCaveat's doc
+  // comment; this replaced a guessed `year`/`reg_year` field that the real
+  // endpoint never accepted.
+  searchBy:     z.enum(['Caveator', 'Caveatee']).optional(),
   court:        CourtParam.optional(),
 }).refine(
   (v) => Boolean(v.caveatorName || v.caveateeName),
@@ -370,12 +519,15 @@ ecourtsRouter.post(
 // ---------------------------------------------------------------------------
 
 const OrderPdfInput = z.object({
-  cino:      z.string().regex(/^[A-Za-z]{4}[A-Za-z0-9]{12}$/),
-  filename:  z.string().min(1).max(255),
-  stateCd:   z.number().int().positive(),
-  distCd:    z.number().int().positive(),
-  courtCode: z.number().int().nonnegative(),
-  court:     CourtParam.optional(),
+  cino:           z.string().regex(/^[A-Za-z]{4}[A-Za-z0-9]{12}$/),
+  filename:       z.string().min(1).max(255),
+  stateCd:        z.number().int().positive(),
+  distCd:         z.number().int().positive(),
+  courtCode:      z.number().int().nonnegative(),
+  caseNo:         z.string().min(1),
+  cCode:          z.number().int().nonnegative(),
+  bilingualFlag:  z.string().optional(),
+  court:          CourtParam.optional(),
 });
 
 ecourtsRouter.post(

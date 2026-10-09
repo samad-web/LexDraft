@@ -480,6 +480,72 @@ export const notify = {
     }
   },
 
+  /**
+   * A case's next hearing is coming up within the reminder window. In-app
+   * only (the user chose not to add email/SMS/WhatsApp here - those need a
+   * paid provider and separate setup). Deduped per (case, hearing date) so
+   * the daily scan that calls this doesn't stack a fresh row every day
+   * between now and the hearing - it refreshes the same row back to unread
+   * instead, which is the effect an advocate actually wants from a
+   * reminder re-surfacing.
+   */
+  async hearingReminder(
+    firmId: string,
+    reminder: {
+      matterTitle: string;
+      caseId: string;
+      hearingDate: string; // yyyy-mm-dd
+      daysUntil: number;
+      ownerUserId?: string | null;
+    },
+  ): Promise<void> {
+    let recipients: Array<{ id: string; email: string }> = [];
+    if (reminder.ownerUserId) {
+      const u = await loadUser(reminder.ownerUserId);
+      if (u) recipients = [{ id: u.id, email: u.email }];
+    }
+    if (recipients.length === 0) recipients = await loadFirmRecipientUsers(firmId);
+
+    const when = reminder.daysUntil <= 0 ? 'today' : reminder.daysUntil === 1 ? 'tomorrow' : `in ${reminder.daysUntil} days`;
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'amber',
+        icon: 'calendar',
+        title: `Hearing ${when}: ${reminder.matterTitle}`,
+        body: `Next hearing on ${reminder.hearingDate}.`,
+        view: 'cases',
+        dedupeKey: `hearing-reminder:${reminder.caseId}:${reminder.hearingDate}`,
+      });
+    }
+  },
+
+  /**
+   * A payment-provider webhook changed the firm's billing status. In-app
+   * only, same contract as hearingReminder — fire-and-forget, never throws.
+   * Dedupe key omitted on purpose: unlike a hearing date, a second
+   * `past_due` event a day later is new information worth a fresh row.
+   */
+  async planStatusChanged(
+    firmId: string,
+    change: { planStatus: 'trial' | 'active' | 'past_due' | 'cancelled'; renewsAt?: string | null },
+  ): Promise<void> {
+    const recipients = await loadFirmRecipientUsers(firmId);
+    const tone: NotificationTone = change.planStatus === 'active' ? 'sage'
+      : change.planStatus === 'past_due' ? 'amber' : 'vermillion';
+    const title = change.planStatus === 'active' ? 'Payment received'
+      : change.planStatus === 'past_due' ? 'Payment past due'
+      : change.planStatus === 'cancelled' ? 'Subscription cancelled'
+      : 'Trial started';
+    const body = change.renewsAt ? `Plan renews ${change.renewsAt}.` : '';
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId, userId: r.id, tone, icon: 'credit-card', title, body, view: 'billing',
+      });
+    }
+  },
+
   // ----- Contract review workflow -----------------------------------------
   // No per-user preferences yet for these - firm-side internal workflow,
   // not subject to client-portal opt-outs. Same fire-and-forget contract:

@@ -85,6 +85,18 @@ async function rawCall(endpoint: string, opts: RawCallOptions): Promise<unknown>
   let res: Response;
   try {
     res = await fetch(url, { method: opts.method ?? 'GET', headers, signal: compositeSignal });
+  } catch (err) {
+    // A timed-out or caller-aborted request surfaces here as a raw
+    // DOMException/AbortError, not an Error our error middleware recognises -
+    // it has no `.status`, so it was falling through to an opaque 500
+    // ("Internal Server Error") instead of a clear "eCourts is slow, retry"
+    // message. Give it a status (504 Gateway Timeout) so callers/UI can tell
+    // "eCourts didn't answer in time" apart from a real server bug.
+    const aborted = err instanceof Error && (err.name === 'AbortError' || err.name === 'TimeoutError');
+    throw new EcourtsHttpError(
+      504,
+      aborted ? `eCourts ${endpoint} did not respond within ${DEFAULT_TIMEOUT_MS / 1000}s` : `eCourts ${endpoint} request failed: ${(err as Error).message}`,
+    );
   } finally {
     clearTimeout(timer);
   }
@@ -96,7 +108,30 @@ async function rawCall(endpoint: string, opts: RawCallOptions): Promise<unknown>
 
   // Empty body → server accepted but had nothing to say. Treat as null
   // payload so callers can decide whether to retry or surface a 502.
-  if (body.trim().length === 0) return null;
+  const trimmed = body.trim();
+  if (trimmed.length === 0) return null;
+
+  // Some endpoints answer with a *plaintext* JSON envelope rather than the
+  // encrypted `<hex-IV><base64>` wire format — notably error responses like
+  // `{"status":"N","msg":"ERROR_ERROR"}` and rejected sessions. Attempting to
+  // AES-decrypt those throws a confusing "IV did not decode" error, masking
+  // the real cause. Detect a leading `{`/`[` and parse it as-is; the normal
+  // `status:"N"` handling in `call()` then does the right thing.
+  if (trimmed[0] === '{' || trimmed[0] === '[') {
+    return JSON.parse(trimmed);
+  }
+
+  // display_pdf_new.php (confirmed live) returns a bare HTML fragment, not
+  // JSON or the encrypted wire format, when the specific order PDF isn't
+  // available on their server: `<h2><table...>order is not uploaded for -
+  // case no- ...`. Surfacing this through decryptResponse produced the
+  // same confusing "IV did not decode" error as a genuine crypto failure,
+  // which hid the real, simple reason ("this PDF was never uploaded") behind
+  // what looked like a client bug. Strip tags and surface the plain text.
+  if (trimmed[0] === '<') {
+    const plainText = trimmed.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    throw new EcourtsHttpError(502, `eCourts: ${plainText || 'returned an HTML error page instead of data'}`, trimmed);
+  }
 
   const plaintext = decryptResponse(body);
   return JSON.parse(plaintext);

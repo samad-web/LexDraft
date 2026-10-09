@@ -126,6 +126,28 @@ describe('casesService - real Postgres', () => {
     expect(gone).toBeUndefined();
   });
 
+  it('update refuses to mutate a soft-deleted (trashed) case', async () => {
+    const created = await casesService.create({
+      cnr: 'CNR/A/DEL-2', title: 'To Delete Then Patch', court: 'BHC', stage: 'P', client: 'E',
+      status: 'Active', next: '2026-11-02', type: 'civil', visibleToClient: false,
+    }, firmA.id);
+
+    const removed = await casesService.remove(created.id, firmA.id);
+    expect(removed).toBe(true);
+
+    const patched = await casesService.update(
+      created.id,
+      { stage: 'ShouldNotApply', client: 'Edited while deleted' },
+      firmA.id,
+    );
+    expect(patched).toBeUndefined();
+
+    const trashed = await casesService.listDeleted(firmA.id);
+    const row = trashed.find((c) => c.id === created.id);
+    expect(row?.stage).toBe('P');
+    expect(row?.client).toBe('E');
+  });
+
   it('create without a firmId throws 422', async () => {
     await expect(
       casesService.create({

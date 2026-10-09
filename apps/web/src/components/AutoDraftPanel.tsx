@@ -88,14 +88,14 @@ export function AutoDraftPanel({ provider, caseContext, onAccept }: Props) {
           )}
         </div>
         <p className="body-sm muted" style={{ margin: 0 }}>
-          Just say what happened — the agent works out which document to draft and the BNS/BNSS sections that apply.
+          Just say what happened. The agent works out which document to draft and the BNS/BNSS sections that apply.
         </p>
         <textarea
           className="input"
           rows={5}
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
-          placeholder="e.g. My client Ramesh was arrested yesterday for cheating — he took ₹4 lakh for a flat that never came. No prior record. We need bail before the Sessions Court."
+          placeholder="e.g. My client Ramesh was arrested yesterday for cheating; he took ₹4 lakh for a flat that never came. No prior record. We need bail before the Sessions Court."
           style={{ resize: 'vertical' }}
         />
         <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -213,7 +213,7 @@ function AutoResult({
             <span className="body-sm muted">{triage.forum}</span>
           </div>
           <p className="body-sm" style={{ margin: 0 }}>
-            The brief isn&apos;t conclusive, so I&apos;ve not drafted yet. My best read is <strong>{triage.docType}</strong> — {triage.reasoning}
+            The brief isn&apos;t conclusive, so I&apos;ve not drafted yet. My best read is <strong>{triage.docType}</strong>: {triage.reasoning}
           </p>
           <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
             <button
@@ -422,7 +422,7 @@ function SectionEditor({
       <div className="row" style={{ alignItems: 'center', gap: 8 }}>
         <div className="heading-md">Applicable sections</div>
         <span className="spacer" style={{ flex: 1 }} />
-        <span className="body-xs muted">Add, remove, or swap — then re-draft</span>
+        <span className="body-xs muted">Add, remove, or swap, then re-draft</span>
       </div>
 
       {/* Current section chips */}
@@ -443,7 +443,7 @@ function SectionEditor({
             </span>
             {s.verified
               ? <span className="badge badge-sage" style={{ fontSize: 9 }}>V</span>
-              : <span className="badge badge-amber" style={{ fontSize: 9 }} title="Suggested — confirm before filing">S</span>}
+              : <span className="badge badge-amber" style={{ fontSize: 9 }} title="Suggested: confirm before filing">S</span>}
             <button
               type="button"
               aria-label={`Remove ${s.citation}`}
@@ -482,7 +482,7 @@ function SectionEditor({
       <div className="row" style={{ gap: 8 }}>
         <input
           className="input"
-          placeholder="Add a section — e.g. 'criminal breach of trust' or '316'"
+          placeholder="Add a section, e.g. 'criminal breach of trust' or '316'"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } }}

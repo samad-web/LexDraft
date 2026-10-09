@@ -297,6 +297,19 @@ jobs.register('ecourts.sync.daily', async () => {
   logger.info(summary, 'ecourts.sync.daily complete');
 }, { cron: '0 2 * * *', tz: 'Asia/Kolkata' });
 
+// Upcoming-hearing reminders. Runs just after the eCourts sync above (so a
+// hearing date that moved overnight is reflected the same morning) and
+// fires an in-app notification for every active case whose next hearing
+// falls within the reminder window - see sendUpcomingHearingReminders'
+// doc comment for why this wasn't actually happening before: the
+// reminder_offset_days field and this very job were both scaffolded and
+// never wired to anything.
+jobs.register('hearings.reminders.daily', async () => {
+  const { sendUpcomingHearingReminders } = await import('./case-sync.service');
+  const summary = await sendUpcomingHearingReminders();
+  logger.info(summary, 'hearings.reminders.daily complete');
+}, { cron: '30 2 * * *', tz: 'Asia/Kolkata' });
+
 // Permanently purge matters that have been soft-deleted for more than 30 days.
 // Deleting a matter marks deleted_at (recoverable via "Recently deleted"); this
 // sweep, at 03:30 IST daily, hard-removes those past the retention window.

@@ -34,17 +34,20 @@ import type {
   MatterDocumentSummary,
   MatterDocumentStatus,
   MatterDocumentSource,
+  MatterFact,
 } from '@lexdraft/types';
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
+import { withRetry } from '../lib/retry';
 import { extractText, SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
 import { storage } from './storage.service';
 import { auditService } from './audit.service';
 import { jobs } from './jobs.service';
 import { aiUsageService } from './ai-usage.service';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grok, asRetryError } from '../lib/grok-client';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -274,6 +277,89 @@ async function assertCaseInFirm(firmId: string, caseId: string): Promise<CaseGat
   return { ok: Boolean(row) };
 }
 
+// ---------------------------------------------------------------------------
+// matter_facts — promotes key_dates (jsonb, lossy, untyped) into typed,
+// source-attributed, deduped rows. See migration 0075_matter_facts.sql.
+// ---------------------------------------------------------------------------
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Strict: only a well-formed, calendar-valid YYYY-MM-DD is accepted. An LLM
+ *  that returns "circa 2024" or "last Tuesday" yields an undated fact rather
+ *  than a guessed one — consistent with this module's "don't guess" stance
+ *  elsewhere (see SUMMARY_SYSTEM: "If a field is unknown, return null"). */
+/** Exported for unit tests — not part of the service's public API surface. */
+export function parseStrictIsoDate(raw: string | null | undefined): string | null {
+  if (!raw || !ISO_DATE_RE.test(raw)) return null;
+  const d = new Date(`${raw}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+  // Reject rollover dates (e.g. 2026-02-30 → Date rolls to March 2) that
+  // ISO_DATE_RE's shape check alone wouldn't catch.
+  return d.toISOString().slice(0, 10) === raw ? raw : null;
+}
+
+/** Case-insensitive, whitespace-normalized key for cross-document dedup. Two
+ *  documents independently mentioning "Cheque dishonoured" and "cheque
+ *  dishoured  " (trailing space, same typo) collapse to the same fact rather
+ *  than listing twice. Deliberately simple (not fuzzy/edit-distance) — exact
+ *  normalized match is the safe default; a near-miss is a different fact
+ *  until proven otherwise, not silently merged. */
+/** Exported for unit tests — not part of the service's public API surface. */
+export function factDedupeKey(eventDate: string | null, eventText: string): string {
+  const normalizedText = eventText.trim().toLowerCase().replace(/\s+/g, ' ');
+  return `${eventDate ?? 'undated'}:${normalizedText}`;
+}
+
+/**
+ * Replaces this document's matter_facts wholesale with freshly promoted rows
+ * from its key_dates. Delete-then-reinsert (not diff) — same idempotency
+ * pattern matter_document_chunks already uses on re-summarisation. Never
+ * throws: a malformed key_dates entry is dropped, not a summarisation
+ * failure, since the summary itself already succeeded by the time this runs.
+ */
+async function promoteKeyDatesToFacts(input: {
+  firmId: string;
+  caseId: string;
+  matterDocumentId: string;
+  fileName: string;
+  keyDates: ReadonlyArray<{ date?: string | null; event?: string | null }>;
+}): Promise<void> {
+  const sql = db();
+  if (!sql) return;
+
+  const seen = new Set<string>();
+  const rows = input.keyDates
+    .map((kd) => ({ eventDate: parseStrictIsoDate(kd.date), eventText: (kd.event ?? '').trim() }))
+    .filter((r) => r.eventText.length > 0)
+    .map((r) => ({ ...r, dedupeKey: factDedupeKey(r.eventDate, r.eventText) }))
+    // Two key_dates entries on the SAME document that normalize identically
+    // would otherwise collide on the insert below (ON CONFLICT only
+    // resolves one of them per statement in a single INSERT ... SELECT, but
+    // a plain multi-row INSERT with a duplicate key in the same statement
+    // still errors) — drop in-batch duplicates before they reach SQL.
+    .filter((r) => (seen.has(r.dedupeKey) ? false : (seen.add(r.dedupeKey), true)));
+
+  await sql.begin(async (tx) => {
+    await tx`delete from matter_facts where matter_document_id = ${input.matterDocumentId}::uuid`;
+    if (rows.length === 0) return;
+    for (const r of rows) {
+      await tx`
+        insert into matter_facts (
+          firm_id, case_id, matter_document_id, event_date, event_text,
+          dedupe_key, source_file_name
+        ) values (
+          ${input.firmId}::uuid, ${input.caseId}::uuid, ${input.matterDocumentId}::uuid,
+          ${r.eventDate}, ${r.eventText}, ${r.dedupeKey}, ${input.fileName}
+        )
+        on conflict (case_id, dedupe_key) do update set
+          matter_document_id = excluded.matter_document_id,
+          source_file_name   = excluded.source_file_name,
+          generated_at        = now()
+      `;
+    }
+  });
+}
+
 async function fetchMatterDocumentRow(firmId: string, id: string): Promise<MatterDocumentRow | null> {
   const sql = db();
   if (!sql) return null;
@@ -383,33 +469,11 @@ interface LlmResult extends NormalizedUsage {
 }
 
 async function callClaudeJson(system: string, user: string): Promise<LlmResult> {
+  // claudeComplete uses env.ANTHROPIC_MODEL, applies the ephemeral system-block
+  // cache_control, and throws HttpRetryError on API errors — so the outer
+  // withRetry keeps retrying 429/5xx exactly as the raw-fetch path did.
   return withRetry(
-    async () => {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: 2048,
-          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new HttpRetryError(res.status, `Claude ${res.status}: ${body}`);
-      }
-      const data = (await res.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-      return { text, ...anthropicUsage(data.usage) };
-    },
+    () => claudeComplete({ system, user, maxTokens: 2048 }),
     {
       onRetry: (err, attempt, waitMs) =>
         logger.warn({ err, attempt, waitMs }, 'Claude (matter-intel) retry'),
@@ -418,14 +482,14 @@ async function callClaudeJson(system: string, user: string): Promise<LlmResult> 
 }
 
 async function callXaiJson(system: string, user: string): Promise<LlmResult> {
+  // Uses the low-level grok() client (not grokComplete) so the JSON-mode
+  // request stays byte-for-byte identical: response_format:{type:'json_object'}
+  // is not part of grokComplete's signature. asRetryError reshapes OpenAI
+  // API errors into HttpRetryError so withRetry still retries 429/5xx.
   return withRetry(async () => {
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${env.XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
+    let res;
+    try {
+      res = await grok().chat.completions.create({
         model: env.XAI_MODEL,
         max_tokens: 2048,
         response_format: { type: 'json_object' },
@@ -433,19 +497,13 @@ async function callXaiJson(system: string, user: string): Promise<LlmResult> {
           { role: 'system', content: system },
           { role: 'user', content: user },
         ],
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new HttpRetryError(res.status, `xAI ${res.status}: ${body}`);
+      });
+    } catch (err) {
+      throw asRetryError(err);
     }
-    const data = (await res.json()) as {
-      choices: Array<{ message: { content: string } }>;
-      usage?: Parameters<typeof xaiUsage>[0];
-    };
     return {
-      text: data.choices[0]?.message?.content ?? '',
-      ...xaiUsage(data.usage),
+      text: res.choices[0]?.message?.content ?? '',
+      ...xaiUsage(res.usage as Parameters<typeof xaiUsage>[0]),
     };
   });
 }
@@ -878,6 +936,20 @@ export const matterIntelService = {
     `;
     if (!stored) throw new Error('Failed to upsert matter_document_summaries row.');
 
+    // Best-effort: a facts-promotion failure shouldn't fail the summarisation
+    // that already succeeded and is already stored above.
+    try {
+      await promoteKeyDatesToFacts({
+        firmId: input.firmId,
+        caseId: row.case_id,
+        matterDocumentId: input.matterDocumentId,
+        fileName: row.file_name,
+        keyDates: parsed.key_dates ?? [],
+      });
+    } catch (err) {
+      logger.warn({ err, matterDocumentId: input.matterDocumentId }, 'matter_facts promotion failed');
+    }
+
     void auditService.write({
       actorUserId: input.userId,
       actorEmail: input.userEmail,
@@ -899,6 +971,37 @@ export const matterIntelService = {
       limit 1
     `;
     return row ? toBrief(row) : null;
+  },
+
+  /**
+   * The structured alternative to MatterBrief.timeline: real rows, typed
+   * dates, source-attributed, deduped across documents — no LLM call on the
+   * read path (unlike the brief, which re-synthesizes on every regenerate).
+   * Ordered chronologically; undated facts (event_date is null) sort last.
+   */
+  async getTimeline({ firmId, caseId }: { firmId: string; caseId: string }): Promise<MatterFact[]> {
+    const sql = db();
+    if (!sql) return [];
+    const rows = await sql<Array<{
+      id: string; case_id: string; matter_document_id: string;
+      event_date: string | null; event_text: string;
+      source_file_name: string; generated_at: Date;
+    }>>`
+      select id, case_id, matter_document_id, event_date, event_text,
+             source_file_name, generated_at
+      from matter_facts
+      where firm_id = ${firmId}::uuid and case_id = ${caseId}::uuid
+      order by event_date asc nulls last, generated_at asc
+    `;
+    return rows.map((r) => ({
+      id: r.id,
+      caseId: r.case_id,
+      matterDocumentId: r.matter_document_id,
+      eventDate: r.event_date,
+      eventText: r.event_text,
+      sourceFileName: r.source_file_name,
+      generatedAt: r.generated_at.toISOString(),
+    }));
   },
 
   async generateMatterBrief(input: { firmId: string; caseId: string; userId: string; userEmail: string }): Promise<MatterBrief> {

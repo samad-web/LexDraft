@@ -70,7 +70,7 @@ export function DraftPromptPanel({ docType, schema, provider, onExtracted, onGen
           <div className="heading-md">Dictate the brief</div>
         </div>
         <p className="body-sm muted" style={{ margin: 0 }}>
-          Describe the matter in plain language — we’ll fill the {docType} fields for you and flag anything still
+          Describe the matter in plain language. We’ll fill the {docType} fields for you and flag anything still
           needed. You can edit everything before generating.
         </p>
       </div>
@@ -167,7 +167,7 @@ export function DraftPromptPanel({ docType, schema, provider, onExtracted, onGen
           </div>
           {summary.missing.length > 0 && !extractedNothing && (
             <span className="body-xs muted">
-              Generating now produces a first draft with the gaps marked — you can fill them and regenerate to finish.
+              Generating now produces a first draft with the gaps marked, and you can fill them and regenerate to finish.
             </span>
           )}
         </div>

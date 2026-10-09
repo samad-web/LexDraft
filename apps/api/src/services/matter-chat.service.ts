@@ -39,7 +39,9 @@ import { env } from '../env';
 import { logger } from '../logger';
 import { auditService } from './audit.service';
 import { aiUsageService } from './ai-usage.service';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeStream } from '../lib/anthropic-client';
+import { grokStream } from '../lib/grok-client';
 
 // ---------------------------------------------------------------------------
 // Row mappers
@@ -253,115 +255,20 @@ function modelTag(): string {
 type UsageSink = (u: NormalizedUsage) => void;
 
 async function* streamClaude(system: string, user: string, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: env.ANTHROPIC_MODEL,
-      max_tokens: 2048,
-      stream: true,
-      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: user }],
-    }),
-  });
-  if (!res.ok || !res.body) {
-    const body = res.body ? await res.text() : '';
-    throw new Error(`Claude ${res.status}: ${body.slice(0, 300)}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let usage: NormalizedUsage = {};
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            type?: string;
-            delta?: { type?: string; text?: string };
-            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
-            usage?: { output_tokens?: number };
-          };
-          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
-            yield evt.delta.text;
-          } else if (evt.type === 'message_start' && evt.message?.usage) {
-            usage = anthropicUsage(evt.message.usage);
-          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
-            usage = { ...usage, tokensOut: evt.usage.output_tokens };
-          }
-        } catch { /* ignore malformed frames */ }
-      }
-    }
-  }
-  onUsage?.(usage);
+  // Delegates to the shared official-SDK client. Preserves the former request
+  // shape: env.ANTHROPIC_MODEL, max_tokens 2048, and the ephemeral prompt-cache
+  // on the system block (claudeStream's cacheSystem default). Text deltas are
+  // yielded in order; end-of-stream usage is reported via onUsage exactly as
+  // the hand-rolled SSE parser did.
+  yield* claudeStream({ system, user, maxTokens: 2048, onUsage });
 }
 
 async function* streamXai(system: string, user: string, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
-  const res = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${env.XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: env.XAI_MODEL,
-      max_tokens: 2048,
-      stream: true,
-      stream_options: { include_usage: true },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
-  });
-  if (!res.ok || !res.body) {
-    const body = res.body ? await res.text() : '';
-    throw new Error(`xAI ${res.status}: ${body.slice(0, 300)}`);
-  }
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let usage: NormalizedUsage = {};
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-            usage?: Parameters<typeof xaiUsage>[0];
-          };
-          const text = evt.choices?.[0]?.delta?.content;
-          if (text) yield text;
-          if (evt.usage) usage = xaiUsage(evt.usage);
-        } catch { /* ignore */ }
-      }
-    }
-  }
-  onUsage?.(usage);
+  // Delegates to the shared official-SDK Grok client. Preserves the former
+  // request shape: env.XAI_MODEL, max_tokens 2048, stream + include_usage. Text
+  // deltas are yielded in order; end-of-stream usage (same xaiUsage mapping) is
+  // reported via onUsage exactly as the hand-rolled SSE parser did.
+  yield* grokStream({ system, user, maxTokens: 2048, onUsage });
 }
 
 function fallbackReply(chunks: RetrievedChunk[]): string {

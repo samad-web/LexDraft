@@ -159,7 +159,7 @@ export function EngineDraftPanel({
               pinned LibreOffice image (guaranteed stable by the CI pagination baseline). */}
           <p className="engine-panel__advisory" role="note">
             The text below is a preview for review. The <strong>filing copy is the
-            PDF/.docx</strong> produced by the engine (shown underneath) — that is the
+            PDF/.docx</strong> produced by the engine (shown underneath): that is the
             document you approve and file.
           </p>
           <article className="engine-panel__blocks" aria-label="Drafted document (preview)">

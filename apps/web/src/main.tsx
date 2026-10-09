@@ -6,6 +6,7 @@ import { App } from './App';
 import { queryClient } from './lib/queryClient';
 import { hydrateUIAttributes } from './store/ui';
 import { ConfirmProvider } from './components/ConfirmDialog';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles/tokens.css';
 import './styles/globals.css';
 
@@ -15,9 +16,18 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ConfirmProvider>
-          <App />
-        </ConfirmProvider>
+        {/*
+          ErrorBoundary sits inside the router/query providers so it can
+          catch render-time exceptions from App and the ~50 lazy-loaded
+          views it mounts, without masking a failure in the providers
+          themselves (which would indicate a more fundamental setup
+          problem the fallback UI below isn't designed to diagnose).
+        */}
+        <ErrorBoundary>
+          <ConfirmProvider>
+            <App />
+          </ConfirmProvider>
+        </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,

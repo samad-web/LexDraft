@@ -27,6 +27,10 @@ import { SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
 //   GET  /:caseId/brief                — fetch the current (un-superseded) brief.
 //   POST /:caseId/brief/regenerate     — synthesise a new brief over all
 //                                         per-document summaries.
+//
+// Timeline:
+//   GET  /:caseId/timeline             — structured, source-attributed dated
+//                                         facts (no LLM call) — see matter_facts.
 // =============================================================================
 
 const ACCEPTED_MIMES = SUPPORTED_NOTE_MIME_TYPES;
@@ -283,6 +287,28 @@ matterIntelRouter.get(
         return;
       }
       res.json(brief);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+matterIntelRouter.get(
+  '/:caseId/timeline',
+  requireFeature('matter.intelligence'),
+  validate({ params: CaseParam }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) {
+        res.status(422).json({ error: 'No firm attached' });
+        return;
+      }
+      const items = await matterIntelService.getTimeline({
+        firmId,
+        caseId: (req.params as { caseId: string }).caseId,
+      });
+      res.json({ items });
     } catch (err) {
       next(err);
     }

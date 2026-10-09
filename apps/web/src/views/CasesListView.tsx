@@ -39,6 +39,14 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
     typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
   );
   const [q, setQ] = useState<string>('');
+  // Debounce the search query 400ms after the user stops typing, matching the
+  // pattern used by NewCaseModal's conflict-check — avoids firing a new
+  // GET /cases?q=... on every keystroke.
+  const [qDebounced, setQDebounced] = useState<string>('');
+  useEffect(() => {
+    const handle = window.setTimeout(() => setQDebounced(q), 400);
+    return () => window.clearTimeout(handle);
+  }, [q]);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
 
@@ -77,7 +85,7 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
       onSuccess: () => {
         showToast({
           type: 'sage',
-          text: `Deleted "${c.title}" — recoverable for 30 days`,
+          text: `Deleted "${c.title}". Recoverable for 30 days.`,
           action: {
             label: 'Undo',
             onClick: () => {
@@ -95,10 +103,10 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
 
   const queryParams = useMemo(
     () => ({
-      q: q.trim() || undefined,
+      q: qDebounced.trim() || undefined,
       type: activeFilter.type,
     }),
-    [q, activeFilter.type],
+    [qDebounced, activeFilter.type],
   );
 
   const { data, isLoading, isError, error } = useCases(queryParams);

@@ -86,20 +86,40 @@ pnpm --filter @lexdraft/api ingest:bns-bnss --sample --dry-run
 (Stops at the embed step until `EMBED_SERVICE_URL` is set — that's the guard
 working, not a bug.)
 
-## Source parser (the one manual step)
+## Source parser
 
-`fetch-bns-bnss.ts` has a single `TODO: SOURCE PARSER`. Implement the extractor
-for your official format — **two vetted sources:**
+`fetch-bns-bnss.ts` implements `parseBns()` — validated against the real
+IndiaCode bitstream text, **358/358 sections, zero duplicates, zero
+placeholder text**. Run it with `--act BNS --source <path-or-url>`.
 
-1. **IndiaCode bare act** — <https://www.indiacode.nic.in/> (search "Bharatiya
-   Nyaya Sanhita" / "Bharatiya Nagarik Suraksha Sanhita"). Section-wise
-   PDF/XML. Authoritative.
-2. **eGazette** notified text (BNS = Act 45 of 2023, BNSS = Act 46 of 2023).
+`--act BNSS` is **not implemented yet** — see the large comment at its call
+site in `fetch-bns-bnss.ts` for the full diagnosis. Short version: BNSS's
+gazette text is typeset in two columns (body text left, marginal section
+headings right), and `pypdf`/`pdf-parse` extract that column-blind — the
+headings land in a disconnected trailing block, not next to their section.
+A correct parser needs `pdfjs-dist` glyph-coordinate extraction to
+reconstruct true reading order, which is materially more work than the BNS
+regex above and hasn't been validated yet.
 
-The parser must emit one row per section with **verbatim** text and
-`verified: false` until a human checks it against the PDF. It is left as an
-explicit, reviewed step so no one wires an unofficial or model-generated source
-by accident.
+**Known-good sources** (fetched and inspected while building the BNS parser):
+
+- **BNS**: `https://www.indiacode.nic.in/bitstream/123456789/20062/1/a202345.pdf`
+  — works today with `--act BNS`.
+- **BNSS**: the enacted Act (not the bill!) is at
+  `https://prsindia.org/files/bills_acts/acts_parliament/2023/The%20Bharatiya%20Nagarik%20Suraksha%20Sanhita,%202023.pdf`
+  (249 pages, genuine Gazette of India text — two-column). **Do not** use the
+  PRS `bills_parliament/2023/...` path — that's the 9-page bill-as-introduced,
+  not the final 531-section Act. The NCRB mirror
+  (`ncrb.gov.in/.../BNSS2023.pdf`) is also real text but has a different,
+  non-gazette layout (an old-CrPC/new-BNSS comparison table up front) — not
+  recommended as the primary source.
+- IndiaCode's own BNSS bitstream URLs (`123456789/20099` and `123456789/21544`)
+  timed out repeatedly when this was last tried — may be transient; retry
+  before assuming they're gone.
+
+Either way, the parser must emit one row per section with **verbatim** text
+and `verified: false` until a human checks it against the PDF — no
+AI-generated or inferred statute text, ever.
 
 ## Files
 

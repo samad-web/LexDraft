@@ -37,7 +37,11 @@ function ensureConfigured(): void {
     const err = new Error(
       'Indian-law corpus is not configured on this deployment. Set LAWS_DATABASE_URL + EMBED_SERVICE_URL.',
     );
-    (err as Error & { status?: number }).status = 503;
+    // Safe-to-show operational message (no secrets/stack/internal paths) -
+    // opt this 5xx into the real message reaching the client instead of
+    // the generic "Internal Server Error" (see middleware/error.ts).
+    (err as Error & { status?: number; expose?: boolean }).status = 503;
+    (err as Error & { status?: number; expose?: boolean }).expose = true;
     throw err;
   }
 }

@@ -9,6 +9,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   defaultCase?: string;
+  /** Lock the MATTER field to `defaultCase` (read-only) when the modal is
+   *  opened from a known case record - prevents the user from hand-editing
+   *  the free-text label into drift from the case's actual title, which
+   *  would silently remove the task from that case's Pendings card (tasks
+   *  link to cases by title-text match, not a foreign key). */
+  lockCase?: boolean;
 }
 
 const PRIORITY_OPTIONS: ReadonlyArray<{ value: TaskPriority; label: string }> = [
@@ -25,7 +31,7 @@ function inDays(d: number): string {
   return x.toISOString().slice(0, 10);
 }
 
-export function NewTaskModal({ open, onClose, defaultCase }: Props) {
+export function NewTaskModal({ open, onClose, defaultCase, lockCase }: Props) {
   const create = useCreateTask();
   const showToast = useUIStore((s) => s.showToast);
 
@@ -104,6 +110,9 @@ export function NewTaskModal({ open, onClose, defaultCase }: Props) {
             onChange={(e) => setCaseLabel(e.target.value)}
             placeholder="Case label"
             required
+            readOnly={lockCase}
+            title={lockCase ? 'Locked to this matter' : undefined}
+            style={lockCase ? { cursor: 'not-allowed', color: 'var(--text-tertiary)' } : undefined}
           />
         </Field>
         <Field label="DUE" required>

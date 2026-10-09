@@ -196,7 +196,7 @@ function Landing(props: {
             <StatBlock label="Concluded" value={String(concluded.length)} />
             <StatBlock
               label="Avg score"
-              value={avgScore == null ? '—' : `${avgScore}/100`}
+              value={avgScore == null ? 'N/A' : `${avgScore}/100`}
             />
           </div>
         )}
@@ -435,7 +435,7 @@ function Setup(props: {
               placeholder={
                 cases.isLoading       ? 'Loading cases…'
                 : cases.isError       ? 'Could not load cases'
-                : (cases.data ?? []).length === 0 ? 'No cases yet — switch to Upload'
+                : (cases.data ?? []).length === 0 ? 'No cases yet, switch to Upload'
                 :                       'Select a case…'
               }
               disabled={cases.isLoading || cases.isError || (cases.data ?? []).length === 0}
@@ -572,7 +572,7 @@ function Setup(props: {
         <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div className="eyebrow">2 · Confirm matter summary</div>
           <div className="body-sm muted">
-            This summary is pinned to every turn's prompt. Edit anything that's off — facts you'd
+            This summary is pinned to every turn's prompt. Edit anything that's off: facts you'd
             cite, the issues at stake, the statutes in play.
           </div>
           <SummaryEditor summary={summary} onChange={setSummary} />
@@ -656,7 +656,7 @@ function Setup(props: {
                     !caps.speechFullSupport
                       ? 'Browser does not support Web Speech'
                       : !langSupportsVoice
-                      ? `No reliable voice support for ${language.englishName} — practise in text mode`
+                      ? `No reliable voice support for ${language.englishName}; practise in text mode`
                       : undefined
                   }
                 >
@@ -868,7 +868,7 @@ function LanguagePicker(props: {
       </div>
       <div className="body-xs muted" style={{ marginTop: 'var(--space-2)' }}>
         The opposing counsel will argue in {active.englishName}, and the review will be written in it too.
-        {active.voiceSupport === 'none' && ' Voice input is disabled for this language — practise in text mode.'}
+        {active.voiceSupport === 'none' && ' Voice input is disabled for this language; practise in text mode.'}
         {active.voiceSupport === 'partial' && ' Voice input may be inconsistent depending on your browser.'}
       </div>
     </div>
@@ -1327,7 +1327,7 @@ function Live(props: {
           >
             <strong>No {findLanguage(s.languageCode).englishName} voice installed.</strong>{' '}
             <span className="muted">
-              Opposing counsel's replies appear as text only — install a {findLanguage(s.languageCode).englishName} system voice (Windows: Settings → Time &amp; Language → Speech → Add voices) and refresh to enable speech.
+              Opposing counsel's replies appear as text only. Install a {findLanguage(s.languageCode).englishName} system voice (Windows: Settings → Time &amp; Language → Speech → Add voices) and refresh to enable speech.
             </span>
           </div>
         )}
@@ -1348,7 +1348,7 @@ function Live(props: {
             <div className="ma-empty" style={{ margin: 'var(--space-5) 0' }}>
               <div className="heading-sm" style={{ marginBottom: 'var(--space-2)' }}>The bench is ready</div>
               <div className="body-sm muted">
-                Open with your first argument. Speak as you would in court — opening statement,
+                Open with your first argument. Speak as you would in court: opening statement,
                 statute, prayer.
               </div>
             </div>
@@ -1442,7 +1442,7 @@ function TextComposer(props: {
         className="input"
         value={props.draft}
         onChange={(e) => props.onChange(e.target.value)}
-        placeholder="Type your argument and submit — opposing counsel will reply."
+        placeholder="Type your argument and submit. Opposing counsel will reply."
         rows={4}
         style={{ resize: 'vertical', fontFamily: 'inherit', minHeight: 88 }}
         onKeyDown={(e) => {
@@ -1547,7 +1547,7 @@ function VoiceComposer(props: VoiceComposerProps): JSX.Element {
             ? <span style={{ whiteSpace: 'pre-wrap' }}>{stt.combined}</span>
             : <span className="muted">
                 {stt.audioActive
-                  ? 'Speak now — your words will appear here.'
+                  ? 'Speak now, your words will appear here.'
                   : 'Waiting for the microphone to come online…'}
               </span>}
         </div>
@@ -1600,7 +1600,7 @@ function VoiceComposer(props: VoiceComposerProps): JSX.Element {
         >
           <div style={{ flex: 1 }}>
             <strong>We didn't catch that.</strong>{' '}
-            Tap the mic and try again — speak closer to the microphone, or check that the right
+            Tap the mic and try again: speak closer to the microphone, or check that the right
             input device is selected in your OS settings.
           </div>
           <button
@@ -1643,7 +1643,13 @@ function VoiceComposer(props: VoiceComposerProps): JSX.Element {
             else props.onStartListening();
           }}
           disabled={props.isStreaming && !tts.speaking}
-          title={tts.speaking ? 'Tap to interrupt — cuts opposing counsel off' : 'Tap and hold the floor'}
+          title={
+            tts.speaking
+              ? 'Tap to interrupt (cuts opposing counsel off)'
+              : props.isStreaming
+                ? 'Waiting for opposing counsel to finish'
+                : 'Tap and hold the floor'
+          }
         >
           <Icon name={stt.listening ? 'micOff' : 'mic'} size={18} />
           {stt.listening

@@ -20,10 +20,10 @@ const CAPTURE_STAGES: { value: LeadStage; label: string }[] = [
 
 // A short, editable list of common practice areas. Free text is also allowed.
 const PRACTICE_AREAS = [
-  'Criminal — Bail',
-  'Criminal — Trial',
-  'Civil — Recovery',
-  'Civil — Property',
+  'Criminal: Bail',
+  'Criminal: Trial',
+  'Civil: Recovery',
+  'Civil: Property',
   'Family — Matrimonial',
   'Cheque bounce (s.138 NI Act)',
   'Consumer',
@@ -112,7 +112,7 @@ export function NewLeadModal({ open, onClose }: Props) {
           autoFocus
         />
       </Field>
-      <Field label="CONTACT" hint="Phone or email — needed to open the client on retainer" wide>
+      <Field label="CONTACT" hint="Phone or email (needed to open the client on retainer)" wide>
         <input
           className="input"
           value={contact}

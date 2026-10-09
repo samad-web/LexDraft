@@ -32,7 +32,7 @@ export function useIntakeStart() {
  *  classified into an engine document, and the returned state names the detected
  *  format (detectedDocLabel) so the UI can confirm/override it. */
 export function useIntakeStartAuto() {
-  return useMutation<IntakeState, Error, { message: string }>({
+  return useMutation<IntakeState, Error, { message: string; instruction?: string }>({
     mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/start-auto', req),
   });
 }
@@ -48,7 +48,11 @@ export function useIntakeReply() {
  *  filling genuinely-missing required fields with [placeholders] instead of
  *  asking. Hard-stop refusals still block. */
 export function useIntakeDraftNow() {
-  return useMutation<IntakeState, Error, { matterId: string; docLabel: string }>({
+  return useMutation<
+    IntakeState,
+    Error,
+    { matterId: string; docLabel: string; language?: 'EN' | 'HI' | 'TA' }
+  >({
     mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/draft-now', req),
   });
 }

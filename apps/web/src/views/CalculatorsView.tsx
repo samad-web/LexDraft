@@ -92,7 +92,7 @@ export function CalculatorsView() {
         <EmptyState
           icon="flag"
           title="No state catalogue available"
-          description="The calculators ship with a bundled state catalogue. If you're seeing this, the asset failed to load — try reloading."
+          description="The calculators ship with a bundled state catalogue. If you're seeing this, the asset failed to load, so try reloading."
         />
       )}
 
@@ -172,6 +172,11 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
             <div className="body-xs" style={{ marginTop: 6 }}>
               Plaint valuation per Order VII, CPC.
             </div>
+            {valueStr.trim() === '' && (
+              <div className="body-xs" style={{ marginTop: 2, color: 'var(--warning)' }}>
+                Empty: calculating against ₹0.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -308,6 +313,11 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
             <div className="body-xs" style={{ marginTop: 6 }}>
               For fixed-duty instruments (e.g. affidavit), value is ignored.
             </div>
+            {valueStr.trim() === '' && (
+              <div className="body-xs" style={{ marginTop: 2, color: 'var(--warning)' }}>
+                Empty: calculating against ₹0.
+              </div>
+            )}
           </div>
         </div>
       </div>

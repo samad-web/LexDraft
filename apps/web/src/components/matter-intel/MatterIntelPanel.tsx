@@ -15,6 +15,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { useUIStore } from '@/store/ui';
 import {
   useMatterBrief,
+  useMatterTimeline,
   useMatterDocument,
   useMatterDocuments,
   usePullMatterDocument,
@@ -207,7 +208,7 @@ function DocumentsPane({ caseId, documents, isLoading, selectedDocId, onSelect }
         }}
         role="button"
         tabIndex={0}
-        aria-label="Upload documents — drop files or activate to browse"
+        aria-label="Upload documents: drop files or activate to browse"
       >
         <Icon name="upload" size={18} />
         <div>
@@ -508,6 +509,7 @@ function BriefPanel({
   documentCount: number;
 }) {
   const regenerate = useRegenerateMatterBrief(caseId);
+  const timelineQ = useMatterTimeline(caseId);
   const showToast = useUIStore((s) => s.showToast);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -550,7 +552,7 @@ function BriefPanel({
         <div className="heading-md" style={{ marginBottom: 8 }}>No brief yet</div>
         <p className="body-sm muted" style={{ marginBottom: 20, maxWidth: 460 }}>
           Generate a synthesised brief across the {documentCount > 0 ? `${documentCount} ingested ` : ''}
-          document{documentCount === 1 ? '' : 's'} in this matter — posture, key facts, disputed issues,
+          document{documentCount === 1 ? '' : 's'} in this matter: posture, key facts, disputed issues,
           chronology, and open questions.
         </p>
         <button
@@ -611,17 +613,34 @@ function BriefPanel({
       </BriefSection>
 
       <BriefSection title="Timeline">
-        {brief.timeline.length === 0 ? (
-          <p className="muted body-sm">No timeline events extracted.</p>
-        ) : (
+        {timelineQ.isLoading ? (
+          <p className="muted body-sm">Loading timeline…</p>
+        ) : timelineQ.data && timelineQ.data.items.length > 0 ? (
+          <ol className="matter-intel-timeline">
+            {timelineQ.data.items.map((f) => (
+              <li key={f.id}>
+                <span className="mono tabular" style={{ minWidth: 96 }}>{f.eventDate ?? 'N/A'}</span>
+                <span>
+                  {f.eventText}
+                  <span className="muted body-xs" style={{ display: 'block' }}>{f.sourceFileName}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : brief.timeline.length > 0 ? (
+          // Fallback to the brief's prose timeline — covers matters
+          // summarised before matter_facts existed, or a run with no
+          // parseable dates where the brief's LLM pass still produced prose.
           <ol className="matter-intel-timeline">
             {brief.timeline.map((t, i) => (
               <li key={`${t.date ?? ''}-${i}`}>
-                <span className="mono tabular" style={{ minWidth: 96 }}>{t.date || '—'}</span>
+                <span className="mono tabular" style={{ minWidth: 96 }}>{t.date || 'N/A'}</span>
                 <span>{t.event || ''}</span>
               </li>
             ))}
           </ol>
+        ) : (
+          <p className="muted body-sm">No timeline events extracted.</p>
         )}
       </BriefSection>
 
@@ -766,7 +785,7 @@ function DocumentDetailPanel({
       {!summary && (
         <div className="muted body-sm" style={{ padding: 16 }}>
           {doc.status === 'ready'
-            ? 'No structured summary yet — click "Re-summarise" to generate one.'
+            ? 'No structured summary yet. Click "Re-summarise" to generate one.'
             : 'Summary will appear once extraction and indexing finish.'}
         </div>
       )}
@@ -784,7 +803,7 @@ function DocumentDetailPanel({
               <ul className="matter-intel-bullets">
                 {summary.parties.map((p, i) => (
                   <li key={i}>
-                    <strong>{p.name || '—'}</strong>
+                    <strong>{p.name || 'N/A'}</strong>
                     {p.role ? <span className="muted"> · {p.role}</span> : null}
                   </li>
                 ))}
@@ -797,7 +816,7 @@ function DocumentDetailPanel({
               <ol className="matter-intel-timeline">
                 {summary.keyDates.map((d, i) => (
                   <li key={i}>
-                    <span className="mono tabular" style={{ minWidth: 96 }}>{d.date || '—'}</span>
+                    <span className="mono tabular" style={{ minWidth: 96 }}>{d.date || 'N/A'}</span>
                     <span>{d.event || ''}</span>
                   </li>
                 ))}
@@ -818,7 +837,7 @@ function DocumentDetailPanel({
               <ul className="matter-intel-bullets">
                 {summary.citations.map((c, i) => (
                   <li key={i}>
-                    <strong>{c.statute_or_case || '—'}</strong>
+                    <strong>{c.statute_or_case || 'N/A'}</strong>
                     {c.reference ? <span className="muted"> · {c.reference}</span> : null}
                   </li>
                 ))}
@@ -960,7 +979,7 @@ function ChatStream({
   onAutoCreateThread: () => Promise<string>;
 }) {
   const messagesQ = useMatterChatMessages(threadId);
-  const poster = usePostMatterChatMessage(threadId ?? '', caseId);
+  const poster = usePostMatterChatMessage(threadId, caseId);
 
   const [draft, setDraft] = useState('');
   const [streaming, setStreaming] = useState<OptimisticAssistant | null>(null);
@@ -969,6 +988,11 @@ function ChatStream({
   const [reconnecting, setReconnecting] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Clear errors when the active thread changes.
+  useEffect(() => {
+    setStreamError(null);
+  }, [threadId]);
 
   // Keep the scroll glued to the bottom as new messages / deltas arrive.
   useEffect(() => {
@@ -1023,12 +1047,14 @@ function ChatStream({
         onError: (msg) => {
           setStreamError(msg);
           setStreaming(null);
+          setOptimisticUser(null);
         },
         onReconnecting: (attempt, delayMs) => {
           setReconnecting(`Reconnecting (attempt ${attempt}, ${Math.round(delayMs / 1000)}s)…`);
         },
       },
       controller.signal,
+      activeId,
     );
     setReconnecting(null);
   };
@@ -1165,8 +1191,8 @@ function Bubble({
       {!isUser && (degraded || ungrounded) && (
         <div className="matter-intel-bubble-warn">
           {degraded
-            ? 'AI is disabled — this is a fallback response.'
-            : 'No citations — verify before relying on this answer.'}
+            ? 'AI is disabled. This is a fallback response.'
+            : 'No citations: verify before relying on this answer.'}
         </div>
       )}
     </div>
@@ -1247,7 +1273,7 @@ function CitationDrawer({
               */}
               {docQ.data.summary?.executiveSummary
                 || docQ.data.statusError
-                || 'Source preview not available — switch to the Documents tab to open this file.'}
+                || 'Source preview not available. Switch to the Documents tab to open this file.'}
             </p>
           )}
         </div>

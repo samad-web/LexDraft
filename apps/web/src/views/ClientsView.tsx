@@ -1,6 +1,8 @@
 import { Fragment, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
+import { casesForClient } from '@/lib/client-case-link';
 import { useSavedFilter } from '@/hooks/useSavedFilter';
 import type { Case, Client, ClientType, ClientStatus } from '@lexdraft/types';
 import { useClients, useDeleteClient } from '@/hooks/useClients';
@@ -52,6 +54,7 @@ const STATUS_BADGE: Record<ClientStatus, { label: string; cls: string }> = {
 };
 
 export function ClientsView() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useSavedFilter<FilterId>('clients.filter', 'all', (raw) =>
     typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
   );
@@ -128,7 +131,7 @@ export function ClientsView() {
             `Share these credentials with ${client.name} so they can sign in to their dashboard.\n\n`
             + `Email: ${client.email ?? '(no email on file)'}\n`
             + `Password: ${res.password}\n\n`
-            + `This is a default password — note it down or share it now. `
+            + `This is a default password, so note it down or share it now. `
             + `You can reset it any time from this page.`,
           tone: 'success',
         });
@@ -180,7 +183,7 @@ export function ClientsView() {
         await alertDialog({
           title: 'New password generated',
           message:
-            `Share this fresh password with ${client.name} — the previous one no longer works.\n\n`
+            `Share this fresh password with ${client.name}. The previous one no longer works.\n\n`
             + `Email: ${client.email ?? '(no email on file)'}\n`
             + `Password: ${res.password}`,
           tone: 'success',
@@ -337,13 +340,10 @@ export function ClientsView() {
             {pager.slice.map((c) => {
               const badge = STATUS_BADGE[c.status];
               const isExpanded = expandedClientId === c.id;
-              // Match cases by client name — the schema relates them via
-              // the freeform `cases.client` string, not an FK. Lower-case
-              // compare to absorb stray casing differences between the
-              // two tables (entered by different forms over time).
-              const clientMatters = (cases.data ?? []).filter(
-                (m) => m.client.trim().toLowerCase() === c.name.trim().toLowerCase(),
-              );
+              // Match cases by client name — the schema relates them via the
+              // freeform `cases.client` string, not an FK. Uses the shared
+              // normaliser so this count matches the client detail page.
+              const clientMatters = casesForClient(cases.data ?? [], c);
               return (
                 <Fragment key={c.id}>
                   <tr>
@@ -351,7 +351,22 @@ export function ClientsView() {
                       <div className="row" style={{ gap: 12 }}>
                         <span className="avatar" aria-hidden="true">{c.initials}</span>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 500 }}>{c.name}</div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/app/clients/${c.id}`)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 0,
+                              font: 'inherit',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              color: 'var(--text-primary)',
+                            }}
+                            title={`Open ${c.name}`}
+                          >
+                            {c.name}
+                          </button>
                           {/* Subtitle: the client's contact email — what an
                               advocate actually needs at a glance. Never the
                               internal record id. Falls back to a neutral hint
@@ -387,7 +402,11 @@ export function ClientsView() {
                         style={{ padding: '0 var(--space-2)', gap: 6 }}
                       >
                         <span className="mono tabular">
-                          {cases.isLoading ? c.mattersOpen : clientMatters.length}
+                          {cases.isLoading ? (
+                            <span className="muted" aria-label="Loading matter count">···</span>
+                          ) : (
+                            clientMatters.length
+                          )}
                         </span>
                         <Icon name={isExpanded ? 'chevronD' : 'chevron'} size={12} />
                       </button>
@@ -421,15 +440,22 @@ export function ClientsView() {
                         </Gate>
                       ) : (
                         <Gate feature="client.create">
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            disabled={busyClientId === c.id || !c.email}
-                            onClick={() => onEnable(c)}
-                            title={!c.email ? 'Add a contact email first' : 'Enable portal access'}
-                          >
-                            Enable
-                          </button>
+                          <div className="col" style={{ gap: 4 }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              disabled={busyClientId === c.id || !c.email}
+                              onClick={() => onEnable(c)}
+                              title={!c.email ? 'Add a contact email first' : 'Enable portal access'}
+                            >
+                              Enable
+                            </button>
+                            {!c.email && (
+                              <span className="body-sm muted" style={{ fontSize: 11 }}>
+                                Add a contact email first
+                              </span>
+                            )}
+                          </div>
                         </Gate>
                       )}
                     </td>
@@ -468,6 +494,7 @@ export function ClientsView() {
                           loading={cases.isLoading}
                           error={cases.isError}
                           matters={clientMatters}
+                          onOpenMatter={(m) => navigate(`/app/cases/${m.id}`)}
                         />
                       </td>
                     </tr>
@@ -509,6 +536,7 @@ function ClientMattersPanel(props: {
   loading: boolean;
   error: boolean;
   matters: ReadonlyArray<Case>;
+  onOpenMatter: (m: Case) => void;
 }): JSX.Element {
   if (props.loading) {
     return (
@@ -553,7 +581,16 @@ function ClientMattersPanel(props: {
           <div className="mono clients-cell-hide-tablet" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>NEXT HEARING</div>
         </div>
         {props.matters.map((m) => (
-          <div key={m.id} className="clients-row">
+          <div
+            key={m.id}
+            className="clients-row"
+            onClick={() => props.onOpenMatter(m)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); props.onOpenMatter(m); } }}
+            style={{ cursor: 'pointer' }}
+            title="Open case"
+          >
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {m.title}

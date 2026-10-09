@@ -952,6 +952,8 @@ const IntakeReply = z.object({
 const IntakeDraftNow = z.object({
   matterId: z.string().uuid(),
   docLabel: z.string().min(1),
+  // Output language for the rendered document. 'EN' default; 'TA' → Tamil render.
+  language: z.enum(['EN', 'HI', 'TA']).optional(),
 });
 
 const IntakeEdit = z.object({
@@ -1126,7 +1128,10 @@ draftingRouter.post('/engine/intake/draft-now', requireFeature('drafting.ai'), l
     const ctx = await intakeSetup(req, res, parsed.docLabel, true);
     if (!ctx) return;
     try {
-      const state = await intakeService.draftNow(parsed.matterId, parsed.docLabel, ctx);
+      const state = await intakeService.draftNow(parsed.matterId, parsed.docLabel, {
+        ...ctx,
+        ...(parsed.language ? { language: parsed.language } : {}),
+      });
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }

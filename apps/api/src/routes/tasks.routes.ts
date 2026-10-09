@@ -59,7 +59,12 @@ tasksRouter.post('/:id/move', requireFeature('matter.create'), async (req, res, 
   try {
     const firmId = await firmIdForUser(req.user?.id);
     const { to } = Move.parse(req.body);
-    res.json(await tasksService.move(String(req.params.id ?? ''), to, firmId));
+    const board = await tasksService.move(String(req.params.id ?? ''), to, firmId);
+    if (!board) {
+      res.status(404).json({ error: 'Task not found' });
+      return;
+    }
+    res.json(board);
   } catch (err) {
     next(err);
   }

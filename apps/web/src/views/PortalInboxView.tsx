@@ -39,7 +39,7 @@ export function PortalInboxView() {
       </div>
 
       <div className="inbox-grid">
-        <aside className="card" style={{ padding: 0, overflow: 'hidden', alignSelf: 'flex-start' }}>
+        <aside className="card" style={{ padding: 0, overflow: 'auto' }}>
           {inbox.isLoading && (
             <div aria-busy="true" aria-label="Loading inbox">
               {Array.from({ length: 5 }, (_, i) => (
@@ -117,7 +117,7 @@ export function PortalInboxView() {
           })}
         </aside>
 
-        <section className="card" style={{ padding: 0, overflow: 'hidden', minHeight: 360 }}>
+        <section className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
           {selected ? (
             <ThreadPane
               clientId={selected.clientId}
@@ -126,7 +126,13 @@ export function PortalInboxView() {
               matterTitle={selected.matterTitle}
             />
           ) : (
-            <div style={{ padding: 24 }} className="muted">Select a thread to read.</div>
+            <div style={{ padding: 16 }}>
+              <EmptyState
+                variant="inline"
+                title="Select a thread"
+                description="Choose a conversation from the list to read it here."
+              />
+            </div>
           )}
         </section>
       </div>
@@ -182,7 +188,7 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
         <div className="muted" style={{ fontSize: 12 }}>{matterTitle ?? 'General thread'}</div>
       </header>
 
-      <div style={{ padding: 16, overflowY: 'auto', maxHeight: 480, flex: 1 }} role="log" aria-live="polite">
+      <div style={{ padding: 16, overflowY: 'auto', flex: 1, minHeight: 0 }} role="log" aria-live="polite">
         {thread.isLoading && (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

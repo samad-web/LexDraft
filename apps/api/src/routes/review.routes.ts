@@ -28,7 +28,8 @@ import { reviewCommentsService } from '../services/review-comments.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 import { llmGenerationLimiter } from '../middleware/rateLimit';
-import { UnauthorizedError } from '../lib/errors';
+import { UnauthorizedError, UnprocessableEntityError } from '../lib/errors';
+import { extractText } from '../lib/text-extraction';
 import { db } from '../db/client';
 
 const PERSPECTIVE = z.enum([
@@ -45,6 +46,21 @@ const Create = z.object({
   caseId: z.string().uuid().optional(),
   documentId: z.string().uuid().optional(),
   provider: z.enum(['xai', 'anthropic']).optional(),
+});
+
+// Server-side text extraction for uploads whose text couldn't be read in the
+// browser - principally SCANNED / image-only PDFs, which have no text layer for
+// pdfjs to read. The payload is the raw file as base64 (kept JSON so we don't
+// pull in multipart infra just for this). extractText() runs pdf-parse and,
+// when the text layer is empty, falls back to on-device Tesseract OCR - the
+// same path case-note attachments already use.
+const Extract = z.object({
+  filename: z.string().min(1).max(255),
+  mime: z.string().max(200).optional(),
+  // base64 of the file bytes. ~11MB raw once the 33% base64 inflation is
+  // accounted for against the 16MB express.json limit - plenty for the
+  // few-page offer letters / agreements this feature targets.
+  dataBase64: z.string().min(1).max(15_000_000),
 });
 
 const UpdateLifecycle = z.object({
@@ -102,6 +118,40 @@ reviewRouter.get('/', gate, async (req, res, next) => {
     const firmId = await firmIdForUser(req.user?.id);
     const caseId = typeof req.query.caseId === 'string' ? req.query.caseId : undefined;
     res.json(await reviewService.list(firmId, caseId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Server-side extraction + OCR fallback for scanned uploads. Gated the same as
+// the rest of the review surface; rate-limited with the LLM limiter because OCR
+// is CPU-heavy (page rasterise + Tesseract) and shouldn't be spammable. Defined
+// BEFORE `/:id` so Express doesn't match `extract` as an id.
+reviewRouter.post('/extract', gate, llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const body = Extract.parse(req.body);
+    const buffer = Buffer.from(body.dataBase64, 'base64');
+    if (buffer.length === 0) {
+      throw new UnprocessableEntityError('Uploaded file was empty or not valid base64.');
+    }
+    const result = await extractText({
+      body: buffer,
+      mime: body.mime ?? '',
+      fileName: body.filename,
+    });
+    if (!result.ok) {
+      throw new UnprocessableEntityError(result.error);
+    }
+    const text = result.text.trim();
+    if (text.length < 50) {
+      // A scanned PDF that even OCR couldn't read (blurry scan, handwriting,
+      // non-English). Tell the caller so the UI can prompt for a manual paste
+      // rather than silently sending near-empty text to the model.
+      throw new UnprocessableEntityError(
+        'Could not read enough text from this file, even with OCR. If it is a low-quality scan, paste the contract text manually.',
+      );
+    }
+    res.json({ text, chars: text.length });
   } catch (err) {
     next(err);
   }

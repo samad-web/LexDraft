@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, ErrorState } from '@lexdraft/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from '@/store/ui';
 import { useCalendarDay } from '@/hooks/useCalendar';
@@ -35,7 +35,7 @@ export function CauseListView() {
   const showToast = useUIStore((s) => s.showToast);
   const today = TODAY_LABEL; // string used in eyebrow
   const todayIso = new Date().toISOString().slice(0, 10);
-  const { data: hearings = [], isLoading, isError } = useCalendarDay(todayIso);
+  const { data: hearings = [], isLoading, isError, refetch } = useCalendarDay(todayIso);
   const qc = useQueryClient();
 
   const ROWS: CauseRow[] = useMemo(() =>
@@ -184,8 +184,13 @@ export function CauseListView() {
             )}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--danger)' }}>
-                  Couldn’t load cause list.
+                <td colSpan={6}>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load cause list"
+                    description="Check your connection and try again."
+                    onRetry={() => { void refetch(); }}
+                  />
                 </td>
               </tr>
             )}

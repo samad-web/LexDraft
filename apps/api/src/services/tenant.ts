@@ -26,6 +26,17 @@ import { cacheBroadcaster } from './cache-broadcaster';
 const CACHE_TTL_MS = 15_000;
 const cache = new Map<string, { firmId: string | null; expiresAt: number }>();
 
+// User ids are Postgres `uuid`s. A token minted by the in-memory demo store (or
+// any stale/tampered session) can carry a non-UUID `sub`; feeding that to a
+// `${userId}::uuid` cast makes Postgres throw "invalid input syntax for type
+// uuid", turning every tenant-scoped read into a 500. Such an id can never
+// match a real user, so we treat it as "no tenant" (null) — the same safe
+// default as an unattached user — instead of letting the cast blow up.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isUuid(value: string | undefined | null): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
 // Cross-replica invalidation. Other replicas' invalidateTenantCache
 // calls will arrive here via the broadcaster and drop our local entry.
 // Subscribing at module-load time is safe - the broadcaster buffers
@@ -49,6 +60,10 @@ export function invalidateTenantCache(userId?: string): void {
 
 export async function firmIdForUser(userId: string | undefined): Promise<string | null> {
   if (!userId) return null;
+  // Guard the `${userId}::uuid` cast below: a non-UUID sub (stale demo-mode
+  // token) would otherwise throw at the DB and surface as a 500 on every
+  // tenant route. No real user has a non-UUID id, so this is "no tenant".
+  if (!isUuid(userId)) return null;
   const now = Date.now();
   const hit = cache.get(userId);
   if (hit && hit.expiresAt > now) return hit.firmId;
@@ -79,6 +94,29 @@ export async function caseBelongsToFirm(firmId: string, caseId: string): Promise
   const [row] = await sql<{ id: string }[]>`
     select id from cases
     where id = ${caseId}::uuid and firm_id = ${firmId}::uuid
+    limit 1
+  `;
+  return !!row;
+}
+
+/**
+ * Cross-firm co-counsel access check. True when `userId` holds an active
+ * `case_guest_grants` row for `caseId` (migration 0073) - i.e. they were
+ * handed this one case by another firm and aren't a member of it.
+ *
+ * This is deliberately separate from `caseBelongsToFirm`: a guest's own
+ * `firmIdForUser` resolves to their own firm (or none), so the normal
+ * firm-scoped WHERE clause on case-linked tables will never match them.
+ * Callers that want to support guest access check both conditions
+ * explicitly rather than folding this into the tenant resolver itself.
+ */
+export async function hasCaseAccess(userId: string, caseId: string): Promise<boolean> {
+  if (!isUuid(userId)) return false;
+  const sql = db();
+  if (!sql) return false;
+  const [row] = await sql<{ id: string }[]>`
+    select id from case_guest_grants
+    where case_id = ${caseId}::uuid and guest_user_id = ${userId}::uuid and status = 'active'
     limit 1
   `;
   return !!row;

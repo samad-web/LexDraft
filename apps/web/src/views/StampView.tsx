@@ -49,6 +49,10 @@ export function StampView() {
   const [propertyValue, setPropertyValue]   = useState<string>('5500000');
   const showToast = useUIStore((s) => s.showToast);
 
+  const hasConsideration = consideration !== '' && Number(consideration) > 0;
+  const hasPropertyValue = propertyValue !== '' && Number(propertyValue) > 0;
+  const missingValue = !hasConsideration || !hasPropertyValue;
+
   const calc = useMemo(() => {
     const c = Number(consideration) || 0;
     const p = Number(propertyValue) || 0;
@@ -238,12 +242,17 @@ export function StampView() {
           </div>
         </div>
 
-        <div className="card-cream">
+        <div className="card-cream" style={missingValue ? { opacity: 0.55 } : undefined}>
           <div className="row" style={{ marginBottom: 6 }}>
             <span className="eyebrow">Estimate</span>
             <span className="spacer" />
             <span className="badge badge-cobalt">{stateName.toUpperCase()}</span>
           </div>
+          {missingValue && (
+            <div className="body-xs" style={{ color: 'var(--vermillion)', marginBottom: 10 }}>
+              Enter both consideration and market/property value for an accurate estimate.
+            </div>
+          )}
           <div className="display-md tabular" style={{ marginBottom: 8 }}>
             ₹{formatINR(calc.total)}
           </div>

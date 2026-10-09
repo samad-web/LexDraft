@@ -43,6 +43,7 @@ import { sanhitaRouter } from './sanhita.routes';
 import { calculatorsRouter } from './calculators.routes';
 import { conflictsRouter } from './conflicts.routes';
 import { coverageRouter } from './coverage.routes';
+import { coCounselRouter } from './co-counsel.routes';
 import { practiceAnalyticsRouter } from './practice-analytics.routes';
 import { engagementRouter } from './engagement.routes';
 import { caseloadHealthRouter } from './caseload-health.routes';
@@ -102,6 +103,13 @@ apiRouter.use('/portal', portalRouter);
 // Mixed: GET /by-token/:token + POST /by-token/:token/accept are public,
 // everything else under /invitations applies requireAuth via the router itself.
 apiRouter.use('/invitations', invitationsRouter);
+
+// Mixed, same reasoning as /invitations: GET/POST /accept/by-token/:token are
+// public (the receiving advocate may not have an account yet); everything
+// else applies requireAuth via the router itself. No requireActivePlan at the
+// mount level - a brand-new co-counsel guest has no plan to check yet, and a
+// lapsed-plan advocate should still be able to accept/decline a handover.
+apiRouter.use('/co-counsel', coCounselRouter);
 
 // Protected. `requireActivePlan` runs after `requireAuth` on every feature
 // mount and returns 402 (PaymentRequired) when firms.plan_status is

@@ -43,7 +43,7 @@ export function RefusalMessage({ refusal, fieldLabels, onHighlightFields }: Prop
         </span>
         <div>
           <p className="engine-refusal__lead">
-            This can’t be filed as it stands — and here’s why.
+            This can’t be filed as it stands. Here’s why.
           </p>
           {/* The engine's exact advocate-facing reason, in plain terms. */}
           <p className="engine-refusal__reason">{refusal.reason}</p>

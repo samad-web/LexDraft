@@ -75,6 +75,16 @@ apiClient.interceptors.response.use(
         planTier: payload?.planTier ?? null,
       });
     }
+
+    // Unwrap the server's clean `{ error: "..." }` message onto err.message.
+    // Without this, every caller reading `(mutation.error as Error).message`
+    // (sign-in, sign-up, invite-member, etc.) sees axios's generic
+    // "Request failed with status code NNN" instead of the actionable
+    // message the API actually sent. err.response/err.response.data/
+    // isAxiosError are left untouched for callers that branch on status/code.
+    if (payload?.error) {
+      err.message = payload.error;
+    }
     return Promise.reject(err);
   },
 );

@@ -2,6 +2,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { logger } from '../logger';
 import { isHttpError } from '../lib/errors';
+import { EcourtsHttpError } from '../lib/ecourts';
 import { errorLogService } from '../services/error-log.service';
 import { firmIdForUser } from '../services/tenant';
 
@@ -90,7 +91,10 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   }
 
   // Typed HTTP errors - status, code, and (when safe) details are taken
-  // from the class instance. 4xx are exposed; 5xx fall through to opaque.
+  // from the class instance. 4xx are exposed by default; 5xx default to
+  // opaque but can opt in via `expose: true` for safe, operator-authored
+  // messages (e.g. "Indian-law corpus is not configured on this
+  // deployment.") that are useful to the client without leaking internals.
   if (isHttpError(err)) {
     if (err.status >= 500) {
       (req.log ?? logger).error(
@@ -98,7 +102,10 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
         'HttpError 5xx',
       );
       if (shouldCapture(err.status)) captureAsync(req, err.status, err);
-      res.status(err.status).json({ error: 'Internal Server Error', code: err.code });
+      res.status(err.status).json({
+        error: err.expose ? err.message : 'Internal Server Error',
+        code: err.code,
+      });
       return;
     }
     if (shouldCapture(err.status)) captureAsync(req, err.status, err);
@@ -110,16 +117,34 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
 
+  // eCourts upstream failures (timeout, non-2xx, malformed response) carry a
+  // safe, specific message - "eCourts didn't respond in time" isn't a leak,
+  // and hiding it behind the generic 500 text is what made a slow upstream
+  // call look like a LexDraft bug to the advocate. Surface it as-is.
+  if (err instanceof EcourtsHttpError) {
+    (req.log ?? logger).warn({ err, path: req.path, method: req.method }, 'eCourts upstream error');
+    if (shouldCapture(err.status)) captureAsync(req, err.status, err);
+    res.status(err.status >= 500 ? 502 : err.status).json({ error: err.message });
+    return;
+  }
+
   // Legacy throw-sites that attach `.status` to a plain Error. Mapped the
-  // same way so the migration to typed errors can be incremental.
+  // same way so the migration to typed errors can be incremental. A
+  // throw-site can also opt a 5xx into exposing its message verbatim by
+  // attaching `.expose = true` (mirrors HttpError's `expose` field) - e.g.
+  // `Object.assign(new Error('Indian-law corpus is not configured on this
+  // deployment.'), { status: 503, expose: true })`. Anything without that
+  // explicit flag keeps the opaque message so we never leak stack/DB/
+  // internal details by default.
   const status = (err && typeof err === 'object' && 'status' in err && typeof err.status === 'number')
     ? (err.status as number)
     : 500;
+  const expose = !!(err && typeof err === 'object' && 'expose' in err && err.expose === true);
   const message = err instanceof Error ? err.message : 'Internal Server Error';
   if (status >= 500) {
     (req.log ?? logger).error({ err, path: req.path, method: req.method }, 'Unhandled error');
     if (shouldCapture(status)) captureAsync(req, status, err);
-    res.status(status).json({ error: 'Internal Server Error' });
+    res.status(status).json({ error: expose ? message : 'Internal Server Error' });
     return;
   }
   if (shouldCapture(status)) captureAsync(req, status, err);

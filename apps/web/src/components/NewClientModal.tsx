@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Select, DatePicker } from '@lexdraft/ui';
-import type { Client, ClientStatus, ClientType, Lead } from '@lexdraft/types';
-import { useCreateClient, useUpdateClient } from '@/hooks/useClients';
+import { Icon, Select, DatePicker } from '@lexdraft/ui';
+import type { Case, Client, ClientStatus, ClientType, Lead } from '@lexdraft/types';
+import { useClients, useCreateClient, useUpdateClient } from '@/hooks/useClients';
+import { useCreateCase } from '@/hooks/useCases';
+import { useCreateDocument } from '@/hooks/useDocuments';
 import { useLeads } from '@/hooks/useLeads';
+import { api } from '@/lib/api';
 import { useUIStore } from '@/store/ui';
+import { DictateButton } from './DictateButton';
+import { FileStager, type StagedFile } from './FileStager';
 import { Modal, Field } from './Modal';
 
 interface Props {
@@ -25,12 +30,38 @@ function formatINR(value: number): string {
   return value.toLocaleString('en-IN');
 }
 
+function placeholderCnr(): string {
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `TEMP-${today}-${rand}`;
+}
+
+/** Best-effort document type from a filename so staged uploads get a useful
+ *  chip. Mirrors NewCaseModal.inferDocType. */
+function inferDocType(filename: string): string {
+  const lower = filename.toLowerCase();
+  if (/plaint/.test(lower)) return 'Plaint';
+  if (/affidavit/.test(lower)) return 'Affidavit';
+  if (/notice/.test(lower)) return 'Notice';
+  if (/contract|agreement|deed/.test(lower)) return 'Contract';
+  if (/vakalat/.test(lower)) return 'Vakalatnama';
+  if (/petition/.test(lower)) return 'Petition';
+  const ext = lower.match(/\.([a-z0-9]+)$/)?.[1];
+  if (ext === 'pdf') return 'PDF';
+  if (ext === 'doc' || ext === 'docx') return 'Word document';
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' || ext === 'heic') return 'Scan';
+  return 'Other';
+}
+
 export function NewClientModal({ open, onClose, existing }: Props) {
   const create = useCreateClient();
   const update = useUpdateClient();
+  const createCase = useCreateCase();
+  const createDocument = useCreateDocument();
   const showToast = useUIStore((s) => s.showToast);
   const { data: leads = [] } = useLeads();
   const wonLeads = useMemo(() => leads.filter((l) => l.stage === 'won'), [leads]);
+  const { data: allClients = [] } = useClients();
 
   const isEdit = !!existing;
   const [name, setName] = useState('');
@@ -38,6 +69,21 @@ export function NewClientModal({ open, onClose, existing }: Props) {
   const [status, setStatus] = useState<ClientStatus>('active');
   const [lastContact, setLastContact] = useState<string>(todayIso());
   const [email, setEmail] = useState<string>('');
+
+  // Optional "open a case for this client" section. All fields optional; the
+  // section only does anything when the advocate expands it and fills something
+  // in. On create-only (not edit), it lets the whole client + first matter +
+  // its content/files be captured in one flow.
+  const [addCase, setAddCase] = useState(false);
+  const [caseTitle, setCaseTitle] = useState('');
+  const [caseContent, setCaseContent] = useState('');
+  const [caseDocs, setCaseDocs] = useState<StagedFile[]>([]);
+
+  const appendSpoken = (
+    setter: (fn: (prev: string) => string) => void,
+  ) => (text: string) => {
+    setter((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+  };
 
   // Hydrate form from `existing` when the modal opens for edit; clear it
   // back to defaults when opening in create mode.
@@ -56,6 +102,11 @@ export function NewClientModal({ open, onClose, existing }: Props) {
       setLastContact(todayIso());
       setEmail('');
     }
+    // Always reset the optional-case section when (re)opening.
+    setAddCase(false);
+    setCaseTitle('');
+    setCaseContent('');
+    setCaseDocs([]);
   }, [open, existing]);
 
   const handlePickLead = (lead: Lead) => {
@@ -91,7 +142,74 @@ export function NewClientModal({ open, onClose, existing }: Props) {
           lastContact,
           email: trimmedEmail || undefined,
         });
-        showToast({ type: 'sage', text: `Client "${created.name}" added` });
+
+        // Optionally open a first case for this client, in the same flow. Only
+        // runs when the advocate expanded the section AND supplied at least a
+        // title, case content, or a document. The case is linked to the client
+        // by name (same as everywhere else).
+        const wantsCase = addCase && (caseTitle.trim() || caseContent.trim() || caseDocs.length > 0);
+        if (wantsCase) {
+          const resolvedTitle = caseTitle.trim() || `Matter for ${created.name}`;
+          try {
+            const newCase = await createCase.mutateAsync({
+              cnr: placeholderCnr(),
+              title: resolvedTitle,
+              client: created.name,
+              court: '',
+              type: 'Civil',
+              stage: 'Filing',
+              status: 'Active',
+              next: '',
+            } as Omit<Case, 'id'>);
+
+            if (caseContent.trim()) {
+              try {
+                await api.post('/case-notes', {
+                  caseId: newCase.id,
+                  body: caseContent.trim(),
+                  visibility: 'shared',
+                  title: 'Case content',
+                });
+              } catch { /* non-fatal - note can be re-added from the case */ }
+            }
+
+            let uploaded = 0;
+            const failed: string[] = [];
+            for (const doc of caseDocs) {
+              try {
+                await createDocument.mutateAsync({
+                  name: doc.name,
+                  type: inferDocType(doc.name),
+                  case: newCase.title,
+                  updated: 'just now',
+                  fileName: doc.name,
+                  fileMime: doc.mime,
+                  fileSize: doc.size,
+                  fileBase64: doc.base64,
+                });
+                uploaded += 1;
+              } catch {
+                failed.push(doc.name);
+              }
+            }
+
+            showToast({
+              type: failed.length ? 'amber' : 'sage',
+              text: failed.length
+                ? `Client & case created; ${uploaded} file${uploaded === 1 ? '' : 's'} attached, ${failed.length} failed (${failed.join(', ')}).`
+                : `Client "${created.name}" added with a new case${uploaded ? ` and ${uploaded} file${uploaded === 1 ? '' : 's'}` : ''}`,
+            });
+          } catch {
+            // Client is saved; the case failed. Tell the user so they can open
+            // it from the client page rather than losing the client entirely.
+            showToast({
+              type: 'amber',
+              text: `Client "${created.name}" added, but the case could not be created. Open one from the client page.`,
+            });
+          }
+        } else {
+          showToast({ type: 'sage', text: `Client "${created.name}" added` });
+        }
       }
       onClose();
     } catch (err) {
@@ -103,7 +221,18 @@ export function NewClientModal({ open, onClose, existing }: Props) {
     }
   };
 
-  const busy = create.isPending || update.isPending;
+  const busy = create.isPending || update.isPending || createCase.isPending || createDocument.isPending;
+
+  // Soft warning only — there's no DB uniqueness constraint on client name
+  // (legitimately repeated names, e.g. common surnames, are allowed), so this
+  // never blocks submission. It just catches the common case of someone
+  // about to create an accidental duplicate instead of finding the existing
+  // record, which otherwise silently splits that client's matters/invoices
+  // across two rows.
+  const trimmedName = name.trim().toLowerCase();
+  const duplicateClient = trimmedName
+    ? allClients.find((c) => c.id !== existing?.id && c.name.trim().toLowerCase() === trimmedName)
+    : undefined;
 
   return (
     <Modal
@@ -119,7 +248,11 @@ export function NewClientModal({ open, onClose, existing }: Props) {
           <button type="submit" className="btn btn-primary" disabled={busy}>
             {busy
               ? (isEdit ? 'Saving…' : 'Adding…')
-              : (isEdit ? 'Save changes' : 'Add client')}
+              : isEdit
+                ? 'Save changes'
+                : addCase && (caseTitle.trim() || caseContent.trim() || caseDocs.length > 0)
+                  ? 'Add client & case'
+                  : 'Add client'}
           </button>
         </>
       }
@@ -142,6 +275,11 @@ export function NewClientModal({ open, onClose, existing }: Props) {
             wonLeads={wonLeads}
             onPickLead={handlePickLead}
           />
+        )}
+        {duplicateClient && (
+          <p className="body-sm" style={{ color: 'var(--warning)', marginTop: 6 }}>
+            <Icon name="flag" size={12} /> A client named "{duplicateClient.name}" already exists. Continuing will create a second, separate record.
+          </p>
         )}
       </Field>
       <Field
@@ -178,6 +316,67 @@ export function NewClientModal({ open, onClose, existing }: Props) {
           <DatePicker value={lastContact} onChange={setLastContact} />
         </Field>
       </div>
+
+      {/* Optional: open the client's first case in the same flow. Create-mode
+          only - editing a client is about the client record, not new matters. */}
+      {!isEdit && (
+        <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 8, paddingTop: 16 }}>
+          {!addCase ? (
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setAddCase(true)}
+              style={{ alignSelf: 'flex-start' }}
+            >
+              <Icon name="plus" size={12} /> Also open a case for this client
+            </button>
+          ) : (
+            <div className="col" style={{ gap: 14 }}>
+              <div className="row" style={{ alignItems: 'center' }}>
+                <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
+                  NEW CASE (OPTIONAL)
+                </div>
+                <span className="spacer" style={{ flex: 1 }} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAddCase(false); setCaseTitle(''); setCaseContent(''); setCaseDocs([]); }}>
+                  Remove
+                </button>
+              </div>
+
+              <Field label="MATTER TITLE" wide>
+                <input
+                  className="input"
+                  value={caseTitle}
+                  onChange={(e) => setCaseTitle(e.target.value)}
+                  placeholder={`e.g. ${name.trim() || 'Client'} v. Opposing Party`}
+                />
+              </Field>
+
+              <Field label="CASE CONTENT / NOTES" hint="Type or dictate the matter's facts / background. Saved to the case's Notes." wide>
+                <div className="row" style={{ gap: 8, marginBottom: 8, justifyContent: 'flex-end' }}>
+                  <DictateButton onTranscript={appendSpoken(setCaseContent)} label="Voice note" />
+                </div>
+                <textarea
+                  className="input"
+                  value={caseContent}
+                  onChange={(e) => setCaseContent(e.target.value)}
+                  placeholder="Facts, client's account, key dates. Tap Voice note and speak instead of typing."
+                  rows={4}
+                  style={{ resize: 'vertical', minHeight: 90, fontFamily: 'inherit' }}
+                  maxLength={50_000}
+                />
+              </Field>
+
+              <Field label="CASE FILES" hint="Optional: attach the matter's papers; filed against the new case." wide>
+                <FileStager
+                  files={caseDocs}
+                  onChange={setCaseDocs}
+                  onError={(msg) => showToast({ type: 'amber', text: msg })}
+                />
+              </Field>
+            </div>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }

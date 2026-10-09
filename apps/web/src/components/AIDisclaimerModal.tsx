@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { LetterheadPicker } from './letterhead/LetterheadPicker';
 import { useModalA11y } from '@/hooks/useModalA11y';
@@ -6,17 +6,26 @@ import { useModalA11y } from '@/hooks/useModalA11y';
 interface AIDisclaimerModalProps {
   open: boolean;
   format: 'PDF' | 'DOCX' | null;
+  /** Seeds the letterhead picker when the dialog opens - typically the choice
+   *  the advocate already made via the inline toolbar control, so they don't
+   *  have to pick twice. Defaults to `undefined` (effective default). */
+  initialChoice?: string | null | undefined;
   onCancel: () => void;
   /** Receives the letterhead choice (undefined = auto-default, null = none,
    *  string = picked letterhead id) so the caller can pass it to exportPdf. */
   onConfirm: (letterheadChoice: string | null | undefined) => void;
 }
 
-export function AIDisclaimerModal({ open, format, onCancel, onConfirm }: AIDisclaimerModalProps) {
+export function AIDisclaimerModal({ open, format, initialChoice, onCancel, onConfirm }: AIDisclaimerModalProps) {
   const shellRef = useModalA11y<HTMLDivElement>(open, onCancel);
   const [acknowledged, setAcknowledged] = useState(false);
-  // Letterhead selection - defaults to the user's effective default.
-  const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(undefined);
+  // Letterhead selection - seeded from the inline toolbar choice each time the
+  // dialog opens so the two controls stay consistent.
+  const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(initialChoice);
+
+  useEffect(() => {
+    if (open) setLetterheadChoice(initialChoice);
+  }, [open, initialChoice]);
 
   if (!open || !format) return null;
 

@@ -91,6 +91,8 @@ export interface Hearing {
   court: string;
   purpose: string;
   status: 'today' | 'upcoming' | 'past';
+  /** Presiding judge/bench, when known. */
+  judge?: string | null;
 }
 
 export type AlertTone = 'vermillion' | 'amber' | 'cobalt' | 'sage';
@@ -652,6 +654,12 @@ export interface IntakeState {
   refusal: IntakeRefusal | null;
   /** The rendered document when status==='generated'. */
   draft: IntakeDraft | null;
+  /** A SECOND document generated alongside the primary `draft` — e.g. the proof
+   *  affidavit the engine derives from a s.138 complaint (same facts, first-person
+   *  voice). Present only when a doc type pairs documents AND the primary generated;
+   *  carries its own label so the UI can title/download it separately. Absent for
+   *  every single-document draft. */
+  companionDraft?: (IntakeDraft & { docLabel: string }) | null;
   /** When the format was AUTO-DETECTED from the opening description (startAuto),
    *  the label chosen — so the UI can confirm it and offer a one-click override.
    *  Absent when the advocate picked the format explicitly. */
@@ -664,6 +672,19 @@ export interface IntakeState {
    *  document (DraftBot-style), and nothing the parser missed is lost. Absent when
    *  no readable document has been attached. */
   sourceText?: string;
+  /** Set when the LAST extraction outright FAILED (the model output was truncated
+   *  past salvage) on a substantial paste — so the UI shows a "resend or split it"
+   *  retry affordance rather than a false per-field "you didn't give me" list. The
+   *  matter is still `gathering`; no fields are reported missing (extraction never
+   *  succeeded, so nothing can be honestly called absent). Absent on every normal
+   *  turn. */
+  retryable?: boolean;
+  /** IPC/CrPC/Evidence-Act references found in the brief/documents and their
+   *  in-force 2023-Sanhita (BNS/BNSS/BSA) replacements. Deterministic, from the
+   *  curated concordance; the drafted field values already carry the new sections.
+   *  Surfaced so the UI can show "this matter cites 420 IPC → 318 BNS". Absent when
+   *  no legacy reference was found. */
+  bnsConcordance?: Array<{ old: string; new: string; toAct: 'BNS' | 'BNSS' | 'BSA'; change: string }>;
 }
 
 export interface IntakeRefusal {
@@ -2150,6 +2171,23 @@ export interface MatterBrief {
   /** When non-null, a newer brief has been generated and this row is
    *  historical. The current brief is the one with supersededAt === null. */
   supersededAt: string | null;
+}
+
+/**
+ * A single dated event promoted from a document's AI-extracted key_dates,
+ * typed and attributed to its source document — unlike MatterBrief.timeline,
+ * which is prose re-synthesized by a second LLM call over per-document
+ * summaries and carries no source link. See migration 0075_matter_facts.sql.
+ */
+export interface MatterFact {
+  id: ID;
+  caseId: ID;
+  matterDocumentId: ID;
+  /** Null when the source key_dates entry had no parseable ISO-8601 date. */
+  eventDate: string | null;
+  eventText: string;
+  sourceFileName: string;
+  generatedAt: string;
 }
 
 export interface MatterChatThread {

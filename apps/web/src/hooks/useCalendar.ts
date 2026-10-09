@@ -34,6 +34,10 @@ export interface CreateHearingInput {
   status: 'today' | 'upcoming' | 'past';
   date?: string;
   judge?: string;
+  /** Pins the hearing to this exact case row instead of letting the server
+   *  fall back to a title-match lookup (which picks the newest case among
+   *  same-titled matters — see hearings.service.ts ensureCaseId). */
+  caseId?: string;
 }
 
 export function useCreateHearing() {

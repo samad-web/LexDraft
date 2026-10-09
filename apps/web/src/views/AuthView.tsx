@@ -366,11 +366,19 @@ export function AuthView() {
               />
             </div>
             {/*
-              "Remember me" + "Forgot?" affordances removed — neither was
-              wired (checkbox had no state, link was href="#"). Reintroduce
-              them only when a session-extension flag and password-reset
-              flow exist server-side.
+              "Remember me" removed — checkbox had no wired state.
+              Self-serve "Forgot password" also removed pending a
+              server-side reset flow; until it ships, point users to
+              support so they aren't stranded.
             */}
+            <div style={{ textAlign: 'right', marginTop: -4 }}>
+              <a
+                href="mailto:support@lexdraft.in?subject=Forgot%20password"
+                style={{ fontSize: 12, color: 'var(--text-secondary)' }}
+              >
+                Forgot password? Contact support
+              </a>
+            </div>
             {planMessage && (
               <div
                 role="status"
@@ -544,7 +552,7 @@ export function AuthView() {
                 marginTop: 8,
               }}
             >
-              Reference #{firmEnquiry.data?.id.slice(0, 8) ?? '—'}
+              Reference #{firmEnquiry.data?.id.slice(0, 8) ?? 'N/A'}
             </span>
             <button
               type="button"
@@ -553,6 +561,13 @@ export function AuthView() {
               onClick={() => navigate('/')}
             >
               Back to home
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setFirmEnquirySent(false)}
+            >
+              Made a mistake? Submit another enquiry
             </button>
           </div>
         )}
@@ -674,7 +689,7 @@ export function AuthView() {
                   rows={3}
                   value={enquiryMessage}
                   onChange={(e) => setEnquiryMessage(e.target.value)}
-                  placeholder="A short note on what you&rsquo;re looking for — drafting, matter management, compliance, etc."
+                  placeholder="A short note on what you&rsquo;re looking for: drafting, matter management, compliance, etc."
                 />
               </div>
             </div>
@@ -941,7 +956,7 @@ function MfaChallengeStep({
   // Backup codes are typically 10 chars (hex-like), TOTPs are 6 digits.
   // Use input semantics that match: numeric for TOTP, plain text for backup.
   const inputMax = useBackup ? 16 : 6;
-  const canSubmit = !expired && code.length >= (useBackup ? 6 : 6);
+  const canSubmit = !expired && code.length >= (useBackup ? 9 : 6);
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

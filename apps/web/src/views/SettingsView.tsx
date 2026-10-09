@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Select, type SelectOption } from '@lexdraft/ui';
+import { Card, ErrorState, Select, type SelectOption } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
 import { useSignOut } from '@/hooks/useAuth';
 import { useMfaStatus, useMfaDisable } from '@/hooks/useMfa';
@@ -110,6 +110,7 @@ function Row({ label, value }: { label: string; value: string }) {
 // see nothing — the standard billing panel takes over (still TBD).
 
 function TrialStatusPanel() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   if (!user || user.planStatus !== 'trial' || !user.trialEndsAt) return null;
 
@@ -145,14 +146,14 @@ function TrialStatusPanel() {
         </div>
         <p className="muted body-sm" style={{ margin: '8px 0 0' }}>
           {isDemo
-            ? 'This is a sandbox account so you can explore LexDraft. Convert to a real account any time — your existing work carries over.'
+            ? 'This is a sandbox account so you can explore LexDraft. Convert to a real account any time: your existing work carries over.'
             : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
         </p>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => { window.location.href = '/#pricing'; }}
+            onClick={() => navigate('/#pricing')}
           >
             {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
           </button>
@@ -183,7 +184,7 @@ function LanguagePreferencePanel() {
       <div className="eyebrow" style={{ marginBottom: 14 }}>Language</div>
       <div className="col" style={{ gap: 12 }}>
         <p className="muted body-sm" style={{ margin: 0 }}>
-          Default for AI-facing features. Today this drives Mock Arguments —
+          Default for AI-facing features. Today this drives Mock Arguments:
           opposing counsel will argue in this language and the review will be
           written in it. You can still pick a different language per session.
         </p>
@@ -280,6 +281,15 @@ function SecurityPanel() {
 
         {status.isPending && (
           <div className="muted body-sm">Checking MFA status…</div>
+        )}
+
+        {status.isError && (
+          <ErrorState
+            variant="inline"
+            title="Couldn't load MFA status"
+            description="Check your connection and try again."
+            onRetry={() => status.refetch()}
+          />
         )}
 
         {status.data && !status.data.enrolled && (

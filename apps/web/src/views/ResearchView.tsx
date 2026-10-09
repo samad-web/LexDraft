@@ -213,7 +213,7 @@ export function ResearchView() {
         }}
       >
         <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ color: 'var(--text-tertiary)', display: 'flex', paddingTop: 10 }}>
+          <div style={{ color: 'var(--text-tertiary)', display: 'flex', alignSelf: 'center' }}>
             <Icon name="research" size={18} />
           </div>
           <textarea
@@ -302,6 +302,9 @@ export function ResearchView() {
               ))}
             </select>
           )}
+          {!lawsSearch.data && (
+            <span className="body-xs muted">Run a search to apply this filter</span>
+          )}
         </div>
       )}
 
@@ -320,7 +323,14 @@ export function ResearchView() {
       )}
 
       {mode === 'ask' && ask.isError && (
-        <ErrorState title="Couldn't reach Lex.AI" description="Try again in a moment." />
+        (ask.error as { response?: { data?: { code?: string } } } | null)?.response?.data?.code === 'RESEARCH_NOT_IMPLEMENTED' ? (
+          <ErrorState
+            title="Ask Lex.AI isn't configured on this deployment"
+            description="This feature needs a research backend to be set up by an administrator. Retrying won't help — try Search statutes instead."
+          />
+        ) : (
+          <ErrorState title="Couldn't reach Lex.AI" description="Try again in a moment." />
+        )
       )}
 
       {mode === 'corpus' && lawsSearch.isPending && (

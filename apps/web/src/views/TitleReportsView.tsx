@@ -213,7 +213,7 @@ function EmptyState({ onCreate, disabled }: { onCreate: () => void; disabled: bo
       <div className="tr-empty__icon"><Icon name="shield" /></div>
       <h2 className="tr-empty__title">No title reports yet</h2>
       <p className="tr-empty__body">
-        Title Investigation Reports (TIR) certify marketability of title to immovable property —
+        Title Investigation Reports (TIR) certify marketability of title to immovable property:
         the deliverable banks and NBFCs need before disbursing a loan. Start one to record the
         chain of title, encumbrances, and statutory approvals; the AI flags defects and synthesises
         the marketability opinion.

@@ -14,6 +14,11 @@ interface Props {
   onClose: () => void;
   /** Optional defaults - when added from a case detail page. */
   defaultCase?: string;
+  /** The case's actual row id, when known (e.g. opened from a case detail
+   *  page). Pins the hearing to this exact case instead of letting the
+   *  server re-resolve by title - which can silently attach to the wrong
+   *  case when two matters share the same title (newest wins). */
+  defaultCaseId?: string;
   defaultCourt?: string;
   defaultDate?: string;
   /** When provided, the modal switches to edit mode for this hearing. */
@@ -31,6 +36,7 @@ export function NewHearingModal({
   open,
   onClose,
   defaultCase,
+  defaultCaseId,
   defaultCourt,
   defaultDate,
   existing,
@@ -47,12 +53,12 @@ export function NewHearingModal({
   // when the user is choosing among similarly-named matters.
   const matterOptions = useMemo(() => {
     const seen = new Set<string>();
-    const list: Array<{ value: string; hint?: string; court?: string; judge?: string }> = [];
+    const list: Array<{ value: string; hint?: string; court?: string; judge?: string; id?: string }> = [];
     for (const c of cases.data ?? []) {
       const title = (c.title ?? '').trim();
       if (!title || seen.has(title)) continue;
       seen.add(title);
-      list.push({ value: title, hint: c.court ?? undefined, court: c.court, judge: c.judge ?? undefined });
+      list.push({ value: title, hint: c.court ?? undefined, court: c.court, judge: c.judge ?? undefined, id: c.id });
     }
     return list;
   }, [cases.data]);
@@ -69,12 +75,17 @@ export function NewHearingModal({
   const [judgeDirty, setJudgeDirty] = useState(false);
 
   const [caseLabel, setCaseLabel] = useState(existing?.case ?? defaultCase ?? '');
+  // Pins the hearing to an exact case row (see Props.defaultCaseId). Only
+  // trustworthy while caseLabel still matches the matter it was seeded for -
+  // if the user retypes/picks a different matter we drop it so the server
+  // re-resolves by title instead of misattaching to the wrong case.
+  const [caseId, setCaseId] = useState<string | undefined>(defaultCaseId);
   const [date, setDate] = useState<string>(existing?.date ?? defaultDate ?? todayIso());
   const [time, setTime] = useState<string>(existing?.time ?? '10:30');
   const [court, setCourt] = useState(existing?.court ?? defaultCourt ?? '');
   const [purpose, setPurpose] = useState(existing?.purpose ?? '');
   const [status, setStatus] = useState<Status>((existing?.status as Status) ?? 'upcoming');
-  const [judge, setJudge] = useState('');
+  const [judge, setJudge] = useState(existing?.judge ?? '');
 
   // ASSIGN TO — per-hearing handover. Shown to firm heads (who may assign
   // anyone); ordinary advocates reassign via the matter-level handover on the
@@ -100,7 +111,7 @@ export function NewHearingModal({
     () =>
       (judges.data ?? []).map((j) => ({
         value: j.judge_name,
-        label: j.is_chief_justice ? `${j.judge_name} — Chief Justice` : j.judge_name,
+        label: j.is_chief_justice ? `${j.judge_name} (Chief Justice)` : j.judge_name,
       })),
     [judges.data],
   );
@@ -110,16 +121,17 @@ export function NewHearingModal({
   useEffect(() => {
     if (!open) return;
     setCaseLabel(existing?.case ?? defaultCase ?? '');
+    setCaseId(defaultCaseId);
     setDate(existing?.date ?? defaultDate ?? todayIso());
     setTime(existing?.time ?? '10:30');
     setCourt(existing?.court ?? defaultCourt ?? '');
     setPurpose(existing?.purpose ?? '');
     setStatus((existing?.status as Status) ?? 'upcoming');
-    setJudge('');
+    setJudge(existing?.judge ?? '');
     setCourtDirty(!!existing?.court || !!defaultCourt);
     setJudgeDirty(false);
     setAssigneeId('');
-  }, [open, existing, defaultCase, defaultCourt, defaultDate]);
+  }, [open, existing, defaultCase, defaultCaseId, defaultCourt, defaultDate]);
 
   // Prefill the assignee from the hearing's current assignee (edit mode), once
   // that query resolves.
@@ -133,6 +145,10 @@ export function NewHearingModal({
   const handleMatterChange = (next: string) => {
     setCaseLabel(next);
     const hit = matterOptions.find((m) => m.value === next);
+    // Picking/typing a matter other than the one this modal was seeded for
+    // invalidates the pinned caseId - let the server re-resolve by title
+    // (or pin to the freshly-picked option's own id, when unambiguous).
+    setCaseId(hit?.id);
     if (!hit) return;
     if (!courtDirty && hit.court) setCourt(hit.court);
     if (!judgeDirty && hit.judge) setJudge(hit.judge);
@@ -151,6 +167,7 @@ export function NewHearingModal({
         status,
         date,
         judge: judge.trim(),
+        caseId,
       };
       let hearingId: string | undefined;
       if (isEdit && existing && existing.id) {
@@ -252,7 +269,7 @@ export function NewHearingModal({
                     ? 'Pick a judge or type a bench'
                     : "e.g. Hon'ble Justice Singh"
             }
-            emptyMessage="No match — press Enter to keep what you typed."
+            emptyMessage="No match, press Enter to keep what you typed."
           />
         </Field>
         <Field label="PURPOSE" required wide>

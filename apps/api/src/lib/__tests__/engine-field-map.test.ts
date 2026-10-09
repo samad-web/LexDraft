@@ -257,3 +257,48 @@ describe('passthrough contract-driven coercion (regular_bail)', () => {
     expect(fields.custody_since).toBe('2024-09-16');
   });
 });
+
+describe('s138_complaint — flat cheque keys fold into the engine cheques[] list', () => {
+  // Regression: the complaint's intake collects cheques as cheque_no / cheque_date
+  // / cheque_amount / drawee_bank (+ _2.._N), NOT the generic cheques_0_number fold
+  // keys. Without the bespoke mapper these silently dropped and the engine refused
+  // "provide the cheque details" even with every cheque on record.
+  const COMPLAINT_FORM = {
+    complainant_name: 'Ambeth Arivukarasan',
+    accused_name: 'R. Venkatesh Bhat',
+    is_payee: 'Yes',
+    cheque_no: '000102', cheque_date: '2026-04-25', cheque_amount: '3,00,000',
+    drawee_bank: 'Karur Vysya Bank, Godown Street Branch, Chennai',
+    cheque_no_2: '000103', cheque_date_2: '2026-04-29', cheque_amount_2: '2,00,000',
+    drawee_bank_2: 'Karur Vysya Bank, Godown Street Branch, Chennai',
+    presentation_date: '2026-07-15', memo_date: '2026-07-15', memo_received_date: '2026-07-15',
+    dishonour_reason: 'Funds Insufficient',
+    notice_date: '2026-07-17', notice_dispatch_date: '2026-07-17',
+    filing_date: '2026-08-24', jurisdiction_basis: 'PNB Gopalapuram within jurisdiction',
+    payee_bank_branch_in_jurisdiction: 'Yes', place: 'Chennai',
+    itemise_documents: 'Yes', prayer_twice_amount: 'Yes',
+  };
+
+  it('folds every flat cheque row into cheques[] with drawer=accused, payee=complainant', () => {
+    const { fields } = mapFormToEngine('s138_complaint', COMPLAINT_FORM);
+    const cheques = fields.cheques as Array<Record<string, unknown>>;
+    expect(Array.isArray(cheques)).toBe(true);
+    expect(cheques).toHaveLength(2);
+    expect(cheques[0]).toMatchObject({
+      number: '000102', date: '2026-04-25', amount: 300000,
+      bank: 'Karur Vysya Bank', drawer: 'R. Venkatesh Bhat', payee: 'Ambeth Arivukarasan',
+    });
+    expect(cheques[1]!.number).toBe('000103');
+  });
+
+  it('passes the new refinement flags and other fields through', () => {
+    const { fields } = mapFormToEngine('s138_complaint', COMPLAINT_FORM);
+    expect(fields.itemise_documents).toBe(true);
+    expect(fields.prayer_twice_amount).toBe(true);
+    expect(fields.is_payee).toBe(true);
+    expect(fields.notice_date).toBe('2026-07-17');
+    // Flat cheque keys must NOT leak through as stray top-level fields.
+    expect('cheque_no' in fields).toBe(false);
+    expect('drawee_bank_2' in fields).toBe(false);
+  });
+});

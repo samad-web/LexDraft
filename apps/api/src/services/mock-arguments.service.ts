@@ -42,7 +42,7 @@
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
+import { withRetry } from '../lib/retry';
 import {
   NotFoundError,
   UnprocessableEntityError,
@@ -51,7 +51,9 @@ import { extractText } from '../lib/text-extraction';
 import { languageDirective, isKnownLanguageCode } from '../lib/languages';
 import { lawsSearchService, type LawHit } from './laws-search.service';
 import { aiUsageService } from './ai-usage.service';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete, claudeStream } from '../lib/anthropic-client';
+import { grokComplete, grokStream } from '../lib/grok-client';
 
 // ---- shared types ---------------------------------------------------------
 
@@ -636,62 +638,14 @@ function usageSink(ctx: MaCtx | undefined): UsageSink | undefined {
 
 async function callJsonClaude(prompt: PromptPair, maxTokens = 2048): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const r = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: maxTokens,
-          system: [{ type: 'text', text: prompt.system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: prompt.user }],
-        }),
-      });
-      if (!r.ok) throw new HttpRetryError(r.status, `Claude ${r.status}: ${await r.text()}`);
-      const data = (await r.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
-      return { text, ...anthropicUsage(data.usage) };
-    },
+    () => claudeComplete({ system: prompt.system, user: prompt.user, maxTokens }),
     { onRetry: (err, attempt) => logger.warn({ err, attempt }, 'mock-args Claude retry') },
   );
 }
 
 async function callJsonGrok(prompt: PromptPair, maxTokens = 2048): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const r = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${env.XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: env.XAI_MODEL,
-          max_tokens: maxTokens,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: prompt.system },
-            { role: 'user', content: prompt.user },
-          ],
-        }),
-      });
-      if (!r.ok) throw new HttpRetryError(r.status, `xAI ${r.status}: ${await r.text()}`);
-      const data = (await r.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
-      };
-      return {
-        text: data.choices[0]?.message?.content ?? '',
-        ...xaiUsage(data.usage),
-      };
-    },
+    () => grokComplete({ system: prompt.system, user: prompt.user, maxTokens }),
     { onRetry: (err, attempt) => logger.warn({ err, attempt }, 'mock-args Grok retry') },
   );
 }
@@ -947,115 +901,21 @@ As counsel for the ${ai}, I would press the weakest premise of what my friend ha
 // ---- streaming Claude turn ------------------------------------------------
 
 async function* streamClaudeTurn(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: env.ANTHROPIC_MODEL,
-      max_tokens: 1024,
-      stream: true,
-      system: [{ type: 'text', text: prompt.system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: prompt.user }],
-    }),
+  yield* claudeStream({
+    system: prompt.system,
+    user: prompt.user,
+    maxTokens: 1024,
+    onUsage: (u) => onUsage?.(u),
   });
-  if (!r.ok || !r.body) throw new Error(`Claude stream ${r.status}: ${r.body ? await r.text() : ''}`);
-
-  const reader = r.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let usage: NormalizedUsage = {};
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            type?: string;
-            delta?: { type?: string; text?: string };
-            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
-            usage?: { output_tokens?: number };
-          };
-          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
-            yield evt.delta.text;
-          } else if (evt.type === 'message_start' && evt.message?.usage) {
-            usage = anthropicUsage(evt.message.usage);
-          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
-            usage = { ...usage, tokensOut: evt.usage.output_tokens };
-          }
-        } catch {
-          // ignore malformed frames
-        }
-      }
-    }
-  }
-  onUsage?.(usage);
 }
 
 async function* streamGrokTurn(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {
-  const r = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${env.XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: env.XAI_MODEL,
-      max_tokens: 1024,
-      stream: true,
-      stream_options: { include_usage: true },
-      messages: [
-        { role: 'system', content: prompt.system },
-        { role: 'user', content: prompt.user },
-      ],
-    }),
+  yield* grokStream({
+    system: prompt.system,
+    user: prompt.user,
+    maxTokens: 1024,
+    onUsage: (u) => onUsage?.(u),
   });
-  if (!r.ok || !r.body) throw new Error(`xAI stream ${r.status}: ${r.body ? await r.text() : ''}`);
-
-  const reader = r.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let usage: NormalizedUsage = {};
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-            usage?: Parameters<typeof xaiUsage>[0];
-          };
-          const t = evt.choices?.[0]?.delta?.content;
-          if (t) yield t;
-          if (evt.usage) usage = xaiUsage(evt.usage);
-        } catch {
-          // ignore
-        }
-      }
-    }
-  }
-  onUsage?.(usage);
 }
 
 async function* streamTurnFromProvider(prompt: PromptPair, onUsage?: UsageSink): AsyncGenerator<string, void, void> {

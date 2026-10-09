@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Icon, EmptyState } from '@lexdraft/ui';
 import type { DocumentRecord } from '@lexdraft/types';
-import { useDocuments } from '@/hooks/useDocuments';
+import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
+import { useUIStore } from '@/store/ui';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { NewDocumentModal } from './NewDocumentModal';
 import { Gate } from './Gate';
@@ -43,9 +44,33 @@ function bucketOf(doc: DocumentRecord): Bucket {
  */
 export function CaseDocumentsPanel({ matterTitle }: Props) {
   const { data: allDocs = [], isLoading } = useDocuments();
+  const deleteDocument = useDeleteDocument();
+  const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<Bucket>('all');
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDelete = (doc: DocumentRecord) => {
+    if (!doc.id) return;
+    const ok = window.confirm(
+      `Delete "${doc.name}"? This removes the document and its file. This can't be undone.`,
+    );
+    if (!ok) return;
+    setDeletingId(doc.id);
+    deleteDocument.mutate(doc.id, {
+      onSuccess: () => {
+        setDeletingId(null);
+        if (viewing?.id === doc.id) setViewing(null);
+        showToast({ type: 'sage', text: `Deleted "${doc.name}"` });
+      },
+      onError: (e) => {
+        setDeletingId(null);
+        const msg = e instanceof Error ? e.message : 'Could not delete the document';
+        showToast({ type: 'vermillion', text: msg });
+      },
+    });
+  };
 
   // Documents are linked to a case by its label (title) — the same free-text
   // link the rest of the app uses. Match case-insensitively to absorb casing.
@@ -109,33 +134,70 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
             }
           />
         )}
-        {!isLoading && visible.map((doc, i) => (
-          <button
+        {!isLoading && visible.map((doc, i) => {
+          // An uploaded document with no stored file is an empty shell — the row
+          // exists but the engine/viewer have nothing to open. Flag it so the
+          // advocate can tell at a glance which files need re-uploading.
+          const fileMissing = doc.kind !== 'draft' && !doc.hasFile;
+          return (
+          <div
             key={doc.id ?? `${doc.name}-${i}`}
-            type="button"
-            onClick={() => setViewing(doc)}
             className="row-clickable"
             style={{
-              width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12,
-              padding: '12px 16px', background: 'transparent', cursor: 'pointer',
+              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 16px', background: 'transparent',
               borderBottom: i < visible.length - 1 ? '1px solid var(--border-subtle)' : 'none',
             }}
           >
-            <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={16} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {doc.name}
+            <button
+              type="button"
+              onClick={() => setViewing(doc)}
+              style={{
+                flex: 1, minWidth: 0, textAlign: 'left', display: 'flex', alignItems: 'center',
+                gap: 12, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                color: 'inherit', font: 'inherit',
+              }}
+            >
+              <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={16} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doc.name}
+                </div>
+                <div className="body-xs muted">
+                  {doc.type || (doc.kind === 'draft' ? 'Draft' : 'Document')}
+                  {doc.fileName ? ` · ${doc.fileName}` : ''}
+                </div>
               </div>
-              <div className="body-xs muted">
-                {doc.type || (doc.kind === 'draft' ? 'Draft' : 'Document')}
-                {doc.fileName ? ` · ${doc.fileName}` : ''}
-              </div>
-            </div>
+            </button>
             {doc.hasFile && <span className="badge" style={{ fontSize: 9 }}>FILE</span>}
+            {fileMissing && (
+              <span
+                className="badge"
+                title="This document's file content isn't stored. Re-upload it so it can be read."
+                style={{ fontSize: 9, color: 'var(--warning)', borderColor: 'var(--warning)' }}
+              >
+                FILE MISSING
+              </span>
+            )}
             <span className="mono tabular body-xs muted" style={{ minWidth: 64, textAlign: 'right' }}>{doc.updated}</span>
-            <Icon name="chevron" size={12} />
-          </button>
-        ))}
+            {doc.id ? (
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                title={deletingId === doc.id ? 'Deleting…' : `Delete ${doc.name}`}
+                aria-label={`Delete ${doc.name}`}
+                disabled={deletingId === doc.id}
+                onClick={() => handleDelete(doc)}
+                style={deletingId === doc.id ? { opacity: 0.5 } : undefined}
+              >
+                <Icon name="trash" size={14} />
+              </button>
+            ) : (
+              <Icon name="chevron" size={12} />
+            )}
+          </div>
+          );
+        })}
       </div>
 
       <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />

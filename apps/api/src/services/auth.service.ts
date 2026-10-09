@@ -574,4 +574,39 @@ export const authService = {
     if (existing) throw new ConflictError('Email already registered');
     await insertUser(record, firmId);
   },
+
+  /**
+   * Used by the co-counsel handover accept flow when the receiving advocate
+   * has no LexDraft account yet. Unlike `registerExternalUser` (which joins
+   * the inviter's firm), this provisions the new advocate their OWN trial
+   * Solo firm via `insertUserWithNewFirm` - they must NOT gain membership in
+   * the referring firm just by accepting a single-case handover. Their only
+   * access to the referred case comes from the `case_guest_grants` row the
+   * caller creates separately. Returns a signed session token alongside the
+   * user, same shape invitationsService.accept() returns, so the frontend can
+   * log the new advocate straight in after acceptance.
+   */
+  async registerCoCounselGuest(record: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<AuthResponse> {
+    const existing = await findByEmail(record.email);
+    if (existing) throw new ConflictError('Email already registered');
+    const user = await insertUserWithNewFirm(
+      {
+        id: '',
+        name: record.name,
+        email: record.email.toLowerCase(),
+        role: 'Solo Advocate',
+        firm: '',
+        isSuperadmin: false,
+        passwordHash: bcrypt.hashSync(record.password, 10),
+      },
+      `${record.name} (Solo)`,
+      'Solo',
+      'trial',
+    );
+    return { user, token: issueToken(user) };
+  },
 };

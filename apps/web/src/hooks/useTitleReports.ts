@@ -12,6 +12,7 @@
  * server-side changes without manual cache patching.
  */
 
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ChainLinkDto,
@@ -96,7 +97,8 @@ export function useTitleReportQuota() {
 /** Poll an AI run until it reaches terminal status. Interval = 1.5s,
  *  stops automatically once `status` is 'done' or 'failed'. */
 export function useTitleReportAiRun(reportId: string | null, runId: string | null) {
-  return useQuery({
+  const qc = useQueryClient();
+  const query = useQuery({
     queryKey: reportId && runId ? aiRunKey(reportId, runId) : [...KEY, 'ai', null],
     queryFn: () => api.get<TitleReportAiRun>(`${ROOT}/${reportId}/ai/runs/${runId}`),
     enabled: !!(reportId && runId),
@@ -106,6 +108,20 @@ export function useTitleReportAiRun(reportId: string | null, runId: string | nul
       return data.status === 'done' || data.status === 'failed' ? false : 1500;
     },
   });
+
+  // The run writing new defects to the report happens server-side; nothing
+  // else tells the report-detail query to refetch once polling detects
+  // completion, so report.defects would otherwise stay stale until some
+  // unrelated action happened to refresh it. Mirrors useSynthesiseOpinion's
+  // onSuccess invalidation, just triggered by the poll reaching 'done'
+  // instead of by the mutation that started the run.
+  useEffect(() => {
+    if (reportId && query.data?.status === 'done') {
+      void qc.invalidateQueries({ queryKey: detailKey(reportId) });
+    }
+  }, [qc, reportId, query.data?.status]);
+
+  return query;
 }
 
 // ---- Header mutations -----------------------------------------------------

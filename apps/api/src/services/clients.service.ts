@@ -50,6 +50,26 @@ export const clientsService = {
     return rows.map(fromRow);
   },
 
+  async findById(id: string, firmId: string | null): Promise<Client | undefined> {
+    if (!firmId) return undefined;
+    const sql = db();
+    if (!sql) return undefined;
+    const rows = await sql<Row[]>`
+      select c.id, c.name, c.type, c.status, c.last_contact, c.email, c.portal_enabled,
+             coalesce(m.open_count, 0) as matters_open
+      from clients c
+      left join (
+        select client, count(*) as open_count
+        from cases
+        where firm_id = ${firmId}::uuid and status = 'Active' and kind = 'matter'
+        group by client
+      ) m on m.client = c.name
+      where c.id = ${id}::uuid and c.firm_id = ${firmId}::uuid
+      limit 1
+    `;
+    return rows[0] ? fromRow(rows[0]) : undefined;
+  },
+
   /**
    * Ensure a client row exists for this firm with the given name, creating a
    * minimal one (Individual, active) if none matches case-insensitively. Called

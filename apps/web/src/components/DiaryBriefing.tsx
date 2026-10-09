@@ -65,7 +65,7 @@ export function DiaryBriefing({ range, onRangeChange, loaded, onLoad }: Props) {
       {!loaded && (
         <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="body-sm muted">
-            See your {range === 'week' ? 'week' : 'day'} at a glance — hearings, judgments, filings and limitation deadlines, with an AI summary.
+            See your {range === 'week' ? 'week' : 'day'} at a glance: hearings, judgments, filings and limitation deadlines, with an AI summary.
           </span>
           <span className="spacer" style={{ flex: 1 }} />
           <button type="button" className="btn btn-primary btn-sm" onClick={onLoad}>
@@ -135,7 +135,7 @@ export function DiaryBriefing({ range, onRangeChange, loaded, onLoad }: Props) {
           )}
 
           {q.data.items.length > 0 && q.data.modelUsed.startsWith('fallback') && q.data.narrative === '' && (
-            <span className="body-xs muted">AI summary unavailable — showing your schedule from the record.</span>
+            <span className="body-xs muted">AI summary unavailable, showing your schedule from the record.</span>
           )}
         </>
       )}

@@ -47,7 +47,7 @@ export function OfflineBanner() {
       }}
     >
       <Icon name="globe" size={14} />
-      <span>You&rsquo;re offline. Some actions may not save until your connection returns.</span>
+      <span>You&rsquo;re offline, so some actions may not save until your connection returns.</span>
     </div>
   );
 }

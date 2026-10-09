@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Icon, Select, DatePicker, TimePicker, Combobox } from '@lexdraft/ui';
-import type { DiaryKind } from '@lexdraft/types';
-import { useCreateDiaryEntry } from '@/hooks/useDiary';
+import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
+import { useCreateDiaryEntry, useUpdateDiaryEntry } from '@/hooks/useDiary';
 import { useCases } from '@/hooks/useCases';
 import { useCourtJudges, highCourtFromText } from '@/hooks/useJudges';
 import { INDIAN_COURTS } from '@/lib/indian-courts';
@@ -17,6 +17,10 @@ interface Props {
    *  the first frame (e.g. when the user is filtered to Judgments and hits
    *  "+ New entry"). */
   defaultKind?: DiaryKind;
+  /** When set, the modal edits this existing entry instead of creating a new
+   *  one (same form, PATCH on submit, no attachment re-upload since the
+   *  judgment PDF is immutable once attached). */
+  entry?: DiaryEntry | null;
 }
 
 const KINDS: DiaryKind[] = ['hearing', 'judgment', 'filing'];
@@ -33,6 +37,15 @@ function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Inverse of `daysBetween`: the absolute reminder-day ISO date, `days` before
+ *  `iso`. Used to reseed the reminder-date picker from a stored offset when
+ *  opening the modal in edit mode. */
+function addDaysIsoLocal(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Whole days from `fromIso` to `toIso` (≥ 0). The diary reminder is stored as
  *  "days before the hearing", so this converts an absolute reminder day into
  *  that offset. */
@@ -42,20 +55,22 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.max(0, Math.round((b - a) / 86_400_000));
 }
 
-export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: Props) {
+export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing', entry = null }: Props) {
   const create = useCreateDiaryEntry();
+  const update = useUpdateDiaryEntry();
+  const isEdit = !!entry;
   const cases = useCases();
   const showToast = useUIStore((s) => s.showToast);
 
-  const [date, setDate] = useState<string>(todayIso());
-  const [time, setTime] = useState<string>('10:30');
-  const [kind, setKind] = useState<DiaryKind>(defaultKind);
-  const [caseLabel, setCaseLabel] = useState('');
-  const [cnr, setCnr] = useState('');
-  const [detail, setDetail] = useState('');
-  const [forum, setForum] = useState('');
-  const [bench, setBench] = useState('');
-  const [nextHearingDate, setNextHearingDate] = useState('');
+  const [date, setDate] = useState<string>(entry?.date ?? todayIso());
+  const [time, setTime] = useState<string>(entry?.time ?? '10:30');
+  const [kind, setKind] = useState<DiaryKind>(entry?.kind ?? defaultKind);
+  const [caseLabel, setCaseLabel] = useState(entry?.caseLabel ?? '');
+  const [cnr, setCnr] = useState(entry?.cnr ?? '');
+  const [detail, setDetail] = useState(entry?.detail ?? '');
+  const [forum, setForum] = useState(entry?.forum ?? '');
+  const [bench, setBench] = useState(entry?.bench ?? '');
+  const [nextHearingDate, setNextHearingDate] = useState(entry?.nextHearingDate ?? '');
   // Absolute reminder day the advocate picks from the calendar. Stored as an
   // offset (days before the hearing) — see handleSubmit / daysBetween.
   const [reminderDate, setReminderDate] = useState('');
@@ -105,7 +120,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
     () =>
       (judges.data ?? []).map((j) => ({
         value: j.judge_name,
-        label: j.is_chief_justice ? `${j.judge_name} — Chief Justice` : j.judge_name,
+        label: j.is_chief_justice ? `${j.judge_name} (Chief Justice)` : j.judge_name,
       })),
     [judges.data],
   );
@@ -123,16 +138,20 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
   };
 
   const reset = () => {
-    setDate(todayIso());
-    setTime('10:30');
-    setKind(defaultKind);
-    setCaseLabel('');
-    setCnr('');
-    setDetail('');
-    setForum('');
-    setBench('');
-    setNextHearingDate('');
-    setReminderDate('');
+    setDate(entry?.date ?? todayIso());
+    setTime(entry?.time ?? '10:30');
+    setKind(entry?.kind ?? defaultKind);
+    setCaseLabel(entry?.caseLabel ?? '');
+    setCnr(entry?.cnr ?? '');
+    setDetail(entry?.detail ?? '');
+    setForum(entry?.forum ?? '');
+    setBench(entry?.bench ?? '');
+    setNextHearingDate(entry?.nextHearingDate ?? '');
+    setReminderDate(
+      entry?.nextHearingDate && entry?.reminderOffsetDays != null
+        ? addDaysIsoLocal(entry.nextHearingDate, -entry.reminderOffsetDays)
+        : '',
+    );
     setPdfFile(null);
     setPdfBase64(null);
     setCnrDirty(false);
@@ -140,12 +159,33 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
     setBenchDirty(false);
   };
 
-  // The modal stays mounted between openings; resync Kind to the caller's
-  // current default whenever the modal opens. Otherwise switching the diary
-  // filter to "Judgments" wouldn't influence which Kind the picker starts on.
+  // The modal stays mounted between openings; resync the whole form whenever
+  // it opens - either to the caller's current default Kind (create mode) or
+  // to the entry being edited (edit mode). Otherwise switching the diary
+  // filter to "Judgments" wouldn't influence a fresh "+ New entry", and
+  // re-opening "Edit" on a different row would show stale fields.
   useEffect(() => {
-    if (open) setKind(defaultKind);
-  }, [open, defaultKind]);
+    if (!open) return;
+    if (entry) {
+      setDate(entry.date);
+      setTime(entry.time);
+      setKind(entry.kind);
+      setCaseLabel(entry.caseLabel);
+      setCnr(entry.cnr);
+      setDetail(entry.detail);
+      setForum(entry.forum);
+      setBench(entry.bench ?? '');
+      setNextHearingDate(entry.nextHearingDate ?? '');
+      setReminderDate(
+        entry.nextHearingDate && entry.reminderOffsetDays != null
+          ? addDaysIsoLocal(entry.nextHearingDate, -entry.reminderOffsetDays)
+          : '',
+      );
+    } else {
+      setKind(defaultKind);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on `open` so re-opening resyncs; `entry`/`defaultKind` are read inside, not tracked as triggers.
+  }, [open]);
 
   // Keep the reminder day valid: clear it if the hearing date is removed or the
   // reminder now falls after the hearing.
@@ -202,7 +242,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
             attachmentBase64: pdfBase64,
           }
         : {};
-      await create.mutateAsync({
+      const payload = {
         date,
         time,
         kind,
@@ -215,32 +255,40 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
         // Reminder only makes sense against a next hearing date.
         reminderOffsetDays: nextHearingDate && reminderDate ? daysBetween(reminderDate, nextHearingDate) : null,
         ...attachment,
-      });
-      showToast({ type: 'sage', text: 'Diary entry added' });
-      reset();
+      };
+      if (isEdit && entry) {
+        await update.mutateAsync({ id: entry.id, patch: payload });
+        showToast({ type: 'sage', text: 'Diary entry updated' });
+      } else {
+        await create.mutateAsync(payload);
+        showToast({ type: 'sage', text: 'Diary entry added' });
+        reset();
+      }
       onClose();
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
         ?? (err as Error).message
-        ?? 'Failed to add diary entry';
+        ?? `Failed to ${isEdit ? 'update' : 'add'} diary entry`;
       showToast({ type: 'vermillion', text: msg });
     }
   };
+
+  const saving = isEdit ? update.isPending : create.isPending;
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="New diary entry"
-      title="Log to court diary"
+      eyebrow={isEdit ? 'Edit diary entry' : 'New diary entry'}
+      title={isEdit ? 'Edit court diary entry' : 'Log to court diary'}
       description="Required fields marked with *."
       onSubmit={handleSubmit}
       footer={
         <>
           <button type="button" className="btn" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn btn-primary" disabled={create.isPending}>
-            {create.isPending ? 'Saving…' : 'Add entry'}
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add entry'}
           </button>
         </>
       }
@@ -282,7 +330,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
             required
             autoFocus
             emptyMessage={
-              cases.isLoading ? 'Loading…' : 'No match — type to log against a new matter.'
+              cases.isLoading ? 'Loading…' : 'No match. Type to log against a new matter.'
             }
           />
         </Field>
@@ -301,7 +349,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
             onChange={(v) => { setForum(v); setForumDirty(true); }}
             options={courtOptions}
             placeholder="Pick a court or type, e.g. High Court of Karnataka, Court Hall 12"
-            emptyMessage="No match — press Enter to keep what you typed."
+            emptyMessage="No match. Press Enter to keep what you typed."
           />
         </Field>
         <Field label="BENCH" wide hint={benchCourt ? 'Pick a judge or type' : 'Optional'}>
@@ -318,7 +366,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
                     ? `Pick a ${benchCourt.replace(' High Court', '')} judge or type`
                     : "e.g. Hon'ble Justice S. Singh"
             }
-            emptyMessage="No match — press Enter to keep what you typed."
+            emptyMessage="No match. Press Enter to keep what you typed."
           />
         </Field>
         <Field label="NEXT HEARING" hint="Optional">
@@ -329,7 +377,7 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
           hint="Optional"
           help={
             nextHearingDate
-              ? `Next hearing ${formatDate(nextHearingDate)} · best prep day picked — adjust if needed`
+              ? `Next hearing ${formatDate(nextHearingDate)} · best prep day picked, adjust if needed`
               : 'Set a next hearing date first'
           }
         >
@@ -386,6 +434,39 @@ export function NewDiaryEntryModal({ open, onClose, defaultKind = 'hearing' }: P
                   title="Remove attachment"
                 >
                   <Icon name="close" size={12} />
+                </button>
+              </div>
+            ) : isEdit && entry?.attachmentFileName ? (
+              // Editing an entry that already has a judgment PDF attached —
+              // the attachment is immutable here (no re-upload UI besides
+              // "Replace"); submitting without picking a new file leaves the
+              // existing attachment columns untouched server-side.
+              <div
+                className="row"
+                style={{
+                  gap: 8,
+                  alignItems: 'center',
+                  padding: '8px 12px',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-surface)',
+                }}
+              >
+                <Icon name="file" size={14} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {entry.attachmentFileName}
+                  </div>
+                  <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                    Already attached
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Replace
                 </button>
               </div>
             ) : (

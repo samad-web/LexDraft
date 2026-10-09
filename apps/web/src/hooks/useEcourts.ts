@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient, api } from '@/lib/api';
 import { triggerBlobDownload } from '@/lib/blob-download';
 
@@ -87,6 +87,10 @@ export interface EcourtsCaseHistory {
   disp_name?: string;
   act?: Array<{ actCodeName: string; actSectionName: string }>;
   last_order?: EcourtsOrder | null;
+  /** The case's current/most-recent business entry - same shape as a row in
+   *  historyOfCaseHearing, but this is the live status (today's or the next
+   *  scheduled business), not a past entry in the hearings table. */
+  last_business_date?: EcourtsHearing | null;
   historyOfCaseHearing?: EcourtsHearing[];
   finalOrder?: EcourtsOrder[] | null;
   interimOrder?: EcourtsOrder[] | null;
@@ -114,9 +118,12 @@ export interface EcourtsState {
 }
 
 export interface EcourtsDistrict {
-  state_code: number;
-  district_code: number;
-  district_name: string;
+  // districtWebService.php returns `dist_code`/`dist_name` (not the
+  // `district_*` spelling used elsewhere in the eCourts response shapes) —
+  // verified live against the backend. Getting this wrong renders every
+  // <option> with no value/label (see EcourtsView.tsx district picker).
+  dist_code: number;
+  dist_name: string;
   [k: string]: unknown;
 }
 
@@ -130,7 +137,7 @@ const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 export function useEcourtsCnr(cnr: string | null | undefined, court: Court = 'DC') {
   const cleaned = (cnr ?? '').trim().toUpperCase();
   const valid = CNR_RE.test(cleaned);
-  return useQuery({
+  const query = useQuery({
     queryKey: ['ecourts', 'cnr', cleaned, court],
     queryFn: () => api.get<{ history: EcourtsCaseHistory }>(`/ecourts/lookup/cnr/${cleaned}`, { court }),
     select: (r) => r.history,
@@ -138,6 +145,70 @@ export function useEcourtsCnr(cnr: string | null | undefined, court: Court = 'DC
     // CNR data changes when a hearing happens — 5 minutes is enough freshness
     // for an interactive lookup screen, server already caches at the same TTL.
     staleTime: 5 * 60 * 1000,
+    // A 404 ("No case found for this CNR") is a well-formed, expected
+    // answer from the backend for a syntactically valid but non-existent
+    // CNR - retrying it just delays the "not found" state for no benefit
+    // (unlike a 5xx/network failure, where TanStack Query's default retry
+    // is actually useful).
+    retry: (failureCount, err) => (err as { response?: { status?: number } })?.response?.status !== 404 && failureCount < 3,
+  });
+  // Surfaced separately from the generic `isError` so callers can route a
+  // genuine "no record for this CNR" to a dedicated empty-state instead of
+  // the same red/vermillion card used for transport/server failures (5xx,
+  // network errors). err.response is the real AxiosError shape rejected by
+  // the apiClient interceptor in lib/api.ts (untouched there for exactly
+  // this kind of status-code branching).
+  const isNotFound = (query.error as { response?: { status?: number } } | null)?.response?.status === 404;
+  return { ...query, isNotFound };
+}
+
+/**
+ * Save an eCourts CNR lookup into the firm's matters. Creates the case row
+ * from the fields the CNR history already gives us, then immediately syncs it
+ * from eCourts so the hearings/orders/parties are folded in (rather than
+ * duplicating that mapping here — the backend `sync-from-ecourts` is the single
+ * source of that logic). Returns the created case id.
+ *
+ * Invalidates the cases list so the new matter appears without a manual reload.
+ */
+export function useAddEcourtsCaseToMatters() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ history, court }: { history: EcourtsCaseHistory; court: Court }) => {
+      const title = `${history.petName || history.pet_name || 'Unknown'} v. ${history.resName || history.res_name || 'Unknown'}`;
+      const disposed = Boolean(history.date_of_decision && history.disp_name);
+      // Create the shell matter. `next` is left blank; the sync below fills the
+      // real next-hearing date from the eCourts history.
+      const created = await api.post<{ id: string }>('/cases', {
+        cnr:    history.cino,
+        title,
+        court:  history.court_name || '',
+        stage:  history.purpose_name || (disposed ? 'Disposed' : 'Filing'),
+        client: '',
+        // Backend `status` is a closed enum: Active | Pending | Closed |
+        // Archived - 'Disposed' isn't a member and was rejected by Zod
+        // validation (surfaced as a raw "Validation failed" toast). 'Closed'
+        // is the existing convention for a disposed case elsewhere in the
+        // app (see case-sync.service.ts's own eCourts sync).
+        status: disposed ? 'Closed' : 'Active',
+        next:   '',
+        type:   'Other',
+      });
+      // Best-effort sync — if it fails the case still exists; the advocate can
+      // retry from the Cases screen. We surface the sync error to the caller.
+      await api.post(`/cases/${created.id}/sync-from-ecourts`, { court });
+      return created.id;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      // sync-from-ecourts writes real rows into `hearings` (the case's next
+      // listed date, plus its full past history) - without this the Calendar
+      // and Dashboard stay on stale cached data until something else happens
+      // to refetch them, so the hearing the advocate just added looks missing.
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['hearings'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
   });
 }
 
@@ -157,6 +228,10 @@ interface DownloadOrderInput {
   stateCd: number;
   distCd: number;
   courtCode: number;
+  /** Also surfaced on each order row (caseno, cCode, bilingual_flag) - required by the backend. */
+  caseNo: string;
+  cCode: number;
+  bilingualFlag?: string;
   court?: Court;
 }
 
@@ -194,5 +269,230 @@ export function useEcourtsDistricts(stateCode: number | null | undefined, court:
     select: (r) => r.items,
     enabled: typeof stateCode === 'number' && stateCode > 0,
     staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export interface EcourtsCourtComplex {
+  complexCode: string;
+  complexName: string;
+  courtCodes: string[];
+}
+
+// Served from our own cache (captured once per district via a real browser
+// session), not a live eCourts call - the live lookup is blocked for
+// automated callers. Returns an empty list for a district we haven't
+// captured yet; the UI falls back to a manual code field in that case.
+export function useEcourtsCourtComplexes(
+  stateCode: number | null | undefined,
+  distCode: number | null | undefined,
+  court: Court = 'DC',
+) {
+  return useQuery({
+    queryKey: ['ecourts', 'court-complexes', stateCode, distCode, court],
+    queryFn: () => api.get<{ items: EcourtsCourtComplex[] }>(`/ecourts/reference/court-complexes/${stateCode}/${distCode}`, { court }),
+    select: (r) => r.items,
+    enabled: typeof stateCode === 'number' && stateCode > 0 && typeof distCode === 'number' && distCode > 0,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export interface EcourtsCourt {
+  courtCode: string;
+  courtName: string;
+}
+
+// Individual courts within a complex (e.g. "Munsiff Court, Chengannur" is
+// one of several courts inside "Court Complex, Chengannur"). A case is filed
+// at a specific court - selecting only the complex isn't enough to search
+// correctly (verified live: only one court in a six-court complex had the
+// matching case).
+export function useEcourtsCourts(
+  stateCode: number | null | undefined,
+  distCode: number | null | undefined,
+  complexCode: string | null | undefined,
+  court: Court = 'DC',
+) {
+  return useQuery({
+    queryKey: ['ecourts', 'courts', stateCode, distCode, complexCode, court],
+    queryFn: () => api.get<{ items: EcourtsCourt[] }>(`/ecourts/reference/courts/${stateCode}/${distCode}/${complexCode}`, { court }),
+    select: (r) => r.items,
+    enabled: typeof stateCode === 'number' && stateCode > 0 && typeof distCode === 'number' && distCode > 0 && Boolean(complexCode),
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
+export interface EcourtsBusinessNote {
+  hearingDate: string;
+  businessText: string;
+  updatedAt: string;
+}
+
+// eCourts' free-text "Business" narrative (Daily Status page) is CAPTCHA-
+// gated on every path on the real eCourts site - there's no way to fetch it
+// programmatically. The advocate reads it there (via the "Open Daily Status"
+// link next to each hearing) and pastes it in once; these two hooks persist
+// it per (cino, hearing date) so it shows up in LexDraft from then on.
+export function useEcourtsBusinessNotes(cino: string | null | undefined) {
+  return useQuery({
+    queryKey: ['ecourts', 'business-notes', cino],
+    queryFn: () => api.get<{ items: EcourtsBusinessNote[] }>(`/ecourts/business-notes/${cino}`),
+    select: (r) => r.items,
+    enabled: Boolean(cino),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useSaveEcourtsBusinessNote(cino: string | null | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ hearingDate, businessText }: { hearingDate: string; businessText: string }) =>
+      api.put<{ note: EcourtsBusinessNote }>(`/ecourts/business-notes/${cino}`, { hearingDate, businessText }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ecourts', 'business-notes', cino] });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Court-scoped search — case number / party / advocate / FIR / filing number /
+// act, plus cause list and caveat search. All call the real /api/ecourts
+// search endpoints directly (apps/api/src/routes/ecourts.routes.ts) - nothing
+// here opens an external tab. State and district lookups (above) are reliable;
+// the establishment/court-code picker they feed into is a known-fragile link
+// on eCourts' side, so every mutation below can fail with a clear error the
+// UI surfaces honestly rather than pretending success.
+// ---------------------------------------------------------------------------
+
+export interface EcourtsCourtScope {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  // REQUIRED. Without it eCourts searches zero establishments and returns
+  // `{"no_of_establishments":0}` - which reads exactly like a real "no
+  // matches" result but isn't one (verified live).
+  estCode: string;
+}
+
+export function useEcourtsSearchCaseNumber() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { caseType: string | number; regNo: string | number; year: number; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/case-number', body),
+  });
+}
+
+export function useEcourtsSearchParty() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { partyName: string; year: number; stage?: 'P' | 'D' | 'B'; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/party', body),
+  });
+}
+
+export function useEcourtsSearchAdvocate() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { advocateName: string; year: number; stage?: 'P' | 'D' | 'B'; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/advocate', body),
+  });
+}
+
+export function useEcourtsSearchFir() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { policeStCode: number; firNo: string; firYear: number; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/fir', body),
+  });
+}
+
+export function useEcourtsSearchFilingNumber() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { filingNo: string; filingYear: number; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/filing-number', body),
+  });
+}
+
+// KNOWN BROKEN - confirmed via full Hermes bytecode decompile + live testing
+// against two different establishments (2026-10): searchByActWebService.php
+// unconditionally rejects every request with error_ERROR_actcode1 regardless
+// of field names/values tried, including shapes that exactly mirror other
+// confirmed-working endpoints. The official eCourts app's own "Search by
+// Act" screen appears non-functional against the live backend. Do not treat
+// a `status:"N"` response as "no matching cases" - see ecourts.service.ts's
+// searchByAct for the full investigation notes.
+export function useEcourtsSearchAct() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { actCode: string | number; section?: string; year?: number; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/act', body),
+  });
+}
+
+export function useEcourtsCauseList() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { date: string; court?: Court }) =>
+      api.post<{ items: EcourtsCauseListEntry[] }>('/ecourts/cause-list', body),
+  });
+}
+
+export interface EcourtsCauseListEntry {
+  case_no?: string;
+  petparty_name?: string;
+  resparty_name?: string;
+  court_no?: string;
+  [k: string]: unknown;
+}
+
+export function useEcourtsCaveatSearch() {
+  return useMutation({
+    mutationFn: (body: EcourtsCourtScope & { caveatorName?: string; caveateeName?: string; searchBy?: 'Caveator' | 'Caveatee'; court?: Court }) =>
+      api.post<unknown>('/ecourts/caveat/search', body),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CNR-direct live lookup - the path used inline on search results. Party
+// Name, Advocate, Case Number etc. (the fast mobile API) all return a
+// `cino` per case already; this fetches that one case's live Business text
+// directly by CNR, no state/district/complex picking needed (the CNR
+// already encodes the court). One captcha per case looked up this way.
+// ---------------------------------------------------------------------------
+
+export function useStartCnrLiveSession() {
+  return useMutation({
+    mutationFn: () => api.post<{ sessionId: string }>('/ecourts/live/cnr-session'),
+  });
+}
+
+// sessionId is a mutation argument (not bound when the hook is created) -
+// the caller typically only has the session id *after* useStartCnrLiveSession
+// resolves, in the same handler that then opens the lookup, so there's no
+// stable sessionId to close over at hook-creation time.
+// The backend may transparently restart the session on a page crash (~1 in
+// 4 fresh eCourts sessions observed live) and return a DIFFERENT sessionId
+// than the one sent - the caller must use the returned id for every
+// subsequent call, not the one it passed in.
+export function useOpenLiveCnrLookup() {
+  return useMutation({
+    mutationFn: ({ sessionId, cino }: { sessionId: string; cino: string }) =>
+      api.post<{ captchaImageBase64: string; sessionId: string }>(`/ecourts/live/session/${sessionId}/cnr`, { cino }),
+  });
+}
+
+export function useRefreshCnrCaptcha() {
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ captchaImageBase64: string }>(`/ecourts/live/session/${sessionId}/cnr/captcha/refresh`),
+  });
+}
+
+export type EcourtsCnrCaptchaResult =
+  | { historyHtml: string }
+  | { retry: true; captchaImageBase64: string; reason: string };
+
+// cino is required, not re-derived server-side from the page - see
+// submitCnrCaptcha's doc comment in ecourts-live.service.ts: reading #cino
+// from the DOM after a wrong-captcha error is unreliable, which caused a
+// SECOND wrong-captcha attempt to fail with eCourts' own "Enter 16 digit
+// CNR number" instead of a captcha error.
+export function useSubmitCnrCaptcha() {
+  return useMutation({
+    mutationFn: ({ sessionId, captchaCode, cino }: { sessionId: string; captchaCode: string; cino: string }) =>
+      api.post<EcourtsCnrCaptchaResult>(`/ecourts/live/session/${sessionId}/cnr/captcha`, { captchaCode, cino }),
   });
 }

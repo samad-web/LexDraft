@@ -68,6 +68,7 @@ import {
   STATUS_LABEL,
 } from '@/hooks/useTitleReports';
 import { useUIStore } from '@/store/ui';
+import { useConfirm, useConfirmWithInput } from '@/components/ConfirmDialog';
 import { exportTitleReportPdf } from '@/lib/title-report-pdf';
 import { apiClient } from '@/lib/api';
 
@@ -840,7 +841,7 @@ function DocumentsStep({ report }: { report: TitleReportFull }) {
     <div className="tr-form">
       <Section title="Upload documents for auto-extraction">
         <p className="tr-hint">
-          Drop a sale deed, EC, patta/khata, RTC/7-12, building plan, or NOC — the wizard
+          Drop a sale deed, EC, patta/khata, RTC/7-12, building plan, or NOC: the wizard
           uploads it, extracts the key fields (document number, SRO, date, consideration,
           EC transactions, revenue-record references, etc.), summarises what it found, and lets
           you push the extracted data into the right section of the report with one click.
@@ -894,7 +895,7 @@ function DocumentsStep({ report }: { report: TitleReportFull }) {
                   {d.copyType ? <span className="tr-doc__copy">{d.copyType.replace('_', ' ')}</span> : null}
                 </div>
                 <div className="tr-doc__meta">
-                  {d.parties ?? '—'} · {d.documentDate ?? '—'} · {d.sroOffice ?? '—'}
+                  {d.parties ?? '(none)'} · {d.documentDate ?? '(none)'} · {d.sroOffice ?? '(none)'}
                 </div>
                 {d.extractionStatus === 'done' && Object.keys(d.extractedPayload).length > 0 && (
                   <>
@@ -1069,7 +1070,7 @@ function DocumentDropzone({ reportId }: { reportId: string }) {
       if (!file || !state) continue;
       if (!ACCEPTED_MIMES.has(state.fileMime) && !state.fileName.match(/\.(pdf|docx|txt|md)$/i)) {
         setUploads((cur) => cur.map((u) => u.id === state.id ? { ...u, phase: 'error', error: 'Unsupported file type' } : u));
-        showToast({ type: 'amber', text: `Skipping "${state.fileName}" — only PDF / DOCX / TXT / MD are supported.` });
+        showToast({ type: 'amber', text: `Skipping "${state.fileName}": only PDF / DOCX / TXT / MD are supported.` });
         continue;
       }
       try {
@@ -1232,7 +1233,7 @@ function summariseExtraction(
       if (parts.length >= 4) break;
     }
   }
-  return parts.length > 0 ? parts.join(' · ') : 'Fields extracted — review below.';
+  return parts.length > 0 ? parts.join(' · ') : 'Fields extracted. Review below.';
 }
 
 /** Show a small badge indicating whether the extraction came from the LLM
@@ -1589,6 +1590,7 @@ function ApprovalsSubSection({ report }: { report: TitleReportFull }) {
   const addAp = useAddApproval(report.id);
   const delAp = useDeleteApproval(report.id);
   const run = useToastedAction();
+  const confirmDialog = useConfirm();
   const [type, setType] = useState<TitleReportApprovalType>('rera');
   const [authority, setAuthority] = useState('');
   const [refNo, setRefNo] = useState('');
@@ -1676,9 +1678,11 @@ function ApprovalsSubSection({ report }: { report: TitleReportFull }) {
                   className="icon-btn"
                   style={{ marginLeft: 'auto' }}
                   onClick={() => {
-                    if (window.confirm(`Remove the ${a.approvalType.replace(/_/g, ' ')} approval?`)) {
-                      void remove(a.id);
-                    }
+                    void confirmDialog({
+                      title: `Remove the ${a.approvalType.replace(/_/g, ' ')} approval?`,
+                      confirmLabel: 'Remove',
+                      danger: true,
+                    }).then((confirmed) => { if (confirmed) void remove(a.id); });
                   }}
                   disabled={removing}
                   aria-label="Remove approval"
@@ -1704,6 +1708,7 @@ function DefectsAndOpinionStep({ report }: { report: TitleReportFull }) {
   const synth = useSynthesiseOpinion(report.id);
   const ack = useApplyDefectAck(report.id);
   const addDefect = useAddDefect(report.id);
+  const showToast = useUIStore((s) => s.showToast);
 
   const [runId, setRunId] = useState<string | null>(null);
   const aiRun = useTitleReportAiRun(report.id, runId);
@@ -1712,6 +1717,21 @@ function DefectsAndOpinionStep({ report }: { report: TitleReportFull }) {
     const out = await runAi.mutateAsync({ force: true });
     setRunId(out.runId);
   };
+
+  // Surface completion/failure once per run instead of leaving the advocate
+  // staring at a progress line that silently vanishes (done) or stops
+  // updating with no explanation (failed).
+  useEffect(() => {
+    if (!runId || !aiRun.data) return;
+    if (aiRun.data.status === 'done') {
+      showToast({ type: 'sage', text: 'AI analysis complete' });
+      setRunId(null);
+    } else if (aiRun.data.status === 'failed') {
+      showToast({ type: 'vermillion', text: aiRun.data.error || 'AI analysis failed' });
+      setRunId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the status transition should retrigger this, not every aiRun.data identity change from polling.
+  }, [aiRun.data?.status]);
 
   return (
     <div className="tr-defop">
@@ -1722,7 +1742,7 @@ function DefectsAndOpinionStep({ report }: { report: TitleReportFull }) {
             <Icon name="search" /> {runAi.isPending ? 'Analysing…' : 'Run AI analysis'}
           </button>
         </div>
-        {runId && aiRun.data && aiRun.data.status !== 'done' && (
+        {runId && aiRun.data && aiRun.data.status !== 'done' && aiRun.data.status !== 'failed' && (
           <div className="tr-defects__progress">AI is reviewing the tree… (status: {aiRun.data.status})</div>
         )}
         <DefectsPanel
@@ -1753,6 +1773,7 @@ interface DefectsPanelProps {
 }
 
 function DefectsPanel({ defects, onAck, onDismiss }: DefectsPanelProps) {
+  const confirmWithInput = useConfirmWithInput();
   if (defects.length === 0) {
     return <div className="tr-empty tr-empty--inline">No defects flagged yet. Run AI analysis or add one manually.</div>;
   }
@@ -1782,8 +1803,14 @@ function DefectsPanel({ defects, onAck, onDismiss }: DefectsPanelProps) {
                         type="button"
                         className="btn btn-ghost btn-sm"
                         onClick={() => {
-                          const r = window.prompt('Dismissal reason (will be audit-logged):');
-                          if (r) onDismiss(d.id, r);
+                          void confirmWithInput({
+                            title: 'Dismiss this defect?',
+                            inputLabel: 'Reason (will be audit-logged)',
+                            confirmLabel: 'Dismiss',
+                            danger: true,
+                          }).then(({ confirmed, value }) => {
+                            if (confirmed && value) onDismiss(d.id, value);
+                          });
                         }}
                       >
                         Dismiss
@@ -1978,11 +2005,11 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
         <p>{report.property?.scheduleA ?? report.property?.address ?? '(not provided)'}</p>
         {report.property && (
           <p>
-            <strong>Survey:</strong> {report.property.surveyNo ?? '—'} ·{' '}
-            <strong>Sub-division:</strong> {report.property.subDivision ?? '—'} ·{' '}
-            <strong>Extent:</strong> {report.property.extentValue ?? '—'} {report.property.extentUnit ?? ''} ·{' '}
-            <strong>Boundaries:</strong> N: {report.property.boundaryNorth ?? '—'}, S: {report.property.boundarySouth ?? '—'},
-            E: {report.property.boundaryEast ?? '—'}, W: {report.property.boundaryWest ?? '—'}
+            <strong>Survey:</strong> {report.property.surveyNo ?? '(none)'} ·{' '}
+            <strong>Sub-division:</strong> {report.property.subDivision ?? '(none)'} ·{' '}
+            <strong>Extent:</strong> {report.property.extentValue ?? '(none)'} {report.property.extentUnit ?? ''} ·{' '}
+            <strong>Boundaries:</strong> N: {report.property.boundaryNorth ?? '(none)'}, S: {report.property.boundarySouth ?? '(none)'},
+            E: {report.property.boundaryEast ?? '(none)'}, W: {report.property.boundaryWest ?? '(none)'}
           </p>
         )}
       </section>
@@ -1996,10 +2023,10 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
               <tr key={d.id}>
                 <td>{i + 1}</td>
                 <td>{DOC_TYPES.find((o) => o.value === d.documentType)?.label ?? d.documentType}</td>
-                <td>{d.parties ?? '—'}</td>
-                <td>{d.documentDate ?? '—'}</td>
-                <td>{d.registrationNo ?? '—'}</td>
-                <td>{d.copyType ?? '—'}</td>
+                <td>{d.parties ?? '(none)'}</td>
+                <td>{d.documentDate ?? '(none)'}</td>
+                <td>{d.registrationNo ?? '(none)'}</td>
+                <td>{d.copyType ?? '(none)'}</td>
               </tr>
             ))}
           </tbody>
@@ -2016,9 +2043,9 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
                 <td>{l.sequenceNo}</td>
                 <td>{LINK_TYPES.find((o) => o.value === l.linkType)?.label ?? l.linkType}</td>
                 <td>{l.transferor} → {l.transferee}</td>
-                <td>{l.documentDate ?? '—'}</td>
-                <td>{l.documentNo ?? '—'}</td>
-                <td>{l.sroOffice ?? '—'}</td>
+                <td>{l.documentDate ?? '(none)'}</td>
+                <td>{l.documentNo ?? '(none)'}</td>
+                <td>{l.sroOffice ?? '(none)'}</td>
               </tr>
             ))}
           </tbody>
@@ -2032,10 +2059,10 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
           <tbody>
             {report.encumbrances.map((e) => (
               <tr key={e.id}>
-                <td>{e.transactionNo ?? '—'}</td>
-                <td>{e.transactionDate ?? '—'}</td>
-                <td>{e.transactionType ?? '—'}</td>
-                <td>{e.parties ?? '—'}</td>
+                <td>{e.transactionNo ?? '(none)'}</td>
+                <td>{e.transactionDate ?? '(none)'}</td>
+                <td>{e.transactionType ?? '(none)'}</td>
+                <td>{e.parties ?? '(none)'}</td>
                 <td>{e.status}</td>
               </tr>
             ))}
@@ -2051,7 +2078,7 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
               <strong>{SEARCH_TYPES.find((o) => o.value === s.searchType)?.label ?? s.searchType}</strong>
               {s.searchOffice ? `, ${s.searchOffice}` : ''}
               {s.searchDate ? ` on ${s.searchDate}` : ''}
-              {s.resultNegative ? ' — no adverse hits' : ''}
+              {s.resultNegative ? ' (no adverse hits)' : ''}
               {s.resultSummary ? <div>{s.resultSummary}</div> : null}
             </li>
           ))}
@@ -2063,7 +2090,7 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
         <ul>
           {report.approvals.map((a) => (
             <li key={a.id}>
-              <strong>{a.approvalType.toUpperCase()}</strong>: {a.referenceNo ?? '—'} ({a.status.replace('_', ' ')})
+              <strong>{a.approvalType.toUpperCase()}</strong>: {a.referenceNo ?? '(none)'} ({a.status.replace('_', ' ')})
             </li>
           ))}
         </ul>

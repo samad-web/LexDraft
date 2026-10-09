@@ -212,8 +212,14 @@ function FirmTable({ rows }: { rows: AiUsageByFirm[] }) {
   const top = rows.slice(0, 15);
   return (
     <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div className="row" style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div
+        className="col"
+        style={{ padding: 'var(--space-5) var(--space-6)', borderBottom: '1px solid var(--border-subtle)', gap: 4 }}
+      >
         <h2 className="heading-lg">Top firms</h2>
+        {rows.length > 15 && (
+          <div className="body-sm muted">Top 15 of {rows.length} firms by usage</div>
+        )}
       </div>
       {top.length === 0 ? (
         <div className="muted" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>No usage.</div>

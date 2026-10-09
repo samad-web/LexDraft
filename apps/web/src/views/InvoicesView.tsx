@@ -51,9 +51,11 @@ export function InvoicesView() {
   const [filter, setFilter] = useSavedFilter<FilterId>('invoices.filter', 'all', (raw) =>
     typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
   );
+  const [q, setQ] = useState<string>('');
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
   const { data: invoices = [], isLoading, isError } = useInvoices();
 
@@ -74,10 +76,14 @@ export function InvoicesView() {
     return { billed, outstanding, overdue, thisMonth };
   }, [invoices]);
 
-  const filtered = useMemo<ReadonlyArray<Invoice>>(
-    () => invoices.filter((i) => filter === 'all' || i.status === filter),
-    [invoices, filter],
-  );
+  const filtered = useMemo<ReadonlyArray<Invoice>>(() => {
+    const needle = q.trim().toLowerCase();
+    return invoices.filter((i) => {
+      if (needle && !i.invoiceNo.toLowerCase().includes(needle) && !i.client.toLowerCase().includes(needle)) return false;
+      if (filter !== 'all' && i.status !== filter) return false;
+      return true;
+    });
+  }, [invoices, filter, q]);
 
   const sort = useSort<Invoice, InvoiceSortKey>(filtered, {
     invoiceNo: (r) => r.invoiceNo,
@@ -99,6 +105,30 @@ export function InvoicesView() {
       </div>
 
       <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
+          <input
+            type="search"
+            className="input"
+            style={{ paddingLeft: 36 }}
+            placeholder="Search by invoice number or client…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Search invoices"
+          />
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-tertiary)',
+              display: 'inline-flex',
+            }}
+          >
+            <Icon name="search" size={14} />
+          </span>
+        </div>
         <span className="spacer" />
         <button
           type="button"
@@ -143,11 +173,13 @@ export function InvoicesView() {
         <button
           type="button"
           className="btn"
+          disabled={exportingPdf}
           onClick={async () => {
             if (!visible.length) {
               showToast({ type: 'amber', text: 'No invoices to export' });
               return;
             }
+            setExportingPdf(true);
             const today = new Date().toISOString().slice(0, 10);
             const rows = visible
               .map((inv) => {
@@ -198,10 +230,12 @@ export function InvoicesView() {
               });
             } catch (err) {
               showToast({ type: 'cobalt', text: err instanceof Error ? err.message : 'PDF export failed' });
+            } finally {
+              setExportingPdf(false);
             }
           }}
         >
-          <Icon name="download" size={14} /> Export PDF
+          <Icon name="download" size={14} /> {exportingPdf ? 'Exporting…' : 'Export PDF'}
         </button>
         <Gate feature="billing.invoice">
           <button
@@ -354,7 +388,7 @@ export function InvoicesView() {
                     description={
                       invoices.length === 0
                         ? 'Bill a client to start tracking AR. New invoices appear here as drafts.'
-                        : 'Try a different status filter.'
+                        : 'Try a different search or filter.'
                     }
                   />
                 </td>
@@ -366,6 +400,9 @@ export function InvoicesView() {
                 <tr
                   key={inv.id}
                   onClick={() => setSelected(inv)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(inv); } }}
                   style={{ cursor: 'pointer' }}
                 >
                   <td className="mono tabular" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>

@@ -100,26 +100,36 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
   return (
     <div className="col stagger" style={{ gap: 0 }}>
       {/* MASTHEAD */}
-      <div style={{ paddingBottom: 24, borderBottom: '1px solid var(--border-subtle)' }}>
-        <div className="row" style={{ marginBottom: 14 }}>
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+      <div style={{ paddingBottom: 32 }}>
+        <div className="row" style={{ marginBottom: 20, alignItems: 'center' }}>
+          <span
+            className="mono"
+            style={{
+              fontSize: 11,
+              letterSpacing: '0.18em',
+              color: 'var(--text-tertiary)',
+              padding: '4px 10px',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-full)',
+            }}
+          >
             CHAMBERS DASHBOARD · SOLO
           </span>
           <span className="spacer" />
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
             {dateStr.toUpperCase()}
           </span>
         </div>
         <h1 className="display-lg" style={{ color: 'var(--text-primary)' }}>
           {greeting}
         </h1>
-        <p className="lede" style={{ marginTop: 14, maxWidth: 760 }}>
+        <p className="lede" style={{ marginTop: 14, maxWidth: 680 }}>
           {lede}
         </p>
       </div>
 
       {data && isEmptyChambers && (
-        <div style={{ paddingTop: 24 }}>
+        <div style={{ paddingBottom: 28 }}>
           <DashboardEmptyState
             plan="Solo"
             firstName={firstName}
@@ -128,50 +138,88 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
         </div>
       )}
 
-      {/*
-        Caseload-health widget - sits between the empty-state panel and
-        the existing rail/widgets. Self-gated by the `caseload.health`
-        feature; when the user lacks it, the underlying fetch errors and
-        the widget renders nothing.
-      */}
-      {data && !isEmptyChambers && (
-        <div style={{ paddingTop: 24, paddingBottom: 4 }}>
-          <CaseloadHealthWidget />
+      {/* §I HERO — primary action. The single most important surface on the
+          page: start a draft, review a contract, or capture a lead. Given
+          top billing with a dedicated panel rather than competing evenly
+          with the calendar utility below it. */}
+      <section
+        className="card"
+        style={{
+          padding: '36px 40px',
+          marginBottom: 20,
+          background: 'var(--bg-inverse)',
+          borderColor: 'var(--bg-inverse)',
+        }}
+      >
+        <div className="eyebrow" style={{ marginBottom: 14, color: 'var(--text-tertiary)' }}>
+          § I · Today&rsquo;s work
         </div>
-      )}
+        <h2 className="display-md" style={{ marginBottom: 14, color: 'var(--text-inverse)', maxWidth: 620 }}>
+          Begin a draft.{' '}
+          <span style={{ color: 'var(--text-tertiary)' }}>Or open one already started.</span>
+        </h2>
+        <p className="body-lg" style={{ maxWidth: 520, marginBottom: 28, color: 'var(--text-tertiary)' }}>
+          Indian-format document templates tuned to procedure. Speak the matter and the brief, and a first draft will arrive in seconds.
+        </p>
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-lg"
+            style={{ background: 'var(--bg-base)', borderColor: 'var(--bg-base)', color: 'var(--text-primary)' }}
+            onClick={() => onNav('draft')}
+          >
+            Draft a new document <Icon name="arrow" size={14} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-lg"
+            style={{ background: 'transparent', borderColor: 'var(--border-strong)', color: 'var(--text-inverse)' }}
+            onClick={() => onNav('review')}
+          >
+            Review a contract
+          </button>
+          <span style={{ width: 1, alignSelf: 'stretch', background: 'var(--border-strong)', opacity: 0.4 }} />
+          <CaptureLeadCta variant="on-dark" />
+        </div>
+      </section>
 
-      {/* Calendar CTA - dedicated card row, unmissable. */}
-      <div style={{ paddingTop: 24 }}>
+      {/* Secondary row: caseload health + calendar utility, side by side so
+          neither reads as a second hero competing with §I above. */}
+      <div
+        className="dash-2col"
+        style={{ display: 'grid', gridTemplateColumns: data && !isEmptyChambers ? '1.1fr 1fr' : '1fr', gap: 16, alignItems: 'stretch', marginBottom: 28 }}
+      >
+        {data && !isEmptyChambers && <CaseloadHealthWidget />}
+
         <div
           className="card"
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 20,
-            padding: '18px 22px',
-            background: 'var(--bg-surface-2)',
-            borderColor: 'var(--border-default)',
+            padding: '20px 24px',
           }}
         >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
-            <div className="heading-md" style={{ marginBottom: 2 }}>Cause-list calendar</div>
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Month at a glance</div>
+            <div className="heading-md" style={{ marginBottom: 4 }}>Cause-list calendar</div>
             <p className="body-sm muted" style={{ margin: 0 }}>
-              Every matter posted for the month, day by day. Jump between months and drill into any day's listing.
+              Every matter posted for the month. Jump between months and drill into any day.
             </p>
           </div>
           <button
             type="button"
-            className="btn btn-primary btn-lg"
+            className="btn btn-sm"
             onClick={() => setCalendarOpen(true)}
             aria-label="Open full month calendar"
+            style={{ flexShrink: 0 }}
           >
-            <Icon name="calendar" size={16} /> Open calendar
+            <Icon name="calendar" size={14} /> Open
           </button>
         </div>
       </div>
 
-      <div style={{ paddingTop: 20, paddingBottom: 20 }}>
+      <div style={{ paddingBottom: 4, borderBottom: '1px solid var(--border-default)' }}>
         <PillNav
           items={RAIL_ITEMS}
           value={section}
@@ -237,38 +285,11 @@ interface TodayProps {
 function TodaySection({ hearings, alerts, recentDocs, stats, onNav }: TodayProps) {
   return (
     <>
-      <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-        {/* §I header + CTAs. The legacy "Drafts in progress" side panel
-            lived in a 2-col layout; it only ever showed a "No drafts yet"
-            placeholder because draft inventory isn't fetched here. On a
-            personal Solo dashboard that empty-slot framing reads as a
-            hollow inbox, so the layout is now single-column with the
-            primary CTAs leading the section. */}
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 16 }}>§ I - Today’s work</div>
-          <h2 className="display-md" style={{ marginBottom: 16 }}>
-            Begin a draft. <span style={{ color: 'var(--text-secondary)' }}>Or open one already started.</span>
-          </h2>
-          <p className="body-lg muted" style={{ maxWidth: 520, marginBottom: 28 }}>
-            Indian-format document templates tuned to procedure. Speak the matter and the brief - a first draft will arrive in seconds.
-          </p>
-          <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => onNav('draft')}>
-              Draft a new document <Icon name="arrow" size={14} />
-            </button>
-            <button type="button" className="btn btn-lg" onClick={() => onNav('review')}>
-              Review a contract
-            </button>
-            <CaptureLeadCta variant="prominent" />
-          </div>
-        </div>
-      </section>
-
       {/* §II Cause list. Hidden entirely on a clear day — a "No hearings
           scheduled" placeholder reads like a blank inbox on the personal
           Solo dashboard. The masthead lede already speaks to a clear day. */}
       {hearings.length > 0 && (
-        <section style={{ padding: '40px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+        <section style={{ padding: '36px 0', borderBottom: '1px solid var(--border-subtle)' }}>
           <SectionHeader number="§ II" title="Today’s cause list" trailing={`${hearings.length} LISTED`} />
           <div className="col" style={{ gap: 0 }}>
             {hearings.map((h, i) => {

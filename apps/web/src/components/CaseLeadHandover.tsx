@@ -1,24 +1,30 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Select } from '@lexdraft/ui';
 import {
   useCaseLead, useTeammates, useSetCaseLead, useIsHead, useCurrentUserId,
 } from '@/hooks/useAssignments';
 import { useUIStore } from '@/store/ui';
+import { HandOffCaseModal } from './HandOffCaseModal';
 
 // =============================================================================
 // CaseLeadHandover — shows the matter's lead advocate and lets an authorised
 // user hand it over. A firm head can assign anyone; the current lead can hand
 // off their own matter (self-handoff). Everyone else sees it read-only.
 // The server re-checks authority, so this only governs what's shown.
+//
+// "Hand off entire case" opens HandOffCaseModal, the cross-firm counterpart:
+// same authorisation (head or current lead), but can also target an advocate
+// outside the firm who may not have a LexDraft account yet.
 // =============================================================================
 
-export function CaseLeadHandover({ caseId }: { caseId: string }) {
+export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTitle?: string }) {
   const lead = useCaseLead(caseId);
   const teammates = useTeammates();
   const setLead = useSetCaseLead(caseId);
   const isHead = useIsHead();
   const meId = useCurrentUserId();
   const showToast = useUIStore((s) => s.showToast);
+  const [handoffOpen, setHandoffOpen] = useState(false);
 
   const currentLeadId = lead.data?.id ?? null;
   const canEdit = isHead || (!!currentLeadId && currentLeadId === meId);
@@ -62,6 +68,20 @@ export function CaseLeadHandover({ caseId }: { caseId: string }) {
               ? 'As a firm head you can hand this matter to anyone.'
               : 'You can hand off your own matter to a colleague.'}
           </p>
+          <button
+            type="button"
+            className="btn"
+            style={{ marginTop: 12 }}
+            onClick={() => setHandoffOpen(true)}
+          >
+            Hand off entire case…
+          </button>
+          <HandOffCaseModal
+            open={handoffOpen}
+            onClose={() => setHandoffOpen(false)}
+            caseId={caseId}
+            caseTitle={caseTitle}
+          />
         </>
       ) : (
         <p className="body-sm" style={{ margin: 0 }}>

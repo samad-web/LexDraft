@@ -84,7 +84,7 @@ export function NewApplicationModal({ open, onClose, caseId, existing }: Props) 
       onClose={onClose}
       title={isEdit ? 'Edit application' : 'Add application'}
       eyebrow="Matter"
-      description="Interim applications, appeals, execution, review or bail — each tracked with its own status."
+      description="Interim applications, appeals, execution, review or bail: each tracked with its own status."
       width={620}
       onSubmit={handleSubmit}
       footer={
@@ -127,7 +127,7 @@ export function NewApplicationModal({ open, onClose, caseId, existing }: Props) 
 
       <Field label="NOTES" wide hint="Optional">
         <textarea className="input" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={2000}
-                  placeholder="Brief context — relief sought, bench, outcome…" />
+                  placeholder="Brief context: relief sought, bench, outcome…" />
       </Field>
 
       <label className="row" style={{ gap: 8, alignItems: 'center' }}>

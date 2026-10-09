@@ -147,12 +147,37 @@ export const documentsService = {
       const persisted = fromRow(rows[0]!);
       // If the legacy base64 path was used, persist the bytes via storage().
       if (input.fileBase64 && input.fileMime && input.fileName && typeof input.fileSize === 'number' && !input.storageKey) {
-        const key = `documents/${firmId}/${persisted.id}/${input.fileName}`;
-        await storage().putObject({
-          key,
-          body: Buffer.from(input.fileBase64, 'base64'),
-          contentType: input.fileMime,
-        });
+        // Sanitise the filename for the storage KEY only — the local driver's
+        // safeKey() allows just [a-zA-Z0-9/_.-], so spaces and parentheses
+        // (e.g. "VENKI PUBLICATION 138 notice.pdf", "AGREEMENT (1).pdf") would
+        // otherwise be rejected as an "Invalid storage key". The DB keeps the
+        // real display name; only the on-disk key is slugged. Mirrors the
+        // presigned-upload path in documents.routes.ts.
+        const safeName = input.fileName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 200) || 'file';
+        const key = `documents/${firmId}/${persisted.id}/${safeName}`;
+        try {
+          await storage().putObject({
+            key,
+            body: Buffer.from(input.fileBase64, 'base64'),
+            contentType: input.fileMime,
+          });
+          // Verify the bytes are actually readable back before we mark the row
+          // as file-bearing. This catches a storage backend that silently drops
+          // the write (e.g. a sync-managed dir that dehydrates the file) so we
+          // never leave a row that CLAIMS to have a file the engine can't read.
+          const readback = await storage().getObject(key);
+          if (!readback || readback.body.length === 0) {
+            throw new Error('stored object could not be read back');
+          }
+        } catch (err) {
+          // Roll back the phantom row — better to fail the upload loudly than to
+          // create a metadata-only document that reads as empty forever.
+          await sql`delete from documents where id = ${persisted.id}::uuid`.catch(() => {});
+          throw Object.assign(
+            new Error(`Uploaded file could not be stored: ${(err as Error).message}`),
+            { status: 502 },
+          );
+        }
         await sql`
           update documents
           set storage_key = ${key}, file_name = ${input.fileName},
@@ -194,6 +219,13 @@ export const documentsService = {
           file_name   = ${file.fileName},
           file_mime   = ${file.fileMime},
           file_size   = ${file.fileSize},
+          -- INVALIDATE the extracted-text cache: a new file replaces the old
+          -- content, so the cached text (and its size stamp) no longer apply.
+          -- Nulled here; caseDocumentText re-extracts and re-caches on next read.
+          extracted_text        = null,
+          extracted_empty       = null,
+          extracted_source_size = null,
+          extracted_at          = null,
           updated_label = 'just now'
         where id::text = ${id} and firm_id = ${firmId}::uuid
         returning id, case_label, name, type, updated_label,
@@ -297,5 +329,114 @@ export const documentsService = {
     const f = memoryFiles.get(id);
     if (!f || !f.storageKey) return null;
     return { key: f.storageKey, fileMime: f.fileMime };
+  },
+
+  /**
+   * Gather the extracted TEXT of every document filed against a case label, so
+   * the drafting engine can read the matter's papers (cheque, notice,
+   * agreement, …) without the advocate re-attaching them. Files are extracted
+   * on the fly - pdf-parse with an OCR fallback for scans, DOCX via mammoth -
+   * because case documents are stored as raw files, not pre-extracted text.
+   *
+   * Best-effort: a file that can't be read is skipped (never throws), and the
+   * total is capped so a huge matter can't blow the engine's prompt budget.
+   */
+  async caseDocumentText(
+    caseLabel: string,
+    firmId: string | null,
+  ): Promise<{ items: Array<{ name: string; text: string }>; unreadable: string[] }> {
+    if (!firmId || !caseLabel.trim()) return { items: [], unreadable: [] };
+    const { extractText } = await import('../lib/text-extraction');
+    const label = caseLabel.trim().toLowerCase();
+
+    const all = await documentsService.list(firmId);
+    const forCase = all.filter(
+      (d) => d.kind === 'document' && (d.case ?? '').trim().toLowerCase() === label,
+    );
+
+    const out: Array<{ name: string; text: string }> = [];
+    const unreadable: string[] = []; // attached but no bytes / no extractable text
+    let budget = 60_000; // total chars fed to the engine across all docs
+    const conn = db();
+    for (const d of forCase) {
+      if (!d.id) continue;
+      if (budget <= 0) { unreadable.push(d.name); continue; }
+
+      // 1. CACHE HIT. Extraction is EXPENSIVE — a large scanned PDF re-OCR'd on
+      //    every draft took minutes, so the web fetch timed out and the doc's text
+      //    never reached the engine. Read the cached text first; a row is a valid
+      //    hit when it was extracted from the SAME file size that's on record now
+      //    (a replaced/re-uploaded file has a different size and re-extracts).
+      const sizeNow = d.fileSize != null ? Number(d.fileSize) : null;
+      if (conn) {
+        const cached = await conn<Array<{
+          extracted_text: string | null;
+          extracted_empty: boolean | null;
+          extracted_source_size: string | number | null;
+        }>>`
+          select extracted_text, extracted_empty, extracted_source_size
+          from documents where id = ${d.id}::uuid and firm_id = ${firmId}::uuid`;
+        const row = cached[0];
+        const cachedSize = row?.extracted_source_size != null ? Number(row.extracted_source_size) : null;
+        const sizeMatches = sizeNow == null || cachedSize == null ? true : cachedSize === sizeNow;
+        if (row && sizeMatches && (row.extracted_text != null || row.extracted_empty != null)) {
+          if (row.extracted_empty) { unreadable.push(d.name); continue; }
+          const cachedText = (row.extracted_text ?? '').trim();
+          if (cachedText) {
+            const clip = cachedText.slice(0, budget);
+            budget -= clip.length;
+            out.push({ name: d.name, text: clip });
+            continue;
+          }
+        }
+      }
+
+      // 2. CACHE MISS — resolve the file bytes: storage object first, else legacy base64.
+      let bytes: Buffer | null = null;
+      let mime = d.fileMime ?? '';
+      const full = await documentsService.get(d.id, firmId);
+      if (full?.storageKey) {
+        const obj = await storage().getObject(full.storageKey);
+        if (obj) { bytes = obj.body; mime = mime || obj.contentType; }
+      } else if (full?.fileBase64) {
+        bytes = Buffer.from(full.fileBase64, 'base64');
+      }
+      // No stored bytes at all — the file was registered as metadata but its
+      // content never landed in storage (e.g. an upload that didn't finalize).
+      // Surface it so the UI can tell the advocate to re-upload, rather than
+      // silently feeding the engine nothing.
+      if (!bytes) { unreadable.push(d.name); continue; }
+
+      const res = await extractText({
+        body: bytes,
+        mime,
+        fileName: d.fileName ?? d.name,
+      });
+      const gotText = res.ok && res.text.trim().length > 0;
+      // 3. PERSIST the result (positive OR negative) so the NEXT draft is instant.
+      //    Best-effort: a cache-write failure must not break the read.
+      if (conn) {
+        try {
+          await conn`
+            update documents set
+              extracted_text        = ${gotText ? res.text.trim() : null},
+              extracted_empty       = ${!gotText},
+              extracted_source_size = ${sizeNow},
+              extracted_at          = now()
+            where id = ${d.id}::uuid and firm_id = ${firmId}::uuid`;
+        } catch {
+          // ignore — we still return the freshly-extracted text below
+        }
+      }
+      if (gotText) {
+        const clip = res.text.trim().slice(0, budget);
+        budget -= clip.length;
+        out.push({ name: d.name, text: clip });
+      } else {
+        // Bytes present but nothing extractable (blank scan OCR failed, etc.).
+        unreadable.push(d.name);
+      }
+    }
+    return { items: out, unreadable };
   },
 };

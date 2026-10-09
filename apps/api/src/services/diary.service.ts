@@ -128,4 +128,54 @@ export const diaryService = {
     `;
     return fromListRow(rows[0]!);
   },
+
+  async update(
+    id: string,
+    patch: Partial<Omit<DiaryEntry, 'id'>>,
+    firmId: string | null,
+  ): Promise<DiaryEntry | undefined> {
+    if (!firmId) return undefined;
+    validateAttachment(patch);
+    const sql = db();
+    if (!sql) return undefined;
+    // coalesce() only keeps a column when the caller omitted the field
+    // entirely; nullable fields (nextHearingDate / reminderOffsetDays) still
+    // need an explicit "clear" path, so those two use a sentinel distinguishing
+    // "not provided" (undefined) from "set to null" (explicit clear).
+    const hasNextHearingDate = Object.prototype.hasOwnProperty.call(patch, 'nextHearingDate');
+    const hasReminderOffsetDays = Object.prototype.hasOwnProperty.call(patch, 'reminderOffsetDays');
+    const rows = await sql<ListRow[]>`
+      update diary_entries set
+        entry_date             = coalesce(${patch.date ?? null}, entry_date),
+        entry_time              = coalesce(${patch.time ?? null}, entry_time),
+        kind                    = coalesce(${patch.kind ?? null}::diary_kind, kind),
+        case_label              = coalesce(${patch.caseLabel ?? null}, case_label),
+        cnr                     = coalesce(${patch.cnr ?? null}, cnr),
+        detail                  = coalesce(${patch.detail ?? null}, detail),
+        forum                   = coalesce(${patch.forum ?? null}, forum),
+        bench                   = coalesce(${patch.bench ?? null}, bench),
+        next_hearing_date       = case when ${hasNextHearingDate} then ${patch.nextHearingDate || null} else next_hearing_date end,
+        reminder_offset_days    = case when ${hasReminderOffsetDays} then ${patch.reminderOffsetDays ?? null} else reminder_offset_days end,
+        attachment_file_name    = coalesce(${patch.attachmentFileName ?? null}, attachment_file_name),
+        attachment_mime         = coalesce(${patch.attachmentMime ?? null}, attachment_mime),
+        attachment_size_bytes   = coalesce(${patch.attachmentSize ?? null}, attachment_size_bytes),
+        attachment_base64       = coalesce(${patch.attachmentBase64 ?? null}, attachment_base64)
+      where id = ${id}::uuid and firm_id = ${firmId}::uuid
+      returning id, entry_date, entry_time, kind, case_label, cnr, detail, forum,
+                bench, next_hearing_date, reminder_offset_days,
+                attachment_file_name, attachment_mime, attachment_size_bytes
+    `;
+    const row = rows[0];
+    return row ? fromListRow(row) : undefined;
+  },
+
+  async remove(id: string, firmId: string | null): Promise<boolean> {
+    if (!firmId) return false;
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql`
+      delete from diary_entries where id = ${id}::uuid and firm_id = ${firmId}::uuid returning id
+    `;
+    return rows.length > 0;
+  },
 };

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { Icon, FieldError } from '@lexdraft/ui';
 import { useAcceptInvitation, useInvitationByToken } from '@/hooks/useInvitations';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
@@ -17,6 +17,10 @@ export function InviteAcceptView() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [confirmTouched, setConfirmTouched] = useState(false);
+  const confirmError = confirmTouched && confirm && password !== confirm
+    ? 'Passwords do not match.'
+    : null;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -180,10 +184,14 @@ export function InviteAcceptView() {
                   type="password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
+                  onBlur={() => setConfirmTouched(true)}
                   placeholder="Repeat password"
                   minLength={8}
                   required
+                  aria-invalid={!!confirmError}
+                  aria-describedby={confirmError ? 'invite-confirm-error' : undefined}
                 />
+                <FieldError id="invite-confirm-error" error={confirmError} />
               </div>
 
               {accept.isError && (
@@ -207,7 +215,7 @@ export function InviteAcceptView() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                disabled={accept.isPending || !name.trim() || password.length < 8}
+                disabled={accept.isPending || !name.trim() || password.length < 8 || password !== confirm}
                 style={{ marginTop: 4 }}
               >
                 {accept.isPending ? 'Joining…' : `Accept and join ${data.firm}`}

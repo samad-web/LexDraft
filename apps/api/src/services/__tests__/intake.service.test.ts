@@ -28,6 +28,23 @@ vi.mock('../engine-client.service', () => {
     EngineDisabledError,
     EngineError: class extends Error {},
     engineClient: {
+      // Minimal describe() for the passthrough s138_complaint doc so resolveDoc can
+      // derive its intake sections. Only the fields the attach-auto-list test needs.
+      async docTypes() {
+        return {
+          doc_types: [
+            {
+              doc_type: 's138_complaint',
+              title: 'Complaint under s.138 NI Act',
+              slots: [],
+              fields: [
+                { key: 'complainant_name', kind: 'string', required: true },
+                { key: 'extra_documents', kind: 'string_list', required: false },
+              ],
+            },
+          ],
+        };
+      },
       async draft(docType: string, matterId: string, fields: Record<string, unknown>) {
         draftCalls.push({ ...fields });
         const next = engineQueue.shift();
@@ -529,6 +546,98 @@ describe('intake loop — attachments as a FREE, local extraction source', () =>
     expect(detCalls).toHaveLength(0);
     const note = state.transcript.find((t) => t.role === 'assistant' && t.text.includes('annexure') && t.text.includes('blurry.jpg'));
     expect(note).toBeTruthy();
+  });
+
+  it('AUTO-LISTS every attached file in extra_documents (complaint LIST OF DOCUMENTS)', async () => {
+    const COMPLAINT = 'Complaint u/s 138 NI Act';
+    // Start a complaint conversation (passthrough doc; sections derived from the
+    // mocked docTypes describe, which declares extra_documents).
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+    let state = await intakeService.start(COMPLAINT, 'Cheque bounced.', CTX);
+
+    // Attach a READABLE witness statement (image → OCR) AND an UNREADABLE annexure
+    // (.zip). Both must be added to the document list regardless of readability.
+    ocrQueue.push({ ok: true, text: 'witness statement of S. Kannan' });
+    extractQueue.push(patch([])); // no fields extracted; we care about the auto-list
+    textExtractQueue.push({ ok: false, error: 'unsupported' });
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+
+    state = await intakeService.attach(
+      state.matterId, COMPLAINT,
+      [
+        { fileName: 'witness-statement.jpg', mime: 'image/jpeg', dataBase64: Buffer.from('a').toString('base64') },
+        { fileName: 'exhibits.zip', mime: 'application/zip', dataBase64: Buffer.from('PK').toString('base64') },
+      ],
+      '', CTX,
+    );
+
+    const docsField = state.factSheet.flatMap((s) => s.fields).find((f) => f.key === 'extra_documents');
+    expect(docsField).toBeTruthy();
+    const listed = String(docsField?.value ?? '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    expect(listed).toContain('witness-statement.jpg');
+    expect(listed).toContain('exhibits.zip');
+    expect(docsField?.meta?.via).toBe('attachment');
+  });
+
+  it('does not DOUBLE-list a file re-attached across two turns', async () => {
+    const COMPLAINT = 'Complaint u/s 138 NI Act';
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+    let state = await intakeService.start(COMPLAINT, 'Cheque bounced.', CTX);
+
+    // First attach.
+    ocrQueue.push({ ok: true, text: 'witness statement' });
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+    state = await intakeService.attach(
+      state.matterId, COMPLAINT,
+      [{ fileName: 'witness.jpg', mime: 'image/jpeg', dataBase64: Buffer.from('a').toString('base64') }],
+      '', CTX,
+    );
+
+    // Re-attach the SAME file name on a second turn.
+    ocrQueue.push({ ok: true, text: 'witness statement again' });
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+    state = await intakeService.attach(
+      state.matterId, COMPLAINT,
+      [{ fileName: 'witness.jpg', mime: 'image/jpeg', dataBase64: Buffer.from('b').toString('base64') }],
+      '', CTX,
+    );
+
+    const docsField = state.factSheet.flatMap((s) => s.fields).find((f) => f.key === 'extra_documents');
+    const listed = String(docsField?.value ?? '').split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    expect(listed.filter((n) => n === 'witness.jpg')).toHaveLength(1); // exactly one
+  });
+
+  it('SEEDS Tamil-Nadu s.138 practice defaults on a fresh complaint (itemise & twice-amount = Yes)', async () => {
+    const COMPLAINT = 'Complaint u/s 138 NI Act';
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+    const state = await intakeService.start(COMPLAINT, 'Cheque bounced; want to file the complaint.', CTX);
+
+    const val = (key: string) =>
+      state.factSheet.flatMap((s) => s.fields).find((f) => f.key === key)?.value;
+    // These are pre-set before the advocate answers anything, so the generated
+    // complaint follows TN practice unless the advocate changes them.
+    expect(val('itemise_documents')).toBe('Yes');
+    expect(val('prayer_twice_amount')).toBe('Yes');
+    expect(val('is_payee')).toBe('Yes');
+    expect(val('payee_bank_branch_in_jurisdiction')).toBe('Yes');
+  });
+
+  it('startAuto routes a "complaint under 138" brief to the COMPLAINT and seeds its defaults', async () => {
+    // Deterministic keyword path: "138 ... complaint/file" -> Complaint (not Notice).
+    classifyQueue.push({ label: null, confidence: 'low' });
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'complainant_name', code: 'required', message: 'x' }] });
+
+    const state = await intakeService.startAuto(
+      'Please draft a complaint under section 138 to file in court; the cheque was dishonoured.',
+      CTX,
+    );
+
+    expect(state.docLabel).toBe('Complaint u/s 138 NI Act');
+    const twice = state.factSheet.flatMap((s) => s.fields).find((f) => f.key === 'prayer_twice_amount');
+    expect(twice?.value).toBe('Yes');
   });
 
   it('surfaces the FULL document text on state.sourceText (for a "Draft now")', async () => {

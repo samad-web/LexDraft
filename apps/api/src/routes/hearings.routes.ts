@@ -9,28 +9,73 @@ import { requireFeature } from '../services/permissions.service';
 import { notify } from '../services/notifications.service';
 import { db } from '../db/client';
 
+// Same YYYY-MM-DD constraint as DayParams.iso below - keeps malformed date
+// strings from ever reaching the `::date` cast in hearings.service.ts, which
+// Postgres rejects with an unhandled 500 rather than a 400.
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected date in YYYY-MM-DD format').optional();
+
+// Local-date "today", not `.toISOString().slice(0,10)` - that UTC-shifts
+// across midnight on Asia/Kolkata (+5:30), the exact bug already fixed in
+// hearings.service.ts's week()/month() (see isoOfLocal there). Duplicated
+// here rather than exported/shared, since it's three lines and this is the
+// only other call site.
+function todayIsoLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Cross-checks `status` against `date` so a hearing can't be saved in a
+// self-contradictory state (e.g. status='today' with a date 2 months out) -
+// that value then flows unchecked into the calendar UI's status badge and
+// the .ics export's "Status:" line. `date` is optional (a hearing can be
+// created without one yet), so the check only fires once both fields are
+// present; it is not a replacement for deriving status from date entirely,
+// just a guard against an obvious mismatch.
+function checkStatusDate(
+  val: { status: 'today' | 'upcoming' | 'past'; date?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (!val.date) return;
+  const today = todayIsoLocal();
+  const isConsistent =
+    (val.status === 'today' && val.date === today) ||
+    (val.status === 'past' && val.date < today) ||
+    (val.status === 'upcoming' && val.date >= today);
+  if (!isConsistent) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['status'],
+      message: `status '${val.status}' is inconsistent with date ${val.date} (today is ${today})`,
+    });
+  }
+}
+
 const Input = z.object({
   case: z.string().min(1),
   time: z.string().min(1),
   court: z.string().min(1),
   purpose: z.string().min(1),
   status: z.enum(['today', 'upcoming', 'past']).default('upcoming'),
-  date: z.string().optional(),
+  date: isoDate,
   judge: z.string().optional(),
   caseId: z.string().uuid().optional(),
-});
+}).superRefine(checkStatusDate);
 
-// Edit form: same shape as Input minus caseId (re-resolved server-side from the
-// matter label). All fields required so the row is fully replaced.
+// Edit form: same shape as Input. caseId pins the hearing to an exact case
+// row (e.g. when editing from a case detail page) - without it, the server
+// falls back to a title-match lookup that can silently reattach the hearing
+// to the wrong case when two matters share the same title (newest wins).
+// All fields required so the row is fully replaced.
 const UpdateInput = z.object({
   case: z.string().min(1),
   time: z.string().min(1),
   court: z.string().min(1),
   purpose: z.string().min(1),
   status: z.enum(['today', 'upcoming', 'past']),
-  date: z.string().optional(),
+  date: isoDate,
   judge: z.string().optional(),
-});
+  caseId: z.string().uuid().optional(),
+}).superRefine(checkStatusDate);
 
 const WeekQuery = z.object({ start: z.string().optional() });
 const MonthQuery = z.object({

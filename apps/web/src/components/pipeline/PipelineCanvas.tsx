@@ -92,7 +92,7 @@ function PipelineCanvasSvg({ graph }: { graph: CasePipelineGraph }) {
  *  destinations indented under each stage. */
 function PipelineReadList({ graph }: { graph: CasePipelineGraph }) {
   const ordered = orderedNodes(graph);
-  const labelOf = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? '—';
+  const labelOf = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? '';
 
   return (
     <div className="col" style={{ gap: 0 }} role="img" aria-label="Case pipeline">

@@ -171,24 +171,52 @@ function runBoundedCapture(bin: string, args: string[], timeoutMs: number): Prom
 
 /** Convert docx bytes -> pdf bytes via LibreOffice headless. Throws on any failure
  *  (missing binary, non-zero exit, timeout, no output). Always cleans its temp dir. */
+// A PERSISTENT ("warm") LibreOffice user profile, created once and reused across
+// conversions. The dominant cost of `soffice --convert-to` is LibreOffice building
+// a fresh user profile on first run (~5-8s); reusing an already-initialised profile
+// makes every conversion after the first ~1-2s. We serialise conversions through a
+// single-slot mutex so two jobs never touch the same warm profile concurrently
+// (LibreOffice locks its profile; concurrent use with one profile corrupts it).
+const WARM_PROFILE_DIR = path.join(os.tmpdir(), 'lexdraft-soffice-profile');
+let _warmProfileReady: Promise<void> | null = null;
+let _convertChain: Promise<unknown> = Promise.resolve();
+
+function warmProfileUrl(): string {
+  const fwd = WARM_PROFILE_DIR.replace(/\\/g, '/');
+  return fwd.startsWith('/') ? `file://${fwd}` : `file:///${fwd}`;
+}
+
+/** Serialise a conversion through the single warm profile (see note above). */
+function withConvertLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = _convertChain.then(fn, fn);
+  // Keep the chain alive regardless of this job's outcome.
+  _convertChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
 async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
-  // A dedicated working dir per conversion: holds the input .docx, the output .pdf,
-  // AND a private LibreOffice user profile so concurrent jobs never share a profile.
+  return withConvertLock(() => _convertDocxToPdfInner(docx));
+}
+
+async function _convertDocxToPdfInner(docx: Buffer): Promise<Buffer> {
+  // Per-conversion working dir for the input/output only; the LibreOffice user
+  // PROFILE is the shared warm one (WARM_PROFILE_DIR), created once.
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lexdraft-render-'));
-  const profileDir = path.join(workDir, 'profile');
   const inPath = path.join(workDir, 'in.docx');
   try {
-    await fs.mkdir(profileDir, { recursive: true });
+    if (!_warmProfileReady) {
+      _warmProfileReady = fs.mkdir(WARM_PROFILE_DIR, { recursive: true }).then(() => undefined);
+    }
+    await _warmProfileReady;
     await fs.writeFile(inPath, docx);
 
-    // file:// URL for the private profile — LibreOffice wants a URL, not a path.
+    // file:// URL for the WARM profile — LibreOffice wants a URL, not a path.
     // On Windows an absolute path starts with a drive letter ("C:\..."), so the
     // correct file URL needs THREE slashes ("file:///C:/...") — a two-slash
     // "file://C:/..." makes LibreOffice treat "C:" as a host, fail to create the
-    // profile, and HANG on first-run setup (the docx->PDF then times out). POSIX
-    // absolute paths already begin with "/", so "file://" + "/home/..." is right.
-    const fwd = profileDir.replace(/\\/g, '/');
-    const profileUrl = fwd.startsWith('/') ? `file://${fwd}` : `file:///${fwd}`;
+    // profile, and HANG on first-run setup. POSIX absolute paths already begin
+    // with "/", so "file://" + "/home/..." is right.
+    const profileUrl = warmProfileUrl();
     const args = [
       '--headless',
       '--norestore',
@@ -227,6 +255,16 @@ async function convertDocxToPdf(docx: Buffer): Promise<Buffer> {
   }
 }
 
+// A minimal but VALID .docx (a single "." paragraph) used only to warm the
+// LibreOffice profile at startup — see documentRenderService.warmUp(). Embedded as
+// base64 so the warm-up has no dependency on the engine's template files.
+const MINIMAL_DOCX_B64 =
+  'UEsDBBQAAAAIABuTMF3JTxqw7gAAAK4BAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbH2QvU7DMBSFd57C8opiBwaEUJwO/IzAUB7Asm8SC/va8r0N6dujtKUDKszn5zs63WZJUcxQKWQ08ka1UgC67AOORn5sX5p7KYgtehszgpF7ILnpr7rtvgCJJUUkIyfm8qA1uQmSJZUL4JLikGuyTCrXURfrPu0I+rZt77TLyIDc8Noh++4JBruLLJ4XBjwOqRBJisejcWUZaUuJwVkOGfWM/helORFUhXjw0BQKXS8pSn2RsCp/A065txlqDR7Eu638ahMYqb9y9dpnt0uArP6vubAzD0NwcM6vbaVmB0QBxxTVWUk24M9+fbi7/wZQSwMEFAAAAAgAG5MwXbmBRHGzAAAAKgEAAAsAAABfcmVscy8ucmVsc43PsY7CMBAE0J6vsLa/OFyBEIpDczqJFoUPsOxNYmHvWl7fEf6ehgIQBe1o9EbT7ZcU1T8WCUwG1k0LCsmxDzQZOA2/X1tQUi15G5nQwBUF9v2qO2K0NTDJHLKoJUUSA3Oteae1uBmTlYYz0pLiyCXZKg2XSWfrznZC/d22G10eDeifTHXwBsrBr0EN14yf2DyOweEPu7+EVN9MvDRADbZMWA1cuHjt73GzpAi67/TTxf4GUEsDBBQAAAAIABuTMF2McXf5mgAAAMsAAAARAAAAd29yZC9kb2N1bWVudC54bWxFzjESwiAQheHeUzD0hmjhOJmQdJ5AD4CACTPsLsOiSW7vEAub729e8fpxhSg+PnMg1PLUtFJ4tOQCTlo+7rfjVQouBp2JhF7LzbMch0O/dI7sGzwWsUJE7hYt51JSpxTb2YPhhpLHFeKLMpjCDeVJLZRdymQ9c8AJojq37UWBCSiHfume5LbaVMmVMjS9qqnm3bT7m6r/jeELUEsBAhQAFAAAAAgAG5MwXclPGrDuAAAArgEAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAAUAAAACAAbkzBduYFEcbMAAAAqAQAACwAAAAAAAAAAAAAAgAEfAQAAX3JlbHMvLnJlbHNQSwECFAAUAAAACAAbkzBdjHF3+ZoAAADLAAAAEQAAAAAAAAAAAAAAgAH7AQAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMAAwC5AAAAxAIAAAAA';
+
+async function buildMinimalDocx(): Promise<Buffer> {
+  return Buffer.from(MINIMAL_DOCX_B64, 'base64');
+}
+
 // ---- persistence ------------------------------------------------------------
 
 export const documentRenderService = {
@@ -238,6 +276,23 @@ export const documentRenderService = {
     const docx = Buffer.from(docxBase64, 'base64');
     if (docx.length === 0) throw new Error('empty docx_base64');
     return convertDocxToPdf(docx);
+  },
+
+  /** Warm the LibreOffice user profile at startup by doing ONE throwaway
+   *  conversion. The first-ever soffice run creates the profile (~10s+); doing it
+   *  now — off the request path — means the advocate's first real Download PDF is
+   *  already on the fast (~3s) warm path. Best-effort: swallows any error (soffice
+   *  may not be installed in every environment) so it never blocks boot. */
+  async warmUp(): Promise<void> {
+    try {
+      // Smallest valid .docx: an empty single-paragraph document.
+      const minimal = await buildMinimalDocx();
+      const t0 = Date.now();
+      await convertDocxToPdf(minimal);
+      logger.info({ ms: Date.now() - t0 }, 'document-render: LibreOffice profile warmed');
+    } catch (err) {
+      logger.warn({ err }, 'document-render: warm-up skipped (soffice unavailable?)');
+    }
   },
 
   /** Create (or return existing) a pending render row for a request, then return its

@@ -43,6 +43,7 @@ import {
   type EngineBundleDoc,
 } from './engine-client.service';
 import { mapFormToEngine, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
+import { enrichFormWithBns, type BnsConcordanceEntry } from '../lib/bns-enrichment';
 import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
 import { intakeCompose } from './intake-compose.service';
 import { extractDeterministic } from './intake-extract-rules.service';
@@ -70,7 +71,11 @@ const K_SOURCE = '__sourceText';
  *  paste — so draftNow knows the current form may be empty because we couldn't
  *  READ, not because the advocate gave nothing. */
 const K_LAST_EXTRACT_FAILED = '__lastExtractFailed';
-const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED]);
+/** BNS/BNSS/BSA concordance (JSON) — the IPC/CrPC/Evidence-Act references found in
+ *  the brief/docs and their in-force 2023-Sanhita replacements. Stored for the UI
+ *  and the drafting brief; NEVER sent to the engine as a form field. */
+const K_BNS_CONCORDANCE = '__bnsConcordance';
+const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE]);
 
 /** How many times a single field may be asked conversationally before we fall
  *  back to a typed micro-form control (§5.2 guard; §12 open for review). */
@@ -115,6 +120,9 @@ interface StoredState {
    *  (model output truncated past salvage). Lets draftNow tell "we couldn't read
    *  it" apart from "the advocate genuinely gave nothing". */
   lastExtractFailed: boolean;
+  /** IPC/CrPC/Evidence-Act -> BNS/BNSS/BSA concordance found in the brief/docs.
+   *  Kept OUT of `form` (never engine-bound); surfaced to the UI + drafting brief. */
+  bnsConcordance: BnsConcordanceEntry[];
 }
 
 function unpack(facts: Record<string, unknown>): StoredState {
@@ -132,7 +140,22 @@ function unpack(facts: Record<string, unknown>): StoredState {
     pending: (facts[K_PENDING] as string[]) ?? [],
     sourceText: (facts[K_SOURCE] as string) ?? '',
     lastExtractFailed: Boolean(facts[K_LAST_EXTRACT_FAILED]),
+    bnsConcordance: parseBnsConcordance(facts[K_BNS_CONCORDANCE]),
   };
+}
+
+/** Tolerantly parse the stored concordance (JSON string or already-array). */
+function parseBnsConcordance(raw: unknown): BnsConcordanceEntry[] {
+  if (Array.isArray(raw)) return raw as BnsConcordanceEntry[];
+  if (typeof raw === 'string' && raw.trim()) {
+    try {
+      const p = JSON.parse(raw);
+      return Array.isArray(p) ? (p as BnsConcordanceEntry[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 function pack(s: StoredState, docLabel: string): Record<string, unknown> {
@@ -145,6 +168,7 @@ function pack(s: StoredState, docLabel: string): Record<string, unknown> {
     [K_PENDING]: s.pending,
     [K_SOURCE]: s.sourceText,
     [K_LAST_EXTRACT_FAILED]: s.lastExtractFailed,
+    [K_BNS_CONCORDANCE]: s.bnsConcordance,
   };
 }
 
@@ -439,6 +463,9 @@ async function resolveDoc(
 
 interface RunCtx extends Ctx {
   provider?: 'xai' | 'anthropic';
+  /** Output language for the RENDERED document ('EN' default, 'TA' → Tamil).
+   *  Threaded to engineClient.draft; additive — EN keeps the existing behaviour. */
+  language?: string;
 }
 
 export class IntakeError extends Error {}
@@ -467,7 +494,7 @@ export const intakeService = {
     // Seed practice defaults (e.g. TN s.138 itemised schedule + twice-amount
     // prayer) into the fresh form before the advocate says anything. The
     // extractor may still overwrite these from the narration.
-    const initial: StoredState = { form: seedDefaults(doc.sections), meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '', lastExtractFailed: false };
+    const initial: StoredState = { form: seedDefaults(doc.sections), meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '', lastExtractFailed: false, bnsConcordance: [] };
     const sheet = await factSheetService.create(pack(initial, docLabel), ctx);
     return this._turn(sheet.matterId, docLabel, message, ctx, 'narration');
   },
@@ -754,6 +781,28 @@ export const intakeService = {
             );
           if (addl.length) state.form.debt_slot = `${existing} ${addl.join(' ')}`.trim();
         }
+      }
+    }
+
+    // BNS / BNSS / BSA ENRICHMENT. The 2023 Sanhitas replaced the IPC/CrPC/Evidence
+    // Act. A brief (or a case document) often still cites the repealed codes — "420
+    // IPC", "bail u/s 439 CrPC". Deterministically rewrite any extracted field value
+    // that carries a MAPPED legacy reference to its in-force section (keeping the old
+    // one parenthetically so nothing is lost), and persist the concordance on the
+    // state so it can be shown and fed to the drafting brief. Coverage is the curated
+    // sanhita-map's coverage; an unmapped reference is left untouched (never guessed).
+    // Runs for ALL doc-types and cases (auto-detect), independent of the UI checkbox.
+    {
+      const { form: enrichedForm, concordance } = enrichFormWithBns(
+        state.form,
+        `${message}\n${state.sourceText ?? ''}`,
+      );
+      state.form = enrichedForm as Record<string, string>;
+      // Accumulate across turns: a later turn shouldn't drop a mapping found earlier.
+      if (concordance.length || state.bnsConcordance.length) {
+        const merged = new Map<string, BnsConcordanceEntry>();
+        for (const e of [...state.bnsConcordance, ...concordance]) merged.set(e.old, e);
+        state.bnsConcordance = [...merged.values()];
       }
     }
 
@@ -1094,7 +1143,7 @@ export const intakeService = {
     let outcome: EngineDraftResult | null = null;
     let issues: IntakeIssue[] = [];
     try {
-      outcome = await engineClient.draft(doc.docType, matterId, fields, { render: true, slots });
+      outcome = await engineClient.draft(doc.docType, matterId, fields, { render: true, slots, language: ctx.language });
     } catch (err) {
       if (err instanceof EngineValidationError) {
         // The engine reports issues in ENGINE keys; translate to the FORM keys
@@ -1199,7 +1248,7 @@ export const intakeService = {
         const merged = { ...state.form, ...placeholders };
         const { fields: filledFields } = mapFormToEngine(doc.docType, merged, {});
         try {
-          const retry = await engineClient.draft(doc.docType, matterId, filledFields, { render: true, slots });
+          const retry = await engineClient.draft(doc.docType, matterId, filledFields, { render: true, slots, language: ctx.language });
           if (retry.outcome === 'generated') {
             let marked = syntheticDateValues.size
               ? markSyntheticDates(retry, syntheticDateValues)
@@ -1281,7 +1330,7 @@ export const intakeService = {
               if (!progressed) break; // nothing new to fill — cannot bypass further
               const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
               try {
-                cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots });
+                cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots, language: ctx.language });
               } catch (err) {
                 if (err instanceof EngineValidationError) { progressed = false; break; }
                 throw err;
@@ -1368,7 +1417,7 @@ export const intakeService = {
         if (!progressed) break;
         const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
         try {
-          cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots });
+          cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots, language: ctx.language });
         } catch (err) {
           if (err instanceof EngineValidationError) { break; }
           throw err;
@@ -1561,6 +1610,7 @@ export const intakeService = {
       draft: r.draft,
       ...(r.companionDraft ? { companionDraft: r.companionDraft } : {}),
       ...(state.sourceText.trim() ? { sourceText: state.sourceText } : {}),
+      ...(state.bnsConcordance.length ? { bnsConcordance: state.bnsConcordance } : {}),
     };
   },
 };

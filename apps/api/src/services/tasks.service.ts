@@ -54,14 +54,16 @@ export const tasksService = {
     return memory;
   },
 
-  async move(taskId: string, to: TaskColumn, firmId: string | null): Promise<TaskBoard> {
+  async move(taskId: string, to: TaskColumn, firmId: string | null): Promise<TaskBoard | undefined> {
     if (!firmId) return emptyBoard();
     const sql = db();
     if (sql) {
-      await sql`
+      const rows = await sql`
         update tasks set column_name = ${to}::task_column
         where id::text = ${taskId} and firm_id = ${firmId}::uuid
+        returning id
       `;
+      if (rows.length === 0) return undefined;
       return tasksService.board(firmId);
     }
     const cols: TaskColumn[] = ['pending', 'progress', 'review', 'done'];
@@ -74,10 +76,9 @@ export const tasksService = {
         break;
       }
     }
-    if (task) {
-      task.column = to;
-      memory[to].push(task);
-    }
+    if (!task) return undefined;
+    task.column = to;
+    memory[to].push(task);
     return memory;
   },
 

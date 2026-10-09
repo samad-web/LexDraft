@@ -29,14 +29,16 @@ import type {
 } from '@lexdraft/types';
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
+import { withRetry } from '../lib/retry';
 import { db } from '../db/client';
 import { diaryService } from './diary.service';
 import { hearingsService } from './hearings.service';
 import { limitationsService } from './limitations.service';
 import { aiQuotaService, AiQuotaExceededError } from './ai-quota.service';
 import { aiUsageService } from './ai-usage.service';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grokComplete } from '../lib/grok-client';
 import { extractText } from '../lib/text-extraction';
 
 // ---- date helpers (UTC, to match the rest of the diary surface) ------------
@@ -113,70 +115,14 @@ async function complete(system: string, user: string, maxTokens: number, onUsage
 
 async function callClaude(system: string, user: string, maxTokens: number): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: maxTokens,
-          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text)
-        .join('');
-      return { text, ...anthropicUsage(data.usage) };
-    },
+    () => claudeComplete({ system, user, maxTokens }),
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'diary-assistant Claude retry') },
   );
 }
 
 async function callGrok(system: string, user: string, maxTokens: number): Promise<LlmResult> {
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${env.XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: env.XAI_MODEL,
-          max_tokens: maxTokens,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `xAI API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
-      };
-      return {
-        text: data.choices[0]?.message?.content ?? '',
-        ...xaiUsage(data.usage),
-      };
-    },
+    () => grokComplete({ system, user, maxTokens }),
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'diary-assistant Grok retry') },
   );
 }

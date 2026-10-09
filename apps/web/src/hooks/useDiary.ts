@@ -25,3 +25,23 @@ export function useCreateDiaryEntry() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['diary'] }),
   });
 }
+
+export function useUpdateDiaryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Omit<DiaryEntry, 'id'>> }) =>
+      api.patch<DiaryEntry>(`/diary/${id}`, patch),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: ['diary'] });
+      void qc.invalidateQueries({ queryKey: ['diary', vars.id] });
+    },
+  });
+}
+
+export function useDeleteDiaryEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/diary/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['diary'] }),
+  });
+}

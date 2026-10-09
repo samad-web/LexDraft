@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import type { ArchivedMatter, CaseOutcome } from '@lexdraft/types';
-import { useUIStore } from '@/store/ui';
 import { useArchive } from '@/hooks/useArchive';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -14,7 +14,7 @@ const OUTCOMES: Outcome[] = ['Won', 'Lost', 'Settled', 'Withdrawn'];
 export function ArchiveView() {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [query, setQuery]   = useState<string>('');
-  const showToast = useUIStore((s) => s.showToast);
+  const navigate = useNavigate();
   const { data: archive = [], isLoading, isError } = useArchive();
 
   const filtered = useMemo<ArchivedMatter[]>(() => {
@@ -119,7 +119,7 @@ export function ArchiveView() {
                 <tr
                   key={m.id}
                   style={{ cursor: 'pointer' }}
-                  onClick={() => showToast({ type: 'cobalt', text: `Opening archived matter "${m.title}"…` })}
+                  onClick={() => navigate(`/app/cases/${m.id}`)}
                 >
                   <td className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{m.cnr}</td>
                   <td><em className="case-name" style={{ fontSize: 15 }}>{m.title}</em></td>

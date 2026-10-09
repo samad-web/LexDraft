@@ -190,7 +190,7 @@ function PipelineCanvasEditor({ caseId }: { caseId: string }) {
               autoFocus
               value={newStage}
               onChange={(e) => setNewStage(e.target.value)}
-              placeholder="Stage name — e.g. Mediation, Remand"
+              placeholder="Stage name, e.g. Mediation, Remand"
               maxLength={80}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); commitAddStage(); }
@@ -395,7 +395,7 @@ function PipelineCanvasEditor({ caseId }: { caseId: string }) {
                   })}
                   style={{ marginBottom: 12, width: '100%' }}
                 >
-                  <option value="">— none —</option>
+                  <option value="">(none)</option>
                   {(apps.data ?? []).map((a) => (
                     <option key={a.id} value={a.id}>
                       {(a.label || a.kind.toUpperCase())}{a.appType ? ` · ${a.appType}` : ''}

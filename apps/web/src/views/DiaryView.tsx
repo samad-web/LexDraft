@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
 import type { DiaryEntry, DiaryKind } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
-import { useDiary, useDiaryEntry } from '@/hooks/useDiary';
+import { useDiary, useDiaryEntry, useDeleteDiaryEntry } from '@/hooks/useDiary';
 import { NewDiaryEntryModal } from '@/components/NewDiaryEntryModal';
 import { RequestCoverageModal } from '@/components/RequestCoverageModal';
 import { DiaryAssistantBar } from '@/components/DiaryAssistantBar';
@@ -12,6 +12,7 @@ import { JudgmentInsightPanel } from '@/components/JudgmentInsightPanel';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 /** Defaults handed to the coverage modal when a Diary hearing row asks for cover.
  *  Kept narrow so we don't import the modal's full prop type here. */
@@ -84,8 +85,33 @@ export function DiaryView() {
   const [briefRange, setBriefRange] = useState<'today' | 'week'>('today');
   const [briefLoaded, setBriefLoaded] = useState(false);
   const [insightEntry, setInsightEntry] = useState<{ id: string; fileName: string } | null>(null);
+  // Entry being edited in the NewDiaryEntryModal (reused in edit mode). Kept
+  // separate from `modalOpen` so the "New entry" FAB/button path is untouched.
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
   const showToast = useUIStore((s) => s.showToast);
+  const confirm = useConfirm();
+  const deleteEntry = useDeleteDiaryEntry();
   const { data: entries = [], isLoading, isError } = useDiary();
+
+  const handleDelete = async (e: DiaryEntry) => {
+    const ok = await confirm({
+      title: 'Delete diary entry?',
+      message: `This will permanently remove the "${e.caseLabel}" entry${e.attachmentFileName ? ', including its attached PDF' : ''}. This can't be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteEntry.mutateAsync(e.id);
+      showToast({ type: 'sage', text: 'Diary entry deleted' });
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
+        ?? (err as Error).message
+        ?? 'Could not delete diary entry';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
 
   const groups: DateGroup[] = useMemo(() => {
     const filtered = filter === 'all' ? entries : entries.filter((e) => e.kind === filter);
@@ -180,6 +206,11 @@ export function DiaryView() {
         onClose={() => setModalOpen(false)}
         defaultKind={filter === 'judgment' ? 'judgment' : 'hearing'}
       />
+      <NewDiaryEntryModal
+        open={editingEntry !== null}
+        onClose={() => setEditingEntry(null)}
+        entry={editingEntry}
+      />
       <FAB ariaLabel="Add diary entry" onClick={() => setModalOpen(true)}>
         <Icon name="plus" size={22} />
       </FAB>
@@ -264,6 +295,7 @@ export function DiaryView() {
             key={f.id}
             type="button"
             className={`chip ${filter === f.id ? 'active' : ''}`}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
           >
             {f.label}
@@ -366,6 +398,26 @@ export function DiaryView() {
                         <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
                       </div>
                     )}
+                    <div className="row" style={{ gap: 4 }}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setEditingEntry(e)}
+                        title="Edit this diary entry"
+                        aria-label="Edit diary entry"
+                      >
+                        <Icon name="edit" size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleDelete(e)}
+                        title="Delete this diary entry"
+                        aria-label="Delete diary entry"
+                      >
+                        <Icon name="trash" size={12} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -420,8 +472,12 @@ function JudgmentAttachmentButton({ entryId, fileName }: { entryId: string; file
   const entryQ = useDiaryEntry(requested ? entryId : null);
   const showToast = useUIStore((s) => s.showToast);
 
-  // When the lazy fetch resolves, trigger the download once.
-  if (requested && entryQ.data?.attachmentBase64 && entryQ.data?.attachmentMime) {
+  // When the lazy fetch resolves, trigger the download once. Must live in an
+  // effect, not the render body - triggering a real download/DOM mutation
+  // during render isn't safe (React may re-invoke the render function, e.g.
+  // under StrictMode's dev double-invoke, firing the download twice).
+  useEffect(() => {
+    if (!requested || !entryQ.data?.attachmentBase64 || !entryQ.data?.attachmentMime) return;
     try {
       const byteString = atob(entryQ.data.attachmentBase64);
       const bytes = new Uint8Array(byteString.length);
@@ -435,12 +491,13 @@ function JudgmentAttachmentButton({ entryId, fileName }: { entryId: string; file
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1500);
-      setRequested(false);
     } catch {
       showToast({ type: 'vermillion', text: 'Could not open the attached PDF' });
+    } finally {
       setRequested(false);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fileName/showToast are stable identity enough here; re-running on entryQ.data is the only trigger that matters.
+  }, [entryQ.data, requested]);
 
   return (
     <button

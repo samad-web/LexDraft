@@ -27,6 +27,13 @@ export function UsersView() {
   const [resetResult, setResetResult] = useState<{ email: string; tempPassword: string } | null>(null);
 
   const handleImpersonate = async (u: AdminUserSummary) => {
+    const ok = await confirm({
+      title: `Impersonate ${u.email}?`,
+      message: 'Your admin session will switch to this user and you will be navigated to their dashboard. Any actions you take will be performed as them.',
+      confirmLabel: 'Impersonate',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const grant = await adminApi.impersonate(u.id);
       // Wipe admin's cached payloads - the impersonated session must see

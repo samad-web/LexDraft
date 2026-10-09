@@ -34,7 +34,9 @@ import { storage } from './storage.service';
 import { extractText } from '../lib/text-extraction';
 import { titleReportsService } from './title-reports.service';
 import { auditService } from './audit.service';
-import { withRetry, HttpRetryError } from '../lib/retry';
+import { withRetry } from '../lib/retry';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grokComplete } from '../lib/grok-client';
 import { logger } from '../logger';
 
 interface ExtractInput {
@@ -383,28 +385,14 @@ function extractFirstJsonObject(s: string): string | null {
 }
 
 async function callClaudeJson(system: string, user: string): Promise<string> {
+  // Goes through the shared official-SDK client (lib/anthropic-client), which
+  // preserves the request shape (model, max_tokens, ephemeral-cached system
+  // block, single user message), maps usage for billing, and throws
+  // HttpRetryError on API errors so the outer withRetry() still triggers.
   return withRetry(
     async () => {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: 2048,
-          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!res.ok) {
-        const body = await res.text();
-        throw new HttpRetryError(res.status, `Claude ${res.status}: ${body}`);
-      }
-      const data = (await res.json()) as { content: Array<{ type: string; text: string }> };
-      return data.content.filter((c) => c.type === 'text').map((c) => c.text).join('');
+      const { text } = await claudeComplete({ system, user, maxTokens: 2048 });
+      return text;
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -414,30 +402,20 @@ async function callClaudeJson(system: string, user: string): Promise<string> {
 }
 
 async function callXaiJson(system: string, user: string): Promise<string> {
-  return withRetry(async () => {
-    const res = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${env.XAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: env.XAI_MODEL,
-        max_tokens: 2048,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: user },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new HttpRetryError(res.status, `xAI ${res.status}: ${body}`);
-    }
-    const data = (await res.json()) as { choices: Array<{ message: { content: string } }> };
-    return data.choices[0]?.message?.content ?? '';
-  });
+  // Routes through the shared official-SDK client (lib/grok-client), which
+  // preserves the request shape (env.XAI_MODEL, max_tokens, system+user
+  // messages), maps usage via xaiUsage for billing, and throws HttpRetryError
+  // on API errors so the outer withRetry() still triggers on 429/5xx.
+  return withRetry(
+    async () => {
+      const { text } = await grokComplete({ system, user, maxTokens: 2048 });
+      return text;
+    },
+    {
+      onRetry: (err, attempt, waitMs) =>
+        logger.warn({ err, attempt, waitMs }, 'xAI (title-extract) retry'),
+    },
+  );
 }
 
 async function llmJsonRaw(system: string, user: string): Promise<string | null> {

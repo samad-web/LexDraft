@@ -137,6 +137,282 @@ export const DOC_SCHEMAS: Record<string, DocSchema> = {
     ],
   },
 
+  'Complaint u/s 138 NI Act': {
+    category: 'Pleading',
+    description:
+      'Criminal complaint for a dishonoured cheque under Section 138 of the Negotiable Instruments Act, 1881, filed after the statutory notice period expires unanswered.',
+    sections: [
+      {
+        title: 'Complainant (Payee)',
+        fields: [
+          { key: 'complainant_name', label: 'Complainant name', type: 'text', required: true, default: 'Mehta Enterprises Pvt. Ltd.' },
+          { key: 'complainant_address', label: 'Complainant address', type: 'textarea', rows: 2, required: true, default: 'Plot No. 14, Industrial Area Phase II,\nNaraina, New Delhi - 110028' },
+          { key: 'complainant_parentage', label: 'Complainant parentage (S/o, D/o, W/o)', type: 'text', optional: true, default: '' },
+          {
+            key: 'complainant_is_company',
+            label: 'Is the complainant a company?',
+            type: 'select',
+            options: ['No — individual/proprietorship', 'Yes — company'],
+            required: true,
+            default: 'Yes — company',
+          },
+          {
+            key: 'complainant_authorised_rep',
+            label: 'Authorised representative (if a company)',
+            type: 'text',
+            placeholder: 'Name and designation of the person filing on the company\'s behalf',
+            visibleWhen: { field: 'complainant_is_company', equals: 'Yes — company' },
+            default: 'Rakesh Mehta, Director',
+          },
+          {
+            key: 'complainant_resolution_ref',
+            label: 'Board resolution / authorisation reference',
+            type: 'text',
+            optional: true,
+            visibleWhen: { field: 'complainant_is_company', equals: 'Yes — company' },
+            default: 'Board Resolution dated 04.01.2026',
+          },
+        ],
+      },
+      {
+        title: 'Accused (Drawer)',
+        fields: [
+          { key: 'accused_name', label: 'Accused name', type: 'text', required: true, default: 'Sandeep Verma' },
+          { key: 'accused_address', label: 'Accused address', type: 'textarea', rows: 2, required: true, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram - 122018, Haryana' },
+          { key: 'accused_parentage', label: 'Accused parentage (S/o, D/o, W/o)', type: 'text', optional: true, default: '' },
+          {
+            key: 'accused_is_company',
+            label: 'Is the accused a company?',
+            type: 'select',
+            options: ['No — individual', 'Yes — company (named director/signatory accused)'],
+            required: true,
+            default: 'No — individual',
+          },
+          {
+            key: 's141_averment',
+            label: 'S.141 averment — how the accused was in charge of the company\'s business',
+            type: 'textarea',
+            rows: 2,
+            placeholder: 'Required for a company accused — without this averment courts routinely discharge the accused under s.141',
+            visibleWhen: { field: 'accused_is_company', equals: 'Yes — company (named director/signatory accused)' },
+            default: 'The accused was, at the relevant time, a Director in charge of and responsible to the company for the conduct of its business.',
+          },
+        ],
+      },
+      {
+        title: 'Cheque & Debt',
+        fields: [
+          { key: 'cheque_no', label: 'Cheque number', type: 'text', required: true, default: '000456789' },
+          { key: 'cheque_date', label: 'Cheque date', type: 'date', required: true, default: '2026-03-12' },
+          { key: 'cheque_amount', label: 'Amount', type: 'currency', required: true, default: '475000' },
+          { key: 'drawee_bank', label: 'Drawee bank & branch', type: 'text', required: true, default: 'HDFC Bank, Connaught Place Branch, New Delhi' },
+          {
+            key: 'debt_slot',
+            label: 'Legally enforceable debt (the underlying liability)',
+            type: 'textarea',
+            rows: 3,
+            required: true,
+            default: 'The cheque was issued towards part-payment of outstanding dues for industrial supplies delivered between January and February 2026 against Invoices INV/2025/1142 and INV/2026/0078.',
+          },
+        ],
+      },
+      {
+        title: 'Presentation & Dishonour',
+        fields: [
+          { key: 'presentation_date', label: 'Date the cheque was presented for payment', type: 'date', required: true, default: '2026-03-15' },
+          { key: 'memo_date', label: 'Date printed on the dishonour memo', type: 'date', required: true, default: '2026-03-18' },
+          { key: 'memo_received_date', label: 'Date the dishonour memo was received', type: 'date', required: true, default: '2026-03-20' },
+          {
+            key: 'dishonour_reason',
+            label: 'Reason for return',
+            type: 'select',
+            options: ['Funds Insufficient', 'Account Closed', 'Payment Stopped', 'Signature Differs', 'Refer to Drawer', 'Other'],
+            required: true,
+            default: 'Funds Insufficient',
+          },
+        ],
+      },
+      {
+        title: 'Statutory Notice',
+        fields: [
+          { key: 'notice_date', label: 'Date the s.138 demand notice was issued', type: 'date', required: true, default: '2026-03-25' },
+          { key: 'notice_dispatch_date', label: 'Date the notice was dispatched', type: 'date', required: true, default: '2026-03-25' },
+          {
+            key: 'notice_service_status',
+            label: 'How was the notice served?',
+            type: 'select',
+            options: ['Delivered — acknowledgement received', 'Refused by addressee', 'Returned unclaimed'],
+            required: true,
+            default: 'Delivered — acknowledgement received',
+          },
+          {
+            key: 'notice_delivery_date',
+            label: 'Date of delivery (per postal acknowledgement)',
+            type: 'date',
+            visibleWhen: { field: 'notice_service_status', equals: 'Delivered — acknowledgement received' },
+            default: '2026-03-28',
+          },
+          {
+            key: 'deemed_service_averment',
+            label: 'Deemed-service averment',
+            type: 'textarea',
+            rows: 2,
+            placeholder: 'Required when the notice was refused or returned unclaimed — the cause of action still runs from the deemed delivery date',
+            default: 'The notice is deemed to have been served on the accused as it was sent to the correct address by registered post and returned with the endorsement noted above, raising a presumption of service under Section 27 of the General Clauses Act, 1897.',
+          },
+        ],
+      },
+      {
+        title: 'Filing',
+        fields: [
+          { key: 'filing_date', label: 'Date of filing this complaint', type: 'date', required: true, default: '2026-05-02' },
+          { key: 'court_location', label: 'Court location', type: 'text', required: true, default: 'Saidapet, Chennai' },
+          { key: 'court_designation', label: 'Court designation', type: 'text', placeholder: 'e.g. Chief Metropolitan Magistrate, Judicial Magistrate No. II', required: true, default: 'Chief Metropolitan Magistrate' },
+          { key: 'jurisdiction_basis', label: 'Basis for territorial jurisdiction', type: 'text', required: true, default: 'The payee\'s bank branch where the cheque was presented for collection is situated within the jurisdiction of this Court.' },
+          { key: 'place', label: 'Place (from where the complaint is filed)', type: 'text', required: true, default: 'Chennai' },
+        ],
+      },
+    ],
+  },
+
+  'Reply to Notice u/s 138 NI Act': {
+    category: 'Notice',
+    description:
+      'The drawer\'s advocate reply to a Section 138 demand notice — denies the debt and/or that the cheque was issued in discharge of a liability, and sets up the defence.',
+    sections: [
+      {
+        title: 'Parties',
+        fields: [
+          { key: 'client', label: 'Client (the drawer, replying)', type: 'text', required: true, default: 'Sandeep Verma' },
+          { key: 'client_address', label: 'Client address', type: 'textarea', rows: 2, optional: true, default: 'B-204, Greenwood Apartments,\nSector 47, Gurugram - 122018, Haryana' },
+          { key: 'advocate', label: 'Replying advocate', type: 'text', required: true, default: 'Priya Nair' },
+          { key: 'advocate_chamber', label: 'Advocate chamber / office address', type: 'textarea', rows: 2, optional: true, default: '' },
+          { key: 'advocate_phone', label: 'Advocate phone', type: 'text', optional: true, default: '' },
+          { key: 'opposing_advocate', label: 'Advocate who sent the original notice', type: 'text', required: true, default: 'R. Sundaravadivel' },
+        ],
+      },
+      {
+        title: 'Notice Being Replied To',
+        fields: [
+          { key: 'notice_date', label: 'Date of the notice being replied to', type: 'date', required: true, default: '2026-03-25' },
+          { key: 'dispatch_line', label: 'How this reply is sent', type: 'text', placeholder: 'e.g. Registered Post Acknowledgement Due', optional: true, default: 'Registered Post Acknowledgement Due' },
+        ],
+      },
+      {
+        title: 'Defence',
+        fields: [
+          {
+            key: 'liability_denied',
+            label: 'Does the reply deny the underlying debt/liability?',
+            type: 'select',
+            options: ['Yes — debt is denied', 'No — debt is admitted'],
+            required: true,
+            default: 'Yes — debt is denied',
+          },
+          {
+            key: 'cheque_in_discharge_denied',
+            label: 'Does the reply deny the cheque was issued in discharge of that debt?',
+            type: 'select',
+            options: ['Yes — issuance-in-discharge is denied', 'No — not disputed'],
+            required: true,
+            default: 'Yes — issuance-in-discharge is denied',
+          },
+          {
+            key: 'defence_narrative',
+            label: 'Defence — the facts on which the debt and/or issuance is denied',
+            type: 'textarea',
+            rows: 6,
+            required: true,
+            placeholder: 'e.g. the cheque was a blank signed cheque given as security and was misused; no legally enforceable debt existed at the time',
+            default: 'The cheque referred to in the notice was handed over as a blank signed security cheque in connection with a proposed business arrangement that never materialised. No sum of money is due and payable by my client to your client, and the cheque has been misused by filling it up without authority for presentation.',
+          },
+        ],
+      },
+      {
+        title: 'Place',
+        fields: [
+          { key: 'place', label: 'Place (from where this reply issues)', type: 'text', required: true, default: 'Gurugram' },
+        ],
+      },
+    ],
+  },
+
+  'Injunction Application': {
+    category: 'Applications',
+    description:
+      'Interlocutory application for a temporary injunction under Order XXXIX Rules 1 & 2 CPC, filed within a pending suit. The prima facie case, balance of convenience, and irreparable injury must each be pleaded as a separate, non-empty ground — courts routinely dismiss applications where any one is missing.',
+    sections: [
+      {
+        title: 'Suit & Court',
+        fields: [
+          { key: 'civil_court', label: 'Court', type: 'text', required: true, default: 'Court of the Civil Judge, Senior Division, Bengaluru' },
+          { key: 'suit_ref', label: 'Suit this application is filed in', type: 'text', placeholder: 'e.g. O.S. No. 421/2026', required: true, default: 'O.S. No. 421/2026' },
+          { key: 'subject_matter', label: 'Subject matter of the suit', type: 'text', required: true, default: 'Suit for permanent injunction and recovery of possession' },
+        ],
+      },
+      {
+        title: 'Applicant & Opposite Party',
+        fields: [
+          { key: 'applicant_name', label: 'Applicant name', type: 'text', required: true, default: 'Rohan Mehta' },
+          { key: 'applicant_role', label: 'Applicant\'s role in the suit', type: 'text', placeholder: 'e.g. Plaintiff, Defendant', required: true, default: 'Plaintiff' },
+          { key: 'opposite_party_name', label: 'Opposite party name', type: 'text', required: true, default: 'Skyline Constructions Pvt. Ltd.' },
+        ],
+      },
+      {
+        title: 'Facts & Relief Sought',
+        fields: [
+          { key: 'brief_facts', label: 'Brief facts', type: 'textarea', rows: 4, required: true, default: 'The Applicant is in settled possession of the suit property. The Opposite Party has, without any right or title, begun construction activity on the property, threatening to alter its character pending disposal of the suit.' },
+          { key: 'act_restrained', label: 'The specific act to be restrained', type: 'textarea', rows: 2, placeholder: 'Must name a concrete act — "restrain the defendant" with nothing further is refused', required: true, default: 'From carrying out any construction, demolition, or alteration on the suit property bearing Survey No. 142/3, and from alienating, encumbering, or creating third-party rights over it.' },
+        ],
+      },
+      {
+        title: 'The Triad (each required separately)',
+        fields: [
+          { key: 'prima_facie_case', label: 'Prima facie case', type: 'textarea', rows: 3, required: true, default: 'The Applicant holds registered title to the suit property under Sale Deed dated 12.04.2019 and has been in continuous, settled possession since. The Opposite Party has no document of title and its claim is wholly unsubstantiated.' },
+          { key: 'balance_of_convenience', label: 'Balance of convenience', type: 'textarea', rows: 3, required: true, default: 'The balance of convenience lies in favour of the Applicant, who stands to lose settled possession and suffer irreversible alteration of the property if the injunction is not granted, whereas the Opposite Party suffers no prejudice by being restrained pending disposal of the suit.' },
+          { key: 'irreparable_injury', label: 'Irreparable injury', type: 'textarea', rows: 3, required: true, default: 'If the construction/demolition is permitted to continue, the suit property\'s character will be irreversibly altered and the relief sought in the suit will be rendered infructuous — an injury that cannot be adequately compensated in money.' },
+        ],
+      },
+      {
+        title: 'Urgency & Undertaking',
+        fields: [
+          {
+            key: 'is_ex_parte',
+            label: 'Is ex-parte (urgent, before notice) relief sought?',
+            type: 'select',
+            options: ['No — on notice to the opposite party', 'Yes — ex-parte relief sought'],
+            required: true,
+            default: 'No — on notice to the opposite party',
+          },
+          {
+            key: 'urgency_conduct',
+            label: 'Urgency / conduct justifying immediate relief',
+            type: 'textarea',
+            rows: 2,
+            visibleWhen: { field: 'is_ex_parte', equals: 'Yes — ex-parte relief sought' },
+            default: 'The Opposite Party commenced construction activity without notice on 02.03.2026, and any delay in granting relief until after notice would defeat the very purpose of this application.',
+          },
+          {
+            key: 'notice_futility',
+            label: 'Why notice to the opposite party before relief would defeat the purpose',
+            type: 'textarea',
+            rows: 2,
+            visibleWhen: { field: 'is_ex_parte', equals: 'Yes — ex-parte relief sought' },
+            default: 'Issuing prior notice would give the Opposite Party an opportunity to complete the very construction sought to be restrained before this application can be heard, rendering the relief infructuous.',
+          },
+          { key: 'undertaking_as_to_damages', label: 'Undertaking as to damages offered?', type: 'select', options: ['Yes', 'No'], required: true, default: 'Yes' },
+        ],
+      },
+      {
+        title: 'Filing',
+        fields: [
+          { key: 'application_date', label: 'Date of this application', type: 'date', required: true, default: '2026-03-10' },
+          { key: 'place', label: 'Place', type: 'text', required: true, default: 'Bengaluru' },
+        ],
+      },
+    ],
+  },
+
   Plaint: {
     category: 'Pleading',
     description: 'Civil suit plaint under CPC - opens a civil action before a competent court.',
@@ -3459,12 +3735,12 @@ export const DEFAULT_SCHEMA: DocSchema = {
 
 // Map old chip labels → new schema keys (for the picker UI).
 export const DOC_TYPE_GROUPS: Array<{ group: string; items: string[] }> = [
-  { group: 'Notices', items: ['Notice u/s 138 NI Act', 'Legal Notice'] },
+  { group: 'Notices', items: ['Notice u/s 138 NI Act', 'Reply to Notice u/s 138 NI Act', 'Legal Notice'] },
   {
     group: 'Pleadings',
-    items: ['Plaint', 'Written Statement', 'Replication / Rejoinder', 'Written Arguments', 'Affidavit', 'Evidence Affidavit', 'Appeal'],
+    items: ['Plaint', 'Complaint u/s 138 NI Act', 'Written Statement', 'Replication / Rejoinder', 'Written Arguments', 'Affidavit', 'Evidence Affidavit', 'Appeal'],
   },
-  { group: 'Applications', items: ['IA / Stay Application', 'Exemption from Personal Appearance (Section 317 CrPC)', 'Bail Application', 'Execution Petition', 'Caveat', 'RTI Application'] },
+  { group: 'Applications', items: ['IA / Stay Application', 'Injunction Application', 'Exemption from Personal Appearance (Section 317 CrPC)', 'Bail Application', 'Execution Petition', 'Caveat', 'RTI Application'] },
   { group: 'Authority', items: ['Vakalatnama', 'Settlement Agreement'] },
   { group: 'Letters', items: ['Engagement Letter', 'Correspondence'] },
   {

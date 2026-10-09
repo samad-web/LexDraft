@@ -94,6 +94,24 @@ function strParam(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+// Extracted text of all documents filed against a case label, for feeding the
+// drafting engine. Defined BEFORE '/:id' so "case-text" isn't matched as an id.
+// Query: ?case=<label>. OCRs scans on the fly; capped server-side.
+documentsRouter.get('/case-text', requireFeature('shared.documents'), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    const caseLabel = typeof req.query.case === 'string' ? req.query.case : '';
+    if (!caseLabel.trim()) {
+      res.json({ items: [], unreadable: [] });
+      return;
+    }
+    const result = await documentsService.caseDocumentText(caseLabel, firmId);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 documentsRouter.get('/:id', requireFeature('shared.documents'), validate({ params: idParam }), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);

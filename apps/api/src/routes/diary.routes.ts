@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { diaryService } from '../services/diary.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
-import { validate, idParam } from '../middleware/validate';
+import { validate, uuidParam } from '../middleware/validate';
 
-const Input = z.object({
+const InputShape = z.object({
   date: z.string(),
   time: z.string().default(''),
   kind: z.enum(['hearing', 'judgment', 'filing']),
@@ -26,6 +26,22 @@ const Input = z.object({
   attachmentBase64: z.string().optional(),
 });
 
+function checkReminderNeedsHearing(val: { reminderOffsetDays?: number | null; nextHearingDate?: string | null }, ctx: z.RefinementCtx) {
+  if (val.reminderOffsetDays != null && !val.nextHearingDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'reminderOffsetDays requires nextHearingDate to be set',
+      path: ['reminderOffsetDays'],
+    });
+  }
+}
+
+const Input = InputShape.superRefine(checkReminderNeedsHearing);
+// Patch body: same fields, all optional. Built from the un-refined shape so
+// `.partial()` is available (ZodEffects from `.superRefine()` doesn't expose
+// it); the hearing/reminder relationship is still enforced on top.
+const PatchInput = InputShape.partial().superRefine(checkReminderNeedsHearing);
+
 export const diaryRouter: Router = Router();
 
 // Diary is matter-adjacent - gates on matter.view/create.
@@ -43,7 +59,7 @@ diaryRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
 diaryRouter.get(
   '/:id',
   requireFeature('matter.view'),
-  validate({ params: idParam }),
+  validate({ params: uuidParam }),
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
@@ -62,3 +78,45 @@ diaryRouter.post('/', requireFeature('matter.create'), async (req, res, next) =>
     next(err);
   }
 });
+
+diaryRouter.patch(
+  '/:id',
+  requireFeature('matter.create'),
+  validate({ params: uuidParam }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const updated = await diaryService.update(
+        String(req.params.id ?? ''),
+        PatchInput.parse(req.body),
+        firmId,
+      );
+      if (!updated) {
+        res.status(404).json({ error: 'Diary entry not found' });
+        return;
+      }
+      res.json(updated);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+diaryRouter.delete(
+  '/:id',
+  requireFeature('matter.create'),
+  validate({ params: uuidParam }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const removed = await diaryService.remove(String(req.params.id ?? ''), firmId);
+      if (!removed) {
+        res.status(404).json({ error: 'Diary entry not found' });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  },
+);

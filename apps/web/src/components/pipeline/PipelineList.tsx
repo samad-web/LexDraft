@@ -78,7 +78,7 @@ export function PipelineList({ caseId }: { caseId: string }) {
     setRenamingId(null);
   }
 
-  const labelOf = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? '—';
+  const labelOf = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? 'Unknown stage';
 
   if (pipeline.isLoading) {
     return <p className="body-sm muted">Loading pipeline…</p>;
@@ -95,7 +95,7 @@ export function PipelineList({ caseId }: { caseId: string }) {
               autoFocus
               value={newStage}
               onChange={(e) => setNewStage(e.target.value)}
-              placeholder="Stage name — e.g. Mediation, Remand"
+              placeholder="Stage name (e.g. Mediation, Remand)"
               maxLength={80}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') { e.preventDefault(); commitAddStage(); }
@@ -262,7 +262,7 @@ export function PipelineList({ caseId }: { caseId: string }) {
                           )}
                           style={{ width: '100%' }}
                         >
-                          <option value="">— none —</option>
+                          <option value="">None</option>
                           {(apps.data ?? []).map((a) => (
                             <option key={a.id} value={a.id}>
                               {(a.label || a.kind.toUpperCase())}{a.appType ? ` · ${a.appType}` : ''}

@@ -59,6 +59,39 @@ export type EngineDraftResult =
       refusal: EngineRefusal;
     };
 
+/** One document in a bundle response — the same shape a single /v1/draft returns,
+ *  either generated or refused. */
+export type EngineBundleDoc =
+  | {
+      outcome: 'generated';
+      docType: string;
+      signals: { review_banner: string; unverified_marker: string };
+      unfilledSlots: string[];
+      blocks: EngineBlock[];
+      docxBase64: string | null;
+      templateId: string;
+      templateVersion: number;
+    }
+  | { outcome: 'refused'; docType: string; refusal: EngineRefusal };
+
+/** Result of POST /v1/draft-bundle/s138_complaint. Either the complaint was
+ *  legally refused (whole bundle short-circuits, no affidavit built), or both the
+ *  complaint and its derived proof affidavit come back. The affidavit itself may
+ *  still be refused if it re-runs a window stop the complaint did not gate. */
+export type EngineS138BundleResult =
+  | { outcome: 'refused'; for: 's138_complaint'; refusal: EngineRefusal }
+  | { outcome: 'generated'; bundle: 's138_complaint'; complaint: EngineBundleDoc; affidavit: EngineBundleDoc };
+
+/** Deponent particulars the complaint does not carry, required to derive the
+ *  affidavit. Everything else is read from the built complaint. */
+export interface S138AffidavitDeponent {
+  deponentAge: number;
+  deponentOccupation: string;
+  attestor: string;
+  authorityRef?: string;
+  affirmDate?: string;
+}
+
 export class EngineValidationError extends Error {
   constructor(public issues: Array<{ field: string; code: string; message: string }>) {
     super('engine input validation failed');
@@ -119,6 +152,24 @@ async function call(
   return { status: res.status, json };
 }
 
+/** Map one document in a bundle response (snake_case wire) to EngineBundleDoc.
+ *  Shared by the complaint and affidavit halves — the same shape /v1/draft yields. */
+function mapBundleDoc(docType: string, doc: any): EngineBundleDoc {
+  if (doc?.outcome === 'refused') {
+    return { outcome: 'refused', docType, refusal: doc.refusal as EngineRefusal };
+  }
+  return {
+    outcome: 'generated',
+    docType,
+    signals: doc.signals,
+    unfilledSlots: doc.unfilled_slots ?? [],
+    blocks: doc.blocks ?? [],
+    docxBase64: doc.docx_base64 ?? null,
+    templateId: doc.template_id ?? '',
+    templateVersion: doc.template_version ?? 0,
+  };
+}
+
 export const engineClient = {
   get enabled(): boolean {
     return env.hasEngineService;
@@ -139,7 +190,7 @@ export const engineClient = {
     docType: string,
     matterId: string,
     fields: Record<string, unknown>,
-    opts: { slots?: Record<string, string>; render?: boolean } = {},
+    opts: { slots?: Record<string, string>; render?: boolean; language?: string } = {},
   ): Promise<EngineDraftResult> {
     const current = await factSheetService.getCurrent(matterId);
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
@@ -149,6 +200,9 @@ export const engineClient = {
       fields,
       slots: opts.slots ?? {},
       render: opts.render ?? true,
+      // Output language for the RENDERED docx (EN default; 'TA' → Tamil render).
+      // Additive: the engine ignores it for EN, so existing callers are unaffected.
+      language: opts.language ?? 'EN',
     });
 
     if (status === 422) throw new EngineValidationError(json?.issues ?? []);
@@ -167,6 +221,52 @@ export const engineClient = {
       docxBase64: json.docx_base64 ?? null,
       templateId: json.template_id ?? '',
       templateVersion: json.template_version ?? 0,
+    };
+  },
+
+  /**
+   * Draft the s.138 complaint AND its derived proof affidavit in one call
+   * (POST /v1/draft-bundle/s138_complaint). `fields` is the same complaint payload
+   * `draft('s138_complaint', ...)` takes; `deponent` supplies the affidavit-only
+   * particulars the complaint does not carry.
+   *
+   * A complaint refusal short-circuits the bundle (no affidavit is built) and is
+   * returned as `{ outcome: 'refused', for: 's138_complaint' }` — never thrown.
+   */
+  async draftS138Bundle(
+    matterId: string,
+    fields: Record<string, unknown>,
+    deponent: S138AffidavitDeponent,
+    opts: { slots?: Record<string, string>; render?: boolean } = {},
+  ): Promise<EngineS138BundleResult> {
+    const current = await factSheetService.getCurrent(matterId);
+    if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
+
+    const { status, json } = await call('POST', '/v1/draft-bundle/s138_complaint', {
+      matter: { matter_id: matterId, version: current.version },
+      fields,
+      affidavit: {
+        deponent_age: deponent.deponentAge,
+        deponent_occupation: deponent.deponentOccupation,
+        attestor: deponent.attestor,
+        ...(deponent.authorityRef !== undefined ? { authority_ref: deponent.authorityRef } : {}),
+        ...(deponent.affirmDate !== undefined ? { affirm_date: deponent.affirmDate } : {}),
+      },
+      slots: opts.slots ?? {},
+      render: opts.render ?? true,
+    });
+
+    if (status === 422) throw new EngineValidationError(json?.issues ?? []);
+    if (status !== 200) throw new EngineError(`draft-bundle failed: ${status}`);
+
+    if (json.outcome === 'refused') {
+      return { outcome: 'refused', for: 's138_complaint', refusal: json.refusal as EngineRefusal };
+    }
+    return {
+      outcome: 'generated',
+      bundle: 's138_complaint',
+      complaint: mapBundleDoc('s138_complaint', json.complaint),
+      affidavit: mapBundleDoc('affidavit', json.affidavit),
     };
   },
 

@@ -11,6 +11,7 @@ import {
   useReview,
   useReviewComments,
   useReviews,
+  useExtractContractText,
   useUpdateReviewComment,
   useUpdateReviewLifecycle,
   type ContractReview,
@@ -127,6 +128,7 @@ export function ContractReviewView() {
 
   const showToast = useUIStore((s) => s.showToast);
   const createReview = useCreateReview();
+  const extractDocument = useExtractContractText();
   const deleteReview = useDeleteReview();
   const reviewsQuery = useReviews();
   // After a fresh create, prefer the local result; otherwise hydrate from
@@ -141,22 +143,46 @@ export function ContractReviewView() {
     if (sourceText.trim().length > 200 && step === 1) setStep(2);
   }, [sourceText, step]);
 
+  // Minimum characters we treat as "real" extracted content. A scanned /
+  // image-only PDF has no text layer, so the in-browser pdfjs pass returns
+  // roughly nothing - below this threshold we hand the raw file to the server
+  // for an OCR pass instead of dead-ending on the "paste text" hint.
+  const MIN_USABLE_CHARS = 50;
+
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setFileName(file.name);
     setParseHint('Extracting text…');
     try {
-      const text = await extractDocumentText(file);
+      // First try the fast, private, in-browser extraction (text-layer PDFs,
+      // DOCX, plain text).
+      let text = '';
+      try {
+        text = await extractDocumentText(file);
+      } catch (err) {
+        // UnsupportedFileError from the browser extractor isn't fatal for PDFs
+        // - fall through to the server OCR attempt below. Re-throw anything
+        // else (e.g. a genuinely corrupt file) to the outer catch.
+        if (!(err instanceof UnsupportedFileError)) throw err;
+      }
+
+      // Scanned PDF (or any file the browser couldn't read): rasterise + OCR
+      // on the server. This is the path that fixes an attached scanned offer
+      // letter producing the "paste at least a few paragraphs" popup.
+      if (text.trim().length < MIN_USABLE_CHARS) {
+        setParseHint('No text layer found. Running OCR on the scanned document…');
+        const result = await extractDocument.mutateAsync(file);
+        text = result.text;
+      }
+
       setSourceText(text);
       setParseHint(null);
+      // A readable file is the same signal as a paste: advance to the
+      // perspective picker so the user's next click runs the analysis.
       if (step < 2) setStep(2);
     } catch (err) {
-      if (err instanceof UnsupportedFileError) {
-        setParseHint(err.message);
-        if (step < 2) setStep(2);
-        return;
-      }
       setParseHint(null);
+      setFileName(null);
       showToast({
         type: 'vermillion',
         text: err instanceof Error ? err.message : 'Could not read file',
@@ -174,10 +200,15 @@ export function ContractReviewView() {
 
   const analyze = async () => {
     if (!perspective) return;
+    // Safety net only. A dropped file now populates sourceText via
+    // extraction/OCR before we ever reach here, so this fires only when the
+    // user landed on step 2 with an genuinely empty paste box.
     if (sourceText.trim().length < 50) {
       showToast({
         type: 'amber',
-        text: 'Paste at least a few paragraphs of contract text first.',
+        text: fileName
+          ? 'We couldn’t read enough text from that file. Paste the contract text to continue.'
+          : 'Paste at least a few paragraphs of contract text first.',
       });
       return;
     }
@@ -390,10 +421,14 @@ export function ContractReviewView() {
             <button
               className="btn btn-primary btn-lg"
               onClick={analyze}
-              disabled={createReview.isPending}
+              disabled={createReview.isPending || extractDocument.isPending}
               style={{ alignSelf: 'flex-start' }}
             >
-              {createReview.isPending ? 'Sending…' : 'Analyze contract'}{' '}
+              {extractDocument.isPending
+                ? 'Reading document…'
+                : createReview.isPending
+                  ? 'Sending…'
+                  : 'Analyze contract'}{' '}
               <Icon name="arrow" size={14} />
             </button>
           )}

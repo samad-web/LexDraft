@@ -27,9 +27,12 @@ export interface State {
 }
 
 export interface District {
-  state_code: number;
-  district_code: number;
-  district_name: string;
+  // districtWebService.php returns `dist_code`/`dist_name` (not the
+  // `district_*` spelling the CNR-history payload uses). Verified against the
+  // live DC backend — Kerala returns e.g. `{ dist_code: 2, dist_name: "Ernakulam" }`.
+  dist_code: number;
+  dist_name: string;
+  display?: 'Y' | 'N';
   [k: string]: unknown;
 }
 

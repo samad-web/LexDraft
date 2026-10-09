@@ -1378,14 +1378,19 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   .upgrade-cta { grid-template-columns: 1fr; }
 }
 
-/* Inbox grid: 320px thread list + main pane. Stacks on tablet. */
+/* Inbox grid: 320px thread list + main pane. Stacks on tablet. Height is
+   bounded to the viewport (minus the page chrome above it) so the message
+   pane's flex:1/overflowY:auto can actually fill available space instead of
+   being capped at an arbitrary fixed pixel height. */
 .inbox-grid {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);
   gap: var(--space-4);
+  height: calc(100vh - 220px);
+  min-height: 420px;
 }
 @media (max-width: 1023px) {
-  .inbox-grid { grid-template-columns: 1fr; }
+  .inbox-grid { grid-template-columns: 1fr; height: auto; }
 }
 
 /* Auth card: form column + (optional) brand column on the right. The
@@ -3676,6 +3681,17 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   padding: 28px 28px 30px;
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
   border-left: 3px solid var(--accent, var(--info));
+}
+/* Composed inline (below DraftCasePicker in one unified card, see Draft page)
+   instead of as its own free-standing card: children stretch to the full
+   section width (textarea, strength bar, attach row, options row all align
+   to the same left/right edges) rather than shrink-wrapping to content, and
+   padding/left-inset matches the DraftCasePicker section above it exactly. */
+.draftbot-launch--inline {
+  padding: 18px 20px 20px;
+  align-items: stretch;
+  gap: 10px;
+  border-left: none;
 }
 .draftbot-launch__title { font-size: 22px; font-weight: 600; color: var(--text-primary); margin: 0; }
 .draftbot-launch__sub { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 8px; max-width: 640px; }

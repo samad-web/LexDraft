@@ -87,31 +87,41 @@ export function ErrorLogView() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Internal error tracking</div>
         <h1 className="display-md">Error log · {total.toLocaleString()}</h1>
         <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-          5xx errors and a curated subset of 4xx (403, 422, 429). Stats below cover the last 7 days.
+          5xx errors and a curated subset of 4xx (403, 422, 429).
         </div>
       </header>
 
-      {/* ---- stats strip ----------------------------------------------- */}
-      <div className="grid-auto-sm" style={{ gap: 12 }}>
-        <StatCard label="Errors (7d)" value={stats?.totalCount.toLocaleString() ?? '-'} />
-        <StatCard
-          label="Unresolved"
-          value={stats?.unresolvedCount.toLocaleString() ?? '-'}
-          tone={stats && stats.unresolvedCount > 0 ? 'danger' : undefined}
-        />
-        <StatCard
-          label="Top path"
-          value={topPath ? topPath.path : '-'}
-          sub={topPath ? `${topPath.count} hits` : undefined}
-          mono
-        />
-        <StatCard
-          label="Top error class"
-          value={topError ? topError.name : '-'}
-          sub={topError ? `${topError.count} hits` : undefined}
-          mono
-        />
+      {/* ---- stats strip -------------------------------------------------
+          Fixed last-7-days window, independent of the tab/status filters
+          below - see defaultStatsRange(). Labelled explicitly here so it
+          doesn't read as if it recomputes with the list. */}
+      <div className="col" style={{ gap: 8 }}>
+        <div className="eyebrow" style={{ fontSize: 11 }}>
+          Last 7 days · fixed window, not affected by the filters below
+        </div>
+        <div className="grid-auto-sm" style={{ gap: 12 }}>
+          <StatCard label="Errors (7d)" value={stats?.totalCount.toLocaleString() ?? '-'} />
+          <StatCard
+            label="Unresolved (7d)"
+            value={stats?.unresolvedCount.toLocaleString() ?? '-'}
+            tone={stats && stats.unresolvedCount > 0 ? 'danger' : undefined}
+          />
+          <StatCard
+            label="Top path (7d)"
+            value={topPath ? topPath.path : '-'}
+            sub={topPath ? `${topPath.count} hits` : undefined}
+            mono
+          />
+          <StatCard
+            label="Top error class (7d)"
+            value={topError ? topError.name : '-'}
+            sub={topError ? `${topError.count} hits` : undefined}
+            mono
+          />
+        </div>
       </div>
+
+      <div className="divider" />
 
       {/* ---- filters --------------------------------------------------- */}
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>

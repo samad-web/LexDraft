@@ -46,6 +46,7 @@ export interface CreateCoverageInput {
 }
 
 const KEY = ['coverage'] as const;
+export const COVERAGE_KEY = KEY;
 
 export function useCoverageList(status?: CoverageStatus) {
   return useQuery({

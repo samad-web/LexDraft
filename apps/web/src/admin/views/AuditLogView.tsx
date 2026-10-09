@@ -57,58 +57,62 @@ export function AuditLogView() {
       </div>
 
       {isLoading ? (
-        <table className="tbl" aria-busy="true">
-          <thead>
-            <tr>
-              <th style={{ width: 200 }}>When</th>
-              <th>Action</th>
-              <th>Target</th>
-              <th>Actor</th>
-              <th>Payload</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 8 }, (_, i) => (
-              <tr key={`sk-${i}`}>
-                <td><Skeleton width={150} height={12} /></td>
-                <td><Skeleton width={110} height={13} /></td>
-                <td><Skeleton width={130} height={13} /></td>
-                <td><Skeleton width={120} height={13} /></td>
-                <td><Skeleton width={200} height={12} /></td>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="tbl" aria-busy="true">
+            <thead>
+              <tr>
+                <th style={{ width: 200 }}>When</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Actor</th>
+                <th>Payload</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {Array.from({ length: 8 }, (_, i) => (
+                <tr key={`sk-${i}`}>
+                  <td><Skeleton width={150} height={12} /></td>
+                  <td><Skeleton width={110} height={13} /></td>
+                  <td><Skeleton width={130} height={13} /></td>
+                  <td><Skeleton width={120} height={13} /></td>
+                  <td><Skeleton width={200} height={12} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 200 }}>When</th>
-              <th>Action</th>
-              <th>Target</th>
-              <th>Actor</th>
-              <th>Payload</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pager.slice.map((e) => (
-              <tr key={e.id}>
-                <td className="mono" style={{ fontSize: 12 }}>{new Date(e.createdAt).toLocaleString()}</td>
-                <td><span className="badge mono" style={{ fontSize: 11 }}>{e.action}</span></td>
-                <td className="mono" style={{ fontSize: 12 }}>
-                  {e.targetType}{e.targetId ? ` · ${e.targetId.slice(0, 8)}` : ''}
-                </td>
-                <td>{e.actorEmail}</td>
-                <td className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {e.payload ? JSON.stringify(e.payload) : '-'}
-                </td>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 200 }}>When</th>
+                <th>Action</th>
+                <th>Target</th>
+                <th>Actor</th>
+                <th>Payload</th>
               </tr>
-            ))}
-            {entries.length === 0 && (
-              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 32 }}>No audit entries match.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pager.slice.map((e) => (
+                <tr key={e.id}>
+                  <td className="mono" style={{ fontSize: 12 }}>{new Date(e.createdAt).toLocaleString()}</td>
+                  <td><span className="badge mono" style={{ fontSize: 11 }}>{e.action}</span></td>
+                  <td className="mono" style={{ fontSize: 12 }}>
+                    {e.targetType}{e.targetId ? ` · ${e.targetId.slice(0, 8)}` : ''}
+                  </td>
+                  <td>{e.actorEmail}</td>
+                  <td className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {e.payload ? JSON.stringify(e.payload) : '-'}
+                  </td>
+                </tr>
+              ))}
+              {entries.length === 0 && (
+                <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 32 }}>No audit entries match.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
       {!isLoading && entries.length > 0 && (
         <Pagination

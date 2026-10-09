@@ -3,6 +3,7 @@ import type {
   MatterBrief,
   MatterDocument,
   MatterDocumentSummary,
+  MatterFact,
 } from '@lexdraft/types';
 import { api } from '@/lib/api';
 
@@ -15,6 +16,7 @@ import { api } from '@/lib/api';
 //   ['matter-intel', 'documents', caseId]            — list of ingested docs
 //   ['matter-intel', 'document', matterDocumentId]   — single doc + summary
 //   ['matter-intel', 'brief', caseId]                — current matter brief
+//   ['matter-intel', 'timeline', caseId]              — structured dated facts
 //
 // Status polling:
 //   Ingest returns a row with status='pending'. The processing pipeline
@@ -177,6 +179,21 @@ export function useMatterBrief(caseId: string | null | undefined) {
         throw err;
       }
     },
+    enabled: !!caseId,
+  });
+}
+
+/**
+ * Structured, source-attributed timeline — real matter_facts rows, no LLM
+ * call on the read path (unlike the brief, which re-synthesizes on every
+ * regenerate). An empty list is a normal state, not a 404: a matter with no
+ * dated events extracted yet still has a (empty) timeline, unlike the brief
+ * which genuinely doesn't exist until first generated.
+ */
+export function useMatterTimeline(caseId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['matter-intel', 'timeline', caseId],
+    queryFn: () => api.get<{ items: MatterFact[] }>(`/matter-intel/${caseId}/timeline`),
     enabled: !!caseId,
   });
 }

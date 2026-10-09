@@ -5,7 +5,8 @@
   "description": "LexDraft — Practice management for Indian advocates",
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "node scripts/dev-with-engine.mjs",
+    "dev:apps": "turbo run dev --parallel",
     "dev:web": "pnpm --filter @lexdraft/web dev",
     "dev:api": "pnpm --filter @lexdraft/api dev",
     "build": "turbo run build",

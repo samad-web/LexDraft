@@ -57,7 +57,7 @@ export function DraftFormatModal({ open, onClose, selectedId, onApply }: Props) 
       setSource('upload');
       if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, ''));
       setAdding(true);
-      showToast({ type: 'sage', text: 'File parsed — review and save' });
+      showToast({ type: 'sage', text: 'File parsed. Review and save' });
     } catch (err) {
       const msg =
         (err as { response?: { data?: { error?: string } } })?.response?.data?.error
@@ -113,7 +113,7 @@ export function DraftFormatModal({ open, onClose, selectedId, onApply }: Props) 
         <div className="card" style={{ padding: 14, marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="form-row">
             <Field label="FORMAT NAME" required>
-              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Riyaz & Associates — Bail format" autoFocus />
+              <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Riyaz & Associates, Bail format" autoFocus />
             </Field>
             <Field label="FOR DOC TYPE" hint="Bind this format to a document, or leave as “Any”">
               <select

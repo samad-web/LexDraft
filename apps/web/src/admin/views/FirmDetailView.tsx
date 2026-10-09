@@ -45,7 +45,7 @@ export function FirmDetailView() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <PlanCard firmId={firm.id} initial={firm.plan} status={firm.status} />
-          <DangerCard firmId={firm.id} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
+          <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
           <RecentAuditCard entries={firm.recentAudit} />
         </div>
       </div>
@@ -296,7 +296,7 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
 
 // ---------- danger zone ------------------------------------------------------
 
-function DangerCard({ firmId, status: _status, onDeleted }: { firmId: string; status: FirmStatus; onDeleted: () => void }) {
+function DangerCard({ firmId, firmName, status: _status, onDeleted }: { firmId: string; firmName: string; status: FirmStatus; onDeleted: () => void }) {
   const del = useDeleteFirm();
   const showToast = useUIStore((s) => s.showToast);
   const [confirmText, setConfirmText] = useState('');
@@ -304,15 +304,15 @@ function DangerCard({ firmId, status: _status, onDeleted }: { firmId: string; st
     <section className="card" style={{ padding: 24, borderColor: 'var(--danger)' }}>
       <h2 className="heading-lg" style={{ color: 'var(--danger)', marginBottom: 8 }}>Danger zone</h2>
       <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
-        Deleting cascades to all cases, members, and templates owned by this firm. Type <code>DELETE</code> to enable.
+        Deleting cascades to all cases, members, and templates owned by this firm. Type <code>{firmName}</code> to enable — this confirms you're looking at the intended firm, not just a habitual keyword.
       </p>
-      <input className="input" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
+      <input className="input" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder={firmName} />
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
         <button
           type="button"
           className="btn"
           style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
-          disabled={confirmText !== 'DELETE' || del.isPending}
+          disabled={confirmText !== firmName || del.isPending}
           onClick={() => del.mutate(firmId, {
             onSuccess: () => onDeleted(),
             onError: (err) => showToast({

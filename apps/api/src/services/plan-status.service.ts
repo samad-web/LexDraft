@@ -117,3 +117,27 @@ export function invalidatePlanStatusCache(userId?: string): void {
   if (userId) cache.delete(userId);
   else cache.clear();
 }
+
+/**
+ * Applies a payment-provider status update to a firm's billing row. Used by
+ * the `payment` webhook source. Clears the whole plan-state cache rather
+ * than targeting individual users — the cache is keyed by userId and a
+ * single firm can have many users, and plan changes are low-frequency
+ * enough that a full clear costs nothing.
+ */
+export async function applyPlanStatusUpdate(
+  firmId: string,
+  update: { planStatus: Exclude<PlanStatus, null>; renewsAt?: Date | null },
+): Promise<boolean> {
+  const sql = db();
+  if (!sql) return false;
+  const rows = await sql<Array<{ id: string }>>`
+    update firms
+    set plan_status = ${update.planStatus},
+        renews_at = coalesce(${update.renewsAt ?? null}, renews_at)
+    where id = ${firmId}::uuid
+    returning id
+  `;
+  if (rows.length > 0) invalidatePlanStatusCache();
+  return rows.length > 0;
+}

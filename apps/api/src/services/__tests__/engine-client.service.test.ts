@@ -72,6 +72,83 @@ describe('engine-client — version resolution + status mapping', () => {
       .rejects.toBeInstanceOf(EngineValidationError);
   });
 
+  it('draftS138Bundle() sends the current version + affidavit particulars', async () => {
+    const sheet = await factSheetService.create({}, CTX);
+    const spy = mockFetch(200, {
+      outcome: 'generated',
+      bundle: 's138_complaint',
+      complaint: { outcome: 'generated', signals: {}, unfilled_slots: [], blocks: [], docx_base64: 'AA' },
+      affidavit: { outcome: 'generated', signals: {}, unfilled_slots: [], blocks: [], docx_base64: 'BB' },
+    });
+    vi.stubGlobal('fetch', spy);
+
+    const res = await engineClient.draftS138Bundle(
+      sheet.matterId,
+      { complainant_name: 'Ramesh' },
+      { deponentAge: 42, deponentOccupation: 'business', attestor: 'Notary' },
+    );
+
+    const [url, init] = (spy as any).mock.calls[0];
+    expect(url).toContain('/v1/draft-bundle/s138_complaint');
+    const body = JSON.parse(init.body);
+    expect(body.matter.version).toBe(1);
+    expect(body.affidavit).toEqual({
+      deponent_age: 42, deponent_occupation: 'business', attestor: 'Notary',
+    });
+    expect(res.outcome).toBe('generated');
+    if (res.outcome === 'generated') {
+      expect(res.complaint.outcome).toBe('generated');
+      expect(res.affidavit.outcome).toBe('generated');
+    }
+  });
+
+  it('draftS138Bundle() returns a complaint refusal (200) as a value', async () => {
+    const sheet = await factSheetService.create({}, CTX);
+    vi.stubGlobal('fetch', mockFetch(200, {
+      outcome: 'refused', for: 's138_complaint',
+      refusal: { code: 's138_complaint_company_accused_no_s141_averment', fields_implicated: ['s141_averment'] },
+    }));
+    const res = await engineClient.draftS138Bundle(
+      sheet.matterId, {}, { deponentAge: 42, deponentOccupation: 'x', attestor: 'y' },
+    );
+    expect(res.outcome).toBe('refused');
+    if (res.outcome === 'refused') {
+      expect(res.for).toBe('s138_complaint');
+      expect(res.refusal.code).toBe('s138_complaint_company_accused_no_s141_averment');
+    }
+  });
+
+  it('draftS138Bundle() surfaces a per-document (affidavit) refusal inside a generated bundle', async () => {
+    const sheet = await factSheetService.create({}, CTX);
+    vi.stubGlobal('fetch', mockFetch(200, {
+      outcome: 'generated', bundle: 's138_complaint',
+      complaint: { outcome: 'generated', signals: {}, unfilled_slots: [], blocks: [], docx_base64: 'AA' },
+      affidavit: { outcome: 'refused', refusal: { code: 's138_affidavit_cheque_presented_after_validity', fields_implicated: ['cheque_dates'] } },
+    }));
+    const res = await engineClient.draftS138Bundle(
+      sheet.matterId, {}, { deponentAge: 42, deponentOccupation: 'x', attestor: 'y' },
+    );
+    expect(res.outcome).toBe('generated');
+    if (res.outcome === 'generated') {
+      expect(res.complaint.outcome).toBe('generated');
+      expect(res.affidavit.outcome).toBe('refused');
+      if (res.affidavit.outcome === 'refused') {
+        expect(res.affidavit.refusal.code).toBe('s138_affidavit_cheque_presented_after_validity');
+      }
+    }
+  });
+
+  it('draftS138Bundle() maps 422 to EngineValidationError', async () => {
+    const sheet = await factSheetService.create({}, CTX);
+    vi.stubGlobal('fetch', mockFetch(422, {
+      error: 'validation',
+      issues: [{ field: 'affidavit.attestor', code: 'required', message: 'required' }],
+    }));
+    await expect(
+      engineClient.draftS138Bundle(sheet.matterId, {}, { deponentAge: 42, deponentOccupation: 'x', attestor: '' }),
+    ).rejects.toBeInstanceOf(EngineValidationError);
+  });
+
   it('signOff() sends the current version and maps 409 to a conflict', async () => {
     const sheet = await factSheetService.create({}, CTX);
     vi.stubGlobal('fetch', mockFetch(409, { detail: { message: 'unfilled slot' } }));

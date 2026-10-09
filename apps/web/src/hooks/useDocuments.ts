@@ -39,6 +39,31 @@ export function useDocumentDownloadUrl(id: string | null, enabled: boolean) {
   });
 }
 
+/**
+ * Extracted text of every document filed against a case label. Used when
+ * drafting FOR a case so the engine reads the matter's papers (cheque, notice,
+ * agreement) without the advocate re-attaching them. The server extracts on the
+ * fly (OCR for scans), so this can be slow for scan-heavy matters - hence a
+ * generous staleTime so it isn't re-fetched on every keystroke.
+ */
+export interface CaseDocumentText {
+  items: Array<{ name: string; text: string }>;
+  /** Documents attached to the case whose bytes couldn't be read (never
+   *  stored, or extraction produced nothing) — surface these so the advocate
+   *  knows to re-upload them rather than assuming the engine has their content. */
+  unreadable: string[];
+}
+
+export function useCaseDocumentText(caseLabel: string | null | undefined) {
+  return useQuery({
+    enabled: !!caseLabel && caseLabel.trim().length > 0,
+    queryKey: ['documents', 'case-text', caseLabel],
+    queryFn: () =>
+      api.get<CaseDocumentText>('/documents/case-text', { case: caseLabel! }),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useCreateDocument() {
   const qc = useQueryClient();
   return useMutation({

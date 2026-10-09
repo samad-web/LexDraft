@@ -11,6 +11,13 @@ const server = app.listen(env.PORT, () => {
   logger.info(`LexDraft API listening on http://localhost:${env.PORT}`);
 });
 
+// Warm the LibreOffice profile off the request path so the advocate's first
+// "Download PDF" / preview is on the fast (~3s) warm path instead of paying the
+// one-time ~10s+ profile-creation cost. Best-effort, never blocks boot.
+void import('./services/document-render.service')
+  .then((m) => m.documentRenderService.warmUp())
+  .catch((err) => logger.warn({ err }, 'document-render warm-up failed'));
+
 // Boot the background worker. When DATABASE_URL is blank this is a no-op and
 // jobs run inline at enqueue time.
 jobs.start().catch((err) => logger.error({ err }, 'jobs.start failed'));

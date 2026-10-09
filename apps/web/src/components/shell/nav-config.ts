@@ -70,6 +70,11 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'cases',   label: 'Cases',   icon: 'cases',   to: '/app/cases',   requiresFeature: 'matter.view' },
       { id: 'clients', label: 'Clients', icon: 'clients', to: '/app/clients', requiresFeature: 'client.view' },
       { id: 'leads',   label: 'Leads',   icon: 'leads',   to: '/app/leads',   requiresFeature: 'leads.view' },
+      // Cases handed to this user by ANOTHER firm (co-counsel handover). Not
+      // gated on matter.view - a brand-new guest's bare Solo trial account
+      // may not carry that feature yet, and this list is independent of the
+      // viewer's own plan tier. Gated on the universal baseline instead.
+      { id: 'co-counsel', label: 'Co-Counsel', icon: 'cases', to: '/app/co-counsel', requiresFeature: 'shared.documents' },
     ],
   },
   {
@@ -163,11 +168,12 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   sanhita:           { title: 'Sanhita',          eyebrow: 'IPC → BNS, CrPC → BNSS, Evidence → BSA' },
   calculators:       { title: 'Calculators',      eyebrow: 'Court fee · stamp duty · vakalatnama' },
   coverage:          { title: 'Coverage Board',   eyebrow: 'Hearing coverage requests' },
+  'co-counsel':      { title: 'Co-Counsel',       eyebrow: 'Matters handed to you by other firms' },
   'practice-analytics': { title: 'Practice Insights', eyebrow: 'Workload fairness & matter profitability' },
   engagement:        { title: 'Engagement Letters', eyebrow: 'Templates & generation' },
   'mock-arguments':  { title: 'Mock Arguments',  eyebrow: 'Practice oral advocacy against an AI opponent' },
   'title-reports':   { title: 'Title Reports',   eyebrow: 'Indian Title Investigation Reports (TIR) with AI-assisted defects and opinion synthesis' },
-  'matter-intel':    { title: 'Matter Intelligence', eyebrow: 'Ingest · summarise · synthesise · chat — grounded in this matter' },
+  'matter-intel':    { title: 'Matter Intelligence', eyebrow: 'Ingest · summarise · synthesise · chat, grounded in this matter' },
   // Topbar previously fell back to the raw URL segment for these — adding
   // them so the breadcrumb reads as a human label, not a slug.
   'physical-docs':   { title: 'Physical Docs',   eyebrow: 'Paper-original register · vakalatnamas, sworn affidavits, signed orders' },

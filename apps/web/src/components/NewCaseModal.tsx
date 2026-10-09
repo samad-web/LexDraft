@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { DatePicker, Select } from '@lexdraft/ui';
 import type { Case, CaseStage, CaseStatus, CaseType } from '@lexdraft/types';
 import { useCreateCase } from '@/hooks/useCases';
+import { useCreateDocument } from '@/hooks/useDocuments';
+import { api } from '@/lib/api';
 import { useUIStore } from '@/store/ui';
 import { useConflictsCheck, type ConflictHit, type ConflictsResult } from '@/hooks/useConflicts';
 import { useEcourtsCnr } from '@/hooks/useEcourts';
 import { Icon } from '@lexdraft/ui';
+import { DictateButton } from './DictateButton';
+import { FileStager, type StagedFile } from './FileStager';
 import { Field } from './Modal';
 
 const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
@@ -24,6 +28,24 @@ interface NewCaseModalProps {
 const TYPES: CaseType[] = ['Civil', 'Criminal', 'Commercial', 'Property', 'Banking', 'Family', 'Tax', 'Other'];
 const STAGES: CaseStage[] = ['Filing', 'Summons', 'WS', 'Evidence', 'Arguments', 'Judgment', 'Appeal', 'Other'];
 const STATUSES: CaseStatus[] = ['Active', 'Pending', 'Closed', 'Archived'];
+
+/** Best-effort document type from a filename, so staged uploads land with a
+ *  useful chip instead of a bare "Other". Mirrors NewDocumentModal.inferType. */
+function inferDocType(filename: string): string {
+  const lower = filename.toLowerCase();
+  if (/plaint/.test(lower)) return 'Plaint';
+  if (/written.statement|\bws\b/.test(lower)) return 'WS';
+  if (/affidavit/.test(lower)) return 'Affidavit';
+  if (/notice/.test(lower)) return 'Notice';
+  if (/contract|agreement|deed/.test(lower)) return 'Contract';
+  if (/vakalat/.test(lower)) return 'Vakalatnama';
+  if (/petition/.test(lower)) return 'Petition';
+  const ext = lower.match(/\.([a-z0-9]+)$/)?.[1];
+  if (ext === 'pdf') return 'PDF';
+  if (ext === 'doc' || ext === 'docx') return 'Word document';
+  if (ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp' || ext === 'heic') return 'Scan';
+  return 'Other';
+}
 
 function placeholderCnr(): string {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -77,8 +99,18 @@ function deriveOpposingFromTitle(title: string): string | undefined {
 export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseModalProps) {
   const navigate = useNavigate();
   const create = useCreateCase();
+  const createDocument = useCreateDocument();
   const showToast = useUIStore((s) => s.showToast);
   const conflicts = useConflictsCheck();
+
+  // Documents staged in the modal, uploaded after the case is created (the
+  // case's title is the label documents file against).
+  const [stagedDocs, setStagedDocs] = useState<StagedFile[]>([]);
+
+  // Free-text (or dictated) description of the matter. Saved as a shared case
+  // note after the case is created, so it shows in the case's Notes section and
+  // AI drafting can pull it in. Optional.
+  const [caseContent, setCaseContent] = useState('');
 
   const [title, setTitle] = useState('');
   const [client, setClient] = useState('');
@@ -189,12 +221,22 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
   const hasRed = severity === 'red';
   const submitBlocked = hasRed && !overrideAck;
 
+  // Append a dictated transcript to a string field, spaced from existing text.
+  const appendSpoken = (
+    setter: (fn: (prev: string) => string) => void,
+  ) => (text: string) => {
+    setter((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (submitBlocked) return;
+    // All fields are optional. Fall back to a readable placeholder title so the
+    // matter doesn't show as a blank row in the list.
+    const resolvedTitle = title.trim() || (client.trim() ? `Matter for ${client.trim()}` : 'Untitled matter');
     const payload: Omit<Case, 'id'> = {
       cnr: cnr.trim() || placeholderCnr(),
-      title: title.trim(),
+      title: resolvedTitle,
       client: client.trim(),
       court: court.trim(),
       type,
@@ -204,9 +246,67 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
     };
     try {
       const created = await create.mutateAsync(payload);
-      showToast({ type: 'sage', text: `Case "${created.title}" created` });
+
+      // Save the typed/dictated case content as a shared note on the new matter
+      // so it appears in the case's Notes section and AI drafting can use it.
+      // Best-effort: a note failure never blocks the case from opening.
+      if (caseContent.trim()) {
+        try {
+          await api.post('/case-notes', {
+            caseId: created.id,
+            body: caseContent.trim(),
+            visibility: 'shared',
+            title: 'Case content',
+          });
+        } catch {
+          showToast({ type: 'amber', text: 'Case created, but the case-content note could not be saved. Add it from the Notes section.' });
+        }
+      }
+
+      // Upload any documents staged in the modal, filing them against the new
+      // case's title (the label the documents system relates docs to a case
+      // by). Sequential so a mid-run failure is attributable; the case is
+      // already created, so a failed upload never loses the matter itself.
+      let uploaded = 0;
+      const failed: string[] = [];
+      for (const doc of stagedDocs) {
+        try {
+          await createDocument.mutateAsync({
+            name: doc.name,
+            type: inferDocType(doc.name),
+            case: created.title,
+            updated: 'just now',
+            fileName: doc.name,
+            fileMime: doc.mime,
+            fileSize: doc.size,
+            fileBase64: doc.base64,
+          });
+          uploaded += 1;
+        } catch {
+          failed.push(doc.name);
+        }
+      }
+
+      if (failed.length > 0) {
+        showToast({
+          type: 'amber',
+          text: `Case created. ${uploaded} document${uploaded === 1 ? '' : 's'} attached; ${failed.length} failed (${failed.join(', ')}). Retry from the Documents tab.`,
+        });
+      } else {
+        showToast({
+          type: 'sage',
+          text: uploaded > 0
+            ? `Case "${created.title}" created with ${uploaded} document${uploaded === 1 ? '' : 's'}`
+            : `Case "${created.title}" created`,
+        });
+      }
+
+      setStagedDocs([]);
+      setCaseContent('');
       onClose();
-      navigate(`/app/cases/${created.id}`);
+      // Land on the Documents tab so the advocate sees the attached papers (or
+      // can add more) immediately - the section they'd otherwise hunt for.
+      navigate(`/app/cases/${created.id}?tab=documents`);
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })?.response?.data?.error
         ?? (err as Error).message
@@ -249,38 +349,35 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             Open a case file
           </h3>
           <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            Required fields marked with *. Leave CNR blank to auto-generate a placeholder you can update later.
+            All fields are optional, fill in what you have. Leave CNR blank to auto-generate a placeholder you can update later.
           </p>
         </div>
 
-        <Field label="MATTER TITLE" required wide>
+        <Field label="MATTER TITLE" wide>
           <input
             className="input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Mehta v. Skyline Constructions"
-            required
             autoFocus
           />
         </Field>
 
         <div className="form-row">
-          <Field label="CLIENT" required>
+          <Field label="CLIENT">
             <input
               className="input"
               value={client}
               onChange={(e) => setClient(e.target.value)}
               placeholder="Primary client (party we represent)"
-              required
             />
           </Field>
-          <Field label="COURT" required>
+          <Field label="COURT">
             <input
               className="input"
               value={court}
               onChange={(e) => setCourt(e.target.value)}
               placeholder="e.g. High Court of Karnataka"
-              required
             />
           </Field>
           <Field
@@ -288,8 +385,8 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             hint={
               cnrValid && cnrLookup.isFetching ? 'Fetching from eCourts…'
               : cnrValid && cnrLookup.data ? 'Fetched from eCourts ✓'
-              : cnrValid && cnrLookup.isError ? 'No eCourts record — enter details manually'
-              : 'Optional — enter a 16-char CNR to auto-fetch from eCourts'
+              : cnrValid && cnrLookup.isError ? 'No eCourts record, enter details manually'
+              : 'Optional: enter a 16-char CNR to auto-fetch from eCourts'
             }
           >
             <div style={{ position: 'relative', width: '100%' }}>
@@ -316,24 +413,24 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
               )}
             </div>
           </Field>
-          <Field label="NEXT HEARING" hint="Optional — leave blank if none is fixed yet">
+          <Field label="NEXT HEARING" hint="Optional: leave blank if none is fixed yet">
             <DatePicker value={next} onChange={setNext} />
           </Field>
-          <Field label="TYPE" required>
+          <Field label="TYPE">
             <Select
               value={String(type)}
               onChange={(v) => setType(v as CaseType)}
               options={TYPES.map((t) => ({ value: t, label: t }))}
             />
           </Field>
-          <Field label="STAGE" required>
+          <Field label="STAGE">
             <Select
               value={String(stage)}
               onChange={(v) => setStage(v as CaseStage)}
               options={STAGES.map((s) => ({ value: s, label: s }))}
             />
           </Field>
-          <Field label="STATUS" required>
+          <Field label="STATUS">
             <Select
               value={status}
               onChange={(v) => setStatus(v as CaseStatus)}
@@ -341,6 +438,29 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             />
           </Field>
         </div>
+
+        <Field label="CASE CONTENT / NOTES" hint="Optional: type or dictate the matter's background, facts, or working notes. Saved to the case's Notes." wide>
+          <div className="row" style={{ gap: 8, marginBottom: 8, justifyContent: 'flex-end' }}>
+            <DictateButton onTranscript={appendSpoken(setCaseContent)} label="Voice note" />
+          </div>
+          <textarea
+            className="input"
+            value={caseContent}
+            onChange={(e) => setCaseContent(e.target.value)}
+            placeholder="e.g. Facts of the matter, client's account, key dates, working theory. Tap Voice note and speak instead of typing."
+            rows={5}
+            style={{ resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
+            maxLength={50_000}
+          />
+        </Field>
+
+        <Field label="DOCUMENTS" hint="Optional: attach the matter's papers now; they'll be filed against this case." wide>
+          <FileStager
+            files={stagedDocs}
+            onChange={setStagedDocs}
+            onError={(msg) => showToast({ type: 'amber', text: msg })}
+          />
+        </Field>
 
         <ConflictPanel
           result={conflictResult}
@@ -352,14 +472,20 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
         />
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn" onClick={() => { setStagedDocs([]); setCaseContent(''); onClose(); }}>Cancel</button>
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={create.isPending || submitBlocked}
+            disabled={create.isPending || createDocument.isPending || submitBlocked}
             title={submitBlocked ? 'Confirm conflict review to proceed' : undefined}
           >
-            {create.isPending ? 'Opening case…' : 'Open case file'}
+            {create.isPending
+              ? 'Opening case…'
+              : createDocument.isPending
+                ? 'Attaching documents…'
+                : stagedDocs.length > 0
+                  ? `Open case file & attach ${stagedDocs.length}`
+                  : 'Open case file'}
           </button>
         </div>
       </form>

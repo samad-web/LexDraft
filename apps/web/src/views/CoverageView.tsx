@@ -14,6 +14,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useAuthStore } from '@/store/auth';
@@ -22,6 +23,7 @@ import {
   useClaimCoverage,
   useCancelCoverage,
   useCompleteCoverage,
+  COVERAGE_KEY,
   type CoverageRequest,
   type CoverageStatus,
 } from '@/hooks/useCoverage';
@@ -73,6 +75,7 @@ function initials(name: string | null): string {
 }
 
 export function CoverageView() {
+  const qc = useQueryClient();
   const showToast = useUIStore((s) => s.showToast);
   const me = useAuthStore((s) => s.user);
   const [modalOpen, setModalOpen] = useState(false);
@@ -108,7 +111,15 @@ export function CoverageView() {
   const handleClaim = (id: string) => {
     claim.mutate(id, {
       onSuccess: () => showToast({ type: 'sage', text: 'You\'re covering this hearing' }),
-      onError: onError('claim coverage'),
+      onError: (err: unknown) => {
+        onError('claim coverage')(err);
+        // Someone else likely claimed it first - the panel's `selected` data is
+        // now stale, so re-sync with the server and close it rather than leaving
+        // an actionable "Claim coverage" button pointed at a request that no
+        // longer accepts that action.
+        qc.invalidateQueries({ queryKey: COVERAGE_KEY });
+        setSelectedId(null);
+      },
     });
   };
 

@@ -10,7 +10,7 @@ import { downloadCsv } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
 import { FAB } from '@/components/FAB';
 import { useDeleteWithUndo } from '@/hooks/useDeleteWithUndo';
-import { useAlert, useConfirm } from '@/components/ConfirmDialog';
+import { useAlert, useConfirm, useConfirmWithInput } from '@/components/ConfirmDialog';
 import { api } from '@/lib/api';
 
 // The board columns, in legal-intake order. The `qualified` enum value is
@@ -73,6 +73,7 @@ export function LeadsView() {
   const navigate = useNavigate();
   const alertDialog = useAlert();
   const confirmDialog = useConfirm();
+  const confirmWithInput = useConfirmWithInput();
   const [modalOpen, setModalOpen] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<Stage['id'] | null>(null);
@@ -134,7 +135,7 @@ export function LeadsView() {
       if (conflictStatus === 'clear') {
         showToast({ type: 'sage', text: `Conflict cleared for "${lead.name}"` });
       } else if (conflictStatus === 'conflict') {
-        showToast({ type: 'vermillion', text: `Marked ADVERSE — this lead cannot be retained` });
+        showToast({ type: 'vermillion', text: `Marked ADVERSE: this lead cannot be retained` });
       }
     } catch {
       showToast({ type: 'vermillion', text: "Couldn't update conflict status" });
@@ -166,7 +167,7 @@ export function LeadsView() {
     setBusyId(lead.id);
     try {
       const { matterPrefill } = await retainLead.mutateAsync(lead.id);
-      showToast({ type: 'sage', text: `"${lead.name}" retained — client created` });
+      showToast({ type: 'sage', text: `"${lead.name}" retained, client created` });
       // Hand off to the New-matter flow, pre-filled. The Cases view reads these
       // params to seed its "New case" modal.
       const params = new URLSearchParams({
@@ -188,11 +189,14 @@ export function LeadsView() {
 
   // --- decline (lost) with a reason -----------------------------------------
   const onDecline = async (lead: Lead) => {
-    const reason = window.prompt(
-      `Why is "${lead.name}" being declined?\n(e.g. conflict, fee, went elsewhere, not our practice area)`,
-      lead.declineReason || '',
-    );
-    if (reason === null) return; // cancelled
+    const { confirmed, value: reason } = await confirmWithInput({
+      title: `Decline "${lead.name}"?`,
+      inputLabel: 'Reason (e.g. conflict, fee, went elsewhere, not our practice area)',
+      inputDefaultValue: lead.declineReason || '',
+      confirmLabel: 'Decline',
+      danger: true,
+    });
+    if (!confirmed) return;
     setBusyId(lead.id);
     try {
       await updateLead.mutateAsync({ id: lead.id, patch: { stage: 'lost', declineReason: reason.trim() } });

@@ -33,11 +33,13 @@
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
+import { withRetry } from '../lib/retry';
 import { ForbiddenError, NotFoundError, UnprocessableEntityError } from '../lib/errors';
 import { notify } from './notifications.service';
 import { aiUsageService } from './ai-usage.service';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grokComplete } from '../lib/grok-client';
 import type {
   ContractReview,
   ContractReviewFinding,
@@ -228,36 +230,12 @@ interface LlmResult extends NormalizedUsage {
 }
 
 async function callClaude(prompt: BuiltPrompt): Promise<LlmResult> {
+  // claudeComplete preserves the former request shape (env.ANTHROPIC_MODEL,
+  // max_tokens 4096, ephemeral-cached system block) and returns the same
+  // NormalizedUsage the billing code reads. It throws HttpRetryError on API
+  // errors so this withRetry() still triggers on 429/5xx.
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: 4096,
-          system: [{ type: 'text', text: prompt.system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: prompt.user }],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text)
-        .join('');
-      return { text, ...anthropicUsage(data.usage) };
-    },
+    () => claudeComplete({ system: prompt.system, user: prompt.user, maxTokens: 4096 }),
     {
       onRetry: (err, attempt, waitMs) =>
         logger.warn({ err, attempt, waitMs }, 'review Claude call retry'),
@@ -266,40 +244,13 @@ async function callClaude(prompt: BuiltPrompt): Promise<LlmResult> {
 }
 
 async function callGrok(prompt: BuiltPrompt): Promise<LlmResult> {
+  // grokComplete preserves the former request shape (env.XAI_MODEL, max_tokens
+  // 4096, system+user messages) and returns the same NormalizedUsage via
+  // xaiUsage that the billing code reads. It throws HttpRetryError on API
+  // errors so this withRetry() still triggers on 429/5xx. The prompt's "STRICT
+  // JSON" directive and parseLlmJson() handle output shape for both providers.
   return withRetry(
-    async () => {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${env.XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: env.XAI_MODEL,
-          max_tokens: 4096,
-          // Grok supports JSON-mode via response_format. Anthropic relies on
-          // the prompt's "STRICT JSON" directive - both providers go through
-          // the same parser below regardless.
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: prompt.system },
-            { role: 'user', content: prompt.user },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `xAI API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
-      };
-      return {
-        text: data.choices[0]?.message?.content ?? '',
-        ...xaiUsage(data.usage),
-      };
-    },
+    () => grokComplete({ system: prompt.system, user: prompt.user, maxTokens: 4096 }),
     {
       onRetry: (err, attempt, waitMs) =>
         logger.warn({ err, attempt, waitMs }, 'review Grok call retry'),

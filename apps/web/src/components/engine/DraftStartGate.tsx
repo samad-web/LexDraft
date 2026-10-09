@@ -31,7 +31,7 @@ export function DraftStartGate({ activeLabel, onUpload, onType }: Props) {
         <p className="draft-start-gate__sub">
           {activeLabel
             ? `Drafting a ${activeLabel}. Choose how you’d like to begin.`
-            : 'Choose how you’d like to begin — the engine works out which document you need and drafts it.'}
+            : 'Choose how you’d like to begin: the engine works out which document you need and drafts it.'}
         </p>
       </div>
 
@@ -51,7 +51,7 @@ export function DraftStartGate({ activeLabel, onUpload, onType }: Props) {
           </span>
           <span className="draft-start-gate__label">Uploading reference documents</span>
           <span className="draft-start-gate__desc">
-            Attach the cheque, memo, invoice, or an existing document — the engine
+            Attach the cheque, memo, invoice, or an existing document. The engine
             reads them and pulls the facts into your draft.
           </span>
         </button>
@@ -70,8 +70,8 @@ export function DraftStartGate({ activeLabel, onUpload, onType }: Props) {
           </span>
           <span className="draft-start-gate__label">Typing facts of the matter</span>
           <span className="draft-start-gate__desc">
-            Describe the parties, dates, amounts, and facts in plain language —
-            start fresh and the engine drafts from what you provide.
+            Describe the parties, dates, amounts, and facts in plain language,
+            and the engine drafts from what you provide.
           </span>
         </button>
       </div>

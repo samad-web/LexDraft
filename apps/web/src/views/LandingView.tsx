@@ -479,6 +479,16 @@ export function LandingView() {
     };
   }, []);
 
+  // Land directly on a section when arriving with a URL hash (e.g. another
+  // view linking to "/#pricing") - without this, a hash in the URL on first
+  // load is silently ignored and the page just renders at the top.
+  useEffect(() => {
+    if (!window.location.hash) return;
+    const t = window.setTimeout(() => goAnchor(window.location.hash), 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally mount-only: only the hash present on initial load should trigger this.
+  }, []);
+
   useEffect(() => {
     const ids: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
     const elements = ids
@@ -886,7 +896,7 @@ export function LandingView() {
                   </div>
                   <button
                     type="button"
-                    onClick={goAuth}
+                    onClick={() => goSignup(plan.name === 'Firm' ? 'demo' : 'trial')}
                     className="btn btn-block btn-lg"
                     style={
                       featured
@@ -1077,6 +1087,7 @@ export function LandingView() {
         .lex-faq[open] .lex-faq-marker { transform: rotate(45deg); border-color: var(--text-primary); color: var(--text-primary); }
         .lex-faq summary::-webkit-details-marker { display: none; }
         .lex-faq summary:hover { color: var(--text-secondary); }
+        .lex-faq summary:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 4px; border-radius: var(--radius-sm); }
 
         /* ---------- FOOTER ---------- */
         .lex-footer {

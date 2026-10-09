@@ -30,6 +30,17 @@ const CaseInput = z.object({
   next: z.string(),
   type: z.string(),
 });
+// PATCH /:id intentionally omits `stage` - direct writes to the legacy stage
+// column bypass the per-case pipeline graph (case_pipeline_nodes) and the
+// case_stage_events audit trail, leaving cases.stage and the pipeline
+// stepper UI silently showing contradictory state. Stage changes must go
+// through POST /:id/transition or POST /:id/pipeline/nodes/:nodeId/status,
+// which keep both in sync (see case-pipeline.service.ts#setStatus). `.strict()`
+// so a caller that still sends `stage` gets a clear 400 instead of having it
+// silently stripped - zod's default behaviour for an unrecognised key.
+const CaseUpdateInput = CaseInput.omit({ stage: true }).partial().strict(
+  'Unrecognized key(s) in body - stage cannot be set via PATCH /cases/:id; use POST /cases/:id/transition instead.',
+);
 const CaseListQuery = z.object({
   type: z.string().optional(),
   q: z.string().optional(),
@@ -573,7 +584,7 @@ casesRouter.post(
 casesRouter.patch(
   '/:id',
   requireFeature('matter.create'),
-  validate({ params: idParam, body: CaseInput.partial() }),
+  validate({ params: idParam, body: CaseUpdateInput }),
   withAudit({ action: 'case.update', targetType: 'case' }),
   async (req, res, next) => {
     try {

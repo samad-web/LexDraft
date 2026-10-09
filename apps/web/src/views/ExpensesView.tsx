@@ -6,9 +6,11 @@ import { useUIStore } from '@/store/ui';
 import { useExpenses } from '@/hooks/useExpenses';
 import { NewExpenseModal } from '@/components/NewExpenseModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { apiClient } from '@/lib/api';
+import { useSavedFilter } from '@/hooks/useSavedFilter';
 
 interface BadgeMeta { label: string; cls: string }
 const STATUS_BADGE: Record<ExpenseStatus, BadgeMeta> = {
@@ -18,6 +20,16 @@ const STATUS_BADGE: Record<ExpenseStatus, BadgeMeta> = {
 };
 const FALLBACK_BADGE: BadgeMeta = { label: 'Unknown', cls: 'badge' };
 
+type FilterId = 'all' | ExpenseStatus;
+const FILTER_IDS: ReadonlyArray<FilterId> = ['all', 'pending', 'approved', 'billed'];
+interface FilterOption { id: FilterId; label: string }
+const FILTERS: ReadonlyArray<FilterOption> = [
+  { id: 'all',      label: 'All'      },
+  { id: 'pending',  label: 'Pending'  },
+  { id: 'approved', label: 'Approved' },
+  { id: 'billed',   label: 'Billed'   },
+];
+
 function formatINR(value: number): string {
   return `₹${value.toLocaleString('en-IN')}`;
 }
@@ -26,8 +38,26 @@ export function ExpensesView() {
   const showToast = useUIStore((s) => s.showToast);
   const [modalOpen, setModalOpen] = useState(false);
   const [exportingCsv, setExportingCsv] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [filter, setFilter] = useSavedFilter<FilterId>('expenses.filter', 'all', (raw) =>
+    typeof raw === 'string' && (FILTER_IDS as ReadonlyArray<string>).includes(raw) ? (raw as FilterId) : null,
+  );
+  const [q, setQ] = useState<string>('');
   const { data: rows = [], isLoading, isError } = useExpenses();
-  const pager = usePagination(rows);
+  const filteredRows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (
+        needle
+        && !r.description.toLowerCase().includes(needle)
+        && !r.category.toLowerCase().includes(needle)
+        && !r.expenseNo.toLowerCase().includes(needle)
+      ) return false;
+      if (filter !== 'all' && r.status !== filter) return false;
+      return true;
+    });
+  }, [rows, filter, q]);
+  const pager = usePagination(filteredRows);
 
   const stats = useMemo(() => {
     const monthTotal = rows.reduce((sum, r) => sum + r.amountInr, 0);
@@ -84,6 +114,7 @@ export function ExpensesView() {
         <button
           className="btn"
           type="button"
+          disabled={exportingPdf}
           onClick={async () => {
             if (!rows.length) {
               showToast({ type: 'amber', text: 'No expenses to export' });
@@ -131,6 +162,7 @@ export function ExpensesView() {
               </table>
               ${totals}
             `;
+            setExportingPdf(true);
             try {
               await exportPdf({
                 title: 'Expenses ledger',
@@ -141,23 +173,29 @@ export function ExpensesView() {
               });
             } catch (err) {
               showToast({ type: 'cobalt', text: err instanceof Error ? err.message : 'Export failed' });
+            } finally {
+              setExportingPdf(false);
             }
           }}
         >
-          <Icon name="download" size={14} /> Export
+          <Icon name="download" size={14} /> {exportingPdf ? 'Exporting…' : 'Export'}
         </button>
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Log expense
-        </button>
+        <Gate feature="billing.expense">
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Log expense
+          </button>
+        </Gate>
       </div>
       <NewExpenseModal open={modalOpen} onClose={() => setModalOpen(false)} />
-      <FAB ariaLabel="Log expense" onClick={() => setModalOpen(true)}>
-        <Icon name="plus" size={22} />
-      </FAB>
+      <Gate feature="billing.expense">
+        <FAB ariaLabel="Log expense" onClick={() => setModalOpen(true)}>
+          <Icon name="plus" size={22} />
+        </FAB>
+      </Gate>
 
       <div className="stat-row">
         <div>
@@ -182,6 +220,47 @@ export function ExpensesView() {
         </div>
       </div>
 
+      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
+          <input
+            type="search"
+            className="input"
+            style={{ paddingLeft: 36 }}
+            placeholder="Search by description, category, or expense no.…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Search expenses"
+          />
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: 12,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-tertiary)',
+              display: 'inline-flex',
+            }}
+          >
+            <Icon name="search" size={14} />
+          </span>
+        </div>
+      </div>
+
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setFilter(f.id)}
+            className={`chip ${filter === f.id ? 'active' : ''}`}
+            aria-pressed={filter === f.id}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       <div className="card" style={{ padding: 0 }}>
         {isLoading ? (
           <div className="col" style={{ padding: 'var(--space-9)', alignItems: 'center' }}>
@@ -193,11 +272,15 @@ export function ExpensesView() {
             title="Couldn't load expenses"
             description="Check your connection and try again."
           />
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <EmptyState
             icon="expenses"
-            title="No disbursements logged"
-            description="Track court fees, travel, and other case-related costs. Approved expenses flow into the next invoice."
+            title={rows.length === 0 ? 'No disbursements logged' : 'No expenses match'}
+            description={
+              rows.length === 0
+                ? 'Track court fees, travel, and other case-related costs. Approved expenses flow into the next invoice.'
+                : 'Try a different search or filter.'
+            }
           />
         ) : (
           <table className="tbl">

@@ -113,6 +113,11 @@ export async function streamMatterChatMessage(
   cb: StreamMessageCallbacks,
   signal?: AbortSignal,
 ): Promise<void> {
+  if (!threadId || !threadId.trim()) {
+    cb.onError('Stream request failed: thread ID is required');
+    return;
+  }
+
   const token = useAuthStore.getState().token;
   const base = (apiClient.defaults.baseURL ?? '').replace(/\/+$/, '');
   const url = `${base}/api/matter-chat/threads/${threadId}/messages`;
@@ -223,28 +228,45 @@ export async function streamMatterChatMessage(
  * because of the streaming-state reasons documented on
  * `streamMatterChatMessage`.
  */
-export function usePostMatterChatMessage(threadId: string, caseId: string) {
+export function usePostMatterChatMessage(threadId: string | null | undefined, caseId: string) {
   const qc = useQueryClient();
   return {
     post: async (
       content: string,
       cb: StreamMessageCallbacks,
       signal?: AbortSignal,
+      overrideThreadId?: string | null,
     ): Promise<void> => {
+      const targetThreadId = overrideThreadId || threadId;
+      if (!targetThreadId) {
+        cb.onError('Stream request failed: no chat thread available');
+        return;
+      }
       const wrapped: StreamMessageCallbacks = {
         ...cb,
+        onUserMessage: (m) => {
+          cb.onUserMessage(m);
+          qc.setQueryData(
+            ['matter-chat', 'messages', targetThreadId],
+            (old: { items: MatterChatMessage[] } | undefined) => {
+              const items = old?.items ?? [];
+              if (items.some((x) => x.id === m.id)) return old;
+              return { items: [...items, m] };
+            },
+          );
+        },
         onAssistantMessage: (m) => {
           cb.onAssistantMessage(m);
           // Refresh the canonical messages list (cheap; the SSE already
           // delivered the content but this picks up any server-side
           // normalisation we add later).
-          qc.invalidateQueries({ queryKey: ['matter-chat', 'messages', threadId] });
+          qc.invalidateQueries({ queryKey: ['matter-chat', 'messages', targetThreadId] });
           // Bump the thread's last_message_at via a thread-list invalidation
           // so the switcher reorders.
           qc.invalidateQueries({ queryKey: ['matter-chat', 'threads', caseId] });
         },
       };
-      await streamMatterChatMessage(threadId, content, wrapped, signal);
+      await streamMatterChatMessage(targetThreadId, content, wrapped, signal);
     },
   };
 }

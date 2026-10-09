@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import {
   useCase,
@@ -24,16 +24,8 @@ import { CopyButton } from '@/components/CopyButton';
 import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
+import { useTaskBoard } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
-
-interface TaskEntry {
-  title: string;
-  due: string;
-  assignee: string;
-  done?: boolean;
-}
-
-const TASKS: ReadonlyArray<TaskEntry> = [];
 
 export function CaseDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -42,11 +34,20 @@ export function CaseDetailView() {
   const timeline = useCaseTimeline(id);
   const parties = useCaseParties(id);
   const acts = useCaseActs(id);
+  const taskBoard = useTaskBoard();
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'intelligence'>('overview');
+  // Honour ?tab=documents|intelligence so the case-create flow can deep-link
+  // straight to the Documents section (where uploads live). Defaults to
+  // overview for any missing/unknown value.
+  const [searchParams] = useSearchParams();
+  const initialTab = ((): 'overview' | 'documents' | 'intelligence' => {
+    const t = searchParams.get('tab');
+    return t === 'documents' || t === 'intelligence' ? t : 'overview';
+  })();
+  const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'intelligence'>(initialTab);
   const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
@@ -80,6 +81,18 @@ export function CaseDetailView() {
   }
 
   const c: CaseWithPipeline = data;
+
+  // Tasks are stored firm-wide and labelled by matter title (same
+  // `case: c.title` convention NewHearingModal/NewDocumentModal already use
+  // for their `defaultCase` prop below) - filter the shared board down to
+  // this matter's pendings. Normalized (trim + case-insensitive) rather than
+  // strict `===` - a task created with trailing whitespace, different casing,
+  // or surviving a case rename would otherwise silently vanish from this
+  // card while still showing fine on the global Kanban board.
+  const normalizedTitle = c.title.trim().toLowerCase();
+  const caseTasks = Object.values(taskBoard.data ?? {})
+    .flat()
+    .filter((t) => t.case.trim().toLowerCase() === normalizedTitle);
 
   const handleGenerateEngagement = async (): Promise<void> => {
     try {
@@ -158,6 +171,26 @@ export function CaseDetailView() {
               onClick={() => setDocOpen(true)}
             >
               <Icon name="upload" size={14} /> Upload
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => navigate('/app/draft', {
+                state: {
+                  caseContext: {
+                    id: c.id,
+                    title: c.title,
+                    cnr: c.cnr,
+                    court: c.court,
+                    client: c.client,
+                    type: c.type,
+                    stage: c.stage,
+                  },
+                },
+              })}
+              title="Start a draft for this matter: its details and notes are pulled in as context"
+            >
+              <Icon name="draft" size={14} /> Draft for this case
             </button>
             <button
               type="button"
@@ -274,7 +307,7 @@ export function CaseDetailView() {
           </div>
 
           {/* Lead advocate + handover (case_assignments). */}
-          <CaseLeadHandover caseId={c.id} />
+          <CaseLeadHandover caseId={c.id} caseTitle={c.title} />
 
           {/* Acts & sections — populated by the eCourts sync (case_acts table). */}
           {(acts.data?.length ?? 0) > 0 && (
@@ -410,58 +443,63 @@ export function CaseDetailView() {
               <div className="heading-md">Pendings</div>
               <span className="spacer" />
               <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {TASKS.filter((t) => !t.done).length} PENDING
+                {caseTasks.filter((t) => t.column !== 'done').length} PENDING
               </span>
             </div>
-            {TASKS.length === 0 ? (
+            {taskBoard.isLoading ? (
+              <p className="body-sm muted">Loading pendings…</p>
+            ) : caseTasks.length === 0 ? (
               <p className="body-sm muted">No pendings. Add the first below.</p>
             ) : (
               <div className="col" style={{ gap: 0 }}>
-                {TASKS.map((t, i) => (
-                  <div
-                    key={t.title}
-                    className="row"
-                    style={{
-                      padding: '12px 0',
-                      borderBottom: i < TASKS.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                      gap: 12,
-                      alignItems: 'flex-start',
-                    }}
-                  >
+                {caseTasks.map((t, i) => {
+                  const done = t.column === 'done';
+                  return (
                     <div
-                      aria-hidden="true"
+                      key={t.id}
+                      className="row"
                       style={{
-                        width: 16, height: 16,
-                        borderRadius: 'var(--radius-sm)',
-                        border: `1px solid ${t.done ? 'var(--success)' : 'var(--border-default)'}`,
-                        background: t.done ? 'var(--success-bg)' : 'transparent',
-                        color: 'var(--success)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        marginTop: 2,
+                        padding: '12px 0',
+                        borderBottom: i < caseTasks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                        gap: 12,
+                        alignItems: 'flex-start',
                       }}
                     >
-                      {t.done && <Icon name="check" size={12} />}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
                       <div
+                        aria-hidden="true"
                         style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          color: t.done ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                          textDecoration: t.done ? 'line-through' : 'none',
+                          width: 16, height: 16,
+                          borderRadius: 'var(--radius-sm)',
+                          border: `1px solid ${done ? 'var(--success)' : 'var(--border-default)'}`,
+                          background: done ? 'var(--success-bg)' : 'transparent',
+                          color: 'var(--success)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          marginTop: 2,
                         }}
                       >
-                        {t.title}
+                        {done && <Icon name="check" size={12} />}
                       </div>
-                      <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 2 }}>
-                        DUE {t.due.toUpperCase()} · {t.assignee}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 500,
+                            color: done ? 'var(--text-tertiary)' : 'var(--text-primary)',
+                            textDecoration: done ? 'line-through' : 'none',
+                          }}
+                        >
+                          {t.title}
+                        </div>
+                        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                          DUE {t.due.toUpperCase()} · {t.assignee}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <button
@@ -498,6 +536,7 @@ export function CaseDetailView() {
         open={hearingOpen}
         onClose={() => setHearingOpen(false)}
         defaultCase={c.title}
+        defaultCaseId={c.id}
         defaultCourt={c.court}
         defaultDate={c.next || undefined}
       />
@@ -505,6 +544,7 @@ export function CaseDetailView() {
         open={taskOpen}
         onClose={() => setTaskOpen(false)}
         defaultCase={c.title}
+        lockCase
       />
 
     </div>
@@ -647,7 +687,7 @@ function EcourtsSyncResultModal({
       description={
         sync.sideDetected
           ? `Detected your firm represents the ${sync.sideDetected}.`
-          : 'Could not auto-detect which side your firm represents — disposition mapping skipped. Set the client name to match the petitioner or respondent and try again.'
+          : 'Could not auto-detect which side your firm represents, so disposition mapping was skipped. Set the client name to match the petitioner or respondent and try again.'
       }
       width={720}
       footer={
@@ -735,7 +775,7 @@ function SummaryRow({ label, value, detail }: { label: string; value: string; de
 }
 
 function fmtValue(v: unknown): string {
-  if (v === null || v === undefined || v === '') return '—';
+  if (v === null || v === undefined || v === '') return 'Not set';
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v);
 }

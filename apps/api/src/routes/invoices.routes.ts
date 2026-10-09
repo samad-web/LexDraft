@@ -8,14 +8,25 @@ import { requireFeature } from '../services/permissions.service';
 import { notify } from '../services/notifications.service';
 import { db } from '../db/client';
 
-const Input = z.object({
-  invoiceNo: z.string().min(1),
-  client: z.string().min(1),
-  amountInr: z.number().int().nonnegative(),
-  issuedDate: z.string(),
-  dueDate: z.string(),
-  status: z.enum(['paid', 'pending', 'overdue']).default('pending'),
-});
+// 100 crore (₹1,00,00,00,000) - a generous but bounded ceiling for a single
+// invoice, well under the Postgres int4 column max (2147483647), to catch
+// fat-finger entry errors (e.g. an extra zero or two) before they corrupt
+// billing totals/exports.
+const MAX_AMOUNT_INR = 1_00_00_00_000;
+
+const Input = z
+  .object({
+    invoiceNo: z.string().min(1),
+    client: z.string().min(1),
+    amountInr: z.number().int().nonnegative().max(MAX_AMOUNT_INR),
+    issuedDate: z.string(),
+    dueDate: z.string(),
+    status: z.enum(['paid', 'pending', 'overdue']).default('pending'),
+  })
+  .refine((data) => data.dueDate >= data.issuedDate, {
+    message: 'dueDate must be on or after issuedDate',
+    path: ['dueDate'],
+  });
 
 export const invoicesRouter: Router = Router();
 

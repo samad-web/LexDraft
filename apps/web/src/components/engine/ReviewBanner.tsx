@@ -44,7 +44,7 @@ export function ReviewBanner({
     return (
       <div className="engine-banner engine-banner--final" role="status">
         <Icon name="check" size={16} aria-hidden />
-        <span>Reviewed and signed off — this draft is marked final.</span>
+        <span>Reviewed and signed off: this draft is marked final.</span>
       </div>
     );
   }

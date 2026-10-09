@@ -132,7 +132,7 @@ export function DiaryAssistantBar({ onBriefing }: Props) {
         });
         showToast({ type: 'sage', text: 'Logged to diary + added to Calendar' });
       } catch {
-        showToast({ type: 'amber', text: 'Logged to diary, but couldn’t add it to the Calendar — add it there manually.' });
+        showToast({ type: 'amber', text: 'Logged to diary, but couldn’t add it to the Calendar. Add it there manually.' });
       }
       return;
     }

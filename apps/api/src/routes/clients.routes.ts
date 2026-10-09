@@ -7,7 +7,10 @@ import { withAudit } from '../middleware/audit';
 import { requireFeature } from '../services/permissions.service';
 
 const Input = z.object({
-  name: z.string().min(1),
+  // Trimmed server-side so stray leading/trailing whitespace never lands in
+  // the DB — the cases/clients join is by exact name string, so an untrimmed
+  // name silently breaks matters_open and spawns duplicate client rows.
+  name: z.string().min(1).transform((s) => s.trim()),
   type: z.enum(['Individual', 'Corporate', 'Govt']),
   status: z.enum(['active', 'inactive', 'prospect']),
   lastContact: z.string().optional().default(''),
@@ -18,7 +21,7 @@ const Input = z.object({
 // fields are normalised to undefined so the service uses coalesce() and the
 // existing value sticks.
 const UpdateInput = z.object({
-  name:        z.string().min(1).optional(),
+  name:        z.string().min(1).transform((s) => s.trim()).optional(),
   type:        z.enum(['Individual', 'Corporate', 'Govt']).optional(),
   status:      z.enum(['active', 'inactive', 'prospect']).optional(),
   lastContact: z.string().optional(),
@@ -45,6 +48,26 @@ clientsRouter.post(
     try {
       const firmId = await firmIdForUser(req.user?.id);
       res.status(201).json(await clientsService.create(req.body, firmId));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+clientsRouter.get(
+  '/:id',
+  requireFeature('client.view'),
+  validate({ params: uuidParam }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      const { id } = req.params as { id: string };
+      const client = await clientsService.findById(id, firmId);
+      if (!client) {
+        res.status(404).json({ error: 'Client not found' });
+        return;
+      }
+      res.json(client);
     } catch (err) {
       next(err);
     }

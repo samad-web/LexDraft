@@ -70,7 +70,7 @@ export function BrowserGate({ caps, onTextOnly }: BrowserGateProps): JSX.Element
         <div style={{ fontSize: 13, lineHeight: 1.5 }}>
           Voice recognition and AI voice replies need Chrome's Web Speech API.
           Open this page in Chrome (or any Chromium-based browser with Web
-          Speech enabled — Edge, Brave, Arc) for the full courtroom experience.
+          Speech enabled, such as Edge, Brave, or Arc) for the full courtroom experience.
           You can still practice typing-only here.
         </div>
         <div className="row" style={{ gap: 8 }}>

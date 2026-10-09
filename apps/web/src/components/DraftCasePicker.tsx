@@ -7,6 +7,11 @@ import { caseToContext, type DraftCaseContext } from '@/lib/draft-case-context';
 interface Props {
   selected: DraftCaseContext | null;
   onSelect: (ctx: DraftCaseContext | null) => void;
+  onOpenCase?: (id: string) => void;
+  /** Render as a plain section (no card border/radius/shadow) for composing
+   *  inside another card — e.g. as the top section of the unified Draft
+   *  entry card, above the drafting form. */
+  bare?: boolean;
 }
 
 /**
@@ -15,7 +20,7 @@ interface Props {
  * on "No case" for an ad-hoc draft. "Sync from eCourts" refreshes the selected
  * matter's record before drafting so the particulars are current.
  */
-export function DraftCasePicker({ selected, onSelect }: Props) {
+export function DraftCasePicker({ selected, onSelect, onOpenCase, bare }: Props) {
   const { data: cases = [], isLoading } = useCases();
   const sync = useSyncCaseFromEcourts();
   const showToast = useUIStore((s) => s.showToast);
@@ -55,19 +60,70 @@ export function DraftCasePicker({ selected, onSelect }: Props) {
   };
 
   return (
-    <div className="card" style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div className="row" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <Icon name="cases" size={15} />
-        <span className="heading-sm">Attach a case</span>
-        <span className="body-xs muted" style={{ flex: 1, minWidth: 120 }}>
-          The agent drafts against the real court, CNR and parties.
-        </span>
+    <div
+      className={bare ? undefined : 'card'}
+      style={
+        bare
+          ? {
+              padding: '18px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              background: 'var(--bg-surface-2)',
+              borderBottom: '1px solid var(--border-default)',
+            }
+          : {
+              padding: '16px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              borderLeft: '3px solid var(--border-strong)',
+            }
+      }
+    >
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          letterSpacing: '0.18em',
+          color: 'var(--text-tertiary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <Icon name="cases" size={14} />
+        STEP 1 · WHICH MATTER
+      </div>
 
-        {selected ? (
-          <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="badge badge-cobalt" style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      {selected ? (
+        <div
+          className="row"
+          style={{
+            alignItems: 'center',
+            gap: 12,
+            padding: '10px 12px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <span
+            style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: 'var(--info)', flexShrink: 0,
+            }}
+          />
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div className="heading-sm" style={{ marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {selected.title}
-            </span>
+            </div>
+            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              {selected.cnr || 'CNR not set'} · {selected.court || 'court not set'} · {selected.client}
+            </div>
+          </div>
+          <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="btn btn-sm"
@@ -77,16 +133,26 @@ export function DraftCasePicker({ selected, onSelect }: Props) {
             >
               <Icon name="ecourts" size={12} /> {sync.isPending ? 'Syncing…' : 'Sync from eCourts'}
             </button>
+            {onOpenCase && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpenCase(selected.id)}>
+                Open case
+              </button>
+            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelect(null)} title="Remove case">
               <Icon name="close" size={12} /> Detach
             </button>
           </div>
-        ) : (
+        </div>
+      ) : (
+        <div className="row" style={{ alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <p className="body-xs muted" style={{ margin: 0, flex: '1 1 auto', minWidth: 200 }}>
+            Attach a matter so the agent drafts against its real court, CNR and parties, or draft ad-hoc without one.
+          </p>
           <button type="button" className="btn btn-sm" onClick={() => setOpen((o) => !o)}>
             <Icon name="plus" size={12} /> Select case
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {!selected && open && (
         <div className="col" style={{ gap: 8 }}>

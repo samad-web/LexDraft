@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Skeleton } from '@lexdraft/ui';
 import { usePlatformStats } from '../queries';
 
 function formatInr(paiseFreeRupees: number): string {
@@ -26,7 +27,15 @@ export function AdminDashboardView() {
       </div>
 
       {isLoading || !data ? (
-        <div className="muted">Loading platform stats…</div>
+        <div className="grid-auto-sm" style={{ gap: 20 }} aria-busy="true">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="card" style={{ padding: 'var(--space-6)' }}>
+              <Skeleton width={70} height={11} style={{ marginBottom: 10 }} />
+              <Skeleton width={90} height={28} style={{ marginBottom: 6 }} />
+              <Skeleton width={140} height={12} />
+            </div>
+          ))}
+        </div>
       ) : (
         <>
           <div className="grid-auto-sm" style={{ gap: 20 }}>

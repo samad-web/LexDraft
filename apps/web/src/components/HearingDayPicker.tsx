@@ -294,7 +294,7 @@ export function HearingDayPicker({ value, onChange, min, max, disabled, placehol
                 outOfRange && !isHearingDay && 'is-disabled',
                 mark && `hday-mark is-${mark}`,
               ].filter(Boolean).join(' ');
-              const title = isHearingDay ? 'Hearing day — no reminder needed'
+              const title = isHearingDay ? 'Hearing day (no reminder needed)'
                 : kinds && kinds.size > 0 ? [...kinds].join(', ') + ` (${count})`
                 : isRecommended ? 'Best day to prepare'
                 : isFree ? 'Free day' : undefined;

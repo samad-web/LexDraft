@@ -39,7 +39,7 @@ export function FormIncompleteMessage({ issues, fieldLabels, onFocusField }: Pro
           <Icon name="review" size={18} />
         </span>
         <p className="engine-incomplete__lead">
-          Almost there — a few details are still needed before this can be drafted.
+          Almost there: a few details are still needed before this can be drafted.
         </p>
       </div>
       <ul className="engine-incomplete__list">

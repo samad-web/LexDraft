@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { authService } from '../services/auth.service';
+import { isUuid } from '../services/tenant';
+import { env } from '../env';
 
 export interface ActAs {
   adminId: string;
@@ -39,6 +41,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
   try {
     const claims = authService.verify(token);
+    // When the app is DB-backed, user ids are Postgres uuids. A token whose
+    // `sub` isn't a uuid is a stale session from the in-memory demo store (the
+    // DB was wired up after the token was issued) — every tenant query would
+    // 500 on the `::uuid` cast. Reject it as an expired session so the client
+    // clears its token and re-authenticates cleanly, rather than seeing
+    // "Couldn't load matter" 500s across the app.
+    if (env.hasDatabase && !isUuid(claims.sub)) {
+      res.status(401).json({ error: 'Invalid or expired token' });
+      return;
+    }
     req.user = {
       id: claims.sub,
       email: claims.email,

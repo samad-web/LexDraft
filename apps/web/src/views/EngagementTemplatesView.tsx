@@ -170,7 +170,7 @@ export function EngagementTemplatesView() {
         <EmptyState
           icon="documents"
           title="No engagement templates yet"
-          description="Add your first template to standardise the language your firm uses for new engagements. You can mark one as default per matter type — the default is what 'Generate engagement letter' on a matter picks up automatically."
+          description="Add your first template to standardise the language your firm uses for new engagements. You can mark one as default per matter type: the default is what 'Generate engagement letter' on a matter picks up automatically."
           action={
             <button
               type="button"
@@ -333,10 +333,11 @@ function TemplateCard({ template, onEdit, confirm }: TemplateCardProps) {
           type="button"
           className="btn btn-sm"
           onClick={() => { void handleDelete(); }}
+          title="Delete template"
           aria-label="Delete template"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <Icon name="close" size={11} />
+          <Icon name="close" size={11} /> Delete
         </button>
         <button
           type="button"

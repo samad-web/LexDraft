@@ -1,5 +1,6 @@
 import type { Invoice } from '@lexdraft/types';
 import { db } from '../db/client';
+import { ConflictError } from '../lib/errors';
 
 interface Row {
   id: string;
@@ -48,12 +49,23 @@ export const invoicesService = {
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
-    const rows = await sql<Row[]>`
-      insert into invoices (firm_id, invoice_no, client, amount_inr, issued_date, due_date, status)
-      values (${firmId}::uuid, ${input.invoiceNo}, ${input.client}, ${input.amountInr},
-              ${input.issuedDate}, ${input.dueDate}, ${input.status})
-      returning id, invoice_no, client, amount_inr, issued_date, due_date, status
-    `;
+    let rows: Row[];
+    try {
+      rows = await sql<Row[]>`
+        insert into invoices (firm_id, invoice_no, client, amount_inr, issued_date, due_date, status)
+        values (${firmId}::uuid, ${input.invoiceNo}, ${input.client}, ${input.amountInr},
+                ${input.issuedDate}, ${input.dueDate}, ${input.status})
+        returning id, invoice_no, client, amount_inr, issued_date, due_date, status
+      `;
+    } catch (err) {
+      // An invoice with this number already exists for the firm
+      // (invoices_firm_no_idx) - surface a clear, actionable 409 instead of
+      // a raw 500 "Internal Server Error" with no explanation.
+      if (input.invoiceNo && (err as { code?: string }).code === '23505') {
+        throw new ConflictError(`An invoice with number ${input.invoiceNo} already exists.`, { code: 'duplicate_invoice_no' });
+      }
+      throw err;
+    }
     return fromRow(rows[0]!);
   },
 };

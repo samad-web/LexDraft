@@ -270,7 +270,7 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         <SectionHeader
           number="§ III"
           title="Today across the firm"
-          trailing={`${firmHearingCount} ${firmHearingCount === 1 ? 'LISTED' : 'LISTED'}`}
+          trailing={`${firmHearingCount} LISTED`}
         />
         {firmHearingCount === 0 ? (
           <p className="body-md muted">No firm-wide hearings scheduled for today.</p>
@@ -298,7 +298,14 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
         </div>
         {firm.data.members.length === 0 ? (
           <p className="body-md muted">
-            No members yet. <a href="#" onClick={(e) => { e.preventDefault(); setInviteOpen(true); }}>Invite a co-advocate</a> to seed the chambers roster.
+            No members yet. <a href="#" onClick={(e) => {
+              e.preventDefault();
+              if (seatsAtCap) {
+                showToast({ type: 'amber', text: 'All Practice seats in use. Upgrade to Firm to invite more.' });
+              } else {
+                setInviteOpen(true);
+              }
+            }}>Invite a co-advocate</a> to seed the chambers roster.
           </p>
         ) : (
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

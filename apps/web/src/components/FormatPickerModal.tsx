@@ -46,7 +46,7 @@ export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
       onClose={onClose}
       eyebrow="Formats"
       title="Choose a format to draft"
-      description="Every format the engine can produce — pick one and the drafting card opens for it. The engine still decides what each format needs and enforces the legal hard-stops."
+      description="Every format the engine can produce: pick one and the drafting card opens for it. The engine still decides what each format needs and enforces the legal hard-stops."
       footer={<button type="button" className="btn" onClick={onClose}>Done</button>}
     >
       {!enabled && (

@@ -267,7 +267,7 @@ export function IntakePanel({
     const picked = Array.from(list).slice(0, 8);
     const tooBig = picked.find((f) => f.size > 8 * 1024 * 1024);
     if (tooBig) {
-      setAttachError(`"${tooBig.name}" is over 8 MB — please attach a smaller file.`);
+      setAttachError(`"${tooBig.name}" is over 8 MB. Please attach a smaller file.`);
       return;
     }
     setPendingFiles((prev) => [...prev, ...picked].slice(0, 8));
@@ -389,7 +389,7 @@ export function IntakePanel({
     if (!onDraftNow) return;
     const content = briefFromState(s, '');
     if (content.length < 10 && !(s?.sourceText ?? '').trim()) {
-      setDetectError('There isn’t enough to draft from yet — attach a document or add a few details.');
+      setDetectError('There isn’t enough to draft from yet. Attach a document or add a few details.');
       return;
     }
     onDraftNow(content);
@@ -429,10 +429,10 @@ export function IntakePanel({
             <>
               <p className="intake__opener">
                 {startMode === 'upload'
-                  ? 'Attach the cheque, memo, invoice, or an existing document — I’ll read it and pull the facts in. Add a note if you like. '
-                  : 'Paste or describe the matter in your own words — the parties, dates, amounts, and facts you have. '}
+                  ? 'Attach the cheque, memo, invoice, or an existing document. I’ll read it and pull the facts in. Add a note if you like. '
+                  : 'Paste or describe the matter in your own words: the parties, dates, amounts, and facts you have. '}
                 {engineRouted
-                  ? 'Hit “Draft now” and the engine drafts the whole document straight away from what it reads — accurately, filling every field it can and asking only for anything genuinely missing.'
+                  ? 'Hit “Draft now” and the engine drafts the whole document straight away from what it reads, accurately, filling every field it can and asking only for anything genuinely missing.'
                   : onDraftNow
                     ? 'Then hit “Draft now” to draft the whole document straight away (any gaps become [placeholders] to fill), or “Send” to have me ask for anything still missing, a couple of things at a time.'
                     : autoDetect
@@ -458,7 +458,7 @@ export function IntakePanel({
               <Icon name="check" size={13} aria-hidden />
               <span>
                 Drafting a <strong>{state.detectedDocLabel}</strong>
-                {state.detectionConfidence === 'low' && ' (my best guess — change it from Formats above if that’s not right)'}
+                {state.detectionConfidence === 'low' && ' (my best guess, change it from Formats above if that’s not right)'}
                 .
               </span>
             </div>
@@ -555,7 +555,7 @@ export function IntakePanel({
                 pendingFiles.length > 0
                   ? 'Add a note about these files (optional), then Send…'
                   : state?.status === 'refused'
-                    ? 'Correct a detail, or add anything else — I’ll re-check.'
+                    ? 'Correct a detail, or add anything else, and I’ll re-check.'
                     : 'Tell me about the matter… or attach the cheque, memo, or invoice.'
               }
               rows={3}

@@ -1,5 +1,6 @@
 import type { Expense } from '@lexdraft/types';
 import { db } from '../db/client';
+import { ConflictError } from '../lib/errors';
 
 interface Row {
   id: string;
@@ -55,17 +56,28 @@ export const expensesService = {
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
-    const rows = await sql<Row[]>`
-      insert into expenses
-        (firm_id, expense_no, expense_date, description, category, case_label,
-         amount_inr, status, reimbursable, billable)
-      values
-        (${firmId}::uuid, ${input.expenseNo}, ${input.date}, ${input.description}, ${input.category},
-         ${input.caseLabel}, ${input.amountInr}, ${input.status},
-         ${input.reimbursable}, ${input.billable})
-      returning id, expense_no, expense_date, description, category, case_label,
-                amount_inr, status, reimbursable, billable
-    `;
+    let rows: Row[];
+    try {
+      rows = await sql<Row[]>`
+        insert into expenses
+          (firm_id, expense_no, expense_date, description, category, case_label,
+           amount_inr, status, reimbursable, billable)
+        values
+          (${firmId}::uuid, ${input.expenseNo}, ${input.date}, ${input.description}, ${input.category},
+           ${input.caseLabel}, ${input.amountInr}, ${input.status},
+           ${input.reimbursable}, ${input.billable})
+        returning id, expense_no, expense_date, description, category, case_label,
+                  amount_inr, status, reimbursable, billable
+      `;
+    } catch (err) {
+      // An expense with this reference number already exists for the firm
+      // (expenses_firm_no_idx) - surface a clear, actionable 409 instead of
+      // a raw 500 "Internal Server Error" with no explanation.
+      if (input.expenseNo && (err as { code?: string }).code === '23505') {
+        throw new ConflictError(`An expense with reference ${input.expenseNo} already exists.`, { code: 'duplicate_expense_no' });
+      }
+      throw err;
+    }
     return fromRow(rows[0]!);
   },
 };

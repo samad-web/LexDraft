@@ -71,7 +71,7 @@ export function ClarifyPanel({ questions, docType, busy, onDraft, onSkip }: Prop
         <span className="body-sm muted">{docType}</span>
       </div>
       <p className="body-sm muted" style={{ margin: 0 }}>
-        Tap the right option or type the fact — anything you leave blank stays a fill-in blank in the
+        Tap the right option or type the fact. Anything you leave blank stays a fill-in blank in the
         draft, never guessed. {answeredCount}/{fields.length} answered.
       </p>
 
@@ -89,7 +89,7 @@ export function ClarifyPanel({ questions, docType, busy, onDraft, onSkip }: Prop
           disabled={busy}
           title="Draft now with blanks for anything not filled"
         >
-          Skip — draft with blanks
+          Skip: draft with blanks
         </button>
         <span className="spacer" style={{ flex: 1 }} />
         <button type="button" className="btn btn-primary" onClick={submit} disabled={busy}>

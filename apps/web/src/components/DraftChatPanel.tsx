@@ -111,7 +111,7 @@ export function DraftChatPanel({ provider, caseContext, onUseDraft }: Props) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
-          placeholder={empty ? 'Tell me what happened — e.g. "bail for Ramesh, cheating, no prior record"' : 'Answer, or tell me what to change…'}
+          placeholder={empty ? 'Tell me what happened, e.g. "bail for Ramesh, cheating, no prior record"' : 'Answer, or tell me what to change…'}
           style={{ flex: 1, resize: 'none' }}
         />
         {dictation.supported && (
@@ -213,7 +213,7 @@ function QuickAnswers({ questions, busy, onDone }: { questions: string[]; busy: 
   const [done, setDone] = useState(false);
   const set = (q: string, v: string) => setAnswers((cur) => ({ ...cur, [q]: v }));
 
-  if (done) return <p className="body-xs muted" style={{ margin: 0 }}>Thanks — drafting with those.</p>;
+  if (done) return <p className="body-xs muted" style={{ margin: 0 }}>Thanks, drafting with those.</p>;
 
   return (
     <div className="col" style={{ gap: 12 }}>
@@ -238,8 +238,8 @@ function QuickAnswers({ questions, busy, onDone }: { questions: string[]; busy: 
         </div>
       ))}
       <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setDone(true); onDone('', 'Go ahead and draft it — leave blanks for the rest.'); }}>
-          Skip — draft with blanks
+        <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => { setDone(true); onDone('', 'Go ahead and draft it, leaving blanks for the rest.'); }}>
+          Skip: draft with blanks
         </button>
         <span className="spacer" style={{ flex: 1 }} />
         <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => {

@@ -132,6 +132,13 @@ export function DraftingView() {
   // picker or field form to fill by hand. `manualMode` is retained as a hard
   // `false` so the legacy manual-form JSX below is compiled out at runtime
   // without having to be deleted.
+  //
+  // FLAGGED (2026-10 UI/UX audit): this keeps ~250 lines of manual-form JSX
+  // (including the DocTypePicker component further down) permanently
+  // unreachable. Reviewed with the user, who chose to leave it as-is rather
+  // than delete now — revisit explicitly before deleting: confirm with the
+  // user whether the manual-entry flow is coming back, or safe to remove for
+  // real, before touching this block.
   const manualMode = false as const;
   // Agent mode: run the grounded plan→draft→review→refine pipeline instead of a
   // single-shot generation. Defaults on — it produces more filing-ready drafts.
@@ -185,6 +192,20 @@ export function DraftingView() {
   // engine produced — distinct from the rasterised client-side "working copy" export.
   // Captured from the intake draft; null for model-only drafts (which have no engine .docx).
   const [engineDocxBase64, setEngineDocxBase64] = useState<string | null>(null);
+  // A blob: URL of the engine .docx rendered to PDF, shown in the preview pane so
+  // WHAT THE ADVOCATE SEES IS the filing PDF (pixel-identical, printable) — not the
+  // flat plain-text blocks. Generated up-front when the engine draft loads (so the
+  // Download PDF button is instant too). Null while converting / for model-only
+  // drafts (which fall back to the HTML text preview). `previewPdfPending` drives a
+  // "preparing preview" state.
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewPdfPending, setPreviewPdfPending] = useState(false);
+  // IPC/CrPC/Evidence-Act → BNS/BNSS/BSA conversions applied to this draft, so the
+  // advocate can SEE which legacy sections were mapped to the in-force 2023 Sanhita
+  // sections (the draft already cites the new ones). Empty when nothing was mapped.
+  const [bnsConcordance, setBnsConcordance] = useState<
+    Array<{ old: string; new: string; toAct: string; change: string }>
+  >([]);
   // A COMPANION document the engine produced alongside the main draft — e.g. the
   // proof affidavit derived from a s.138 complaint. Its label + filing-grade .docx,
   // held so the advocate can download it as its own Word file (the affidavit body
@@ -268,6 +289,16 @@ export function DraftingView() {
         }
       : null,
   );
+
+  // `draftCase` (DraftCaseContext) feeds the brief preamble; `caseContext`
+  // (the older, slightly wider CaseContext) is what the case-notes and
+  // case-document-text hooks key on below. Picking a case in DraftCasePicker
+  // needs to drive both so notes/docs for that matter actually reach the
+  // engine instead of silently staying empty.
+  const selectDraftCase = (ctx: DraftCaseContext | null) => {
+    setDraftCase(ctx);
+    setCaseContext(ctx);
+  };
 
   // Open the first section by default whenever the schema changes.
   useEffect(() => {
@@ -357,7 +388,7 @@ export function DraftingView() {
         advisories: p?.advisories ?? [],
         toVerify: (p?.sections ?? [])
           .filter((s) => !s.verified)
-          .map((s) => `${s.citation} — ${s.offenceName} (counsel to confirm)`),
+          .map((s) => `${s.citation} (${s.offenceName}, counsel to confirm)`),
       }),
     );
     stream.reset();
@@ -376,7 +407,7 @@ export function DraftingView() {
     if (s.status === 'refused' && s.refusal) {
       const msg = s.refusal.reason || 'The engine can’t draft this as it stands.';
       setError(msg);
-      showToast({ type: 'vermillion', text: 'The engine flagged a legal issue — see the note.' });
+      showToast({ type: 'vermillion', text: 'The engine flagged a legal issue. See the note.' });
       return;
     }
     if (s.status !== 'generated' || !s.draft) {
@@ -384,7 +415,7 @@ export function DraftingView() {
       // the first question so the advocate knows what to add, then re-open.
       const q = s.questions?.[0]?.question;
       setError(q ? `One more thing needed: ${q}` : 'The engine needs a little more to draft this.');
-      showToast({ type: 'amber', text: 'A required detail is missing — add it and draft again.' });
+      showToast({ type: 'amber', text: 'A required detail is missing: add it and draft again.' });
       return;
     }
     const detected = s.docLabel;
@@ -414,6 +445,8 @@ export function DraftingView() {
 
     // Open items = the [placeholder] gaps left in the body (scanned live).
     setOpenItems(collectOpenItems({ bodyText: body }));
+    // BNS/BNSS/BSA conversions applied to this draft (legacy → in-force sections).
+    setBnsConcordance(s.bnsConcordance ?? []);
     stream.reset();
     skipResetOnSeedRef.current = true;
     stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
@@ -422,14 +455,26 @@ export function DraftingView() {
     showToast({
       type: 'sage',
       text: companion && companionBody
-        ? 'Complaint + proof affidavit ready — review and edit below'
-        : 'Draft ready — review and edit below',
+        ? 'Complaint + proof affidavit ready. Review and edit below'
+        : 'Draft ready. Review and edit below',
     });
+    if ((s.bnsConcordance ?? []).length) {
+      showToast({
+        type: 'sage',
+        text: `Applied ${s.bnsConcordance!.length} BNS/BNSS conversion${s.bnsConcordance!.length === 1 ? '' : 's'}: legacy sections mapped to the 2023 Sanhitas.`,
+      });
+    }
   };
 
   // DRAFT NOW (DraftBot-style): the advocate has given content; draft the WHOLE
   // document immediately from it (the model one-shot path — full doc, [placeholders]
   // for genuine gaps), skipping the engine question loop entirely.
+  //
+  // FLAGGED (2026-10 UI/UX audit): this function (and the `autoDraft` mutation
+  // it's the only caller of) has no call sites anywhere in this file — no
+  // button, modal, or chat handler invokes it today. Reviewed with the user,
+  // who chose to leave it as-is. Before deleting, confirm whether this is a
+  // half-wired feature waiting on a UI affordance, or genuinely abandoned.
   const handleDraftNow = async (content: string) => {
     if (!content.trim()) return;
     setError(null);
@@ -449,8 +494,8 @@ export function DraftingView() {
       if (result.needsConfirmation || !result.pipeline) {
         const guess = result.triage?.docType;
         const msg = guess
-          ? `I read this as a ${guess} but I’m not fully sure — name the document explicitly in your description (e.g. “draft a ${guess}”) and try again.`
-          : 'I couldn’t confidently tell which document this is — name it in your description (e.g. “a s.138 notice”, “a plaint”) and try again.';
+          ? `I read this as a ${guess}, but I’m not fully sure. Name the document explicitly in your description (e.g. “draft a ${guess}”) and try again.`
+          : 'I couldn’t confidently tell which document this is. Name it in your description (e.g. “a s.138 notice”, “a plaint”) and try again.';
         setError(msg);
         showToast({ type: 'amber', text: msg });
         return;
@@ -533,6 +578,51 @@ export function DraftingView() {
     [displayHtml, editedHtml, streaming],
   );
   const outputLangCode = LANG_HTML[outputLang];
+  // Once the advocate edits the draft locally, the engine .docx (and its rendered
+  // PDF) no longer reflect what they see, so the preview must switch back to the
+  // editable HTML view — otherwise their edits would be invisible behind a stale PDF.
+  const hasLocalEdits = editedHtml !== null;
+
+  // PREVIEW == FILING PDF. When the engine produced a .docx for this draft, render
+  // it to PDF once (server-side LibreOffice) and show that PDF in the preview pane,
+  // so the preview is pixel-identical to the downloaded Word/PDF (centred headings,
+  // tables, alignment) instead of the flat text blocks. Generated up-front here (not
+  // on a button click), and cached as a blob: URL, so the Download PDF button is
+  // instant too. Re-runs whenever the engine .docx changes; skips model-only drafts.
+  useEffect(() => {
+    // Revoke any previous object URL and reset before (re)generating.
+    setPreviewPdfUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (!engineDocxBase64) {
+      setPreviewPdfPending(false);
+      return;
+    }
+    let cancelled = false;
+    setPreviewPdfPending(true);
+    (async () => {
+      try {
+        const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
+          docxBase64: engineDocxBase64,
+          fileName: `${activeDocType}-preview`,
+        });
+        if (cancelled) return;
+        const url = URL.createObjectURL(blob);
+        setPreviewPdfUrl(url);
+      } catch {
+        // Conversion unavailable — leave previewPdfUrl null so the pane falls back
+        // to the HTML text preview (still shows the content, just not the PDF).
+        if (!cancelled) setPreviewPdfUrl(null);
+      } finally {
+        if (!cancelled) setPreviewPdfPending(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineDocxBase64]);
 
   // The open items to show below the preview: the captured set from an accepted
   // pipeline draft when present, otherwise a live scan of the current draft text
@@ -936,6 +1026,19 @@ export function DraftingView() {
     // client-side HTML rasterisation flattens that layout, so it's only the
     // fallback (when there's no engine .docx, or the server render is unavailable).
     if (docxBase64) {
+      // INSTANT PATH: the preview pane already rendered THIS engine .docx to a PDF
+      // blob (previewPdfUrl). Reuse it directly — no second server round-trip, so
+      // the Download PDF button fires immediately instead of waiting on LibreOffice.
+      if (docxBase64 === engineDocxBase64 && previewPdfUrl) {
+        const a = document.createElement('a');
+        a.href = previewPdfUrl;
+        a.download = `${title.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast({ type: 'sage', text: `${title} PDF prepared` });
+        return;
+      }
       try {
         const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
           docxBase64,
@@ -954,7 +1057,7 @@ export function DraftingView() {
       } catch {
         // Server render unavailable (e.g. LibreOffice not installed) — fall back to
         // the rasterised HTML PDF below so the advocate still gets *something*.
-        showToast({ type: 'amber', text: 'Filing-grade PDF unavailable — using a rasterised copy.' });
+        showToast({ type: 'amber', text: 'Filing-grade PDF unavailable: using a rasterised copy.' });
       }
     }
     if (!bodyHtml.trim()) return;
@@ -993,6 +1096,17 @@ export function DraftingView() {
         return;
       }
       if (fmt === 'PDF') {
+        // INSTANT PATH — reuse the preview's already-rendered PDF blob (see above).
+        if (previewPdfUrl) {
+          const a = document.createElement('a');
+          a.href = previewPdfUrl;
+          a.download = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          showToast({ type: 'sage', text: `${fmt} prepared` });
+          return;
+        }
         try {
           const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
             docxBase64: engineDocxBase64,
@@ -1011,7 +1125,7 @@ export function DraftingView() {
         } catch {
           // Server render unavailable — fall through to the rasterised HTML export
           // so the advocate still gets something.
-          showToast({ type: 'amber', text: 'Filing-grade PDF unavailable — using a rasterised copy.' });
+          showToast({ type: 'amber', text: 'Filing-grade PDF unavailable: using a rasterised copy.' });
         }
       }
     }
@@ -1091,54 +1205,60 @@ export function DraftingView() {
         </button>
       </div>
 
-      {/* Engine-routed draft — the SINGLE drafting path when the engine is active
-          for this account. Start gate → attach/type → Draft now → preview. The
-          engine drafts accurately (no fabrication, hard-stops enforced); there is
-          no Conversation/Form toggle and no competing model-draft box. Hidden once
-          a draft exists (stageMode/hasOutput) so the preview isn't buried — e.g.
-          after "Draft now". */}
-      {engineActive && !stageMode && !hasOutput && (
-        <div className="card draftbot-launch">
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 10 }}>
-            {activeEngineLabel
-              ? `${activeEngineLabel.toUpperCase()} · DRAFTED BY THE ENGINE`
-              : 'THE ENGINE PICKS THE FORMAT FROM WHAT YOU GIVE IT'}
-          </div>
-          <h2 className="draftbot-launch__title">Draft a legal document</h2>
-          <p className="draftbot-launch__sub">
-            Describe the matter or attach the cheque, memo, invoice, or an existing document —
-            the engine drafts the whole document straight away, accurately, with any genuinely
-            missing details left as clearly-marked <code>[placeholders]</code> to fill.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => setDraftBotOpen(true)}
-          >
-            <Icon name="draft" size={16} /> Start drafting
-          </button>
+      {/* ONE composed card: pick the matter, then draft — no separate "Start
+          drafting" click-through. Case selection drives both `draftCase` (the
+          brief preamble the engine reads) and `caseContext` (which pulls in
+          that matter's notes and uploaded-document text into the form below).
+          Hidden once a draft is already staged/out so the preview isn't
+          buried. */}
+      {!stageMode && !hasOutput && (
+        <div
+          className="col"
+          style={{
+            gap: 0,
+            border: '1px solid var(--border-default)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            background: 'var(--bg-surface)',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          <DraftCasePicker
+            selected={draftCase}
+            onSelect={selectDraftCase}
+            onOpenCase={(id) => navigate(`/app/cases/${id}`)}
+            bare
+          />
+          {engineActive ? (
+            <DraftBotModal
+              inline
+              open={draftBotOpen}
+              onClose={() => setDraftBotOpen(false)}
+              docLabel={formatPicked ? docType : null}
+              onActiveLabel={setActiveEngineLabel}
+              activeLabel={activeEngineLabel}
+              onDrafted={acceptEngineDraft}
+              caseContext={draftCase}
+              caseNotes={[
+                // Typed / dictated notes on the matter.
+                ...(caseNotesList ?? [])
+                  .filter((n) => n.body.trim().length > 0)
+                  .map((n) => n.body),
+                // Text extracted from the case's uploaded documents, labelled so the
+                // engine knows what each block is (e.g. the cheque, the notice).
+                ...(caseDocText?.items ?? []).map((d) => `Document "${d.name}":\n${d.text}`),
+              ]}
+              unreadableDocs={caseDocText?.unreadable ?? []}
+            />
+          ) : (
+            <DraftChatPanel
+              provider={provider}
+              caseContext={draftCase}
+              onUseDraft={acceptModelDraft}
+            />
+          )}
         </div>
       )}
-
-      {/* DraftBot-style one-shot modal — content in → document out, no fact sheet. */}
-      <DraftBotModal
-        open={draftBotOpen}
-        onClose={() => setDraftBotOpen(false)}
-        docLabel={formatPicked ? docType : null}
-        onActiveLabel={setActiveEngineLabel}
-        onDrafted={acceptEngineDraft}
-        caseContext={draftCase}
-        caseNotes={[
-          // Typed / dictated notes on the matter.
-          ...(caseNotesList ?? [])
-            .filter((n) => n.body.trim().length > 0)
-            .map((n) => n.body),
-          // Text extracted from the case's uploaded documents, labelled so the
-          // engine knows what each block is (e.g. the cheque, the notice).
-          ...(caseDocText?.items ?? []).map((d) => `Document "${d.name}":\n${d.text}`),
-        ]}
-        unreadableDocs={caseDocText?.unreadable ?? []}
-      />
 
       {researchCitation && (
         <div
@@ -1202,7 +1322,11 @@ export function DraftingView() {
         </div>
       )}
 
-      {caseContext && (
+      {/* Duplicates the DraftCasePicker's own selected-matter chip while it's
+          visible (pre-draft), so only shown once a draft is staged/out and
+          the picker above has disappeared — keeps the attached matter
+          visible while reviewing/editing the generated document. */}
+      {caseContext && (stageMode || hasOutput) && (
         <div
           className="card"
           style={{
@@ -1288,20 +1412,6 @@ export function DraftingView() {
         </div>
       )}
 
-      {/* When the engine is NOT active for this account (beta off / not
-          allowlisted), fall back to the general AI drafter so drafting still
-          works. When the engine IS active it is the single path — no competing
-          "describe the matter" box, no model-draft toggle. */}
-      {!manualMode && !stageMode && !engineActive && (
-        <DraftCasePicker selected={draftCase} onSelect={setDraftCase} />
-      )}
-      {!manualMode && !stageMode && !engineActive && (
-        <DraftChatPanel
-          provider={provider}
-          caseContext={draftCase}
-          onUseDraft={acceptModelDraft}
-        />
-      )}
 
       {manualMode && schema.description && (
         <div
@@ -1421,7 +1531,7 @@ export function DraftingView() {
                       advisories: result?.advisories ?? [],
                       toVerify: (result?.sections ?? [])
                         .filter((s) => !s.verified)
-                        .map((s) => `${s.citation} — ${s.offenceName} (counsel to confirm)`),
+                        .map((s) => `${s.citation} (${s.offenceName}, counsel to confirm)`),
                     }),
                   );
                   stream.reset();
@@ -1678,6 +1788,180 @@ export function DraftingView() {
               busy={streaming}
             />
           )}
+          {/* STICKY TOP TOOLBAR — the document action tools (edit/save/export/share)
+              docked to the top of the preview and pinned while scrolling, so they
+              act like a persistent document toolbar/picker. Icon-only buttons with
+              hover tooltips (title=) keep it compact; the primary export + share keep
+              a short label for discoverability. Shown once a draft exists. */}
+          {hasOutput && !streaming && (
+            <div className="draft-toolbar" role="toolbar" aria-label="Document actions">
+              <button
+                className={`btn btn-icon${isEditing ? ' btn-primary' : ''}`}
+                type="button"
+                title={isEditing ? 'Done editing' : 'Edit the draft'}
+                aria-label={isEditing ? 'Done editing' : 'Edit'}
+                onClick={() => {
+                  if (!isEditing && editedHtml === null) setEditedHtml(plainTextToHtml(output));
+                  setIsEditing((v) => !v);
+                }}
+              >
+                <Icon name={isEditing ? 'check' : 'edit'} size={16} />
+              </button>
+              {!isEditing && editedHtml !== null && (
+                <button
+                  className="btn btn-icon btn-ghost"
+                  type="button"
+                  title="Discard manual edits and restore the generated draft"
+                  aria-label="Revert edits"
+                  onClick={() => setEditedHtml(null)}
+                >
+                  <Icon name="close" size={16} />
+                </button>
+              )}
+              <button
+                className="btn btn-icon"
+                type="button"
+                title={currentDraftId ? 'Update the saved draft' : 'Save the draft'}
+                aria-label={currentDraftId ? 'Update' : 'Save'}
+                onClick={handleSave}
+                disabled={saveMutation.isPending}
+              >
+                <Icon name="check" size={16} />
+              </button>
+
+              <span className="draft-toolbar__sep" aria-hidden />
+
+              {/* Filing-grade Word (engine .docx). Labelled — the key export. */}
+              {engineDocxBase64 && (
+                <button
+                  className="btn btn-primary"
+                  type="button"
+                  title="Download the engine-rendered Microsoft Word document, filing-grade (selectable text, correct margins)"
+                  onClick={downloadEngineDocx}
+                >
+                  <Icon name="download" size={15} />{' '}
+                  <span className="draft-toolbar__label">
+                    {companionDoc ? 'Complaint (Word)' : 'Word'}
+                  </span>
+                </button>
+              )}
+              {companionDoc?.docxBase64 && (
+                <button
+                  className="btn btn-icon btn-primary"
+                  type="button"
+                  title={`Download the engine-rendered ${companionDoc.label}, filing-grade Word document`}
+                  aria-label="Download affidavit Word document"
+                  onClick={() => downloadDocxBase64(companionDoc.docxBase64!, companionDoc.label)}
+                >
+                  <Icon name="download" size={15} />
+                </button>
+              )}
+              {/* Filing PDF (single-doc). Labelled — the other key export. */}
+              {!companionDoc && (
+                <button
+                  className="btn"
+                  type="button"
+                  title={engineDocxBase64
+                    ? 'Download PDF: the same court format as the Word file'
+                    : 'Working copy only, not a filing copy (rasterised, non-selectable text)'}
+                  onClick={() => {
+                    if (engineDocxBase64) {
+                      void downloadPdfOf(previewHtml, activeDocType, engineDocxBase64);
+                    } else {
+                      triggerExport('PDF');
+                    }
+                  }}
+                >
+                  <Icon name="download" size={15} />{' '}
+                  <span className="draft-toolbar__label">
+                    {engineDocxBase64 ? 'PDF' : 'PDF (working)'}
+                  </span>
+                </button>
+              )}
+              {/* Paired complaint + affidavit PDFs (icon buttons). */}
+              {companionDoc && (
+                <>
+                  <button
+                    className="btn btn-icon"
+                    type="button"
+                    title="Download complaint as PDF (rasterised working copy)"
+                    aria-label="Download complaint PDF"
+                    onClick={() => {
+                      const { primary } = splitCompanion(previewHtml);
+                      void downloadPdfOf(primary, activeDocType, engineDocxBase64);
+                    }}
+                  >
+                    <Icon name="download" size={15} />
+                  </button>
+                  <button
+                    className="btn btn-icon"
+                    type="button"
+                    title={`Download ${companionDoc.label} as PDF (rasterised working copy)`}
+                    aria-label="Download affidavit PDF"
+                    onClick={() => {
+                      const { companion } = splitCompanion(previewHtml);
+                      if (companion) void downloadPdfOf(companion, companionDoc.label, companionDoc.docxBase64);
+                    }}
+                  >
+                    <Icon name="download" size={15} />
+                  </button>
+                </>
+              )}
+              {!engineActive && (
+                <button
+                  className="btn btn-icon"
+                  type="button"
+                  title="Download DOCX working copy, not a filing copy"
+                  aria-label="Download DOCX working copy"
+                  onClick={() => triggerExport('DOCX')}
+                >
+                  <Icon name="download" size={15} />
+                </button>
+              )}
+              <button
+                className="btn btn-icon"
+                type="button"
+                title="Copy the draft text to the clipboard"
+                aria-label="Copy"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(htmlToPlainText(displayHtml));
+                  showToast({ type: 'sage', text: 'Draft copied to clipboard' });
+                }}
+              >
+                <Icon name="file" size={16} />
+              </button>
+
+              <span className="draft-toolbar__sep" aria-hidden />
+
+              {/* Letterhead picker — the "picker" element of the toolbar. */}
+              <LetterheadPicker
+                label="Letterhead"
+                value={letterheadChoice}
+                onChange={setLetterheadChoice}
+                className="draft-inline-letterhead"
+              />
+
+              <span className="spacer" />
+
+              <button
+                className="btn btn-primary"
+                type="button"
+                title="Email this draft to the client for review"
+                onClick={() => {
+                  const subject = `${activeDocType} - ${draftDate}`;
+                  const text = htmlToPlainText(displayHtml);
+                  const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
+                  const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                  window.location.href = href;
+                  showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
+                }}
+              >
+                <Icon name="arrow" size={15} />{' '}
+                <span className="draft-toolbar__label">Share with client</span>
+              </button>
+            </div>
+          )}
+
           <div
             className="card draft-preview-card"
             style={{
@@ -1692,7 +1976,30 @@ export function DraftingView() {
                 <EmptyState docType={docType} completion={completion} onGenerate={generate} />
               </div>
             )}
-            {hasOutput && !isEditing && (
+            {/* PREVIEW == FILING PDF. When the engine .docx has been rendered to a
+                PDF (previewPdfUrl), show THAT in the preview pane so what the
+                advocate sees is exactly the printable/downloadable document —
+                centred headings, tables, alignment — not the flattened text. While
+                that PDF is still converting we show the HTML text preview so the
+                pane is never blank. During streaming (live generation) we always
+                show the HTML so the text appears as it arrives. Model-only drafts
+                (no engine .docx) keep the HTML preview. "Edit" switches to the
+                editor, and on Done the PDF re-renders from the edited .docx. */}
+            {hasOutput && !isEditing && previewPdfUrl && !streaming && !hasLocalEdits && (
+              <iframe
+                key={previewPdfUrl}
+                title="Document preview"
+                src={`${previewPdfUrl}#toolbar=1&navpanes=0&view=FitH`}
+                style={{
+                  width: '100%',
+                  height: '78vh',
+                  border: 'none',
+                  background: '#fff',
+                  borderRadius: 4,
+                }}
+              />
+            )}
+            {hasOutput && !isEditing && (!previewPdfUrl || hasLocalEdits || streaming) && (
               <div
                 className="court-prose court-prose-paper"
                 lang={outputLangCode}
@@ -1700,6 +2007,14 @@ export function DraftingView() {
                 style={{ margin: '24px auto' }}
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
+            )}
+            {hasOutput && !isEditing && !previewPdfUrl && !hasLocalEdits && previewPdfPending && !streaming && (
+              <div
+                className="mono"
+                style={{ textAlign: 'center', padding: '8px', opacity: 0.6, fontSize: 12 }}
+              >
+                Preparing the formatted preview…
+              </div>
             )}
             {hasOutput && !isEditing && streaming && <span className="blink" />}
             {hasOutput && isEditing && !streaming && (
@@ -1711,6 +2026,44 @@ export function DraftingView() {
               />
             )}
           </div>
+
+          {hasOutput && !streaming && bnsConcordance.length > 0 && (
+            <div
+              className="card"
+              style={{
+                padding: '10px 14px',
+                background: 'rgba(21, 128, 61, 0.06)',
+                borderLeft: '3px solid var(--success)',
+              }}
+            >
+              <div
+                className="mono"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: '0.18em',
+                  color: 'var(--text-tertiary)',
+                  marginBottom: 8,
+                }}
+              >
+                APPLIED 2023 SANHITA (BNS / BNSS / BSA) · {bnsConcordance.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {bnsConcordance.map((e) => (
+                  <div key={e.old} style={{ fontSize: 13 }}>
+                    <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{e.old}</span>
+                    {' → '}
+                    <strong>{e.new}</strong>
+                    {e.change && e.change !== 'Renumbered only' && (
+                      <span className="muted" style={{ fontSize: 12 }}> · {e.change}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="body-xs muted" style={{ marginTop: 8 }}>
+                The draft already cites the in-force sections; the repealed references above are shown for your confirmation.
+              </div>
+            </div>
+          )}
 
           {hasOutput && !streaming && staleChips.length > 0 && (
             <div
@@ -1839,201 +2192,23 @@ export function DraftingView() {
             </div>
           )}
 
+          {/* Explanatory note about the export buttons (the buttons themselves now
+              live in the sticky TOP toolbar above the preview). Kept below the
+              preview where descriptive text belongs. */}
           {hasOutput && !streaming && (
-            <div
-              className="card"
-              style={{
-                padding: 12,
-                position: 'sticky',
-                bottom: 12,
-                background: 'var(--bg-surface)',
-                boxShadow: 'var(--shadow-popover)',
-              }}
-            >
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                <button
-                  className={`btn${isEditing ? ' btn-primary' : ''}`}
-                  type="button"
-                  onClick={() => {
-                    if (!isEditing && editedHtml === null) setEditedHtml(plainTextToHtml(output));
-                    setIsEditing((v) => !v);
-                  }}
-                >
-                  <Icon name={isEditing ? 'check' : 'file'} size={14} />{' '}
-                  {isEditing ? 'Done editing' : 'Edit'}
-                </button>
-                {!isEditing && editedHtml !== null && (
-                  <button
-                    className="btn btn-ghost"
-                    type="button"
-                    onClick={() => setEditedHtml(null)}
-                    title="Discard manual edits and restore the generated draft"
-                  >
-                    <Icon name="close" size={14} /> Revert
-                  </button>
-                )}
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={handleSave}
-                  disabled={saveMutation.isPending}
-                >
-                  <Icon name="check" size={14} />{' '}
-                  {saveMutation.isPending
-                    ? 'Saving…'
-                    : currentDraftId
-                      ? 'Update'
-                      : 'Save'}
-                </button>
-                {/* FILING-grade .docx: the real Word file the ENGINE rendered
-                    (selectable text, correct margins). Shown whenever the engine
-                    produced one (engineDocxBase64 present). This is the copy an
-                    advocate actually files. */}
-                {engineDocxBase64 && (
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    title="The engine-rendered Word document — filing-grade (selectable text, correct margins)"
-                    onClick={downloadEngineDocx}
-                  >
-                    <Icon name="download" size={14} />{' '}
-                    {companionDoc ? 'Download complaint .docx' : 'Download .docx (filing copy)'}
-                  </button>
-                )}
-                {/* The paired companion document (e.g. the proof affidavit derived
-                    from a s.138 complaint) as its OWN filing-grade Word file. The
-                    affidavit body is also visible in the preview below the complaint;
-                    this downloads it separately for filing. */}
-                {companionDoc?.docxBase64 && (
-                  <button
-                    className="btn btn-primary"
-                    type="button"
-                    title={`The engine-rendered ${companionDoc.label} — filing-grade Word document`}
-                    onClick={() => downloadDocxBase64(companionDoc.docxBase64!, companionDoc.label)}
-                  >
-                    <Icon name="download" size={14} /> Download affidavit .docx
-                  </button>
-                )}
-                {/* SEPARATE PDF downloads for a paired complaint + affidavit.
-                    Rasterised working copies (LibreOffice/soffice isn't available
-                    for a true text PDF) that carry the same court formatting as the
-                    preview. Only shown when a companion affidavit exists — the
-                    single-doc case is covered by the "PDF (working copy)" button
-                    below. This fills the gap where the affidavit had a .docx button
-                    but no way to get it as a PDF. */}
-                {hasOutput && !streaming && companionDoc && (
-                  <>
-                    <button
-                      className="btn"
-                      type="button"
-                      title="Complaint as a PDF (rasterised working copy — not a filing copy)"
-                      onClick={() => {
-                        const { primary } = splitCompanion(previewHtml);
-                        void downloadPdfOf(primary, activeDocType, engineDocxBase64);
-                      }}
-                    >
-                      <Icon name="download" size={14} /> Download complaint PDF
-                    </button>
-                    <button
-                      className="btn"
-                      type="button"
-                      title={`${companionDoc.label} as a PDF (rasterised working copy)`}
-                      onClick={() => {
-                        const { companion } = splitCompanion(previewHtml);
-                        if (companion) void downloadPdfOf(companion, companionDoc.label, companionDoc.docxBase64);
-                      }}
-                    >
-                      <Icon name="download" size={14} /> Download affidavit PDF
-                    </button>
-                  </>
-                )}
-                {/* Inline letterhead choice for the working-copy PDF/DOCX exports.
-                    Lets the advocate decide with / without letterhead (or a specific
-                    one) BEFORE the download dialog opens. The download dialog is
-                    pre-seeded with this same choice, so they don't pick twice. */}
-                <LetterheadPicker
-                  label="Letterhead"
-                  value={letterheadChoice}
-                  onChange={setLetterheadChoice}
-                  className="draft-inline-letterhead"
-                />
-                {/* Client-side PDF (jsPDF/html2canvas) is a RASTERISED working copy —
-                    fixed margins, non-selectable text — for quick preview/print, never
-                    filing. Shown for the SINGLE-doc case; when a companion affidavit
-                    exists, the two "Download complaint/affidavit PDF" buttons above
-                    replace this (so we don't also offer a merged-both PDF here). */}
-                {!companionDoc && (
-                  <button
-                    className="btn"
-                    type="button"
-                    title={engineDocxBase64
-                      ? 'Filing PDF — rendered from the engine .docx (matches the .docx exactly)'
-                      : 'Working copy only — not a filing copy (rasterised, non-selectable text)'}
-                    onClick={() => {
-                      // With an engine .docx, produce a filing-grade PDF from it
-                      // (LibreOffice) so it matches the .docx; otherwise the
-                      // rasterised working-copy export.
-                      if (engineDocxBase64) {
-                        void downloadPdfOf(previewHtml, activeDocType, engineDocxBase64);
-                      } else {
-                        triggerExport('PDF');
-                      }
-                    }}
-                  >
-                    <Icon name="download" size={14} />{' '}
-                    {engineDocxBase64 ? 'Download PDF' : 'PDF (working copy)'}
-                  </button>
-                )}
-                {!engineActive && (
-                  <button
-                    className="btn"
-                    type="button"
-                    title="Working copy only — not a filing copy"
-                    onClick={() => triggerExport('DOCX')}
-                  >
-                    <Icon name="download" size={14} /> DOCX (working copy)
-                  </button>
-                )}
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => {
-                    void navigator.clipboard?.writeText(htmlToPlainText(displayHtml));
-                    showToast({ type: 'sage', text: 'Draft copied to clipboard' });
-                  }}
-                >
-                  <Icon name="file" size={14} /> Copy
-                </button>
-                <span className="spacer" />
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  onClick={() => {
-                    const subject = `${activeDocType} - ${draftDate}`;
-                    const text = htmlToPlainText(displayHtml);
-                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
-                    const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                    window.location.href = href;
-                    showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
-                  }}
-                >
-                  <Icon name="arrow" size={14} /> Share with client
-                </button>
-              </div>
-              {engineDocxBase64 ? (
-                <p className="drafting-working-copy-note" role="note">
-                  ℹ️ <strong>Download .docx (filing copy)</strong> is the engine-rendered
-                  Word file — selectable text, correct margins, court-ready. The{' '}
-                  <strong>PDF (working copy)</strong> is a rasterised preview only, not for filing.
-                </p>
-              ) : (
-                <p className="drafting-working-copy-note" role="note">
-                  ⚠️ Downloads here are a <strong>working copy — not for filing</strong>.
-                  They are rasterised (fixed margins, non-selectable text). A court-ready
-                  filing copy is produced only for documents drafted through the engine.
-                </p>
-              )}
-            </div>
+            engineDocxBase64 ? (
+              <p className="drafting-working-copy-note" role="note">
+                ℹ️ <strong>Download Microsoft Word document</strong> is the engine-rendered
+                Word file: selectable text, correct margins, court-ready. The{' '}
+                <strong>Download PDF</strong> is the same court format as a PDF.
+              </p>
+            ) : (
+              <p className="drafting-working-copy-note" role="note">
+                ⚠️ Downloads here are a <strong>working copy, not for filing</strong>.
+                They are rasterised (fixed margins, non-selectable text). A court-ready
+                filing copy is produced only for documents drafted through the engine.
+              </p>
+            )
           )}
         </div>
       </div>
@@ -2057,6 +2232,40 @@ export function DraftingView() {
           width: auto;
           padding-top: 6px;
           padding-bottom: 6px;
+        }
+        /* STICKY TOP TOOLBAR — the document action tools, pinned to the top of the
+           preview column so they stay reachable while scrolling the draft. */
+        .draft-toolbar {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          padding: 8px 10px;
+          margin-bottom: 12px;
+          position: sticky;
+          top: 8px;
+          z-index: 20;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle, rgba(0,0,0,0.08));
+          border-radius: 10px;
+          box-shadow: var(--shadow-popover);
+        }
+        .draft-toolbar .spacer { flex: 1 1 auto; }
+        .draft-toolbar__sep {
+          width: 1px;
+          align-self: stretch;
+          margin: 2px 2px;
+          background: var(--border-subtle, rgba(0,0,0,0.12));
+        }
+        .draft-toolbar__label { white-space: nowrap; }
+        /* Icon-only button: square, centered glyph, tooltip via title=. */
+        .btn.btn-icon {
+          padding: 8px;
+          width: 36px;
+          height: 36px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
         }
         .draft-grid {
           display: grid;

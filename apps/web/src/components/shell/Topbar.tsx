@@ -91,7 +91,7 @@ export function Topbar() {
           className="btn btn-ghost"
           onClick={() => setNotifOpen((o) => !o)}
           style={{ padding: '0 8px', position: 'relative' }}
-          aria-label={unreadCount > 0 ? `Notifications — ${unreadCount} unread` : 'Notifications'}
+          aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
         >
           <Icon name="bell" />
           {unreadCount > 0 && (

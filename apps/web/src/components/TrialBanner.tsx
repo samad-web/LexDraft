@@ -39,7 +39,7 @@ export function TrialBanner(): JSX.Element | null {
       ? 'Your demo session has ended.'
       : daysLeft === 1
         ? 'Your demo session ends today.'
-        : `Demo session — ${daysLeft} days remaining.`
+        : `Demo session: ${daysLeft} days remaining.`
     : expired
       ? 'Your 14-day trial has ended.'
       : daysLeft === 1

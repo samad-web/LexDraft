@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { User } from '@lexdraft/types';
+import { EmptyState } from '@lexdraft/ui';
 import { api } from '@/lib/api';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
@@ -39,6 +40,7 @@ const ResearchView = lazy(() => import('@/views/ResearchView').then((m) => ({ de
 const SettingsView = lazy(() => import('@/views/SettingsView').then((m) => ({ default: m.SettingsView })));
 const CalendarView = lazy(() => import('@/views/CalendarView').then((m) => ({ default: m.CalendarView })));
 const ClientsView = lazy(() => import('@/views/ClientsView').then((m) => ({ default: m.ClientsView })));
+const ClientDetailView = lazy(() => import('@/views/ClientDetailView').then((m) => ({ default: m.ClientDetailView })));
 const LeadsView = lazy(() => import('@/views/LeadsView').then((m) => ({ default: m.LeadsView })));
 const ClausesView = lazy(() => import('@/views/ClausesView').then((m) => ({ default: m.ClausesView })));
 const InvoicesView = lazy(() => import('@/views/InvoicesView').then((m) => ({ default: m.InvoicesView })));
@@ -55,10 +57,13 @@ const AnalyticsView = lazy(() => import('@/views/AnalyticsView').then((m) => ({ 
 const FirmDashboardView = lazy(() => import('@/views/FirmDashboardView').then((m) => ({ default: m.FirmDashboardView })));
 const PortalInboxView = lazy(() => import('@/views/PortalInboxView').then((m) => ({ default: m.PortalInboxView })));
 const InviteAcceptView = lazy(() => import('@/views/InviteAcceptView').then((m) => ({ default: m.InviteAcceptView })));
+const CoCounselAcceptView = lazy(() => import('@/views/CoCounselAcceptView').then((m) => ({ default: m.CoCounselAcceptView })));
 const ManageView = lazy(() => import('@/views/manage/ManageView').then((m) => ({ default: m.ManageView })));
 const SanhitaView = lazy(() => import('@/views/SanhitaView').then((m) => ({ default: m.SanhitaView })));
 const CalculatorsView = lazy(() => import('@/views/CalculatorsView').then((m) => ({ default: m.CalculatorsView })));
 const CoverageView = lazy(() => import('@/views/CoverageView').then((m) => ({ default: m.CoverageView })));
+const GuestCasesListView = lazy(() => import('@/views/GuestCasesListView').then((m) => ({ default: m.GuestCasesListView })));
+const GuestCaseDetailView = lazy(() => import('@/views/GuestCaseDetailView').then((m) => ({ default: m.GuestCaseDetailView })));
 const PracticeAnalyticsView = lazy(() => import('@/views/PracticeAnalyticsView').then((m) => ({ default: m.PracticeAnalyticsView })));
 const EngagementTemplatesView = lazy(() => import('@/views/EngagementTemplatesView').then((m) => ({ default: m.EngagementTemplatesView })));
 import { MfaPromptBanner } from '@/components/MfaPromptBanner';
@@ -89,6 +94,27 @@ const AuditLogView = lazy(() => import('@/admin/views/AuditLogView').then((m) =>
 const TemplatesView = lazy(() => import('@/admin/views/TemplatesView').then((m) => ({ default: m.TemplatesView })));
 const ErrorLogView = lazy(() => import('@/admin/views/ErrorLogView').then((m) => ({ default: m.ErrorLogView })));
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
+
+// Catch-all for any /app/* URL that doesn't match a known route. Shows the
+// unmatched path and a way back, instead of silently pretending the user
+// asked for the dashboard (which hides typos like /app/drafting or
+// /app/cause-list and makes broken links/bookmarks look like they "worked").
+function NotFoundView() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <EmptyState
+      icon="search"
+      title="Page not found"
+      description={<>There's no page at <code className="mono">{location.pathname}</code>.</>}
+      action={
+        <button type="button" className="btn btn-sm" onClick={() => navigate('/app/dashboard')}>
+          Back to Dashboard
+        </button>
+      }
+    />
+  );
+}
 
 export function App() {
   const user = useAuthStore((s) => s.user);
@@ -175,6 +201,7 @@ export function App() {
             <Route path="/auth/*" element={<AuthView />} />
             <Route path="/signup" element={<SignupView />} />
             <Route path="/invite/:token" element={<InviteAcceptView />} />
+            <Route path="/co-counsel/accept/:token" element={<CoCounselAcceptView />} />
             <Route path="/survey" element={<SurveyView />} />
             <Route path="/survey/thanks" element={<SurveyThanksView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -250,7 +277,8 @@ export function App() {
               <Route path="/app/research" element={<ResearchView />} />
               <Route path="/app/settings" element={<SettingsView />} />
               <Route path="/app/calendar"   element={<CalendarView />} />
-              <Route path="/app/clients"    element={<ClientsView />} />
+              <Route path="/app/clients"     element={<ClientsView />} />
+              <Route path="/app/clients/:id" element={<ClientDetailView />} />
               <Route path="/app/leads"      element={<LeadsView />} />
               <Route path="/app/clauses"    element={<ClausesView />} />
               <Route path="/app/invoices"   element={<InvoicesView />} />
@@ -270,9 +298,11 @@ export function App() {
               <Route path="/app/sanhita"             element={<SanhitaView />} />
               <Route path="/app/calculators"         element={<CalculatorsView />} />
               <Route path="/app/coverage"            element={<CoverageView />} />
+              <Route path="/app/co-counsel"          element={<GuestCasesListView />} />
+              <Route path="/app/co-counsel/:caseId"  element={<GuestCaseDetailView />} />
               <Route path="/app/practice-analytics"  element={<PracticeAnalyticsView />} />
               <Route path="/app/engagement"          element={<EngagementTemplatesView />} />
-              <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
+              <Route path="*" element={<NotFoundView />} />
             </Routes>
             </Suspense>
           </main>

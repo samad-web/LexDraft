@@ -61,66 +61,70 @@ export function TemplatesView() {
       </div>
 
       {isLoading ? (
-        <table className="tbl" aria-busy="true">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th style={{ width: 180 }}>Slug</th>
-              <th style={{ width: 130 }}>Scope</th>
-              <th style={{ width: 200 }}>Updated</th>
-              <th style={{ width: 200, textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 6 }, (_, i) => (
-              <tr key={`sk-${i}`}>
-                <td><Skeleton width={160} height={14} /></td>
-                <td><Skeleton width={140} height={12} /></td>
-                <td><Skeleton width={80} height={20} radius="pill" /></td>
-                <td><Skeleton width={150} height={12} /></td>
-                <td style={{ textAlign: 'right' }}><Skeleton width={120} height={24} /></td>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="tbl" aria-busy="true">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th style={{ width: 180 }}>Slug</th>
+                <th style={{ width: 130 }}>Scope</th>
+                <th style={{ width: 200 }}>Updated</th>
+                <th style={{ width: 200, textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }, (_, i) => (
+                <tr key={`sk-${i}`}>
+                  <td><Skeleton width={160} height={14} /></td>
+                  <td><Skeleton width={140} height={12} /></td>
+                  <td><Skeleton width={80} height={20} radius="pill" /></td>
+                  <td><Skeleton width={150} height={12} /></td>
+                  <td style={{ textAlign: 'right' }}><Skeleton width={120} height={24} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th style={{ width: 180 }}>Slug</th>
-              <th style={{ width: 130 }}>Scope</th>
-              <th style={{ width: 200 }}>Updated</th>
-              <th style={{ width: 200, textAlign: 'right' }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pager.slice.map((t) => (
-              <tr key={t.id}>
-                <td>{t.name}</td>
-                <td className="mono" style={{ fontSize: 12 }}>{t.slug}</td>
-                <td><span className="badge">{t.scope}</span></td>
-                <td className="mono" style={{ fontSize: 12 }}>{new Date(t.updatedAt).toLocaleString()}</td>
-                <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'inline-flex', gap: 6 }}>
-                    <button type="button" className="btn btn-sm" onClick={() => setEditing(t)}>Edit</button>
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
-                      onClick={() => { void requestDelete(t); }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th style={{ width: 180 }}>Slug</th>
+                <th style={{ width: 130 }}>Scope</th>
+                <th style={{ width: 200 }}>Updated</th>
+                <th style={{ width: 200, textAlign: 'right' }}>Actions</th>
               </tr>
-            ))}
-            {templates.length === 0 && (
-              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 32 }}>No templates.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {pager.slice.map((t) => (
+                <tr key={t.id}>
+                  <td>{t.name}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>{t.slug}</td>
+                  <td><span className="badge">{t.scope}</span></td>
+                  <td className="mono" style={{ fontSize: 12 }}>{new Date(t.updatedAt).toLocaleString()}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: 6 }}>
+                      <button type="button" className="btn btn-sm" onClick={() => setEditing(t)}>Edit</button>
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+                        onClick={() => { void requestDelete(t); }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {templates.length === 0 && (
+                <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 32 }}>No templates.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
       {!isLoading && templates.length > 0 && (
         <Pagination

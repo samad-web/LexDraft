@@ -44,7 +44,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
     const lines = [
       `Summary:\n${data.summary}`,
       data.holding ? `\nHolding:\n${data.holding}` : '',
-      data.followUps.length ? `\nFollow-ups:\n${data.followUps.map((f) => `• ${f.title} — ${f.rationale}`).join('\n')}` : '',
+      data.followUps.length ? `\nFollow-ups:\n${data.followUps.map((f) => `• ${f.title}: ${f.rationale}`).join('\n')}` : '',
     ].filter(Boolean);
     try {
       await navigator.clipboard.writeText(lines.join('\n'));
@@ -92,7 +92,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
             <section className="col" style={{ gap: 6 }}>
               <div className="eyebrow">Summary</div>
               <p className="body-md" style={{ whiteSpace: 'pre-wrap', margin: 0, color: 'var(--text-primary)' }}>
-                {data.summary || '—'}
+                {data.summary || 'No summary available'}
               </p>
             </section>
 

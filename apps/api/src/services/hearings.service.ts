@@ -9,11 +9,11 @@ interface HearingRow {
   court: string;
   purpose: string;
   status: Hearing['status'];
+  judge: string | null;
 }
 
 interface HearingDateRow extends HearingRow {
   hearing_date: string | Date | null;
-  judge: string | null;
 }
 
 const memory: Hearing[] = SEED_HEARINGS.map((h, i) => ({ ...h, id: `h${i + 1}` }));
@@ -24,6 +24,23 @@ function dateOnly(v: string | Date | null): string {
   return v.slice(0, 10);
 }
 
+/**
+ * Formats a *locally-constructed* Date (e.g. `new Date(year, month, day)` or
+ * `new Date()`) as a local-calendar YYYY-MM-DD string. Unlike
+ * `.toISOString().slice(0, 10)` - which converts to UTC first - this reads
+ * the Date's local year/month/date fields directly, so it doesn't shift the
+ * result backwards by the server's UTC offset (e.g. Asia/Kolkata, UTC+5:30).
+ * Use this for any Date built with the local-time constructor; `dateOnly()`
+ * above remains correct for DB-sourced DATE values, which the driver already
+ * parses as UTC midnight.
+ */
+function isoOfLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function fromRow(r: HearingRow): Hearing {
   return {
     id: r.id,
@@ -32,6 +49,7 @@ function fromRow(r: HearingRow): Hearing {
     court: r.court,
     purpose: r.purpose,
     status: r.status,
+    judge: r.judge,
   };
 }
 
@@ -67,6 +85,29 @@ function placeholderCnr(): string {
  * schedule hearings for prospects, walk-ins, or matters that haven't been
  * formally filed without the form rejecting them.
  */
+/**
+ * Recomputes `cases.next_hearing` as the earliest today-or-future hearing
+ * date for this case, after any hearing create/update/delete.
+ *
+ * Without this, `cases.next_hearing` only ever got set once - when a hearing
+ * created a brand-new placeholder case (see ensureCaseId) - and was frozen
+ * from then on for every existing case. That field is what the Calendar's
+ * "next hearing" display AND the daily hearing-reminder scan both read, so
+ * manually-added hearings on an existing case silently never surfaced there
+ * or triggered a reminder. eCourts syncs don't have this gap - they write
+ * next_hearing directly from eCourts' own "next hearing" field - this closes
+ * the same gap for manually-entered hearings.
+ */
+async function syncCaseNextHearing(sql: NonNullable<ReturnType<typeof db>>, caseId: string): Promise<void> {
+  await sql`
+    update cases set next_hearing = (
+      select min(hearing_date) from hearings
+      where case_id = ${caseId}::uuid and hearing_date >= current_date
+    )
+    where id = ${caseId}::uuid
+  `;
+}
+
 async function ensureCaseId(
   sql: NonNullable<ReturnType<typeof db>>,
   firmId: string,
@@ -119,7 +160,7 @@ export const hearingsService = {
     const sql = db();
     if (sql) {
       const rows = await sql<HearingRow[]>`
-        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status
+        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status, h.judge
         from hearings h
         join cases c on c.id = h.case_id
         where h.status = 'today' and c.firm_id = ${firmId}::uuid
@@ -135,7 +176,7 @@ export const hearingsService = {
     const sql = db();
     if (sql) {
       const rows = await sql<HearingRow[]>`
-        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status
+        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status, h.judge
         from hearings h
         join cases c on c.id = h.case_id
         where c.firm_id = ${firmId}::uuid
@@ -149,21 +190,22 @@ export const hearingsService = {
   async week(firmId: string | null, weekStartIso?: string): Promise<CalendarWeek> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const start = startOfWeek(weekStartIso ?? today.toISOString().slice(0, 10));
+    const todayIso = isoOfLocal(today);
+    const start = startOfWeek(weekStartIso ?? todayIso);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
-    const startStr = start.toISOString().slice(0, 10);
-    const endStr = end.toISOString().slice(0, 10);
+    const startStr = isoOfLocal(start);
+    const endStr = isoOfLocal(end);
 
     const days: CalendarWeek['days'] = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      const iso = d.toISOString().slice(0, 10);
+      const iso = isoOfLocal(d);
       return {
         date: iso,
         weekday: WEEKDAY_LABELS[i]!,
         count: 0,
-        isToday: iso === today.toISOString().slice(0, 10),
+        isToday: iso === todayIso,
       };
     });
 
@@ -196,17 +238,17 @@ export const hearingsService = {
     first.setHours(0, 0, 0, 0);
     const last = new Date(year, monthIndex + 1, 0);
     last.setHours(0, 0, 0, 0);
-    const startStr = first.toISOString().slice(0, 10);
-    const endStr = last.toISOString().slice(0, 10);
+    const startStr = isoOfLocal(first);
+    const endStr = isoOfLocal(last);
     const todayIso = (() => {
       const t = new Date(); t.setHours(0, 0, 0, 0);
-      return t.toISOString().slice(0, 10);
+      return isoOfLocal(t);
     })();
 
     const days: CalendarMonth['days'] = [];
     for (let d = 1; d <= last.getDate(); d++) {
       const dt = new Date(year, monthIndex, d);
-      const iso = dt.toISOString().slice(0, 10);
+      const iso = isoOfLocal(dt);
       const dow = ((dt.getDay() + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
       days.push({ date: iso, weekdayIndex: dow, count: 0, isToday: iso === todayIso });
     }
@@ -271,19 +313,26 @@ export const hearingsService = {
         purpose: input.purpose,
         status: input.status,
         date: input.date ?? '',
+        judge: input.judge || null,
       };
       memory.push(fallback);
       return fallback;
     }
     const caseId = await ensureCaseId(sql, firmId, input);
+    // firm_id is NOT NULL on this table (migration 0043_tenant_invariants.sql,
+    // the cross-tenant-exposure fix) - this INSERT predates that migration
+    // and was never updated, so every manually-added hearing since then has
+    // thrown a constraint violation at the DB. eCourts-synced hearings never
+    // hit this because case-sync.service.ts's own INSERT already sets it.
     const rows = await sql<HearingDateRow[]>`
-      insert into hearings (case_id, case_label, hearing_time, court, purpose, status, hearing_date, judge)
-      values (${caseId}::uuid, ${input.case}, ${input.time}, ${input.court}, ${input.purpose},
+      insert into hearings (case_id, firm_id, case_label, hearing_time, court, purpose, status, hearing_date, judge)
+      values (${caseId}::uuid, ${firmId}::uuid, ${input.case}, ${input.time}, ${input.court}, ${input.purpose},
               ${input.status}::hearing_status, ${input.date || null},
               ${input.judge || null})
       returning id, case_label, hearing_time, court, purpose, status,
                 hearing_date, judge
     `;
+    await syncCaseNextHearing(sql, caseId);
     return fromDateRow(rows[0]!);
   },
 
@@ -297,6 +346,9 @@ export const hearingsService = {
       status: Hearing['status'];
       date?: string;
       judge?: string;
+      /** Pins re-resolution to this exact case row; falls back to a
+       *  title-match lookup (newest case wins) only when absent. */
+      caseId?: string;
     },
     firmId: string | null,
   ): Promise<CalendarHearing> {
@@ -317,10 +369,19 @@ export const hearingsService = {
         purpose: input.purpose,
         status: input.status,
         date: input.date ?? (memory[idx] as Hearing & { date?: string }).date ?? '',
+        judge: input.judge || (memory[idx]?.judge ?? null),
       };
       memory[idx] = next;
       return next;
     }
+    // Capture the hearing's CURRENT case before any change, so a moved or
+    // retimed hearing recomputes next_hearing on both the old case (which
+    // may have lost its soonest hearing) and the new one.
+    const [before] = await sql<Array<{ case_id: string }>>`
+      select h.case_id from hearings h join cases c on c.id = h.case_id
+      where h.id = ${id}::uuid and c.firm_id = ${firmId}::uuid
+    `;
+
     // If the matter label changed, re-resolve (or auto-create) the case so we
     // never reattach a hearing to a case belonging to a different firm.
     const caseId = await ensureCaseId(sql, firmId, input);
@@ -345,6 +406,8 @@ export const hearingsService = {
     if (!row) {
       throw Object.assign(new Error('Hearing not found'), { status: 404 });
     }
+    await syncCaseNextHearing(sql, caseId);
+    if (before && before.case_id !== caseId) await syncCaseNextHearing(sql, before.case_id);
     return fromDateRow(row);
   },
 
@@ -361,16 +424,17 @@ export const hearingsService = {
       memory.splice(idx, 1);
       return;
     }
-    const rows = await sql<Array<{ id: string }>>`
+    const rows = await sql<Array<{ id: string; case_id: string }>>`
       delete from hearings h
       using cases c
       where h.case_id = c.id
         and h.id = ${id}::uuid
         and c.firm_id = ${firmId}::uuid
-      returning h.id
+      returning h.id, h.case_id
     `;
     if (rows.length === 0) {
       throw Object.assign(new Error('Hearing not found'), { status: 404 });
     }
+    await syncCaseNextHearing(sql, rows[0]!.case_id);
   },
 };

@@ -59,7 +59,7 @@ export function ApplicationsPanel({ caseId }: { caseId: string }) {
         <p className="body-md muted">Loading applications…</p>
       ) : items.length === 0 ? (
         <p className="body-md muted">
-          No applications on record. Track interim applications, appeals, execution, review or bail here — each with its own status.
+          No applications on record. Track interim applications, appeals, execution, review or bail here, each with its own status.
         </p>
       ) : (
         <div className="grid-2">

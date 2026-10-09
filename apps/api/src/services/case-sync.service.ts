@@ -342,6 +342,73 @@ export async function syncAllActiveCasesFromEcourts(): Promise<DailySyncSummary>
 }
 
 // ---------------------------------------------------------------------------
+// Hearing reminders
+//
+// `cases.next_hearing` is kept current by the sync above (and by manual
+// edits), but nothing ever read it to actually remind anyone - the
+// `reminder_offset_days` field on diary entries and the `hearing.reminder`
+// job were both scaffolded (schema + a stub handler) and never wired end to
+// end. This closes that gap: once a day, find every active case whose next
+// hearing falls within REMINDER_WINDOW_DAYS and fire an in-app notification.
+//
+// Fixed window rather than per-case `reminder_offset_days` (deliberately -
+// that field lives on `diary` entries, which are a separate, manually-
+// created concept from `cases.next_hearing`; wiring cases to a
+// per-diary-entry offset would require a case<->diary link that doesn't
+// exist). A single firm-wide window is the right scope for "don't let an
+// advocate miss a hearing that was just added from eCourts."
+// ---------------------------------------------------------------------------
+
+const REMINDER_WINDOW_DAYS = 3;
+
+export interface HearingReminderSummary {
+  scanned: number;
+  reminded: number;
+}
+
+export async function sendUpcomingHearingReminders(): Promise<HearingReminderSummary> {
+  const sql = db();
+  if (!sql) {
+    logger.warn('hearing reminder scan skipped: no DATABASE_URL');
+    return { scanned: 0, reminded: 0 };
+  }
+
+  const rows = await sql<Array<{ id: string; firm_id: string; title: string; next_hearing: string; created_by_user_id: string | null }>>`
+    select id, firm_id, title, next_hearing::text, created_by_user_id
+    from cases
+    where status = 'Active'
+      and next_hearing is not null
+      and next_hearing >= current_date
+      and next_hearing <= current_date + ${REMINDER_WINDOW_DAYS}::int
+  `;
+
+  const summary: HearingReminderSummary = { scanned: rows.length, reminded: 0 };
+  const { notify } = await import('./notifications.service');
+
+  for (const row of rows) {
+    try {
+      const daysUntil = Math.round(
+        (new Date(row.next_hearing).getTime() - new Date(new Date().toISOString().slice(0, 10)).getTime()) / 86_400_000,
+      );
+      await notify.hearingReminder(row.firm_id, {
+        matterTitle: row.title,
+        caseId: row.id,
+        hearingDate: row.next_hearing,
+        daysUntil,
+        ownerUserId: row.created_by_user_id,
+      });
+      summary.reminded += 1;
+    } catch (err) {
+      // One bad row (missing firm, notification write failure) must not
+      // abort the scan for every other case due today or tomorrow.
+      logger.warn({ err, caseId: row.id }, 'hearing reminder: case failed');
+    }
+  }
+
+  return summary;
+}
+
+// ---------------------------------------------------------------------------
 // Mapping helpers
 // ---------------------------------------------------------------------------
 

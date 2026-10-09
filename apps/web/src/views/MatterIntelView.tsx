@@ -70,7 +70,7 @@ function MatterPicker() {
       <div>
         <div className="eyebrow">Matter Intelligence</div>
         <h1 className="heading-xl" style={{ marginTop: 4, marginBottom: 8 }}>
-          Pick a matter — or start a quick study
+          Pick a matter, or start a quick study
         </h1>
         <p className="body-md muted" style={{ maxWidth: 720 }}>
           Matter Intelligence ingests documents, generates a synthesised brief,
@@ -91,7 +91,7 @@ function MatterPicker() {
               Just want to ask questions about a PDF?
             </div>
             <p className="body-sm muted" style={{ margin: 0 }}>
-              Start a quick study — a private sandbox where you can drop a file,
+              Start a quick study: a private sandbox where you can drop a file,
               get a summary, and chat with cited answers. Won&apos;t appear in your
               Cases or Clients lists.
             </p>
@@ -185,7 +185,7 @@ function MatterPicker() {
       {!casesQ.isLoading && matters.length > 0 && filtered.length === 0 && (
         <EmptyState
           variant="inline"
-          title={`No matters match "${q}"`}
+          title={`No matters match “${q}”`}
           description="Try a different search term."
         />
       )}

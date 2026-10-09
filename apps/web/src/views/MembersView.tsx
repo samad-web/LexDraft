@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Icon, EmptyState } from '@lexdraft/ui';
-import type { Invitation } from '@lexdraft/types';
+import { Icon, EmptyState, Skeleton, ErrorState } from '@lexdraft/ui';
+import type { Invitation, FirmManagedUser } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
@@ -9,6 +9,7 @@ import {
   useCancelInvitation,
   useResendInvitation,
 } from '@/hooks/useInvitations';
+import { useCan, useFirmUsers, useUpdateFirmUser } from '@/hooks/useFirmAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
@@ -25,15 +26,45 @@ interface Member {
   status: Status;
 }
 
-const MEMBERS: Member[] = [];
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts.length === 1 ? parts[0]!.slice(0, 2).toUpperCase() : (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+// FirmManagedUser (the real, server-backed user record) has no enrolment
+// number or practice-area tags - those are chambers-roll concepts the
+// backend doesn't track for users yet. Surface what's real and degrade the
+// rest gracefully rather than fabricating data.
+function toMember(u: FirmManagedUser): Member {
+  return {
+    id: u.id,
+    name: u.name,
+    initials: initialsOf(u.name),
+    role: u.role?.name ?? 'Member',
+    enrolment: 'Not on record',
+    email: u.email,
+    practiceAreas: [],
+    status: u.status === 'active' ? 'active' : 'on-leave',
+  };
+}
 
 export function MembersView() {
   const [inviteOpen, setInviteOpen] = useState(false);
+  const canManageUsers = useCan('admin.users');
+  const usersQ = useFirmUsers();
+  const MEMBERS = useMemo(() => (usersQ.data ?? []).map(toMember), [usersQ.data]);
+  // A Solo-plan account never carries the `admin.users` feature, so
+  // /firm/users 403s by design - that's not a connectivity problem, it's
+  // "you have no firm-mates." Only treat the query as a genuine failure
+  // (and offer Retry) when the account actually has the feature.
+  const isPlanGated = usersQ.isError && !canManageUsers;
+  const isGenuineError = usersQ.isError && canManageUsers;
   const stats = useMemo(() => {
     const active   = MEMBERS.filter((m) => m.status === 'active').length;
     const onLeave  = MEMBERS.length - active;
     return { total: MEMBERS.length, active, onLeave };
-  }, []);
+  }, [MEMBERS]);
   const pager = usePagination(MEMBERS);
 
   return (
@@ -54,6 +85,8 @@ export function MembersView() {
             type="button"
             className="btn btn-primary"
             onClick={() => setInviteOpen(true)}
+            disabled={!canManageUsers}
+            title={canManageUsers ? undefined : 'Available on Practice and Firm plans'}
           >
             <Icon name="plus" size={14} /> Invite member
           </button>
@@ -62,7 +95,23 @@ export function MembersView() {
 
       <PendingInvitations />
 
-      {MEMBERS.length === 0 ? (
+      {usersQ.isLoading ? (
+        <div className="grid-3" style={{ gap: 20 }}>
+          {[0, 1, 2].map((i) => <Skeleton key={i} height={180} />)}
+        </div>
+      ) : isPlanGated ? (
+        <EmptyState
+          icon="members"
+          title="Members management isn't on your plan"
+          description="Chambers roll, roles, and invitations are available on Practice and Firm plans. Upgrade to add partners, associates, and counsel of record."
+        />
+      ) : isGenuineError ? (
+        <ErrorState
+          title="Couldn't load members"
+          description="Check your connection and try again."
+          onRetry={() => void usersQ.refetch()}
+        />
+      ) : MEMBERS.length === 0 ? (
         <EmptyState
           icon="members"
           title="No members yet"
@@ -200,6 +249,7 @@ function formatExpiry(iso: string): string {
 
 function MemberCard({ member }: { member: Member }) {
   const showToast = useUIStore((s) => s.showToast);
+  const updateUser = useUpdateFirmUser();
   const [profileOpen, setProfileOpen] = useState(false);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
 
@@ -208,14 +258,17 @@ function MemberCard({ member }: { member: Member }) {
       setConfirmDeactivate(true);
       return;
     }
-    // No firm-level deactivate endpoint exists yet; record the intent so the
-    // managing partner can act on it. When the backend route lands, swap this
-    // toast for a real mutation call.
-    showToast({
-      type: 'amber',
-      text: `Deactivation requested for ${member.name}. Managing partner will review.`,
-    });
     setConfirmDeactivate(false);
+    updateUser.mutate(
+      { id: member.id, patch: { status: 'deactivated' } },
+      {
+        onSuccess: () => showToast({ type: 'sage', text: `${member.name} has been deactivated.` }),
+        onError: (err) => showToast({
+          type: 'vermillion',
+          text: (err as Error)?.message || `Couldn't deactivate ${member.name}`,
+        }),
+      },
+    );
   };
 
   return (
@@ -261,9 +314,10 @@ function MemberCard({ member }: { member: Member }) {
           aria-label={confirmDeactivate ? `Confirm deactivate ${member.name}` : `Deactivate ${member.name}`}
           onClick={requestDeactivate}
           onBlur={() => setConfirmDeactivate(false)}
+          disabled={updateUser.isPending}
           title={confirmDeactivate ? 'Click again to confirm' : `Deactivate ${member.name}`}
         >
-          {confirmDeactivate ? 'Confirm?' : <Icon name="more" size={14} />}
+          {updateUser.isPending ? '…' : confirmDeactivate ? 'Confirm?' : <Icon name="more" size={14} />}
         </button>
       </div>
 

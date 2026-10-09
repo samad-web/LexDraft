@@ -48,13 +48,17 @@ interface InvitationWithFirm {
   firmId: string | null;
 }
 
-function generateToken(): string {
+// Exported for co-counsel.service.ts, which inserts its own `invitations`
+// rows (kind='co_counsel_handover') rather than going through
+// invitationsService.create - that path is email-only and firm-member-role
+// specific. Pure/stateless, safe to share.
+export function generateToken(): string {
   return randomBytes(24).toString('base64url');
 }
-function generateId(): string {
+export function generateId(): string {
   return `inv_${randomBytes(8).toString('hex')}`;
 }
-function isoPlusDays(days: number): string {
+export function isoPlusDays(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
   return d.toISOString();

@@ -1,8 +1,10 @@
 import type { DraftRequest, DraftResponse } from '@lexdraft/types';
 import { env } from '../env';
 import { logger } from '../logger';
-import { withRetry, HttpRetryError } from '../lib/retry';
-import { anthropicUsage, xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
+import { withRetry } from '../lib/retry';
+import { type NormalizedUsage } from '../lib/llm-usage';
+import { claudeComplete, claudeStream } from '../lib/anthropic-client';
+import { grokComplete, grokStream } from '../lib/grok-client';
 
 const SAMPLE_TEMPLATE = (req: DraftRequest): string => {
   const lines: string[] = [];
@@ -294,42 +296,16 @@ async function callClaude(
 }
 
 async function callClaudeRaw({ system, user }: BuiltPrompt, maxTokens = 2048): Promise<ProviderResult> {
+  // Prompt caching: the system block is identical across requests, so the
+  // shared client marks it cache_control='ephemeral' (cacheSystem defaults to
+  // true), letting Anthropic reuse the encoded prefix across calls. The savings
+  // are token-count dependent (≥1024 input tokens for Sonnet to actually cache)
+  // and harmless when the prompt is small. claudeComplete throws HttpRetryError
+  // on API errors, so the outer withRetry still triggers on 429/5xx.
   return withRetry(
     async () => {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-api-key': env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-        },
-        // Prompt caching: the system block is identical across requests,
-        // so marking it cache_control='ephemeral' lets Anthropic reuse
-        // the encoded prefix across calls. The savings are token-count
-        // dependent (≥1024 input tokens for Sonnet to actually cache)
-        // and harmless when the prompt is small - request shape is correct
-        // for when we grow the system instructions or fold in firm-grounded
-        // few-shot examples.
-        body: JSON.stringify({
-          model: env.ANTHROPIC_MODEL,
-          max_tokens: maxTokens,
-          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-          messages: [{ role: 'user', content: user }],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `Claude API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        content: Array<{ type: string; text: string }>;
-        usage?: Parameters<typeof anthropicUsage>[0];
-      };
-      const text = data.content
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text)
-        .join('');
-      return { text, usage: anthropicUsage(data.usage) };
+      const { text, ...usage } = await claudeComplete({ system, user, maxTokens });
+      return { text, usage };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -347,35 +323,13 @@ async function callGrok(
 }
 
 async function callGrokRaw({ system, user }: BuiltPrompt, maxTokens = 2048): Promise<ProviderResult> {
+  // grokComplete throws HttpRetryError on API errors, so the outer withRetry
+  // still triggers on 429/5xx. It returns the same NormalizedUsage (via
+  // xaiUsage) the raw-fetch path produced.
   return withRetry(
     async () => {
-      const response = await fetch('https://api.x.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          authorization: `Bearer ${env.XAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: env.XAI_MODEL,
-          max_tokens: maxTokens,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: user },
-          ],
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.text();
-        throw new HttpRetryError(response.status, `xAI API ${response.status}: ${body}`);
-      }
-      const data = (await response.json()) as {
-        choices: Array<{ message: { content: string } }>;
-        usage?: Parameters<typeof xaiUsage>[0];
-      };
-      return {
-        text: data.choices[0]?.message?.content ?? '',
-        usage: xaiUsage(data.usage),
-      };
+      const { text, ...usage } = await grokComplete({ system, user, maxTokens });
+      return { text, usage };
     },
     {
       onRetry: (err, attempt, waitMs) =>
@@ -398,64 +352,15 @@ async function* streamGrokRaw(
   onUsage?: (usage: LlmUsage) => void,
   maxTokens = 2048,
 ): AsyncGenerator<string, void, void> {
-  const response = await fetch('https://api.x.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${env.XAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: env.XAI_MODEL,
-      max_tokens: maxTokens,
-      stream: true,
-      // Ask xAI to emit a terminal usage chunk so we can record token spend.
-      stream_options: { include_usage: true },
-      messages: [
-        { role: 'system', content: system },
-        { role: 'user', content: user },
-      ],
-    }),
+  // The shared grokStream yields text deltas in order and reports the final
+  // token usage (via xaiUsage, from the include_usage terminal chunk) once the
+  // stream settles — matching the former manual SSE parse.
+  yield* grokStream({
+    system,
+    user,
+    maxTokens,
+    onUsage: (usage) => onUsage?.({ provider: 'xai', model: env.XAI_MODEL, ...usage }),
   });
-  if (!response.ok || !response.body) {
-    const body = response.body ? await response.text() : '';
-    throw new Error(`xAI API ${response.status}: ${body}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let usage: NormalizedUsage = {};
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-            usage?: Parameters<typeof xaiUsage>[0];
-          };
-          const text = evt.choices?.[0]?.delta?.content;
-          if (text) yield text;
-          if (evt.usage) usage = xaiUsage(evt.usage);
-        } catch {
-          // ignore malformed frames - keepalive comments etc.
-        }
-      }
-    }
-  }
-  onUsage?.({ provider: 'xai', model: env.XAI_MODEL, ...usage });
 }
 
 async function* streamClaude(
@@ -475,70 +380,13 @@ async function* streamClaudeRaw(
   // Streaming responses can't be transparently retried mid-stream (we'd
   // emit duplicate deltas), so the connection itself isn't wrapped in
   // withRetry. The non-streaming generate() path remains the resilient
-  // fallback when the stream call fails outright.
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: env.ANTHROPIC_MODEL,
-      max_tokens: maxTokens,
-      stream: true,
-      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: user }],
-    }),
+  // fallback when the stream call fails outright. The shared claudeStream
+  // yields text deltas in order and reports the authoritative final usage
+  // (input + cache + output tokens) once the stream settles.
+  yield* claudeStream({
+    system,
+    user,
+    maxTokens,
+    onUsage: (usage) => onUsage?.({ provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...usage }),
   });
-  if (!response.ok || !response.body) {
-    const body = response.body ? await response.text() : '';
-    throw new Error(`Claude API ${response.status}: ${body}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  // Anthropic reports input + cache tokens on `message_start` and the running
-  // output token total on `message_delta` (the last one wins).
-  let usage: NormalizedUsage = {};
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE frames are separated by blank lines. Each frame contains one or more
-    // `event:` / `data:` lines. We only care about content_block_delta payloads.
-    let sep = buffer.indexOf('\n\n');
-    while (sep !== -1) {
-      const frame = buffer.slice(0, sep);
-      buffer = buffer.slice(sep + 2);
-      sep = buffer.indexOf('\n\n');
-
-      for (const line of frame.split('\n')) {
-        if (!line.startsWith('data:')) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === '[DONE]') continue;
-        try {
-          const evt = JSON.parse(payload) as {
-            type?: string;
-            delta?: { type?: string; text?: string };
-            message?: { usage?: Parameters<typeof anthropicUsage>[0] };
-            usage?: { output_tokens?: number };
-          };
-          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta' && evt.delta.text) {
-            yield evt.delta.text;
-          } else if (evt.type === 'message_start' && evt.message?.usage) {
-            usage = anthropicUsage(evt.message.usage);
-          } else if (evt.type === 'message_delta' && evt.usage?.output_tokens != null) {
-            usage = { ...usage, tokensOut: evt.usage.output_tokens };
-          }
-        } catch {
-          // ignore malformed frames - keepalive comments etc.
-        }
-      }
-    }
-  }
-  onUsage?.({ provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...usage });
 }

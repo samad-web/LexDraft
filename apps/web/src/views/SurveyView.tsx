@@ -809,7 +809,7 @@ function FieldRow({
 
   return (
     <div>
-      <label className="label" htmlFor={inputId(field)}>
+      <label className="label" id={labelId(field)} htmlFor={inputId(field)}>
         {field.prompt}
         {field.required && (
           <span aria-hidden style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>
@@ -844,6 +844,14 @@ function inputId(field: Field): string {
   return `survey-${field.name}`;
 }
 
+// Id of the FieldRow's visible <label> (see labelId usage in PhoneInput's
+// country-code <select> aria-describedby) so composite controls like
+// PhoneInput can tie their secondary input back to the question's label
+// even though the label's `for` targets only one of the two controls.
+function labelId(field: Field): string {
+  return `${inputId(field)}-label`;
+}
+
 function renderControl(
   field: Field,
   value: AnswerValue,
@@ -873,6 +881,7 @@ function renderControl(
       return (
         <PhoneInput
           id={inputId(field)}
+          labelId={labelId(field)}
           value={v}
           onChange={onChange}
           placeholder={field.placeholder}
@@ -1113,11 +1122,13 @@ function parsePhone(raw: string): { code: string; rest: string } {
 
 function PhoneInput({
   id,
+  labelId,
   value,
   onChange,
   autoComplete,
 }: {
   id: string;
+  labelId?: string;
   value: string;
   onChange: (v: AnswerValue) => void;
   placeholder?: string;
@@ -1162,6 +1173,7 @@ function PhoneInput({
         value={code}
         onChange={(e) => handleCode(e.target.value)}
         aria-label="Country code"
+        aria-describedby={labelId}
       >
         {COUNTRY_CODES.map((c) => (
           <option key={c.code} value={c.code} title={`${c.country} (${c.code})`}>

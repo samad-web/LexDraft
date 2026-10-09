@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ErrorState } from '@lexdraft/ui';
 import { api } from '@/lib/api';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -35,7 +36,7 @@ function useSanhita() {
 }
 
 export function SanhitaView() {
-  const { data: rows = [], isLoading, isError } = useSanhita();
+  const { data: rows = [], isLoading, isError, refetch } = useSanhita();
   const [filter, setFilter] = useState<'all' | OldAct>('all');
   const [q, setQ] = useState('');
 
@@ -136,8 +137,13 @@ export function SanhitaView() {
             )}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: 'var(--space-8)', color: 'var(--danger)' }}>
-                  Couldn’t load mappings.
+                <td colSpan={5}>
+                  <ErrorState
+                    variant="inline"
+                    title="Couldn't load mappings"
+                    description="Check your connection and try again."
+                    onRetry={() => { void refetch(); }}
+                  />
                 </td>
               </tr>
             )}
