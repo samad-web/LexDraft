@@ -294,10 +294,14 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
     caveat: caveatSearch,
   }[mode];
 
-  // Establishment code is REQUIRED for every mode. Without it eCourts
-  // searches zero establishments and returns a response that looks exactly
-  // like "no matching cases" but means "searched nothing" (verified live).
-  const scopeReady = stateCode !== '' && distCode !== '' && estCode.trim().length > 0;
+  // Court code is REQUIRED for every mode - it's what actually goes upstream
+  // as `court_code_arr` (see ecourts.service.ts). Without it eCourts searches
+  // zero establishments and returns a response that looks exactly like "no
+  // matching cases" but means "searched nothing" (verified live). The Court
+  // dropdown above auto-fills this; estCode alone is NOT enough to submit -
+  // that was the bug (dropdown picked, courtCode left at '0', silent empty
+  // search) this check now catches.
+  const scopeReady = stateCode !== '' && distCode !== '' && estCode.trim().length > 0 && courtCode.trim().length > 0 && courtCode !== '0';
   const fieldsReady = (() => {
     switch (mode) {
       case 'case-number': return caseType.trim() && regNo.trim();
@@ -460,7 +464,7 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
                     <select
                       className="input"
                       value={estCode}
-                      onChange={(e) => setEstCode(e.target.value)}
+                      onChange={(e) => { setEstCode(e.target.value); setCourtCode(e.target.value); }}
                       disabled={!complexCode}
                     >
                       <option value="">Select court</option>
@@ -472,7 +476,7 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
                     <select
                       className="input"
                       value={estCode}
-                      onChange={(e) => setEstCode(e.target.value)}
+                      onChange={(e) => { setEstCode(e.target.value); setCourtCode(e.target.value); }}
                       disabled={!complexCode}
                     >
                       <option value="">Select court</option>
@@ -492,8 +496,13 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
                 </label>
               ) : null}
               <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">Court code (optional)</span>
-                <input className="input" value={courtCode} onChange={(e) => setCourtCode(e.target.value.replace(/\D/g, ''))} placeholder="0" />
+                <span className="body-sm muted">Court code</span>
+                <input
+                  className="input"
+                  value={courtCode}
+                  onChange={(e) => setCourtCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder={complexes && complexes.length > 0 ? 'auto-filled from Court above' : 'e.g. 6'}
+                />
               </label>
             </div>
 
