@@ -577,6 +577,8 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
         </div>
       </div>
 
+      {mutation.isPending ? <SearchLoadingCard /> : null}
+
       {mutation.isError ? (
         <div className="card" style={{ borderColor: 'var(--vermillion)' }}>
           <div className="row" style={{ gap: 12 }}>
@@ -817,6 +819,35 @@ function LoadingCard({ cnr }: { cnr: string }) {
           <p className="body-sm muted">eCourts upstream is famously slow; this can take 5-15 seconds.</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Court-scope searches (party/case-number/advocate/etc.) hit the same slow
+// eCourts upstream but can run 20-30s+ (we've seen it time out at 30s) -
+// longer than a single CNR fetch. Without a visible loading state here the
+// page looks frozen/blank for that whole window; this fills it so the
+// advocate can see the search is actually in flight.
+function SearchLoadingCard() {
+  return (
+    <div className="card">
+      <div className="row" style={{ gap: 12 }}>
+        <span className="spinner" aria-hidden style={{
+          width: 14, height: 14, borderRadius: '50%',
+          border: '2px solid var(--border-subtle)', borderTopColor: 'var(--info)',
+          animation: 'ecourts-spin 0.8s linear infinite', flexShrink: 0,
+        }} />
+        <div>
+          <div className="heading-sm" style={{ marginBottom: 4 }}>Searching eCourts…</div>
+          <p className="body-sm muted">
+            eCourts' live upstream is slow and can take 20-30 seconds, sometimes longer. This isn't stuck -
+            hang tight.
+          </p>
+        </div>
+      </div>
+      <style>{`
+        @keyframes ecourts-spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
