@@ -1194,6 +1194,11 @@ export function DraftingView() {
         >
           My drafts
         </button>
+        {incomingDraftId && incomingDraft.isLoading && (
+          <p className="body-sm muted" style={{ flexBasis: '100%', margin: 0 }}>
+            Loading draft<span className="blink" />
+          </p>
+        )}
         <button
           className="btn"
           type="button"
