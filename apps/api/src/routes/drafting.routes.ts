@@ -667,6 +667,9 @@ function engineRoutingAllowed(email: string | undefined): boolean {
   // Dev-only escape hatch: any logged-in user (still requires the engine to be
   // configured and an authenticated email). Force-off in production via env.
   if (env.engineRoutingAllowAll) return true;
+  // Deliberate production-wide open (not NODE_ENV-gated) — every current AND
+  // future account, not just an enumerated allowlist.
+  if (env.engineRoutingOpenProd) return true;
   return env.engineRoutingAllowlist.has(email.toLowerCase());
 }
 

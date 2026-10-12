@@ -72,6 +72,11 @@ const Schema = z.object({
    *  DEV_AUTH_AUTO_PROVISION / WEBHOOK_ALLOW_UNVERIFIED): even if set in a prod
    *  .env by mistake, NODE_ENV='production' forces it off. */
   ENGINE_ROUTING_ALLOW_ALL: z.enum(['true', 'false']).default('false'),
+  /** Production-safe "open to everyone" switch: unlike ENGINE_ROUTING_ALLOW_ALL,
+   *  this is NOT gated off by NODE_ENV='production' — set it deliberately when
+   *  the engine-routed Draft path should be live for every current AND future
+   *  account (not just an enumerated allowlist). Off by default. */
+  ENGINE_ROUTING_OPEN_PROD: z.enum(['true', 'false']).default('false'),
 
   /** Run the conversational intake with ZERO LLM calls: a deterministic,
    *  rule-based extractor (dates/amounts/cheque no/enums via regex) plus the
@@ -234,6 +239,9 @@ export const env = {
   engineRoutingAllowAll:
     parsed.data.NODE_ENV !== 'production'
     && parsed.data.ENGINE_ROUTING_ALLOW_ALL === 'true',
+  /** Deliberate production-wide open — NOT NODE_ENV-gated. See
+   *  ENGINE_ROUTING_OPEN_PROD above. */
+  engineRoutingOpenProd: parsed.data.ENGINE_ROUTING_OPEN_PROD === 'true',
   /** Run conversational intake with no LLM calls (deterministic extractor +
    *  plain questions). Not NODE_ENV-gated — it's a quality/cost trade-off, safe
    *  in any environment (it never fabricates; it just extracts less). */

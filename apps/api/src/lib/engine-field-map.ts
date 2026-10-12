@@ -467,8 +467,11 @@ const CUSTOM_MAPPERS: Record<string, Mapper> = {
 const ROUTABLE_DOC_TYPES: readonly string[] = [
   // pilot (bespoke map)
   's138_notice',
-  // standalone affidavit doc-type (passthrough + contract coercion)
-  'affidavit',
+  // NOTE: standalone 'affidavit' is deliberately EXCLUDED — the engine's
+  // affidavit contract requires matter_type + affidavit_kind (and, for s138
+  // matters, the cheque/dishonour fields), which doc-schemas.ts does not yet
+  // collect. Routing it would 422 on every draft. Re-add once the web form
+  // gains those inputs. See engine-doc-contract.json for the field contract.
   // pleadings + notices (passthrough)
   's138_complaint', 'regular_bail', 'anticipatory_bail', 'default_bail',
   'general_notice', 'plaint', 'summary_suit', 'injunction', 'writ_petition',
