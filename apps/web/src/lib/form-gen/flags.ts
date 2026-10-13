@@ -24,7 +24,10 @@ const ENABLED_IN_CODE: ReadonlySet<string> = new Set<string>([
                        //    KNOWN LATENT BREAK in drafting.routes.ts) and all 14 required
                        //    engine fields, but still needs advocate sign-off against a
                        //    filed-and-accepted affidavit before this flips on for real users.
-                       //    Verify via VITE_FORMGEN_DOCTYPES=affidavit first.
+                       //    VITE_FORMGEN_DOCTYPES is baked in at BUILD time (Vite env), not
+                       //    runtime-injectable into an already-built image — set it as a
+                       //    docker build --build-arg (see apps/web/Dockerfile) for a
+                       //    throwaway verification build, same as was done to confirm this.
 ]);
 
 /** Runtime override: VITE_FORMGEN_DOCTYPES="regular_bail,lease_deed". A leading "!"
