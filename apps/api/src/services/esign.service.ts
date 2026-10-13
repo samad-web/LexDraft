@@ -440,6 +440,7 @@ export const esignService = {
       },
       row.firm_id,
     );
+    if (!signedDoc.id) throw new HttpError(500, 'Signed document was created without an id');
 
     await sql`
       update esign_requests
