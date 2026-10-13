@@ -58,6 +58,7 @@ const FirmDashboardView = lazy(() => import('@/views/FirmDashboardView').then((m
 const PortalInboxView = lazy(() => import('@/views/PortalInboxView').then((m) => ({ default: m.PortalInboxView })));
 const InviteAcceptView = lazy(() => import('@/views/InviteAcceptView').then((m) => ({ default: m.InviteAcceptView })));
 const CoCounselAcceptView = lazy(() => import('@/views/CoCounselAcceptView').then((m) => ({ default: m.CoCounselAcceptView })));
+const SignView = lazy(() => import('@/views/SignView').then((m) => ({ default: m.SignView })));
 const ManageView = lazy(() => import('@/views/manage/ManageView').then((m) => ({ default: m.ManageView })));
 const SanhitaView = lazy(() => import('@/views/SanhitaView').then((m) => ({ default: m.SanhitaView })));
 const CalculatorsView = lazy(() => import('@/views/CalculatorsView').then((m) => ({ default: m.CalculatorsView })));
@@ -160,7 +161,8 @@ export function App() {
     location.pathname.startsWith('/auth') ||
     location.pathname.startsWith('/signup') ||
     location.pathname.startsWith('/invite') ||
-    location.pathname.startsWith('/survey');
+    location.pathname.startsWith('/survey') ||
+    location.pathname.startsWith('/sign/');
 
   // Client portal lives in its own auth space (magic-link → portal JWT). It
   // does NOT depend on the advocate session in `useAuthStore`, so the rest of
@@ -202,6 +204,7 @@ export function App() {
             <Route path="/signup" element={<SignupView />} />
             <Route path="/invite/:token" element={<InviteAcceptView />} />
             <Route path="/co-counsel/accept/:token" element={<CoCounselAcceptView />} />
+            <Route path="/sign/:token" element={<SignView />} />
             <Route path="/survey" element={<SurveyView />} />
             <Route path="/survey/thanks" element={<SurveyThanksView />} />
             <Route path="*" element={<Navigate to="/" replace />} />

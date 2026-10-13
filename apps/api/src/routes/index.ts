@@ -45,6 +45,7 @@ import { calculatorsRouter } from './calculators.routes';
 import { conflictsRouter } from './conflicts.routes';
 import { coverageRouter } from './coverage.routes';
 import { coCounselRouter } from './co-counsel.routes';
+import { esignRouter } from './esign.routes';
 import { practiceAnalyticsRouter } from './practice-analytics.routes';
 import { engagementRouter } from './engagement.routes';
 import { caseloadHealthRouter } from './caseload-health.routes';
@@ -128,6 +129,13 @@ apiRouter.use('/invitations', invitationsRouter);
 // mount level - a brand-new co-counsel guest has no plan to check yet, and a
 // lapsed-plan advocate should still be able to accept/decline a handover.
 apiRouter.use('/co-counsel', coCounselRouter);
+
+// Mixed, same reasoning as /co-counsel: the signer-facing by-token/*
+// endpoints are public (a client or opposing counsel usually has no
+// LexDraft account); everything else under /esign applies requireAuth via
+// the router itself. No requireActivePlan at the mount level for the same
+// reason as co-counsel's guest path - a signer isn't on any firm's plan.
+apiRouter.use('/esign', esignRouter);
 
 // Protected. `requireActivePlan` runs after `requireAuth` on every feature
 // mount and returns 402 (PaymentRequired) when firms.plan_status is

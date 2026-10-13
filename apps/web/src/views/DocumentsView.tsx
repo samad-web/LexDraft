@@ -8,6 +8,8 @@ import type { DocumentRecord } from '@lexdraft/types';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
 import { DocumentViewerModal } from '@/components/DocumentViewerModal';
 import { EditDocumentModal } from '@/components/EditDocumentModal';
+import { SendForSignatureModal } from '@/components/SendForSignatureModal';
+import { Gate } from '@/components/Gate';
 import { useUpdateDocumentPortalFlags } from '@/hooks/usePortalAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -65,6 +67,7 @@ export function DocumentsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
   const [editing, setEditing] = useState<DocumentRecord | null>(null);
+  const [signing, setSigning] = useState<DocumentRecord | null>(null);
   const updateFlags = useUpdateDocumentPortalFlags();
   const deleteDocument = useDeleteDocument();
   const deleteDraft = useDeleteDraft();
@@ -367,6 +370,19 @@ export function DocumentsView() {
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
+                            {d.hasFile && docId && (
+                              <Gate feature="esign.send">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-ghost"
+                                  onClick={() => setSigning(d)}
+                                  title="Send for electronic signature"
+                                  aria-label={`Send ${d.name} for signature`}
+                                >
+                                  <Icon name="check" size={12} />
+                                </button>
+                              </Gate>
+                            )}
                             <button
                               type="button"
                               className="btn btn-sm btn-ghost"
@@ -465,6 +481,14 @@ export function DocumentsView() {
       </FAB>
       <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />
       <EditDocumentModal doc={editing} onClose={() => setEditing(null)} />
+      {signing?.id && (
+        <SendForSignatureModal
+          open={!!signing}
+          onClose={() => setSigning(null)}
+          documentId={signing.id}
+          documentName={signing.name}
+        />
+      )}
     </div>
   );
 }
