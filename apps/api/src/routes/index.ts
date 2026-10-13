@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
+import { env } from '../env';
 import { authRouter } from './auth.routes';
 import { casesRouter } from './cases.routes';
 import { caseNotesRouter } from './case-notes.routes';
@@ -65,6 +66,14 @@ apiRouter.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toIS
 // Readiness - process is up AND can talk to its dependencies. Used by the
 // orchestrator's readinessProbe so a pod with a broken DB connection is
 // pulled out of the load balancer instead of serving 500s.
+//
+// `checks` carries HARD-FAIL dependencies (DB) that flip `ok`/503 - the thing
+// the orchestrator acts on. `advisories` carries configuration gaps that are
+// real but NOT fatal to serving traffic (e.g. SMTP unconfigured means emails
+// silently log instead of sending - a real problem, but pulling the pod from
+// the load balancer over it would be worse). Keep the two separate so a
+// monitoring dashboard can alert on advisories without the orchestrator
+// treating them as a liveness failure.
 apiRouter.get('/ready', async (_req, res) => {
   const checks: Record<string, { ok: boolean; ms?: number; error?: string }> = {};
   const sql = db();
@@ -80,7 +89,16 @@ apiRouter.get('/ready', async (_req, res) => {
     }
   }
   const ok = Object.values(checks).every((c) => c.ok);
-  res.status(ok ? 200 : 503).json({ ok, ts: new Date().toISOString(), checks });
+
+  const advisories: Record<string, { ok: boolean; note: string }> = {};
+  if (env.NODE_ENV === 'production' && !env.hasSmtp) {
+    advisories.smtp = {
+      ok: false,
+      note: 'SMTP_HOST is blank - hearing reminders, invoice notices, and portal emails are logged only, not delivered.',
+    };
+  }
+
+  res.status(ok ? 200 : 503).json({ ok, ts: new Date().toISOString(), checks, advisories });
 });
 
 // Public.

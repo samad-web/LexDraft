@@ -11,6 +11,20 @@ const server = app.listen(env.PORT, () => {
   logger.info(`LexDraft API listening on http://localhost:${env.PORT}`);
 });
 
+// Email is the ONLY delivery channel for hearing reminders, invoice-issued
+// notices, and portal messages (see notifications.service.ts) - without
+// SMTP_HOST, email.service.ts silently logs every send instead of delivering
+// it, with no other sign to an operator. That's fine in dev (expected,
+// everyone knows); in production it means hearing reminders could be going
+// nowhere with nobody aware. Surface it loudly, once, at boot.
+if (env.NODE_ENV === 'production' && !env.hasSmtp) {
+  logger.warn(
+    'SMTP is not configured (SMTP_HOST is blank) - hearing reminders, invoice notices, and portal '
+    + 'emails will be logged only, NOT delivered. Set SMTP_HOST/SMTP_USER/SMTP_PASSWORD in '
+    + 'production to actually send them.',
+  );
+}
+
 // Warm the LibreOffice profile off the request path so the advocate's first
 // "Download PDF" / preview is on the fast (~3s) warm path instead of paying the
 // one-time ~10s+ profile-creation cost. Best-effort, never blocks boot.
