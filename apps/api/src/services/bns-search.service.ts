@@ -1,5 +1,6 @@
 import { db } from '../db/client';
 import type { LawHit } from './laws-search.service';
+import { lookupByOldSection } from './sanhita.service';
 
 // =============================================================================
 // Local BNS full-text search — the no-external-API fallback for the "Search
@@ -63,6 +64,20 @@ function extractSectionNumber(query: string): string | null {
   return m ? m[1]! : null;
 }
 
+/** "IPC 420" / "ipc 420" / "420 IPC" — pull an old-code section reference so
+ *  it can be resolved through the real crosswalk (sanhita-map.json) rather
+ *  than the BNS JSON's own oldSection field, which is empty for every row
+ *  in the current source file (the fetch script never populated it). */
+function extractOldSection(query: string): { act: 'IPC' | 'CrPC' | 'IEA'; section: string } | null {
+  const m = query.trim().match(/\b(ipc|crpc|cr\.?p\.?c\.?|iea)\s*(\d+[A-Za-z]?)\b|\b(\d+[A-Za-z]?)\s*(ipc|crpc|cr\.?p\.?c\.?|iea)\b/i);
+  if (!m) return null;
+  const rawAct = (m[1] ?? m[4] ?? '').toUpperCase();
+  const section = m[2] ?? m[3];
+  if (!section) return null;
+  const act = rawAct.startsWith('IPC') ? 'IPC' : rawAct.startsWith('IEA') ? 'IEA' : 'CrPC';
+  return { act, section };
+}
+
 export const bnsSearchService = {
   /** True once at least one row has been ingested. Cheap enough to call per
    *  request — this is a local table, not a network round trip. */
@@ -80,6 +95,29 @@ export const bnsSearchService = {
     if (!sql) return [];
     const trimmed = query.trim();
     if (!trimmed) return [];
+
+    // "IPC 420"-style: resolve through the real crosswalk (sanhita-map.json)
+    // before anything else — this is the authoritative renumbering table,
+    // not the BNS JSON's own oldSection field (empty for every row today).
+    const oldRef = extractOldSection(trimmed);
+    if (oldRef) {
+      const mapping = lookupByOldSection(oldRef);
+      if (mapping && mapping.toAct === 'BNS') {
+        // toSection can carry a sub-clause ("318(4)") the base-section table
+        // doesn't key on; strip it for the row lookup but keep it in the hit
+        // via sectionHeading so the advocate sees the precise cite.
+        const baseSection = mapping.toSection.replace(/\(.*$/, '');
+        const hits = await this.lookup(baseSection, k);
+        return hits.map((h) => ({
+          ...h,
+          citation: `BNS ${mapping.toSection}`,
+          oldSection: `${oldRef.act} ${oldRef.section}`,
+        }));
+      }
+      // A recognised old-code reference with no mapping in our curated
+      // table: stay silent rather than guess (same policy as scanText()) —
+      // fall through to full-text on the raw query instead of a wrong hit.
+    }
 
     // A bare/near-bare section number: exact lookup, no ranking ambiguity.
     const sectionNumber = extractSectionNumber(trimmed);
