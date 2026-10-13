@@ -2,6 +2,7 @@ import { env } from '../env';
 import { lawsDb } from '../lib/laws-db';
 import { embeddingsService } from './embeddings.service';
 import { logger } from '../logger';
+import { bnsSearchService } from './bns-search.service';
 
 // ---- Wire-shape returned to the web client ---------------------------------
 
@@ -27,6 +28,15 @@ export interface LawHit {
   jurisdiction: Jurisdiction;
   /** When jurisdiction === 'State', the canonical state name. */
   state: string | null;
+  /** True when this hit's text has been checked by counsel against the
+   *  primary source; false when it's machine-parsed and not yet reviewed.
+   *  Undefined for sources (the external indiacode-rag corpus) that don't
+   *  track this distinction — only the local BNS corpus sets it today. The
+   *  UI must never present an unverified hit as a confirmed citation. */
+  verified?: boolean;
+  /** Pre-2023 section this BNS section replaced (e.g. "IPC 302"), when
+   *  known. Local-corpus only. */
+  oldSection?: string | null;
 }
 
 // ---- Row shape returned by the match_laws RPC ------------------------------
@@ -337,8 +347,22 @@ export interface SearchOptions {
 }
 
 export const lawsSearchService = {
+  /** True when EITHER the external indiacode-rag corpus is configured, OR
+   *  the app DB is reachable (the local BNS corpus might have rows — a
+   *  cheap synchronous signal; search()/lookup() degrade to an honest empty
+   *  result if the local table turns out to be unseeded, same as the UI's
+   *  existing "No matches" state). Kept synchronous because the route layer
+   *  uses this as a pre-flight guard before the real (async) search call. */
   configured(): boolean {
-    return env.hasLawsCorpus;
+    return env.hasLawsCorpus || env.hasDatabase;
+  },
+
+  /** Which backend a search/lookup call will actually use — so the UI can
+   *  describe honestly what's answering (full indiacode-rag hybrid search
+   *  vs. the narrower local BNS-only full-text fallback) instead of a
+   *  static claim that's only sometimes true. */
+  activeSource(): 'external' | 'local-bns' {
+    return env.hasLawsCorpus ? 'external' : 'local-bns';
   },
 
   /**
@@ -362,7 +386,14 @@ export const lawsSearchService = {
 
     const sql = lawsDb();
     if (!sql) {
-      throw new Error('LAWS_DATABASE_URL not configured — cannot search the corpus.');
+      // No external corpus configured — fall back to the local BNS table
+      // (see bns-search.service.ts). Narrower coverage (BNS only, no
+      // vector/semantic matching, just full-text), but real statute text,
+      // not an error. Scope/actId filters don't apply here — the local
+      // corpus is a single central act, so neither would exclude anything.
+      const hits = await bnsSearchService.search(trimmed, k);
+      if (cacheKey_) cacheSet(cacheKey_, hits);
+      return hits;
     }
 
     const { embeddings } = await embeddingsService.embed([trimmed]);
@@ -427,7 +458,12 @@ export const lawsSearchService = {
    */
   async lookup(actQuery: string, sectionNumber: string, k = 5): Promise<LawHit[]> {
     const sql = lawsDb();
-    if (!sql) throw new Error('LAWS_DATABASE_URL not configured.');
+    if (!sql) {
+      // Local fallback only knows BNS — an explicit lookup against any
+      // other act correctly returns nothing rather than a wrong/stale hit.
+      if (actQuery.trim().toUpperCase() !== 'BNS') return [];
+      return bnsSearchService.lookup(sectionNumber, k);
+    }
     // lookup_section returns section_number_out (the function renames the
     // column to avoid colliding with the input parameter name). Alias it
     // back to section_number for the shared fromMatchRow shape.

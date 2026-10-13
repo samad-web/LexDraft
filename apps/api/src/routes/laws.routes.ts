@@ -73,7 +73,7 @@ lawsRouter.post('/search', requireFeature('research.basic'), async (req, res, ne
       rerank: body.rerank,
       scope,
     });
-    res.json({ query: body.query, results });
+    res.json({ query: body.query, results, source: lawsSearchService.activeSource() });
   } catch (err) {
     next(err);
   }
@@ -88,7 +88,7 @@ lawsRouter.post('/lookup', requireFeature('research.basic'), async (req, res, ne
     ensureConfigured();
     const body = LookupBody.parse(req.body);
     const results = await lawsSearchService.lookup(body.act, body.section, body.k);
-    res.json({ act: body.act, section: body.section, results });
+    res.json({ act: body.act, section: body.section, results, source: lawsSearchService.activeSource() });
   } catch (err) {
     next(err);
   }

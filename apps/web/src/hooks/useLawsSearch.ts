@@ -25,6 +25,13 @@ export interface LawHit {
   jurisdiction: Jurisdiction;
   /** When jurisdiction === 'State', the canonical state name. */
   state: string | null;
+  /** False = parsed from the source PDF, not yet checked by counsel against
+   *  the primary source. Undefined = the source doesn't track this (the
+   *  external corpus). Never render an unverified hit as a confirmed
+   *  citation. */
+  verified?: boolean;
+  /** Pre-2023 section this replaced, e.g. "IPC 302", when known. */
+  oldSection?: string | null;
 }
 
 export interface LawsSearchRequest {
@@ -53,6 +60,10 @@ export const CANONICAL_STATES = [
 export interface LawsSearchResponse {
   query: string;
   results: LawHit[];
+  /** Which backend answered: the full external hybrid-search corpus, or the
+   *  narrower local BNS-only full-text fallback. Lets the UI describe the
+   *  search honestly instead of a static claim. */
+  source?: 'external' | 'local-bns';
 }
 
 export interface LawsLookupRequest {

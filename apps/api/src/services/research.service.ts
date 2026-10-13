@@ -40,6 +40,19 @@ export const researchService = {
         code: 'RESEARCH_NOT_IMPLEMENTED',
       });
     }
+    if (env.RESEARCH_PROVIDER === 'indiacode') {
+      // This provider name implies a real Q&A/synthesis backend over the
+      // indiacode-rag corpus, but no such synthesis service exists in this
+      // repo (laws-search.service.ts does retrieval/search, not answer
+      // generation - see the "Search statutes" tab instead). Serving the
+      // DEMO_ANSWER's fabricated case citations under a real-sounding
+      // provider name would be worse than the 'none' 501: it would look
+      // configured and correct. 501 honestly until a real synthesis path
+      // is built.
+      throw new HttpError(501, 'Research Q&A synthesis is not built yet - try Search statutes instead', {
+        code: 'RESEARCH_NOT_IMPLEMENTED',
+      });
+    }
     return { ...DEMO_ANSWER, query };
   },
 };

@@ -9,6 +9,7 @@ import {
   type LawHit,
 } from '@/hooks/useLawsSearch';
 import { JurisdictionBadge } from '@/components/JurisdictionBadge';
+import { VerificationBadge } from '@/components/VerificationBadge';
 
 type ScopeKind = 'all' | 'central' | 'state';
 import { useUIStore } from '@/store/ui';
@@ -145,9 +146,12 @@ export function ResearchView() {
   };
 
   const copyCitation = async (hit: LawHit) => {
-    const text = hit.citation
+    const caveat = hit.verified === false
+      ? '\n\n[NEEDS REVIEW — parsed from the official gazette text, not yet checked by counsel against the primary source. Verify before citing in a filing.]'
+      : '';
+    const text = (hit.citation
       ? `${hit.citation}\n\n${hit.content}`
-      : `${hit.actTitle ?? 'Indian law'}, section ${hit.sectionNumber ?? '?'}\n\n${hit.content}`;
+      : `${hit.actTitle ?? 'Indian law'}, section ${hit.sectionNumber ?? '?'}\n\n${hit.content}`) + caveat;
     try {
       await navigator.clipboard.writeText(text);
       showToast({ type: 'sage', text: 'Citation copied' });
@@ -157,12 +161,17 @@ export function ResearchView() {
   };
 
   const insertInDraft = (hit: LawHit) => {
+    const base = hit.citation ?? `${hit.actTitle ?? ''} ${hit.sectionNumber ?? ''}`.trim();
     navigate('/app/draft', {
       state: {
         researchCitation: {
           query,
           answer: hit.content,
-          citationText: hit.citation ?? `${hit.actTitle ?? ''} ${hit.sectionNumber ?? ''}`.trim(),
+          // Carry the verification caveat INTO the draft text itself, not
+          // just the search-results screen — this is what ends up in
+          // "Authority: ..." inside the drafted document, the highest-
+          // stakes place for an unverified parse to silently look final.
+          citationText: hit.verified === false ? `${base} [NEEDS REVIEW — not yet counsel-verified]` : base,
         },
       },
     });
@@ -178,7 +187,9 @@ export function ResearchView() {
         <p className="lede" style={{ maxWidth: '60ch', marginTop: 8 }}>
           {mode === 'ask'
             ? 'Synthesised answers from Indian statutes, Supreme Court & High Court judgments, with traceable citations.'
-            : 'Direct hybrid search (vector + keyword) over the indexed corpus. Returns matching sections with citations and source PDFs.'}
+            : lawsSearch.data?.source === 'local-bns'
+              ? 'Full-text search over the Bharatiya Nyaya Sanhita, 2023 (criminal code) — real gazette text, parsed but not yet counsel-verified. No other acts or case law are indexed yet.'
+              : 'Direct hybrid search (vector + keyword) over the indexed corpus. Returns matching sections with citations and source PDFs.'}
         </p>
       </div>
 
@@ -393,11 +404,17 @@ export function ResearchView() {
                       </>
                     )}
                     <JurisdictionBadge jurisdiction={hit.jurisdiction} state={hit.state} />
+                    <VerificationBadge verified={hit.verified} />
                     <span className="spacer" />
                     <span className="mono body-xs muted" title="Reciprocal-rank-fusion score">
                       {(hit.rerankScore ?? hit.score).toFixed(3)}
                     </span>
                   </div>
+                  {hit.oldSection && (
+                    <p className="body-xs muted" style={{ marginBottom: 8 }}>
+                      Replaces {hit.oldSection}
+                    </p>
+                  )}
                   <p className="body-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
                     {hit.content}
                   </p>
