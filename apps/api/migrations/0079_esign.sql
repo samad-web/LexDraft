@@ -150,17 +150,27 @@ create table if not exists esign_audit_events (
   -- 'otp_sent' | 'otp_verified' | 'otp_failed' | 'signed' | 'declined' |
   -- 'completed' | 'cancelled' | 'expired' | 'downloaded'
   event_type          text not null,
-  detail              jsonb not null default '{}'::jsonb,
+  -- Stored as the EXACT JSON.stringify() text used to compute event_hash -
+  -- a jsonb column would re-canonicalise key order/whitespace on storage,
+  -- which would silently break the hash chain on every read-back (this bit
+  -- us in testing: recomputing from a jsonb round-trip never matched the
+  -- original hash). detail_json is parsed back to an object at the
+  -- service layer; it's just stored as text so the exact bytes are stable.
+  detail_json         text not null default '{}',
   ip_address          text,
   user_agent          text,
-  -- Hash chain: sha256(prev_event_hash || event_type || detail || occurred_at)
-  -- for the previous event on this SAME request (null for the first event).
-  -- Any later edit/delete of an earlier row changes what a re-computed chain
-  -- produces, so tampering is detectable by recomputation even without a CA-
-  -- backed timestamp authority. See esign-audit.service.ts for the exact
-  -- hashing procedure.
+  -- Hash chain: sha256(prev_event_hash || event_type || detail_json ||
+  -- occurred_at_iso) for the previous event on this SAME request (null for
+  -- the first event). occurred_at_iso is stored alongside the timestamptz
+  -- column for the same reason as detail_json — hashing must use the EXACT
+  -- string that was hashed at write time, not a value re-derived from
+  -- Postgres's own timestamptz formatting on read-back. Any later edit or
+  -- deletion of an earlier row changes what a re-computed chain produces,
+  -- so tampering is detectable even without a CA-backed timestamp
+  -- authority. See esign-audit.service.ts for the exact hashing procedure.
   prev_event_hash     text,
   event_hash          text not null,
-  occurred_at         timestamptz not null default now()
+  occurred_at         timestamptz not null default now(),
+  occurred_at_iso     text not null
 );
 create index if not exists esign_audit_events_request_idx on esign_audit_events (request_id, occurred_at);

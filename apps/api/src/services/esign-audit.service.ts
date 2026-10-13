@@ -13,6 +13,14 @@ import { db } from '../db/client';
 // self-built, non-CA-backed system can get to tamper-evidence. It is NOT a
 // cryptographic timestamp authority and does not substitute for one; it only
 // proves internal consistency of LexDraft's own records.
+//
+// detail and occurred_at are hashed from their EXACT stored string form
+// (detail_json text, occurred_at_iso text) — NOT from Postgres's jsonb/
+// timestamptz read-back. jsonb re-canonicalises key order/whitespace on
+// storage and timestamptz formatting can round-trip differently than the
+// JS Date.toISOString() that was hashed at write time; either one silently
+// breaks every recomputed hash if used. Verified against this exact bug in
+// testing before it shipped.
 // =============================================================================
 
 export type EsignEventType =
@@ -38,40 +46,41 @@ interface Row {
   request_id: string;
   signer_id: string | null;
   event_type: string;
-  detail: unknown;
+  detail_json: string;
   ip_address: string | null;
   user_agent: string | null;
   prev_event_hash: string | null;
   event_hash: string;
-  occurred_at: string;
+  occurred_at_iso: string;
 }
 
 function fromRow(r: Row): EsignAuditEvent {
+  let detail: Record<string, unknown> = {};
+  try { detail = JSON.parse(r.detail_json) as Record<string, unknown>; } catch { /* leave empty */ }
   return {
     id: r.id,
     requestId: r.request_id,
     signerId: r.signer_id,
     eventType: r.event_type as EsignEventType,
-    detail: (r.detail ?? {}) as Record<string, unknown>,
+    detail,
     ipAddress: r.ip_address,
     userAgent: r.user_agent,
     prevEventHash: r.prev_event_hash,
     eventHash: r.event_hash,
-    occurredAt: new Date(r.occurred_at).toISOString(),
+    occurredAt: r.occurred_at_iso,
   };
 }
 
-/** sha256(prevHash || eventType || canonical(detail) || occurredAtIso).
- *  JSON.stringify on an object with stable insertion order is sufficient
- *  here - detail objects are built fresh per call-site, not round-tripped
- *  through a source that could reorder keys. */
-function computeHash(prevHash: string | null, eventType: string, detail: unknown, occurredAtIso: string): string {
+/** sha256(prevHash || eventType || detailJson || occurredAtIso). Operates
+ *  on the EXACT strings that get stored — never re-derive these from a
+ *  parsed/reformatted value, or the chain breaks on every read-back. */
+function computeHash(prevHash: string | null, eventType: string, detailJson: string, occurredAtIso: string): string {
   const h = createHash('sha256');
   h.update(prevHash ?? '');
   h.update('\0');
   h.update(eventType);
   h.update('\0');
-  h.update(JSON.stringify(detail ?? {}));
+  h.update(detailJson);
   h.update('\0');
   h.update(occurredAtIso);
   return h.digest('hex');
@@ -105,15 +114,15 @@ export const esignAuditService = {
     const prevHash = last[0]?.event_hash ?? null;
     const occurredAt = new Date();
     const occurredAtIso = occurredAt.toISOString();
-    const detail = input.detail ?? {};
-    const eventHash = computeHash(prevHash, input.eventType, detail, occurredAtIso);
+    const detailJson = JSON.stringify(input.detail ?? {});
+    const eventHash = computeHash(prevHash, input.eventType, detailJson, occurredAtIso);
 
     const rows = await sql<Row[]>`
       insert into esign_audit_events
-        (request_id, signer_id, event_type, detail, ip_address, user_agent, prev_event_hash, event_hash, occurred_at)
+        (request_id, signer_id, event_type, detail_json, ip_address, user_agent, prev_event_hash, event_hash, occurred_at, occurred_at_iso)
       values
-        (${input.requestId}, ${input.signerId ?? null}, ${input.eventType}, ${JSON.stringify(detail)}::jsonb,
-         ${input.ipAddress ?? null}, ${input.userAgent ?? null}, ${prevHash}, ${eventHash}, ${occurredAt})
+        (${input.requestId}, ${input.signerId ?? null}, ${input.eventType}, ${detailJson},
+         ${input.ipAddress ?? null}, ${input.userAgent ?? null}, ${prevHash}, ${eventHash}, ${occurredAt}, ${occurredAtIso})
       returning *
     `;
     return fromRow(rows[0]!);
@@ -135,15 +144,19 @@ export const esignAuditService = {
    *  integrity" action; not called on every read (recomputing per-request on
    *  every GET would be wasteful - this is for export/dispute time). */
   async verifyChain(requestId: string): Promise<{ intact: boolean; brokenAt?: { eventId: string; index: number } }> {
-    const events = await this.listForRequest(requestId);
+    const sql = db();
+    if (!sql) return { intact: true };
+    const rows = await sql<Row[]>`
+      select * from esign_audit_events where request_id = ${requestId} order by occurred_at asc, id asc
+    `;
     let prevHash: string | null = null;
-    for (let i = 0; i < events.length; i += 1) {
-      const e = events[i]!;
-      const expected = computeHash(prevHash, e.eventType, e.detail, e.occurredAt);
-      if (expected !== e.eventHash || e.prevEventHash !== prevHash) {
-        return { intact: false, brokenAt: { eventId: e.id, index: i } };
+    for (let i = 0; i < rows.length; i += 1) {
+      const r = rows[i]!;
+      const expected = computeHash(prevHash, r.event_type, r.detail_json, r.occurred_at_iso);
+      if (expected !== r.event_hash || r.prev_event_hash !== prevHash) {
+        return { intact: false, brokenAt: { eventId: r.id, index: i } };
       }
-      prevHash = e.eventHash;
+      prevHash = r.event_hash;
     }
     return { intact: true };
   },
