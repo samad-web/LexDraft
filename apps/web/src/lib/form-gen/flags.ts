@@ -20,6 +20,11 @@
  */
 const ENABLED_IN_CODE: ReadonlySet<string> = new Set<string>([
   // 'regular_bail',  // <- HELD: do not enable until advocate sign-off of the gold template
+  // 'affidavit',     // <- HELD: presentation now covers matter_type/affidavit_kind (the
+                       //    KNOWN LATENT BREAK in drafting.routes.ts) and all 14 required
+                       //    engine fields, but still needs advocate sign-off against a
+                       //    filed-and-accepted affidavit before this flips on for real users.
+                       //    Verify via VITE_FORMGEN_DOCTYPES=affidavit first.
 ]);
 
 /** Runtime override: VITE_FORMGEN_DOCTYPES="regular_bail,lease_deed". A leading "!"

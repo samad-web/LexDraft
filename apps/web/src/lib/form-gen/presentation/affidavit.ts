@@ -12,9 +12,19 @@ export const affidavitPresentation: DocPresentation = {
     'A standalone affidavit: the deponent competence clause, numbered averments of fact, ' +
     'prayer, and attestation. Corporate and third-party deponents require the extra ' +
     'averments the law mandates (authority reference / source of knowledge).',
-  sectionOrder: ['Court & Cause Title', 'Parties', 'Deponent', 'The Affidavit', 'Competence', 'Attestation'],
+  sectionOrder: ['Affidavit Type', 'Court & Cause Title', 'Parties', 'Deponent', 'The Affidavit', 'Cheque Dishonour (s.138 only)', 'Competence', 'Attestation'],
   defaultSection: 'Other',
   fields: {
+    // --- Affidavit Type (drives which mandatory averments the engine adds —
+    // REQUIRED, the engine 422s without both. Asked first so the rest of the
+    // form can route off it later if needed.) ---
+    matter_type: { label: 'What kind of matter is this affidavit for?', section: 'Affidavit Type', order: 1,
+      enumLabels: { s138: 'Cheque dishonour (s.138 NI Act)', civil_suit: 'Civil suit', bail: 'Bail application', writ: 'Writ petition', other: 'Other' },
+      help: 'Picks which mandatory averments the engine adds — e.g. a s.138 affidavit needs the cheque/dishonour facts below.' },
+    affidavit_kind: { label: 'Affidavit type', section: 'Affidavit Type', order: 2,
+      enumLabels: { s145_proof: 'Proof affidavit (s.145 NI Act — in lieu of oral evidence)', supporting: 'Supporting an application', interlocutory: 'Interlocutory' },
+      help: 'A s.145 proof affidavit stands in for the deponent’s oral evidence-in-chief; a supporting affidavit backs an application or pleading.' },
+
     // --- Court & Cause Title (full court-affidavit format; all optional) ---
     court_name: { label: 'Court', section: 'Court & Cause Title', order: 1,
       placeholder: 'e.g. DISTRICT JUDGE' },
@@ -55,6 +65,28 @@ export const affidavitPresentation: DocPresentation = {
         'from para 2. Do not type the numbers.' },
     prayer: { label: 'Prayer', section: 'The Affidavit', order: 5,
       placeholder: 'e.g. allow the writ petition' },
+
+    // --- Cheque Dishonour (s.138 NI Act matters only) ---
+    // NOTE: visibleWhen is attached (matches the pattern below) but the field
+    // renderer doesn't consume it yet anywhere in the app (verified — no
+    // component reads DocField.visibleWhen), so these show unconditionally
+    // for now, same as is_corporate's/is_third_party's conditional fields
+    // already do. All optional per the engine contract, so this is a UX wart,
+    // not a 422 risk — leave the annotation in so it activates for free once
+    // visibleWhen is wired up.
+    presentation_date: { label: 'Date cheque was presented', section: 'Cheque Dishonour (s.138 only)', order: 1,
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
+    presentation_bank: { label: 'Bank where presented', section: 'Cheque Dishonour (s.138 only)', order: 2,
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
+    dishonour_reason: { label: 'Reason for dishonour', section: 'Cheque Dishonour (s.138 only)', order: 3,
+      placeholder: 'e.g. Funds Insufficient',
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
+    memo_date: { label: 'Date of bank return memo', section: 'Cheque Dishonour (s.138 only)', order: 4,
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
+    memo_received_date: { label: 'Date return memo was received', section: 'Cheque Dishonour (s.138 only)', order: 5,
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
+    notice_date: { label: 'Date of statutory demand notice', section: 'Cheque Dishonour (s.138 only)', order: 6,
+      visibleWhen: { field: 'matter_type', equals: 's138' } },
 
     // --- Competence (corporate / third-party) ---
     is_corporate: { label: 'Corporate deponent?', section: 'Competence', order: 1,

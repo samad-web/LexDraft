@@ -467,11 +467,16 @@ const CUSTOM_MAPPERS: Record<string, Mapper> = {
 const ROUTABLE_DOC_TYPES: readonly string[] = [
   // pilot (bespoke map)
   's138_notice',
-  // NOTE: standalone 'affidavit' is deliberately EXCLUDED — the engine's
-  // affidavit contract requires matter_type + affidavit_kind (and, for s138
-  // matters, the cheque/dishonour fields), which doc-schemas.ts does not yet
-  // collect. Routing it would 422 on every draft. Re-add once the web form
-  // gains those inputs. See engine-doc-contract.json for the field contract.
+  // NOTE: standalone 'affidavit' is deliberately EXCLUDED. The GENERATED form
+  // now covers it (apps/web/src/lib/form-gen/presentation/affidavit.ts has
+  // matter_type/affidavit_kind + all 14 required engine fields), but the
+  // legacy static form in doc-schemas.ts — what's actually live today, since
+  // the affidavit form-gen flag is still off pending advocate sign-off (see
+  // form-gen/flags.ts) — uses completely different field keys (deponent_age,
+  // purpose, paragraphs, ...) that don't map to the engine contract at all.
+  // Routing it NOW would mis-map the legacy form's fields and still 422 or
+  // worse. Add 'affidavit' here ONLY after the form-gen flag is flipped on
+  // for it (ENABLED_IN_CODE or VITE_FORMGEN_DOCTYPES=affidavit) — not before.
   // pleadings + notices (passthrough)
   's138_complaint', 'regular_bail', 'anticipatory_bail', 'default_bail',
   'general_notice', 'plaint', 'summary_suit', 'injunction', 'writ_petition',
