@@ -209,6 +209,12 @@ export interface MaReview {
    *  disclosure when the parsed rubric is empty so the user can see
    *  exactly what the model produced. */
   llmRawResponse: string | null;
+  /** True when this is a canned placeholder review (no LLM provider
+   *  configured, or the model's response couldn't be parsed) — NOT real
+   *  feedback on the user's actual argument. The UI must show this
+   *  prominently (same treatment as the "scores didn't parse" banner),
+   *  not just rely on qualitativeSummary's wording. See migration 0081. */
+  isDemo: boolean;
 }
 
 export interface MaImprovement {
@@ -290,6 +296,7 @@ interface ReviewRow {
   qualitative_summary: string | null;
   generated_at: string | Date;
   llm_raw_response: string | null;
+  is_demo: boolean;
 }
 
 function iso(v: string | Date | null): string | null {
@@ -606,6 +613,7 @@ function rowToReview(r: ReviewRow): MaReview {
     qualitativeSummary: r.qualitative_summary ?? '',
     generatedAt: isoReq(r.generated_at),
     llmRawResponse: r.llm_raw_response,
+    isDemo: r.is_demo,
   };
 }
 
@@ -1208,6 +1216,7 @@ Score the advocate's performance per the system instructions.`;
     qualitative_summary: typeof parsed.qualitativeSummary === 'string' ? parsed.qualitativeSummary : '',
     generated_at: new Date(),
     llm_raw_response: raw,
+    is_demo: false,
   };
   return {
     review: rowToReview(synthetic),
@@ -1263,6 +1272,7 @@ function demoReview(): MaReview {
     qualitativeSummary: 'Demonstration review — no LLM provider is configured, so this is canned output that shows the shape of a real review.',
     generatedAt: new Date().toISOString(),
     llmRawResponse: null,
+    isDemo: true,
   };
 }
 
@@ -1749,7 +1759,7 @@ async function runReviewAndPersist(
       insert into mock_argument_reviews (
         session_id, rubric_jsonb, strengths, weaknesses,
         missed_arguments_jsonb, study_list_jsonb, improvements_jsonb,
-        qualitative_summary, llm_raw_response
+        qualitative_summary, llm_raw_response, is_demo
       ) values (
         ${sessionId}::uuid,
         ${JSON.stringify(review.rubric)}::jsonb,
@@ -1759,7 +1769,8 @@ async function runReviewAndPersist(
         ${JSON.stringify(review.studyList)}::jsonb,
         ${JSON.stringify(review.improvements)}::jsonb,
         ${review.qualitativeSummary},
-        ${llmRawResponse}
+        ${llmRawResponse},
+        ${review.isDemo}
       )
       on conflict (session_id) do update set
         rubric_jsonb = excluded.rubric_jsonb,
@@ -1770,6 +1781,7 @@ async function runReviewAndPersist(
         improvements_jsonb = excluded.improvements_jsonb,
         qualitative_summary = excluded.qualitative_summary,
         llm_raw_response = excluded.llm_raw_response,
+        is_demo = excluded.is_demo,
         generated_at = now()
     `;
     // Per-turn ratings: one UPDATE per scored user turn. Bounded by user

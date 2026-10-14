@@ -115,6 +115,11 @@ export interface MaReview {
    *  on demo-mode reviews (no LLM was called) and on rows persisted
    *  before migration 0037. */
   llmRawResponse: string | null;
+  /** True when this is a canned placeholder review, not real feedback on
+   *  the user's actual argument (no LLM provider configured, or the
+   *  model's response couldn't be parsed). The UI must show this
+   *  prominently — the overall score/rubric below are not meaningful. */
+  isDemo: boolean;
 }
 
 export interface MaSessionWithTurns extends MaSession {

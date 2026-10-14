@@ -2011,6 +2011,29 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
         </div>
       )}
 
+      {r && r.isDemo && (
+        <div
+          role="status"
+          style={{
+            padding: 'var(--space-4)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--warning-bg)',
+            color: 'var(--warning)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 'var(--space-2)',
+          }}
+        >
+          <div style={{ fontSize: 13, lineHeight: 1.55 }}>
+            <strong>This is a placeholder review, not real feedback.</strong>{' '}
+            No AI provider is configured on this deployment (or the last run couldn't be scored), so
+            the score and comments below are canned demonstration content — they say nothing about
+            how you actually argued. Configure an LLM provider, then click <em>Re-run review</em>{' '}
+            above for a real one.
+          </div>
+        </div>
+      )}
+
       {r && (() => {
         const dims = [
           r.rubric.legalSoundness, r.rubric.citationUse, r.rubric.structure,
