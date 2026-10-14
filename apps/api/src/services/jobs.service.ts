@@ -179,19 +179,28 @@ jobs.register<DocumentCleanupPayload>('documents.cleanup', async (data) => {
 // DPDP compliance jobs. `purgeDueDeletions` hard-deletes user-owned rows
 // whose `scheduled_purge_at` has elapsed (retention window expired).
 // `purgeExpiredAuditEntries` clears audit rows whose `retain_until` is in
-// the past. Both handlers are idempotent; the worker should schedule them
-// daily off-peak (suggested: 03:00 IST via pg-boss `schedule()`).
+// the past. Both handlers are idempotent (condition-based delete; a re-run
+// against rows already purged is a no-op) — scheduled daily off-peak,
+// after the other nightly sweeps above.
+//
+// FIXED (2026-10): these were registered WITHOUT a cron schedule — every
+// other recurring job in this file passes {cron, tz}, these two didn't, so
+// pg-boss never scheduled them. A user could request deletion, see the
+// countdown banner, scheduled_purge_at would be set correctly — and then
+// nothing ever actually purged it. dpdp.service.ts's own doc comment
+// already said "the orchestrator wires into pg-boss on a daily cron"; this
+// was the missing wiring.
 jobs.register('dpdp.purgeDueDeletions', async () => {
   const { dpdpService } = await import('./dpdp.service');
   const purged = await dpdpService.purgeDueDeletions();
   logger.info({ purged }, 'dpdp.purgeDueDeletions complete');
-});
+}, { cron: '45 3 * * *', tz: 'Asia/Kolkata' });
 
 jobs.register('dpdp.purgeExpiredAuditEntries', async () => {
   const { dpdpService } = await import('./dpdp.service');
   const purged = await dpdpService.purgeExpiredAuditEntries();
   logger.info({ purged }, 'dpdp.purgeExpiredAuditEntries complete');
-});
+}, { cron: '0 4 * * *', tz: 'Asia/Kolkata' });
 
 // Analytics MV refresh. Idempotent - `refresh materialized view
 // concurrently` is a no-op when nothing's changed and is safe to call
