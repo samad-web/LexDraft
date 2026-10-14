@@ -424,6 +424,26 @@ function extractNumber(v: unknown): number {
 }
 
 /**
+ * sql.json()'s JSONValue type requires an index-signature-compatible
+ * shape; this service's named interfaces (MaMatterSummary, MaCitation[],
+ * MaReview['rubric'], etc.) are structurally plain-serializable at runtime
+ * but don't satisfy that type nominally - `as unknown as Record<...>`
+ * doesn't help either (unknown values aren't provably JSONValue). A
+ * JSON round-trip erases the nominal type entirely, leaving a plain
+ * JSONValue-compatible object/array - genuinely type-safe, not a cast.
+ *
+ * This is NOT the same bug as the double-encoding fix above (manually
+ * JSON.stringify()-ing a value and handing postgres.js the RESULTING
+ * STRING as a bound parameter, which stores a string-within-jsonb). Here
+ * we stringify, immediately parse back to a plain object, and hand
+ * sql.json() that live object - sql.json() does its own, single,
+ * correct serialization from there.
+ */
+function forJson<T>(value: T): Record<string, unknown> | Record<string, unknown>[] {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown> | Record<string, unknown>[];
+}
+
+/**
  * Defensive rubric reader. The LLM was asked for a specific shape but
  * different models / prompt iterations sometimes flatten or rename keys
  * or return scores as decorated strings. We try every plausible location
@@ -1439,7 +1459,7 @@ export const mockArgumentsService = {
       ) values (
         ${ctx.firmId}::uuid, ${ctx.userId}::uuid,
         ${input.caseId ?? null}, ${input.uploadId ?? null},
-        ${sql.json(input.matterSummary as unknown as Record<string, unknown>)},
+        ${sql.json(forJson(input.matterSummary))},
         ${input.role}::mock_argument_role,
         ${input.judgePersona}::mock_argument_judge_persona,
         ${input.plannedDurationSeconds ?? null},
@@ -1617,7 +1637,7 @@ export const mockArgumentsService = {
             coalesce(max(turn_number), 0) + 1,
             'ai'::mock_argument_speaker,
             ${fullText},
-            ${sql.json(citations as unknown as Record<string, unknown>[])}
+            ${sql.json(forJson(citations))}
           from mock_argument_turns
           where session_id = ${sessionId}::uuid
         returning *
@@ -1762,12 +1782,12 @@ async function runReviewAndPersist(
         qualitative_summary, llm_raw_response, is_demo
       ) values (
         ${sessionId}::uuid,
-        ${sql.json(review.rubric as unknown as Record<string, unknown>)},
+        ${sql.json(forJson(review.rubric))},
         ${review.strengths}::text[],
         ${review.weaknesses}::text[],
-        ${sql.json(review.missedArguments as unknown as Record<string, unknown>[])},
-        ${sql.json(review.studyList as unknown as Record<string, unknown>[])},
-        ${sql.json(review.improvements as unknown as Record<string, unknown>[])},
+        ${sql.json(forJson(review.missedArguments))},
+        ${sql.json(forJson(review.studyList))},
+        ${sql.json(forJson(review.improvements))},
         ${review.qualitativeSummary},
         ${llmRawResponse},
         ${review.isDemo}
@@ -1792,7 +1812,7 @@ async function runReviewAndPersist(
     // wipe valid scores any time the model omits an entry.
     for (const [turnNumber, rating] of ratingByDbTurnNumber) {
       await tx`
-        update mock_argument_turns set rating_jsonb = ${sql.json(rating as unknown as Record<string, unknown>)}
+        update mock_argument_turns set rating_jsonb = ${sql.json(forJson(rating))}
         where session_id = ${sessionId}::uuid and turn_number = ${turnNumber}
       `;
     }
