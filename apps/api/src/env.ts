@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { Buffer } from 'node:buffer';
 
 const Schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -7,6 +8,12 @@ const Schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET must be at least 16 characters'),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  /** Field-level encryption key for PII columns (esign_signers.name/email/
+   *  signed_ip, clients.email) - see src/lib/field-crypto.ts. Base64-encoded
+   *  32 bytes (AES-256-GCM). Required once any firm has esign/client rows;
+   *  blank is only tolerated so the schema/migrations can be reviewed before
+   *  a key is minted - decrypt of real ciphertext will throw without it. */
+  FIELD_ENCRYPTION_KEY: z.string().optional().default(''),
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
   // Drafting / research provider. `auto` picks based on which key is set,
   // preferring xAI when both are configured.
@@ -179,6 +186,22 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+// FIELD_ENCRYPTION_KEY must decode to exactly 32 bytes (AES-256) when set -
+// a truncated/garbled key would otherwise fail at the first encrypt/decrypt
+// call deep inside a request instead of at boot.
+let fieldEncryptionKey: Buffer | null = null;
+if (parsed.data!.FIELD_ENCRYPTION_KEY) {
+  const decoded = Buffer.from(parsed.data!.FIELD_ENCRYPTION_KEY, 'base64');
+  if (decoded.length !== 32) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `FIELD_ENCRYPTION_KEY must decode (base64) to exactly 32 bytes for AES-256-GCM, got ${decoded.length}`,
+    );
+    process.exit(1);
+  }
+  fieldEncryptionKey = decoded;
+}
+
 function resolveProvider(): 'anthropic' | 'xai' | 'none' {
   const explicit = parsed.data!.LLM_PROVIDER;
   if (explicit !== 'auto') return explicit;
@@ -254,4 +277,9 @@ export const env = {
   intakeModel: parsed.data.INTAKE_MODEL || '',
   hasS3: parsed.data.STORAGE_DRIVER === 's3' || parsed.data.STORAGE_DRIVER === 'r2',
   storageS3ForcePathStyle: parsed.data.STORAGE_S3_FORCE_PATH_STYLE === 'true',
+  /** Decoded 32-byte key, or null when FIELD_ENCRYPTION_KEY is unset. See
+   *  src/lib/field-crypto.ts - encryptField/hmacEmailLookup throw if this
+   *  is null, so booting without it is fine until an encrypted column is
+   *  actually written to. */
+  fieldEncryptionKey,
 };

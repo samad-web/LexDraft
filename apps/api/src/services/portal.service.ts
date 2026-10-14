@@ -19,6 +19,7 @@ import type {
 import { env } from '../env';
 import { db } from '../db/client';
 import { logger } from '../logger';
+import { decryptField, hmacEmailLookup } from '../lib/field-crypto';
 import { casePipelineService, pipelineGraph, snapshotFor } from './case-pipeline.service';
 import { caseApplicationsService } from './case-applications.service';
 
@@ -176,10 +177,13 @@ export const portalService = {
       throw Object.assign(new Error('Database not configured'), { status: 500 });
     }
 
+    // email is ciphertext (field-crypto) - exact-match lookup goes through
+    // the deterministic HMAC blind index (email_lookup_hash), never
+    // `lower(email)` against the encrypted column itself.
     const rows = await sql<Array<ClientRow & { portal_enabled: boolean; portal_password_hash: string | null }>>`
       select id, firm_id, name, email, portal_enabled, portal_password_hash
       from clients
-      where lower(email) = ${email}
+      where email_lookup_hash = ${hmacEmailLookup(email)}
       limit 1
     `;
     const client = rows[0];
@@ -195,7 +199,8 @@ export const portalService = {
     const ok = await bcrypt.compare(password, client.portal_password_hash);
     if (!ok) throw generic;
 
-    const { token: jwtToken, expiresAt } = issuePortalToken(client);
+    const decryptedClient = { ...client, email: decryptField(client.email) };
+    const { token: jwtToken, expiresAt } = issuePortalToken(decryptedClient);
     logger.info({ clientId: client.id, firmId: client.firm_id }, 'portal session issued');
     return {
       token: jwtToken,
@@ -203,7 +208,7 @@ export const portalService = {
       client: {
         id: client.id,
         name: client.name,
-        email: client.email ?? '',
+        email: decryptedClient.email ?? '',
         firmId: client.firm_id,
       },
     };
@@ -395,7 +400,7 @@ export const portalService = {
     const topInvoices = sortInvoicesForDashboard(invoices).slice(0, 4);
 
     return {
-      client: { id: c.id, name: c.name, email: c.email ?? '', firmId: c.firm_id },
+      client: { id: c.id, name: c.name, email: decryptField(c.email) ?? '', firmId: c.firm_id },
       counts: {
         activeMatters: matters.filter((m) => m.status === 'Active').length,
         upcomingHearings: hearings.length,
@@ -741,7 +746,7 @@ export const portalService = {
 
     const prefs = parsePortalPreferences(row.portal_preferences);
     return {
-      client: { id: row.id, name: row.name, email: row.email ?? '', firmId: row.firm_id },
+      client: { id: row.id, name: row.name, email: decryptField(row.email) ?? '', firmId: row.firm_id },
       language: prefs.language,
       notifications: prefs.notifications,
     };

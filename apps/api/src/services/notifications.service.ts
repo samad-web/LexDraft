@@ -22,6 +22,7 @@
 import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
+import { decryptField } from '../lib/field-crypto';
 import type { AppNotification, NotificationTone, PortalNotificationPreferences } from '@lexdraft/types';
 
 interface ClientLookup {
@@ -56,7 +57,8 @@ async function loadClient(clientId: string): Promise<ClientLookup | null> {
     limit 1
   `;
   const row = rows[0];
-  if (!row || !row.email) return null;
+  const email = decryptField(row?.email ?? null);
+  if (!row || !email) return null;
   const raw = row.portal_preferences;
   const obj = (raw && typeof raw === 'object') ? (raw as Record<string, unknown>) : {};
   const notif = (obj['notifications'] && typeof obj['notifications'] === 'object')
@@ -66,7 +68,7 @@ async function loadClient(clientId: string): Promise<ClientLookup | null> {
     id: row.id,
     firmId: row.firm_id,
     name: row.name,
-    email: row.email,
+    email,
     preferences: notif,
     firmName: row.firm_name ?? 'your firm',
   };

@@ -1,6 +1,7 @@
 import type { Client } from '@lexdraft/types';
 import { db } from '../db/client';
 import { logger } from '../logger';
+import { encryptField, decryptField, hmacEmailLookup } from '../lib/field-crypto';
 
 interface Row {
   id: string;
@@ -17,6 +18,7 @@ function fromRow(r: Row): Client {
   const lc = r.last_contact instanceof Date
     ? r.last_contact.toISOString().slice(0, 10)
     : (r.last_contact ?? '');
+  const email = decryptField(r.email);
   return {
     id: r.id,
     name: r.name,
@@ -25,7 +27,7 @@ function fromRow(r: Row): Client {
     lastContact: lc,
     mattersOpen: Number(r.matters_open ?? 0),
     portalEnabled: !!r.portal_enabled,
-    ...(r.email ? { email: r.email } : {}),
+    ...(email ? { email } : {}),
   };
 }
 
@@ -110,10 +112,13 @@ export const clientsService = {
     }
     const sql = db();
     if (!sql) throw new Error('Database not configured');
+    const normalisedEmail = input.email?.toLowerCase().trim() || null;
     const rows = await sql<Row[]>`
-      insert into clients (firm_id, name, type, status, last_contact, email)
+      insert into clients (firm_id, name, type, status, last_contact, email, email_lookup_hash)
       values (${firmId}::uuid, ${input.name}, ${input.type}, ${input.status},
-              ${input.lastContact || null}, ${input.email?.toLowerCase() || null})
+              ${input.lastContact || null},
+              ${normalisedEmail ? encryptField(normalisedEmail) : null},
+              ${normalisedEmail ? hmacEmailLookup(normalisedEmail) : null})
       returning id, name, type, status, last_contact, email, portal_enabled, 0 as matters_open
     `;
     return fromRow(rows[0]!);
@@ -132,6 +137,13 @@ export const clientsService = {
     if (!firmId) return undefined;
     const sql = db();
     if (!sql) return undefined;
+    // email + email_lookup_hash must be derived from the SAME normalised
+    // value and both left untouched when input.email is absent - encrypting
+    // "undefined" or re-hashing the old (already-encrypted) column would
+    // either clobber the stored email or desync the two columns.
+    const normalisedEmail = input.email?.toLowerCase().trim() || null;
+    const nextEmail = normalisedEmail ? encryptField(normalisedEmail) : null;
+    const nextEmailHash = normalisedEmail ? hmacEmailLookup(normalisedEmail) : null;
     const rows = await sql<Row[]>`
       update clients
       set
@@ -139,7 +151,8 @@ export const clientsService = {
         type         = coalesce(${input.type ?? null}::client_type,   type),
         status       = coalesce(${input.status ?? null}::client_status, status),
         last_contact = coalesce(${input.lastContact ?? null}::date,   last_contact),
-        email        = coalesce(${input.email?.toLowerCase() ?? null}::text, email)
+        email              = coalesce(${nextEmail}::text,     email),
+        email_lookup_hash  = coalesce(${nextEmailHash}::text, email_lookup_hash)
       where id = ${id}::uuid and firm_id = ${firmId}::uuid
       returning id, name, type, status, last_contact, email, portal_enabled,
         coalesce((

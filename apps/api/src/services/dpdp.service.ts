@@ -27,6 +27,7 @@ import { logger } from '../logger';
 import { auditService } from './audit.service';
 import { firmIdForUser, invalidateTenantCache } from './tenant';
 import { NotFoundError, ConflictError, UnprocessableEntityError } from '../lib/errors';
+import { decryptField } from '../lib/field-crypto';
 import type {
   ConsentRecord,
   DeletionRequest,
@@ -72,6 +73,22 @@ interface UserRow {
   last_seen_at: Date | null;
   deleted_at: Date | null;
   scheduled_purge_at: Date | null;
+}
+
+/**
+ * The `clients` dump below is a raw `select *` (same resilience-over-schema-
+ * drift rationale as the rest of this export). Two columns need handling
+ * before they reach the data-subject export: `email` is ciphertext and must
+ * be decrypted back to the real address, and `email_lookup_hash` is an
+ * internal lookup artefact (not data about the person) that shouldn't appear
+ * in their export at all.
+ */
+function redactClientRow(row: unknown): unknown {
+  if (!row || typeof row !== 'object') return row;
+  const { email_lookup_hash, ...rest } = row as Record<string, unknown>;
+  void email_lookup_hash;
+  const email = 'email' in rest ? decryptField(rest['email'] as string | null) : undefined;
+  return { ...rest, ...(('email' in rest) ? { email } : {}) };
 }
 
 function userRowToExported(r: UserRow): ExportedUser {
@@ -184,7 +201,8 @@ export const dpdpService = {
         invoices, expenses, leads, limitations, physicalDocuments,
       ] = await Promise.all([
         safeQuery(() => sql`select * from documents          where firm_id = ${firmId}::uuid`, 'documents'),
-        safeQuery(() => sql`select * from clients            where firm_id = ${firmId}::uuid`, 'clients'),
+        safeQuery(() => sql`select * from clients            where firm_id = ${firmId}::uuid`, 'clients')
+          .then((rows) => rows.map(redactClientRow)),
         safeQuery(() => sql`select * from cases              where firm_id = ${firmId}::uuid`, 'cases'),
         safeQuery(() => sql`select * from clauses            where firm_id = ${firmId}::uuid`, 'clauses'),
         safeQuery(() => sql`select * from diary_entries      where firm_id = ${firmId}::uuid`, 'diary_entries'),

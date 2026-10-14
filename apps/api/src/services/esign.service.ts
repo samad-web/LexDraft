@@ -8,6 +8,7 @@ import { emailService } from './email.service';
 import { esignAuditService, type EsignAuditEvent } from './esign-audit.service';
 import { appendAuditSummaryPage } from './esign-pdf.service';
 import { HttpError } from '../lib/errors';
+import { encryptField, decryptField } from '../lib/field-crypto';
 
 // =============================================================================
 // esign.service — self-built electronic-signature workflow. See
@@ -118,8 +119,8 @@ function signerFromRow(r: SignerRow): EsignSigner {
     id: r.id,
     requestId: r.request_id,
     userId: r.user_id,
-    name: r.name,
-    email: r.email,
+    name: decryptField(r.name) ?? r.name,
+    email: decryptField(r.email) ?? r.email,
     order: r.order,
     status: r.status,
     consentAt: isoOrNull(r.consent_at),
@@ -208,7 +209,8 @@ export const esignService = {
       for (const [i, s] of input.signers.entries()) {
         await tx`
           insert into esign_signers (request_id, user_id, name, email, "order", token)
-          values (${requestId}::uuid, ${s.userId ?? null}, ${s.name}, ${s.email.toLowerCase().trim()}, ${s.order ?? i + 1}, ${generateToken()})
+          values (${requestId}::uuid, ${s.userId ?? null}, ${encryptField(s.name)},
+                  ${encryptField(s.email.toLowerCase().trim())}, ${s.order ?? i + 1}, ${generateToken()})
         `;
       }
       return row!;
@@ -303,21 +305,22 @@ export const esignService = {
     const [signer] = await sql<SignerRow[]>`select * from esign_signers where id = ${signerId}::uuid`;
     if (!signer) throw new HttpError(404, 'Signer not found');
     if (!signer.consent_at) throw new HttpError(409, 'Consent must be given before requesting an OTP');
+    const signerEmail = decryptField(signer.email) ?? signer.email;
 
     const code = generateOtp();
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000);
     await sql`
       insert into esign_otp_challenges (signer_id, code_hash, sent_to_email, expires_at)
-      values (${signerId}::uuid, ${hashOtp(code)}, ${signer.email}, ${expiresAt})
+      values (${signerId}::uuid, ${hashOtp(code)}, ${signerEmail}, ${expiresAt})
     `;
     await emailService.send({
-      to: signer.email,
+      to: signerEmail,
       subject: 'Your signing code',
       body: `Your one-time code to sign this document is: ${code}\n\nIt expires in ${OTP_TTL_MINUTES} minutes. Do not share this code.`,
     });
     await sql`update esign_signers set status = 'otp_sent', updated_at = now() where id = ${signerId}::uuid`;
     await esignAuditService.record({
-      requestId, signerId, eventType: 'otp_sent', detail: { sentTo: signer.email }, ipAddress: ip, userAgent,
+      requestId, signerId, eventType: 'otp_sent', detail: { sentTo: signerEmail }, ipAddress: ip, userAgent,
     });
   },
 
@@ -361,7 +364,10 @@ export const esignService = {
     }
 
     await sql`
-      update esign_signers set status = 'signed', signed_at = now(), signed_ip = ${ip}, signed_user_agent = ${userAgent}, updated_at = now()
+      update esign_signers
+      set status = 'signed', signed_at = now(),
+          signed_ip = ${ip ? encryptField(ip) : null},
+          signed_user_agent = ${userAgent}, updated_at = now()
       where id = ${signerId}::uuid
     `;
     await esignAuditService.record({ requestId, signerId, eventType: 'signed', ipAddress: ip, userAgent });
@@ -413,10 +419,10 @@ export const esignService = {
       requestTitle: row.title,
       sourceSha256: row.source_sha256,
       signers: signerRows.map((s) => ({
-        name: s.name,
-        email: s.email,
+        name: decryptField(s.name) ?? s.name,
+        email: decryptField(s.email) ?? s.email,
         signedAt: isoOrNull(s.signed_at),
-        ipAddress: s.signed_ip,
+        ipAddress: decryptField(s.signed_ip),
         consentText: s.consent_text,
       })),
       auditEvents,
