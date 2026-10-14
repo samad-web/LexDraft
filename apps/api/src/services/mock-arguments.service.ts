@@ -1439,7 +1439,7 @@ export const mockArgumentsService = {
       ) values (
         ${ctx.firmId}::uuid, ${ctx.userId}::uuid,
         ${input.caseId ?? null}, ${input.uploadId ?? null},
-        ${sql.json(input.matterSummary)},
+        ${sql.json(input.matterSummary as unknown as Record<string, unknown>)},
         ${input.role}::mock_argument_role,
         ${input.judgePersona}::mock_argument_judge_persona,
         ${input.plannedDurationSeconds ?? null},
@@ -1617,7 +1617,7 @@ export const mockArgumentsService = {
             coalesce(max(turn_number), 0) + 1,
             'ai'::mock_argument_speaker,
             ${fullText},
-            ${sql.json(citations)}
+            ${sql.json(citations as unknown as Record<string, unknown>[])}
           from mock_argument_turns
           where session_id = ${sessionId}::uuid
         returning *
@@ -1762,12 +1762,12 @@ async function runReviewAndPersist(
         qualitative_summary, llm_raw_response, is_demo
       ) values (
         ${sessionId}::uuid,
-        ${sql.json(review.rubric)},
+        ${sql.json(review.rubric as unknown as Record<string, unknown>)},
         ${review.strengths}::text[],
         ${review.weaknesses}::text[],
-        ${sql.json(review.missedArguments)},
-        ${sql.json(review.studyList)},
-        ${sql.json(review.improvements)},
+        ${sql.json(review.missedArguments as unknown as Record<string, unknown>[])},
+        ${sql.json(review.studyList as unknown as Record<string, unknown>[])},
+        ${sql.json(review.improvements as unknown as Record<string, unknown>[])},
         ${review.qualitativeSummary},
         ${llmRawResponse},
         ${review.isDemo}
@@ -1792,7 +1792,7 @@ async function runReviewAndPersist(
     // wipe valid scores any time the model omits an entry.
     for (const [turnNumber, rating] of ratingByDbTurnNumber) {
       await tx`
-        update mock_argument_turns set rating_jsonb = ${sql.json(rating)}
+        update mock_argument_turns set rating_jsonb = ${sql.json(rating as unknown as Record<string, unknown>)}
         where session_id = ${sessionId}::uuid and turn_number = ${turnNumber}
       `;
     }
