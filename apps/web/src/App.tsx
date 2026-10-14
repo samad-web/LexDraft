@@ -49,6 +49,7 @@ const LimitationView = lazy(() => import('@/views/LimitationView').then((m) => (
 const DiaryView = lazy(() => import('@/views/DiaryView').then((m) => ({ default: m.DiaryView })));
 const CauseListView = lazy(() => import('@/views/CauseListView').then((m) => ({ default: m.CauseListView })));
 const EcourtsView = lazy(() => import('@/views/EcourtsView').then((m) => ({ default: m.EcourtsView })));
+const EfilingView = lazy(() => import('@/views/EfilingView').then((m) => ({ default: m.EfilingView })));
 const StampView = lazy(() => import('@/views/StampView').then((m) => ({ default: m.StampView })));
 const ArchiveView = lazy(() => import('@/views/ArchiveView').then((m) => ({ default: m.ArchiveView })));
 const PhysicalDocsView = lazy(() => import('@/views/PhysicalDocsView').then((m) => ({ default: m.PhysicalDocsView })));
@@ -290,6 +291,7 @@ export function App() {
               <Route path="/app/diary"      element={<DiaryView />} />
               <Route path="/app/causelist"  element={<CauseListView />} />
               <Route path="/app/ecourts"    element={<EcourtsView />} />
+              <Route path="/app/efiling"    element={<EfilingView />} />
               <Route path="/app/stamp"      element={<StampView />} />
               <Route path="/app/archive"    element={<ArchiveView />} />
               <Route path="/app/physical-docs" element={<PhysicalDocsView />} />

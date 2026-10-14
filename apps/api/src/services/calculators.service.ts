@@ -121,6 +121,7 @@ export const calculatorsService = {
         stateName: s.stateName,
         courtTypes,
         instruments: Object.keys(s.stampDuty.instruments),
+        verification: s.verification,
       };
     });
   },
@@ -174,7 +175,7 @@ export const calculatorsService = {
     }
 
     breakdown.push(`Court fee payable: ${formatINR(fee)}`);
-    return { fee, breakdown, notes: state.courtFee.notes };
+    return { fee, breakdown, notes: state.courtFee.notes, verification: state.verification };
   },
 
   stampDuty(input: StampDutyInput): StampDutyResult {
@@ -231,7 +232,7 @@ export const calculatorsService = {
     }
 
     breakdown.push(`Stamp duty payable: ${formatINR(duty)}`);
-    return { duty, breakdown, notes: inst.notes };
+    return { duty, breakdown, notes: inst.notes, verification: state.verification };
   },
 
   vakalatnama(input: VakalatnamaInput): VakalatnamaResult {

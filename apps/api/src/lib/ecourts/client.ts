@@ -111,6 +111,14 @@ async function rawCall(endpoint: string, opts: RawCallOptions): Promise<unknown>
   const trimmed = body.trim();
   if (trimmed.length === 0) return null;
 
+  // listOfCasesWebService.php (confirmed live) answers with the literal
+  // 4-character plaintext `null` - not JSON `null` wrapped in anything,
+  // not the encrypted wire format, just the bare word. Decrypting it hit
+  // the generic "too short to decrypt" error, which read like a transport
+  // failure rather than the real, simple answer ("eCourts has nothing to
+  // return here"). Treat it the same as an empty body.
+  if (trimmed === 'null') return null;
+
   // Some endpoints answer with a *plaintext* JSON envelope rather than the
   // encrypted `<hex-IV><base64>` wire format — notably error responses like
   // `{"status":"N","msg":"ERROR_ERROR"}` and rejected sessions. Attempting to
@@ -133,7 +141,18 @@ async function rawCall(endpoint: string, opts: RawCallOptions): Promise<unknown>
     throw new EcourtsHttpError(502, `eCourts: ${plainText || 'returned an HTML error page instead of data'}`, trimmed);
   }
 
-  const plaintext = decryptResponse(body);
+  // latlong.php (confirmed live) wraps its wire-format body in a literal
+  // JSON string - `"<hex_iv><base64_ciphertext>"` - unlike every other
+  // endpoint, which sends the hex/base64 bare. Decrypting with the leading
+  // `"` still attached corrupts the first bytes of the hex IV, producing the
+  // same confusing "IV did not decode" error as a genuine crypto mismatch.
+  // Strip a matching pair of double quotes if the body is wrapped in them
+  // before handing off to decryptResponse - harmless no-op for every other
+  // endpoint, which never has this wrapper.
+  const unwrapped = trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"'
+    ? trimmed.slice(1, -1)
+    : trimmed;
+  const plaintext = decryptResponse(unwrapped);
   return JSON.parse(plaintext);
 }
 

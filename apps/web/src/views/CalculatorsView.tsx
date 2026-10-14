@@ -41,6 +41,30 @@ function formatINR(value: number): string {
   return value.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 }
 
+/** Advocate sign-off badge. Unverified is the default/expected state for
+ *  almost every row today - this is deliberately not styled as an error,
+ *  just a clear "confirm before filing" signal. */
+function VerificationBadge({ verification }: { verification: { verified: boolean; reviewedBy: string; reviewedOn: string; source: string } }) {
+  if (verification.verified) {
+    return (
+      <div className="row" style={{ gap: 6, alignItems: 'center', marginBottom: 16 }}>
+        <Icon name="check" size={13} style={{ color: 'var(--success)' }} />
+        <span className="body-xs" style={{ color: 'var(--success)', fontWeight: 600 }}>
+          Verified by {verification.reviewedBy} · {verification.reviewedOn}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="row" style={{ gap: 6, alignItems: 'center', marginBottom: 16 }}>
+      <Icon name="flag" size={13} style={{ color: 'var(--warning)' }} />
+      <span className="body-xs" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+        Unverified estimate - confirm with {verification.source || 'the court schedule'} before filing
+      </span>
+    </div>
+  );
+}
+
 export function CalculatorsView() {
   const [tab, setTab] = useState<TabId>('court-fee');
   const { data: states = [], isLoading: statesLoading, isError: statesError } = useCalculatorStates();
@@ -49,8 +73,8 @@ export function CalculatorsView() {
     <div className="col stagger" style={{ gap: 24 }}>
       <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Tools · daily-use Indian-legal calculators</div>
-          <h1 className="heading-xl">Calculators</h1>
+          <div className="eyebrow" style={{ marginBottom: 8 }}>Practice · daily-use Indian-legal calculators</div>
+          <h1 className="heading-xl">Court Fee &amp; Stamp Duty</h1>
           <div className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginTop: 4 }}>
             {states.length} {states.length === 1 ? 'STATE' : 'STATES'} · 3 TOOLS
           </div>
@@ -198,9 +222,10 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
             <div className="display-md tabular" style={{ marginBottom: 8 }}>
               ₹{formatINR(data.fee)}
             </div>
-            <div className="body-sm muted" style={{ marginBottom: 20 }}>
+            <div className="body-sm muted" style={{ marginBottom: 12 }}>
               Estimated court fee on matter valued at <span className="mono tabular">₹{formatINR(value)}</span>.
             </div>
+            <VerificationBadge verification={data.verification} />
             <hr className="hairline" style={{ marginBottom: 16 }} />
             <div className="col" style={{ gap: 6 }}>
               {data.breakdown.map((line, i) => (
@@ -339,10 +364,11 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
             <div className="display-md tabular" style={{ marginBottom: 8 }}>
               ₹{formatINR(data.duty)}
             </div>
-            <div className="body-sm muted" style={{ marginBottom: 20 }}>
+            <div className="body-sm muted" style={{ marginBottom: 12 }}>
               Estimated duty for {INSTRUMENT_LABELS[safeInstrument] ?? titleCase(safeInstrument)} on{' '}
               <span className="mono tabular">₹{formatINR(value)}</span>.
             </div>
+            <VerificationBadge verification={data.verification} />
             <hr className="hairline" style={{ marginBottom: 16 }} />
             <div className="col" style={{ gap: 6 }}>
               {data.breakdown.map((line, i) => (

@@ -183,6 +183,38 @@ export function PracticeDashboardView({ onNav }: PracticeDashboardViewProps) {
       </div>
       <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
 
+      {/* Court fee / stamp duty - same quick-access row as the calendar CTA
+          above, since every advocate filing a suit needs this before Cases. */}
+      <div style={{ paddingTop: 16 }}>
+        <div
+          className="card"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 20,
+            padding: '18px 22px',
+            background: 'var(--bg-surface-2)',
+            borderColor: 'var(--border-default)',
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow" style={{ marginBottom: 4 }}>All-India · 36 states &amp; UTs</div>
+            <div className="heading-md" style={{ marginBottom: 2 }}>Court fee &amp; stamp duty calculator</div>
+            <p className="body-sm muted" style={{ margin: 0 }}>
+              Estimate the court fee on a plaint or the stamp duty on an instrument before filing, plus a vakalatnama generator.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-lg"
+            onClick={() => onNav('calculators')}
+            aria-label="Open court fee and stamp duty calculator"
+          >
+            <Icon name="calculator" size={16} /> Open
+          </button>
+        </div>
+      </div>
+
       {isEmptyChambers && (
         <div style={{ paddingTop: 24 }}>
           <DashboardEmptyState

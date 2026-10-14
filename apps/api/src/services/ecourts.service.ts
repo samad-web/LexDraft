@@ -8,6 +8,15 @@ import type {
   District,
   State,
   CaseType,
+  FilingCaseHistory,
+  IaBusinessEntry,
+  AppellateInfo,
+  JudgeBench,
+  CaveatState,
+  CaveatDistrict,
+  LowerCourtCaveatEntry,
+  CaveatHistory,
+  CourtLocation,
 } from '../lib/ecourts/types';
 import { logger } from '../logger';
 
@@ -44,6 +53,30 @@ function cacheSet<T>(key: string, value: T, ttlMs: number): void {
   cache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
+/**
+ * Pull a named array field out of an eCourts reference-data envelope.
+ * The real backend always includes the key on a genuine success (verified
+ * live against stateWebService/districtWebService/etc - a present-but-empty
+ * array is legitimate data, e.g. a district with zero police stations). A
+ * MISSING key or a non-object payload means the call didn't actually
+ * succeed even though it didn't throw - the eCourts backend is flaky enough
+ * (confirmed live: ~1 in 3 consecutive identical calls to stateWebService
+ * came back malformed) that silently defaulting to [] here used to make a
+ * transient backend hiccup indistinguishable from "this state really has no
+ * districts", which the frontend rendered as a dead-end empty dropdown with
+ * no retry affordance. Throwing surfaces it through the same
+ * isError/"failed to load, retry" UI every other eCourts failure already
+ * uses, and - just as importantly - keeps `memo` from caching the bad
+ * empty result for a full day.
+ */
+function extractList<T>(payload: unknown, key: string): T[] {
+  if (!payload || typeof payload !== 'object' || !(key in payload)) {
+    throw new EcourtsHttpError(502, `eCourts returned an unexpected response - try again.`);
+  }
+  const value = (payload as Record<string, unknown>)[key];
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
 async function memo<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
   const hit = cacheGet<T>(key);
   if (hit !== undefined) return hit;
@@ -65,8 +98,22 @@ export async function listStates(court: Court = 'DC'): Promise<State[]> {
     // determined entirely by the base URL `call()` selects via `court`, not
     // by a different filename. Verified live: against the HC base URL this
     // returns real High Court entries (e.g. "Allahabad High Court").
-    const payload = await call('stateWebService.php', { court }) as { states?: State[] } | null;
-    return payload?.states ?? [];
+    const payload = await call('stateWebService.php', { court });
+    const states = extractList<State>(payload, 'states');
+    // Unlike districts/police-stations/acts (where zero results for a
+    // SPECIFIC state or district can be real), a literally empty states
+    // list has no legitimate reading - India always has states. Verified
+    // live this isn't hypothetical: a genuine `{"states":[]}` (valid shape,
+    // empty content, not just a missing key) came back from the real
+    // backend intermittently - extractList's missing-key check alone didn't
+    // catch it. Throwing here (rather than caching []) stops that transient
+    // hiccup from parking the ENTIRE eCourts portal in a dead "no states"
+    // state for the full 24h reference-data TTL - the very failure mode
+    // this fix exists to close.
+    if (states.length === 0) {
+      throw new EcourtsHttpError(502, 'eCourts returned no states - try again.');
+    }
+    return states;
   });
 }
 
@@ -75,8 +122,8 @@ export async function listDistricts(stateCode: number, court: Court = 'DC'): Pro
     const payload = await call('districtWebService.php', {
       court,
       params: { state_code: stateCode },
-    }) as { districts?: District[] } | null;
-    return payload?.districts ?? [];
+    });
+    return extractList<District>(payload, 'districts');
   });
 }
 
@@ -187,8 +234,8 @@ export async function listCaseTypes(
     const payload = await call('caseTypesWebService.php', {
       court,
       params: { state_code: stateCode, dist_code: distCode, est_code: estCode },
-    }) as { caseTypes?: CaseType[] } | null;
-    return payload?.caseTypes ?? [];
+    });
+    return extractList<CaseType>(payload, 'caseTypes');
   });
 }
 
@@ -197,8 +244,8 @@ export async function listActs(stateCode: number, court: Court = 'DC'): Promise<
     const payload = await call('actWebService.php', {
       court,
       params: { state_code: stateCode },
-    }) as { acts?: unknown[] } | null;
-    return payload?.acts ?? [];
+    });
+    return extractList<unknown>(payload, 'acts');
   });
 }
 
@@ -211,8 +258,8 @@ export async function listPoliceStations(
     const payload = await call('policeStationWebService.php', {
       court,
       params: { state_code: stateCode, dist_code: distCode },
-    }) as { policeStations?: unknown[] } | null;
-    return payload?.policeStations ?? [];
+    });
+    return extractList<unknown>(payload, 'policeStations');
   });
 }
 
@@ -580,8 +627,8 @@ export async function fetchCauseList(input: CauseListInput): Promise<CauseListEn
       pendingDisposed: 'Pending',
       date: toEcourtsDMY(input.date),
     },
-  }) as { causeList?: CauseListEntry[] } | null;
-  return payload?.causeList ?? [];
+  });
+  return extractList<CauseListEntry>(payload, 'causeList');
 }
 
 // ---------------------------------------------------------------------------
@@ -651,6 +698,333 @@ export async function searchCaveat(input: CaveatSearchInput): Promise<unknown> {
   };
   const payload = await call('searchCaveat.php', { court: input.court ?? 'DC', params });
   return stripToken(payload);
+}
+
+// ---------------------------------------------------------------------------
+// Filing-number case history, IA business, appellate info, judge/bench names,
+// caveat reference data - 6 endpoints the official app calls that this
+// client never had, found by re-auditing the full decompiled APK (not just
+// the endpoints already wired up) and live-probing each one's real param
+// shape by tracing its UI dispatch site in the bytecode (same technique
+// already proven on courtEstWebService.php / searchCaveat.php). All verified
+// live against real Tamil Nadu cases, 2026-10.
+// ---------------------------------------------------------------------------
+
+/**
+ * A second, richer case-record endpoint keyed by the same CNR as
+ * `lookupByCnr` - NOT a filing-number search (the name is misleading; the
+ * official app dispatches this from its "filing" case-history screen, but
+ * the only param it sends is `cino`). Confirmed live to carry fields
+ * `caseHistoryWebService.php` does not: `date_next_list`/`purpose_next` (the
+ * "Business"/next-hearing-date data), `pet_legal_heir`/`res_legal_heir`,
+ * objection tracking, lower-court history, bilingual party/court names.
+ * This is the fix for showing next-hearing-date/status on search RESULTS
+ * (not just after opening a case) - call once per result row's `cino`.
+ */
+export async function fetchFilingCaseHistory(
+  cino: string,
+  court: Court = 'DC',
+): Promise<FilingCaseHistory | null> {
+  const cleanCino = cino.trim().toUpperCase();
+  if (!/^[A-Z]{4}[A-Z0-9]{12}$/.test(cleanCino)) {
+    throw new Error('CNR must be 16 chars: 4 letters followed by 12 alphanumeric');
+  }
+  return memo(`filingHistory:${court}:${cleanCino}`, CASE_TTL_MS, async () => {
+    const payload = await call('filingCaseHistory.php', {
+      court,
+      params: { cino: cleanCino, bilingual_flag: 0, language_flag: 0 },
+    }) as { history?: FilingCaseHistory } | null;
+    return payload?.history ?? null;
+  });
+}
+
+/**
+ * Interim Application (IA) business/status for a case. A case with no IAs
+ * returns a legitimate empty array (verified live), not an error.
+ */
+export async function fetchIaBusiness(
+  cino: string,
+  court: Court = 'DC',
+): Promise<IaBusinessEntry[]> {
+  const cleanCino = cino.trim().toUpperCase();
+  const payload = await call('ia_show_business.php', {
+    court,
+    params: { cino: cleanCino, bilingual_flag: 0, language_flag: 0 },
+  }) as { history?: IaBusinessEntry[] } | null;
+  return payload?.history ?? [];
+}
+
+interface AppellateInfoInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  caseNumber1: string; // the case's `case_no` field verbatim (NOT cino)
+  appCsNo: string;     // the case's registration number, e.g. "4377"
+  court?: Court;
+}
+
+/**
+ * Appellate case information. Confirmed live: a case with no appellate
+ * activity still returns a populated `heading` with every other field null -
+ * that's the legitimate "nothing to show" answer.
+ */
+export async function fetchAppellateInfo(input: AppellateInfoInput): Promise<AppellateInfo> {
+  const payload = await call('s_show_app.php', {
+    court: input.court ?? 'DC',
+    params: {
+      court_code: input.courtCode,
+      dist_code: input.distCode,
+      case_number1: input.caseNumber1,
+      state_code: input.stateCode,
+      app_cs_no: input.appCsNo,
+      bilingual_flag: 0,
+      language_flag: 0,
+    },
+  }) as { writInfo?: AppellateInfo } | null;
+  if (!payload?.writInfo) throw new EcourtsHttpError(502, 'eCourts returned no appellate info - try again.');
+  return payload.writInfo;
+}
+
+/**
+ * courtNameWebService.php's `courtNames` field is NOT JSON - it's a single
+ * '#'-delimited string. Each entry is `{court_code}^{value}~{label}` for a
+ * real row (court_code FIRST, then '^', then the value~label pair - verified
+ * live: "6^1~1-ALICIA  N.-IV Metropolitan Magistrate..."), except the first
+ * two entries which have no leading court_code^ prefix at all: a placeholder
+ * "0~Select Court Name" and a disabled header "D~----{court name}----".
+ * Strips both of those, keeping only real judge rows.
+ */
+function parseCourtNames(raw: string): JudgeBench[] {
+  const out: JudgeBench[] = [];
+  for (const entry of raw.split('#')) {
+    const caretIdx = entry.indexOf('^');
+    // No '^' at all = the placeholder/header entry (code '0' or 'D') - skip.
+    if (caretIdx < 0) continue;
+    const valueAndLabel = entry.slice(caretIdx + 1);
+    const sepIdx = valueAndLabel.indexOf('~');
+    if (sepIdx < 0) continue;
+    const label = valueAndLabel.slice(sepIdx + 1);
+    // Label shape: "{index}-{JUDGE NAME}-{Designation}" - first '-' after the
+    // leading index digits separates name from designation; judge names
+    // themselves can contain '.'/spaces but not the delimiter pattern used
+    // here, so a split on the FIRST '-' after the numeric prefix is safe.
+    const m = /^\d+-(.+?)-(.+)$/.exec(label);
+    out.push({
+      code: entry.slice(0, caretIdx).trim(),
+      judgeName: (m?.[1] ?? label).trim(),
+      designation: (m?.[2] ?? '').trim(),
+    });
+  }
+  return out;
+}
+
+export async function listJudgeBenches(
+  stateCode: number,
+  distCode: number,
+  courtCode: number,
+  court: Court = 'DC',
+): Promise<JudgeBench[]> {
+  return memo(`judgeBenches:${court}:${stateCode}:${distCode}:${courtCode}`, REF_TTL_MS, async () => {
+    const payload = await call('courtNameWebService.php', {
+      court,
+      params: { state_code: stateCode, dist_code: distCode, court_code_arr: courtCode },
+    }) as { courtNames?: string } | null;
+    if (!payload?.courtNames) return [];
+    return parseCourtNames(payload.courtNames);
+  });
+}
+
+// --- Caveat-family reference data -------------------------------------------
+// Separate endpoints from the plain state/district lists, with their OWN
+// param requirements discovered by tracing the caveat-screen dispatch site
+// in the decompiled bytecode (shares the `state_code`/`dist_code`/
+// `court_code_arr` scope shape already proven for the other search
+// endpoints, but layered: stateWebServiceCaveat additionally needs
+// dist_code+court_code_arr just to list STATES, which is unusual but
+// confirmed live, not a guess).
+
+interface CaveatStatesInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+
+/**
+ * Confirmed LIVE and working (round-2 re-audit): this endpoint needs the
+ * FULL {state_code, dist_code, court_code_arr} scope just to return the
+ * state list - unusual for a "list states" call, but real (error messages
+ * walked distcode1 -> courtcode4 as each field was added, not a dead end).
+ * Not wired into any UI picker - the plain stateWebService.php already
+ * powers the real State dropdown, and nothing in the caveat flow needs "all
+ * states, scoped to a court already selected." Kept as a working function
+ * (not a stub) so it's available if a future caveat-specific state list
+ * ever turns out to differ from the general one.
+ */
+export async function listCaveatStates(input: CaveatStatesInput): Promise<CaveatState[]> {
+  const payload = await call('stateWebServiceCaveat.php', {
+    court: input.court ?? 'DC',
+    params: { state_code: input.stateCode, dist_code: input.distCode, court_code_arr: input.courtCode },
+  }) as { states?: CaveatState[] } | null;
+  return payload?.states ?? [];
+}
+
+interface CaveatDistrictsInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+
+export async function listCaveatDistricts(input: CaveatDistrictsInput): Promise<CaveatDistrict[]> {
+  return memo(`caveatDistricts:${input.court ?? 'DC'}:${input.stateCode}:${input.distCode}:${input.courtCode}`, REF_TTL_MS, async () => {
+    const payload = await call('districtWebServiceCaveat.php', {
+      court: input.court ?? 'DC',
+      params: {
+        state_code: input.stateCode,
+        dist_code: input.distCode,
+        court_code_arr: input.courtCode,
+        establishment_state_code: input.stateCode,
+        establishment_district_code: input.distCode,
+      },
+    }) as { districts?: CaveatDistrict[] } | null;
+    return extractList<CaveatDistrict>(payload, 'districts');
+  });
+}
+
+interface LowerCourtCaveatInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+
+export async function listLowerCourtCaveat(input: LowerCourtCaveatInput): Promise<LowerCourtCaveatEntry[]> {
+  const payload = await call('lowerCourtCaveat.php', {
+    court: input.court ?? 'DC',
+    params: {
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code_arr: input.courtCode,
+      establishment_state_code: input.stateCode,
+      establishment_district_code: input.distCode,
+    },
+  }) as { lowerCourt?: LowerCourtCaveatEntry[] } | null;
+  return payload?.lowerCourt ?? [];
+}
+
+interface CaveatHistoryInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  caveatNumber: string;
+  court?: Court;
+}
+
+/**
+ * Detail for one specific caveat, given its caveat_no (a caveat search
+ * result row's own identifying field - see searchCaveat). Real param shape
+ * traced from the official app's CASE_HISTORY_NAVIGATOR dispatch (the
+ * "caveat" branch alongside fetchFilingCaseHistory's CNR branch): the field
+ * eCourts expects is named `caveat_number`, not `caveat_no`/`cino`. A
+ * nonexistent caveat number still returns the full CaveatHistory shape with
+ * every field null - that's the real "nothing on record" answer, not an
+ * error, so this never throws on empty.
+ */
+export async function fetchCaveatHistory(input: CaveatHistoryInput): Promise<CaveatHistory> {
+  const payload = await call('caveatCaseHistoryWebService.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      language_flag: 0,
+      selectedLanguage: 'ENG',
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code: input.courtCode,
+      caveat_number: input.caveatNumber,
+    },
+  }) as { history?: CaveatHistory } | null;
+  if (!payload?.history) throw new EcourtsHttpError(502, 'eCourts returned no caveat detail - try again.');
+  return payload.history;
+}
+
+interface CourtLocationInput {
+  stateCode: number;
+  distCode: number;
+  complexCode: string;
+  court?: Court;
+}
+
+/**
+ * Court-complex geolocation (lat/long + a Bhuvan map link). Confirmed live
+ * - the response body is wrapped in a literal JSON string, unlike every
+ * other endpoint (see lib/ecourts/client.ts's rawCall unwrap fix, the real
+ * bug that made this look structurally blocked before). Cached 24h like
+ * other reference data since a court's location never changes.
+ */
+export async function fetchCourtLocation(input: CourtLocationInput): Promise<CourtLocation> {
+  return memo(`courtLocation:${input.court ?? 'DC'}:${input.stateCode}:${input.distCode}:${input.complexCode}`, REF_TTL_MS, async () => {
+    const payload = await call('latlong.php', {
+      court: input.court ?? 'DC',
+      params: { state_code: input.stateCode, dist_code: input.distCode, complex_code: input.complexCode },
+    }) as CourtLocation | null;
+    if (!payload?.latitude || !payload?.longitude) throw new EcourtsHttpError(502, 'eCourts returned no location for this court complex.');
+    return payload;
+  });
+}
+
+/**
+ * Confirmed LIVE and working (round-2 re-audit): earlier looked dead because
+ * the "no cino given" answer is the LITERAL plaintext string `null` (not the
+ * encrypted wire format, not JSON `null`) - see lib/ecourts/client.ts's
+ * rawCall for the fix. With a real cino it returns `{case_number, cino}`.
+ * Not wired into any UI - `lookupByCnr` already returns everything this does
+ * plus the full case history from the same cino, so there's no case where an
+ * advocate would want THIS endpoint's narrower answer instead. Kept as a
+ * working function so it's not a dead gap, same reasoning as
+ * `listCaveatStates`.
+ */
+export async function lookupCaseNumberByCnr(cino: string, court: Court = 'DC'): Promise<{ caseNumber: string; cino: string } | null> {
+  const payload = await call('listOfCasesWebService.php', {
+    court,
+    params: { cino: cino.trim().toUpperCase() },
+  }) as { case_number?: string; cino?: string } | null;
+  if (!payload?.cino) return null;
+  return { caseNumber: payload.case_number ?? '', cino: payload.cino };
+}
+
+// ---------------------------------------------------------------------------
+// Business notes — a manual fallback for the captcha-gated "Business"
+// narrative (see ecourts-live.service.ts's doc comment for why that can't be
+// fetched programmatically). An advocate reads it on the real eCourts site
+// once and pastes it here so it's visible inline from then on. Firm-scoped,
+// not case-scoped - the CNR being annotated may not be in the advocate's
+// matters yet (see migration 0083_ecourts_business_notes.sql).
+// ---------------------------------------------------------------------------
+
+export interface BusinessNote {
+  hearingDate: string;
+  businessText: string;
+  updatedAt: string;
+}
+
+export async function listBusinessNotes(firmId: string, cino: string): Promise<BusinessNote[]> {
+  const sql = db();
+  if (!sql) return [];
+  const rows = await sql<Array<{ hearing_date: string; business_text: string; updated_at: Date }>>`
+    select hearing_date, business_text, updated_at
+    from ecourts_business_notes
+    where firm_id = ${firmId} and cino = ${cino}
+    order by hearing_date desc
+  `;
+  return rows.map((r) => ({ hearingDate: r.hearing_date, businessText: r.business_text, updatedAt: r.updated_at.toISOString() }));
+}
+
+interface SaveBusinessNoteInput {
+  firmId: string;
+  cino: string;
+  hearingDate: string;
+  businessText: string;
+  userId?: string;
+}
+
+export async function saveBusinessNote(input: SaveBusinessNoteInput): Promise<BusinessNote> {
+  const sql = db();
+  if (!sql) throw new EcourtsHttpError(503, 'Business notes require a database connection.');
+  const [row] = await sql<Array<{ hearing_date: string; business_text: string; updated_at: Date }>>`
+    insert into ecourts_business_notes (firm_id, cino, hearing_date, business_text, created_by, updated_at)
+    values (${input.firmId}, ${input.cino}, ${input.hearingDate}, ${input.businessText}, ${input.userId ?? null}, now())
+    on conflict (firm_id, cino, hearing_date)
+    do update set business_text = excluded.business_text, created_by = excluded.created_by, updated_at = now()
+    returning hearing_date, business_text, updated_at
+  `;
+  if (!row) throw new EcourtsHttpError(500, 'Could not save business note.');
+  return { hearingDate: row.hearing_date, businessText: row.business_text, updatedAt: row.updated_at.toISOString() };
 }
 
 // ---------------------------------------------------------------------------

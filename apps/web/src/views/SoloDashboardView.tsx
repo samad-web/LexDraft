@@ -219,6 +219,34 @@ export function SoloDashboardView({ onNav }: SoloDashboardViewProps) {
         </div>
       </div>
 
+      <div
+        className="card"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          padding: '20px 24px',
+          marginBottom: 28,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>All-India · 36 states &amp; UTs</div>
+          <div className="heading-md" style={{ marginBottom: 4 }}>Court fee &amp; stamp duty calculator</div>
+          <p className="body-sm muted" style={{ margin: 0 }}>
+            Estimate the court fee on a plaint or the stamp duty on an instrument before filing, plus a vakalatnama generator.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-sm"
+          onClick={() => onNav('calculators')}
+          aria-label="Open court fee and stamp duty calculator"
+          style={{ flexShrink: 0 }}
+        >
+          <Icon name="calculator" size={14} /> Open
+        </button>
+      </div>
+
       <div style={{ paddingBottom: 4, borderBottom: '1px solid var(--border-default)' }}>
         <PillNav
           items={RAIL_ITEMS}

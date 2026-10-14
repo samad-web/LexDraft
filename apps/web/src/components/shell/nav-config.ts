@@ -100,6 +100,10 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'tasks',              label: 'Tasks',             icon: 'tasks',      to: '/app/tasks',              requiresFeature: 'matter.view' },
       { id: 'expenses',           label: 'Expenses',          icon: 'expenses',   to: '/app/expenses',           requiresFeature: 'billing.view' },
       { id: 'limitation',         label: 'Limitation',        icon: 'limitation', to: '/app/limitation',         requiresFeature: 'matter.view' },
+      // Court fee / stamp duty / vakalatnama - daily-use filing-cost tools,
+      // kept in Practice (not buried in Tools) since every advocate filing a
+      // suit needs this before Cases, not after.
+      { id: 'calculators',   label: 'Court Fee & Stamp Duty', icon: 'calculator', to: '/app/calculators',   requiresFeature: 'tools.calculators' },
       { id: 'coverage',           label: 'Coverage Board',    icon: 'members',    to: '/app/coverage',           requiresFeature: 'coverage.requests' },
       { id: 'practice-analytics', label: 'Practice Insights', icon: 'analytics',  to: '/app/practice-analytics', requiresFeature: 'practice.analytics' },
     ],
@@ -117,8 +121,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Tools',
     items: [
       { id: 'ecourts',       label: 'eCourts',       icon: 'ecourts', to: '/app/ecourts',       requiresFeature: 'matter.view' },
-      { id: 'stamp',         label: 'Stamp Duty',    icon: 'stamp',   to: '/app/stamp' },
-      { id: 'calculators',   label: 'Calculators',   icon: 'flag',    to: '/app/calculators',   requiresFeature: 'tools.calculators' },
+      { id: 'efiling',       label: 'eFiling',       icon: 'ecourts', to: '/app/efiling',       requiresFeature: 'matter.view' },
+      { id: 'stamp',         label: 'Stamp Duty Report (PDF)', icon: 'stamp', to: '/app/stamp' },
       // Physical Docs (paper-originals register) lives at /app/physical-docs;
       // the closed-matters Archive lives at /app/archive. Earlier the nav
       // had `to: '/app/archive'` under the "Physical Docs" label — silently
@@ -159,14 +163,15 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   diary:      { title: 'Diary',           eyebrow: 'Court diary' },
   causelist:  { title: 'Cause list',      eyebrow: 'Daily roster' },
   ecourts:    { title: 'eCourts',         eyebrow: 'Case-status gateway' },
-  stamp:      { title: 'Stamp',           eyebrow: 'Duty calculator' },
+  efiling:    { title: 'eFiling',         eyebrow: 'National e-Filing portal' },
+  stamp:      { title: 'Stamp Duty Report', eyebrow: 'Letterhead PDF export' },
   archive:    { title: 'Archive',         eyebrow: 'Closed matters' },
   firm:       { title: 'Firm overview',   eyebrow: 'Chambers performance' },
   members:    { title: 'Members',         eyebrow: 'Chambers roll' },
   manage:     { title: 'Manage firm',     eyebrow: 'User management & roles' },
   settings:   { title: 'Settings',        eyebrow: 'Preferences' },
   sanhita:           { title: 'Sanhita',          eyebrow: 'IPC → BNS, CrPC → BNSS, Evidence → BSA' },
-  calculators:       { title: 'Calculators',      eyebrow: 'Court fee · stamp duty · vakalatnama' },
+  calculators:       { title: 'Court Fee & Stamp Duty', eyebrow: 'All-India court fee · stamp duty · vakalatnama' },
   coverage:          { title: 'Coverage Board',   eyebrow: 'Hearing coverage requests' },
   'co-counsel':      { title: 'Co-Counsel',       eyebrow: 'Matters handed to you by other firms' },
   'practice-analytics': { title: 'Practice Insights', eyebrow: 'Workload fairness & matter profitability' },

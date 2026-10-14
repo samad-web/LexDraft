@@ -19,6 +19,7 @@ import { letterheadsRouter } from './letterheads.routes';
 import { researchRouter } from './research.routes';
 import { lawsRouter } from './laws.routes';
 import { ecourtsRouter } from './ecourts.routes';
+import { efilingRouter } from './efiling.routes';
 import { judgesRouter } from './judges.routes';
 import { dashboardRouter } from './dashboard.routes';
 import { firmRouter } from './firm.routes';
@@ -162,6 +163,7 @@ apiRouter.use('/letterheads', requireAuth, requireActivePlan, letterheadsRouter)
 apiRouter.use('/research', requireAuth, requireActivePlan, researchRouter);
 apiRouter.use('/laws',     requireAuth, requireActivePlan, lawsRouter);
 apiRouter.use('/ecourts',  requireAuth, requireActivePlan, ecourtsRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingRouter);
 apiRouter.use('/judges',   requireAuth, requireActivePlan, judgesRouter);
 apiRouter.use('/clauses',     requireAuth, requireActivePlan, clausesRouter);
 apiRouter.use('/clients',     requireAuth, requireActivePlan, clientsRouter);

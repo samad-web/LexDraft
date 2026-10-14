@@ -14,23 +14,35 @@ import { api } from '@/lib/api';
 
 export type VakalatnamaCourtType = 'District Court' | 'High Court' | 'Supreme Court';
 
+/** Advocate sign-off state for a state's figures - unverified until an
+ *  advocate confirms the figures against the bare Act / gazette schedule. */
+export interface VerificationStatus {
+  verified: boolean;
+  reviewedBy: string;
+  reviewedOn: string;
+  source: string;
+}
+
 export interface CalculatorStateRef {
   stateCode: string;
   stateName: string;
   courtTypes: VakalatnamaCourtType[];
   instruments: string[];
+  verification: VerificationStatus;
 }
 
 export interface CourtFeeResult {
   fee: number;
   breakdown: string[];
   notes: string;
+  verification: VerificationStatus;
 }
 
 export interface StampDutyResult {
   duty: number;
   breakdown: string[];
   notes: string;
+  verification: VerificationStatus;
 }
 
 export interface VakalatnamaResult {

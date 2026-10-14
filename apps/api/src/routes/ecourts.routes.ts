@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import * as ecourts from '../services/ecourts.service';
 import * as ecourtsLive from '../services/ecourts-live.service';
+import { firmIdForUser } from '../services/tenant';
 import { logger } from '../logger';
 import { BadRequestError, UnauthorizedError } from '../lib/errors';
 
@@ -575,6 +576,265 @@ ecourtsRouter.post(
       const history = await ecourts.lookupByCnr(cnr, court ?? 'DC');
       if (!history) throw new BadRequestError('No case found for this CNR');
       res.json({ history });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Richer filing-number case history, IA business, appellate info, judge/bench
+// names, caveat reference data — 6 endpoints found by re-auditing the full
+// decompiled APK (see ecourts.service.ts's doc comment for how each param
+// shape was recovered). All GET/CNR-scoped like /lookup/cnr, except
+// appellate-info and the caveat endpoints which need a fuller court scope.
+// ---------------------------------------------------------------------------
+
+ecourtsRouter.get(
+  '/lookup/cnr/:cnr/filing-history',
+  validate({ params: CnrParam, query: CourtQuery }),
+  async (req, res, next) => {
+    try {
+      const { cnr } = req.params as unknown as { cnr: string };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const history = await ecourts.fetchFilingCaseHistory(cnr, court);
+      if (!history) {
+        res.status(404).json({ error: 'No case found for this CNR' });
+        return;
+      }
+      res.json({ history });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+ecourtsRouter.get(
+  '/lookup/cnr/:cnr/ia-business',
+  validate({ params: CnrParam, query: CourtQuery }),
+  async (req, res, next) => {
+    try {
+      const { cnr } = req.params as unknown as { cnr: string };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.fetchIaBusiness(cnr, court);
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+const AppellateInfoInput = z.object({
+  stateCode:   z.number().int().positive(),
+  distCode:    z.number().int().positive(),
+  courtCode:   z.number().int().nonnegative(),
+  caseNumber1: z.string().min(1),
+  appCsNo:     z.string().min(1),
+  court:       CourtParam.optional(),
+});
+
+ecourtsRouter.post(
+  '/appellate-info',
+  validate({ body: AppellateInfoInput }),
+  async (req, res, next) => {
+    try {
+      const writInfo = await ecourts.fetchAppellateInfo(req.body);
+      res.json({ writInfo });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Judge/bench names within a specific court — a fourth cascade level below
+// /reference/courts/:stateCode/:distCode/:complexCode. Unlike that route
+// (our own DB cache), this is a LIVE eCourts call with no local cache table,
+// so it's memoized in-process for 24h the same way states/districts are.
+ecourtsRouter.get(
+  '/reference/judge-benches/:stateCode/:distCode/:courtCode',
+  validate({
+    params: z.object({
+      stateCode: z.coerce.number().int().positive(),
+      distCode:  z.coerce.number().int().positive(),
+      courtCode: z.coerce.number().int().nonnegative(),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, courtCode } = req.params as unknown as { stateCode: number; distCode: number; courtCode: number };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listJudgeBenches(stateCode, distCode, courtCode, court);
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Caveat-family reference data — separate endpoints from the plain
+// state/district lists (see ecourts.service.ts for why).
+// ---------------------------------------------------------------------------
+
+ecourtsRouter.get(
+  '/reference/caveat/states/:stateCode/:distCode/:courtCode',
+  validate({
+    params: z.object({
+      stateCode: z.coerce.number().int().positive(),
+      distCode:  z.coerce.number().int().positive(),
+      courtCode: z.coerce.number().int().nonnegative(),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, courtCode } = req.params as unknown as { stateCode: number; distCode: number; courtCode: number };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listCaveatStates({ stateCode, distCode, courtCode, court });
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+ecourtsRouter.get(
+  '/reference/caveat/districts/:stateCode/:distCode/:courtCode',
+  validate({
+    params: z.object({
+      stateCode: z.coerce.number().int().positive(),
+      distCode:  z.coerce.number().int().positive(),
+      courtCode: z.coerce.number().int().nonnegative(),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, courtCode } = req.params as unknown as { stateCode: number; distCode: number; courtCode: number };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listCaveatDistricts({ stateCode, distCode, courtCode, court });
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+ecourtsRouter.get(
+  '/reference/caveat/lower-court/:stateCode/:distCode/:courtCode',
+  validate({
+    params: z.object({
+      stateCode: z.coerce.number().int().positive(),
+      distCode:  z.coerce.number().int().positive(),
+      courtCode: z.coerce.number().int().nonnegative(),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, courtCode } = req.params as unknown as { stateCode: number; distCode: number; courtCode: number };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const items = await ecourts.listLowerCourtCaveat({ stateCode, distCode, courtCode, court });
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+const CaveatHistoryInput = z.object({
+  stateCode:    z.number().int().positive(),
+  distCode:     z.number().int().positive(),
+  courtCode:    z.number().int().nonnegative(),
+  caveatNumber: z.string().min(1).max(40),
+  court:        CourtParam.optional(),
+});
+
+// Detail for one specific caveat (parties, subject, filing date) - given its
+// caveat_no (a field every caveat search result row carries). Distinct from
+// /reference/caveat/lower-court above, which checks whether a DIFFERENT,
+// lower court has a caveat for the same matter.
+ecourtsRouter.post(
+  '/caveat/history',
+  validate({ body: CaveatHistoryInput }),
+  async (req, res, next) => {
+    try {
+      const history = await ecourts.fetchCaveatHistory(req.body);
+      res.json({ history });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Court-complex geolocation (lat/long + Bhuvan map link). A 4th reference
+// endpoint alongside /reference/courts and /reference/judge-benches, scoped
+// to one specific complex (not a court within it - a complex is one
+// building, so one set of coordinates covers every court inside it).
+ecourtsRouter.get(
+  '/reference/location/:stateCode/:distCode/:complexCode',
+  validate({
+    params: z.object({
+      stateCode:   z.coerce.number().int().positive(),
+      distCode:    z.coerce.number().int().positive(),
+      complexCode: z.string().min(1).max(20),
+    }),
+    query: CourtQuery,
+  }),
+  async (req, res, next) => {
+    try {
+      const { stateCode, distCode, complexCode } = req.params as unknown as { stateCode: number; distCode: number; complexCode: string };
+      const court = (req.query as { court?: 'DC' | 'HC' }).court ?? 'DC';
+      const location = await ecourts.fetchCourtLocation({ stateCode, distCode, complexCode, court });
+      res.json({ location });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Business notes — manual fallback for the captcha-gated "Business" text
+// (see ecourts.service.ts's doc comment). Firm-scoped via requireAuth's
+// req.user, not a :firmId param - an advocate can only read/write their own
+// firm's notes.
+// ---------------------------------------------------------------------------
+
+ecourtsRouter.get(
+  '/business-notes/:cino',
+  validate({ params: z.object({ cino: z.string().min(1).max(32) }) }),
+  async (req, res, next) => {
+    try {
+      const { cino } = req.params as unknown as { cino: string };
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) throw new UnauthorizedError('Not authenticated');
+      const items = await ecourts.listBusinessNotes(firmId, cino.toUpperCase());
+      res.json({ items });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+const SaveBusinessNoteInput = z.object({
+  hearingDate:  z.string().min(1).max(40),
+  businessText: z.string().min(1).max(10_000),
+});
+
+ecourtsRouter.put(
+  '/business-notes/:cino',
+  validate({ params: z.object({ cino: z.string().min(1).max(32) }), body: SaveBusinessNoteInput }),
+  async (req, res, next) => {
+    try {
+      const { cino } = req.params as unknown as { cino: string };
+      const { hearingDate, businessText } = req.body as { hearingDate: string; businessText: string };
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) throw new UnauthorizedError('Not authenticated');
+      const note = await ecourts.saveBusinessNote({
+        firmId, cino: cino.toUpperCase(), hearingDate, businessText, userId: req.user?.id,
+      });
+      res.json({ note });
     } catch (err) {
       next(err);
     }

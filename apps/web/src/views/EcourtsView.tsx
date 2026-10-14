@@ -5,7 +5,9 @@ import {
   useEcourtsStates, useEcourtsDistricts, useEcourtsCourtComplexes, useEcourtsCourts,
   useEcourtsSearchCaseNumber, useEcourtsSearchParty, useEcourtsSearchAdvocate,
   useEcourtsSearchFir, useEcourtsSearchFilingNumber, useEcourtsSearchAct,
-  useEcourtsCauseList, useEcourtsCaveatSearch,
+  useEcourtsCauseList, useEcourtsCaveatSearch, useEcourtsFilingHistory, useEcourtsJudgeBenches,
+  useEcourtsIaBusiness, useEcourtsAppellateInfo, useEcourtsLowerCourtCaveat,
+  useEcourtsBusinessNotes, useSaveEcourtsBusinessNote, useEcourtsCaveatHistory, useEcourtsCourtLocation,
   useStartCnrLiveSession, useOpenLiveCnrLookup, useRefreshCnrCaptcha, useSubmitCnrCaptcha,
   type EcourtsCaseHistory, type EcourtsHearing, type EcourtsOrder, type Court,
   type EcourtsCauseListEntry,
@@ -265,6 +267,23 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
     complexCode || null,
     court,
   );
+  // Which judge(s) sit on the selected court - a 4th cascade level, live
+  // (not DB-cached like courts/complexes). Purely informational for now: the
+  // search itself still scopes by court, not by individual judge.
+  const { data: judgeBenches, isFetching: judgeBenchesFetching } = useEcourtsJudgeBenches(
+    stateCode === '' ? null : stateCode,
+    distCode === '' ? null : distCode,
+    courtCode && courtCode !== '0' ? courtCode : null,
+    court,
+  );
+  // Court-complex geolocation - scoped to the complex (one building), not
+  // the individual court, since every court inside shares one address.
+  const { data: courtLocation } = useEcourtsCourtLocation(
+    stateCode === '' ? null : stateCode,
+    distCode === '' ? null : distCode,
+    complexCode || null,
+    court,
+  );
   // Real court names (ecourts_courts) are only captured for a handful of
   // complexes so far - probing each court_code for its name is a live search
   // call per code, much slower than the complex-list capture. Until that
@@ -454,6 +473,17 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
                     disabled={distCode === ''}
                   />
                 )}
+                {courtLocation ? (
+                  <a
+                    href={`https://www.google.com/maps?q=${courtLocation.latitude},${courtLocation.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="body-sm"
+                    style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
+                  >
+                    View court on map →
+                  </a>
+                ) : null}
               </label>
               {complexes && complexes.length > 0 ? (
                 <label className="col" style={{ gap: 4 }}>
@@ -505,6 +535,24 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
                 />
               </label>
             </div>
+
+            {courtCode && courtCode !== '0' ? (
+              <div className="body-sm muted" style={{ marginTop: -4 }}>
+                {judgeBenchesFetching ? (
+                  'Loading judge/bench…'
+                ) : judgeBenches && judgeBenches.length > 0 ? (
+                  <>
+                    <span style={{ color: 'var(--text-tertiary)' }}>Bench: </span>
+                    {judgeBenches.map((jb, i) => (
+                      <span key={jb.code}>
+                        {jb.judgeName}{jb.designation ? ` (${jb.designation})` : ''}
+                        {i < judgeBenches.length - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                  </>
+                ) : null}
+              </div>
+            ) : null}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
               {mode === 'case-number' && (
@@ -595,7 +643,19 @@ function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
         </div>
       ) : null}
 
-      {mutation.isSuccess ? <SearchResultRenderer mode={mode} data={mutation.data} onViewCnr={handleViewCnr} /> : null}
+      {mutation.isSuccess ? (
+        <SearchResultRenderer
+          mode={mode}
+          data={mutation.data}
+          onViewCnr={handleViewCnr}
+          court={court}
+          scope={{ stateCode: stateCode === '' ? 0 : stateCode, distCode: distCode === '' ? 0 : distCode, courtCode: Number(courtCode) || 0 }}
+        />
+      ) : null}
+
+      {mode === 'caveat' && mutation.isSuccess && stateCode !== '' && distCode !== '' && courtCode && courtCode !== '0' ? (
+        <LowerCourtCaveatSection stateCode={stateCode} distCode={distCode} courtCode={Number(courtCode)} court={court} />
+      ) : null}
 
       {viewCnr ? (
         <div ref={viewCardRef}>
@@ -630,11 +690,70 @@ function Labeled({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+// A GENUINE zero-result search (court searched, nothing matched - distinct
+// from the "search never ran" amber warning above) used to just say "no
+// matching cases" with nothing else - the advocate was left guessing why
+// (wrong year? name spelled differently on the court record? wrong court
+// entirely?) with no way to tell from the UI alone. Confirmed live this is a
+// real gap, not a hypothetical: a real search (Kerala/Alappuzha/Sub Court
+// Chengannur/"shahul"/2026) correctly reported zero matches - genuinely
+// correct per the live eCourts data - but gave the advocate nothing to act
+// on next. eCourts' own party-name matching is narrower than a human expects
+// (closer to exact/prefix than fuzzy), so "check the name" is the single
+// highest-value hint, not a generic "try again."
+const ZERO_RESULT_HINTS: Record<SearchMode, string[]> = {
+  'party': [
+    'eCourts matches party names narrowly (closer to exact than fuzzy) - try just the surname, or the name exactly as it would appear on a court filing.',
+    'Confirm the year - this searches filings registered in the year entered, not the case\'s current year.',
+    'Double-check the court selected above - a case filed at a different court/complex in the same district won\'t show here.',
+  ],
+  'advocate': [
+    'Try the advocate\'s name exactly as enrolled (eCourts matching is narrow, not fuzzy).',
+    'Confirm the year - this searches filings registered in that year.',
+    'Double-check the court selected above.',
+  ],
+  'case-number': [
+    'Double-check the case type, number, and year match exactly what\'s on the filing.',
+    'Confirm the court selected above is the one the case was actually filed at.',
+  ],
+  'fir': [
+    'Confirm the FIR number and year exactly as registered.',
+    'Double-check the police station and court selected above.',
+  ],
+  'filing': [
+    'Confirm the filing number and year exactly as issued.',
+    'Double-check the court selected above.',
+  ],
+  'act': [
+    'Try a narrower or differently-worded act name - eCourts matching here is narrow.',
+  ],
+  'cause-list': [],
+  'caveat': [
+    'Try just the surname, or the name exactly as it would appear on a court filing.',
+    'Double-check the court selected above.',
+  ],
+};
+
+function ZeroResultHint({ mode }: { mode: SearchMode }) {
+  const hints = ZERO_RESULT_HINTS[mode];
+  if (!hints.length) return null;
+  return (
+    <ul className="body-sm muted" style={{ marginTop: 8, paddingLeft: 18 }}>
+      {hints.map((h, i) => <li key={i}>{h}</li>)}
+    </ul>
+  );
+}
+
 // eCourts search endpoints return varying, loosely-typed shapes per mode
 // (the PHP backend isn't uniform). Rather than guess a schema per mode and
 // break on the first mismatch, we detect a `status:"N"` error envelope and
 // otherwise render whatever list-shaped or object-shaped payload came back.
-function SearchResultRenderer({ mode, data, onViewCnr }: { mode: SearchMode; data: unknown; onViewCnr: (cnr: string) => void }) {
+function SearchResultRenderer({
+  mode, data, onViewCnr, court, scope,
+}: {
+  mode: SearchMode; data: unknown; onViewCnr: (cnr: string) => void; court: Court;
+  scope: { stateCode: number; distCode: number; courtCode: number };
+}) {
   const obj = data as Record<string, unknown> | null;
   if (obj && typeof obj === 'object' && obj.status === 'N') {
     return (
@@ -744,7 +863,10 @@ function SearchResultRenderer({ mode, data, onViewCnr }: { mode: SearchMode; dat
           <div key={ei} className="card">
             <div className="heading-sm" style={{ marginBottom: 10 }}>{est.name}</div>
             {est.cases.length === 0 ? (
-              <p className="body-sm muted">No cases matched this search in this court.</p>
+              <div>
+                <p className="body-sm muted">No cases matched this search in this court.</p>
+                <ZeroResultHint mode={mode} />
+              </div>
             ) : (
               <div className="col" style={{ gap: 8 }}>
                 {est.cases.map((c, i) => (
@@ -759,6 +881,7 @@ function SearchResultRenderer({ mode, data, onViewCnr }: { mode: SearchMode; dat
                           {c.date_of_decision ? ` · Decided ${c.date_of_decision}` : ''}
                         </div>
                         {c.cino ? <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>CNR {c.cino}</span> : null}
+                        {c.cino ? <ResultStatusBadge cino={c.cino} court={court} /> : null}
                       </div>
                       {c.cino ? (
                         <div className="row" style={{ gap: 8 }}>
@@ -787,7 +910,12 @@ function SearchResultRenderer({ mode, data, onViewCnr }: { mode: SearchMode; dat
     : [];
 
   if (!rows.length) {
-    return <div className="card"><p className="body-sm muted">No cases matched this search.</p></div>;
+    return (
+      <div className="card">
+        <p className="body-sm muted">No cases matched this search.</p>
+        <ZeroResultHint mode={mode} />
+      </div>
+    );
   }
 
   return (
@@ -800,11 +928,85 @@ function SearchResultRenderer({ mode, data, onViewCnr }: { mode: SearchMode; dat
               <Field key={k} label={k.replace(/_/g, ' ').toUpperCase()} value={String(v ?? '—')} />
             ))}
           </div>
+          {mode === 'caveat' && row.caveat_no ? (
+            <CaveatDetailButton caveatNumber={String(row.caveat_no)} scope={scope} court={court} />
+          ) : null}
         </div>
       ))}
     </div>
   );
 }
+
+// caveatCaseHistoryWebService.php - detail for one specific caveat result row
+// (parties, subject, filing date). Found by re-auditing the full decompiled
+// APK, see ecourts.service.ts's fetchCaveatHistory doc comment. A caveat
+// number with nothing on record still returns a populated shape with every
+// field null - rendered as "No further detail on record" rather than hidden,
+// since the advocate explicitly asked to see it (unlike the auto-fetched
+// IA/Appellate sections, this is click-triggered so showing SOME response is
+// expected, not a silent no-op).
+function CaveatDetailButton({ caveatNumber, scope, court }: { caveatNumber: string; scope: { stateCode: number; distCode: number; courtCode: number }; court: Court }) {
+  const mutation = useEcourtsCaveatHistory();
+  const [shown, setShown] = useState(false);
+
+  const handleClick = () => {
+    setShown(true);
+    if (!mutation.data) mutation.mutate({ ...scope, caveatNumber, court });
+  };
+
+  if (!shown) {
+    return (
+      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={handleClick}>
+        View caveat detail
+      </button>
+    );
+  }
+
+  if (mutation.isPending) return <p className="body-sm muted" style={{ marginTop: 8 }}>Loading…</p>;
+  if (mutation.isError) return <p className="body-sm muted" style={{ marginTop: 8 }}>Could not load caveat detail.</p>;
+
+  const h = mutation.data?.history;
+  const hasDetail = Boolean(h?.caveatorDetails.caveator_name || h?.caveateeDetails.caveatee_name || h?.caveatDetails.subject);
+  return (
+    <div className="col" style={{ marginTop: 8, gap: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+      {hasDetail ? (
+        <div className="grid-2" style={{ gap: 12 }}>
+          <Field label="CAVEATOR" value={h?.caveatorDetails.caveator_name || '—'} />
+          <Field label="CAVEATEE" value={h?.caveateeDetails.caveatee_name || '—'} />
+          <Field label="SUBJECT" value={h?.caveatDetails.subject || '—'} />
+          <Field label="DATE OF FILING" value={h?.caveatDetails.dt_filing || '—'} mono />
+        </div>
+      ) : (
+        <p className="body-sm muted">No further detail on record for this caveat.</p>
+      )}
+    </div>
+  );
+}
+
+// lowerCourtCaveat.php - whether a caveat exists at a LOWER court for the
+// same matter, one of the 6 endpoints found by re-auditing the full
+// decompiled APK (see ecourts.service.ts). Renders nothing on an empty
+// result (verified live: that's a legitimate "no lower-court caveat" answer,
+// not an error) - only appears after a caveat search has actually run.
+function LowerCourtCaveatSection({ stateCode, distCode, courtCode, court }: { stateCode: number; distCode: number; courtCode: number; court: Court }) {
+  const { data: items, isLoading } = useEcourtsLowerCourtCaveat(stateCode, distCode, courtCode, court);
+  if (isLoading || !items || items.length === 0) return null;
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="heading-sm" style={{ marginBottom: 10 }}>Lower-court caveat on record</div>
+      <div className="col" style={{ gap: 8 }}>
+        {items.map((row, i) => (
+          <div key={i} className="grid-2" style={{ gap: 12 }}>
+            {Object.entries(row).filter(([k]) => !/^(token)$/i.test(k)).slice(0, 8).map(([k, v]) => (
+              <Field key={k} label={k.replace(/_/g, ' ').toUpperCase()} value={String(v ?? '—')} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
@@ -1029,6 +1231,16 @@ function CaseCard({ h, court, onAdded }: { h: EcourtsCaseHistory; court: Court; 
 
       {h.transfer && h.transfer.length > 0 ? <TransferList transfers={h.transfer} /> : null}
 
+      <IaBusinessSection cino={h.cino} court={court} />
+      <AppellateInfoSection
+        stateCode={h.state_code}
+        distCode={h.district_code}
+        courtCode={h.court_code}
+        caseNumber1={h.case_no}
+        appCsNo={String(h.reg_no ?? '')}
+        court={court}
+      />
+
       <NewHearingModal
         open={hearingOpen}
         onClose={() => setHearingOpen(false)}
@@ -1149,6 +1361,9 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
                         ) : (
                           <p className="body-sm muted" style={{ marginTop: 12 }}>No order/judgment filed for this date.</p>
                         )}
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <BusinessNoteEditor cino={cino} hearingDate={hearingDate} />
+                        </div>
                       </td>
                     </tr>
                   ) : null}
@@ -1158,6 +1373,80 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// BusinessNoteEditor — manual fallback for the captcha-gated "Business" text
+// (see ecourts.service.ts's listBusinessNotes doc comment for why this can't
+// be fetched automatically). The advocate reads the real Daily Status page
+// via "Live Business (eCourts)" above, then pastes what they read here so it
+// persists in LexDraft per hearing date instead of needing the captcha again
+// every time they revisit this case.
+function BusinessNoteEditor({ cino, hearingDate }: { cino: string; hearingDate: string }) {
+  const { data: notes } = useEcourtsBusinessNotes(cino);
+  const save = useSaveEcourtsBusinessNote(cino);
+  const showToast = useUIStore((s) => s.showToast);
+  const existing = notes?.find((n) => n.hearingDate === hearingDate);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = () => { setDraft(existing?.businessText ?? ''); setEditing(true); };
+
+  const handleSave = async () => {
+    const text = draft.trim();
+    if (!text) return;
+    try {
+      await save.mutateAsync({ hearingDate, businessText: text });
+      setEditing(false);
+      showToast({ type: 'sage', text: 'Business note saved' });
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not save note';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
+
+  if (editing) {
+    return (
+      <div className="col" style={{ marginTop: 12, gap: 8 }}>
+        <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+          BUSINESS NOTE (pasted from eCourts Daily Status)
+        </span>
+        <textarea
+          className="input"
+          rows={3}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Paste what the eCourts Daily Status page shows for this date…"
+        />
+        <div className="row" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={() => void handleSave()} disabled={save.isPending || !draft.trim()}>
+            {save.isPending ? 'Saving…' : 'Save note'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      {existing ? (
+        <div className="col" style={{ gap: 4 }}>
+          <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+            BUSINESS NOTE
+          </span>
+          <p className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{existing.businessText}</p>
+          <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={startEdit}>
+            Edit note
+          </button>
+        </div>
+      ) : (
+        <button type="button" className="btn btn-ghost btn-sm" onClick={startEdit}>
+          + Add business note for this date
+        </button>
+      )}
     </div>
   );
 }
@@ -1281,6 +1570,78 @@ function TransferList({ transfers }: { transfers: NonNullable<EcourtsCaseHistory
   );
 }
 
+// IA Business - Interim Application business/status, one of the 6 endpoints
+// found by re-auditing the full decompiled APK (see ecourts.service.ts).
+// Renders nothing if the case has no IAs (a legitimate empty answer, not an
+// error) - same "don't show a blank section" discipline as TransferList.
+function IaBusinessSection({ cino, court }: { cino: string; court: Court }) {
+  const { data: items, isLoading } = useEcourtsIaBusiness(cino, court);
+  if (isLoading || !items || items.length === 0) return null;
+  return (
+    <div>
+      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
+        <h2 className="heading-lg">Interim applications</h2>
+      </div>
+      <div className="card">
+        <ul className="col stagger" style={{ gap: 12, listStyle: 'none', paddingLeft: 0 }}>
+          {items.map((ia, i) => (
+            <li key={i} className="body-sm">
+              <span className="mono tabular" style={{ color: 'var(--text-tertiary)' }}>{ia.ia_no ?? `IA ${i + 1}`}</span>
+              <span style={{ marginLeft: 12 }}>{ia.purpose || '—'}</span>
+              {ia.businessStatus ? <span className="badge badge-amber" style={{ marginLeft: 12 }}>{ia.businessStatus.toUpperCase()}</span> : null}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// Appellate info - whether this case has been through an appeal, one of the
+// 6 endpoints found by re-auditing the full decompiled APK. The backend
+// route needs a request body (court/case scope), so this triggers once on
+// mount rather than auto-querying by CNR like IaBusinessSection. Renders
+// nothing if every field besides the heading comes back empty (confirmed
+// live: that's eCourts' own "no appellate activity" answer, not missing
+// data) - same quiet-fail discipline as the rest of this view.
+function AppellateInfoSection({
+  stateCode, distCode, courtCode, caseNumber1, appCsNo, court,
+}: { stateCode: number; distCode: number; courtCode: number; caseNumber1: string; appCsNo: string; court: Court }) {
+  const mutation = useEcourtsAppellateInfo();
+  const { mutate } = mutation;
+  useEffect(() => {
+    if (!caseNumber1 || !appCsNo) return;
+    mutate({ stateCode, distCode, courtCode, caseNumber1, appCsNo, court });
+    // Only re-fetch if the underlying case identity actually changes - not
+    // on every render (mutate/mutation identity is stable from TanStack
+    // Query, but included for correctness).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateCode, distCode, courtCode, caseNumber1, appCsNo, court]);
+
+  const info = mutation.data?.writInfo;
+  if (!info) return null;
+  const hasContent = Boolean(info.app_auth_desc || info.app_aut || info.dt_of_recp || info.dt_of_oder || info.order_brief);
+  if (!hasContent) return null;
+
+  return (
+    <div>
+      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
+        <h2 className="heading-lg">Appellate information</h2>
+      </div>
+      <div className="card">
+        <p className="body-sm" style={{ marginBottom: 12 }}>{info.heading}</p>
+        <div className="grid-2" style={{ gap: 16 }}>
+          {info.app_aut ? <Field label="APPELLATE AUTHORITY" value={info.app_aut} /> : null}
+          {info.app_auth_desc ? <Field label="AUTHORITY DESCRIPTION" value={info.app_auth_desc} /> : null}
+          {info.dt_of_recp ? <Field label="DATE OF RECEIPT" value={info.dt_of_recp} mono /> : null}
+          {info.dt_of_oder ? <Field label="DATE OF ORDER" value={info.dt_of_oder} mono /> : null}
+        </div>
+        {info.order_brief ? <p className="body-sm muted" style={{ marginTop: 12 }}>{info.order_brief}</p> : null}
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, value, mono, onClick, title }: { label: string; value: string; mono?: boolean; onClick?: () => void; title?: string }) {
   return (
     <div className="col" style={{ gap: 6 }}>
@@ -1327,6 +1688,40 @@ function fmtNextDate(raw: string): string {
 }
 
 // =============================================================================
+// ResultStatusBadge — the Next/Disposal Date + status badge the official
+// eCourts app shows INLINE on every search result row (confirmed against a
+// real screenshot of the app: "Oct 01 2026 / Pending / Service Pending-
+// Summon" sitting right next to the case number, no click-through needed).
+// This portal previously only surfaced that after opening a case via
+// LiveBusinessInline below — filingCaseHistory.php (found by re-auditing the
+// decompiled APK, see ecourts.service.ts) carries date_next_list/
+// purpose_next keyed by the same CNR every result row already has, so this
+// auto-fetches per row instead of waiting for a click.
+// =============================================================================
+function ResultStatusBadge({ cino, court }: { cino: string; court: Court }) {
+  const { data, isLoading, isError } = useEcourtsFilingHistory(cino, court);
+  if (isLoading) return <span className="body-sm muted" style={{ fontSize: 11 }}>Loading status…</span>;
+  // A transient/failed fetch shouldn't block the rest of the row - the
+  // advocate still has case name/number/CNR and can open the case for the
+  // same data via LiveBusinessInline/View. Fail quiet, not blank-with-no-
+  // explanation (the exact silent-gap pattern this feature was built to fix).
+  if (isError || !data) return null;
+  const disposed = Boolean(data.date_of_decision);
+  return (
+    <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+      {data.date_next_list ? (
+        <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+          Next: {data.date_next_list}
+        </span>
+      ) : null}
+      <span className={`badge ${disposed ? 'badge-sage' : 'badge-amber'}`} style={{ fontSize: 10 }}>
+        {disposed ? 'DISPOSED' : 'PENDING'}
+      </span>
+    </div>
+  );
+}
+
+// =============================================================================
 // LiveBusinessInline — fetches the free-text "Business" narrative for ONE
 // case directly by its CNR, inline on a search result row (Party Name,
 // Advocate, Case Number, etc. all already return a `cino` per case from the
@@ -1367,6 +1762,18 @@ const LiveBusinessInline = forwardRef<LiveBusinessInlineHandle, { cino: string; 
   // happens while they're reading the case, not after they've clicked.
   const [preconnect, setPreconnect] = useState<PreconnectState>(eager ? { phase: 'connecting' } : { phase: 'idle' });
   const preconnectStarted = useRef(false);
+  // This genuinely takes 10-20s (launching a real headless browser session
+  // against the live eCourts site) - confirmed live, not a bug. With no
+  // visible progress, a static "Preparing..." label for that long reads as
+  // stuck/broken rather than working (confirmed: this exact confusion is
+  // what prompted this fix). A ticking elapsed-seconds counter is enough to
+  // show it's actively working without implying a fake progress bar.
+  const [connectingSeconds, setConnectingSeconds] = useState(0);
+  useEffect(() => {
+    if (preconnect.phase !== 'connecting') { setConnectingSeconds(0); return; }
+    const id = setInterval(() => setConnectingSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [preconnect.phase]);
 
   const startSession = useStartCnrLiveSession();
   const openLookup = useOpenLiveCnrLookup();
@@ -1460,7 +1867,7 @@ const LiveBusinessInline = forwardRef<LiveBusinessInlineHandle, { cino: string; 
       <div className="col" style={{ gap: 6, alignItems: 'flex-start' }}>
         <button type="button" className="btn btn-ghost btn-sm" onClick={handleStart} disabled={stillConnecting}>
           {stillConnecting
-            ? 'Preparing live eCourts link…'
+            ? `Connecting to eCourts… (${connectingSeconds}s - this takes ~10-20s, a real government site)`
             : <><Icon name="eye" size={12} /> Live Business (eCourts)</>}
         </button>
         {preconnect.phase === 'failed' ? (

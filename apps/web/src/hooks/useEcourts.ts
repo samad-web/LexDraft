@@ -109,6 +109,30 @@ export interface EcourtsCaseHistory {
   [k: string]: unknown;
 }
 
+// filingCaseHistory.php — a second, richer case-record shape keyed by the
+// same CNR as EcourtsCaseHistory, confirmed to carry date_next_list/
+// purpose_next (next-hearing-date) PLUS legal-heir flags/objection tracking/
+// bilingual names that caseHistoryWebService.php doesn't return. See
+// useEcourtsFilingHistory below — this is what powers next-date/status on
+// SEARCH RESULTS (not just the opened-case detail view).
+export interface EcourtsFilingHistory {
+  cino: string;
+  case_no: string;
+  filing_no: string;
+  date_of_filing: string;
+  dt_regis: string;
+  date_first_list?: string;
+  date_next_list?: string;
+  date_of_decision?: string | null;
+  purpose_next?: number;
+  pet_name: string;
+  res_name: string;
+  pet_legal_heir?: 'Y' | 'N';
+  res_legal_heir?: 'Y' | 'N';
+  court_name: string;
+  [k: string]: unknown;
+}
+
 export interface EcourtsState {
   state_code: number;
   state_name: string;
@@ -160,6 +184,28 @@ export function useEcourtsCnr(cnr: string | null | undefined, court: Court = 'DC
   // this kind of status-code branching).
   const isNotFound = (query.error as { response?: { status?: number } } | null)?.response?.status === 404;
   return { ...query, isNotFound };
+}
+
+/**
+ * Next-hearing-date + status for a single search result row, WITHOUT the
+ * advocate opening the case first — this is what the official eCourts app
+ * shows inline on search results (Next/Disposal Date + Pending/status badge)
+ * that this portal previously only surfaced after a click-through. Disabled
+ * until explicitly enabled by the caller (`enabled` param) — a results list
+ * decides whether to auto-fetch per row (eager) or wait for a hover/click
+ * (lazy), rather than this hook always firing on mount for every row.
+ */
+export function useEcourtsFilingHistory(cnr: string | null | undefined, court: Court = 'DC', enabled = true) {
+  const cleaned = (cnr ?? '').trim().toUpperCase();
+  const valid = CNR_RE.test(cleaned);
+  return useQuery({
+    queryKey: ['ecourts', 'filing-history', cleaned, court],
+    queryFn: () => api.get<{ history: EcourtsFilingHistory }>(`/ecourts/lookup/cnr/${cleaned}/filing-history`, { court }),
+    select: (r) => r.history,
+    enabled: valid && enabled,
+    staleTime: 5 * 60 * 1000,
+    retry: (failureCount, err) => (err as { response?: { status?: number } })?.response?.status !== 404 && failureCount < 3,
+  });
 }
 
 /**
@@ -321,6 +367,74 @@ export function useEcourtsCourts(
   });
 }
 
+export interface EcourtsJudgeBench {
+  code: string;
+  judgeName: string;
+  designation: string;
+}
+
+// courtNameWebService.php - a 4th cascade level below useEcourtsCourts: WHICH
+// judge sits on a specific court (e.g. "Family Courts, Chennai" has one
+// judge; "Metropolitan Magistrate Courts, Saidapet" has nine). Unlike
+// useEcourtsCourtComplexes/useEcourtsCourts (our own DB cache), this is a
+// LIVE eCourts call - found by re-auditing the full decompiled APK, see
+// ecourts.service.ts's listJudgeBenches doc comment. Empty array is a
+// legitimate answer (court has no named judges on record, or the live call
+// is transiently unavailable) - callers should treat it the same way the
+// courts cascade treats an empty courts list (fall back gracefully, don't
+// block the search).
+export function useEcourtsJudgeBenches(
+  stateCode: number | null | undefined,
+  distCode: number | null | undefined,
+  courtCode: string | null | undefined,
+  court: Court = 'DC',
+) {
+  const courtCodeNum = courtCode ? Number(courtCode) : NaN;
+  return useQuery({
+    queryKey: ['ecourts', 'judge-benches', stateCode, distCode, courtCode, court],
+    queryFn: () => api.get<{ items: EcourtsJudgeBench[] }>(`/ecourts/reference/judge-benches/${stateCode}/${distCode}/${courtCodeNum}`, { court }),
+    select: (r) => r.items,
+    enabled: typeof stateCode === 'number' && stateCode > 0 && typeof distCode === 'number' && distCode > 0 && Number.isFinite(courtCodeNum),
+    staleTime: 24 * 60 * 60 * 1000,
+    // A transient/unavailable live call shouldn't retry aggressively and
+    // block the rest of the search form - this is a nice-to-have enrichment,
+    // not a required field.
+    retry: 1,
+  });
+}
+
+export interface EcourtsCourtLocation {
+  latitude: string;
+  longitude: string;
+  court_complex: string;
+  map_url: string;
+  [k: string]: unknown;
+}
+
+// latlong.php - court-complex geolocation. Scoped to the COMPLEX (one
+// building), not an individual court inside it. Fixed live this session: the
+// response was previously indistinguishable from a genuine crypto failure
+// because eCourts wraps this one endpoint's body in a literal JSON string,
+// unlike every other endpoint's bare wire format - see
+// apps/api/src/lib/ecourts/client.ts's rawCall for the unwrap fix.
+export function useEcourtsCourtLocation(
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  complexCode: string | null | undefined,
+  court: Court = 'DC',
+) {
+  const sc = typeof stateCode === 'number' ? stateCode : null;
+  const dc = typeof distCode === 'number' ? distCode : null;
+  return useQuery({
+    queryKey: ['ecourts', 'court-location', sc, dc, complexCode, court],
+    queryFn: () => api.get<{ location: EcourtsCourtLocation }>(`/ecourts/reference/location/${sc}/${dc}/${complexCode}`, { court }),
+    select: (r) => r.location,
+    enabled: Boolean(sc && dc && complexCode),
+    staleTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
 export interface EcourtsBusinessNote {
   hearingDate: string;
   businessText: string;
@@ -442,6 +556,107 @@ export function useEcourtsCaveatSearch() {
   return useMutation({
     mutationFn: (body: EcourtsCourtScope & { caveatorName?: string; caveateeName?: string; searchBy?: 'Caveator' | 'Caveatee'; court?: Court }) =>
       api.post<unknown>('/ecourts/caveat/search', body),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Interim Application business + Appellate info - 2 of the 6 endpoints found
+// by re-auditing the full decompiled APK (see ecourts.service.ts). Both
+// render in CaseCard's detail view, below the orders/transfers sections.
+// ---------------------------------------------------------------------------
+
+export interface EcourtsIaBusinessEntry {
+  ia_no?: string;
+  purpose?: string;
+  judge_name?: string;
+  todays_date?: string;
+  nextdate?: string;
+  businessStatus?: string;
+  [k: string]: unknown;
+}
+
+/** A case with no interim applications returns a legitimate empty array
+ *  (verified live) - render nothing, not an error, in that case. */
+export function useEcourtsIaBusiness(cnr: string | null | undefined, court: Court = 'DC') {
+  const cleaned = (cnr ?? '').trim().toUpperCase();
+  const valid = CNR_RE.test(cleaned);
+  return useQuery({
+    queryKey: ['ecourts', 'ia-business', cleaned, court],
+    queryFn: () => api.get<{ items: EcourtsIaBusinessEntry[] }>(`/ecourts/lookup/cnr/${cleaned}/ia-business`, { court }),
+    select: (r) => r.items,
+    enabled: valid,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export interface EcourtsAppellateInfo {
+  heading: string;
+  app_cs_no?: string | null;
+  app_auth_desc?: string | null;
+  app_aut?: string | null;
+  dt_of_recp?: string;
+  dt_of_oder?: string;
+  order_brief?: string | null;
+  dt_of_com?: string;
+  [k: string]: unknown;
+}
+
+/** POST-shaped like useEcourtsCaveatSearch (the backend route needs a body,
+ *  not just a CNR) - callers trigger it once per case via a mount effect
+ *  rather than this auto-querying, since the scope fields (court_code etc.)
+ *  come from the already-loaded case history, not from user input. */
+export function useEcourtsAppellateInfo() {
+  return useMutation({
+    mutationFn: (body: { stateCode: number; distCode: number; courtCode: number; caseNumber1: string; appCsNo: string; court?: Court }) =>
+      api.post<{ writInfo: EcourtsAppellateInfo }>('/ecourts/appellate-info', body),
+  });
+}
+
+/** Whether a caveat exists at a LOWER court for the same matter - a 6th
+ *  endpoint found by re-auditing the full decompiled APK. Empty array is a
+ *  legitimate "no lower-court caveat on record" answer, not an error. */
+export function useEcourtsLowerCourtCaveat(
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  courtCode: number | null | undefined,
+  court: Court = 'DC',
+) {
+  const sc = typeof stateCode === 'number' ? stateCode : null;
+  const dc = typeof distCode === 'number' ? distCode : null;
+  return useQuery({
+    queryKey: ['ecourts', 'lower-court-caveat', sc, dc, courtCode, court],
+    queryFn: () => api.get<{ items: Record<string, unknown>[] }>(`/ecourts/reference/caveat/lower-court/${sc}/${dc}/${courtCode}`, { court }),
+    select: (r) => r.items,
+    enabled: Boolean(sc && dc && typeof courtCode === 'number'),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export interface EcourtsCaveatHistory {
+  caveatDetails: {
+    caveat_number: string | null;
+    cnr_number: string | null;
+    subject: string | null;
+    dt_filing: string | null;
+    time_of_filing: string | null;
+    matched_case_no: string | null;
+    [k: string]: unknown;
+  };
+  caveatorDetails: { caveator_name: string | null; [k: string]: unknown };
+  caveateeDetails: { caveatee_name: string | null; [k: string]: unknown };
+  establishment_name: string | null;
+  [k: string]: unknown;
+}
+
+/** Detail for one specific caveat (parties, subject, filing date), given its
+ *  caveat_no - the field every caveat search result row carries. POST-shaped
+ *  like useEcourtsAppellateInfo (the scope fields come from the search form's
+ *  already-known court, not re-collected from the user). */
+export function useEcourtsCaveatHistory() {
+  return useMutation({
+    mutationFn: (body: { stateCode: number; distCode: number; courtCode: number; caveatNumber: string; court?: Court }) =>
+      api.post<{ history: EcourtsCaveatHistory }>('/ecourts/caveat/history', body),
   });
 }
 

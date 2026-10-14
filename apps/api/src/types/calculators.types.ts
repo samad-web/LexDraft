@@ -62,11 +62,28 @@ export interface StampDutySchedule {
   instruments: Record<string, StampInstrument>;
 }
 
+/**
+ * Advocate sign-off state for a state's figures - mirrors the VERIFY-table
+ * pattern in lexdraft-engine/src/verify/tables.py. `verified: true` must
+ * carry a `reviewedBy` + `reviewedOn`; an unsigned true is the exact failure
+ * mode this exists to prevent. Defaults to unverified for every state until
+ * an advocate licensed in (or familiar with) that state confirms the figures
+ * against the bare Act / current gazette schedule.
+ */
+export interface VerificationStatus {
+  verified: boolean;
+  reviewedBy: string;
+  reviewedOn: string;
+  /** e.g. "Tamil Nadu Court Fees and Suits Valuation Act 1955, Schedule I". */
+  source: string;
+}
+
 export interface StateFees {
   stateCode: string;
   stateName: string;
   courtFee: CourtFeeSchedule;
   stampDuty: StampDutySchedule;
+  verification: VerificationStatus;
 }
 
 /* -------------------------------------------------------------- vakalatnama */
@@ -86,18 +103,21 @@ export interface CalculatorStateRef {
   stateName: string;
   courtTypes: VakalatnamaCourtType[];
   instruments: string[];
+  verification: VerificationStatus;
 }
 
 export interface CourtFeeResult {
   fee: number;
   breakdown: string[];
   notes: string;
+  verification: VerificationStatus;
 }
 
 export interface StampDutyResult {
   duty: number;
   breakdown: string[];
   notes: string;
+  verification: VerificationStatus;
 }
 
 export interface VakalatnamaResult {
