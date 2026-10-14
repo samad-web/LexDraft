@@ -1439,7 +1439,7 @@ export const mockArgumentsService = {
       ) values (
         ${ctx.firmId}::uuid, ${ctx.userId}::uuid,
         ${input.caseId ?? null}, ${input.uploadId ?? null},
-        ${JSON.stringify(input.matterSummary)}::jsonb,
+        ${input.matterSummary}::jsonb,
         ${input.role}::mock_argument_role,
         ${input.judgePersona}::mock_argument_judge_persona,
         ${input.plannedDurationSeconds ?? null},
@@ -1617,7 +1617,7 @@ export const mockArgumentsService = {
             coalesce(max(turn_number), 0) + 1,
             'ai'::mock_argument_speaker,
             ${fullText},
-            ${JSON.stringify(citations)}::jsonb
+            ${citations}::jsonb
           from mock_argument_turns
           where session_id = ${sessionId}::uuid
         returning *
@@ -1762,12 +1762,12 @@ async function runReviewAndPersist(
         qualitative_summary, llm_raw_response, is_demo
       ) values (
         ${sessionId}::uuid,
-        ${JSON.stringify(review.rubric)}::jsonb,
+        ${review.rubric}::jsonb,
         ${review.strengths}::text[],
         ${review.weaknesses}::text[],
-        ${JSON.stringify(review.missedArguments)}::jsonb,
-        ${JSON.stringify(review.studyList)}::jsonb,
-        ${JSON.stringify(review.improvements)}::jsonb,
+        ${review.missedArguments}::jsonb,
+        ${review.studyList}::jsonb,
+        ${review.improvements}::jsonb,
         ${review.qualitativeSummary},
         ${llmRawResponse},
         ${review.isDemo}
@@ -1792,7 +1792,7 @@ async function runReviewAndPersist(
     // wipe valid scores any time the model omits an entry.
     for (const [turnNumber, rating] of ratingByDbTurnNumber) {
       await tx`
-        update mock_argument_turns set rating_jsonb = ${JSON.stringify(rating)}::jsonb
+        update mock_argument_turns set rating_jsonb = ${rating}::jsonb
         where session_id = ${sessionId}::uuid and turn_number = ${turnNumber}
       `;
     }
