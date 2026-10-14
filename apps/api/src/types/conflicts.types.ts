@@ -32,7 +32,7 @@ export type ConflictClassification =
  */
 export type ConflictSide = 'party' | 'opposing';
 
-export type MatchedAgainst = 'cases.client' | 'cases.title' | 'clients.name';
+export type MatchedAgainst = 'cases.client' | 'cases.title' | 'cases.opposing_party' | 'clients.name';
 
 export interface ConflictHit {
   severity: ConflictSeverity;

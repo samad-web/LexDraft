@@ -4,6 +4,25 @@ import { SEED_CASES } from '../data/seed';
 import { clientsService } from './clients.service';
 import { ConflictError } from '../lib/errors';
 
+/**
+ * Pull the opposing party out of a matter title. Indian filings overwhelmingly
+ * use "X v. Y" / "X vs Y" / "X versus Y" - the right-hand-side is the
+ * opposing party. Mirrors NewCaseModal.tsx's deriveOpposingFromTitle (same
+ * regex) - that copy drives the LIVE pre-filing conflict check in the form;
+ * this one persists the result so every LATER conflict check against this
+ * case (conflicts.service.ts) can match a real column instead of re-guessing
+ * from the title every time. See migration 0082.
+ */
+function deriveOpposingParty(title: string): string | null {
+  const t = title.trim();
+  if (!t) return null;
+  const sep = /\s+(?:v\.?|vs\.?|versus)\s+/i;
+  const parts = t.split(sep);
+  if (parts.length < 2) return null;
+  const rhs = parts.slice(1).join(' ').trim();
+  return rhs.length > 0 ? rhs : null;
+}
+
 interface CaseRow {
   id: string;
   cnr: string;
@@ -151,9 +170,10 @@ export const casesService = {
       let rows: CaseRow[];
       try {
         rows = await sql<CaseRow[]>`
-          insert into cases (firm_id, cnr, title, court, stage, client, status, next_hearing, type)
+          insert into cases (firm_id, cnr, title, court, stage, client, status, next_hearing, type, opposing_party)
           values (${firmId}::uuid, ${input.cnr}, ${input.title}, ${input.court}, ${input.stage},
-                  ${input.client}, ${input.status}, ${input.next || null}, ${input.type})
+                  ${input.client}, ${input.status}, ${input.next || null}, ${input.type},
+                  ${deriveOpposingParty(input.title)})
           returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
         `;
       } catch (err) {
@@ -182,16 +202,22 @@ export const casesService = {
     if (!firmId) return undefined;
     const sql = db();
     if (sql) {
+      // opposing_party is re-derived ONLY when title is actually being
+      // updated (patch.title set) - when it's absent/null we must leave
+      // the column untouched, not re-derive from the (unchanged) title and
+      // risk clobbering a value that diverged for some other reason.
+      const nextOpposingParty = patch.title ? deriveOpposingParty(patch.title) : null;
       const rows = await sql<CaseRow[]>`
         update cases set
-          cnr           = coalesce(${patch.cnr ?? null}, cnr),
-          title         = coalesce(${patch.title ?? null}, title),
-          court         = coalesce(${patch.court ?? null}, court),
-          stage         = coalesce(${patch.stage ?? null}, stage),
-          client        = coalesce(${patch.client ?? null}, client),
-          status        = coalesce(${(patch.status ?? null) as string | null}, status),
-          next_hearing  = coalesce(${patch.next ?? null}, next_hearing),
-          type          = coalesce(${patch.type ?? null}, type)
+          cnr            = coalesce(${patch.cnr ?? null}, cnr),
+          title          = coalesce(${patch.title ?? null}, title),
+          court          = coalesce(${patch.court ?? null}, court),
+          stage          = coalesce(${patch.stage ?? null}, stage),
+          client         = coalesce(${patch.client ?? null}, client),
+          status         = coalesce(${(patch.status ?? null) as string | null}, status),
+          next_hearing   = coalesce(${patch.next ?? null}, next_hearing),
+          type           = coalesce(${patch.type ?? null}, type),
+          opposing_party = case when ${patch.title ? true : false} then ${nextOpposingParty} else opposing_party end
         where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is null
         returning id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
       `;

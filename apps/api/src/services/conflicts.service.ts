@@ -35,6 +35,7 @@ interface CaseHitRow {
   id: string;
   title: string;
   client: string;
+  opposingParty: string | null;
 }
 
 interface ClientHitRow {
@@ -81,7 +82,7 @@ async function loadFirmCorpus(firmId: string, excludeMatterId?: string): Promise
   if (!sql) return { cases: [], clients: [] };
 
   const cases = await sql<CaseHitRow[]>`
-    select id::text as id, title, client
+    select id::text as id, title, client, opposing_party as "opposingParty"
     from cases
     where firm_id = ${firmId}::uuid
       and kind = 'matter'
@@ -190,7 +191,30 @@ export const conflictsService = {
           pushUnique(hits, h);
           severity = maxSeverity(severity, 'red');
         }
-        if (k.title.toLowerCase().includes(term)) {
+        // Precise match against the real opposing_party column (migration
+        // 0082) when the case has one — this is the SAME classification as
+        // the title-substring fallback below (both mean "this name appeared
+        // as a party in a past matter"), just a structured match instead of
+        // a guess, so it doesn't false-positive on a title that merely
+        // CONTAINS the term without being the actual opposing party (e.g.
+        // "Ramesh Kumar v. Venkatesh" wrongly substring-matching a search
+        // for "Ramesh").
+        if (k.opposingParty && k.opposingParty.toLowerCase().includes(term)) {
+          const h = buildHit({
+            classification: 'past_matter_party',
+            severity: 'amber',
+            matchedName: term,
+            matchedAgainst: 'cases.opposing_party',
+            side: 'opposing',
+            matterId: k.id,
+            matterTitle: k.title,
+          });
+          pushUnique(hits, h);
+          severity = maxSeverity(severity, 'amber');
+        } else if (k.title.toLowerCase().includes(term)) {
+          // Fallback for cases with no opposing_party (title didn't parse
+          // as "X v. Y" at creation time, or predates migration 0082's
+          // backfill pattern match) — same heuristic as before.
           const h = buildHit({
             classification: 'past_matter_party',
             severity: 'amber',
