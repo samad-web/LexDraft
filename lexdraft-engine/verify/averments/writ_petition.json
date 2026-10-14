@@ -1,0 +1,16 @@
+{
+  "document": "writ_petition",
+  "spec": "5.1",
+  "title": "Writ petition under Article 226",
+  "entries": [
+    {"averment": "For mandamus: a legal right in the petitioner, a corresponding public duty on the respondent, and a prior demand for performance and its refusal, are all pleaded.", "kind": "mandatory", "source": {"type": "case_law", "ref": "mandamus requisites; Art. 226"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For certiorari: a quasi-judicial order sought to be quashed is identified.", "kind": "mandatory", "source": {"type": "case_law", "ref": "certiorari requisites"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For quo warranto: a public office in question is identified.", "kind": "mandatory", "source": {"type": "case_law", "ref": "quo warranto requisites"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "At least one respondent is a State / instrumentality (Art. 12) or a public-function body (maintainability).", "kind": "mandatory", "source": {"type": "statute", "ref": "Art. 12; Art. 226"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The impugned order is identified by its number and date and is annexed to the petition.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "identification and annexure of impugned order"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The availability (or non-availability) of an alternative remedy is addressed.", "kind": "mandatory", "source": {"type": "case_law", "ref": "alternative-remedy rule; Whirlpool Corp. v. Registrar of Trade Marks"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the impugned action is not recent, the delay is explained (laches).", "kind": "mandatory", "source": {"type": "case_law", "ref": "laches in writ jurisdiction"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The petition carries the no-similar-petition declaration in its verification.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "no-similar-petition declaration"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Grounds are lettered (A, B, C ...).", "kind": "advisory", "source": {"type": "local_practice", "ref": "writ-practice ground lettering"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

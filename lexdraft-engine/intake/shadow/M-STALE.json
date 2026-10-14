@@ -1,0 +1,14 @@
+{
+  "matter_id": "M-STALE", "version": 1,
+  "fields": {
+    "client": "Lakshmi", "advocate": "Sundaravadivel", "advocate_enrolment": "MS/1/11",
+    "recipient_name": "Murugan", "recipient_address": "12 Bharathi St, Coimbatore",
+    "cheques": [{"number": "452118", "date": "2024-05-04", "amount": 450000, "bank": "IOB", "branch": "Town Hall", "drawer": "Murugan", "payee": "Lakshmi"}],
+    "debt_nature": "hand loan", "presentation_date": "2024-11-08", "presentation_bank": "CUB",
+    "memo_date": "2024-11-11", "memo_received_date": "2024-11-13",
+    "dishonour_reason": "Funds insufficient", "notice_date": "2024-11-25",
+    "dispatch_mode": "RPAD", "dispatch_tracking_placeholder": "{{t}}", "place": "Coimbatore"
+  },
+  "ts": { "blocked": false, "advisories": ["Fact extraction complete."],
+          "verify": { "old_law_references": ["Section 138 of NI Act"], "pass": true } }
+}

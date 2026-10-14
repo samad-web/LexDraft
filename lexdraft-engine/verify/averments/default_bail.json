@@ -1,0 +1,11 @@
+{
+  "document": "default_bail",
+  "spec": "3.4",
+  "title": "Default bail application",
+  "entries": [
+    {"averment": "The petitioner expressly avers readiness and willingness to furnish bail (a precondition to availing the right).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.167(2) CrPC / s.187 BNSS; Rakesh Kumar Paul v. State of Assam"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The statutory period is computed from the date of first remand (not arrest) and its expiry is pleaded.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Chaganti Satyanarayana v. State of AP"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The final report (chargesheet) has not been filed within the statutory period.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.167(2) CrPC / s.187 BNSS"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The application was presented before the filing of the final report (the indefeasible right was availed in time).", "kind": "mandatory", "source": {"type": "case_law", "ref": "Uday Mohanlal Acharya; M. Ravindran v. Intelligence Officer, DRI"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

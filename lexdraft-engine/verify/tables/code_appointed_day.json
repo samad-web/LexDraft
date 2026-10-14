@@ -1,0 +1,12 @@
+{
+  "name": "code_appointed_day",
+  "description": "The appointed day on which BNS / BNSS / BSA came into force. Offences before this date route to the old codes (IPC/CrPC/IEA); on or after, to the new. Stored as an ISO date string.",
+  "source": {
+    "act": "BNS s.358; BNSS s.531; General Clauses Act s.6",
+    "section": "commencement notification (S.O. dated 24.02.2024, w.e.f. 01.07.2024)"
+  },
+  "values": "2024-07-01",
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

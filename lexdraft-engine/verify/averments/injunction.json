@@ -1,0 +1,13 @@
+{
+  "document": "injunction",
+  "spec": "4.2",
+  "title": "Application for temporary injunction (O39 R1 & 2 CPC)",
+  "entries": [
+    {"averment": "A prima facie case is pleaded as a separately headed paragraph.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Dalpat Kumar v. Prahlad Singh (three-limb test)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The balance of convenience is pleaded as a separately headed paragraph.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Dalpat Kumar v. Prahlad Singh"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Irreparable injury (not compensable in money) is pleaded as a separately headed paragraph.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Dalpat Kumar v. Prahlad Singh"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The prayer identifies the specific act sought to be restrained (a bare 'restrain the defendant' is insufficient).", "kind": "mandatory", "source": {"type": "statute", "ref": "O39 R1 & 2 CPC; specificity of relief"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The applicant gives an undertaking as to damages.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "undertaking as to damages"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For ex-parte relief, a paragraph under the proviso to O39 R3 states the urgency and why notice would defeat the purpose of the application.", "kind": "mandatory", "source": {"type": "statute", "ref": "proviso to O39 R3 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

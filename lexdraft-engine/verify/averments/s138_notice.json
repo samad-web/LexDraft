@@ -1,0 +1,14 @@
+{
+  "document": "s138_notice",
+  "spec": "2.2",
+  "title": "Statutory notice under s.138 NI Act",
+  "entries": [
+    {"averment": "The cheque(s) were issued in discharge of a legally enforceable debt or liability.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.138 NI Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The dishonour reason is stated verbatim as it appears in the bank return memo.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.138 NI Act; proof of dishonour"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The date of receipt of the dishonour memo is pleaded (it is the limitation anchor, not the memo date).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.138 proviso (b); MSR Leathers v. Palaniappan"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The notice demands the cheque amount and states it in both figures and words.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.138 proviso (b)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The drawer is allowed exactly 15 days to pay; the statutory period is neither shortened nor extended.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.138 proviso (c)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Proof of dispatch is recorded on the notice (dispatch placeholder mandatory).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "proof of service in s.138 prosecutions"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The notice is issued under the advocate's instructions from the client (authority averred).", "kind": "advisory", "source": {"type": "local_practice", "ref": "advocate under instructions"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

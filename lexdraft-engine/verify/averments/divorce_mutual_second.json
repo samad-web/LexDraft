@@ -1,0 +1,10 @@
+{
+  "document": "divorce_mutual_second",
+  "spec": "6.2-second",
+  "title": "Mutual-consent divorce — second motion (HMA s.13B(2))",
+  "entries": [
+    {"averment": "The second motion is moved within eighteen months of the first-motion order.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13B(2) HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The second motion is moved after the six-month cooling-off period, or a waiver application is attached.", "kind": "mandatory", "source": {"type": "case_law", "ref": "s.13B(2) HMA; Amardeep Singh v. Harveen Kaur"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where a waiver of the cooling-off period is sought, the settlement has already been implemented.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Amardeep Singh v. Harveen Kaur"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

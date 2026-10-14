@@ -1,0 +1,39 @@
+{
+  "name": "custody_default_bail_periods",
+  "description": "Statutory default-bail (police-custody) periods from first remand. 'general' selects 60 or 90 days by offence gravity; each special statute overrides with its own period and extension mechanics.",
+  "source": {
+    "act": "CrPC s.167(2) / BNSS s.187; NDPS Act s.36A(4); UAPA s.43D(2); PMLA",
+    "section": "Chaganti Satyanarayana v. State of AP (period runs from first remand)"
+  },
+  "values": {
+    "general": {
+      "serious_days": 90,
+      "ordinary_days": 60,
+      "serious_min_punishment_years": 10,
+      "statute": "CrPC s.167(2)"
+    },
+    "special": {
+      "ndps": {
+        "period_days": 180,
+        "statute": "NDPS s.36A(4)",
+        "extension_procedure": "s.36A(4)",
+        "extendable_to": null
+      },
+      "uapa": {
+        "period_days": 90,
+        "statute": "UAPA s.43D(2)",
+        "extension_procedure": "90+90 on a reasoned report of the Public Prosecutor",
+        "extendable_to": 180
+      },
+      "pmla": {
+        "period_days": 60,
+        "statute": "PMLA s.167(2) r/w PMLA",
+        "extension_procedure": null,
+        "extendable_to": null
+      }
+    }
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

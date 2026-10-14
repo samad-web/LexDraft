@@ -1,0 +1,25 @@
+{
+  "name": "mact_multiplier_bands",
+  "description": "Sarla Verma age-to-multiplier bands for MACT death compensation. Each row is [age_lo, age_hi_inclusive, multiplier].",
+  "source": {
+    "act": "Motor Vehicles Act 1988, s.166",
+    "section": "Sarla Verma v. DTC (2009) 6 SCC 121; affirmed National Insurance Co. v. Pranay Sethi (2017) 16 SCC 680"
+  },
+  "values": [
+    [0, 15, 15],
+    [16, 20, 18],
+    [21, 25, 18],
+    [26, 30, 17],
+    [31, 35, 16],
+    [36, 40, 15],
+    [41, 45, 14],
+    [46, 50, 13],
+    [51, 55, 11],
+    [56, 60, 9],
+    [61, 65, 7],
+    [66, 200, 5]
+  ],
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

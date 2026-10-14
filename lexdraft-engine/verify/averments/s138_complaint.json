@@ -1,0 +1,13 @@
+{
+  "document": "s138_complaint",
+  "spec": "3.1",
+  "title": "Complaint under s.138 NI Act",
+  "entries": [
+    {"averment": "The complainant is the payee or the holder in due course of the cheque(s).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.142(a) NI Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A company complainant pleads the authorisation of the person representing it (authorised representative / board resolution).", "kind": "mandatory", "source": {"type": "case_law", "ref": "A.C. Narayanan v. State of Maharashtra"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the accused is a company, the persons sought to be made vicariously liable were in charge of and responsible for the conduct of the business at the relevant time.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.141 NI Act; S.M.S. Pharmaceuticals v. Neeta Bhalla"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The payee's bank branch falls within this court's territorial jurisdiction.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.142(2) NI Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the notice was returned refused/unclaimed, deemed service is expressly averred and the cause of action is computed from the deemed delivery date.", "kind": "mandatory", "source": {"type": "case_law", "ref": "C.C. Alavi Haji v. Palapetty Muhammed"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the complaint is filed beyond one month of the cause of action, a condonation application under the proviso to s.142(b) is attached.", "kind": "advisory", "source": {"type": "statute", "ref": "proviso to s.142(b) NI Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

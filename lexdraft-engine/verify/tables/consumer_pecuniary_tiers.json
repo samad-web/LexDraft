@@ -1,0 +1,15 @@
+{
+  "name": "consumer_pecuniary_tiers",
+  "description": "Consumer forum pecuniary tiers by CONSIDERATION paid (Rs). Keyed by the ForumTier enum value; a consideration above the State ceiling routes to National (no ceiling).",
+  "source": {
+    "act": "Consumer Protection Act 2019",
+    "section": "ss.34, 47, 58 (District / State / National Commission pecuniary jurisdiction) and current notifications"
+  },
+  "values": {
+    "district": 5000000,
+    "state": 20000000
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

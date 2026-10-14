@@ -1,0 +1,12 @@
+{
+  "document": "regular_bail",
+  "spec": "3.2",
+  "title": "Regular bail application",
+  "entries": [
+    {"averment": "The period of custody is recomputed as on the generation date and pleaded (never stale).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "custody recomputed at filing"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where a special statute engages a bail bar, the application addresses the applicable test head-on (twin conditions for NDPS s.37 / PMLA s.45; prima-facie-true for UAPA s.43D(5)).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.37 NDPS; s.45 PMLA; s.43D(5) UAPA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A successive application discloses the prior order and pleads a change of circumstance since the prior refusal.", "kind": "mandatory", "source": {"type": "case_law", "ref": "successive-bail disclosure; Kalyan Chandra Sarkar v. Rajesh Ranjan"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A parity claim references the order granting bail to the co-accused relied upon.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "parity requires an order reference"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The petitioner undertakes to abide by the conditions of bail and to cooperate with the investigation/trial.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "bail undertaking"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

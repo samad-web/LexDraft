@@ -1,0 +1,15 @@
+{
+  "name": "court_fee_fixed_fees",
+  "description": "Fixed court fees by relief kind (Rs). Keyed by the ReliefKind enum value.",
+  "source": {
+    "act": "Tamil Nadu Court Fees and Suits Valuation Act 1955",
+    "section": "Schedule II (fixed fees)"
+  },
+  "values": {
+    "declaration_fixed": 200,
+    "injunction_fixed": 200
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

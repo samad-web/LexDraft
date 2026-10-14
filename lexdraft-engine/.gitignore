@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Sign-off audit trail — per-installation operational record, not source.
+verify/signoff_audit.jsonl
+
+# Python build metadata
+*.egg-info/

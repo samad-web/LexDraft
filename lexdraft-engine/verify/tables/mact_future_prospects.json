@@ -1,0 +1,17 @@
+{
+  "name": "mact_future_prospects",
+  "description": "Pranay Sethi future-prospects addition by age band and employment kind. Each row is [age_lo, age_hi_inclusive, salaried_fraction, self_employed_fraction].",
+  "source": {
+    "act": "Motor Vehicles Act 1988, s.166",
+    "section": "National Insurance Co. v. Pranay Sethi (2017) 16 SCC 680"
+  },
+  "values": [
+    [0, 40, 0.50, 0.40],
+    [41, 50, 0.30, 0.25],
+    [51, 60, 0.15, 0.10],
+    [61, 200, 0.0, 0.0]
+  ],
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

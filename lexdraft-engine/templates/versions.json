@@ -1,0 +1,319 @@
+{
+  "shared": {
+    "cause_title.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#1.1"
+      }
+    ],
+    "verification.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#1.2"
+      }
+    ],
+    "affidavit.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#1.3"
+      }
+    ],
+    "prayer.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#1.5"
+      }
+    ],
+    "s138_notice.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#2.2"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#2.2",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "default_bail.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.4"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.4",
+        "note": "section heading resolved from code_framework, not hardcoded BNSS"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.4",
+        "note": "unverified-figures banner (VERIFY registry): renders while a consumed VERIFY table is unverified, blank once signed off"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.4",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "anticipatory_bail.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.3"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.3",
+        "note": "section heading resolved from code_framework, not hardcoded BNSS"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.3",
+        "note": "unverified-figures banner (VERIFY registry)"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.3",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "regular_bail.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.2"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.2",
+        "note": "bail-bar paragraph text now per-bar (twin-conditions vs prima-facie-true)"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.2",
+        "note": "unverified-figures banner (VERIFY registry)"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.2",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "general_notice.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#2.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#2.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "s138_complaint.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#3.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#3.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "injunction.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#4.2"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#4.2",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "plaint.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#4.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#4.1",
+        "note": "unverified-figures banner (VERIFY registry): court-fee slabs / pecuniary limits / limitation-article periods"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#4.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "summary_suit.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#4.1-O37"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#4.1-O37",
+        "note": "unverified-figures banner (VERIFY registry)"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#4.1-O37",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "writ_petition.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#5.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#5.1",
+        "note": "grounds rendered lettered A/B/C by code (writ practice), not numbered"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#5.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "maintenance.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#6.3"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.3",
+        "note": "unverified-figures banner (VERIFY registry): section-mapping labels"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.3",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "dv_application.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#6.4"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.4",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "consumer_complaint.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#7.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#7.1",
+        "note": "unverified-figures banner (VERIFY registry): consumer pecuniary tiers"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#7.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "mact_claim.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#7.2"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#7.2",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "divorce_contested.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#6.1"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.1",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "divorce_mutual_first.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#6.2-first"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.2-first",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ],
+    "divorce_mutual_second.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-08-31",
+        "spec": "format-specs-p0.md#6.2-second"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-09-01",
+        "spec": "format-specs-p0.md#6.2-second",
+        "note": "mandatory advocate-review banner on every draft (CLAUDE.md rule 6); suppressed only by a recorded sign-off"
+      }
+    ]
+  }
+}

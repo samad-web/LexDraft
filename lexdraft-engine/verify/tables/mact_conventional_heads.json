@@ -1,0 +1,16 @@
+{
+  "name": "mact_conventional_heads",
+  "description": "Pranay Sethi conventional heads (Rs) for MACT death compensation, subject to periodic enhancement (by 10% every three years).",
+  "source": {
+    "act": "Motor Vehicles Act 1988, s.166",
+    "section": "National Insurance Co. v. Pranay Sethi (2017) 16 SCC 680"
+  },
+  "values": {
+    "loss_of_estate": 15000,
+    "loss_of_consortium": 40000,
+    "funeral_expenses": 15000
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

@@ -1,0 +1,12 @@
+{
+  "document": "consumer_complaint",
+  "spec": "7.1",
+  "title": "Consumer complaint (Consumer Protection Act 2019)",
+  "entries": [
+    {"averment": "The complainant is a 'consumer' within s.2(7); goods/services were not obtained for a commercial purpose (self-employment for livelihood is not commercial).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.2(7) CPA 2019"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where a compensation figure is claimed, it has a stated basis (not a bare figure).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "compensation must be reasoned"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The complaint is supported by an affidavit.", "kind": "mandatory", "source": {"type": "statute", "ref": "CPA 2019 / Consumer Protection (Consumer Commission Procedure) Regulations"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "An evidence affidavit is filed.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "evidence affidavit"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where filed beyond two years of the cause of action, a condonation application is attached (limitation lapse does not defeat the complaint).", "kind": "advisory", "source": {"type": "statute", "ref": "s.69 CPA 2019"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

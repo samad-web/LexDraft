@@ -1,0 +1,17 @@
+{
+  "document": "plaint",
+  "spec": "4.1",
+  "title": "Plaint for money recovery (Order VII CPC)",
+  "entries": [
+    {"averment": "The cause of action is pleaded with both its date and its place.", "kind": "mandatory", "source": {"type": "statute", "ref": "O7 R1(e) CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Pecuniary jurisdiction is pleaded: the suit value is within the forum's ceiling.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.15 CPC; O7 R1(f)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Territorial jurisdiction is pleaded on at least one s.20 CPC basis (defendant resides / carries on business, or cause of action arose here).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.20 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The suit is within limitation; where relied upon, a written acknowledgement restarting the period is pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "Limitation Act 1963, Schedule; s.18"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The account statement reconciles: principal plus interest equals the total claimed.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "pleaded account must reconcile"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Against a Government/public officer defendant, a notice under s.80 CPC is pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.80 CPC; O27"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "In a commercial suit, a s.12A pre-institution mediation certificate or a pleaded exemption is present, with a statement of truth.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.12A Commercial Courts Act 2015; Patil Automation v. Rakheja Engineers"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The court fee and the valuation basis are both pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "TN Court Fees and Suits Valuation Act 1955"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The plaint carries a verification.", "kind": "mandatory", "source": {"type": "statute", "ref": "O6 R15 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where contractual interest is claimed without a supporting document, interest falls back to the statutory rate and the plaint says so.", "kind": "advisory", "source": {"type": "statute", "ref": "s.34 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

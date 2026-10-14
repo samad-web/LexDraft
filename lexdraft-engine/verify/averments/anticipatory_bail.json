@@ -1,0 +1,11 @@
+{
+  "document": "anticipatory_bail",
+  "spec": "3.3",
+  "title": "Anticipatory bail application",
+  "entries": [
+    {"averment": "A reasonable apprehension of arrest is stated with its basis (a bare assertion is insufficient).", "kind": "mandatory", "source": {"type": "case_law", "ref": "Gurbaksh Singh Sibbia v. State of Punjab"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The petitioner has not been arrested so far.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "anticipatory bail presupposes no arrest"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The offence is not one barred from anticipatory bail under the SC/ST (Prevention of Atrocities) Act s.18 / 18A.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.18 / 18A SC/ST Act; Prathvi Raj Chauhan v. UoI"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For a transit anticipatory bail, the jurisdiction of this court to entertain the petition is pleaded.", "kind": "advisory", "source": {"type": "case_law", "ref": "Priya Indoria v. State of Karnataka (transit anticipatory bail)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

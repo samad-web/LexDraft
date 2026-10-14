@@ -1,0 +1,19 @@
+{
+  "name": "limitation_article_periods",
+  "description": "Limitation Act Schedule — article number -> period in years. 'default_years' applies when the pleaded article is not listed.",
+  "source": {
+    "act": "Limitation Act 1963",
+    "section": "Schedule (Art. 19 money lent — 3 years; Art. 18; Art. 113 residuary — 3 years)"
+  },
+  "values": {
+    "articles": {
+      "19": 3,
+      "18": 3,
+      "113": 3
+    },
+    "default_years": 3
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

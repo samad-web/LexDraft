@@ -1,0 +1,13 @@
+{
+  "document": "general_notice",
+  "spec": "2.1",
+  "title": "General demand notice",
+  "entries": [
+    {"averment": "A positive, specific sum is demanded, stated in both figures and words (they must match).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "demand notice practice"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The act required of the recipient and the compliance period are stated (rule-driven, not model-written).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "demand and compliance period"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A specific consequence of non-compliance is stated (civil suit and/or criminal proceedings); a vague threat is insufficient.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "specificity of consequence"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where a statutory minimum compliance period applies, the period stated is not below it.", "kind": "mandatory", "source": {"type": "statute", "ref": "applicable statutory minimum (e.g. s.80 CPC)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Proof of dispatch is recorded on the notice (dispatch placeholder mandatory).", "kind": "mandatory", "source": {"type": "local_practice", "ref": "proof of service"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The notice is issued under the advocate's instructions from the client (authority averred).", "kind": "advisory", "source": {"type": "local_practice", "ref": "advocate under instructions"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

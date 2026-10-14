@@ -1,0 +1,12 @@
+{
+  "document": "divorce_mutual_first",
+  "spec": "6.2-first",
+  "title": "Mutual-consent divorce — first motion (HMA s.13B)",
+  "entries": [
+    {"averment": "The parties have been living separately for one year or more before the first motion.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13B(1) HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The settlement addresses maintenance, or expressly records that it does not arise.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "settlement completeness"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The settlement addresses custody, or expressly records that it does not arise.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "settlement completeness"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The settlement addresses property, or expressly records that it does not arise.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "settlement completeness"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Both parties file a joint affidavit.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13B(1) HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

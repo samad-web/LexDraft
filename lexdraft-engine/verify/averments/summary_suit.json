@@ -1,0 +1,13 @@
+{
+  "document": "summary_suit",
+  "spec": "4.1-O37",
+  "title": "Summary suit (Order XXXVII CPC)",
+  "entries": [
+    {"averment": "The claim falls within the scope of Order XXXVII (written contract, bill of exchange, promissory note, or a liquidated demand arising from an enactment).", "kind": "mandatory", "source": {"type": "statute", "ref": "O37 R1(2) CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For an instrument-based claim, the instrument (bill/note/written contract) is identified.", "kind": "mandatory", "source": {"type": "statute", "ref": "O37 R2 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The plaint states that it is filed under Order XXXVII.", "kind": "mandatory", "source": {"type": "statute", "ref": "O37 R2(1) CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The plaint states that no relief outside the scope of Order XXXVII is claimed.", "kind": "mandatory", "source": {"type": "statute", "ref": "O37 R2(1) CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The plaint states that a summons for judgment will follow institution and that the defendant has no right to defend without leave.", "kind": "mandatory", "source": {"type": "statute", "ref": "O37 R3 CPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Cause of action (date and place), jurisdiction (both limbs), limitation and the reconciled account are pleaded, as in an ordinary plaint.", "kind": "mandatory", "source": {"type": "statute", "ref": "O7 CPC (shared with the ordinary plaint)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

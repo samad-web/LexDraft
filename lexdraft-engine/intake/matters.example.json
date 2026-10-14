@@ -1,0 +1,32 @@
+{
+  "_comment": "Manifest linking each hand-filled fact sheet to its actually-filed document. Copy to matters.json, fill one entry per closed matter, then run: python tools/compare_matter.py --report intake/matters.json. All paths are relative to the repo root. Keep matter_id abstract (no client identifier).",
+  "matters": [
+    {
+      "matter_id": "M-A",
+      "document_type": "regular_bail",
+      "court": "Sessions Court, Chennai",
+      "outcome": "granted",
+      "factsheet": "intake/matters/M-A/factsheet.md",
+      "ours": "intake/matters/M-A/generated.docx",
+      "filed": "intake/matters/M-A/filed-redacted.docx"
+    },
+    {
+      "matter_id": "M-B",
+      "document_type": "plaint",
+      "court": "Principal District Court, Chengalpattu",
+      "outcome": "decreed",
+      "factsheet": "intake/matters/M-B/factsheet.md",
+      "ours": "intake/matters/M-B/generated.docx",
+      "filed": "intake/matters/M-B/filed-redacted.pdf"
+    },
+    {
+      "matter_id": "M-C",
+      "document_type": "s138_complaint",
+      "court": "Judicial Magistrate, Chennai",
+      "outcome": "convicted",
+      "factsheet": "intake/matters/M-C/factsheet.md",
+      "ours": "intake/matters/M-C/generated.docx",
+      "filed": "intake/matters/M-C/filed-redacted.docx"
+    }
+  ]
+}

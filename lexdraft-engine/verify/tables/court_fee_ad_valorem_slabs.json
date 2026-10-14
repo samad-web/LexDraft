@@ -1,0 +1,16 @@
+{
+  "name": "court_fee_ad_valorem_slabs",
+  "description": "Ad valorem court-fee slabs for money claims. Each row is [upper_bound_inclusive_or_null, rate_fraction]; a null upper bound is the top open-ended slab.",
+  "source": {
+    "act": "Tamil Nadu Court Fees and Suits Valuation Act 1955",
+    "section": "Schedule I (ad valorem fees)"
+  },
+  "values": [
+    [50000, 0.05],
+    [500000, 0.075],
+    [null, 0.10]
+  ],
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

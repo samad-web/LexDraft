@@ -1,0 +1,25 @@
+{
+  "name": "section_mappings",
+  "description": "BNSS <-> CrPC section equivalences per document remedy. Keyed by framework ('bnss' | 'crpc'), then by remedy key, to the section label the document cites.",
+  "source": {
+    "act": "Bharatiya Nagarik Suraksha Sanhita 2023 / Code of Criminal Procedure 1973",
+    "section": "s.187(3)/s.167(2) (default bail); s.482/s.438 (anticipatory); s.483/s.439 (regular); s.144/s.125 (maintenance)"
+  },
+  "values": {
+    "bnss": {
+      "default_bail": "Section 187(3) BNSS",
+      "anticipatory_bail": "Section 482 BNSS",
+      "regular_bail": "Section 483 BNSS",
+      "maintenance": "Section 144 BNSS"
+    },
+    "crpc": {
+      "default_bail": "Section 167(2) CrPC",
+      "anticipatory_bail": "Section 438 CrPC",
+      "regular_bail": "Section 439 CrPC",
+      "maintenance": "Section 125 CrPC"
+    }
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

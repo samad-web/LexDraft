@@ -1,0 +1,12 @@
+{
+  "document": "maintenance",
+  "spec": "6.3",
+  "title": "Maintenance petition (BNSS 144 / CrPC 125)",
+  "entries": [
+    {"averment": "Neglect or refusal to maintain is pleaded expressly (the statutory trigger).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.144 BNSS / s.125 CrPC"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The petitioner files an affidavit of assets and liabilities.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Rajnesh v. Neha"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A divorced-wife petitioner avers that she has not remarried.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.125(4)-(5) CrPC / s.144 BNSS"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For a child claimant aged 18 or over, an inability to maintain themselves due to a physical or mental abnormality is pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "proviso to s.125(1) CrPC / s.144 BNSS"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "A positive quantum of maintenance is sought, with a stated computation basis (not a bare figure).", "kind": "mandatory", "source": {"type": "case_law", "ref": "Rajnesh v. Neha (quantum basis)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

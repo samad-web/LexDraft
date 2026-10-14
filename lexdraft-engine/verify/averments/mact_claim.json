@@ -1,0 +1,12 @@
+{
+  "document": "mact_claim",
+  "spec": "7.2",
+  "title": "MACT claim petition (MV Act s.166)",
+  "entries": [
+    {"averment": "Rash and negligent driving of the offending vehicle is pleaded expressly (the jurisdictional averment).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.166 MV Act 1988"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The compensation claimed equals the figure recomputed by the Tribunal-approved multiplier method.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Sarla Verma v. DTC; National Insurance v. Pranay Sethi"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For an injury claim, the disability percentage and whether it is permanent are pleaded.", "kind": "mandatory", "source": {"type": "case_law", "ref": "Raj Kumar v. Ajay Kumar (assessment of disability)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the policy was invalid/lapsed on the accident date, the claim addresses it and proceeds against the owner and driver.", "kind": "mandatory", "source": {"type": "statute", "ref": "ss.147, 149 MV Act (owner/driver liability)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where income is asserted without documentary proof, the computation records that it proceeds on the asserted figure, to be established at trial.", "kind": "advisory", "source": {"type": "local_practice", "ref": "income to be proved at trial"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

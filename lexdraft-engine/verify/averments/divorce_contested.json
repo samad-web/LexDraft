@@ -1,0 +1,14 @@
+{
+  "document": "divorce_contested",
+  "spec": "6.1",
+  "title": "Contested divorce petition (HMA s.13)",
+  "entries": [
+    {"averment": "For cruelty: at least one dated instance is pleaded (general allegations are insufficient).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13(1)(ia) HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For desertion: separation for a continuous period of not less than two years, animus deserendi, without the petitioner's consent, and without reasonable cause, are all pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13(1)(ib) HMA; Bipinchandra v. Prabhavati"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "For adultery: a specific instance is pleaded, and the co-respondent is joined or a reason for non-joinder is stated.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.13(1)(i) HMA; O1 R shall-be-joined"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "The petition avers the absence of collusion, connivance and condonation.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.23(1) HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where there are children of the marriage, the custody position and the maintenance position are both addressed.", "kind": "mandatory", "source": {"type": "local_practice", "ref": "children's custody and maintenance"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Jurisdiction is pleaded on an s.19 HMA basis (not the s.20 CPC limbs).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.19 HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where the petition is presented within one year of the marriage, an application for leave under the proviso to s.14 is attached.", "kind": "advisory", "source": {"type": "statute", "ref": "proviso to s.14 HMA"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}

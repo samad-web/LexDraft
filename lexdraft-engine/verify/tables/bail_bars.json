@@ -1,0 +1,20 @@
+{
+  "name": "bail_bars",
+  "description": "Statutory bail-bar provenance. 'sections' maps each statute to the section label it cites; 'twin_conditions_statutes' lists the statutes whose test is the twin-conditions test (the rest use their own test — e.g. UAPA is prima-facie-true).",
+  "source": {
+    "act": "NDPS Act; PMLA; UAPA; SC/ST (Prevention of Atrocities) Act",
+    "section": "s.37 NDPS; s.45 PMLA; s.43D(5) UAPA; s.18 / 18A SC/ST Act"
+  },
+  "values": {
+    "sections": {
+      "ndps": "s.37 NDPS",
+      "pmla": "s.45 PMLA",
+      "uapa": "s.43D(5) UAPA",
+      "scst": "s.18 / 18A SC/ST Act"
+    },
+    "twin_conditions_statutes": ["ndps", "pmla"]
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

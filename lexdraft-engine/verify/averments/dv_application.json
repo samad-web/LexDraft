@@ -1,0 +1,12 @@
+{
+  "document": "dv_application",
+  "spec": "6.4",
+  "title": "Application under s.12 of the Protection of Women from Domestic Violence Act",
+  "entries": [
+    {"averment": "The domestic relationship is pleaded expressly with its basis (the jurisdictional fact).", "kind": "mandatory", "source": {"type": "statute", "ref": "s.2(f) DV Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "At least one head of relief is sought.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.12 DV Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Where a residence order under s.19 is sought, the shared household is pleaded.", "kind": "mandatory", "source": {"type": "statute", "ref": "s.17, s.19 DV Act; S.R. Batra v. Taruna Batra / Satish Chander Ahuja v. Sneha Ahuja"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Each head of relief sought (s.18 protection / s.19 residence / s.20 monetary / s.21 custody / s.22 compensation) has a supporting averment.", "kind": "mandatory", "source": {"type": "statute", "ref": "ss.18-22 DV Act"}, "verified": false, "reviewed_by": "", "reviewed_on": ""},
+    {"averment": "Abuse incidents are dated where possible and categorised (physical / sexual / verbal-emotional / economic).", "kind": "advisory", "source": {"type": "statute", "ref": "s.3 DV Act (definition of domestic violence)"}, "verified": false, "reviewed_by": "", "reviewed_on": ""}
+  ]
+}
