@@ -439,8 +439,9 @@ function extractNumber(v: unknown): number {
  * sql.json() that live object - sql.json() does its own, single,
  * correct serialization from there.
  */
-function forJson<T>(value: T): Record<string, unknown> | Record<string, unknown>[] {
-  return JSON.parse(JSON.stringify(value)) as Record<string, unknown> | Record<string, unknown>[];
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types -- JSON.parse's own `any` is the point: it erases the nominal type JSONValue can't match.
+function forJson(value: unknown) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 /**
