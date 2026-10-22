@@ -17,6 +17,11 @@
 FROM node:22-alpine AS deps
 WORKDIR /workspace
 
+# apps/api's postinstall runs `playwright install --with-deps chromium`, which
+# needs apt-get and a glibc Chromium - neither works on Alpine. Skip it here;
+# the runner stage installs Alpine's own chromium instead (see CHROMIUM_PATH).
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
 # Corepack ships with Node 22 and pins the exact pnpm version declared
 # in the root package.json - keeps CI and developer builds bit-identical.
 RUN corepack enable
@@ -39,6 +44,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 # Compile the API. Brings devDependencies along so `tsc` resolves.
 FROM node:22-alpine AS build
 WORKDIR /workspace
+# `pnpm deploy` below re-runs install scripts - same Alpine skip as deps.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN corepack enable
 
 COPY --from=deps /workspace/node_modules                 node_modules
@@ -107,11 +114,21 @@ WORKDIR /app
 # COPY them into the image instead of relying on apk.
 # NOTE: verify these package names resolve in the pinned Alpine repo at build time
 # (`apk search font-carlito`); adjust if the repo names differ.
+#
+# CHROMIUM — the live eCourts / e-filing services drive a headless browser via
+# Playwright. Playwright's bundled Chromium is glibc-only, so on Alpine we use
+# the distro build and point Playwright at it through CHROMIUM_PATH. The
+# binary name has varied across Alpine releases (chromium / chromium-browser),
+# so a stable symlink is created and the build fails loudly if neither exists.
 RUN apk add --no-cache tini wget \
       libreoffice=25.8.7.3-r0 \
       font-carlito \
       ttf-liberation \
       font-noto \
+      chromium \
+      nss \
+ && ln -s "$(command -v chromium || command -v chromium-browser)" /usr/local/bin/lexdraft-chromium \
+ && /usr/local/bin/lexdraft-chromium --version \
  && addgroup -g 1001 -S lexdraft \
  && adduser  -u 1001 -S lexdraft -G lexdraft
 
@@ -131,7 +148,8 @@ RUN mkdir -p /app/uploads && chown -R lexdraft:lexdraft /app/uploads
 ENV NODE_ENV=production \
     PORT=4000 \
     STORAGE_LOCAL_DIR=/app/uploads \
-    SOFFICE_BIN=/usr/bin/soffice
+    SOFFICE_BIN=/usr/bin/soffice \
+    CHROMIUM_PATH=/usr/local/bin/lexdraft-chromium
 
 EXPOSE 4000
 

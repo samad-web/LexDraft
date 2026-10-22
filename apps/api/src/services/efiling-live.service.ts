@@ -108,7 +108,9 @@ export async function startEfilingSession(
   const existing = [...sessions.values()].find((s) => s.userId === userId);
   if (existing) await closeSession(existing.id);
 
+  // CHROMIUM_PATH: Alpine's chromium in the Docker image; unset in dev.
   const browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
     args: ['--disable-blink-features=AutomationControlled', '--disable-dev-shm-usage'],
   });

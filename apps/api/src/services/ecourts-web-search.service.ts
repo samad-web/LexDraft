@@ -216,7 +216,12 @@ export async function endWebSearchSession(id: string, userId: string): Promise<v
 async function openSession(userId: string, kind: Session['kind'], fields: WebSearchFields | null, path: string): Promise<Session> {
   for (const s of [...sessions.values()]) if (s.userId === userId) await closeSession(s.id);
 
-  const browser = await chromium.launch({ headless: true, args: ['--disable-dev-shm-usage'] });
+  // CHROMIUM_PATH: Alpine's chromium in the Docker image; unset in dev.
+  const browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH || undefined,
+    headless: true,
+    args: ['--disable-dev-shm-usage'],
+  });
   const context = await browser.newContext();
   // tsx/esbuild (keepNames) can wrap named functions inside page.evaluate
   // callbacks in a `__name(fn, "name")` helper that exists only in Node. In

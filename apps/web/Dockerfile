@@ -12,6 +12,9 @@
 # ─── Stage 1: build ───────────────────────────────────────────────────
 FROM node:22-alpine AS build
 WORKDIR /workspace
+# The workspace install also runs apps/api's Playwright postinstall, which
+# can't work on Alpine and isn't needed to build the SPA.
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 RUN corepack enable
 
 # Workspace manifests first - cache-friendly layer.

@@ -108,7 +108,10 @@ export async function startCnrSession(userId: string): Promise<{ sessionId: stri
   // crashes under repeated launch/close cycles (observed live: "Page
   // crashed" on roughly 1 in 4 fresh sessions) - this forces temp-file-backed
   // shared memory instead, trading a little speed for crash resistance.
+  // CHROMIUM_PATH: set in the Docker image (Alpine's chromium); unset in dev,
+  // where Playwright uses its own downloaded browser.
   const browser = await chromium.launch({
+    executablePath: process.env.CHROMIUM_PATH || undefined,
     headless: true,
     args: ['--disable-blink-features=AutomationControlled', '--disable-dev-shm-usage'],
   });

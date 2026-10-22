@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "postinstall": "playwright install --with-deps chromium",
+    "postinstall": "node -e \"if(!process.env.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD)require('child_process').execSync('playwright install --with-deps chromium',{stdio:'inherit'})\"",
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
