@@ -82,7 +82,9 @@ if (!py) {
     ['-m', 'uvicorn', 'src.service.app:app', '--host', '127.0.0.1', '--port', '8099'],
     {
       cwd: engineDir,
-      env: { ...process.env, LEXDRAFT_SERVICE_TOKEN: token },
+      // Local dev also serves imported formats still awaiting advocate approval
+      // (production never sets this — see lexdraft-engine/docs/format-import.md).
+      env: { ...process.env, LEXDRAFT_SERVICE_TOKEN: token, LEXDRAFT_IMPORTS_SERVE_PENDING: 'true' },
       stdio: 'inherit',
       shell: false,
     },
@@ -120,6 +122,15 @@ if (!py) {
 // the command. Fall back to the npm_execpath pnpm entry, then a bare shim.
 const nodeDir = dirname(process.execPath);
 const childEnv = { ...process.env };
+// The repo lives in a OneDrive folder, where native file-change events are
+// unreliable: `tsx watch` silently kept serving hours-old API code after
+// edits (seen 2026-10-20 - a fixed bug kept reappearing). tsx and Vite both
+// watch through chokidar, which honours these; polling every second is cheap
+// enough for dev and always notices edits.
+if (isWin && monorepo.toLowerCase().includes('onedrive')) {
+  childEnv.CHOKIDAR_USEPOLLING ??= '1';
+  childEnv.CHOKIDAR_INTERVAL ??= '1000';
+}
 const pathKey = Object.keys(childEnv).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
 childEnv[pathKey] = `${nodeDir}${isWin ? ';' : ':'}${childEnv[pathKey] ?? ''}`;
 

@@ -93,6 +93,10 @@ export interface Hearing {
   status: 'today' | 'upcoming' | 'past';
   /** Presiding judge/bench, when known. */
   judge?: string | null;
+  /** Parent matter id, when the read joins through `cases`. */
+  caseId?: ID;
+  /** Advocate the hearing is assigned to, when set. */
+  assignedToUserId?: ID | null;
 }
 
 export type AlertTone = 'vermillion' | 'amber' | 'cobalt' | 'sage';
@@ -175,6 +179,8 @@ export interface Task {
   assignee: string;
   comments: number;
   column: TaskColumn;
+  /** Linked matter (migration 0089); null when unlinked / not yet migrated. */
+  caseId?: ID | null;
 }
 
 export interface TaskBoard {
@@ -250,7 +256,10 @@ export interface SignUpRequest {
 
 export interface DashboardSummary {
   user: Pick<User, 'name' | 'role'>;
+  /** Every hearing listed today across the firm. */
   hearings: Hearing[];
+  /** Today's hearings assigned to the caller, plus unassigned ones. */
+  myHearings: Hearing[];
   alerts: Alert[];
   recentDocs: DocumentRecord[];
   stats: {
@@ -258,6 +267,85 @@ export interface DashboardSummary {
     clients: number;
     unread: number;
     revenueFY: string;
+  };
+}
+
+/** GET /search?q= - firm-wide quick search behind Ctrl+K. Each list is
+ *  omitted (empty) when the caller lacks the feature to open that kind. */
+export interface SearchResults {
+  q: string;
+  cases: Array<{ id: ID; title: string; cnr: string; court: string; client: string; matchedParty?: string }>;
+  clients: Array<{ id: ID; name: string; type: string }>;
+  leads: Array<{ id: ID; name: string; stage: string }>;
+  drafts: Array<{ id: ID; title: string; docType: string }>;
+  documents: Array<{ id: ID; name: string; caseId: ID | null; caseLabel: string }>;
+}
+
+/** One hearing row on the "advocate's day" dashboard. */
+export interface DayHearing {
+  id: ID;
+  caseId: ID;
+  case: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:mm 24h */
+  time: string;
+  court: string;
+  purpose: string;
+  judge: string | null;
+  /** Assigned to the caller (per-hearing override, else matter lead). */
+  mine: boolean;
+  /** Nobody assigned and the matter has no lead. */
+  unassigned: boolean;
+  /** Name of the advocate appearing (override, else matter lead); null if none.
+   *  Optional so older API builds still type-check on the client. */
+  advocate?: string | null;
+}
+
+export interface AttentionItem {
+  id: ID;
+  label: string;
+  detail?: string;
+  /** In-app route to act on it, e.g. "/app/cases/<id>". */
+  to: string;
+}
+
+export interface AttentionGroup {
+  key:
+    | 'limitations' | 'objections' | 'noNextDate' | 'reviews'
+    | 'clientMessages' | 'esign' | 'overdueTasks';
+  count: number;
+  /** A few rows to show inline; `count` may be larger. */
+  items: AttentionItem[];
+  /** Where "View all" goes. */
+  to: string;
+  tone: 'danger' | 'warning' | 'info';
+}
+
+/**
+ * GET /dashboard/today - everything the advocate needs for the day, in one
+ * read. Sections the caller isn't allowed to see are omitted (null), never
+ * zero-filled, so the UI can hide them instead of showing false zeros.
+ */
+export interface DashboardToday {
+  /** Local YYYY-MM-DD the server considers "today". */
+  date: string;
+  user: { name: string; role: string };
+  /** True for partners / firm admins / PG leads: offer a Mine/Firm switch. */
+  canSeeFirm: boolean;
+  hearingsToday: DayHearing[];
+  /** Tomorrow through today+7, ordered by date then time. */
+  hearingsWeek: DayHearing[];
+  attention: AttentionGroup[];
+  practice: {
+    activeMatters: number;
+    /** Every live matter (any status), for "N of M total". */
+    totalMatters: number;
+    /** null when the caller lacks billing.view */
+    revenueFY: string | null;
+    overdueInvoices: { count: number; amount: string } | null;
+    /** null when the caller lacks leads.view */
+    openLeads: number | null;
   };
 }
 
@@ -1801,6 +1889,8 @@ export interface Expense {
   status: ExpenseStatus;
   reimbursable: boolean;
   billable: boolean;
+  /** Linked matter (migration 0089); null when unlinked / not yet migrated. */
+  caseId?: ID | null;
 }
 
 // ---- Limitations ----------------------------------------------------------
@@ -1816,6 +1906,8 @@ export interface Limitation {
   filedBy: string;
   /** Days remaining vs today (server-computed). */
   daysRemaining: number;
+  /** Linked matter (migration 0089); null when unlinked / not yet migrated. */
+  caseId?: ID | null;
 }
 
 // ---- Diary entries --------------------------------------------------------

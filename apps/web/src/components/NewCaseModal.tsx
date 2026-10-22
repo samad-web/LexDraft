@@ -349,7 +349,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             Open a case file
           </h3>
           <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            All fields are optional, fill in what you have. Leave CNR blank to auto-generate a placeholder you can update later.
+            All fields are optional, fill in what you have. With a CNR the matter connects to eCourts automatically. Without one, link it later from the matter page (by CNR or by case number).
           </p>
         </div>
 
@@ -385,7 +385,8 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             hint={
               cnrValid && cnrLookup.isFetching ? 'Fetching from eCourts…'
               : cnrValid && cnrLookup.data ? 'Fetched from eCourts ✓'
-              : cnrValid && cnrLookup.isError ? 'No eCourts record, enter details manually'
+              : cnrValid && cnrLookup.isError && cnrLookup.isNotFound ? 'No eCourts record yet. Save anyway; LexDraft keeps checking at 9 AM and 7 PM'
+              : cnrValid && cnrLookup.isError ? 'eCourts is not responding. Save anyway; it will connect automatically when eCourts is back'
               : 'Optional: enter a 16-char CNR to auto-fetch from eCourts'
             }
           >

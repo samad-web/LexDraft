@@ -7,6 +7,7 @@ import {
 } from '@/hooks/usePhysicalDocuments';
 import { NewPhysicalDocModal } from '@/components/NewPhysicalDocModal';
 import { Gate } from '@/components/Gate';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -80,35 +81,25 @@ export function PhysicalDocsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - Physical documents</div>
-        <h1 className="heading-xl">Physical Docs</h1>
-        <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Track paper originals - vakalatnamas, sworn affidavits, signed contracts, court orders.
-          Each row records where the document is now and who has custody.
-        </p>
-      </div>
-
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
-          <input
-            type="search"
-            className="input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search title, file number, matter or location…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search physical documents"
-          />
-          <span aria-hidden="true" style={iconAttachStyle}><Icon name="search" size={14} /></span>
-        </div>
-        <span className="spacer" />
-        <Gate feature="matter.create">
-          <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}>
-            <Icon name="plus" size={14} /> Add document
-          </button>
-        </Gate>
-      </div>
+      <PageHeader
+        title="Physical Docs"
+        description="Where each paper original is now, and who has custody of it."
+        meta={list.data ? `${items.length} documents` : undefined}
+        actions={
+          <Gate feature="matter.create">
+            <button type="button" className="btn btn-primary" onClick={() => setModalOpen(true)}>
+              <Icon name="plus" size={14} /> Add document
+            </button>
+          </Gate>
+        }
+      >
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search title, file number, matter or location…"
+          label="Search physical documents"
+        />
+      </PageHeader>
       <NewPhysicalDocModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -216,9 +207,3 @@ export function PhysicalDocsView() {
     </div>
   );
 }
-
-const iconAttachStyle: React.CSSProperties = {
-  position: 'absolute', left: 12, top: '50%',
-  transform: 'translateY(-50%)', color: 'var(--text-tertiary)',
-  display: 'inline-flex',
-};

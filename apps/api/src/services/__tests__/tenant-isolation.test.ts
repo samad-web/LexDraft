@@ -35,6 +35,7 @@ import { archiveService } from '../archive.service';
 import { casesService } from '../cases.service';
 import { clausesService } from '../clauses.service';
 import { clientsService } from '../clients.service';
+import { dashboardTodayService } from '../dashboard-today.service';
 import { diaryService } from '../diary.service';
 import { documentsService } from '../documents.service';
 import { expensesService } from '../expenses.service';
@@ -99,6 +100,16 @@ describe('tenant isolation - hearingsService', () => {
 
   it('listUpcoming returns [] when firmId is null', async () => {
     expect(await hearingsService.listUpcoming(null)).toEqual([]);
+  });
+
+  it('dashboard today is empty with no user / firm, and hides gated figures', async () => {
+    const d = await dashboardTodayService.today(undefined);
+    expect(d.hearingsToday).toEqual([]);
+    expect(d.hearingsWeek).toEqual([]);
+    expect(d.attention).toEqual([]);
+    expect(d.canSeeFirm).toBe(false);
+    expect(d.practice.revenueFY).toBeNull();
+    expect(d.practice.overdueInvoices).toBeNull();
   });
 
   it('week returns an empty hearings array when firmId is null', async () => {

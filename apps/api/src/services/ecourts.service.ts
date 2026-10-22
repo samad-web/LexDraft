@@ -1,4 +1,4 @@
-import { call, withoutToken, fetchUrlBytes, EcourtsHttpError } from '../lib/ecourts';
+import { call, withoutToken, fetchUrlBytes, encryptParams, EcourtsHttpError } from '../lib/ecourts';
 import { db } from '../db/client';
 import type {
   Court,
@@ -7,7 +7,6 @@ import type {
   CourtEstablishment,
   District,
   State,
-  CaseType,
   FilingCaseHistory,
   IaBusinessEntry,
   AppellateInfo,
@@ -119,9 +118,13 @@ export async function listStates(court: Court = 'DC'): Promise<State[]> {
 
 export async function listDistricts(stateCode: number, court: Court = 'DC'): Promise<District[]> {
   return memo(`districts:${court}:${stateCode}`, REF_TTL_MS, async () => {
+    // High Courts have benches, not districts: the app asks the same service
+    // with action_code 'benches' (decompile; verified live 2026-10-22 -
+    // Madras HC -> Principal Bench (1), Madurai Bench (2)). Without it the
+    // HC service answers {status:'N', msg:'error'}.
     const payload = await call('districtWebService.php', {
       court,
-      params: { state_code: stateCode },
+      params: court === 'HC' ? { state_code: stateCode, action_code: 'benches' } : { state_code: stateCode },
     });
     return extractList<District>(payload, 'districts');
   });
@@ -224,42 +227,90 @@ export async function listCachedCourts(
   return rows.map((r) => ({ courtCode: r.court_code, courtName: r.court_name }));
 }
 
+/** One dropdown option from a court-scoped reference list. */
+export interface RefOption {
+  code: string;
+  name: string;
+}
+
+/**
+ * The three court-scoped reference lists below (case types, acts, police
+ * stations) do NOT return an array of objects. Each answers with a one-item
+ * array holding a single packed string - `"59~AS - CIVIL APPEAL#71~AS(...)#…"`
+ * - `#` between entries, `~` between code and name. Verified live 2026-10
+ * against KLER01 (state 4 / dist 2 / court 1). Parse every string field of
+ * every item so a future split across several items still works.
+ */
+export function parsePackedRefList(payload: unknown, listKey: string): RefOption[] {
+  if (!payload || typeof payload !== 'object' || !(listKey in payload)) {
+    throw new EcourtsHttpError(502, 'eCourts returned an unexpected response - try again.');
+  }
+  const items = (payload as Record<string, unknown>)[listKey];
+  const out: RefOption[] = [];
+  for (const item of Array.isArray(items) ? items : []) {
+    const strings = typeof item === 'string'
+      ? [item]
+      : item && typeof item === 'object' ? Object.values(item).filter((v): v is string => typeof v === 'string') : [];
+    for (const s of strings) {
+      for (const entry of s.split('#')) {
+        const sep = entry.indexOf('~');
+        if (sep <= 0) continue;
+        const code = entry.slice(0, sep).trim();
+        const name = entry.slice(sep + 1).trim();
+        if (code && name) out.push({ code, name });
+      }
+    }
+  }
+  return [...new Map(out.map((o) => [o.code, o])).values()];
+}
+
+// Case types, acts and police stations are scoped to ONE court: like every
+// search endpoint they need the numeric court code as a bare `court_code_arr`
+// scalar. Without it eCourts answers `error_ERROR_courtcode4` (case types,
+// police stations) / `error_ERROR_distcode1` (acts) - verified live, which is
+// why the old state/est-scoped versions of these never returned anything.
 export async function listCaseTypes(
   stateCode: number,
   distCode: number,
-  estCode: string,
+  courtCode: number | string,
   court: Court = 'DC',
-): Promise<CaseType[]> {
-  return memo(`caseTypes:${court}:${stateCode}:${distCode}:${estCode}`, REF_TTL_MS, async () => {
+): Promise<RefOption[]> {
+  return memo(`caseTypes:${court}:${stateCode}:${distCode}:${courtCode}`, REF_TTL_MS, async () => {
     const payload = await call('caseTypesWebService.php', {
       court,
-      params: { state_code: stateCode, dist_code: distCode, est_code: estCode },
+      params: { state_code: stateCode, dist_code: distCode, court_code_arr: courtCode },
     });
-    return extractList<CaseType>(payload, 'caseTypes');
+    return parsePackedRefList(payload, 'case_types');
   });
 }
 
-export async function listActs(stateCode: number, court: Court = 'DC'): Promise<unknown[]> {
-  return memo(`acts:${court}:${stateCode}`, REF_TTL_MS, async () => {
+export async function listActs(
+  stateCode: number,
+  distCode: number,
+  courtCode: number | string,
+  court: Court = 'DC',
+): Promise<RefOption[]> {
+  return memo(`acts:${court}:${stateCode}:${distCode}:${courtCode}`, REF_TTL_MS, async () => {
     const payload = await call('actWebService.php', {
       court,
-      params: { state_code: stateCode },
+      params: { state_code: stateCode, dist_code: distCode, court_code_arr: courtCode },
     });
-    return extractList<unknown>(payload, 'acts');
+    return parsePackedRefList(payload, 'actsList');
   });
 }
 
 export async function listPoliceStations(
   stateCode: number,
   distCode: number,
+  courtCode: number | string,
   court: Court = 'DC',
-): Promise<unknown[]> {
-  return memo(`policeStations:${court}:${stateCode}:${distCode}`, REF_TTL_MS, async () => {
+): Promise<RefOption[]> {
+  return memo(`policeStations:${court}:${stateCode}:${distCode}:${courtCode}`, REF_TTL_MS, async () => {
     const payload = await call('policeStationWebService.php', {
       court,
-      params: { state_code: stateCode, dist_code: distCode },
+      params: { state_code: stateCode, dist_code: distCode, court_code_arr: courtCode },
     });
-    return extractList<unknown>(payload, 'policeStations');
+    return parsePackedRefList(payload, 'police_stationlist');
   });
 }
 
@@ -285,7 +336,11 @@ export async function lookupByCnr(
       court,
       params: { cino: cleanCino },
     }) as { history?: CaseHistory } | null;
-    return payload?.history ?? null;
+    const history = payload?.history ?? null;
+    // Write through to the case store, so the scheduled sync of matters keeps
+    // their stored copies fresh and every later "View" is instant.
+    void import('./ecourts-case-store.service').then((m) => m.writeStored('history', cleanCino, court, history));
+    return history;
   });
 }
 
@@ -293,6 +348,8 @@ interface SearchByCaseNumberInput {
   stateCode: number;
   distCode: number;
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   // REQUIRED - see searchByPartyName for why (court_code_arr empty = 0
   // establishments searched, not a real "no result").
   estCode: string;
@@ -325,7 +382,7 @@ export async function searchByCaseNumber(input: SearchByCaseNumberInput): Promis
     state_code: input.stateCode,
     dist_code: input.distCode,
     court_code: input.courtCode,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     case_type: input.caseType,
     case_number: input.regNo,
     year: input.year,
@@ -339,6 +396,8 @@ interface SearchByPartyInput {
   stateCode: number;
   distCode: number;
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   // REQUIRED, despite earlier assumptions. Without it, `court_code_arr` is
   // sent empty and eCourts searches zero establishments - it replies
   // `{"no_of_establishments":0}` (not an error!), which reads exactly like a
@@ -385,7 +444,7 @@ export async function searchByPartyName(input: SearchByPartyInput): Promise<unkn
     state_code: input.stateCode,
     dist_code: input.distCode,
     court_code: input.courtCode,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     est_code: input.estCode,
     pet_name: input.partyName,
     year: input.year,
@@ -399,6 +458,8 @@ interface SearchByAdvocateInput {
   stateCode: number;
   distCode: number;
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   estCode: string;
   advocateName: string;
   year: number;
@@ -427,7 +488,7 @@ export async function searchByAdvocateName(input: SearchByAdvocateInput): Promis
     bilingual_flag: 0,
     state_code: input.stateCode,
     dist_code: input.distCode,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     court_code: input.courtCode,
     checkedSearchByRadioValue: '1',
     pendingDisposed: '',
@@ -442,6 +503,8 @@ interface SearchByFirInput {
   stateCode: number;
   distCode: number;
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   // REQUIRED - see searchByPartyName for why.
   estCode: string;
   policeStCode: number;
@@ -470,7 +533,7 @@ export async function searchByFirNumber(input: SearchByFirInput): Promise<unknow
     state_code: input.stateCode,
     dist_code: input.distCode,
     language_flag: 0,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     court_code: input.courtCode,
     pendingDisposed: '',
     firNumber: input.firNo,
@@ -485,6 +548,8 @@ interface SearchByFilingNumberInput {
   stateCode: number;
   distCode: number;
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   // REQUIRED - see searchByPartyName for why.
   estCode: string;
   filingNo: string;
@@ -510,7 +575,7 @@ export async function searchByFilingNumber(input: SearchByFilingNumberInput): Pr
     bilingual_flag: 0,
     state_code: input.stateCode,
     dist_code: input.distCode,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     court_code: input.courtCode,
     filingNumber: input.filingNo,
     year: input.filingYear,
@@ -631,6 +696,66 @@ export async function fetchCauseList(input: CauseListInput): Promise<CauseListEn
   return extractList<CauseListEntry>(payload, 'causeList');
 }
 
+// The eCourts app's own Cause List screen: Court Complex -> Court Name ->
+// Causelist Date -> Civil | Criminal. cases_new.php {state_code, dist_code,
+// court_code, court_no (from the Court Name list), flag civ_t | cri_t,
+// selprevdays, causelist_date dd-mm-yyyy, language_flag} - from the
+// decompile, verified live 2026-10-22 (Ernakulam DSJ): {cases: {judge_name,
+// designation_name, casesHeading, cases_list: [...]}}. Row fields from the
+// app's renderer (no non-empty sample seen yet): sr_no, case_number,
+// cause_title ('<br>'-separated), main_advocate_names, purpose_name, urgent,
+// time_slot_name, cause_list_url.
+
+export interface CourtCauseListInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  courtNo: string;
+  kind: 'civil' | 'criminal';
+  /** YYYY-MM-DD */
+  date: string;
+  court?: Court;
+}
+
+export interface CourtCauseList {
+  judgeName: string;
+  designation: string;
+  heading: string;
+  rows: Array<Record<string, unknown>>;
+  causeListUrl: string | null;
+}
+
+export async function fetchCourtCauseList(input: CourtCauseListInput): Promise<CourtCauseList> {
+  const payload = await call('cases_new.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code: input.courtCode,
+      court_no: input.courtNo,
+      flag: input.kind === 'civil' ? 'civ_t' : 'cri_t',
+      selprevdays: '0',
+      causelist_date: toEcourtsDMY(input.date),
+      language_flag: 0,
+    },
+  }) as { cases?: Record<string, unknown>; status?: string; msg?: string } | null;
+  if (payload?.status === 'N') throw new EcourtsHttpError(502, `eCourts: ${String(payload.msg ?? 'cause list not available')}`);
+  const c = payload?.cases ?? {};
+  const list = c.cases_list;
+  const rows = Array.isArray(list)
+    ? (list as unknown[]).flatMap((x) => (Array.isArray(x) ? x : [x])).filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object')
+    : list && typeof list === 'object' ? Object.values(list as Record<string, unknown>).filter((x): x is Record<string, unknown> => Boolean(x) && typeof x === 'object') : [];
+  const url = typeof c.cause_list_url === 'string' && /^https:\/\//.test(c.cause_list_url) ? c.cause_list_url : null;
+  return {
+    judgeName: String(c.judge_name ?? ''),
+    designation: String(c.designation_name ?? ''),
+    heading: String(c.casesHeading ?? ''),
+    rows,
+    causeListUrl: url,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Caveat
 // ---------------------------------------------------------------------------
@@ -641,6 +766,8 @@ interface CaveatSearchInput {
   // REQUIRED (added 2026-10, live-probed) - carries the numeric court_code
   // court_code_arr actually needs. See searchCaveat's doc comment below.
   courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
   // Still required for API-shape compatibility with the other search
   // endpoints, though it's no longer what scopes court_code_arr.
   estCode: string;
@@ -690,7 +817,7 @@ export async function searchCaveat(input: CaveatSearchInput): Promise<unknown> {
     selectedLanguage: 'ENG',
     state_code: input.stateCode,
     dist_code: input.distCode,
-    court_code_arr: input.courtCode,
+    court_code_arr: input.courtCodes || input.courtCode,
     action_code: '2',
     caveator_name: input.caveatorName ?? '',
     caveatee_name: input.caveateeName ?? '',
@@ -734,7 +861,9 @@ export async function fetchFilingCaseHistory(
       court,
       params: { cino: cleanCino, bilingual_flag: 0, language_flag: 0 },
     }) as { history?: FilingCaseHistory } | null;
-    return payload?.history ?? null;
+    const history = payload?.history ?? null;
+    void import('./ecourts-case-store.service').then((m) => m.writeStored('filing', cleanCino, court, history));
+    return history;
   });
 }
 
@@ -752,6 +881,299 @@ export async function fetchIaBusiness(
     params: { cino: cleanCino, bilingual_flag: 0, language_flag: 0 },
   }) as { history?: IaBusinessEntry[] } | null;
   return payload?.history ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// App-only services, no captcha (found in the eCourts app v4 bundle; params
+// discovered from the server's own error messages and verified live
+// 2026-10-22 against Kerala / Ernakulam). These replace website (captcha)
+// flows for the same features.
+// ---------------------------------------------------------------------------
+
+interface CaseTypeSearchInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
+  caseType: string | number;
+  year: number;
+  status: 'Pending' | 'Disposed';
+  court?: Court;
+}
+
+/** Every case of a case type + year in a court. Same establishment/caseNos
+ *  response shape as the other case searches. */
+export async function searchByCaseType(input: CaseTypeSearchInput): Promise<unknown> {
+  const payload = await call('searchByCaseType.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code_arr: input.courtCodes || input.courtCode,
+      case_type: input.caseType,
+      year: input.year,
+      pendingDisposed: input.status,
+    },
+  });
+  return stripToken(payload);
+}
+
+interface AdvocateCauseListInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
+  advocateName: string;
+  /** dd-mm-yyyy */
+  date: string;
+  court?: Court;
+}
+
+/**
+ * Advocate's Cause List by advocate name: the cases of an advocate listed in
+ * a court on a date. causeListWebService.php with the app's "Advocate Name"
+ * radio ('1'); the Bar-code radio ('2') rejects every field format tried, so
+ * Bar-code lookups stay on the website (captcha).
+ */
+export async function fetchAdvocateCauseList(input: AdvocateCauseListInput): Promise<unknown> {
+  const payload = await call('causeListWebService.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code_arr: input.courtCodes || input.courtCode,
+      checkedSearchByRadioValue: '1',
+      pendingDisposed: 'Pending',
+      date: input.date,
+      advocateName: input.advocateName,
+    },
+  });
+  return stripToken(payload);
+}
+
+export interface BusinessInput {
+  cino: string;
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  /** hearing row's case_number */
+  caseNumber: string;
+  courtNo: string;
+  /** hearing row's todays_date1 (dd-mm-yyyy) */
+  businessDate: string;
+  /** hearing row's n_dt (yyyymmdd) or '' */
+  nextDate: string;
+  /** hearing row's businessStatus */
+  disposalFlag: string;
+  court?: Court;
+}
+
+export interface BusinessResult {
+  rows: Array<{ title: string; value: string }>;
+  details: Record<string, unknown> | null;
+}
+
+/**
+ * "View Business" / Daily Status for one hearing date - no captcha. Takes the
+ * same values as the website's viewBusiness(), read from the hearing row.
+ * Verified live: returns {viewBusiness: [{title, value}], businessDetailsArr}.
+ */
+export async function fetchBusiness(input: BusinessInput): Promise<BusinessResult> {
+  const payload = await call('s_show_business.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      language_flag: 0,
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code: input.courtCode,
+      nextdate1: input.nextDate,
+      case_number1: input.caseNumber,
+      disposal_flag: input.disposalFlag,
+      businessDate: input.businessDate,
+      national_court_code: input.cino,
+      court_no: input.courtNo,
+      cino: input.cino,
+      srno: '',
+    },
+  }) as { viewBusiness?: unknown; businessDetailsArr?: unknown; status?: string; msg?: string } | null;
+  if (payload?.status === 'N') {
+    throw new EcourtsHttpError(502, `eCourts could not return the business for this date (${payload.msg ?? 'error'}).`);
+  }
+  const rows = Array.isArray(payload?.viewBusiness)
+    ? (payload!.viewBusiness as Array<Record<string, unknown>>)
+        .map((r) => ({ title: String(r.title ?? '').trim(), value: String(r.value ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() }))
+        .filter((r) => r.title || r.value)
+    : [];
+  const details = payload?.businessDetailsArr && typeof payload.businessDetailsArr === 'object'
+    ? payload.businessDetailsArr as Record<string, unknown>
+    : null;
+  return { rows, details };
+}
+
+// ---------------------------------------------------------------------------
+// Pre Trial Application - criminal pre-trial applications (Remand / Bail)
+// filed before a case is registered, searched by police station. Request
+// shape read from the decompiled app (PreTrial screen onSubmit): court
+// scope + pre_application_type ('R' Remand / 'B' Bail) + fir_type ('0' any,
+// '1'..'3' = I/II/III) + police_stationcode + uniform_code. Verified live
+// 2026-10-22 (Ernakulam, police station 17): well-formed answer
+// {establishment: {total_count, pre_application_type, caseNos: [[...]],
+// pre_order_arr: [[...]]}}. Row/order field names come from the app's
+// results screen; no non-empty sample has been seen yet.
+// ---------------------------------------------------------------------------
+
+export interface PreTrialSearchInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  /** A whole court complex as the eCourts app sends it ("1,2,3"); overrides courtCode. */
+  courtCodes?: string;
+  /** 'R' Remand, 'B' Bail, 'A' Application (the app's three radios). */
+  applicationType: 'R' | 'B' | 'A';
+  policeStCode: number;
+  firType: '0' | '1' | '2' | '3';
+  /** Optional, as in the app's form (keys from the decompile). */
+  firNumber?: string;
+  year?: number;
+  court?: Court;
+}
+
+export interface PreTrialResult {
+  establishments: Array<{
+    name: string;
+    courtCode: string;
+    total: number;
+    rows: Array<Record<string, unknown>>;
+    orders: Array<Record<string, unknown>>;
+  }>;
+}
+
+/** Nested arrays ([[row, row], [row]]) flattened to plain objects. */
+function flattenRows(v: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(v)) return v && typeof v === 'object' ? [v as Record<string, unknown>] : [];
+  return v.flatMap((x) => flattenRows(x));
+}
+
+export async function searchPreTrial(input: PreTrialSearchInput): Promise<PreTrialResult> {
+  const payload = await call('pretrialNumberSearch.php', {
+    court: input.court ?? 'DC',
+    params: {
+      bilingual_flag: 0,
+      state_code: input.stateCode,
+      dist_code: input.distCode,
+      court_code_arr: input.courtCodes || input.courtCode,
+      pre_application_type: input.applicationType,
+      fir_type: input.firType,
+      police_stationcode: input.policeStCode,
+      uniform_code: '',
+      ...(input.firNumber ? { firNumber: input.firNumber } : {}),
+      ...(input.year ? { year: input.year } : {}),
+    },
+  }) as Record<string, unknown> | null;
+  if (payload && payload.status === 'N') {
+    throw new EcourtsHttpError(502, `eCourts could not run the pre-trial search (${String(payload.msg ?? 'error')}).`);
+  }
+  const establishments: PreTrialResult['establishments'] = [];
+  for (const [key, est] of Object.entries(payload ?? {})) {
+    if (!/^\d+$/.test(key) || !est || typeof est !== 'object') continue;
+    const e = est as Record<string, unknown>;
+    establishments.push({
+      name: String(e.establishment_name ?? ''),
+      courtCode: String(e.court_code ?? ''),
+      total: Number(e.total_count ?? 0) || 0,
+      rows: flattenRows(e.caseNos),
+      orders: flattenRows(e.pre_order_arr),
+    });
+  }
+  return { establishments };
+}
+
+export interface PreTrialOrderInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  orderYr: string;
+  orderId: string;
+  crno: string;
+}
+
+/** A pre-trial order as PDF bytes (preTrialOrder_pdf.php; the app opens this
+ *  URL directly, no session token). */
+export async function fetchPreTrialOrderPdf(input: PreTrialOrderInput): Promise<Buffer> {
+  const params = encryptParams({
+    state_code: input.stateCode,
+    dist_code: input.distCode,
+    court_code: input.courtCode,
+    orderYr: input.orderYr,
+    order_id: input.orderId,
+    crno: input.crno,
+  });
+  const bytes = await fetchUrlBytes(
+    `https://app.ecourts.gov.in/services_DC_4.0/preTrialOrder_pdf.php?params=${encodeURIComponent(params)}`,
+    { stripLeadingWhitespace: true },
+  );
+  if (bytes.subarray(0, 5).toString('latin1') !== '%PDF-') {
+    const text = bytes.toString('utf8').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw new EcourtsHttpError(404, `eCourts: ${text || 'this order is not available'}`);
+  }
+  return bytes;
+}
+
+// ---------------------------------------------------------------------------
+// UI labels in the eCourts app's languages (getAllLabelsWebService.php).
+// The app's own translations, keyed by numeric label id - LexDraft's eCourts
+// screen uses them so it reads exactly like the app in every language.
+// Verified live 2026-10-22: a non-English set needs bilingual_flag 1 together
+// with language_flag; with bilingual_flag 0 every language comes back English.
+// ---------------------------------------------------------------------------
+
+export const ECOURTS_LANGUAGES = ['english', 'hindi', 'marathi', 'kannada', 'gujrati', 'tamil'] as const;
+export type EcourtsLanguage = (typeof ECOURTS_LANGUAGES)[number];
+
+const LABEL_TTL_MS = 24 * 60 * 60 * 1000;
+
+const NAMED_ENTITIES: Record<string, string> = {
+  quot: '"', apos: '\'', lt: '<', gt: '>', nbsp: ' ', amp: '&',
+  sbquo: '"', bdquo: '"', lsquo: '\'', rsquo: '\'', ldquo: '"', rdquo: '"',
+  ndash: '–', mdash: '—', hellip: '…', bull: '•', middot: '·', zwj: '‍', zwnj: '‌',
+};
+
+/** Some eCourts labels are HTML-encoded twice (`&amp;nbsp;`), so decode until
+ *  nothing changes. Unknown named entities are left as they are. */
+function decodeEntities(s: string): string {
+  let out = s;
+  for (let i = 0; i < 3; i++) {
+    const next = out
+      .replace(/&#x([0-9a-f]+);/gi, (_m, h: string) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_m, n: string) => String.fromCodePoint(Number(n)))
+      .replace(/&([a-z]+);/gi, (m, name: string) => NAMED_ENTITIES[name.toLowerCase()] ?? m);
+    if (next === out) break;
+    out = next;
+  }
+  return out.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+export async function fetchLabels(language: EcourtsLanguage): Promise<Record<string, string>> {
+  return memo(`labels:${language}`, LABEL_TTL_MS, async () => {
+    const payload = await call('getAllLabelsWebService.php', {
+      court: 'DC',
+      params: { language_flag: language, bilingual_flag: language === 'english' ? '0' : '1' },
+    }) as { allLabels?: Record<string, unknown> } | null;
+    const raw = payload?.allLabels;
+    if (!raw || typeof raw !== 'object') {
+      throw new EcourtsHttpError(502, 'eCourts did not return its labels - try again.');
+    }
+    const out: Record<string, string> = {};
+    for (const [id, v] of Object.entries(raw)) {
+      if (typeof v === 'string') out[id] = decodeEntities(v);
+    }
+    return out;
+  });
 }
 
 interface AppellateInfoInput {
@@ -811,6 +1233,7 @@ function parseCourtNames(raw: string): JudgeBench[] {
     const m = /^\d+-(.+?)-(.+)$/.exec(label);
     out.push({
       code: entry.slice(0, caretIdx).trim(),
+      courtNo: valueAndLabel.slice(0, sepIdx).trim(),
       judgeName: (m?.[1] ?? label).trim(),
       designation: (m?.[2] ?? '').trim(),
     });
@@ -821,9 +1244,12 @@ function parseCourtNames(raw: string): JudgeBench[] {
 export async function listJudgeBenches(
   stateCode: number,
   distCode: number,
-  courtCode: number,
+  courtCode: number | string,
   court: Court = 'DC',
+  /** YYYY-MM-DD - High Courts list the benches sitting on a date. */
+  date?: string,
 ): Promise<JudgeBench[]> {
+  if (court === 'HC') return listHcCauseListBenches(stateCode, distCode, courtCode, date);
   return memo(`judgeBenches:${court}:${stateCode}:${distCode}:${courtCode}`, REF_TTL_MS, async () => {
     const payload = await call('courtNameWebService.php', {
       court,
@@ -831,6 +1257,39 @@ export async function listJudgeBenches(
     }) as { courtNames?: string } | null;
     if (!payload?.courtNames) return [];
     return parseCourtNames(payload.courtNames);
+  });
+}
+
+/**
+ * High Court Cause List benches for a date - the app's fetchBenches:
+ * causeListBenchWebService.php {state_code, dist_code (bench), court_code,
+ * date dd-mm-yyyy} -> {benches: {benchesStr}} (verified live 2026-10-22;
+ * null when nothing is listed). benchesStr follows the app's '#'-separated
+ * "value~label" list (its initial state is '0~Select Bench'); a
+ * "court^value~label" entry is handled like the District Court list.
+ */
+async function listHcCauseListBenches(stateCode: number, distCode: number, courtCode: number | string, date?: string): Promise<JudgeBench[]> {
+  const iso = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  const first = String(courtCode).split(',')[0] ?? '1';
+  return memo(`hcBenches:${stateCode}:${distCode}:${first}:${iso}`, 30 * 60 * 1000, async () => {
+    const payload = await call('causeListBenchWebService.php', {
+      court: 'HC',
+      params: { state_code: stateCode, dist_code: distCode, court_code: Number(first) || first, date: toEcourtsDMY(iso) },
+    }) as { benches?: { benchesStr?: string | null } } | null;
+    const raw = payload?.benches?.benchesStr ?? '';
+    const out: JudgeBench[] = [];
+    for (const entry of raw.split('#')) {
+      const caret = entry.indexOf('^');
+      const code = caret >= 0 ? entry.slice(0, caret).trim() : first;
+      const rest = caret >= 0 ? entry.slice(caret + 1) : entry;
+      const sep = rest.indexOf('~');
+      if (sep < 0) continue;
+      const value = rest.slice(0, sep).trim();
+      const label = rest.slice(sep + 1).trim();
+      if (!value || value === '0' || value === 'D' || !label) continue;
+      out.push({ code, courtNo: value, judgeName: label, designation: '' });
+    }
+    return out;
   });
 }
 
@@ -843,7 +1302,7 @@ export async function listJudgeBenches(
 // dist_code+court_code_arr just to list STATES, which is unusual but
 // confirmed live, not a guess).
 
-interface CaveatStatesInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+interface CaveatStatesInput { stateCode: number; distCode: number; courtCode: number | string; court?: Court }
 
 /**
  * Confirmed LIVE and working (round-2 re-audit): this endpoint needs the
@@ -864,7 +1323,7 @@ export async function listCaveatStates(input: CaveatStatesInput): Promise<Caveat
   return payload?.states ?? [];
 }
 
-interface CaveatDistrictsInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+interface CaveatDistrictsInput { stateCode: number; distCode: number; courtCode: number | string; court?: Court }
 
 export async function listCaveatDistricts(input: CaveatDistrictsInput): Promise<CaveatDistrict[]> {
   return memo(`caveatDistricts:${input.court ?? 'DC'}:${input.stateCode}:${input.distCode}:${input.courtCode}`, REF_TTL_MS, async () => {
@@ -882,7 +1341,7 @@ export async function listCaveatDistricts(input: CaveatDistrictsInput): Promise<
   });
 }
 
-interface LowerCourtCaveatInput { stateCode: number; distCode: number; courtCode: number; court?: Court }
+interface LowerCourtCaveatInput { stateCode: number; distCode: number; courtCode: number | string; court?: Court }
 
 export async function listLowerCourtCaveat(input: LowerCourtCaveatInput): Promise<LowerCourtCaveatEntry[]> {
   const payload = await call('lowerCourtCaveat.php', {

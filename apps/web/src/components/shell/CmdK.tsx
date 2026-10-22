@@ -4,7 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Case, Client, Lead } from '@lexdraft/types';
 import { Icon, type IconName } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
-import { NAV_GROUPS } from './nav-config';
+import { useMeFeatures } from '@/hooks/useFirmAdmin';
+import { useQuickSearch } from '@/hooks/useQuickSearch';
+import { visibleNavGroups } from './nav-config';
 
 interface Command {
   id: string;
@@ -49,12 +51,49 @@ export function CmdK() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [recent, setRecent] = useState<string[]>(() => loadRecent());
   const listRef = useRef<HTMLDivElement>(null);
+  const meFeatures = useMeFeatures();
+  const granted = useMemo(() => meFeatures.data?.features ?? [], [meFeatures.data]);
 
-  // Pull cached entity lists out of react-query. We don't refetch on
-  // open — the user is searching what they've already seen. If they
-  // haven't loaded a view yet there's nothing to search there, which
-  // is fine; the nav commands still get them to the right place.
-  const contentMatches = useMemo<Command[]>(() => {
+  // Firm-wide server search (GET /search). Until its first answer for this
+  // query arrives, fall back to whatever entity lists are already in the
+  // react-query cache so results still appear instantly.
+  const server = useQuickSearch(q);
+  const serverMatches = useMemo<Command[] | null>(() => {
+    const r = server.data;
+    if (!r || r.q !== q.trim()) return null;
+    const mono = (s: string) => <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{s}</span>;
+    return [
+      ...r.cases.map((c): Command => ({
+        id: `case.${c.id}`,
+        label: c.matchedParty && !c.title.toLowerCase().includes(q.trim().toLowerCase())
+          ? `${c.title} (party: ${c.matchedParty})`
+          : c.title,
+        group: 'Cases',
+        icon: 'cases',
+        hint: mono(c.cnr || c.court),
+        run: () => navigate(`/app/cases/${c.id}`),
+      })),
+      ...r.clients.map((c): Command => ({
+        id: `client.${c.id}`, label: c.name, group: 'Clients', icon: 'clients',
+        hint: mono(c.type), run: () => navigate(`/app/clients/${c.id}`),
+      })),
+      ...r.leads.map((l): Command => ({
+        id: `lead.${l.id}`, label: l.name, group: 'Leads', icon: 'leads',
+        hint: mono(l.stage), run: () => navigate('/app/leads'),
+      })),
+      ...r.drafts.map((d): Command => ({
+        id: `draft.${d.id}`, label: d.title, group: 'My drafts', icon: 'draft',
+        hint: mono(d.docType), run: () => navigate('/app/draft', { state: { draftId: d.id } }),
+      })),
+      ...r.documents.map((d): Command => ({
+        id: `doc.${d.id}`, label: d.name, group: 'Documents', icon: 'documents',
+        hint: mono(d.caseLabel),
+        run: () => navigate(d.caseId ? `/app/cases/${d.caseId}?tab=documents` : '/app/documents'),
+      })),
+    ];
+  }, [server.data, q, navigate]);
+
+  const cacheMatches = useMemo<Command[]>(() => {
     if (!q.trim()) return [];
     const needle = q.toLowerCase();
     const matches: Command[] = [];
@@ -109,7 +148,7 @@ export function CmdK() {
             group: 'Clients',
             icon: 'clients',
             hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{cl.type}</span>,
-            run: () => navigate('/app/clients'),
+            run: () => navigate(`/app/clients/${cl.id}`),
           });
         }
       }
@@ -118,18 +157,37 @@ export function CmdK() {
     return matches.slice(0, 20); // cap so the list stays scannable
   }, [q, qc, navigate]);
 
+  const contentMatches = serverMatches ?? cacheMatches;
+
   // All registered commands. Nav items expand into one Command per item;
   // actions live alongside (theme toggle, sign out, etc.).
   const all: Command[] = useMemo(() => {
-    const navCommands: Command[] = NAV_GROUPS.flatMap((g) =>
-      g.items.map((i) => ({
-        id: `nav.${i.id}`,
-        label: i.label,
-        group: g.title,
-        icon: i.icon,
-        hint: <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{i.to}</span>,
-        run: () => navigate(i.to),
-      })),
+    // Same gate as the Sidebar - never offer a page the user can't open.
+    // Tabbed items expand to one command per tab so "Sanhita" or "Physical
+    // Docs" are still found by name.
+    const hint = (to: string) => (
+      <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{to}</span>
+    );
+    const navCommands: Command[] = visibleNavGroups(granted).flatMap((g) =>
+      g.items.flatMap((i): Command[] =>
+        i.tabs
+          ? i.tabs.map((t) => ({
+              id: `nav.${t.to}`,
+              label: t.label === i.label ? t.label : `${i.label} › ${t.label}`,
+              group: g.title,
+              icon: i.icon,
+              hint: hint(t.to),
+              run: () => navigate(t.to),
+            }))
+          : [{
+              id: `nav.${i.id}`,
+              label: i.label,
+              group: g.title,
+              icon: i.icon,
+              hint: hint(i.to),
+              run: () => navigate(i.to),
+            }],
+      ),
     );
     const actions: Command[] = [
       {
@@ -148,7 +206,7 @@ export function CmdK() {
       },
     ];
     return [...navCommands, ...actions];
-  }, [navigate, toggleTheme, theme]);
+  }, [navigate, toggleTheme, theme, granted]);
 
   const filtered: Command[] = useMemo(() => {
     if (!q.trim()) {
@@ -268,7 +326,7 @@ export function CmdK() {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Type a command or search…"
+            placeholder="Search matters, CNR, parties, clients, drafts… or type a page name"
             style={{
               flex: 1,
               background: 'transparent',
@@ -292,6 +350,9 @@ export function CmdK() {
             <div style={{ padding: 28, textAlign: 'center' }} className="muted body-sm">
               No matches
             </div>
+          )}
+          {q.trim().length >= 2 && server.isFetching && (
+            <div className="muted body-xs" style={{ padding: '4px 12px' }} aria-live="polite">Searching the firm…</div>
           )}
           {filtered.map((c, idx) => {
             const isActive = idx === activeIdx;

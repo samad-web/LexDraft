@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon, Select } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { SearchableSelect } from '@/components/SearchableSelect';
+import { PageHeader } from '@/components/PageHeader';
 import { INDIA_STATES, INDIA_STATES_BY_CODE } from '@/lib/india-states';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
@@ -181,13 +182,10 @@ export function StampView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - STAMP & REGISTRATION</div>
-        <h1 className="heading-xl">Stamp duty calculator</h1>
-        <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Indicative rates per the latest state schedules. Final liability is determined by the Sub-Registrar at the time of registration.
-        </p>
-      </div>
+      <PageHeader
+        title="Stamp Duty Report (PDF)"
+        description="Estimate stamp duty and registration fees by state; Sub-Registrar decides final liability."
+      />
 
       <div className="grid-2" style={{ gap: 24, alignItems: 'flex-start' }}>
         <div className="card">

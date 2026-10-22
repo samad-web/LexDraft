@@ -7,6 +7,7 @@ import {
   useSendFirmPortalMessage,
   useMarkFirmPortalThreadRead,
 } from '@/hooks/usePortalAdmin';
+import { PageHeader } from '@/components/PageHeader';
 
 /**
  * Firm-side "Portal Messages" view (CLIENT_PORTAL.md §7.1 - last row of the
@@ -33,10 +34,10 @@ export function PortalInboxView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Client portal</div>
-        <h1 className="heading-xl">Portal messages</h1>
-      </div>
+      <PageHeader
+        title="Client Messages"
+        description="Read and reply to messages clients send through the client portal."
+      />
 
       <div className="inbox-grid">
         <aside className="card" style={{ padding: 0, overflow: 'auto' }}>

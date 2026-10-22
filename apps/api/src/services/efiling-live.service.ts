@@ -291,6 +291,9 @@ export async function submitEfilingLoginCaptcha(
     throw new EcourtsHttpError(502, 'The eFiling portal is not responding to input right now. Try again.');
   }
 
+  // Never log the verify_login request body: it carries the username and
+  // sha256(sha256(password) + sha256(nonce)) WITH the nonce, which is enough
+  // to brute-force the password offline.
   await Promise.all([
     page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {}),
     page.click('#verify_button1'),
@@ -333,10 +336,32 @@ export async function submitEfilingLoginCaptcha(
   // field we can rely on from the outside - `errorfield` was empty/unused
   // in this response shape when captured live).
   if (/already\s*login/i.test(reason)) {
+    // Never silently fall through to an empty-captcha "success" here - a
+    // swallowed failure at any of these three steps previously surfaced as
+    // the STALE reason text from the original alert being shown again under
+    // the duplicate-login step, with a broken/empty captcha image, which
+    // read to the advocate as "still failing the same way" when the real
+    // problem was the modal never opening. Each step now throws a specific,
+    // honest error instead.
     const clickHere = page.getByText('CLICK HERE', { exact: false }).first();
-    await clickHere.click().catch(() => {});
-    await page.locator('#frm_duplicate_login').waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
-    const captchaImageBase64 = await screenshotDuplicateLoginCaptcha(page).catch(() => '');
+    const clickHereCount = await clickHere.count().catch(() => 0);
+    if (clickHereCount === 0) {
+      logger.warn({ reason }, 'efiling-live: "already login" detected but no CLICK HERE link found in the alert');
+      throw new EcourtsHttpError(502, "eCourts says you're already logged in elsewhere, but the confirmation link couldn't be found on the page. Try again, or log out of eFiling in your other browser tab first.");
+    }
+    await clickHere.click();
+    const modalOpened = await page.locator('#frm_duplicate_login').waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false);
+    if (!modalOpened) {
+      logger.warn('efiling-live: clicked CLICK HERE but #frm_duplicate_login never became visible');
+      throw new EcourtsHttpError(502, "Could not open eCourts' logout-confirmation screen. Try again in a moment.");
+    }
+    const captchaImageBase64 = await screenshotDuplicateLoginCaptcha(page).catch((err) => {
+      logger.warn({ err }, 'efiling-live: duplicate-login modal opened but captcha screenshot failed');
+      return '';
+    });
+    if (!captchaImageBase64) {
+      throw new EcourtsHttpError(502, "eCourts' logout-confirmation screen opened but its captcha image didn't load. Try again.");
+    }
     return { duplicateLogin: true, captchaImageBase64, reason };
   }
 
@@ -384,14 +409,26 @@ export async function confirmDuplicateEfilingLogin(
     throw new EcourtsHttpError(502, 'The eFiling portal is not responding to input right now. Try again.');
   }
 
+  const urlBeforeSubmit = page.url();
   await Promise.all([
     page.waitForLoadState('domcontentloaded', { timeout: 15000 }).catch(() => {}),
     page.click('#re_verify_button'),
   ]);
   await page.waitForTimeout(1500);
 
-  const stillOnLogin = await page.locator('#frm_login').isVisible().catch(() => false);
-  if (!stillOnLogin) {
+  // #frm_login is NOT a valid success signal here (confirmed live): it's the
+  // underlying login page sitting behind this modal and stays in the DOM -
+  // and Playwright's isVisible() still reports it visible - the entire
+  // time the modal is open, success or failure, because a Bootstrap modal
+  // overlays the page rather than detaching it. Checking it unconditionally
+  // evaluated true, meaning this function could never report success even
+  // when the real portal logged the advocate in - it always fell through
+  // to the failure branch and returned a stale/misleading reason. On real
+  // success the portal's own JS does `window.location.href =
+  // obj.redirect_path` - a genuine navigation away from this URL is the
+  // only reliable signal.
+  const navigatedAway = page.url() !== urlBeforeSubmit;
+  if (navigatedAway) {
     session.authenticated = true;
     return { status: 'authenticated' };
   }

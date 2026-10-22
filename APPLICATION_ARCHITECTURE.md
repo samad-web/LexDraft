@@ -365,7 +365,7 @@ All schema lives in numbered SQL migrations under [apps/api/migrations/](./apps/
 /survey/thanks          SurveyThanksView
 
 /app/* (protected — JWT required, redirects to /auth on 401)
-├── /dashboard          DashboardRouter ─► Solo / Practice / Firm view by user.plan
+├── /dashboard          AdvocateDashboardView (one view, feature-gated sections)
 ├── /firm               FirmDashboardView (deep-link; Practice users see soft notice)
 ├── /cases              CasesListView
 ├── /cases/:id          CaseDetailView
@@ -620,7 +620,7 @@ Sales-led Firm provisioning adds MSA + DPA + DPIA stages before tenant creation.
 1. Firm Admin invites users (single or CSV) from `/app/members`.
 2. System emits invite tokens (single-use, 24h).
 3. Invitee opens link → [InviteAcceptView](./apps/web/src/views/InviteAcceptView.tsx) → sets credentials → lands on `/app/dashboard`.
-4. The router (`DashboardRouter`) dispatches to `<SoloDashboardView>`, `<PracticeDashboardView>`, or `<FirmDashboardView>` based on `user.plan`.
+4. `/app/dashboard` renders `<AdvocateDashboardView>` (data: `GET /dashboard/today`) for every plan; sections are gated by features. The firm-wide view is `<FirmDashboardView>` at `/app/firm`.
 
 ### 11.3 Sign-in & session
 

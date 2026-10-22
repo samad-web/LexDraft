@@ -4,6 +4,7 @@ import { logger } from './logger';
 import { db } from './db/client';
 import { jobs } from './services/jobs.service';
 import { cacheBroadcaster } from './services/cache-broadcaster';
+import { teamChatRealtime } from './services/team-chat-realtime';
 
 const app = createApp();
 
@@ -34,7 +35,11 @@ void import('./services/document-render.service')
 
 // Boot the background worker. When DATABASE_URL is blank this is a no-op and
 // jobs run inline at enqueue time.
-jobs.start().catch((err) => logger.error({ err }, 'jobs.start failed'));
+jobs.start()
+  // If the server was off at 9 AM / 7 PM, run that missed eCourts update now
+  // rather than waiting for someone to notice (see ecourts.sync.watchdog).
+  .then(() => import('./services/jobs.service').then((m) => m.ensureScheduledSyncRan()))
+  .catch((err) => logger.error({ err }, 'jobs.start failed'));
 
 // Boot the cross-replica cache invalidation listener. firmId + permissions
 // caches subscribe at module load; this kicks the LISTEN connection open.
@@ -45,6 +50,13 @@ cacheBroadcaster.start().catch((err) =>
   logger.error({ err }, 'cacheBroadcaster.start failed - running without cross-replica invalidation'),
 );
 
+// Team-chat live delivery. Shares the LISTEN connection opened above
+// (postgres.js multiplexes channels), so it costs no extra pool slot. Without
+// it, messages still save; clients just see them on their next refresh.
+teamChatRealtime.start().catch((err) =>
+  logger.error({ err }, 'teamChatRealtime.start failed - team chat will not update live'),
+);
+
 // MFA pending challenges are stored in Postgres (table `mfa_pending_challenges`)
 // not in-process, so they don't drift between replicas. Only the firmId +
 // permissions caches needed the broadcaster.
@@ -53,6 +65,8 @@ const shutdown = (signal: string) => {
   logger.info({ signal }, 'shutting down');
   void jobs.stop().catch((err) => logger.warn({ err }, 'jobs.stop failed'));
   void cacheBroadcaster.stop().catch((err) => logger.warn({ err }, 'cacheBroadcaster.stop failed'));
+  // Ends open SSE streams too - otherwise server.close() waits on them.
+  void teamChatRealtime.stop().catch((err) => logger.warn({ err }, 'teamChatRealtime.stop failed'));
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 10_000).unref();
 };

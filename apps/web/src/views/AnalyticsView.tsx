@@ -3,6 +3,9 @@ import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
+import { PageHeader } from '@/components/PageHeader';
+
+const ANALYTICS_DESC = 'Key practice numbers: matters by stage and revenue by month.';
 
 interface Kpi {
   label: string;
@@ -91,19 +94,19 @@ export function AnalyticsView() {
 
   if (isError) {
     return (
-      <ErrorState
-        title="Couldn't load analytics"
-        description="Check your connection and retry. If the issue persists, the metrics service may be offline."
-      />
+      <div className="col stagger" style={{ gap: 24 }}>
+        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
+        <ErrorState
+          title="Couldn't load analytics"
+          description="Check your connection and retry. If the issue persists, the metrics service may be offline."
+        />
+      </div>
     );
   }
   if (isLoading) {
     return (
       <div className="col stagger" style={{ gap: 24 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Practice metrics</div>
-          <Skeleton width={180} height={32} />
-        </div>
+        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
         <div className="stat-row">
           {[0, 1, 2, 3].map((i) => (
             <div key={i}>
@@ -121,22 +124,23 @@ export function AnalyticsView() {
   }
   if (!data || (KPIS.every((k) => k.value === '-' || k.value === '0') && STAGES.length === 0 && REVENUE.length === 0)) {
     return (
-      <EmptyState
-        icon="analytics"
-        title="No analytics yet"
-        description="Once you log matters, hearings, and invoices, this view will show your practice trends."
-      />
+      <div className="col stagger" style={{ gap: 24 }}>
+        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
+        <EmptyState
+          icon="analytics"
+          title="No analytics yet"
+          description="Once you log matters, hearings, and invoices, this view will show your practice trends."
+        />
+      </div>
     );
   }
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Practice metrics</div>
-          <h1 className="heading-xl">Analytics</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Firm Analytics"
+        description={ANALYTICS_DESC}
+        actions={
         <button
           className="btn"
           type="button"
@@ -177,7 +181,8 @@ export function AnalyticsView() {
         >
           <Icon name="download" size={14} /> Export PDF
         </button>
-      </div>
+        }
+      />
 
       <div className="stat-row">
         {KPIS.map((k) => (

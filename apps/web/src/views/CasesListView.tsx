@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
-import { useCases, useDeleteCase, useRestoreCase } from '@/hooks/useCases';
+import { useCases, useDeleteCase, useRestoreCase, type CaseListItem } from '@/hooks/useCases';
+import { linkStatusDisplay } from '@/components/ecourts/linkStatus';
 import { useUIStore } from '@/store/ui';
 import { FAB } from '@/components/FAB';
 import { useSavedFilter } from '@/hooks/useSavedFilter';
@@ -12,6 +13,7 @@ import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { CopyButton } from '@/components/CopyButton';
 import { usePagination } from '@/hooks/usePagination';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 
 interface CasesListViewProps {
   onOpen: (c: Case) => void;
@@ -73,6 +75,21 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
 
   const activeFilter: FilterOption = FILTERS.find((f) => f.id === filter) ?? FILTERS[0]!;
 
+  // "Connect matters →" (eCourts status strip) lands here with
+  // ?ecourts=attention: only live matters not yet working with eCourts, and
+  // opening one jumps straight to its eCourts connection card.
+  const navigate = useNavigate();
+  const ecourtsAttention = searchParams.get('ecourts') === 'attention';
+  const clearEcourtsFilter = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('ecourts');
+    setSearchParams(next, { replace: true });
+  };
+  const openCase = (c: Case) => {
+    if (ecourtsAttention) navigate(`/app/cases/${c.id}?focus=ecourts&from=ecourts`);
+    else onOpen(c);
+  };
+
   const deleteCase = useDeleteCase();
   const restoreCase = useRestoreCase();
   const showToast = useUIStore((s) => s.showToast);
@@ -105,49 +122,22 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
     () => ({
       q: qDebounced.trim() || undefined,
       type: activeFilter.type,
+      ecourts: ecourtsAttention ? ('attention' as const) : undefined,
     }),
-    [qDebounced, activeFilter.type],
+    [qDebounced, activeFilter.type, ecourtsAttention],
   );
 
   const { data, isLoading, isError, error } = useCases(queryParams);
-  const cases: Case[] = data ?? [];
+  const cases: CaseListItem[] = data ?? [];
   const pager = usePagination(cases);
 
   return (
     <div className="col stagger" style={{ gap: 20 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Case management</div>
-          <h1 className="heading-xl">Cases</h1>
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginTop: 4 }}>
-            {cases.length} {cases.length === 1 ? 'MATTER' : 'MATTERS'}
-          </div>
-        </div>
-        <span className="spacer" />
-        <div style={{ position: 'relative' }}>
-          <input
-            type="search"
-            className="input"
-            style={{ paddingLeft: 36, width: 280 }}
-            placeholder="Search by title or CNR…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search cases"
-          />
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)',
-              display: 'inline-flex',
-            }}
-          >
-            <Icon name="search" size={14} />
-          </span>
-        </div>
+      <PageHeader
+        title="Cases"
+        description="Every matter you handle, with court, stage, client and next date."
+        meta={`${cases.length} ${cases.length === 1 ? 'matter' : 'matters'}`}
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -165,7 +155,31 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
             <Icon name="plus" size={14} /> New case
           </button>
         </Gate>
-      </div>
+        </>}
+      >
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by title or CNR…"
+          label="Search cases"
+        />
+      </PageHeader>
+
+      {ecourtsAttention ? (
+        <div className="card row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: 'var(--warning)' }} role="status">
+          <span className="dot dot-amber" style={{ flexShrink: 0 }} />
+          <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+            <div className="heading-sm">Matters to connect to eCourts</div>
+            <p className="body-sm muted">
+              {cases.length === 0 && !isLoading
+                ? 'Every live matter is connected to eCourts.'
+                : 'These matters have no CNR, are waiting for eCourts, or their CNR wasn\'t found. Open one to connect it; you\'ll come back here for the next.'}
+            </p>
+          </div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/app/ecourts')}>Back to eCourts</button>
+          <button type="button" className="btn btn-sm" onClick={clearEcourtsFilter}>Show all matters</button>
+        </div>
+      ) : null}
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => (
@@ -205,18 +219,21 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                 <th>Stage</th>
                 <th>Client</th>
                 <th>Next date</th>
+                <th>eCourts</th>
                 <th aria-label="Row actions" />
               </tr>
             </thead>
             <tbody>
               {cases.length === 0 && (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <EmptyState
                       variant="inline"
-                      title={q || filter !== 'all' ? 'No matters match' : 'No matters yet'}
+                      title={ecourtsAttention ? 'All matters connected' : q || filter !== 'all' ? 'No matters match' : 'No matters yet'}
                       description={
-                        q || filter !== 'all'
+                        ecourtsAttention
+                          ? 'Every live matter is connected to eCourts and refreshes at 9 AM and 7 PM.'
+                          : q || filter !== 'all'
                           ? 'Try a different search term or filter.'
                           : 'Open a new matter to start tracking hearings, parties, and documents.'
                       }
@@ -227,7 +244,7 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
               {pager.slice.map((c) => (
                 <tr
                   key={c.id}
-                  onClick={() => onOpen(c)}
+                  onClick={() => openCase(c)}
                   style={{ cursor: 'pointer' }}
                 >
                   <td>
@@ -245,6 +262,12 @@ export function CasesListView({ onOpen }: CasesListViewProps) {
                   <td><span className="badge badge-cobalt">{String(c.stage).toUpperCase()}</span></td>
                   <td>{c.client}</td>
                   <td className="mono tabular">{c.next}</td>
+                  <td>
+                    {(() => {
+                      const d = linkStatusDisplay(c.ecourtsLinkStatus);
+                      return <span className={`badge ${d.badge}`}>{d.label.toUpperCase()}</span>;
+                    })()}
+                  </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'right' }}>
                     <Gate feature="matter.create">
                       <button

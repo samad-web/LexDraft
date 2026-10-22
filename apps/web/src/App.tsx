@@ -9,6 +9,7 @@ import { Topbar } from '@/components/shell/Topbar';
 import { MobileNav } from '@/components/shell/MobileNav';
 import { Toast } from '@/components/shell/Toast';
 import { CmdK } from '@/components/shell/CmdK';
+import { SectionTabs } from '@/components/shell/SectionTabs';
 import { KeyboardShortcuts } from '@/components/KeyboardShortcuts';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SuperadminBanner } from '@/components/shell/SuperadminBanner';
@@ -57,6 +58,7 @@ const MembersView = lazy(() => import('@/views/MembersView').then((m) => ({ defa
 const AnalyticsView = lazy(() => import('@/views/AnalyticsView').then((m) => ({ default: m.AnalyticsView })));
 const FirmDashboardView = lazy(() => import('@/views/FirmDashboardView').then((m) => ({ default: m.FirmDashboardView })));
 const PortalInboxView = lazy(() => import('@/views/PortalInboxView').then((m) => ({ default: m.PortalInboxView })));
+const TeamChatView = lazy(() => import('@/views/TeamChatView').then((m) => ({ default: m.TeamChatView })));
 const InviteAcceptView = lazy(() => import('@/views/InviteAcceptView').then((m) => ({ default: m.InviteAcceptView })));
 const CoCounselAcceptView = lazy(() => import('@/views/CoCounselAcceptView').then((m) => ({ default: m.CoCounselAcceptView })));
 const SignView = lazy(() => import('@/views/SignView').then((m) => ({ default: m.SignView })));
@@ -262,6 +264,7 @@ export function App() {
         <div className="main">
           <Topbar />
           <main className="content" id="main-content" tabIndex={-1} key={location.pathname}>
+            <SectionTabs />
             <Suspense fallback={pageFallback}>
             <Routes>
               <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
@@ -299,6 +302,7 @@ export function App() {
               <Route path="/app/members"    element={<MembersView />} />
               <Route path="/app/manage"     element={<ManageView />} />
               <Route path="/app/messages"   element={<PortalInboxView />} />
+              <Route path="/app/team-chat"  element={<TeamChatView />} />
               <Route path="/app/analytics"  element={<AnalyticsView />} />
               <Route path="/app/sanhita"             element={<SanhitaView />} />
               <Route path="/app/calculators"         element={<CalculatorsView />} />
@@ -307,6 +311,8 @@ export function App() {
               <Route path="/app/co-counsel/:caseId"  element={<GuestCaseDetailView />} />
               <Route path="/app/practice-analytics"  element={<PracticeAnalyticsView />} />
               <Route path="/app/engagement"          element={<EngagementTemplatesView />} />
+              {/* Older plan-status notifications point at /app/billing. */}
+              <Route path="/app/billing" element={<Navigate to="/app/settings" replace />} />
               <Route path="*" element={<NotFoundView />} />
             </Routes>
             </Suspense>

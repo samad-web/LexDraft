@@ -170,7 +170,7 @@ Sales-led Firm provisioning adds an MSA + DPA + DPIA stage before the tenant is 
 1. Firm Admin invites users (single or CSV).
 2. System emits invite tokens (single-use, 24 h).
 3. Invitee accepts via [InviteAcceptView](./apps/web/src/views/InviteAcceptView.tsx) → sets credentials → lands on `/app/dashboard`.
-4. The router dispatches to `<SoloDashboardView>`, `<PracticeDashboardView>`, or `<FirmDashboardView>` depending on `user.plan`.
+4. `/app/dashboard` renders `<AdvocateDashboardView>` for every plan (today in court, needs attention, next 7 days, practice figures; firm pulse for partners/admins/PG leads). The firm-wide view is `<FirmDashboardView>` at `/app/firm`.
 
 ### 4.3 Sign-in & session
 

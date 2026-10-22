@@ -6,6 +6,7 @@ import {
   type ProfitabilityMatter,
   type WorkloadMember,
 } from '@/hooks/usePracticeAnalytics';
+import { PageHeader } from '@/components/PageHeader';
 
 function AnalyticsTabSkeleton() {
   return (
@@ -57,15 +58,7 @@ export function PracticeAnalyticsView() {
 
   return (
     <div className="col stagger" style={{ gap: 20 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Practice insights</div>
-          <h1 className="heading-xl">Practice analytics</h1>
-          <p className="body-sm muted" style={{ marginTop: 6, maxWidth: 560 }}>
-            {activeTab.hint}
-          </p>
-        </div>
-      </div>
+      <PageHeader title="Workload & Profitability" description={activeTab.hint} />
 
       <div
         role="tablist"

@@ -174,5 +174,6 @@ const panel: React.CSSProperties = {
   width: '100%', maxWidth: 640, padding: 24,
 };
 const grid: React.CSSProperties = {
-  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+  // Two columns where there's room, one on phones.
+  display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12,
 };

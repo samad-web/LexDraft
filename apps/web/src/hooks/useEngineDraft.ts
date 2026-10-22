@@ -107,6 +107,8 @@ export interface EngineStatus {
   /** The full engine format catalogue, independent of the per-user flag. Used by
    *  "My formats" to bind a saved house-style format to a real engine document. */
   formats: string[];
+  /** The firm's own approved formats (also included in docLabels/formats). */
+  firmFormats?: Array<{ id: string; label: string; title: string }>;
 }
 
 /** Is the engine-routed path available for this user + which documents? */

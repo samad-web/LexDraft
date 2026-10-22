@@ -19,13 +19,15 @@ import { NewLeadModal } from '@/components/NewLeadModal';
  *                  surfaces (e.g. the §I hero panel) where `.btn-primary`
  *                  would render near-invisible (black-on-near-black).
  */
-export function CaptureLeadCta(props: { variant?: 'default' | 'prominent' | 'on-dark' }): JSX.Element {
+export function CaptureLeadCta(props: { variant?: 'default' | 'prominent' | 'on-dark' | 'secondary' }): JSX.Element {
   const [open, setOpen] = useState(false);
   const cls =
     props.variant === 'prominent'
       ? 'btn btn-primary btn-lg'
       : props.variant === 'on-dark'
       ? 'btn btn-lg'
+      : props.variant === 'secondary'
+      ? 'btn'
       : 'btn btn-primary';
   const style =
     props.variant === 'on-dark'

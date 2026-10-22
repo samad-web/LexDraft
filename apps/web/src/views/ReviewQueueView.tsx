@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Icon, Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton, EmptyState } from '@lexdraft/ui';
+import { PageHeader } from '@/components/PageHeader';
 import { useMyReviews, type ContractReviewSummary, type ReviewDecision } from '@/hooks/useReview';
 
 /**
@@ -22,19 +23,16 @@ export function ReviewQueueView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <h1 className="heading-xl" style={{ marginBottom: 4 }}>
-            My Reviews
-          </h1>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            CONTRACT REVIEWS ASSIGNED TO YOU
-          </div>
-        </div>
-        <Link className="btn" to="/app/review">
-          <Icon name="plus" size={14} /> New review
-        </Link>
-      </div>
+      <PageHeader
+        title="My Review Queue"
+        description="Contract reviews assigned to you, grouped by decision."
+        meta={isLoading ? undefined : `${items.length} ${items.length === 1 ? 'review' : 'reviews'}`}
+        actions={
+          <Link className="btn" to="/app/review">
+            <Icon name="plus" size={14} /> New review
+          </Link>
+        }
+      />
 
       {isLoading && (
         <div className="col" style={{ gap: 24 }} aria-busy="true">
@@ -67,18 +65,16 @@ export function ReviewQueueView() {
       )}
 
       {!isLoading && items.length === 0 && (
-        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-          <div className="heading-md" style={{ marginBottom: 8 }}>
-            Nothing assigned to you yet
-          </div>
-          <p className="body-md muted" style={{ marginBottom: 16 }}>
-            When a colleague assigns you a contract review, it'll show up here. You can also pick
-            up unassigned reviews from the main Review page.
-          </p>
-          <Link className="btn btn-primary" to="/app/review">
-            Open Review
-          </Link>
-        </div>
+        <EmptyState
+          icon="review"
+          title="Nothing assigned to you yet"
+          description="When a colleague assigns you a contract review, it'll show up here. You can also pick up unassigned reviews from the main Review page."
+          action={
+            <Link className="btn btn-primary" to="/app/review">
+              Open Review
+            </Link>
+          }
+        />
       )}
 
       {!isLoading && items.length > 0 && (

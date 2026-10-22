@@ -155,18 +155,40 @@ async function ensureCaseId(
  * case_id is null - but only when they belong to a case in the same firm.
  */
 export const hearingsService = {
+  /**
+   * Hearings listed for today's local date. `assignedToUserId` is the
+   * effective advocate: the per-hearing override, else the matter's lead. `status` is only set when a
+   * hearing is saved and never rolls forward, so it can't be trusted on its
+   * own - a hearing saved last week as 'upcoming' for today would be missed.
+   * The date decides; `status = 'today'` only counts for undated rows.
+   */
   async listToday(firmId: string | null): Promise<Hearing[]> {
     if (!firmId) return [];
     const sql = db();
     if (sql) {
-      const rows = await sql<HearingRow[]>`
-        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status, h.judge
+      const todayIso = isoOfLocal(new Date());
+      const rows = await sql<Array<HearingRow & { case_id: string; assigned_to_user_id: string | null }>>`
+        select h.id, h.case_label, h.hearing_time, h.court, h.purpose, h.status, h.judge,
+               h.case_id,
+               -- An unassigned hearing belongs to the matter's lead (see assignments.service).
+               coalesce(h.assigned_to_user_id, (
+                 select ca.user_id from case_assignments ca
+                 where ca.case_id = h.case_id and ca.role_on_case = 'lead'
+                 limit 1
+               )) as assigned_to_user_id
         from hearings h
         join cases c on c.id = h.case_id
-        where h.status = 'today' and c.firm_id = ${firmId}::uuid
+        where c.firm_id = ${firmId}::uuid
+          and (h.hearing_date = ${todayIso}::date
+               or (h.hearing_date is null and h.status = 'today'))
         order by h.hearing_time
       `;
-      return rows.map(fromRow);
+      return rows.map((r) => ({
+        ...fromRow(r),
+        status: 'today' as const,
+        caseId: r.case_id,
+        assignedToUserId: r.assigned_to_user_id,
+      }));
     }
     return memory.filter((h) => h.status === 'today');
   },

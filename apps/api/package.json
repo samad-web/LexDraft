@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "vitest run --config e2e/vitest.e2e.config.ts",
     "eval": "tsx eval/runner.ts",
     "eval:title-reports": "tsx eval/title-reports/runner.ts",
     "fetch:bns-bnss": "tsx scripts/fetch-bns-bnss.ts",

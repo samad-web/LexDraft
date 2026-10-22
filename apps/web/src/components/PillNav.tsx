@@ -44,6 +44,10 @@ export function PillNav<T extends string>({
     const h = bRect.height;
 
     if (!animate) {
+      // A finished slide keeps its last frame (fill: 'forwards'), which
+      // would override these styles - so a tab whose label later changes
+      // width (e.g. a language switch) kept a stale, too-narrow highlight.
+      indicator.getAnimations().forEach((a) => a.cancel());
       indicator.style.transition = 'none';
       indicator.style.transform = `translate(${x}px, ${y}px)`;
       indicator.style.width = `${w}px`;
@@ -143,6 +147,14 @@ export function PillNav<T extends string>({
     primedRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, items.length]);
+
+  // Labels can change without the selection changing (translations, counts):
+  // re-measure in place, no slide.
+  const labelKey = items.map((i) => i.label).join('\u0001');
+  useLayoutEffect(() => {
+    if (primedRef.current) place(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [labelKey]);
 
   useEffect(() => {
     const container = containerRef.current;

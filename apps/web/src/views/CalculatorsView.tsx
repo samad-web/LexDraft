@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Icon, Select, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { PillNav } from '@/components/PillNav';
+import { PageHeader } from '@/components/PageHeader';
 import { useUIStore } from '@/store/ui';
 import {
   useCalculatorStates,
@@ -66,20 +67,20 @@ function VerificationBadge({ verification }: { verification: { verified: boolean
 }
 
 export function CalculatorsView() {
-  const [tab, setTab] = useState<TabId>('court-fee');
+  // ?tab=vakalatnama / ?tab=court-fee lets other screens (eFiling) link here.
+  const [tab, setTab] = useState<TabId>(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    return TABS.some((t) => t.id === q) ? (q as TabId) : 'court-fee';
+  });
   const { data: states = [], isLoading: statesLoading, isError: statesError } = useCalculatorStates();
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Practice · daily-use Indian-legal calculators</div>
-          <h1 className="heading-xl">Court Fee &amp; Stamp Duty</h1>
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginTop: 4 }}>
-            {states.length} {states.length === 1 ? 'STATE' : 'STATES'} · 3 TOOLS
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Court Fee & Stamp Duty"
+        description="Estimate court fees and stamp duty, and draft a vakalatnama, by state."
+        meta={`${states.length} ${states.length === 1 ? 'state' : 'states'} · 3 tools`}
+      />
 
       <div className="card" style={{ padding: 14, background: 'var(--bg-surface-2)' }}>
         <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>

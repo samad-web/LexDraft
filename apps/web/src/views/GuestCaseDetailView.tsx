@@ -7,29 +7,26 @@
  * handover plan for the Phase 2 write-access scope.
  */
 
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { EmptyState, ErrorState, Icon, Skeleton } from '@lexdraft/ui';
 import { useGuestCaseDetail } from '@/hooks/useCoCounsel';
+import { PageHeader } from '@/components/PageHeader';
 
-function BackButton({ onBack }: { onBack: () => void }) {
-  return (
-    <button type="button" className="btn btn-ghost" onClick={onBack} style={{ alignSelf: 'flex-start' }}>
-      <Icon name="chevron" size={14} style={{ transform: 'scaleX(-1)' }} /> Co-Counsel
-    </button>
-  );
-}
+const BACK = { label: 'Co-Counsel', to: '/app/co-counsel' };
 
 export function GuestCaseDetailView() {
   const { caseId } = useParams<{ caseId: string }>();
-  const navigate = useNavigate();
   const { data, isLoading, isError } = useGuestCaseDetail(caseId);
 
   if (isLoading) {
     return (
       <div className="col" style={{ gap: 16 }}>
-        <BackButton onBack={() => navigate('/app/co-counsel')} />
-        <Skeleton width={320} height={24} />
-        <Skeleton width={200} height={14} />
+        <PageHeader
+          title={<Skeleton width={320} height={24} />}
+          back={BACK}
+        >
+          <Skeleton width={200} height={14} />
+        </PageHeader>
         <div className="card" style={{ padding: 20, marginTop: 8 }}>
           <Skeleton width="100%" height={80} />
         </div>
@@ -40,7 +37,7 @@ export function GuestCaseDetailView() {
   if (isError || !data) {
     return (
       <div className="col" style={{ gap: 16 }}>
-        <BackButton onBack={() => navigate('/app/co-counsel')} />
+        <PageHeader title="Co-Counsel matter" back={BACK} />
         <ErrorState
           title="Can't open this matter"
           description="This handover may have been revoked, or the link is no longer valid."
@@ -53,21 +50,22 @@ export function GuestCaseDetailView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <BackButton onBack={() => navigate('/app/co-counsel')} />
-
-      <div>
-        <div className="row" style={{ gap: 10, marginBottom: 8 }}>
+      <PageHeader
+        title={summary.title}
+        description={
+          <>
+            {summary.court} · {summary.stage}
+            {summary.nextHearing ? ` · Next hearing ${summary.nextHearing}` : ''}
+          </>
+        }
+        meta={`Handed to you by ${summary.grantedBy}`}
+        back={BACK}
+      >
+        <div className="row" style={{ gap: 10 }}>
           <span className="badge badge-cobalt">{summary.cnr}</span>
           <span className="badge">{summary.status}</span>
-          <span className="spacer" />
-          <span className="body-xs muted">Handed to you by {summary.grantedBy}</span>
         </div>
-        <h1 className="heading-xl">{summary.title}</h1>
-        <p className="body-sm muted" style={{ marginTop: 6 }}>
-          {summary.court} · {summary.stage}
-          {summary.nextHearing ? ` · Next hearing ${summary.nextHearing}` : ''}
-        </p>
-      </div>
+      </PageHeader>
 
       <div
         className="card"

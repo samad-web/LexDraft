@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import engineDocContract from '@lexdraft/types/engine-doc-contract.json';
 import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC } from '../engine-field-map';
 
 // The form (doc-schemas.ts vocabulary) and the engine inbound contract are
@@ -187,6 +188,17 @@ describe('engine-field-map — passthrough (non-s.138 doc types)', () => {
     expect(fields.accused_name).toBe('V');
     expect(Array.isArray(fields.identification_marks)).toBe(true);
     expect('accused_address' in fields).toBe(false);
+  });
+
+  it('imported formats (contract `imported: true`) are routable under their engine title', () => {
+    const imported = Object.entries(engineDocContract as Record<string, { title?: string; imported?: boolean }>)
+      .filter(([, entry]) => entry.imported === true);
+    for (const [docType, entry] of imported) {
+      expect(isRoutable(docType)).toBe(true);
+      expect(LABEL_TO_ENGINE_DOC[entry.title as string]).toBe(docType);
+    }
+    // built-in labels are never displaced by an imported title
+    expect(LABEL_TO_ENGINE_DOC['Court Summons']).toBe('summons');
   });
 });
 

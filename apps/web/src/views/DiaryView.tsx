@@ -13,6 +13,7 @@ import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useConfirm } from '@/components/ConfirmDialog';
+import { PageHeader } from '@/components/PageHeader';
 
 /** Defaults handed to the coverage modal when a Diary hearing row asks for cover.
  *  Kept narrow so we don't import the modal's full prop type here. */
@@ -148,12 +149,10 @@ export function DiaryView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Court diary</div>
-          <h1 className="heading-xl">Diary</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Court Diary"
+        description="Hearings, judgments and filings by date, with next-date reminders."
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -200,7 +199,8 @@ export function DiaryView() {
         >
           <Icon name="plus" size={14} /> New entry
         </button>
-      </div>
+        </>}
+      />
       <NewDiaryEntryModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}

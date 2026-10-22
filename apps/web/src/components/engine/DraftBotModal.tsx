@@ -76,6 +76,18 @@ interface Props {
 }
 
 const LANGUAGES = ['English', 'हिंदी (Hindi)', 'தமிழ் (Tamil)'] as const;
+const LANGUAGE_SHORT: Record<string, string> = { 'English': 'English', 'हिंदी (Hindi)': 'हिंदी', 'தமிழ் (Tamil)': 'தமிழ்' };
+
+/** Quick-start phrases. They only seed the description - the engine still
+ *  detects the document type from the full text, so nothing is forced. */
+const STARTERS: ReadonlyArray<{ label: string; text: string }> = [
+  { label: 'Notice u/s 138 NI Act', text: 'Draft a legal notice under Section 138 of the NI Act for a dishonoured cheque.' },
+  { label: 'Complaint u/s 138', text: 'Draft a complaint under Section 138 of the NI Act.' },
+  { label: 'Bail application', text: 'Draft a regular bail application.' },
+  { label: 'Vakalatnama', text: 'Draft a vakalatnama.' },
+  { label: 'Affidavit', text: 'Draft an affidavit.' },
+  { label: 'Reply to notice', text: 'Draft a reply to a legal notice received by my client.' },
+];
 
 const EXAMPLE_PLACEHOLDER =
   'e.g. My client received a dishonoured cheque and I need a legal notice under Section 138 '
@@ -351,6 +363,55 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
     }
   };
 
+  // Case documents whose file was never stored: drop them here to feed THIS
+  // draft and save them back onto the case. Shared by both layouts.
+  const stillUnreadable = (unreadableDocs ?? []).filter((n) => !repaired.includes(n));
+  const repairZone = !caseContext ? null : stillUnreadable.length === 0 ? (
+    repaired.length > 0 ? (
+      <div className="dc-notice is-ok">
+        <Icon name="check" size={16} />
+        <div>
+          <div className="dc-notice-title">{repaired.length} document{repaired.length === 1 ? '' : 's'} added. The engine will read {repaired.length === 1 ? 'it' : 'them'}.</div>
+          <div className="dc-notice-text">{repaired.join(', ')}: saved to the case and included in this draft.</div>
+        </div>
+      </div>
+    ) : null
+  ) : (
+    <div className="dc-notice is-warn">
+      <Icon name="flag" size={16} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="dc-notice-title">
+          {stillUnreadable.length} case document{stillUnreadable.length === 1 ? ' needs its' : 's need their'} file
+        </div>
+        <div className="dc-notice-text">
+          {stillUnreadable.join(', ')} {stillUnreadable.length === 1 ? 'is' : 'are'} on the case but the file was never stored,
+          so the engine can’t read {stillUnreadable.length === 1 ? 'it' : 'them'}. Add the file here: it’s saved to the case
+          and used in this draft straight away.
+        </div>
+        <input
+          ref={repairRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          style={{ display: 'none' }}
+          onChange={(e) => { void repairFiles(e.target.files); e.target.value = ''; }}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          className="dc-drop"
+          onClick={() => { if (!repairBusy) repairRef.current?.click(); }}
+          onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !repairBusy) { e.preventDefault(); repairRef.current?.click(); } }}
+          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (!repairBusy) void repairFiles(e.dataTransfer.files); }}
+          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        >
+          <Icon name="upload" size={15} />
+          {repairBusy ? 'Saving…' : 'Drop the file(s) here, or click to browse'}
+        </div>
+      </div>
+    </div>
+  );
+
   const body = (
       <div className="draftbot-modal">
         {/* Inline mode: the DraftCasePicker section directly above already
@@ -385,85 +446,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
             </div>
           </div>
         )}
-        {(() => {
-          // Only show docs that still need fixing (drop-in repairs clear them).
-          const stillUnreadable = (unreadableDocs ?? []).filter((n) => !repaired.includes(n));
-          if (!caseContext || stillUnreadable.length === 0) {
-            // Nothing outstanding. If we just repaired one, confirm it inline.
-            if (caseContext && repaired.length > 0) {
-              return (
-                <div
-                  className="card"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 12px', marginBottom: 12,
-                    borderLeft: '3px solid var(--success)', background: 'var(--bg-surface-2)',
-                  }}
-                >
-                  <Icon name="check" size={16} />
-                  <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
-                    <div className="mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginBottom: 2 }}>
-                      {repaired.length} DOCUMENT(S) ADDED: THE ENGINE WILL READ THEM
-                    </div>
-                    <div className="muted" style={{ fontSize: 12 }}>
-                      {repaired.join(', ')}: saved to the case and included in this draft. Just Submit.
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-            return null;
-          }
-          return (
-            <div
-              className="card"
-              style={{
-                padding: '12px', marginBottom: 12,
-                borderLeft: '3px solid var(--warning)', background: 'var(--bg-surface-2)',
-              }}
-            >
-              <div className="row" style={{ gap: 10, alignItems: 'flex-start', marginBottom: 10 }}>
-                <Icon name="flag" size={16} />
-                <div style={{ flex: 1, minWidth: 0, fontSize: 13 }}>
-                  <div className="mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--warning)', marginBottom: 2 }}>
-                    {stillUnreadable.length} DOCUMENT(S) NEED THEIR FILE: ADD IT HERE, NO EXTRA STEPS
-                  </div>
-                  <div className="muted" style={{ fontSize: 12 }}>
-                    These are on the case but their file content was never stored, so there's
-                    nothing for the engine to read: {stillUnreadable.join(', ')}.
-                    Drop the file(s) below: they'll be saved to the case <em>and</em> used in this
-                    draft straight away.
-                  </div>
-                </div>
-              </div>
-              <input
-                ref={repairRef}
-                type="file"
-                multiple
-                accept="image/*,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                style={{ display: 'none' }}
-                onChange={(e) => { void repairFiles(e.target.files); e.target.value = ''; }}
-              />
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => { if (!repairBusy) repairRef.current?.click(); }}
-                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !repairBusy) { e.preventDefault(); repairRef.current?.click(); } }}
-                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); if (!repairBusy) void repairFiles(e.dataTransfer.files); }}
-                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '14px 12px', borderRadius: 'var(--radius-md)',
-                  border: '2px dashed var(--warning)', cursor: repairBusy ? 'default' : 'pointer',
-                  color: 'var(--text-secondary)', fontSize: 13, textAlign: 'center',
-                }}
-              >
-                <Icon name="upload" size={16} />
-                {repairBusy ? 'Saving…' : 'Drop the missing file(s) here, or click to browse'}
-              </div>
-            </div>
-          );
-        })()}
+        {repairZone}
         {/* Voice input — speak the instruction/facts instead of typing. The
             transcript appends to the prompt so dictation and typing mix freely. */}
         <div className="row" style={{ gap: 8, marginBottom: 8, justifyContent: 'flex-end' }}>
@@ -568,28 +551,147 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
   const submitLabel = busy ? 'Drafting…' : 'Submit';
 
   if (inline) {
+    // What makes a good brief, ticked off as the advocate types. With a matter
+    // attached, its particulars already cover parties / court / CNR.
+    const p = prompt;
+    // Read-only indicators (not buttons): each ticks itself when the text covers it.
+    const checks = [
+      { label: 'Document', hint: 'Name the document, e.g. legal notice, complaint, bail application',
+        ok: /\b(notice|complaint|plaint|petition|application|bail|affidavit|vakalat\w*|reply|agreement|deed|appeal|suit|memo|written statement)\b/i.test(p) },
+      { label: 'Parties', hint: caseContext ? 'Taken from the attached matter' : 'Who is involved, e.g. "my client X v. Y", accused, complainant',
+        ok: !!caseContext || /\b(v\.?|vs\.?|versus|client|accused|complainant|petitioner|respondent|plaintiff|defendant)\b/i.test(p) },
+      { label: 'Dates', hint: 'Key dates, e.g. 12/03/2026 or 12 March',
+        ok: /\b\d{1,2}[./-]\d{1,2}[./-]\d{2,4}\b|\b\d{1,2}(st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/i.test(p) },
+      { label: 'Amounts', hint: 'Money involved, e.g. ₹2,50,000 or Rs. 50,000',
+        ok: /₹|\brs\.?\s?\d|\binr\b|\b\d{1,3}(,\d{2,3})+\b|\blakh|\bcrore/i.test(p) },
+    ];
+    const addStarter = (text: string) =>
+      setPrompt((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text));
+
     return (
-      <form
-        className="draftbot-launch draftbot-launch--inline"
-        onSubmit={(e) => { e.preventDefault(); void submit(); }}
-      >
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          {activeLabel
-            ? `${activeLabel.toUpperCase()} · DRAFTED BY THE ENGINE`
-            : 'STEP 2 · DESCRIBE THE MATTER'}
+      <form className="dc-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
+        <div className="dc-composer-head">
+          <h2 className="dc-title">{activeLabel ? `Continue: ${activeLabel}` : 'What do you want to draft?'}</h2>
+          <p className="dc-sub">
+            Name the document and give the facts in your own words, or attach the cheque, notice or order.
+            The engine writes the complete document; anything genuinely missing is left as a marked
+            <code>[placeholder]</code> for you to fill.
+          </p>
         </div>
-        <h2 className="draftbot-launch__title">Draft a legal document</h2>
-        <p className="draftbot-launch__sub">
-          Describe the matter or attach the cheque, memo, invoice, or an existing document:
-          the engine drafts the whole document straight away, accurately, with any genuinely
-          missing details left as clearly-marked <code>[placeholders]</code> to fill.
-        </p>
-        {body}
-        <div className="row" style={{ gap: 10 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={!canSubmit}>
-            <Icon name="draft" size={16} /> {submitLabel}
+
+        <div className="dc-starters" role="group" aria-label="Start with a document">
+          <span className="dc-starters-label">Start with</span>
+          {STARTERS.map((s) => (
+            <button key={s.label} type="button" className="dc-starter" onClick={() => addStarter(s.text)} disabled={busy}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {repairZone}
+
+        <div className={`dc-input${busy ? ' is-busy' : ''}`}>
+          <textarea
+            className="dc-textarea"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={
+              caseContext
+                ? 'Say what to draft, e.g. “a legal notice” or “a plaint”. The engine already has this matter’s details.'
+                : EXAMPLE_PLACEHOLDER
+            }
+            rows={7}
+            disabled={busy}
+            autoFocus
+            aria-label="Describe the document and the facts"
+          />
+          <div className="dc-input-bar">
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              style={{ display: 'none' }}
+              onChange={(e) => { pickFiles(e.target.files); e.target.value = ''; }}
+            />
+            <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+              <Icon name="upload" size={14} /> Attach
+            </button>
+            <DictateButton
+              onTranscript={(text) => setPrompt((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text))}
+              label="Dictate"
+            />
+            <span className="spacer" />
+            <div className="dc-checks-wrap">
+              <span className="dc-checks-label">Covers</span>
+              <ul className="dc-checks" aria-label="What your description covers so far">
+                {checks.map((c) => (
+                  <li
+                    key={c.label}
+                    className={c.ok ? 'is-ok' : ''}
+                    title={c.ok ? `${c.label}: covered` : `${c.label}: not mentioned yet. ${c.hint}`}
+                  >
+                    {c.ok ? <Icon name="check" size={12} /> : <span className="dc-check-ring" aria-hidden />}
+                    {c.label}
+                    <span className="sr-only">{c.ok ? ' (covered)' : ' (not yet)'}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {(files.length > 0 || (caseContext && usableCaseNotes > 0)) && (
+          <div className="dc-files">
+            {caseContext && usableCaseNotes > 0 && (
+              <span className="dc-file is-case">
+                <Icon name="cases" size={12} /> {usableCaseNotes} item{usableCaseNotes === 1 ? '' : 's'} from the matter
+              </span>
+            )}
+            {files.map((f, i) => (
+              <span key={`${f.name}-${i}`} className="dc-file">
+                <Icon name="file" size={12} aria-hidden /> {f.name}
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} disabled={busy}>
+                  <Icon name="close" size={12} aria-hidden />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="dc-footer">
+          <div className="dc-option">
+            <span className="dc-option-label">Language</span>
+            <div className="dc-seg" role="radiogroup" aria-label="Draft in">
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  role="radio"
+                  aria-checked={language === l}
+                  className={language === l ? 'is-on' : ''}
+                  onClick={() => setLanguage(l)}
+                  disabled={busy}
+                >
+                  {LANGUAGE_SHORT[l] ?? l}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="dc-switch">
+            <input type="checkbox" checked={useBns} onChange={(e) => setUseBns(e.target.checked)} disabled={busy} />
+            <span className="dc-switch-track" aria-hidden><span /></span>
+            <span>
+              Draft in BNS / BNSS <span className="dc-switch-hint">(2023)</span>
+            </span>
+          </label>
+          <button type="submit" className="btn btn-primary btn-lg dc-submit" disabled={!canSubmit}>
+            <Icon name="draft" size={16} /> {busy ? 'Drafting…' : 'Draft document'}
           </button>
         </div>
+
+        {busy && <div className="dc-progress" aria-live="polite">Reading the facts and drafting the full document…</div>}
+        {error && <p className="dc-error" role="alert">{error}</p>}
       </form>
     );
   }

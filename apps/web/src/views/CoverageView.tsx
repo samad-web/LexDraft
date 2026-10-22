@@ -28,6 +28,7 @@ import {
   type CoverageStatus,
 } from '@/hooks/useCoverage';
 import { RequestCoverageModal } from '@/components/RequestCoverageModal';
+import { PageHeader } from '@/components/PageHeader';
 
 interface ColumnDef {
   id: CoverageStatus;
@@ -145,20 +146,19 @@ export function CoverageView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Hearing-coverage swap board</div>
-          <h1 className="heading-xl">Coverage</h1>
-        </div>
-        <span className="spacer" />
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Request coverage
-        </button>
-      </div>
+      <PageHeader
+        title="Coverage Board"
+        description="Ask a colleague to cover a hearing you can't attend, or pick one up."
+        actions={
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Request coverage
+          </button>
+        }
+      />
 
       <RequestCoverageModal open={modalOpen} onClose={() => setModalOpen(false)} />
 

@@ -12,6 +12,11 @@ Endpoints (see docs/api-layer-plan.md):
   GET  /v1/doc-types          the field/slot contract the frontend renders forms from.
   GET  /healthz
 
+  A firm's OWN uploaded format (stored by the Node API, sent with each call):
+  GET  /v1/format-spec/contract   what the API's transcriber must produce.
+  POST /v1/format-spec/check      validate a transcribed spec + preview render.
+  POST /v1/draft-spec             draft from a spec — same wire shape as /v1/draft.
+
 The engine is synchronous CPU work; every engine call runs in a threadpool so the
 event loop stays free. The Node API is the only public surface — this service
 trusts a shared token and never faces the browser.
@@ -21,7 +26,7 @@ from __future__ import annotations
 
 import base64
 import io
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -88,11 +93,16 @@ async def _render_generated(
     matter: Any,
     want_render: bool,
     language: str = "EN",
+    template: Optional[Tuple[Any, str, int]] = None,
 ) -> Dict[str, Any]:
     """Shape a NON-refused build result into the `generated` wire payload, rendering
     the .docx when `want_render`. Factored out of `draft` so the bundle endpoint can
     render each document in the bundle through the exact same path (banner, marker,
-    template-version, blocks, base64) — one renderer, many docs."""
+    template-version, blocks, base64) — one renderer, many docs.
+
+    `template` = (template file, template_id, version) for a doc type that is not in
+    the registry (a request-supplied format, /v1/draft-spec); otherwise resolved
+    from the doc type as before."""
     context = result.context
     signals = {
         "review_banner": signoff.banner_for(
@@ -101,9 +111,12 @@ async def _render_generated(
     }
     unfilled = signoff.unfilled_slots(context)
 
-    from .template_version import resolve as _resolve_template_version
-    template_file = _template_for(doc_type)
-    template_id, template_version = _resolve_template_version(template_file)
+    if template is not None:
+        template_file, template_id, template_version = template
+    else:
+        from .template_version import resolve as _resolve_template_version
+        template_file = _template_for(doc_type)
+        template_id, template_version = _resolve_template_version(template_file)
 
     out: Dict[str, Any] = {
         "outcome": "generated",
@@ -414,3 +427,111 @@ async def sign_off(body: Dict[str, Any],
     return {"outcome": "signed_off", "document": rec.document,
             "matter_id": rec.matter_id, "version": rec.version,
             "reviewer": rec.reviewer, "signed_on": rec.signed_on}
+
+
+# --------------------------------------------------------------------------
+# A firm's OWN uploaded format. The Node API stores the spec per firm and sends
+# it with each call; the engine stays stateless (src/imports/runtime_spec.py).
+# --------------------------------------------------------------------------
+
+def _spec_from_body(body: Dict[str, Any], *, default_status: str):
+    from ..imports import manifest as mf
+    from ..imports import runtime_spec
+    doc_type = body.get("doc_type")
+    if not isinstance(doc_type, str) or not mf.SLUG_RE.match(doc_type):
+        raise HTTPException(status_code=422, detail={
+            "error": "validation",
+            "issues": [{"field": "doc_type", "code": "malformed",
+                        "message": "doc_type must be snake_case (3-61 chars)"}]})
+    if doc_type in {a.doc_type for a in adapters.all_adapters()}:
+        raise HTTPException(status_code=422, detail={
+            "error": "validation",
+            "issues": [{"field": "doc_type", "code": "malformed",
+                        "message": "doc_type collides with a built-in doc type"}]})
+    spec, entry, problems = runtime_spec.entry_for(
+        doc_type, body.get("spec"), status=body.get("status", default_status),
+        source_kind=body.get("source_kind", "advocate"), version=body.get("version", 1))
+    return doc_type, spec, entry, problems
+
+
+@app.get("/v1/format-spec/contract")
+async def format_spec_contract(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Everything the API's transcriber needs to turn a source format into a spec
+    this engine accepts — kept here so the engine owns the contract."""
+    _check_token(authorization)
+    from ..imports import context as import_ctx
+    from ..imports.builder import BLOCK_STYLES
+    from ..imports.manifest import FIELD_KINDS
+    from ..imports.transcribe import SPEC_SCHEMA, SYSTEM_PROMPT
+    return {
+        "system_prompt": SYSTEM_PROMPT,
+        "schema": SPEC_SCHEMA,
+        "existing": [[slug, title] for slug, title in import_ctx.existing_doc_types()],
+        "common_keys": import_ctx.common_keys(),
+        "block_styles": list(BLOCK_STYLES),
+        "field_kinds": list(FIELD_KINDS),
+    }
+
+
+@app.post("/v1/format-spec/check")
+async def format_spec_check(body: Dict[str, Any],
+                            authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Validate a spec and render it with sample data. 200 either way: `ok` says
+    whether it can be saved; `problems` lists what to fix; `preview` is the
+    rendered text (one line per paragraph) the advocate reviews before saving."""
+    _check_token(authorization)
+    from ..components.render import extract_text, render_to_docx
+    from ..imports import runtime_spec
+    from .adapters.imported import adapter_for, sample_payload
+
+    doc_type, spec, entry, problems = _spec_from_body(body, default_status="pending_review")
+    if problems:
+        return {"ok": False, "doc_type": doc_type, "problems": problems, "spec": spec}
+
+    def _preview() -> List[str]:
+        import tempfile
+        from pathlib import Path
+        adapter = adapter_for(doc_type, entry)
+        ctx = dict(adapter.build(**adapter.coerce(sample_payload(entry))).context)
+        ctx["review_banner"] = ""
+        ctx["unverified_marker"] = ""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = render_to_docx(runtime_spec.template_for(spec), ctx, Path(tmp) / "preview.docx")
+            return [line for line in extract_text(out).splitlines()]
+
+    try:
+        preview = await run_in_threadpool(_preview)
+    except Exception as exc:  # a spec that passes validation but won't render
+        return {"ok": False, "doc_type": doc_type, "spec": spec,
+                "problems": [f"preview render failed: {type(exc).__name__}: {exc}"]}
+    leftovers = [l for l in preview if "{{" in l or "{%" in l]
+    if leftovers:
+        return {"ok": False, "doc_type": doc_type, "spec": spec,
+                "problems": [f"unrendered template text: {l}" for l in leftovers]}
+    return {"ok": True, "doc_type": doc_type, "problems": [], "spec": spec,
+            "describe": adapter_for(doc_type, entry).describe(),
+            "sample": sample_payload(entry), "preview": preview}
+
+
+@app.post("/v1/draft-spec")
+async def draft_spec(body: Dict[str, Any],
+                     authorization: Optional[str] = Header(default=None)) -> JSONResponse:
+    """Draft from a request-supplied spec. Same contract as /v1/draft/{doc_type}:
+    422 for an invalid spec or missing required facts, 200 generated otherwise."""
+    _check_token(authorization)
+    from ..imports import runtime_spec
+    from .adapters.imported import adapter_for
+
+    doc_type, spec, entry, problems = _spec_from_body(body, default_status="approved")
+    if problems:
+        return JSONResponse(status_code=422, content={"error": "invalid_spec", "problems": problems})
+    matter = _matter_from_request(body.get("matter") or {})
+    adapter = adapter_for(doc_type, entry)
+    kwargs = adapter.coerce(body.get("fields") or {})   # 422 via the handler
+    result = await run_in_threadpool(adapter.build, **kwargs)
+    template_file = await run_in_threadpool(runtime_spec.template_for, spec)
+    out = await _render_generated(
+        doc_type=doc_type, result=result, matter=matter,
+        want_render=body.get("render", True), language=body.get("language", "EN"),
+        template=(template_file, f"spec:{runtime_spec.spec_hash(spec)[:16]}", entry["version"]))
+    return JSONResponse(status_code=200, content=out)

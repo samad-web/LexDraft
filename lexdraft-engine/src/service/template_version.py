@@ -50,5 +50,13 @@ def resolve(template_filename: str) -> Tuple[str, int]:
 
     template_id is the filename itself (stable across versions). version is the
     highest recorded in versions.json, or 0 when the file is not registered.
+    An imported format ('imported/<file>.docx') is versioned by its manifest entry.
     """
+    if template_filename.startswith("imported/"):
+        from ..imports import manifest as mf
+        name = template_filename[len("imported/"):]
+        for entry in mf.load_manifest().get("doc_types", {}).values():
+            if entry.get("template") == name:
+                return template_filename, int(entry.get("version", 0) or 0)
+        return template_filename, 0
     return template_filename, _registry().get(template_filename, 0)

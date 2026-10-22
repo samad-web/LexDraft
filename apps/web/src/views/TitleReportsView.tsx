@@ -26,6 +26,7 @@ import {
   JURISDICTION_LABEL,
 } from '@/hooks/useTitleReports';
 import { useUIStore } from '@/store/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 const STATUS_OPTIONS: SelectOption[] = [
   { value: '',          label: 'All statuses' },
@@ -84,15 +85,11 @@ export function TitleReportsView() {
 
   return (
     <div className="tr-view">
-      <header className="tr-header">
-        <div className="tr-header__lead">
-          <h1 className="tr-h1">Title Reports</h1>
-          <p className="tr-sub">
-            Indian title investigation reports (TIR) for banks, NBFCs, and buyers.
-            AI-assisted defect analysis and marketability opinion.
-          </p>
-        </div>
-        <div className="tr-header__actions">
+      <PageHeader
+        title="Title Reports"
+        description="Title investigation reports for banks, NBFCs and buyers, with AI defect analysis."
+        meta={list.data ? `${items.length} ${items.length === 1 ? 'report' : 'reports'}` : undefined}
+        actions={
           <button
             type="button"
             className="btn btn-primary"
@@ -101,8 +98,8 @@ export function TitleReportsView() {
           >
             <Icon name="plus" /> New title report
           </button>
-        </div>
-      </header>
+        }
+      />
 
       <div className="tr-filters">
         <div className="tr-filter">

@@ -278,7 +278,25 @@ export async function submitCnrCaptcha(
   // re-fill. That meant a SECOND wrong-captcha attempt (after one retry
   // cycle) failed with "Enter 16 digit CNR number" instead of a captcha
   // error - the search had quietly lost its CNR a retry earlier.
-  const historyHtml = await page.evaluate(() => document.getElementById('history_cnr')?.innerHTML ?? '');
+  // The UI renders this markup, so neutralise it here first: drop anything
+  // executable or embeddable and every inline handler / javascript: link.
+  // (It used to be passed through verbatim from the third-party page.)
+  const historyHtml = await page.evaluate(() => {
+    const src = document.getElementById('history_cnr');
+    if (!src) return '';
+    const root = src.cloneNode(true);
+    root.querySelectorAll('script, style, iframe, object, embed, link, meta, form, input, button, select, textarea')
+      .forEach((n: { remove: () => void }) => n.remove());
+    root.querySelectorAll('*').forEach((el: { attributes: Iterable<{ name: string; value: string }>; removeAttribute: (n: string) => void }) => {
+      for (const a of [...el.attributes]) {
+        const name = a.name.toLowerCase();
+        if (name.startsWith('on') || ((name === 'href' || name === 'src' || name === 'xlink:href') && /^\s*javascript:/i.test(a.value))) {
+          el.removeAttribute(a.name);
+        }
+      }
+    });
+    return root.innerHTML as string;
+  });
   if (historyHtml.trim()) return { historyHtml };
 
   const errorModal = page.locator('#validateError');

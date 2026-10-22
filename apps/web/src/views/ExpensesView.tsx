@@ -7,6 +7,7 @@ import { useExpenses } from '@/hooks/useExpenses';
 import { NewExpenseModal } from '@/components/NewExpenseModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
+import { PageHeader } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { apiClient } from '@/lib/api';
@@ -69,12 +70,10 @@ export function ExpensesView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Disbursements ledger</div>
-          <h1 className="heading-xl">Expenses</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Expenses"
+        description="Log disbursements against matters and see what is billable or reimbursable."
+        actions={<>
         <button
           className="btn"
           type="button"
@@ -189,7 +188,8 @@ export function ExpensesView() {
             <Icon name="plus" size={14} /> Log expense
           </button>
         </Gate>
-      </div>
+        </>}
+      />
       <NewExpenseModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <Gate feature="billing.expense">
         <FAB ariaLabel="Log expense" onClick={() => setModalOpen(true)}>

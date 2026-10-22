@@ -7,6 +7,8 @@ import { casePartiesService, type NewCaseParty } from './case-parties.service';
 import { logger } from '../logger';
 import { BadRequestError, NotFoundError, UnprocessableEntityError } from '../lib/errors';
 import type { Court } from '../lib/ecourts/types';
+import { casePipelineService, customStagesForFirm, kindForType, snapshotFor } from './case-pipeline.service';
+import { mapEcourtsPurposeToStage } from './ecourts-stage-map';
 
 // =============================================================================
 // case-sync.service
@@ -16,7 +18,10 @@ import type { Court } from '../lib/ecourts/types';
 // memory/project_ecourts_api_reverse_engineering.md and was reviewed with the
 // user — short version:
 //
-//   ALWAYS overwrite : court, stage, next_hearing, closed_at, status
+//   ALWAYS overwrite : court, next_hearing, closed_at, status
+//   PIPELINE         : stage - eCourts' purpose is mapped to the matter's
+//                      pipeline stage (ecourts-stage-map.ts) and applied via
+//                      casePipelineService.transition; unmapped -> unchanged
 //   FILL-IF-BLANK    : title, client, type
 //   DERIVED          : outcome  (needs `side` — see auto-detect below)
 //   REPLACED EN BLOC : hearings rows  (we delete + reinsert from
@@ -64,7 +69,24 @@ export interface SyncResult {
 // 4 letters (state + district) + 12 alphanumeric. The establishment code
 // at positions 5-6 can be alphanumeric (`0B` for Alandur JM, etc.) so a
 // `\d{12}` suffix would reject valid CNRs like TNCG0B0011172024.
-const CNR_RE = /^[A-Z]{4}[A-Z0-9]{12}$/;
+export const CNR_RE = /^[A-Z]{4}[A-Z0-9]{12}$/;
+
+/** eCourts answered, but has no record for this CNR on either court tier.
+ *  Distinct from "eCourts is down" (which surfaces as EcourtsHttpError /
+ *  EcourtsSessionError) - callers retry the latter, never the former. Still
+ *  a 400 for the HTTP route, same as before this class existed. */
+export class EcourtsRecordNotFoundError extends BadRequestError {
+  constructor(cnr: string) {
+    super(`eCourts returned no record for CNR ${cnr}`, { code: 'ecourts_not_found' });
+  }
+}
+
+/** Last-resort tier guess for a case that has never synced. Once a sync
+ *  succeeds the tier that actually answered is stored in
+ *  cases.ecourts_court_tier and this is no longer consulted. */
+function guessTier(court: string | null | undefined): Court {
+  return /high\s*court/i.test(court ?? '') ? 'HC' : 'DC';
+}
 
 /**
  * Top-level entry point. Reads the case, calls eCourts, applies the mapping
@@ -90,7 +112,7 @@ export async function syncCaseFromEcourts(
     select id, cnr, title, court, stage, client, status, next_hearing, type,
            outcome, closed_at, practice_area, visible_to_client,
            est_code, court_code, district_code, state_code, filing_no, efil_no,
-           judge, fir_no, fir_year, police_st_code, fir_details
+           judge, fir_no, fir_year, police_st_code, fir_details, ecourts_court_tier
     from cases
     where id::text = ${caseId} and firm_id = ${firmId}::uuid
     limit 1
@@ -100,13 +122,29 @@ export async function syncCaseFromEcourts(
   if (!CNR_RE.test(cnr)) {
     throw new BadRequestError(
       `Case has no valid CNR (got ${JSON.stringify(pre.cnr)}). Set the CNR before syncing.`,
+      { code: 'ecourts_no_cnr' },
     );
   }
 
-  // 1. Fetch live data.
-  const history = await lookupByCnr(cnr, opts.court ?? 'DC');
+  // 1. Fetch live data. Tier precedence: explicit caller choice, then the
+  //    tier that answered last time, then a guess from the court name. When
+  //    the caller didn't force a tier and the first one has no record, try
+  //    the other - a High Court matter whose court name doesn't literally say
+  //    "High Court" used to fail on the DC backend forever. An upstream
+  //    failure on the first tier throws straight out (no point asking the
+  //    second tier of a server that's down).
+  let tier: Court = opts.court ?? pre.ecourts_court_tier ?? guessTier(pre.court);
+  let history = await lookupByCnr(cnr, tier);
+  if (!history && !opts.court) {
+    const other: Court = tier === 'DC' ? 'HC' : 'DC';
+    const alt = await lookupByCnr(cnr, other);
+    if (alt) {
+      history = alt;
+      tier = other;
+    }
+  }
   if (!history) {
-    throw new BadRequestError(`eCourts returned no record for CNR ${cnr}`);
+    throw new EcourtsRecordNotFoundError(cnr);
   }
 
   // 2. Figure out which side we're on. If the caller specified one, trust it.
@@ -115,11 +153,21 @@ export async function syncCaseFromEcourts(
   //    Kumar" all collide in practice when lawyers enter names by hand.
   const side = opts.side ?? detectSide(pre.client, history);
 
+  // 2b. Which pipeline stage does eCourts' purpose correspond to? Mapped onto
+  //     this matter's own stages (catalog for its type + firm custom stages).
+  //     No confident match -> leave the pipeline alone.
+  const kind = kindForType(pre.type);
+  const stageOptions = snapshotFor(pre.type, null, await customStagesForFirm(firmId, kind)).stages;
+  const stageTarget = mapEcourtsPurposeToStage(history.purpose_name, stageOptions, Boolean(history.disp_name));
+  const stageMoves = stageTarget !== null && stageTarget.toLowerCase() !== (pre.stage ?? '').trim().toLowerCase();
+
   // 3. Apply the mapping inside a transaction so partial writes can't leave
   //    the case half-synced (e.g. case fields updated but hearings not).
   const { caseRow, changes, hearingsReplaced, actsReplaced, partiesReplaced } = await sql.begin(async (tx) => {
     const patch = buildCasePatch(pre, history, side, opts.overwriteAll ?? false);
     const diff = diffPatch(pre, patch);
+    // Reported (and notified) like any other change; applied after commit.
+    if (stageMoves) diff.stage = { from: pre.stage, to: stageTarget };
 
     const [updated] = await tx<Array<CaseFullRow>>`
       update cases set
@@ -128,10 +176,17 @@ export async function syncCaseFromEcourts(
         stage           = coalesce(${patch.stage ?? null}, stage),
         client          = coalesce(${patch.client ?? null}, client),
         status          = coalesce(${(patch.status ?? null) as string | null}::case_status, status),
-        next_hearing    = ${patch.next_hearing === undefined ? null : (patch.next_hearing ?? null)},
+        -- An undefined patch field means "unchanged": keep the column. (It
+        -- used to write NULL here, so every sync of a case whose next date
+        -- hadn't moved wiped next_hearing / outcome / closed_at - found live
+        -- 2026-10-20.) A null patch field still clears it on purpose.
+        next_hearing    = case when ${patch.next_hearing === undefined} then next_hearing
+                               else ${patch.next_hearing ?? null}::date end,
         type            = coalesce(${patch.type ?? null}, type),
-        outcome         = ${patch.outcome === undefined ? null : (patch.outcome ?? null)}::case_outcome,
-        closed_at       = ${patch.closed_at === undefined ? null : (patch.closed_at ?? null)},
+        outcome         = case when ${patch.outcome === undefined} then outcome
+                               else ${patch.outcome ?? null}::case_outcome end,
+        closed_at       = case when ${patch.closed_at === undefined} then closed_at
+                               else ${patch.closed_at ?? null}::date end,
         practice_area   = coalesce(${patch.practice_area ?? null}, practice_area),
         -- court-identity columns (migration 0053). These are ALWAYS overwritten
         -- because the server-side codes are authoritative — there is no
@@ -148,6 +203,14 @@ export async function syncCaseFromEcourts(
         police_st_code  = ${patch.police_st_code ?? null},
         fir_details     = ${patch.fir_details ?? null},
         ecourts_synced_at = now(),
+        -- Link state (migration 0085): a successful fetch is, by definition,
+        -- a working link - clear any failure left by an earlier attempt.
+        ecourts_court_tier      = ${tier},
+        ecourts_link_status     = 'linked',
+        ecourts_last_attempt_at = now(),
+        ecourts_last_error      = null,
+        ecourts_fail_count      = 0,
+        ecourts_last_changed_at = case when ${hasNotableChange(diff)} then now() else ecourts_last_changed_at end,
         updated_at      = now()
       where id::text = ${caseId} and firm_id = ${firmId}::uuid
       returning id, cnr, title, court, stage, client, status, next_hearing, type,
@@ -203,6 +266,26 @@ export async function syncCaseFromEcourts(
     };
   });
 
+  // 6. Move the matter's pipeline to the eCourts stage through the normal
+  //    transition (sets the active node + cases.stage and records a stage
+  //    event in the timeline). Best-effort: a pipeline hiccup must not undo
+  //    a successful sync - the next sync retries the move.
+  if (stageMoves && stageTarget) {
+    try {
+      await casePipelineService.transition({
+        caseId,
+        firmId,
+        toStage: stageTarget,
+        actor: { id: null, name: 'eCourts sync' },
+        note: history.purpose_name ? `eCourts: ${history.purpose_name.trim()}` : 'Updated from eCourts',
+      });
+      caseRow.stage = stageTarget;
+    } catch (err) {
+      logger.warn({ err, caseId, stageTarget }, 'eCourts sync: pipeline stage move failed');
+      delete changes.stage;
+    }
+  }
+
   logger.info(
     {
       caseId, cnr, side,
@@ -226,27 +309,20 @@ export async function syncCaseFromEcourts(
 }
 
 // ---------------------------------------------------------------------------
-// Nightly batch sync (job: ecourts.sync.daily)
+// Change classification
 //
-// Walks every active case that carries a valid CNR and re-syncs it from
-// eCourts, one at a time. On a change that a lawyer would act on (a moved /
-// newly-listed next hearing, or a disposal), emails the matter owner (falling
-// back to firm admins).
-//
-// Design notes:
-//   - SEQUENTIAL + THROTTLED. eCourts is a government server and the client
-//     holds one shared JWT per court; hammering it concurrently invites rate
-//     limiting and token races. We sleep THROTTLE_MS between cases.
-//   - PER-CASE ISOLATION. One bad CNR or upstream 5xx must not abort the run.
-//     Each case is wrapped in try/catch; failures are counted and logged.
-//   - NOTIFY ON MEANINGFUL CHANGE ONLY. `syncCaseFromEcourts` returns a diff;
-//     we notify when `next_hearing`, `status`, or `stage` moved. Pure identity
-//     back-fill (court_code etc.) doesn't ping anyone.
+// The batch sync itself (09:00 / 19:00 IST, with retries while eCourts is
+// unreachable) lives in ecourts-sync-runs.service.ts. These helpers decide
+// which parts of a sync diff are worth telling an advocate about - pure
+// identity back-fill (court_code etc.) never pings anyone.
 // ---------------------------------------------------------------------------
 
-/** Fields whose change is worth emailing a lawyer about. */
+/** Fields whose change is worth notifying a lawyer about. */
 const NOTIFY_ON_FIELDS = ['next_hearing', 'status', 'stage', 'closed_at'] as const;
-const THROTTLE_MS = 1_500;
+
+export function hasNotableChange(changes: Record<string, { from: unknown; to: unknown }>): boolean {
+  return NOTIFY_ON_FIELDS.some((f) => f in changes);
+}
 
 export interface DailySyncSummary {
   scanned: number;
@@ -256,11 +332,7 @@ export interface DailySyncSummary {
   failed: number;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function humanizeChanges(changes: Record<string, { from: unknown; to: unknown }>): string[] {
+export function humanizeChanges(changes: Record<string, { from: unknown; to: unknown }>): string[] {
   const labels: Record<string, string> = {
     next_hearing: 'Next hearing',
     status: 'Status',
@@ -279,66 +351,20 @@ function humanizeChanges(changes: Record<string, { from: unknown; to: unknown }>
 }
 
 /**
- * Entry point for the nightly job. Returns a summary the job handler logs.
- * `notify` is injected lazily to avoid a module-load cycle (notifications ->
- * jobs -> case-sync).
+ * Ad-hoc full sync (smoke scripts, manual job trigger). Same engine as the
+ * scheduled 09:00 / 19:00 runs - including the circuit breaker and the
+ * per-advocate summary notification - just recorded as a 'manual' slot.
  */
 export async function syncAllActiveCasesFromEcourts(): Promise<DailySyncSummary> {
-  const sql = db();
-  if (!sql) {
-    logger.warn('ecourts daily sync skipped: no DATABASE_URL');
-    return { scanned: 0, synced: 0, changed: 0, notified: 0, failed: 0 };
-  }
-
-  // Active matters that carry a CNR. `court` drives DC vs HC selection; a
-  // matter tagged "High Court" hits the HC backend, everything else DC.
-  const rows = await sql<Array<{ id: string; firm_id: string; cnr: string; court: string | null; title: string; created_by_user_id: string | null }>>`
-    select id, firm_id, cnr, court, title, created_by_user_id
-    from cases
-    where status = 'Active'
-      and cnr is not null
-      and cnr <> ''
-    order by coalesce(ecourts_synced_at, 'epoch'::timestamptz) asc
-  `;
-
-  const summary: DailySyncSummary = { scanned: rows.length, synced: 0, changed: 0, notified: 0, failed: 0 };
-  const { notify } = await import('./notifications.service');
-  const runDate = new Date().toISOString().slice(0, 10); // yyyy-mm-dd for dedupe keys
-
-  for (const row of rows) {
-    const cnr = (row.cnr ?? '').trim().toUpperCase();
-    if (!CNR_RE.test(cnr)) {
-      // Malformed CNR — skip rather than burn an eCourts call that will 400.
-      continue;
-    }
-    const court: Court = /high\s*court/i.test(row.court ?? '') ? 'HC' : 'DC';
-    try {
-      const result = await syncCaseFromEcourts(row.id, row.firm_id, { court });
-      summary.synced += 1;
-
-      const notable = humanizeChanges(result.changes);
-      if (notable.length > 0) {
-        summary.changed += 1;
-        await notify.caseUpdatedFromEcourts(row.firm_id, {
-          matterTitle: result.caseRow.title || row.title,
-          cnr,
-          changes: notable,
-          ownerUserId: row.created_by_user_id,
-          caseId: row.id,
-          runDate,
-        });
-        summary.notified += 1;
-      }
-    } catch (err) {
-      summary.failed += 1;
-      // Don't let one case abort the batch. A transient upstream failure just
-      // means this matter waits for tomorrow's run (or a manual sync).
-      logger.warn({ err, caseId: row.id, cnr }, 'ecourts daily sync: case failed');
-    }
-    await sleep(THROTTLE_MS);
-  }
-
-  return summary;
+  const { runScheduledSync } = await import('./ecourts-sync-runs.service');
+  const r = await runScheduledSync({ slot: 'manual' });
+  return {
+    scanned: r.scanned,
+    synced: r.synced,
+    changed: r.changed,
+    notified: r.changed,
+    failed: r.failed + r.deferred,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -377,6 +403,7 @@ export async function sendUpcomingHearingReminders(): Promise<HearingReminderSum
     select id, firm_id, title, next_hearing::text, created_by_user_id
     from cases
     where status = 'Active'
+      and deleted_at is null
       and next_hearing is not null
       and next_hearing >= current_date
       and next_hearing <= current_date + ${REMINDER_WINDOW_DAYS}::int
@@ -438,6 +465,8 @@ interface CaseFullRow {
   fir_year: number | null;
   police_st_code: number | null;
   fir_details: string | null;
+  /** Tier that last answered for this CNR (migration 0085). Pre-sync read only. */
+  ecourts_court_tier?: Court | null;
 }
 
 interface CasePatch {
@@ -477,7 +506,10 @@ function buildCasePatch(
 
   // ALWAYS-overwrite fields (court-of-record truth wins).
   if (h.court_name && h.court_name !== pre.court) patch.court = h.court_name;
-  if (h.purpose_name && h.purpose_name.trim() !== pre.stage) patch.stage = h.purpose_name.trim();
+  // Stage is NOT patched here. eCourts' free-text purpose is mapped onto the
+  // matter's pipeline stage and applied through the pipeline transition
+  // after the transaction (see syncCaseFromEcourts) - writing it straight to
+  // cases.stage left the pipeline stepper showing a different stage.
   const status = h.disp_name ? 'Closed' : 'Active';
   if (status !== pre.status) patch.status = status as Case['status'];
   const nextHearing = pickDate(h.date_next_list);

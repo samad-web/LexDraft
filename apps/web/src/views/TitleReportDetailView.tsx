@@ -17,8 +17,9 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { Icon, Select, Skeleton, ErrorState, type SelectOption } from '@lexdraft/ui';
+import { PageHeader } from '@/components/PageHeader';
 import type {
   TitleReportChainLinkType,
   TitleReportDefect,
@@ -119,7 +120,6 @@ const STEPS: ReadonlyArray<StepDef> = [
 
 export function TitleReportDetailView() {
   const { id = '' } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const showToast = useUIStore((s) => s.showToast);
 
   const detail = useTitleReport(id);
@@ -181,19 +181,11 @@ export function TitleReportDetailView() {
 
   return (
     <div className="tr-detail">
-      <header className="tr-detail__head">
-        <div className="tr-detail__back" onClick={() => navigate('/app/title-reports')}>
-          <Icon name="chevron" /> Title Reports
-        </div>
-        <div className="tr-detail__title">
-          <div className="tr-detail__num">{report.reportNumber}</div>
-          <h1 className="tr-h1">{report.applicantName}</h1>
-          <div className="tr-detail__meta">
-            {JURISDICTION_LABEL[report.jurisdictionState] ?? report.jurisdictionState}
-            {report.bankName ? ` · ${report.bankName}` : ''}
-          </div>
-        </div>
-        <div className="tr-detail__actions">
+      <PageHeader
+        title={report.applicantName}
+        back={{ label: 'Title Reports', to: '/app/title-reports' }}
+        meta={`${report.reportNumber} · ${JURISDICTION_LABEL[report.jurisdictionState] ?? report.jurisdictionState}${report.bankName ? ` · ${report.bankName}` : ''}`}
+        actions={<>
           <span className={`badge badge--${report.status}`}>{STATUS_LABEL[report.status]}</span>
           {report.status === 'draft' && (
             <button type="button" className="btn btn-secondary" onClick={() => handleTransition('in_review')}>
@@ -210,8 +202,8 @@ export function TitleReportDetailView() {
               Mark as issued
             </button>
           )}
-        </div>
-      </header>
+        </>}
+      />
 
       <div className="tr-wizard">
         <aside className="tr-rail">

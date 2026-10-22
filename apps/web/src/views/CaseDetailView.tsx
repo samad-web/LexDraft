@@ -1,8 +1,13 @@
-import { useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Icon } from '@lexdraft/ui';
+import { ErrorState, Icon, Skeleton } from '@lexdraft/ui';
+import { PageHeader } from '@/components/PageHeader';
+import { MoreMenu } from '@/components/MoreMenu';
+import { CaseBillingTab, CaseFilingsTab, CaseHearingsTab, CaseWorkTab, belongsToMatter } from '@/components/case/CaseTabs';
+import { useCan } from '@/hooks/useFirmAdmin';
 import {
   useCase,
+  useCases,
   useCaseTimeline,
   useSyncCaseFromEcourts,
   useCaseActs,
@@ -12,7 +17,6 @@ import {
 } from '@/hooks/useCases';
 import type { MatterTimelineEvent } from '@lexdraft/types';
 import { PipelineBuilder } from '@/components/pipeline/PipelineBuilder';
-import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
@@ -21,11 +25,35 @@ import { CaseNotesPanel } from '@/components/CaseNotesPanel';
 import { CaseLeadHandover } from '@/components/CaseLeadHandover';
 import { MatterIntelPanel } from '@/components/matter-intel/MatterIntelPanel';
 import { CopyButton } from '@/components/CopyButton';
+import { EcourtsLinkCard } from '@/components/ecourts/EcourtsLinkCard';
+import { EcourtsCaseSnapshot } from '@/components/ecourts/EcourtsCaseSnapshot';
 import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
 import { useTaskBoard } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
+import { useHasTeamChat } from '@/hooks/useTeamChat';
+import { MatterDiscussionPanel } from '@/components/team-chat/MatterDiscussionPanel';
+
+// The full eCourts Case History lives in the eCourts view's bundle; load it
+// only when the tab is opened.
+const EcourtsCaseRecord = lazy(() => import('@/views/EcourtsView').then((m) => ({ default: m.EcourtsCaseRecord })));
+
+// The case page is the hub for one matter: everything about it is one tab
+// away. `?tab=<id>` deep-links (the case-create flow lands on documents).
+const CASE_TABS = [
+  { id: 'overview',     label: 'Overview' },
+  { id: 'ecourts',      label: 'eCourts' },
+  { id: 'hearings',     label: 'Hearings' },
+  { id: 'documents',    label: 'Documents' },
+  { id: 'filings',      label: 'Filings & Applications' },
+  { id: 'work',         label: 'Tasks & Deadlines' },
+  { id: 'billing',      label: 'Billing' },
+  { id: 'intelligence', label: 'Intelligence' },
+  { id: 'discussion',   label: 'Discussion' },
+] as const;
+type CaseTab = (typeof CASE_TABS)[number]['id'];
+const isCaseTab = (t: string | null): t is CaseTab => CASE_TABS.some((x) => x.id === t);
 
 export function CaseDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -39,15 +67,19 @@ export function CaseDetailView() {
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
-  // Honour ?tab=documents|intelligence so the case-create flow can deep-link
-  // straight to the Documents section (where uploads live). Defaults to
-  // overview for any missing/unknown value.
-  const [searchParams] = useSearchParams();
-  const initialTab = ((): 'overview' | 'documents' | 'intelligence' => {
-    const t = searchParams.get('tab');
-    return t === 'documents' || t === 'intelligence' ? t : 'overview';
-  })();
-  const [activeTab, setActiveTab] = useState<'overview' | 'documents' | 'intelligence'>(initialTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+  const [activeTab, setActiveTabState] = useState<CaseTab>(isCaseTab(urlTab) ? urlTab : 'overview');
+  // Keep the tab in the URL so refresh / back / shared links land on it.
+  const setActiveTab = (t: CaseTab) => {
+    setActiveTabState(t);
+    const next = new URLSearchParams(searchParams);
+    if (t === 'overview') next.delete('tab'); else next.set('tab', t);
+    setSearchParams(next, { replace: true });
+  };
+  const hasTeamChat = useHasTeamChat();
+  const canBill = useCan('billing.view');
+  const canDraft = useCan('drafting.ai');
   const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
@@ -57,10 +89,43 @@ export function CaseDetailView() {
   // mounted independent of the mutation lifecycle.
   const [ecourtsSyncResult, setEcourtsSyncResult] = useState<EcourtsSyncResult | null>(null);
 
+  // ---- "Connect matters" flow (eCourts status strip -> filtered matters list
+  // -> here with ?focus=ecourts&from=ecourts). Jump to the connection card,
+  // and once linked offer the next unconnected matter or go back to eCourts.
+  const focusEcourts = searchParams.get('focus') === 'ecourts';
+  const fromEcourts = searchParams.get('from') === 'ecourts';
+  const [linkedJustNow, setLinkedJustNow] = useState<'linked' | 'pending' | null>(null);
+  const remaining = useCases({ ecourts: 'attention' }, { enabled: fromEcourts });
+  const nextToConnect = remaining.data?.find((m) => m.id !== id) ?? null;
+
+  // Navigating to the next matter reuses this component - reset per matter.
+  useEffect(() => { setLinkedJustNow(null); }, [id]);
+
+  useEffect(() => {
+    if (!focusEcourts || !data) return;
+    setActiveTabState('overview');
+    const t = window.setTimeout(() => {
+      document.getElementById('ecourts-connection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [focusEcourts, data?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Nothing left to connect -> back to the eCourts page automatically.
+  useEffect(() => {
+    if (!linkedJustNow || !fromEcourts || remaining.isFetching || !remaining.data || nextToConnect) return;
+    showToast({ type: 'sage', text: 'All matters are connected to eCourts.' });
+    const t = window.setTimeout(() => navigate('/app/ecourts'), 1500);
+    return () => window.clearTimeout(t);
+  }, [linkedJustNow, fromEcourts, remaining.isFetching, remaining.data, nextToConnect]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const back = fromEcourts
+    ? { label: 'Matters to connect', to: '/app/cases?ecourts=attention' }
+    : { label: 'Cases', to: '/app/cases' };
+
   if (isLoading) {
     return (
       <div className="col" style={{ gap: 16 }}>
-        <BackButton onBack={() => navigate('/app/cases')} />
+        <PageHeader back={back} title={<Skeleton width={320} height={28} />} />
         <div className="card"><span className="muted">Loading matter…</span></div>
       </div>
     );
@@ -69,30 +134,22 @@ export function CaseDetailView() {
   if (isError || !data) {
     return (
       <div className="col" style={{ gap: 16 }}>
-        <BackButton onBack={() => navigate('/app/cases')} />
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
-          <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load matter</div>
-          <p className="body-sm muted">
-            {error instanceof Error ? error.message : 'The matter could not be found.'}
-          </p>
-        </div>
+        <PageHeader back={back} title="Matter" />
+        <ErrorState
+          title="Couldn’t load matter"
+          description={error instanceof Error ? error.message : 'The matter could not be found.'}
+        />
       </div>
     );
   }
 
   const c: CaseWithPipeline = data;
 
-  // Tasks are stored firm-wide and labelled by matter title (same
-  // `case: c.title` convention NewHearingModal/NewDocumentModal already use
-  // for their `defaultCase` prop below) - filter the shared board down to
-  // this matter's pendings. Normalized (trim + case-insensitive) rather than
-  // strict `===` - a task created with trailing whitespace, different casing,
-  // or surviving a case rename would otherwise silently vanish from this
-  // card while still showing fine on the global Kanban board.
-  const normalizedTitle = c.title.trim().toLowerCase();
+  // Tasks are stored firm-wide. Linked ones carry caseId (migration 0089);
+  // older/unmatched ones only their matter title, matched case-insensitively.
   const caseTasks = Object.values(taskBoard.data ?? {})
     .flat()
-    .filter((t) => t.case.trim().toLowerCase() === normalizedTitle);
+    .filter((t) => belongsToMatter({ caseId: t.caseId, label: t.case }, { id: c.id, title: c.title }));
 
   const handleGenerateEngagement = async (): Promise<void> => {
     try {
@@ -120,164 +177,197 @@ export function CaseDetailView() {
           : 'Already up to date with eCourts',
       });
     } catch (err) {
-      const msg = (err as { response?: { data?: { error?: string } }; message?: string })
-        ?.response?.data?.error ?? (err as Error).message ?? 'Could not sync from eCourts';
-      showToast({ type: 'vermillion', text: msg });
+      const e = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
+      const msg = e?.response?.data?.error ?? (err as Error).message ?? 'Could not sync from eCourts';
+      // 503 = eCourts itself is down. Not the advocate's mistake, and the
+      // scheduled runs will catch it up - say so in amber, not red.
+      showToast({ type: e?.response?.status === 503 ? 'amber' : 'vermillion', text: msg });
     }
   };
 
+  const hasRealCnr = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/.test((c.cnr ?? '').trim());
+
+  const openDraft = () => navigate('/app/draft', {
+    state: {
+      caseContext: {
+        id: c.id,
+        title: c.title,
+        cnr: c.cnr,
+        court: c.court,
+        client: c.client,
+        type: c.type,
+        stage: c.stage,
+      },
+    },
+  });
+
+  const hearingCount = (timeline.data ?? []).filter((e) => e.kind === 'hearing').length;
+  const openTasks = caseTasks.filter((t) => t.column !== 'done').length;
+  const ecourtsCourt = c.ecourtsCourtTier ?? 'DC';
+  const tabs = CASE_TABS.filter((t) =>
+    (t.id !== 'discussion' || hasTeamChat) && (t.id !== 'billing' || canBill) && (t.id !== 'ecourts' || hasRealCnr));
+  const tabCount: Partial<Record<CaseTab, number>> = { hearings: hearingCount, work: openTasks };
+  // A deep link to a tab this user can't see (e.g. ?tab=billing) falls back.
+  const current: CaseTab = tabs.some((t) => t.id === activeTab) ? activeTab : 'overview';
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <BackButton onBack={() => navigate('/app/cases')} />
-
-      {/* HEADER */}
-      <div className="card">
-        <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <div className="row" style={{ gap: 8, marginBottom: 12 }}>
-              <span className="badge badge-sage">{c.status.toUpperCase()}</span>
-              <span className="badge badge-cobalt">{String(c.type).toUpperCase()}</span>
-            </div>
-            <h1 className="heading-xl" style={{ marginBottom: 8 }}>
-              <em className="case-name">{c.title}</em>
-            </h1>
-            <div className="row" style={{ gap: 14, flexWrap: 'wrap', color: 'var(--text-secondary)', fontSize: 13 }}>
-              <span>{c.court}</span>
-              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-              <span>CNR <CopyButton value={c.cnr} /></span>
-              <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-              <span>For: {c.client}</span>
-            </div>
-          </div>
-          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <label
-              className="row"
-              style={{ gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
-              title="When enabled, this matter is visible in the client portal."
-            >
-              <input
-                type="checkbox"
-                checked={!!c.visibleToClient}
-                disabled={!c.id || updateVisibility.isPending}
-                onChange={(e) => updateVisibility.mutate({
-                  id: c.id, visibleToClient: e.target.checked,
-                })}
-              />
-              Visible to client
-            </label>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setDocOpen(true)}
-            >
-              <Icon name="upload" size={14} /> Upload
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => navigate('/app/draft', {
-                state: {
-                  caseContext: {
-                    id: c.id,
-                    title: c.title,
-                    cnr: c.cnr,
-                    court: c.court,
-                    client: c.client,
-                    type: c.type,
-                    stage: c.stage,
-                  },
-                },
-              })}
-              title="Start a draft for this matter: its details and notes are pulled in as context"
-            >
-              <Icon name="draft" size={14} /> Draft for this case
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => { void handleGenerateEngagement(); }}
-              disabled={generateLetter.isPending}
-              title="Generate the engagement letter from the firm's default template for this matter type"
-            >
-              <Icon name="documents" size={14} />{' '}
-              {generateLetter.isPending ? 'Generating…' : 'Generate engagement letter'}
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => { void handleSyncFromEcourts(); }}
-              disabled={syncFromEcourts.isPending || !c.cnr}
-              title={c.cnr
-                ? 'Pull latest case status, hearings, and orders from the eCourts gateway'
-                : 'Set a CNR on this matter before syncing'}
-            >
-              <Icon name="ecourts" size={14} />{' '}
-              {syncFromEcourts.isPending ? 'Syncing…' : 'Sync from eCourts'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setHearingOpen(true)}
-            >
-              <Icon name="plus" size={14} /> Hearing
-            </button>
-          </div>
-        </div>
-
-        {/* PIPELINE BUILDER — this matter's own branching pipeline graph.
-            Stages, branches and conditions are per-case (migration 0054). */}
-        <div style={{ marginTop: 24 }}>
-          <PipelineBuilder caseId={c.id} />
-        </div>
-      </div>
+      <PageHeader
+        back={back}
+        title={<em className="case-name">{c.title}</em>}
+        description={<>{c.court} · For {c.client}</>}
+        actions={<>
+          <MoreMenu
+            items={[
+              ...(canDraft ? [{ label: 'Draft for this matter', icon: 'draft' as const, onSelect: openDraft, title: 'Its details and notes are pulled in as context' }] : []),
+              { label: 'Upload document', icon: 'upload', onSelect: () => setDocOpen(true) },
+              { label: 'Add pending', icon: 'tasks', onSelect: () => setTaskOpen(true) },
+              {
+                label: 'Prepare eFiling',
+                icon: 'efiling',
+                onSelect: () => navigate(`/app/efiling?case=${encodeURIComponent(c.id)}`),
+                title: 'Prepare a filing for the eCourts eFiling portal and track it until the court registers it',
+              },
+              {
+                label: generateLetter.isPending ? 'Generating engagement letter…' : 'Generate engagement letter',
+                icon: 'mail',
+                onSelect: () => { void handleGenerateEngagement(); },
+                disabled: generateLetter.isPending,
+                title: "Uses the firm's default template for this matter type",
+              },
+            ]}
+          />
+          <button
+            type="button"
+            className="btn"
+            onClick={() => { void handleSyncFromEcourts(); }}
+            disabled={syncFromEcourts.isPending || !hasRealCnr}
+            title={hasRealCnr
+              ? 'Pull latest case status, hearings, and orders from the eCourts gateway'
+              : 'Link this matter to eCourts first (see the eCourts connection card in Overview)'}
+          >
+            <Icon name="ecourts" size={14} />{' '}
+            {syncFromEcourts.isPending ? 'Syncing…' : 'Sync eCourts'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setHearingOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Hearing
+          </button>
+        </>}
+      >
+        <span className="badge badge-sage">{c.status.toUpperCase()}</span>
+        <span className="badge badge-cobalt">{String(c.type).toUpperCase()}</span>
+        <span className="body-sm muted">CNR <CopyButton value={c.cnr} /></span>
+        <span className="body-sm" style={{ color: c.next ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
+          Next date: <strong className="mono tabular">{c.next || 'not posted'}</strong>
+        </span>
+        <label
+          className="row"
+          style={{ gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
+          title="When enabled, this matter is visible in the client portal."
+        >
+          <input
+            type="checkbox"
+            checked={!!c.visibleToClient}
+            disabled={!c.id || updateVisibility.isPending}
+            onChange={(e) => updateVisibility.mutate({
+              id: c.id, visibleToClient: e.target.checked,
+            })}
+          />
+          Visible to client
+        </label>
+      </PageHeader>
 
       {/* Tab strip */}
-      <div className="matter-intel-tabs" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'overview'}
-          className={`matter-intel-tab${activeTab === 'overview' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'documents'}
-          className={`matter-intel-tab${activeTab === 'documents' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('documents')}
-        >
-          Documents
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'intelligence'}
-          className={`matter-intel-tab${activeTab === 'intelligence' ? ' is-active' : ''}`}
-          onClick={() => setActiveTab('intelligence')}
-        >
-          Intelligence
-        </button>
+      <div className="matter-intel-tabs case-tabs" role="tablist" aria-label="Matter sections">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={current === t.id}
+            className={`matter-intel-tab${current === t.id ? ' is-active' : ''}`}
+            onClick={() => setActiveTab(t.id)}
+          >
+            {t.label}
+            {tabCount[t.id] ? <span className="case-tab-count">{tabCount[t.id]}</span> : null}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'documents' && (
-        <div style={{ marginTop: 20 }}>
-          <CaseDocumentsPanel matterTitle={c.title} />
-        </div>
+      {current === 'discussion' && hasTeamChat && (
+        <MatterDiscussionPanel caseId={c.id} />
       )}
 
-      {activeTab === 'intelligence' && (
+      {current === 'hearings' && (
+        <CaseHearingsTab
+          timeline={timeline.data}
+          isLoading={timeline.isLoading}
+          onAddHearing={() => setHearingOpen(true)}
+        />
+      )}
+
+      {current === 'ecourts' && hasRealCnr && (
+        <Suspense fallback={<div className="card"><span className="muted">Loading eCourts record…</span></div>}>
+          <EcourtsCaseRecord cnr={c.cnr.trim().toUpperCase()} court={ecourtsCourt} />
+        </Suspense>
+      )}
+
+      {current === 'filings' && <CaseFilingsTab caseId={c.id} />}
+
+      {current === 'work' && (
+        <CaseWorkTab
+          caseId={c.id}
+          title={c.title}
+          cnr={c.cnr}
+          tasks={caseTasks}
+          tasksLoading={taskBoard.isLoading}
+          onAddTask={() => setTaskOpen(true)}
+        />
+      )}
+
+      {current === 'billing' && canBill && <CaseBillingTab caseId={c.id} title={c.title} client={c.client} />}
+
+      {current === 'documents' && <CaseDocumentsPanel matterTitle={c.title} />}
+
+      {current === 'intelligence' && (
         <MatterIntelPanel caseId={c.id} matterTitle={c.title} />
       )}
 
-      {activeTab === 'overview' && (
+      {current === 'overview' && (
       <>
       {/* BODY - two columns */}
       <div className="case-body split-2-wide" style={{ gap: 24 }}>
         {/* LEFT */}
         <div className="col" style={{ gap: 24 }}>
+          {/* eCourts first: a linked matter opens on its live court status. */}
+          {hasRealCnr ? (
+            <EcourtsCaseSnapshot cnr={c.cnr.trim().toUpperCase()} court={ecourtsCourt} onOpenRecord={() => setActiveTab('ecourts')} />
+          ) : (
+            <div className="card row" style={{ gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+              <div className="col" style={{ gap: 2 }}>
+                <span className="heading-sm">Not connected to eCourts</span>
+                <span className="body-sm muted">Add the real CNR (or case number) and LexDraft brings in its status, hearings, orders and parties.</span>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => document.getElementById('ecourts-connection')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              >
+                Connect to eCourts
+              </button>
+            </div>
+          )}
+
+          {/* PIPELINE BUILDER — this matter's own branching pipeline graph.
+              Stages, branches and conditions are per-case (migration 0054). */}
+          <div className="card">
+            <PipelineBuilder caseId={c.id} />
+          </div>
+
           {/* Case meta */}
           <div className="card">
             <div className="eyebrow" style={{ marginBottom: 8 }}>Matter</div>
@@ -305,6 +395,42 @@ export function CaseDetailView() {
               )}
             </div>
           </div>
+
+          {/* eCourts connection - status + link a manual / unfound matter. */}
+          {linkedJustNow && fromEcourts ? (
+            <div className="card row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: 'var(--success, var(--border))' }} role="status">
+              <span className={`dot ${linkedJustNow === 'linked' ? 'dot-sage' : 'dot-amber'}`} style={{ flexShrink: 0 }} />
+              <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                <div className="heading-sm">
+                  {linkedJustNow === 'linked' ? 'Connected to eCourts' : 'CNR saved. Connects when eCourts is back'}
+                </div>
+                <p className="body-sm muted">
+                  {remaining.isFetching
+                    ? 'Checking what is left to connect…'
+                    : nextToConnect
+                      ? `${remaining.data?.filter((m) => m.id !== c.id).length ?? 0} more to connect. Next: ${nextToConnect.title}`
+                      : 'Every live matter is connected. Taking you back to eCourts…'}
+                </p>
+              </div>
+              {nextToConnect ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => navigate(`/app/cases/${nextToConnect.id}?focus=ecourts&from=ecourts`)}
+                >
+                  Next matter →
+                </button>
+              ) : null}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/app/ecourts')}>
+                Back to eCourts
+              </button>
+            </div>
+          ) : null}
+          <EcourtsLinkCard
+            key={`${c.id}:${c.ecourtsLinkStatus ?? ''}`}
+            c={c}
+            onLinked={(s) => setLinkedJustNow(s)}
+          />
 
           {/* Lead advocate + handover (case_assignments). */}
           <CaseLeadHandover caseId={c.id} caseTitle={c.title} />
@@ -391,10 +517,6 @@ export function CaseDetailView() {
             )}
           </div>
 
-          {/* Applications — interim applications, appeals, execution, review,
-              bail. Many per matter, each with its own status lifecycle. */}
-          <ApplicationsPanel caseId={c.id} />
-
           {/* Notes - typed memos or uploaded files; AI drafting can pull these
               in as context when generating documents for this matter. */}
           <CaseNotesPanel caseId={c.id} matterTitle={c.title} />
@@ -412,104 +534,28 @@ export function CaseDetailView() {
             ) : (
               <p className="body-md muted" style={{ marginBottom: 16 }}>Not posted to a date yet.</p>
             )}
-            <div className="row" style={{ gap: 8 }}>
-              <button
-                type="button"
-                className="btn btn-primary btn-block"
-                onClick={() =>
-                  navigate('/app/draft', {
-                    state: {
-                      caseContext: {
-                        id: c.id,
-                        title: c.title,
-                        cnr: c.cnr,
-                        court: c.court,
-                        client: c.client,
-                        type: c.type,
-                        stage: c.stage,
-                      },
-                    },
-                  })
-                }
-              >
-                Prepare brief
-              </button>
-            </div>
-          </div>
-
-          {/* Pendings — the advocate's word for to-dos / open work-items on the matter. */}
-          <div className="card">
-            <div className="row" style={{ marginBottom: 12 }}>
-              <div className="heading-md">Pendings</div>
-              <span className="spacer" />
-              <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {caseTasks.filter((t) => t.column !== 'done').length} PENDING
-              </span>
-            </div>
-            {taskBoard.isLoading ? (
-              <p className="body-sm muted">Loading pendings…</p>
-            ) : caseTasks.length === 0 ? (
-              <p className="body-sm muted">No pendings. Add the first below.</p>
-            ) : (
-              <div className="col" style={{ gap: 0 }}>
-                {caseTasks.map((t, i) => {
-                  const done = t.column === 'done';
-                  return (
-                    <div
-                      key={t.id}
-                      className="row"
-                      style={{
-                        padding: '12px 0',
-                        borderBottom: i < caseTasks.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                        gap: 12,
-                        alignItems: 'flex-start',
-                      }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          width: 16, height: 16,
-                          borderRadius: 'var(--radius-sm)',
-                          border: `1px solid ${done ? 'var(--success)' : 'var(--border-default)'}`,
-                          background: done ? 'var(--success-bg)' : 'transparent',
-                          color: 'var(--success)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                          marginTop: 2,
-                        }}
-                      >
-                        {done && <Icon name="check" size={12} />}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 500,
-                            color: done ? 'var(--text-tertiary)' : 'var(--text-primary)',
-                            textDecoration: done ? 'line-through' : 'none',
-                          }}
-                        >
-                          {t.title}
-                        </div>
-                        <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 2 }}>
-                          DUE {t.due.toUpperCase()} · {t.assignee}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+            {canDraft && (
+              <div className="row" style={{ gap: 8 }}>
+                <button type="button" className="btn btn-primary btn-block" onClick={openDraft}>
+                  Prepare brief
+                </button>
               </div>
             )}
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{ marginTop: 12 }}
-              onClick={() => setTaskOpen(true)}
-            >
-              <Icon name="plus" size={12} /> Add pending
-            </button>
+          </div>
+
+          {/* At a glance - one line per hub tab, each jumping to it. */}
+          <div className="card">
+            <div className="heading-md" style={{ marginBottom: 8 }}>At a glance</div>
+            <ul className="dash-list">
+              <GlanceRow label="Hearings on record" value={String(hearingCount)} onOpen={() => setActiveTab('hearings')} />
+              <GlanceRow
+                label="Open pendings"
+                value={taskBoard.isLoading ? '…' : String(openTasks)}
+                onOpen={() => setActiveTab('work')}
+              />
+              <GlanceRow label="Filings & applications" value="View" onOpen={() => setActiveTab('filings')} />
+              {canBill && <GlanceRow label="Invoices & expenses" value="View" onOpen={() => setActiveTab('billing')} />}
+            </ul>
           </div>
 
           {/* Recent documents have moved to the unified Timeline (left
@@ -553,16 +599,15 @@ export function CaseDetailView() {
 
 /* ---------- Inline helpers ---------- */
 
-function BackButton({ onBack }: { onBack: () => void }) {
+function GlanceRow({ label, value, onOpen }: { label: string; value: string; onOpen: () => void }) {
   return (
-    <button
-      type="button"
-      className="btn btn-ghost"
-      onClick={onBack}
-      style={{ alignSelf: 'flex-start' }}
-    >
-      <Icon name="chevron" size={14} style={{ transform: 'scaleX(-1)' }} /> Matters
-    </button>
+    <li>
+      <button type="button" className="dash-row" onClick={onOpen}>
+        <span className="dash-row-main"><span className="body-sm">{label}</span></span>
+        <span className="mono tabular body-sm">{value}</span>
+        <Icon name="chevron" size={14} />
+      </button>
+    </li>
   );
 }
 

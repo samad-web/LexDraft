@@ -8,23 +8,22 @@ interface Props {
   selected: DraftCaseContext | null;
   onSelect: (ctx: DraftCaseContext | null) => void;
   onOpenCase?: (id: string) => void;
-  /** Render as a plain section (no card border/radius/shadow) for composing
-   *  inside another card — e.g. as the top section of the unified Draft
-   *  entry card, above the drafting form. */
-  bare?: boolean;
+  /** What the engine will read from the selected matter, shown under it. */
+  readSummary?: { notes: number; documents: number; unreadable: number };
 }
 
+const LIST_LIMIT = 6;
+
 /**
- * Case picker + eCourts sync for the Draft screen. The advocate attaches a
- * matter so the agent drafts against the real court/CNR/parties — or leaves it
- * on "No case" for an ad-hoc draft. "Sync from eCourts" refreshes the selected
- * matter's record before drafting so the particulars are current.
+ * "Matter" card in the Draft page's side rail. Attach a matter so the engine
+ * drafts against its real court / CNR / parties and reads its notes and
+ * papers - or leave it empty for an ad-hoc draft. "Sync eCourts" refreshes
+ * the matter's record first so the particulars are current.
  */
-export function DraftCasePicker({ selected, onSelect, onOpenCase, bare }: Props) {
+export function DraftCasePicker({ selected, onSelect, onOpenCase, readSummary }: Props) {
   const { data: cases = [], isLoading } = useCases();
   const sync = useSyncCaseFromEcourts();
   const showToast = useUIStore((s) => s.showToast);
-  const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
 
   // Only real matters (not sandbox/quick-study) with a client-less em-dash.
@@ -60,70 +59,34 @@ export function DraftCasePicker({ selected, onSelect, onOpenCase, bare }: Props)
   };
 
   return (
-    <div
-      className={bare ? undefined : 'card'}
-      style={
-        bare
-          ? {
-              padding: '18px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              background: 'var(--bg-surface-2)',
-              borderBottom: '1px solid var(--border-default)',
-            }
-          : {
-              padding: '16px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 12,
-              borderLeft: '3px solid var(--border-strong)',
-            }
-      }
-    >
-      <div
-        className="mono"
-        style={{
-          fontSize: 10,
-          letterSpacing: '0.18em',
-          color: 'var(--text-tertiary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-        }}
-      >
-        <Icon name="cases" size={14} />
-        STEP 1 · WHICH MATTER
+    <section className="dc-card">
+      <div className="dc-card-head">
+        <span className="dc-card-icon"><Icon name="cases" size={16} /></span>
+        <div>
+          <div className="dc-eyebrow">Matter</div>
+          <div className="dc-card-title">{selected ? 'Drafting for' : 'Draft for a matter'}</div>
+        </div>
       </div>
 
       {selected ? (
-        <div
-          className="row"
-          style={{
-            alignItems: 'center',
-            gap: 12,
-            padding: '10px 12px',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            flexWrap: 'wrap',
-          }}
-        >
-          <span
-            style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: 'var(--info)', flexShrink: 0,
-            }}
-          />
-          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
-            <div className="heading-sm" style={{ marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selected.title}
+        <div className="dc-matter">
+          <div className="dc-matter-title">{selected.title}</div>
+          <dl className="dc-matter-meta">
+            <div><dt>CNR</dt><dd className="mono">{selected.cnr || 'Not set'}</dd></div>
+            <div><dt>Court</dt><dd>{selected.court || 'Not set'}</dd></div>
+            <div><dt>Client</dt><dd>{selected.client || 'Not set'}</dd></div>
+          </dl>
+          {readSummary && (
+            <div className="dc-reads">
+              <Icon name="sparkle" size={13} />
+              <span>
+                The engine reads {readSummary.notes} note{readSummary.notes === 1 ? '' : 's'} and {readSummary.documents} document
+                {readSummary.documents === 1 ? '' : 's'} from this matter
+                {readSummary.unreadable > 0 ? `; ${readSummary.unreadable} need${readSummary.unreadable === 1 ? 's' : ''} its file` : ''}.
+              </span>
             </div>
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              {selected.cnr || 'CNR not set'} · {selected.court || 'court not set'} · {selected.client}
-            </div>
-          </div>
-          <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          )}
+          <div className="dc-matter-actions">
             <button
               type="button"
               className="btn btn-sm"
@@ -131,69 +94,57 @@ export function DraftCasePicker({ selected, onSelect, onOpenCase, bare }: Props)
               disabled={sync.isPending}
               title="Refresh this matter from eCourts before drafting"
             >
-              <Icon name="ecourts" size={12} /> {sync.isPending ? 'Syncing…' : 'Sync from eCourts'}
+              <Icon name="ecourts" size={12} /> {sync.isPending ? 'Syncing…' : 'Sync eCourts'}
             </button>
             {onOpenCase && (
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpenCase(selected.id)}>
-                Open case
+              <button type="button" className="btn btn-sm btn-ghost" onClick={() => onOpenCase(selected.id)}>
+                Open
               </button>
             )}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSelect(null)} title="Remove case">
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => onSelect(null)} title="Draft without a matter">
               <Icon name="close" size={12} /> Detach
             </button>
           </div>
         </div>
       ) : (
-        <div className="row" style={{ alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <p className="body-xs muted" style={{ margin: 0, flex: '1 1 auto', minWidth: 200 }}>
-            Attach a matter so the agent drafts against its real court, CNR and parties, or draft ad-hoc without one.
+        <>
+          <p className="dc-card-text">
+            The engine drafts against its real court, CNR and parties, and reads its notes and papers.
           </p>
-          <button type="button" className="btn btn-sm" onClick={() => setOpen((o) => !o)}>
-            <Icon name="plus" size={12} /> Select case
-          </button>
-        </div>
-      )}
-
-      {!selected && open && (
-        <div className="col" style={{ gap: 8 }}>
-          <input
-            className="input"
-            placeholder="Search by title, CNR or client…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            autoFocus
-          />
-          <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {isLoading && <span className="body-sm muted" style={{ padding: 8 }}>Loading cases…</span>}
-            {!isLoading && filtered.length === 0 && (
-              <span className="body-sm muted" style={{ padding: 8 }}>
-                No matters found. Open a case from Cases first, or draft without one.
-              </span>
-            )}
-            {filtered.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="row-clickable"
-                onClick={() => { onSelect(caseToContext(c)); setOpen(false); setQ(''); }}
-                style={{
-                  textAlign: 'left',
-                  padding: '8px 10px',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--bg-surface)',
-                  cursor: 'pointer',
-                }}
-              >
-                <div style={{ fontWeight: 500, fontSize: 13 }}>{c.title}</div>
-                <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  {c.cnr} · {c.court || 'court not set'} · {c.client}
-                </div>
-              </button>
-            ))}
+          <div className="dc-search">
+            <Icon name="search" size={14} />
+            <input
+              className="input"
+              placeholder="Search title, CNR or client"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Search matters"
+            />
           </div>
-        </div>
+          <ul className="dc-pick">
+            {isLoading && <li className="dc-card-text">Loading matters…</li>}
+            {!isLoading && filtered.length === 0 && (
+              <li className="dc-card-text">{q ? 'No matching matter.' : 'No matters yet. Open one from Cases.'}</li>
+            )}
+            {filtered.slice(0, LIST_LIMIT).map((c) => (
+              <li key={c.id}>
+                <button type="button" className="dc-pick-row" onClick={() => { onSelect(caseToContext(c)); setQ(''); }}>
+                  <span className="dc-pick-avatar">{(c.title.trim()[0] ?? '·').toUpperCase()}</span>
+                  <span className="dc-pick-main">
+                    <span className="dc-pick-title">{c.title}</span>
+                    <span className="dc-pick-sub">{c.court || 'Court not set'} · {c.client}</span>
+                  </span>
+                  <Icon name="plus" size={14} />
+                </button>
+              </li>
+            ))}
+          </ul>
+          {filtered.length > LIST_LIMIT && (
+            <div className="dc-card-text">Showing {LIST_LIMIT} of {filtered.length}. Search to narrow down.</div>
+          )}
+          <div className="dc-adhoc">Or leave this empty to draft without a matter.</div>
+        </>
       )}
-    </div>
+    </section>
   );
 }

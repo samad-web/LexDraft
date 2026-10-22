@@ -278,6 +278,8 @@ export interface CourtNamesResponse {
 
 export interface JudgeBench {
   code: string;
+  /** The court (bench) number - `court_no` for the app's Cause List. */
+  courtNo?: string;
   judgeName: string;
   designation: string;
 }

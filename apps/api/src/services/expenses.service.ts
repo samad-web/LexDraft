@@ -13,6 +13,7 @@ interface Row {
   status: Expense['status'];
   reimbursable: boolean;
   billable: boolean;
+  case_id?: string | null;
 }
 
 function dateOnly(v: string | Date): string {
@@ -32,6 +33,7 @@ function fromRow(r: Row): Expense {
     status: r.status,
     reimbursable: r.reimbursable,
     billable: r.billable,
+    caseId: r.case_id ?? null,
   };
 }
 
@@ -40,12 +42,14 @@ export const expensesService = {
     if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
+    // case_id (migration 0089) via to_jsonb: safe before that migration runs.
     const rows = await sql<Row[]>`
-      select id, expense_no, expense_date, description, category,
-             case_label, amount_inr, status, reimbursable, billable
-      from expenses
-      where firm_id = ${firmId}::uuid
-      order by expense_date desc
+      select e.id, e.expense_no, e.expense_date, e.description, e.category,
+             e.case_label, e.amount_inr, e.status, e.reimbursable, e.billable,
+             to_jsonb(e) ->> 'case_id' as case_id
+      from expenses e
+      where e.firm_id = ${firmId}::uuid
+      order by e.expense_date desc
     `;
     return rows.map(fromRow);
   },

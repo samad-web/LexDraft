@@ -230,7 +230,7 @@ export function UsersView() {
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-lg)', padding: 28, width: 520,
+              borderRadius: 'var(--radius-lg)', padding: 28, width: 520, maxWidth: 'calc(100vw - 32px)',
             }}
           >
             <div className="eyebrow">Password reset</div>

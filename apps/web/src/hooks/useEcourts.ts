@@ -47,6 +47,42 @@ export interface EcourtsOrder {
   [k: string]: unknown;
 }
 
+// ---- Court orders by party, through the mobile API (no captcha) -------------
+
+export interface OrdersByPartyInput {
+  stateCode: number;
+  distCode: number;
+  courtCode: number;
+  estCode: string;
+  partyName: string;
+  year: number;
+  orderType: 'both' | 'finalorder' | 'interim';
+  court?: Court;
+}
+
+export interface OrdersByPartyCase {
+  cino: string;
+  title: string;
+  caseNo: string | null;
+  establishment: string | null;
+  interimOrders: EcourtsOrder[];
+  finalOrders: EcourtsOrder[];
+  error?: string;
+}
+
+export interface OrdersByPartyResult {
+  casesFound: number;
+  casesOpened: number;
+  truncated: boolean;
+  cases: OrdersByPartyCase[];
+}
+
+export function useEcourtsOrdersByParty() {
+  return useMutation({
+    mutationFn: (input: OrdersByPartyInput) => api.post<OrdersByPartyResult>('/ecourts/orders/by-party', input),
+  });
+}
+
 export interface EcourtsExtraParty {
   partyid: string;
   partyname: string;
@@ -158,17 +194,38 @@ const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 
 /** Live CNR lookup. Returns the full case history. `enabled` gates on a valid
  *  CNR shape so users can type without firing requests on every keystroke. */
+export interface StoredCaseMeta {
+  /** When LexDraft last got this case from eCourts. */
+  fetchedAt: string;
+  /** Older than the server's freshness window - shown, but being refreshed. */
+  stale: boolean;
+  refreshing: boolean;
+}
+
+type CnrResponse =
+  | { history: EcourtsCaseHistory; meta?: StoredCaseMeta; queued?: undefined }
+  | { queued: true; message: string; history?: undefined; meta?: undefined };
+
+/** Case by CNR, served from LexDraft's case store (instant when stored),
+ *  refreshed in the background when stale. When eCourts is down and the case
+ *  isn't stored yet, the server queues the fetch (202) and this hook keeps
+ *  re-checking until it lands - the advocate also gets an in-app notification. */
 export function useEcourtsCnr(cnr: string | null | undefined, court: Court = 'DC') {
   const cleaned = (cnr ?? '').trim().toUpperCase();
   const valid = CNR_RE.test(cleaned);
   const query = useQuery({
     queryKey: ['ecourts', 'cnr', cleaned, court],
-    queryFn: () => api.get<{ history: EcourtsCaseHistory }>(`/ecourts/lookup/cnr/${cleaned}`, { court }),
-    select: (r) => r.history,
+    queryFn: () => api.get<CnrResponse>(`/ecourts/lookup/cnr/${cleaned}`, { court }),
     enabled: valid,
-    // CNR data changes when a hearing happens — 5 minutes is enough freshness
-    // for an interactive lookup screen, server already caches at the same TTL.
     staleTime: 5 * 60 * 1000,
+    // Queued: check again every 20 s. Stale copy being refreshed: pick up the
+    // fresh one shortly after.
+    refetchInterval: (q) => {
+      const d = q.state.data;
+      if (d?.queued) return 20_000;
+      if (d?.meta?.refreshing) return 12_000;
+      return false;
+    },
     // A 404 ("No case found for this CNR") is a well-formed, expected
     // answer from the backend for a syntactically valid but non-existent
     // CNR - retrying it just delays the "not found" state for no benefit
@@ -183,7 +240,15 @@ export function useEcourtsCnr(cnr: string | null | undefined, court: Court = 'DC
   // the apiClient interceptor in lib/api.ts (untouched there for exactly
   // this kind of status-code branching).
   const isNotFound = (query.error as { response?: { status?: number } } | null)?.response?.status === 404;
-  return { ...query, isNotFound };
+  const raw = query.data;
+  return {
+    ...query,
+    data: raw?.history,
+    isNotFound,
+    /** Set while eCourts is busy and the server is fetching in the background. */
+    queued: raw?.queued ? raw.message : null,
+    meta: raw?.meta ?? null,
+  };
 }
 
 /**
@@ -241,8 +306,15 @@ export function useAddEcourtsCaseToMatters() {
         type:   'Other',
       });
       // Best-effort sync — if it fails the case still exists; the advocate can
-      // retry from the Cases screen. We surface the sync error to the caller.
-      await api.post(`/cases/${created.id}/sync-from-ecourts`, { court });
+      // retry from the Cases screen. We surface the sync error to the caller,
+      // EXCEPT "eCourts is down" (503): creating the case already queued a
+      // background link that retries until eCourts answers, so that isn't a
+      // failure the advocate needs to act on.
+      try {
+        await api.post(`/cases/${created.id}/sync-from-ecourts`, { court });
+      } catch (err) {
+        if ((err as { response?: { status?: number } })?.response?.status !== 503) throw err;
+      }
       return created.id;
     },
     onSuccess: () => {
@@ -265,6 +337,30 @@ export function useEcourtsStates(court: Court = 'DC') {
     select: (r) => r.items,
     staleTime: 24 * 60 * 60 * 1000,
   });
+}
+
+/** An order row's date. Final orders carry `order_date1f`; interim orders
+ *  carry `order_date1` (verified live 2026-10-22, KLER010044852019). */
+export function orderDateOf(o: EcourtsOrder | null | undefined): string {
+  const row = (o ?? {}) as Record<string, unknown>;
+  return String(row.order_date1f || row.order_date1 || row.order_date || '');
+}
+
+/**
+ * A blob request's error body arrives as a Blob, so callers saw only
+ * "Request failed with status code 400". Read the JSON error out of it and
+ * rethrow in the usual `response.data.error` shape.
+ */
+async function blobErrorToJson(err: unknown): Promise<unknown> {
+  const data = (err as { response?: { data?: unknown } })?.response?.data;
+  if (!(data instanceof Blob)) return err;
+  try {
+    const body = JSON.parse(await data.text()) as { error?: string; details?: Array<{ message?: string }> };
+    const message = body.details?.[0]?.message ?? body.error ?? 'eCourts could not provide this order.';
+    return Object.assign(new Error(message), { response: { ...(err as { response: object }).response, data: { error: message } } });
+  } catch {
+    return err;
+  }
 }
 
 interface DownloadOrderInput {
@@ -296,7 +392,7 @@ export function useDownloadOrderPdf() {
     mutationFn: async (input: DownloadOrderInput) => {
       const res = await apiClient.post<Blob>('/api/ecourts/orders/pdf', input, {
         responseType: 'blob',
-      });
+      }).catch(async (err: unknown) => { throw await blobErrorToJson(err); });
       // Express writes the filename in Content-Disposition; fall back to a
       // CNR-derived name if the header gets stripped by a proxy.
       const cd = res.headers['content-disposition'] ?? '';
@@ -367,10 +463,220 @@ export function useEcourtsCourts(
   });
 }
 
+/** One option from a court-scoped dropdown list (case types, acts, police
+ *  stations). `code` is what the search endpoints expect. */
+export interface EcourtsRefOption {
+  code: string;
+  name: string;
+}
+
+// Case types, acts and police stations are scoped to ONE court - eCourts
+// needs the numeric court code, not just state/district (verified live; see
+// ecourts.service.ts listCaseTypes). Disabled until a court is picked.
+function useCourtScopedList(
+  kind: 'case-types' | 'acts' | 'police-stations',
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  courtCode: number | string | null | undefined,
+  court: Court,
+) {
+  const sc = typeof stateCode === 'number' ? stateCode : null;
+  const dc = typeof distCode === 'number' ? distCode : null;
+  // One court code, or a whole court complex as "1,2,3" (as the app sends).
+  const raw = courtCode === null || courtCode === undefined ? '' : String(courtCode);
+  const cc = /^\d+(,\d+)*$/.test(raw) && raw !== '0' ? raw : null;
+  const ready = Boolean(sc && dc && cc);
+  return useQuery({
+    queryKey: ['ecourts', kind, sc, dc, cc, court],
+    queryFn: () => api.get<{ items: EcourtsRefOption[] }>(`/ecourts/reference/${kind}/${sc}/${dc}/${cc}`, { court }),
+    select: (r) => r.items,
+    enabled: ready,
+    staleTime: 24 * 60 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useEcourtsCaseTypes(
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  courtCode: number | string | null | undefined,
+  court: Court = 'DC',
+) {
+  return useCourtScopedList('case-types', stateCode, distCode, courtCode, court);
+}
+
+export function useEcourtsActs(
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  courtCode: number | string | null | undefined,
+  court: Court = 'DC',
+) {
+  return useCourtScopedList('acts', stateCode, distCode, courtCode, court);
+}
+
+export function useEcourtsPoliceStations(
+  stateCode: number | '' | null | undefined,
+  distCode: number | '' | null | undefined,
+  courtCode: number | string | null | undefined,
+  court: Court = 'DC',
+) {
+  return useCourtScopedList('police-stations', stateCode, distCode, courtCode, court);
+}
+
+// ---------------------------------------------------------------------------
+// Website-only searches (CAPTCHA solved by the advocate): search by case type,
+// advocate Bar registration, and Court Orders by party / case no. / date.
+// Results come back as plain-text rows (never eCourts HTML) plus the CNR of
+// each row, which opens in the normal CNR view.
+// ---------------------------------------------------------------------------
+
+export type EcourtsWebSearchFields =
+  | { kind: 'case-type'; caseTypeCode: string; caseTypeName?: string; year: number; status: 'Pending' | 'Disposed' }
+  | { kind: 'advocate-bar'; barState: string; barCode: string; barYear: string; status: 'Pending' | 'Disposed' | 'Both' }
+  | { kind: 'orders-party'; partyName: string; year: number; orderType: 'both' | 'finalorder' | 'interim' }
+  | { kind: 'orders-case'; caseTypeCode: string; caseTypeName?: string; regNo: string; year: number; orderType: 'both' | 'finalorder' | 'interim' }
+  | { kind: 'orders-date'; fromDate: string; toDate: string; orderType: 'both' | 'finalorder' | 'interim' }
+  | { kind: 'advocate-name'; advocateName: string; status: 'Pending' | 'Disposed' | 'Both' }
+  | { kind: 'advocate-causelist'; barState: string; barCode: string; barYear: string; date: string }
+  | { kind: 'party-status'; partyName: string; year: number; status: 'Pending' | 'Disposed' | 'Both' }
+  | { kind: 'act'; actCode: string; actName?: string; section?: string; status: 'Pending' | 'Disposed' }
+  | { kind: 'orders-court'; orderType: 'both' | 'finalorder' | 'interim' }
+  | { kind: 'cause-list'; date: string; listType: 'civ' | 'cri' };
+
+/** Court / judge options a search needs picked, readable only inside the
+ *  eCourts session (court-number orders, cause list). */
+export interface EcourtsWebSearchChoice {
+  label: string;
+  options: Array<{ value: string; label: string }>;
+}
+
+export interface EcourtsWebSearchScope {
+  stateCode: number;
+  distCode: number;
+  complexCode: string;
+  courtCode: number;
+}
+
+export interface EcourtsWebSearchResult {
+  headers: string[];
+  rows: Array<{ cells: string[]; cino: string | null }>;
+  text: string;
+}
+
+export type EcourtsWebSearchSubmit =
+  | { status: 'ok'; result: EcourtsWebSearchResult }
+  | { status: 'retry'; reason: string; captchaImageBase64: string };
+
+export function useStartEcourtsWebSearch() {
+  return useMutation({
+    mutationFn: (body: { scope: EcourtsWebSearchScope; fields: EcourtsWebSearchFields }) =>
+      api.post<{ sessionId: string; captchaImageBase64: string; choice?: EcourtsWebSearchChoice }>('/ecourts/live/web-search', body),
+  });
+}
+
+export function useSubmitEcourtsWebSearch() {
+  return useMutation({
+    mutationFn: ({ sessionId, captchaCode, choice }: { sessionId: string; captchaCode: string; choice?: string }) =>
+      api.post<EcourtsWebSearchSubmit>(`/ecourts/live/web-search/${sessionId}/captcha`, { captchaCode, ...(choice ? { choice } : {}) }),
+  });
+}
+
+// ---- Process details (summons / warrants) - CAPTCHA, then an OTP sent to
+// the process recipient. The final step downloads the document PDF.
+
+export function useStartProcessDetails() {
+  return useMutation({
+    mutationFn: (body: { processId: string; email: string }) =>
+      api.post<{ sessionId: string; captchaImageBase64: string }>('/ecourts/live/process', body),
+  });
+}
+
+export type ProcessCaptchaResult =
+  | { status: 'ok'; result: EcourtsWebSearchResult; recipient: { email: string | null; mobile: string | null } }
+  | { status: 'retry'; reason: string; captchaImageBase64: string };
+
+export function useSubmitProcessCaptcha() {
+  return useMutation({
+    mutationFn: ({ sessionId, captchaCode }: { sessionId: string; captchaCode: string }) =>
+      api.post<ProcessCaptchaResult>(`/ecourts/live/process/${sessionId}/captcha`, { captchaCode }),
+  });
+}
+
+export function useSendProcessOtp() {
+  return useMutation({
+    mutationFn: ({ sessionId, ...body }: { sessionId: string; name: string; mobile: string; email: string }) =>
+      api.post<{ message: string }>(`/ecourts/live/process/${sessionId}/send-otp`, body),
+  });
+}
+
+export function useVerifyProcessOtp() {
+  return useMutation({
+    mutationFn: async ({ sessionId, otp }: { sessionId: string; otp: string }) => {
+      const res = await apiClient.post<Blob>(`/api/ecourts/live/process/${sessionId}/verify-otp`, { otp }, { responseType: 'blob' });
+      const cd = res.headers['content-disposition'] ?? '';
+      const fname = /filename="?([^";]+)"?/i.exec(cd)?.[1] ?? 'process.pdf';
+      triggerBlobDownload(res.data, fname);
+      return fname;
+    },
+  });
+}
+
+export function useRefreshEcourtsWebSearchCaptcha() {
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ captchaImageBase64: string }>(`/ecourts/live/web-search/${sessionId}/captcha/refresh`, {}),
+  });
+}
+
+export type EcourtsLinkStatus = 'unlinked' | 'pending' | 'linked' | 'not_found' | 'error';
+
+export interface EcourtsSyncStatus {
+  lastRun: {
+    slot: 'morning' | 'evening';
+    runDate: string;
+    attempt: number;
+    status: 'running' | 'completed' | 'partial' | 'upstream_down' | 'failed';
+    startedAt: string;
+    finishedAt: string | null;
+  } | null;
+  retryPending: boolean;
+  counts: { linked: number; pending: number; notFound: number; error: number; unlinked: number } | null;
+  schedule: { timezone: string; times: string[]; retryEveryMinutes: number };
+}
+
+/** Health of the firm's eCourts connection - latest 09:00/19:00 run and how
+ *  many matters are linked / waiting / not found. */
+export function useEcourtsSyncStatus() {
+  return useQuery({
+    queryKey: ['ecourts', 'sync-status'],
+    queryFn: () => api.get<EcourtsSyncStatus>('/ecourts/sync/status'),
+    staleTime: 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+}
+
 export interface EcourtsJudgeBench {
   code: string;
+  /** Court (bench) number - what the app's Cause List sends as court_no. */
+  courtNo?: string;
   judgeName: string;
   designation: string;
+}
+
+export interface EcourtsCourtCauseList {
+  judgeName: string;
+  designation: string;
+  heading: string;
+  rows: Array<Record<string, unknown>>;
+  causeListUrl: string | null;
+}
+
+/** The app's Cause List: one court (bench), a date, Civil or Criminal. */
+export function useEcourtsCourtCauseList() {
+  return useMutation({
+    mutationFn: (body: { stateCode: number; distCode: number; courtCode: number; courtNo: string; kind: 'civil' | 'criminal'; date: string; court?: Court }) =>
+      api.post<EcourtsCourtCauseList>('/ecourts/cause-list/court', body),
+  });
 }
 
 // courtNameWebService.php - a 4th cascade level below useEcourtsCourts: WHICH
@@ -388,13 +694,17 @@ export function useEcourtsJudgeBenches(
   distCode: number | null | undefined,
   courtCode: string | null | undefined,
   court: Court = 'DC',
+  /** YYYY-MM-DD - High Courts list the benches sitting on a date. */
+  date?: string,
 ) {
-  const courtCodeNum = courtCode ? Number(courtCode) : NaN;
+  // One court, or a whole complex as "1,2,3" (the app's Court Name list).
+  const codes = courtCode && /^\d+(,\d+)*$/.test(courtCode) ? courtCode : null;
+  const day = court === 'HC' ? date : undefined;
   return useQuery({
-    queryKey: ['ecourts', 'judge-benches', stateCode, distCode, courtCode, court],
-    queryFn: () => api.get<{ items: EcourtsJudgeBench[] }>(`/ecourts/reference/judge-benches/${stateCode}/${distCode}/${courtCodeNum}`, { court }),
+    queryKey: ['ecourts', 'judge-benches', stateCode, distCode, codes, court, day],
+    queryFn: () => api.get<{ items: EcourtsJudgeBench[] }>(`/ecourts/reference/judge-benches/${stateCode}/${distCode}/${codes}`, day ? { court, date: day } : { court }),
     select: (r) => r.items,
-    enabled: typeof stateCode === 'number' && stateCode > 0 && typeof distCode === 'number' && distCode > 0 && Number.isFinite(courtCodeNum),
+    enabled: typeof stateCode === 'number' && stateCode > 0 && typeof distCode === 'number' && distCode > 0 && Boolean(codes),
     staleTime: 24 * 60 * 60 * 1000,
     // A transient/unavailable live call shouldn't retry aggressively and
     // block the rest of the search form - this is a nice-to-have enrichment,
@@ -485,12 +795,92 @@ export interface EcourtsCourtScope {
   // `{"no_of_establishments":0}` - which reads exactly like a real "no
   // matches" result but isn't one (verified live).
   estCode: string;
+  /** The whole Court Complex as the eCourts app searches it: "1,2,3". */
+  courtCodes?: string;
 }
 
 export function useEcourtsSearchCaseNumber() {
   return useMutation({
     mutationFn: (body: EcourtsCourtScope & { caseType: string | number; regNo: string | number; year: number; court?: Court }) =>
       api.post<unknown>('/ecourts/search/case-number', body),
+  });
+}
+
+// ---- eCourts app services, no captcha (verified live 2026-10-22) ----------
+
+export function useEcourtsSearchCaseType() {
+  return useMutation({
+    mutationFn: (body: { stateCode: number; distCode: number; courtCode: number; courtCodes?: string; caseType: string | number; year: number; status: 'Pending' | 'Disposed'; court?: Court }) =>
+      api.post<unknown>('/ecourts/search/case-type', body),
+  });
+}
+
+/** Advocate's Cause List by advocate name (date as dd-mm-yyyy). */
+export function useEcourtsAdvocateCauseList() {
+  return useMutation({
+    mutationFn: (body: { stateCode: number; distCode: number; courtCode: number; courtCodes?: string; advocateName: string; date: string; court?: Court }) =>
+      api.post<unknown>('/ecourts/cause-list/advocate', body),
+  });
+}
+
+export interface EcourtsPreTrialResult {
+  establishments: Array<{
+    name: string;
+    courtCode: string;
+    total: number;
+    rows: Array<Record<string, unknown>>;
+    orders: Array<Record<string, unknown>>;
+  }>;
+}
+
+/** Pre Trial Application (Remand / Bail) by police station - no captcha. */
+export function useEcourtsPreTrialSearch() {
+  return useMutation({
+    mutationFn: (body: {
+      stateCode: number; distCode: number; courtCode: number; courtCodes?: string;
+      applicationType: 'R' | 'B' | 'A'; policeStCode: number; firType: '0' | '1' | '2' | '3';
+      firNumber?: string; year?: number; court?: Court;
+    }) => api.post<EcourtsPreTrialResult>('/ecourts/pretrial/search', body),
+  });
+}
+
+export function useDownloadPreTrialOrder() {
+  return useMutation({
+    mutationFn: async (input: { stateCode: number; distCode: number; courtCode: number; orderYr: string; orderId: string; crno: string }) => {
+      const res = await apiClient.post<Blob>('/api/ecourts/pretrial/order-pdf', input, { responseType: 'blob' });
+      const cd = res.headers['content-disposition'] ?? '';
+      const fname = /filename="?([^";]+)"?/i.exec(cd)?.[1] ?? `pretrial-order-${input.orderId}.pdf`;
+      triggerBlobDownload(res.data, fname);
+      return fname;
+    },
+  });
+}
+
+export interface EcourtsBusiness {
+  rows: Array<{ title: string; value: string }>;
+  details: Record<string, unknown> | null;
+}
+
+/** View Business / Daily Status for one hearing row - no captcha. */
+export function useEcourtsBusiness(row: EcourtsHearing | null | undefined, court: Court = 'DC') {
+  const date = row ? String(row.todays_date1 || row.todays_date || '') : '';
+  return useQuery({
+    queryKey: ['ecourts', 'business', row?.cino, date, court],
+    queryFn: () => api.post<EcourtsBusiness>('/ecourts/business', {
+      cino: row!.cino,
+      stateCode: Number(row!.state_code),
+      distCode: Number(row!.dist_code),
+      courtCode: Number(row!.court_code),
+      caseNumber: String(row!.case_number ?? ''),
+      courtNo: String(row!.court_no ?? ''),
+      businessDate: date,
+      nextDate: String((row as unknown as { n_dt?: string }).n_dt ?? ''),
+      disposalFlag: String(row!.businessStatus ?? ''),
+      court,
+    }),
+    enabled: Boolean(row?.cino && /^\d{2}-\d{2}-\d{4}$/.test(date) && row?.case_number),
+    staleTime: 60 * 60 * 1000,
+    retry: 1,
   });
 }
 

@@ -1,0 +1,441 @@
+{
+  "is_legal_format": true,
+  "equivalent_existing_doc_type": "",
+  "slug": "madras_hc_original_side_suit_summons",
+  "title": "Summons to Defendant in Civil Suit (Madras High Court, Original Side) with Concise Statement of Claim",
+  "court_issued": true,
+  "fields": [
+    {
+      "key": "case_ref",
+      "kind": "string",
+      "required": true,
+      "label": "Civil Suit number",
+      "help": "e.g. C.S. No. 245 of 2024",
+      "sample": "C.S. No. 245 of 2024"
+    },
+    {
+      "key": "plaintiff_name",
+      "kind": "string",
+      "required": true,
+      "label": "Plaintiff name",
+      "help": "Name with description as in the plaint",
+      "sample": "M/s. Sri Lakshmi Traders, rep. by its Partner R. Ganesan"
+    },
+    {
+      "key": "defendant_name",
+      "kind": "string",
+      "required": true,
+      "label": "Defendant name",
+      "help": "",
+      "sample": "K. Senthil Kumar"
+    },
+    {
+      "key": "recipient_address",
+      "kind": "string",
+      "required": true,
+      "label": "Defendant's address for service",
+      "help": "Full postal address of the defendant to whom the summons is addressed",
+      "sample": "No. 12, Second Street, T. Nagar, Chennai 600 017"
+    },
+    {
+      "key": "presentation_date",
+      "kind": "date",
+      "required": true,
+      "label": "Date the plaint was presented",
+      "help": "Date on which the suit was instituted",
+      "sample": "2024-03-11"
+    },
+    {
+      "key": "leave_order_date",
+      "kind": "date",
+      "required": false,
+      "label": "Date of order granting leave to institute the suit",
+      "help": "Leave to sue order (e.g. under Clause 12 of the Letters Patent), if any",
+      "sample": "2024-03-08"
+    },
+    {
+      "key": "chief_justice_name",
+      "kind": "string",
+      "required": false,
+      "label": "Name of the Chief Justice",
+      "help": "Name in the Witness clause",
+      "sample": ""
+    },
+    {
+      "key": "seal_date",
+      "kind": "date",
+      "required": false,
+      "label": "Date of issue of summons",
+      "help": "Date in the Witness clause",
+      "sample": "2024-03-15"
+    },
+    {
+      "key": "advocate",
+      "kind": "string",
+      "required": true,
+      "label": "Counsel for the plaintiff",
+      "help": "Advocate who took out the summons",
+      "sample": "Mr. S. Ramesh"
+    },
+    {
+      "key": "advocate_chamber",
+      "kind": "string",
+      "required": false,
+      "label": "Counsel's address for service",
+      "help": "",
+      "sample": "No. 45, Law Chambers, High Court Buildings, Chennai 600 104"
+    },
+    {
+      "key": "claim_statement",
+      "kind": "string",
+      "required": true,
+      "label": "Concise statement of the claim made",
+      "help": "Short particulars of the relief claimed in the plaint",
+      "sample": "Suit for recovery of Rs. 12,50,000/- being the balance price of goods sold and delivered under invoices dated 05.01.2023 to 30.06.2023."
+    },
+    {
+      "key": "interest_rate",
+      "kind": "string",
+      "required": false,
+      "label": "Further interest rate (percent per annum)",
+      "help": "",
+      "sample": "12"
+    },
+    {
+      "key": "costs_amount",
+      "kind": "string",
+      "required": false,
+      "label": "Costs (Rs.)",
+      "help": "Amount of costs claimed",
+      "sample": "15,000"
+    },
+    {
+      "key": "served_by",
+      "kind": "string",
+      "required": false,
+      "label": "Summons served by",
+      "help": "Name of the serving officer; usually completed by hand",
+      "sample": ""
+    },
+    {
+      "key": "munsiff_court_place",
+      "kind": "string",
+      "required": false,
+      "label": "Court of the Munsiff of (place)",
+      "help": "Only if served through a Munsiff's Court; usually completed by hand",
+      "sample": ""
+    },
+    {
+      "key": "service_date",
+      "kind": "date",
+      "required": false,
+      "label": "Date of service",
+      "help": "Usually completed by hand",
+      "sample": ""
+    },
+    {
+      "key": "registrar_office",
+      "kind": "string",
+      "required": false,
+      "label": "Office of attendance",
+      "help": "Section/office of the Registrar where attendance is to be made",
+      "sample": "Original Side"
+    }
+  ],
+  "blocks": [
+    {
+      "style": "title",
+      "text": "IN THE HIGH COURT OF JUDICATURE AT MADRAS",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "center",
+      "text": "Ordinary Original Civil Jurisdiction",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "center",
+      "text": "{{ case_ref }}",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "Between",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "right",
+      "text": "{{ plaintiff_name }} ... Plaintiff",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "center",
+      "text": "and",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "right",
+      "text": "{{ defendant_name }} ... Defendant",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "To",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "{{ defendant_name }}",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "{{ recipient_address }}",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "center",
+      "text": "Defendant",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "Whereas on the {{ presentation_date }} the above named Plaintiff instituted a suit in our said Court against you by presenting a Plaint whereby he claims the relief whereof the short particulars are endorsed herein (or annexed hereto). We command you to appear before the Court at the hour of 10.15 A.M. in the forenoon of the day two weeks after service of the summons upon you, in person or by Attorney or Counsel, to answer the Plaintiff's claim and to bring with you any documents in your possession or power relating to the merits of the Plaintiff's case or upon which you intend to rely in support of your defence, and take notice that in default of your so doing the suit will be heard and determined in your absence.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "And also take notice that if you intend to defend the suit you must cause an appearance to be entered on your behalf and file in the Court a written statement stating the grounds of your defence within two weeks after service of the summons upon you, in which case the suit will be entered in the general list of causes.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "And also take notice that leave to institute this suit in this Court was granted by order dated {{ leave_order_date }} and that you are at liberty to apply to this Court to stay the said proceeding.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "You are also hereby informed that you may resort to one of the modes of alternative dispute resolution as provided under Section 89 of CPC, namely (a) Arbitration, (b) Conciliation, (c) Judicial Settlement including settlement through Lok Adalat, or (d) Mediation.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "Witness: THE HONOURABLE {{ chief_justice_name }}, Chief Justice at Madras, the {{ seal_date }}.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "Counsel for Plaintiff",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "signature",
+      "text": "Assistant Registrar or Bench Clerk",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "note",
+      "text": "N.B.: 1. The Summons shall be served within 14 days from the date hereof.",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "note",
+      "text": "2. The Summons was taken out by {{ advocate }}, Counsel for the said Plaintiff, whose address for service is: {{ advocate_chamber }}",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "heading",
+      "text": "CONCISE STATEMENT OF THE CLAIM MADE",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "{{ claim_statement }}",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "And further interest at {{ interest_rate }} percent per annum until payment and Rs. {{ costs_amount }} costs. If the amount claimed be paid before the time limited for the appearance of the defendant, further proceedings will be stayed.",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "left",
+      "text": "I hereby acknowledge service of this summons.",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "signature",
+      "text": "Defendant",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "The summons was served by {{ served_by }}, an officer of the Sheriff (or the Court of the Munsiff of {{ munsiff_court_place }}) on {{ service_date }}.",
+      "bold": true,
+      "condition": ""
+    },
+    {
+      "style": "blank",
+      "text": "",
+      "bold": false,
+      "condition": ""
+    },
+    {
+      "style": "para",
+      "text": "Hours of attendance at {{ registrar_office }} office of the Registrar in the High Court Buildings, Madras, from 10.15 a.m. till 4 p.m., Sundays and holidays excepted.",
+      "bold": true,
+      "condition": ""
+    }
+  ],
+  "law_updates": [],
+  "corrections": [
+    {
+      "original": "whereby claim the relief whereof the short Particulars and endorsed herein ( or annexed hereby)",
+      "corrected": "whereby he claims the relief whereof the short particulars are endorsed herein (or annexed hereto)"
+    },
+    {
+      "original": "at the hours 10-15 A.M.",
+      "corrected": "at the hour of 10.15 A.M."
+    },
+    {
+      "original": "in youe absence",
+      "corrected": "in your absence"
+    },
+    {
+      "original": "granted by ordered dated",
+      "corrected": "granted by order dated"
+    },
+    {
+      "original": "informed that may resort to one of the modes of alternative resolution",
+      "corrected": "informed that you may resort to one of the modes of alternative dispute resolution"
+    },
+    {
+      "original": "(C) Judicial Settlement including settlement through lok Adalath",
+      "corrected": "(c) Judicial Settlement including settlement through Lok Adalat"
+    },
+    {
+      "original": "THE HONOURBLE",
+      "corrected": "THE HONOURABLE"
+    },
+    {
+      "original": "One Thousand Nine Hundred",
+      "corrected": "{{ seal_date }} (date of issue)"
+    },
+    {
+      "original": "Bench Ckerk",
+      "corrected": "Bench Clerk"
+    },
+    {
+      "original": "within 14 days for the date hereof",
+      "corrected": "within 14 days from the date hereof"
+    },
+    {
+      "original": "untill payment",
+      "corrected": "until payment"
+    },
+    {
+      "original": "further proceeding will be stayed",
+      "corrected": "further proceedings will be stayed"
+    },
+    {
+      "original": "and officer of the sheriff",
+      "corrected": "an officer of the Sheriff"
+    },
+    {
+      "original": "The Sundays and holidays expected",
+      "corrected": "Sundays and holidays excepted"
+    }
+  ],
+  "uncertain": [
+    "The existing 'summons' doc type may be a generic court summons; this Madras High Court Original Side summons (with leave-to-sue clause, concise statement of claim, acknowledgment and Sheriff's service endorsement) was treated as a distinct type — advocate to confirm.",
+    "The leave-to-institute paragraph is printed unconditionally as in the source; it is only apt where leave to sue (e.g. under Clause 12 of the Letters Patent) was obtained and may need to be struck out otherwise.",
+    "The Witness clause's printed 'One Thousand Nine Hundred' is an outdated date stub; replaced by a single date-of-issue field.",
+    "The blank before 'office of the Registrar' is interpreted as the name of the section/office of attendance (e.g. Original Side)."
+  ],
+  "summary": "This is the writ of summons issued by the High Court of Judicature at Madras on its Ordinary Original Civil Jurisdiction, commanding the defendant to appear, file a written statement and produce documents, with the concise statement of the claim, acknowledgment of service and service endorsement on the reverse. It is taken out by the plaintiff's counsel and issued under the Court's seal after a civil suit is instituted on the Original Side."
+}

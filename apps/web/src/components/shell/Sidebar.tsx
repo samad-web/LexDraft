@@ -1,12 +1,13 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
-import { NAV_GROUPS } from './nav-config';
+import { pathMatches, visibleNavGroups } from './nav-config';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useNavHighlighter } from '@/hooks/useNavHighlighter';
 import { useMyUsage } from '@/hooks/useMyUsage';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
+import { useTeamChatStream, useTeamChatUnreadTotal } from '@/hooks/useTeamChat';
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
@@ -16,9 +17,16 @@ export function Sidebar() {
   const hl = useNavHighlighter(navRef);
   const usage = useMyUsage();
   const meFeatures = useMeFeatures();
-  const granted = meFeatures.data?.features ?? [];
+  const navGroups = useMemo(
+    () => visibleNavGroups(meFeatures.data?.features ?? []),
+    [meFeatures.data],
+  );
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  // The Sidebar is mounted once for the whole app shell, so it owns the
+  // team-chat live stream as well as rendering its unread badge.
+  useTeamChatStream();
+  const chatUnread = useTeamChatUnreadTotal();
 
   // Close the drawer on route change (mobile UX).
   useEffect(() => {
@@ -111,21 +119,18 @@ export function Sidebar() {
               opacity: hl.visible ? 1 : 0,
             }}
           />
-          {NAV_GROUPS.map((g) => {
-            const visibleItems = g.items.filter(
-              (item) => !item.requiresFeature || granted.includes(item.requiresFeature),
-            );
-            if (visibleItems.length === 0) return null;
+          {navGroups.map((g) => {
             return (
               <div key={g.title} className="nav-section">
                 <div className="nav-group-title">{g.title}</div>
-                {visibleItems.map((item) => {
-                  // Exact match OR /-bounded prefix. Plain `startsWith`
-                  // would highlight "Review" for /app/review-queue (because
-                  // /app/review-queue startsWith /app/review). Same family
-                  // catches /app/cases vs /app/cases/:id correctly.
+                {g.items.map((item) => {
+                  // Exact match OR /-bounded prefix (so /app/review doesn't
+                  // claim /app/review-queue); tabbed items stay active on
+                  // every one of their tabs.
                   const path = location.pathname;
-                  const active = path === item.to || path.startsWith(item.to + '/');
+                  const active = item.tabs
+                    ? item.tabs.some((t) => pathMatches(path, t.to))
+                    : pathMatches(path, item.to);
                   return (
                     <NavLink
                       key={item.id}
@@ -137,6 +142,15 @@ export function Sidebar() {
                       <span className="nav-label" style={{ flex: 1 }}>
                         {item.label}
                       </span>
+                      {item.id === 'team-chat' && chatUnread > 0 && (
+                        <span
+                          className="badge badge-vermillion nav-label"
+                          aria-label={`${chatUnread} unread messages`}
+                          style={{ fontSize: 10, padding: '0 6px' }}
+                        >
+                          {chatUnread > 99 ? '99+' : chatUnread}
+                        </span>
+                      )}
                       {item.badge && (
                         <span
                           className="mono nav-label"

@@ -28,6 +28,7 @@ import {
 import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { BrowserGate } from '@/components/mock-arguments/BrowserGate';
+import { PageHeader } from '@/components/PageHeader';
 import { exportMockArgumentSessionPdf } from '@/lib/mock-argument-pdf';
 import {
   LANGUAGES,
@@ -159,39 +160,24 @@ function Landing(props: {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+      <PageHeader
+        title="Mock Arguments"
+        description="Practise oral argument against an AI opposing counsel briefed on your matter."
+        actions={
+          <button className="btn btn-primary btn-lg" onClick={props.onStart}>
+            <Icon name="plus" /> New session
+          </button>
+        }
+      />
+
       {!gateDismissed && (
         <BrowserGate caps={caps} onTextOnly={() => setGateDismissed(true)} />
       )}
 
-      {/* Hero card */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-4)' }}>
-          <div style={{ minWidth: 0 }}>
-            <div className="eyebrow">Practice · oral advocacy</div>
-            <h1 className="heading-xl" style={{ margin: 'var(--space-2) 0 var(--space-2)' }}>
-              Mock Arguments
-            </h1>
-            <p className="lede" style={{ margin: 0, maxWidth: 640 }}>
-              Argue against an AI opposing counsel grounded in your case facts and the Indian
-              law corpus. Pick a saved matter or upload a brief, choose your side, and the
-              court is in session.
-            </p>
-          </div>
-          <button className="btn btn-primary btn-lg" onClick={props.onStart}>
-            <Icon name="plus" /> New session
-          </button>
-        </div>
-
-        {/* Compact stats strip — only shown once the user has finished one. */}
-        {(items.length > 0 || avgScore != null) && (
-          <div
-            className="row"
-            style={{
-              gap: 'var(--space-7)',
-              padding: 'var(--space-4) 0 0',
-              borderTop: '1px solid var(--border-subtle)',
-            }}
-          >
+      {/* Compact stats strip — only shown once the user has finished one. */}
+      {(items.length > 0 || avgScore != null) && (
+        <div className="card">
+          <div className="row" style={{ gap: 'var(--space-7)' }}>
             <StatBlock label="Sessions" value={String(items.length)} />
             <StatBlock label="Concluded" value={String(concluded.length)} />
             <StatBlock
@@ -199,8 +185,8 @@ function Landing(props: {
               value={avgScore == null ? 'N/A' : `${avgScore}/100`}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Past sessions */}
       <div>

@@ -52,7 +52,22 @@ interface CaseDetailRow extends CaseRow {
   police_st_code: number | null;
   fir_details: string | null;
   ecourts_synced_at: string | Date | null;
+  ecourts_link_status: string | null;
+  ecourts_court_tier: string | null;
+  ecourts_last_attempt_at: string | Date | null;
+  ecourts_last_error: string | null;
 }
+
+/** eCourts connection state (migration 0085), detail responses only. Kept as
+ *  a local extension of the shared Case type rather than a change to it. */
+export interface EcourtsLinkFields {
+  ecourtsLinkStatus: 'unlinked' | 'pending' | 'linked' | 'not_found' | 'error';
+  ecourtsCourtTier: 'DC' | 'HC' | null;
+  ecourtsLastAttemptAt: string | null;
+  ecourtsLastError: string | null;
+}
+
+export type CaseDetail = Case & EcourtsLinkFields;
 
 function fromRow(r: CaseRow): Case {
   const next =
@@ -79,7 +94,7 @@ function tsToIso(v: string | Date | null): string | null {
   return v;
 }
 
-function fromDetailRow(r: CaseDetailRow): Case {
+function fromDetailRow(r: CaseDetailRow): CaseDetail {
   return {
     ...fromRow(r),
     estCode:        r.est_code,
@@ -94,6 +109,10 @@ function fromDetailRow(r: CaseDetailRow): Case {
     policeStCode:   r.police_st_code,
     firDetails:     r.fir_details,
     ecourtsSyncedAt: tsToIso(r.ecourts_synced_at),
+    ecourtsLinkStatus: (r.ecourts_link_status ?? 'unlinked') as EcourtsLinkFields['ecourtsLinkStatus'],
+    ecourtsCourtTier: (r.ecourts_court_tier as EcourtsLinkFields['ecourtsCourtTier']) ?? null,
+    ecourtsLastAttemptAt: tsToIso(r.ecourts_last_attempt_at),
+    ecourtsLastError: r.ecourts_last_error,
   };
 }
 
@@ -104,7 +123,13 @@ interface ListFilter {
   firmId: string | null;
   type?: string;
   q?: string;
+  /** 'attention': live matters not yet working with eCourts (no CNR,
+   *  waiting, CNR not found, or erroring) - the "Connect matters" view. */
+  ecourts?: 'attention';
 }
+
+/** List rows carry the eCourts link status so the grid can badge it. */
+export type CaseListItem = Case & { ecourtsLinkStatus: EcourtsLinkFields['ecourtsLinkStatus'] };
 
 /**
  * All read paths require `firmId`. When the caller has no firm attachment we
@@ -112,12 +137,14 @@ interface ListFilter {
  * leakage is impossible (cf. spec §10 tenant isolation).
  */
 export const casesService = {
-  async list(filter: ListFilter): Promise<Case[]> {
+  async list(filter: ListFilter): Promise<Array<Case | CaseListItem>> {
     if (!filter.firmId) return [];
     const sql = db();
     if (sql) {
-      const rows = await sql<CaseRow[]>`
-        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client
+      const attention = filter.ecourts === 'attention';
+      const rows = await sql<Array<CaseRow & { ecourts_link_status: string | null }>>`
+        select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client,
+               ecourts_link_status
         from cases
         where firm_id = ${filter.firmId}::uuid
           and deleted_at is null
@@ -129,9 +156,15 @@ export const casesService = {
           and (${filter.q ?? null}::text is null
                or title ilike '%' || ${filter.q ?? null}::text || '%'
                or cnr   ilike '%' || ${filter.q ?? null}::text || '%')
+          and (not ${attention}
+               or (status in ('Active', 'Pending')
+                   and ecourts_link_status in ('unlinked', 'pending', 'not_found', 'error')))
         order by next_hearing nulls last, title
       `;
-      return rows.map(fromRow);
+      return rows.map((r) => ({
+        ...fromRow(r),
+        ecourtsLinkStatus: (r.ecourts_link_status ?? 'unlinked') as EcourtsLinkFields['ecourtsLinkStatus'],
+      }));
     }
     let out = memory;
     if (filter.type && filter.type !== 'all') out = out.filter((c) => c.type.toLowerCase() === filter.type!.toLowerCase());
@@ -142,7 +175,7 @@ export const casesService = {
     return out;
   },
 
-  async get(id: string, firmId: string | null): Promise<Case | undefined> {
+  async get(id: string, firmId: string | null): Promise<Case | CaseDetail | undefined> {
     if (!firmId) return undefined;
     const sql = db();
     if (sql) {
@@ -151,7 +184,8 @@ export const casesService = {
       const rows = await sql<CaseDetailRow[]>`
         select id, cnr, title, court, stage, client, status, next_hearing, type, visible_to_client,
                est_code, court_code, district_code, state_code, filing_no, efil_no, judge,
-               fir_no, fir_year, police_st_code, fir_details, ecourts_synced_at
+               fir_no, fir_year, police_st_code, fir_details, ecourts_synced_at,
+               ecourts_link_status, ecourts_court_tier, ecourts_last_attempt_at, ecourts_last_error
         from cases where id::text = ${id} and firm_id = ${firmId}::uuid and deleted_at is null
         limit 1
       `;

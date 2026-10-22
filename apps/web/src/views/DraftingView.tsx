@@ -6,6 +6,7 @@ import type { DraftRequest, AutoDraftResponse } from '@lexdraft/types';
 import { useStreamDraft, useAutoDraft, type LlmProvider } from '@/hooks/useDrafting';
 import { Field } from '@/components/DraftField';
 import { DraftPromptPanel } from '@/components/DraftPromptPanel';
+import { PageHeader } from '@/components/PageHeader';
 import { DraftPipelinePanel } from '@/components/DraftPipelinePanel';
 import { DraftChatPanel } from '@/components/DraftChatPanel';
 import { DraftCasePicker } from '@/components/DraftCasePicker';
@@ -1157,58 +1158,54 @@ export function DraftingView() {
 
   return (
     <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 className="heading-xl" style={{ marginBottom: 4 }}>
-            Draft
-          </h1>
-          <div
-            key={activeDocType}
-            className="mono draft-doctype-label"
-            style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
+      <PageHeader
+        title="Draft"
+        description={
+          // Once a draft exists the workspace header names the document, so the
+          // page header stays short instead of repeating it.
+          hasOutput
+            ? undefined
+            : 'Describe what you need. The drafting engine writes the whole document, ready to edit and export.'
+        }
+        actions={<>
+          {/* Format picking is no longer required — the engine auto-detects the
+              document type from the prompt/case content. "Formats" is kept only
+              as an optional override for the rare case the advocate wants to force
+              a specific format, tucked behind Templates. */}
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setMyDraftsOpen(true)}
           >
-            {/* Until a draft actually exists the agent hasn't decided the
-                document yet — show a neutral prompt, not a stale default type
-                (which used to read "NOTICE U/S 138 NI ACT" on an empty screen). */}
-            {hasOutput
-              ? `${activeDocType.toUpperCase()} · ${schema.category.toUpperCase()}`
-              : 'AI-ASSISTED LEGAL DRAFTING'}
-          </div>
-        </div>
-        <span className="spacer" />
-        {/* Format picking is no longer required — the engine auto-detects the
-            document type from the prompt/case content. "Formats" is kept only
-            as an optional override for the rare case the advocate wants to force
-            a specific format, tucked behind Templates. */}
-        <button
-          className="btn"
-          type="button"
-          onClick={() => setTemplatesOpen(true)}
-        >
-          Templates
-        </button>
-        <button
-          className="btn"
-          type="button"
-          onClick={() => setMyDraftsOpen(true)}
-        >
-          My drafts
-        </button>
+            <Icon name="documents" size={14} /> My drafts
+          </button>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setTemplatesOpen(true)}
+          >
+            <Icon name="file" size={14} /> Templates
+          </button>
+          {/* Nothing to clear on the empty composer - only offer it once there's a draft. */}
+          {(hasOutput || stageMode) && (
+            <button
+              className="btn"
+              type="button"
+              onClick={reset}
+              disabled={streaming}
+              title="Clear the brief fields and the generated draft"
+            >
+              <Icon name="close" size={14} /> New draft
+            </button>
+          )}
+        </>}
+      >
         {incomingDraftId && incomingDraft.isLoading && (
-          <p className="body-sm muted" style={{ flexBasis: '100%', margin: 0 }}>
+          <p className="body-sm muted" style={{ margin: 0 }}>
             Loading draft<span className="blink" />
           </p>
         )}
-        <button
-          className="btn"
-          type="button"
-          onClick={reset}
-          disabled={streaming}
-          title="Clear the brief fields and the generated draft"
-        >
-          <Icon name="close" size={14} /> Clear
-        </button>
-      </div>
+      </PageHeader>
 
       {/* ONE composed card: pick the matter, then draft — no separate "Start
           drafting" click-through. Case selection drives both `draftCase` (the
@@ -1217,23 +1214,8 @@ export function DraftingView() {
           Hidden once a draft is already staged/out so the preview isn't
           buried. */}
       {!stageMode && !hasOutput && (
-        <div
-          className="col"
-          style={{
-            gap: 0,
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-lg)',
-            overflow: 'hidden',
-            background: 'var(--bg-surface)',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          }}
-        >
-          <DraftCasePicker
-            selected={draftCase}
-            onSelect={selectDraftCase}
-            onOpenCase={(id) => navigate(`/app/cases/${id}`)}
-            bare
-          />
+        <div className="dc-layout">
+          <div className="dc-main">
           {engineActive ? (
             <DraftBotModal
               inline
@@ -1262,6 +1244,27 @@ export function DraftingView() {
               onUseDraft={acceptModelDraft}
             />
           )}
+          </div>
+          <aside className="dc-rail">
+            <DraftCasePicker
+              selected={draftCase}
+              onSelect={selectDraftCase}
+              onOpenCase={(id) => navigate(`/app/cases/${id}`)}
+              readSummary={draftCase ? {
+                notes: (caseNotesList ?? []).filter((n) => n.body.trim().length > 0).length,
+                documents: caseDocText?.items?.length ?? 0,
+                unreadable: caseDocText?.unreadable?.length ?? 0,
+              } : undefined}
+            />
+            <section className="dc-card">
+              <div className="dc-eyebrow">How it works</div>
+              <ol className="dc-steps">
+                <li><span>1</span><div><strong>Describe</strong> the document and the facts, or attach the papers.</div></li>
+                <li><span>2</span><div><strong>The engine drafts</strong> the complete document in the right format.</div></li>
+                <li><span>3</span><div><strong>Review</strong>: fill any <code>[placeholder]</code>, edit, then export to Word or PDF.</div></li>
+              </ol>
+            </section>
+          </aside>
         </div>
       )}
 
@@ -1718,72 +1721,81 @@ export function DraftingView() {
         </div>
         )}
 
-        {/* Preview column */}
-        <div className="col draft-preview-wrap" style={{ gap: 12 }}>
-          {stageMode && hasOutput && (
-            <div className="row draft-stage-bar" style={{ gap: 8, alignItems: 'center' }}>
-              <button
-                className="btn btn-sm"
-                type="button"
-                onClick={() => setStageMode(false)}
-                title="Return to brief"
-              >
-                ← Brief
-              </button>
-              <span
-                className="mono"
-                style={{
-                  fontSize: 11,
-                  letterSpacing: '0.16em',
-                  color: 'var(--text-tertiary)',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {schema.category} · {LANGUAGES.find((l) => l[0] === outputLang)?.[1] ?? outputLang}
-                {' · '}
-                {PROVIDERS.find((p) => p[0] === outputProvider)?.[1] ?? outputProvider}
-              </span>
-              {streaming && (
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: '0.12em',
-                    color: 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                  }}
-                  aria-live="polite"
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--info)',
-                    }}
-                  />
-                  {stream.stage ? stream.stage.label : 'Generating'}
-                  {stream.stage?.detail ? (
-                    <span style={{ color: 'var(--text-tertiary)', textTransform: 'none', letterSpacing: 0 }}>
-                      · {stream.stage.detail}
+        {/* Document workspace: the document owns the main column; everything you
+            DO with it (export, letterhead, filing checklist, Sanhita, share) sits
+            in a labelled side rail, in the order it's used. */}
+        <div className={`draft-preview-wrap dw${hasOutput && !streaming ? ' dw--rail' : ''}`}>
+          <div className="dw-main">
+          {(stageMode || hasOutput) && (
+            <div className="dw-head">
+              {stageMode && (
+                <button className="btn btn-sm btn-ghost dw-back" type="button" onClick={() => setStageMode(false)} title="Return to brief">
+                  <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} /> Back to brief
+                </button>
+              )}
+              <div className="dw-title-wrap">
+                <div className="dw-title">{activeDocType}</div>
+                <div className="dw-meta">
+                  {schema.category} · {LANGUAGES.find((l) => l[0] === outputLang)?.[1] ?? outputLang}
+                  {streaming ? (
+                    <span className="dw-status is-busy" aria-live="polite">
+                      <span className="dw-dot" />
+                      {stream.stage ? stream.stage.label : 'Generating'}
+                      {stream.stage?.detail ? ` · ${stream.stage.detail}` : ''}
+                    </span>
+                  ) : hasOutput ? (
+                    <span className="dw-status">
+                      {currentDraftId ? (editedHtml !== null ? 'Edited · not saved' : 'Saved to My drafts') : 'Not saved yet'}
                     </span>
                   ) : null}
-                </span>
+                </div>
+              </div>
+              {hasOutput && !streaming && (
+                <div className="dw-head-actions">
+                  <div className="dc-seg" role="tablist" aria-label="View">
+                    <button
+                      type="button" role="tab" aria-selected={!isEditing} className={!isEditing ? 'is-on' : ''}
+                      onClick={() => setIsEditing(false)}
+                    >
+                      <Icon name="eye" size={13} /> Preview
+                    </button>
+                    <button
+                      type="button" role="tab" aria-selected={isEditing} className={isEditing ? 'is-on' : ''}
+                      onClick={() => {
+                        if (editedHtml === null) setEditedHtml(plainTextToHtml(output));
+                        setIsEditing(true);
+                      }}
+                    >
+                      <Icon name="edit" size={13} /> Edit
+                    </button>
+                  </div>
+                  {!isEditing && editedHtml !== null && (
+                    <button
+                      className="btn btn-sm btn-ghost" type="button"
+                      title="Discard manual edits and restore the generated draft"
+                      onClick={() => setEditedHtml(null)}
+                    >
+                      Revert edits
+                    </button>
+                  )}
+                  <button className="btn btn-sm" type="button" onClick={handleSave} disabled={saveMutation.isPending}>
+                    <Icon name="check" size={13} /> {saveMutation.isPending ? 'Saving…' : currentDraftId ? 'Update draft' : 'Save draft'}
+                  </button>
+                </div>
               )}
             </div>
           )}
-          <button
-            className="btn btn-block draft-mobile-edit"
-            onClick={() => setShowMobileForm((s) => !s)}
-            style={{ display: 'none' }}
-          >
-            <Icon name="file" size={14} />{' '}
-            {showMobileForm ? 'Close brief' : `Edit brief · ${completion}%`}
-          </button>
+          {/* Phone toggle for the manual brief form - only exists in manual mode. */}
+          {manualMode && (
+            <button
+              className="btn btn-block draft-mobile-edit"
+              onClick={() => setShowMobileForm((s) => !s)}
+              style={{ display: 'none' }}
+            >
+              <Icon name="file" size={14} />{' '}
+              {showMobileForm ? 'Close brief' : `Edit brief · ${completion}%`}
+            </button>
+          )}
           {output && !streaming && (
             <DraftMissingFields
               schema={schema}
@@ -1793,215 +1805,23 @@ export function DraftingView() {
               busy={streaming}
             />
           )}
-          {/* STICKY TOP TOOLBAR — the document action tools (edit/save/export/share)
-              docked to the top of the preview and pinned while scrolling, so they
-              act like a persistent document toolbar/picker. Icon-only buttons with
-              hover tooltips (title=) keep it compact; the primary export + share keep
-              a short label for discoverability. Shown once a draft exists. */}
-          {hasOutput && !streaming && (
-            <div className="draft-toolbar" role="toolbar" aria-label="Document actions">
-              <button
-                className={`btn btn-icon${isEditing ? ' btn-primary' : ''}`}
-                type="button"
-                title={isEditing ? 'Done editing' : 'Edit the draft'}
-                aria-label={isEditing ? 'Done editing' : 'Edit'}
-                onClick={() => {
-                  if (!isEditing && editedHtml === null) setEditedHtml(plainTextToHtml(output));
-                  setIsEditing((v) => !v);
-                }}
-              >
-                <Icon name={isEditing ? 'check' : 'edit'} size={16} />
-              </button>
-              {!isEditing && editedHtml !== null && (
-                <button
-                  className="btn btn-icon btn-ghost"
-                  type="button"
-                  title="Discard manual edits and restore the generated draft"
-                  aria-label="Revert edits"
-                  onClick={() => setEditedHtml(null)}
-                >
-                  <Icon name="close" size={16} />
-                </button>
-              )}
-              <button
-                className="btn btn-icon"
-                type="button"
-                title={currentDraftId ? 'Update the saved draft' : 'Save the draft'}
-                aria-label={currentDraftId ? 'Update' : 'Save'}
-                onClick={handleSave}
-                disabled={saveMutation.isPending}
-              >
-                <Icon name="check" size={16} />
-              </button>
 
-              <span className="draft-toolbar__sep" aria-hidden />
-
-              {/* Filing-grade Word (engine .docx). Labelled — the key export. */}
-              {engineDocxBase64 && (
-                <button
-                  className="btn btn-primary"
-                  type="button"
-                  title="Download the engine-rendered Microsoft Word document, filing-grade (selectable text, correct margins)"
-                  onClick={downloadEngineDocx}
-                >
-                  <Icon name="download" size={15} />{' '}
-                  <span className="draft-toolbar__label">
-                    {companionDoc ? 'Complaint (Word)' : 'Word'}
-                  </span>
-                </button>
-              )}
-              {companionDoc?.docxBase64 && (
-                <button
-                  className="btn btn-icon btn-primary"
-                  type="button"
-                  title={`Download the engine-rendered ${companionDoc.label}, filing-grade Word document`}
-                  aria-label="Download affidavit Word document"
-                  onClick={() => downloadDocxBase64(companionDoc.docxBase64!, companionDoc.label)}
-                >
-                  <Icon name="download" size={15} />
-                </button>
-              )}
-              {/* Filing PDF (single-doc). Labelled — the other key export. */}
-              {!companionDoc && (
-                <button
-                  className="btn"
-                  type="button"
-                  title={engineDocxBase64
-                    ? 'Download PDF: the same court format as the Word file'
-                    : 'Working copy only, not a filing copy (rasterised, non-selectable text)'}
-                  onClick={() => {
-                    if (engineDocxBase64) {
-                      void downloadPdfOf(previewHtml, activeDocType, engineDocxBase64);
-                    } else {
-                      triggerExport('PDF');
-                    }
-                  }}
-                >
-                  <Icon name="download" size={15} />{' '}
-                  <span className="draft-toolbar__label">
-                    {engineDocxBase64 ? 'PDF' : 'PDF (working)'}
-                  </span>
-                </button>
-              )}
-              {/* Paired complaint + affidavit PDFs (icon buttons). */}
-              {companionDoc && (
-                <>
-                  <button
-                    className="btn btn-icon"
-                    type="button"
-                    title="Download complaint as PDF (rasterised working copy)"
-                    aria-label="Download complaint PDF"
-                    onClick={() => {
-                      const { primary } = splitCompanion(previewHtml);
-                      void downloadPdfOf(primary, activeDocType, engineDocxBase64);
-                    }}
-                  >
-                    <Icon name="download" size={15} />
-                  </button>
-                  <button
-                    className="btn btn-icon"
-                    type="button"
-                    title={`Download ${companionDoc.label} as PDF (rasterised working copy)`}
-                    aria-label="Download affidavit PDF"
-                    onClick={() => {
-                      const { companion } = splitCompanion(previewHtml);
-                      if (companion) void downloadPdfOf(companion, companionDoc.label, companionDoc.docxBase64);
-                    }}
-                  >
-                    <Icon name="download" size={15} />
-                  </button>
-                </>
-              )}
-              {!engineActive && (
-                <button
-                  className="btn btn-icon"
-                  type="button"
-                  title="Download DOCX working copy, not a filing copy"
-                  aria-label="Download DOCX working copy"
-                  onClick={() => triggerExport('DOCX')}
-                >
-                  <Icon name="download" size={15} />
-                </button>
-              )}
-              <button
-                className="btn btn-icon"
-                type="button"
-                title="Copy the draft text to the clipboard"
-                aria-label="Copy"
-                onClick={() => {
-                  void navigator.clipboard?.writeText(htmlToPlainText(displayHtml));
-                  showToast({ type: 'sage', text: 'Draft copied to clipboard' });
-                }}
-              >
-                <Icon name="file" size={16} />
-              </button>
-
-              <span className="draft-toolbar__sep" aria-hidden />
-
-              {/* Letterhead picker — the "picker" element of the toolbar. */}
-              <LetterheadPicker
-                label="Letterhead"
-                value={letterheadChoice}
-                onChange={setLetterheadChoice}
-                className="draft-inline-letterhead"
-              />
-
-              <span className="spacer" />
-
-              <button
-                className="btn btn-primary"
-                type="button"
-                title="Email this draft to the client for review"
-                onClick={() => {
-                  const subject = `${activeDocType} - ${draftDate}`;
-                  const text = htmlToPlainText(displayHtml);
-                  const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
-                  const href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-                  window.location.href = href;
-                  showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
-                }}
-              >
-                <Icon name="arrow" size={15} />{' '}
-                <span className="draft-toolbar__label">Share with client</span>
-              </button>
-            </div>
-          )}
-
-          <div
-            className="card draft-preview-card"
-            style={{
-              padding: 0,
-              minHeight: 600,
-              position: 'relative',
-              background: 'var(--bg-surface-2)',
-            }}
-          >
+          <div className="dw-paper-wrap draft-preview-card">
             {!output && !streaming && (
               <div key={docType} className="draft-empty-anim" style={{ padding: '40px 48px' }}>
                 <EmptyState docType={docType} completion={completion} onGenerate={generate} />
               </div>
             )}
             {/* PREVIEW == FILING PDF. When the engine .docx has been rendered to a
-                PDF (previewPdfUrl), show THAT in the preview pane so what the
-                advocate sees is exactly the printable/downloadable document —
-                centred headings, tables, alignment — not the flattened text. While
-                that PDF is still converting we show the HTML text preview so the
-                pane is never blank. During streaming (live generation) we always
-                show the HTML so the text appears as it arrives. Model-only drafts
-                (no engine .docx) keep the HTML preview. "Edit" switches to the
-                editor, and on Done the PDF re-renders from the edited .docx. */}
+                PDF (previewPdfUrl), show THAT so what the advocate sees is exactly
+                the printable document. While it converts, or during streaming, or
+                after local edits, show the HTML preview so the pane is never blank. */}
             {hasOutput && !isEditing && previewPdfUrl && !streaming && !hasLocalEdits && (
               <iframe
                 key={previewPdfUrl}
                 title="Document preview"
                 src={`${previewPdfUrl}#toolbar=1&navpanes=0&view=FitH`}
-                style={{
-                  width: '100%',
-                  height: '78vh',
-                  border: 'none',
-                  background: '#fff',
-                  borderRadius: 4,
-                }}
+                className="dw-pdf"
               />
             )}
             {hasOutput && !isEditing && (!previewPdfUrl || hasLocalEdits || streaming) && (
@@ -2009,211 +1829,182 @@ export function DraftingView() {
                 className="court-prose court-prose-paper"
                 lang={outputLangCode}
                 dir="ltr"
-                style={{ margin: '24px auto' }}
+                style={{ margin: '0 auto' }}
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             )}
             {hasOutput && !isEditing && !previewPdfUrl && !hasLocalEdits && previewPdfPending && !streaming && (
-              <div
-                className="mono"
-                style={{ textAlign: 'center', padding: '8px', opacity: 0.6, fontSize: 12 }}
-              >
-                Preparing the formatted preview…
-              </div>
+              <div className="dw-pending">Preparing the formatted preview…</div>
             )}
             {hasOutput && !isEditing && streaming && <span className="blink" />}
             {hasOutput && isEditing && !streaming && (
-              <RichTextEditor
-                value={displayHtml}
-                onChange={setEditedHtml}
-                autoFocus
-                lang={outputLangCode}
-              />
+              <div className="dw-editor">
+                <RichTextEditor value={displayHtml} onChange={setEditedHtml} autoFocus lang={outputLangCode} />
+              </div>
             )}
           </div>
+          </div>
 
-          {hasOutput && !streaming && bnsConcordance.length > 0 && (
-            <div
-              className="card"
-              style={{
-                padding: '10px 14px',
-                background: 'rgba(21, 128, 61, 0.06)',
-                borderLeft: '3px solid var(--success)',
-              }}
-            >
-              <div
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: '0.18em',
-                  color: 'var(--text-tertiary)',
-                  marginBottom: 8,
-                }}
-              >
-                APPLIED 2023 SANHITA (BNS / BNSS / BSA) · {bnsConcordance.length}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {bnsConcordance.map((e) => (
-                  <div key={e.old} style={{ fontSize: 13 }}>
-                    <span style={{ textDecoration: 'line-through', opacity: 0.6 }}>{e.old}</span>
-                    {' → '}
-                    <strong>{e.new}</strong>
-                    {e.change && e.change !== 'Renumbered only' && (
-                      <span className="muted" style={{ fontSize: 12 }}> · {e.change}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="body-xs muted" style={{ marginTop: 8 }}>
-                The draft already cites the in-force sections; the repealed references above are shown for your confirmation.
-              </div>
-            </div>
-          )}
-
-          {hasOutput && !streaming && staleChips.length > 0 && (
-            <div
-              className="card"
-              style={{
-                padding: '10px 14px',
-                background: 'rgba(180, 83, 9, 0.06)',
-                borderLeft: '3px solid var(--warning)',
-              }}
-            >
-              <div
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: '0.18em',
-                  color: 'var(--text-tertiary)',
-                  marginBottom: 8,
-                }}
-              >
-                STALE STATUTE REFERENCES · {staleChips.length}
-              </div>
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {staleChips.map((chip) => (
-                  <button
-                    key={chip.key}
-                    type="button"
-                    className="chip"
-                    onClick={() => applySanhitaReplacement(chip)}
-                    title={
-                      /unverified/i.test(chip.substantiveChange)
-                        ? 'Mapping marked UNVERIFIED - counsel review required'
-                        : chip.substantiveChange || 'Renumbered only'
-                    }
-                    style={{ fontSize: 12 }}
-                  >
-                    <span className="mono" style={{ marginRight: 6 }}>
-                      {chip.fromAct} §{chip.fromSection}
-                    </span>
-                    <span style={{ color: 'var(--text-tertiary)', marginRight: 6 }}>→</span>
-                    <span className="mono" style={{ fontWeight: 600 }}>
-                      Replace with {chip.toAct} §{chip.toSection}
-                    </span>
-                    {chip.count > 1 && (
-                      <span
-                        className="mono"
-                        style={{ marginLeft: 6, color: 'var(--text-tertiary)' }}
-                      >
-                        ×{chip.count}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-              <div
-                className="body-xs muted"
-                style={{ marginTop: 8 }}
-              >
-                Indian criminal law was renumbered by the Bharatiya Nyaya / Nagarik Suraksha / Sakshya Sanhitas (2023).
-                Suggested replacements are plausibility-grade - verify against the bare Act before relying on them.
-              </div>
-            </div>
-          )}
-
-          {/* Open items (Step 9): a checklist SEPARATE from the document body so
-              placeholders and unverified sections cannot be filed by accident.
-              This card sits outside the exported .court-prose div. */}
-          {hasOutput && !streaming && hasOpenItems(effectiveOpenItems) && (
-            <div
-              className="card"
-              style={{
-                padding: '12px 14px',
-                background: 'rgba(180, 83, 9, 0.06)',
-                borderLeft: '3px solid var(--warning)',
-              }}
-            >
-              <div
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: '0.18em',
-                  color: 'var(--text-tertiary)',
-                  marginBottom: 8,
-                }}
-              >
-                OPEN ITEMS BEFORE FILING
-              </div>
-              {effectiveOpenItems.placeholders.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
-                    Placeholders to fill
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {effectiveOpenItems.placeholders.map((p) => (
-                      <li key={p} className="body-sm">{p}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {effectiveOpenItems.toVerify.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
-                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
-                    Sections to verify with counsel
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {effectiveOpenItems.toVerify.map((s) => (
-                      <li key={s} className="body-sm">{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {effectiveOpenItems.advisories.length > 0 && (
-                <div>
-                  <div className="body-xs" style={{ fontWeight: 600, marginBottom: 4 }}>
-                    Confirm before filing
-                  </div>
-                  <ul style={{ margin: 0, paddingLeft: 18 }}>
-                    {effectiveOpenItems.advisories.map((a) => (
-                      <li key={a} className="body-sm">{a}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="body-xs muted" style={{ marginTop: 8 }}>
-                These items are shown here, not in the document, so nothing incomplete is filed by accident.
-              </div>
-            </div>
-          )}
-
-          {/* Explanatory note about the export buttons (the buttons themselves now
-              live in the sticky TOP toolbar above the preview). Kept below the
-              preview where descriptive text belongs. */}
           {hasOutput && !streaming && (
-            engineDocxBase64 ? (
-              <p className="drafting-working-copy-note" role="note">
-                ℹ️ <strong>Download Microsoft Word document</strong> is the engine-rendered
-                Word file: selectable text, correct margins, court-ready. The{' '}
-                <strong>Download PDF</strong> is the same court format as a PDF.
-              </p>
-            ) : (
-              <p className="drafting-working-copy-note" role="note">
-                ⚠️ Downloads here are a <strong>working copy, not for filing</strong>.
-                They are rasterised (fixed margins, non-selectable text). A court-ready
-                filing copy is produced only for documents drafted through the engine.
-              </p>
-            )
+            <aside className="dw-rail">
+              {/* EXPORT */}
+              <section className="dc-card">
+                <div className="dc-eyebrow">Export</div>
+                {engineDocxBase64 ? (
+                  <button className="btn btn-primary dw-wide" type="button" onClick={downloadEngineDocx}
+                    title="Engine-rendered Microsoft Word document: selectable text, correct court margins">
+                    <Icon name="download" size={15} /> {companionDoc ? 'Complaint · Word' : 'Download Word'}
+                  </button>
+                ) : null}
+                {companionDoc?.docxBase64 && (
+                  <button className="btn btn-primary dw-wide" type="button"
+                    onClick={() => downloadDocxBase64(companionDoc.docxBase64!, companionDoc.label)}>
+                    <Icon name="download" size={15} /> {companionDoc.label} · Word
+                  </button>
+                )}
+                <div className="dw-btn-row">
+                  {!companionDoc ? (
+                    <button className="btn" type="button"
+                      title={engineDocxBase64 ? 'Same court format as the Word file' : 'Working copy only, not a filing copy'}
+                      onClick={() => {
+                        if (engineDocxBase64) void downloadPdfOf(previewHtml, activeDocType, engineDocxBase64);
+                        else triggerExport('PDF');
+                      }}>
+                      <Icon name="download" size={14} /> {engineDocxBase64 ? 'PDF' : 'PDF (working)'}
+                    </button>
+                  ) : (
+                    <>
+                      <button className="btn" type="button" title="Complaint as PDF (working copy)"
+                        onClick={() => { const { primary } = splitCompanion(previewHtml); void downloadPdfOf(primary, activeDocType, engineDocxBase64); }}>
+                        <Icon name="download" size={14} /> Complaint PDF
+                      </button>
+                      <button className="btn" type="button" title={`${companionDoc.label} as PDF (working copy)`}
+                        onClick={() => { const { companion } = splitCompanion(previewHtml); if (companion) void downloadPdfOf(companion, companionDoc.label, companionDoc.docxBase64); }}>
+                        <Icon name="download" size={14} /> {companionDoc.label} PDF
+                      </button>
+                    </>
+                  )}
+                  {!engineActive && (
+                    <button className="btn" type="button" title="DOCX working copy, not a filing copy" onClick={() => triggerExport('DOCX')}>
+                      <Icon name="download" size={14} /> Word (working)
+                    </button>
+                  )}
+                  <button className="btn" type="button" title="Copy the draft text to the clipboard"
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(htmlToPlainText(displayHtml));
+                      showToast({ type: 'sage', text: 'Draft copied to clipboard' });
+                    }}>
+                    <Icon name="file" size={14} /> Copy text
+                  </button>
+                </div>
+                <p className="dc-card-text">
+                  {engineDocxBase64
+                    ? 'Court-ready: selectable text and correct margins. The PDF is the same format.'
+                    : 'Working copy, not for filing: fixed margins and non-selectable text. A filing copy comes only from engine drafts.'}
+                </p>
+              </section>
+
+              {/* LETTERHEAD */}
+              <section className="dc-card">
+                <div className="dc-eyebrow">Letterhead</div>
+                <LetterheadPicker label="" value={letterheadChoice} onChange={setLetterheadChoice} className="dw-letterhead" />
+              </section>
+
+              {/* BEFORE FILING */}
+              {hasOpenItems(effectiveOpenItems) && (
+                <section className="dc-card">
+                  <div className="dw-card-head">
+                    <div className="dc-eyebrow">Before filing</div>
+                    <span className="dw-count">
+                      {effectiveOpenItems.placeholders.length + effectiveOpenItems.toVerify.length + effectiveOpenItems.advisories.length}
+                    </span>
+                  </div>
+                  {effectiveOpenItems.placeholders.length > 0 && (
+                    <div className="dw-group">
+                      <div className="dw-group-title">Placeholders to fill</div>
+                      <ul className="dw-items">{effectiveOpenItems.placeholders.map((p) => <li key={p}>{p}</li>)}</ul>
+                    </div>
+                  )}
+                  {effectiveOpenItems.toVerify.length > 0 && (
+                    <div className="dw-group">
+                      <div className="dw-group-title">Sections to verify</div>
+                      <ul className="dw-items">{effectiveOpenItems.toVerify.map((s) => <li key={s}>{s}</li>)}</ul>
+                    </div>
+                  )}
+                  {effectiveOpenItems.advisories.length > 0 && (
+                    <div className="dw-group">
+                      <div className="dw-group-title">Confirm before filing</div>
+                      <ul className="dw-items">{effectiveOpenItems.advisories.map((a) => <li key={a}>{a}</li>)}</ul>
+                    </div>
+                  )}
+                  <p className="dc-card-text">Kept here, not in the document, so nothing incomplete is filed by accident.</p>
+                </section>
+              )}
+
+              {/* SANHITA 2023 */}
+              {(bnsConcordance.length > 0 || staleChips.length > 0) && (
+                <section className="dc-card">
+                  <div className="dc-eyebrow">Sanhita 2023 (BNS / BNSS / BSA)</div>
+                  {bnsConcordance.length > 0 && (
+                    <div className="dw-group">
+                      <div className="dw-group-title">Applied · {bnsConcordance.length}</div>
+                      <ul className="dw-items dw-items--plain">
+                        {bnsConcordance.map((e) => (
+                          <li key={e.old}>
+                            <span className="dw-old">{e.old}</span> → <strong>{e.new}</strong>
+                            {e.change && e.change !== 'Renumbered only' && <span className="dw-note"> · {e.change}</span>}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {staleChips.length > 0 && (
+                    <div className="dw-group">
+                      <div className="dw-group-title">Old references found · {staleChips.length}</div>
+                      <div className="dw-chips">
+                        {staleChips.map((chip) => (
+                          <button
+                            key={chip.key}
+                            type="button"
+                            className="dw-replace"
+                            onClick={() => applySanhitaReplacement(chip)}
+                            title={/unverified/i.test(chip.substantiveChange)
+                              ? 'Mapping marked UNVERIFIED - counsel review required'
+                              : chip.substantiveChange || 'Renumbered only'}
+                          >
+                            <span className="mono">{chip.fromAct} §{chip.fromSection}</span>
+                            <span>→</span>
+                            <span className="mono"><strong>{chip.toAct} §{chip.toSection}</strong></span>
+                            {chip.count > 1 && <span className="dw-note">×{chip.count}</span>}
+                            <span className="dw-replace-cta">Replace</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="dc-card-text">Suggested mappings are plausibility-grade; verify against the bare Act.</p>
+                </section>
+              )}
+
+              {/* SHARE */}
+              <section className="dc-card">
+                <div className="dc-eyebrow">Share</div>
+                <button
+                  className="btn dw-wide"
+                  type="button"
+                  title="Email this draft to the client for review"
+                  onClick={() => {
+                    const subject = `${activeDocType} - ${draftDate}`;
+                    const text = htmlToPlainText(displayHtml);
+                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
+                    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
+                  }}
+                >
+                  <Icon name="mail" size={14} /> Email to client for review
+                </button>
+              </section>
+            </aside>
           )}
         </div>
       </div>

@@ -103,7 +103,17 @@ async function rawCall(endpoint: string, opts: RawCallOptions): Promise<unknown>
 
   const body = await res.text();
   if (!res.ok) {
-    throw new EcourtsHttpError(res.status, `eCourts ${endpoint} returned ${res.status}`, body);
+    // This message reaches the advocate (error middleware surfaces
+    // EcourtsHttpError text), so say what it means, not which PHP file failed.
+    // 403/405/429 are eCourts' firewall throttling bursts of requests.
+    const s = res.status;
+    const msg = s === 403 || s === 405 || s === 429
+      ? 'eCourts is limiting requests right now. Wait a minute and search again.'
+      : s >= 500
+        ? 'eCourts is having trouble right now. Try again in a few minutes.'
+        : `eCourts could not process this request (error ${s}).`;
+    logger.warn({ endpoint, status: s }, 'eCourts upstream non-OK response');
+    throw new EcourtsHttpError(s, msg, body);
   }
 
   // Empty body → server accepted but had nothing to say. Treat as null
@@ -209,10 +219,11 @@ interface CallOptions {
  */
 export async function call(endpoint: string, opts: CallOptions = {}): Promise<unknown> {
   const court = opts.court ?? 'DC';
+  const params = withHcCourtCode(court, opts.params);
   let bearer = await ensureToken(court);
   let payload = await rawCall(endpoint, {
     court,
-    params: opts.params,
+    params,
     bearer,
     signal: opts.signal,
   });
@@ -228,7 +239,7 @@ export async function call(endpoint: string, opts: CallOptions = {}): Promise<un
     bearer = await ensureToken(court);
     payload = await rawCall(endpoint, {
       court,
-      params: opts.params,
+      params,
       bearer,
       signal: opts.signal,
     });
@@ -236,6 +247,20 @@ export async function call(endpoint: string, opts: CallOptions = {}): Promise<un
 
   captureToken(court, payload);
   return payload;
+}
+
+/**
+ * High Court services scope a bench by `court_code` (singular), where the
+ * District Court services take `court_code_arr`. Verified live 2026-10-22
+ * (Madras HC, Principal Bench = state 10 / dist 1): caseTypesWebService and
+ * searchByCaseType answer `{status:'N'}` with only court_code_arr and real
+ * data (713 cases) once court_code is added. Sending both keeps one code
+ * path for every search.
+ */
+function withHcCourtCode(court: Court, params: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (court !== 'HC' || !params || params.court_code_arr === undefined || params.court_code !== undefined) return params;
+  const first = String(params.court_code_arr).split(',')[0]?.trim();
+  return first ? { ...params, court_code: /^\d+$/.test(first) ? Number(first) : first } : params;
 }
 
 function isSessionRejection(payload: unknown): boolean {

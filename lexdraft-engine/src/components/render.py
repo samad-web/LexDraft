@@ -14,10 +14,16 @@ from docx import Document
 
 # Repo root -> templates/shared
 _TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates" / "shared"
+# Imported formats live apart from the shared set (src/imports/manifest.py).
+_IMPORTED_DIR = Path(__file__).resolve().parents[2] / "templates" / "imported"
+_IMPORTED_PREFIX = "imported/"
 
 
 def template_path(name: str) -> Path:
-    """Resolve a shared-template filename to its absolute path."""
+    """Resolve a shared-template filename to its absolute path. An
+    'imported/<file>.docx' name resolves under templates/imported/."""
+    if name.startswith(_IMPORTED_PREFIX):
+        return _IMPORTED_DIR / name[len(_IMPORTED_PREFIX):]
     return _TEMPLATES_DIR / name
 
 

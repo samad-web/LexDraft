@@ -1,20 +1,30 @@
 import { useState, useRef, useEffect, useImperativeHandle, forwardRef, Fragment, type FormEvent } from 'react';
-import { Icon } from '@lexdraft/ui';
+import { Icon, type IconName } from '@lexdraft/ui';
+import QRCode from 'qrcode';
 import {
   useEcourtsCnr, useDownloadOrderPdf, useAddEcourtsCaseToMatters,
-  useEcourtsStates, useEcourtsDistricts, useEcourtsCourtComplexes, useEcourtsCourts,
-  useEcourtsSearchCaseNumber, useEcourtsSearchParty, useEcourtsSearchAdvocate,
-  useEcourtsSearchFir, useEcourtsSearchFilingNumber, useEcourtsSearchAct,
-  useEcourtsCauseList, useEcourtsCaveatSearch, useEcourtsFilingHistory, useEcourtsJudgeBenches,
-  useEcourtsIaBusiness, useEcourtsAppellateInfo, useEcourtsLowerCourtCaveat,
-  useEcourtsBusinessNotes, useSaveEcourtsBusinessNote, useEcourtsCaveatHistory, useEcourtsCourtLocation,
+  useEcourtsIaBusiness, useEcourtsAppellateInfo,
+  useEcourtsBusinessNotes, useSaveEcourtsBusinessNote,
   useStartCnrLiveSession, useOpenLiveCnrLookup, useRefreshCnrCaptcha, useSubmitCnrCaptcha,
   type EcourtsCaseHistory, type EcourtsHearing, type EcourtsOrder, type Court,
-  type EcourtsCauseListEntry,
+  useEcourtsBusiness, orderDateOf,
 } from '@/hooks/useEcourts';
+import { useCases } from '@/hooks/useCases';
 import { useUIStore } from '@/store/ui';
-import { PillNav } from '@/components/PillNav';
+import { EcourtsWebSearchPanel } from '@/components/ecourts/EcourtsWebSearchPanel';
 import { NewHearingModal } from '@/components/NewHearingModal';
+import { EMPTY_SCOPE, useEcourtsCourtStore } from '@/store/ecourtsCourt';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { AppSearchScreen } from '@/components/ecourts/app/AppSearchScreen';
+import { CourtCauseListScreen } from '@/components/ecourts/app/CourtCauseListScreen';
+import { BackArrow, KvTable, SectionBar, StateDistrictBar } from '@/components/ecourts/app/AppUi';
+import { EcourtsMenu } from '@/components/ecourts/app/EcourtsMenu';
+import { PageHeader } from '@/components/PageHeader';
+import { PillNav } from '@/components/PillNav';
+import { MyCasesPanel, useTodaysCasesCount } from '@/components/ecourts/MyCasesPanel';
+import { PreTrialPanel } from '@/components/ecourts/PreTrialPanel';
+import { QrScanButton } from '@/components/ecourts/QrScanButton';
+import { ECOURTS_LANGUAGE_OPTIONS, L, useEcourtsT, type EcourtsLanguage } from '@/hooks/useEcourtsLabels';
 
 // =============================================================================
 // EcourtsView
@@ -43,45 +53,382 @@ import { NewHearingModal } from '@/components/NewHearingModal';
 // stricter rejects valid CNRs like TNCG0B…
 const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 
-type PortalTab = 'case-status' | 'case-number' | 'party' | 'advocate' | 'fir' | 'filing' | 'act' | 'cause-list' | 'caveat';
+// ---------------------------------------------------------------------------
+// Layout - mirrors the official eCourts Services app
+//
+// Advocates already know the eCourts app, so this screen follows its
+// structure and wording (from the app's own bundle and the eCommittee's
+// user manual) instead of inventing a new one:
+//
+//   District Court | High Court          (the app's top switch)
+//   CNR · Case Status · Causelist · My Cases   (the app's main tabs)
+//   Case Status -> tiles in the app's order: Case Number, Party Name,
+//     Filing Number, FIR Number, Advocate, Act, Case Type, Caveat - then the
+//     website-only Court Orders and Process Details
+//   Causelist -> Cause List, Advocate's Cause List (as on the website)
+//   Case History (CaseCard) -> the app's sections, order and labels
+//
+// Colours stay LexDraft's monochrome design system; only structure, order
+// and labels follow the app.
+// ---------------------------------------------------------------------------
 
-const PORTAL_TABS: ReadonlyArray<{ id: PortalTab; label: string; title?: string }> = [
-  { id: 'case-status', label: 'Case Status',   title: 'Look up a case by its CNR' },
-  { id: 'case-number', label: 'Case Number',   title: 'Search by case type + registration number' },
-  { id: 'party',       label: 'Party Name',    title: 'Search by petitioner/respondent name' },
-  { id: 'advocate',    label: 'Advocate',      title: 'Search by advocate name' },
-  { id: 'fir',         label: 'FIR',           title: 'Search by FIR number' },
-  { id: 'filing',      label: 'Filing Number', title: 'Search by filing number' },
-  { id: 'act',         label: 'Act',           title: 'Search by act/section (currently unavailable)' },
-  { id: 'cause-list',  label: 'Cause List',    title: "Today's docket for a court" },
-  { id: 'caveat',      label: 'Caveat',        title: 'Search caveats' },
+type AppTab = 'cnr' | 'status' | 'causelist' | 'mycases';
+
+type SearchKey =
+  | 'case-number' | 'party' | 'party-status' | 'filing' | 'fir'
+  | 'advocate' | 'advocate-name' | 'advocate-bar' | 'act' | 'case-type' | 'caveat' | 'pretrial'
+  | 'orders' | 'process'
+  | 'cause-list' | 'cause-list-web' | 'advocate-causelist' | 'advocate-causelist-web';
+
+interface Tile {
+  key: SearchKey;
+  label: string;
+  /** eCourts app label id - the tile's name in the chosen language. */
+  labelId?: number;
+  icon: IconName;
+  captcha?: boolean;
+}
+
+/** Case Status tiles, in the eCourts app's order and wording. */
+const STATUS_TILES: ReadonlyArray<Tile> = [
+  { key: 'case-number', label: 'Case Number', labelId: L.caseNumber, icon: 'file' },
+  { key: 'party', label: 'Party Name', labelId: L.partyName, icon: 'clients' },
+  { key: 'filing', label: 'Filing Number', labelId: L.filingNumber, icon: 'documents' },
+  { key: 'fir', label: 'FIR Number', labelId: L.firNumber, icon: 'flag' },
+  { key: 'advocate', label: 'Advocate', labelId: L.advocate, icon: 'members' },
+  { key: 'act', label: 'Act', labelId: L.act, icon: 'gavel', captcha: true },
+  { key: 'case-type', label: 'Case Type', labelId: L.caseType, icon: 'cases' },
+  { key: 'caveat', label: 'Caveat', labelId: L.caveat, icon: 'shield' },
+  { key: 'pretrial', label: 'Pre Trial Application', labelId: L.preTrial, icon: 'flag' },
 ];
 
+/** On the eCourts website (not the app) - after the app's tiles. */
+const WEBSITE_TILES: ReadonlyArray<Tile> = [
+  { key: 'orders', label: 'Court Orders', labelId: L.courtOrders, icon: 'gavel' },
+  { key: 'process', label: 'Process Details', labelId: L.processes, icon: 'mail', captcha: true },
+];
+
+const CAUSELIST_TILES: ReadonlyArray<Tile> = [
+  { key: 'cause-list', label: 'Cause List', labelId: L.causeList, icon: 'causelist' },
+  { key: 'advocate-causelist', label: 'Advocate\'s Cause List', icon: 'members' },
+];
+
+const CAUSELIST_KEYS = new Set<SearchKey>(['cause-list', 'cause-list-web', 'advocate-causelist', 'advocate-causelist-web']);
+const ALL_KEYS = new Set<string>([
+  ...STATUS_TILES, ...WEBSITE_TILES, ...CAUSELIST_TILES,
+].map((t) => t.key).concat(['party-status', 'advocate-name', 'advocate-bar', 'cause-list-web', 'advocate-causelist-web']));
+
+/** Variants keep their parent tile's name in the back link. */
+const PARENT_LABEL: Partial<Record<SearchKey, string>> = {
+  'party-status': 'Party Name',
+  'advocate-name': 'Advocate',
+  'advocate-bar': 'Advocate',
+  'cause-list-web': 'Cause List',
+};
+
 export function EcourtsView() {
-  const [tab, setTab] = useState<PortalTab>('case-status');
+  const [params, setParams] = useSearchParams();
+  const openCnr = params.get('cnr') ?? undefined;
+  const rawSearch = params.get('search');
+  const search: SearchKey | null = rawSearch && ALL_KEYS.has(rawSearch) ? (rawSearch as SearchKey) : null;
+  const rawTab = params.get('tab');
+  const tab: AppTab = openCnr
+    ? 'cnr'
+    : search
+      ? (CAUSELIST_KEYS.has(search) ? 'causelist' : 'status')
+      : rawTab === 'status' || rawTab === 'causelist' || rawTab === 'mycases' ? rawTab : 'cnr';
+
+  // District Court | High Court - one switch for every search, like the app.
+  const scope = useEcourtsCourtStore((s) => s.scope);
+  const setScope = useEcourtsCourtStore((s) => s.setScope);
+  const setTier = (court: Court) => {
+    if (court !== scope.court) setScope({ ...EMPTY_SCOPE, court });
+  };
+
+  const todaysCount = useTodaysCasesCount();
+  // The eCourts app's languages and its own labels for them.
+  const { t, language, setLanguage, loading: labelsLoading } = useEcourtsT();
+
+  const goTab = (t: AppTab) => setParams(t === 'cnr' ? new URLSearchParams() : new URLSearchParams({ tab: t }));
+  const goSearch = (key: SearchKey) => setParams(new URLSearchParams({ search: key }));
+  const back = () => goTab(tab);
+  const viewCnr = (cnr: string) => setParams(new URLSearchParams({ cnr }));
+
+  const tabs: ReadonlyArray<{ id: AppTab; label: string }> = [
+    { id: 'cnr', label: language === 'english' ? 'CNR' : t(L.cnrNumber, 'CNR') },
+    { id: 'status', label: t(L.caseStatus, 'Case Status') },
+    { id: 'causelist', label: t(L.causeList, 'Causelist') },
+    // The app shows a count badge on My Cases; here: cases listed today.
+    { id: 'mycases', label: `${t(L.myCases, 'My Cases')}${todaysCount > 0 ? ` (${todaysCount})` : ''}` },
+  ];
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - CASE STATUS</div>
-        <h1 className="heading-xl">Case Status</h1>
-        <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          Live case data across every district and high court in India, built into your workflow: nowhere else to go.
-        </p>
+    <div className="col stagger" style={{ gap: 20 }}>
+      <PageHeader
+        title="eCourts Services"
+        description="Case status, cause lists and orders from every district and high court, laid out like the eCourts app."
+      />
+
+      <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* The app's ☰ menu, then its District Court | High Court switch. */}
+        <EcourtsMenu onMyCases={() => goTab('mycases')} />
+        <div className="row" role="radiogroup" aria-label="Court" style={{ gap: 0, border: '1px solid var(--border)', borderRadius: 999, padding: 3 }}>
+          {(['DC', 'HC'] as const).map((c) => (
+            <button
+              key={c}
+              type="button"
+              role="radio"
+              aria-checked={scope.court === c}
+              className={`btn btn-sm${scope.court === c ? ' btn-primary' : ' btn-ghost'}`}
+              style={{ borderRadius: 999 }}
+              onClick={() => setTier(c)}
+            >
+              {c === 'DC' ? t(L.districtCourt, 'District Court') : t(L.highCourt, 'High Court')}
+            </button>
+          ))}
+        </div>
+        <label className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <span className="body-sm muted">{t(L.language, 'Language')}{labelsLoading ? '…' : ''}</span>
+          <select
+            className="input"
+            style={{ width: 'auto', minWidth: 130 }}
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as EcourtsLanguage)}
+            aria-label="eCourts language"
+          >
+            {ECOURTS_LANGUAGE_OPTIONS.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+        </label>
       </div>
 
-      <PillNav items={PORTAL_TABS} value={tab} onChange={setTab} ariaLabel="Case status sections" />
+      {/* Scrolls sideways on narrow phones instead of overflowing the page. */}
+      <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+        <PillNav items={tabs} value={tab} onChange={goTab} ariaLabel="eCourts Services" />
+      </div>
 
-      {tab === 'case-status' ? <CaseStatusTab /> : null}
-      {tab === 'case-number' ? <CourtScopeSearchTab mode="case-number" /> : null}
-      {tab === 'party'       ? <CourtScopeSearchTab mode="party" /> : null}
-      {tab === 'advocate'    ? <CourtScopeSearchTab mode="advocate" /> : null}
-      {tab === 'fir'         ? <CourtScopeSearchTab mode="fir" /> : null}
-      {tab === 'filing'      ? <CourtScopeSearchTab mode="filing" /> : null}
-      {tab === 'act'         ? <CourtScopeSearchTab mode="act" /> : null}
-      {tab === 'cause-list'  ? <CourtScopeSearchTab mode="cause-list" /> : null}
-      {tab === 'caveat'      ? <CourtScopeSearchTab mode="caveat" /> : null}
+      {/* Searches remount when the court tier flips so they pick it up. */}
+      <section aria-label={tabs.find((t) => t.id === tab)?.label} key={scope.court} style={{ minWidth: 0 }}>
+        {tab === 'cnr' ? (
+          <div className="col" style={{ gap: 24 }}>
+            <CaseStatusTab key={openCnr ?? ''} initialCnr={openCnr} court={scope.court} />
+            {!openCnr ? <CnrHowTo onCaseStatus={() => goTab('status')} /> : null}
+          </div>
+        ) : null}
+
+        {/* As in the app: State | District sit on top of Case Status and
+            Causelist and apply to every search under them. */}
+        {tab === 'status' || tab === 'causelist' ? (
+          <div style={{ marginBottom: 16 }}><StateDistrictBar /></div>
+        ) : null}
+
+        {tab === 'status' && !search ? (
+          <div className="col" style={{ gap: 20 }}>
+            <TileGrid tiles={STATUS_TILES} onPick={goSearch} />
+            <div className="col" style={{ gap: 8 }}>
+              <div className="eyebrow">From the eCourts website</div>
+              <TileGrid tiles={WEBSITE_TILES} onPick={goSearch} />
+            </div>
+          </div>
+        ) : null}
+
+        {tab === 'causelist' && !search ? <TileGrid tiles={CAUSELIST_TILES} onPick={goSearch} /> : null}
+
+        {tab === 'mycases' ? <MyCasesPanel /> : null}
+
+        {search ? (
+          <div className="col" style={{ gap: 12 }}>
+            <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+              <BackArrow onClick={back} />
+              <span className="body-md muted">{tab === 'causelist' ? t(L.causeList, 'Causelist') : t(L.caseStatus, 'Case Status')}</span>
+            </div>
+            <SearchBody search={search} goSearch={goSearch} viewCnr={viewCnr} />
+          </div>
+        ) : null}
+      </section>
     </div>
+  );
+}
+
+/** Two-column icon tiles, like the app's Case Status grid. */
+function TileGrid({ tiles, onPick }: { tiles: ReadonlyArray<Tile>; onPick: (k: SearchKey) => void }) {
+  const { t } = useEcourtsT();
+  return (
+    // At most 4 columns (desktop) and 2 on phones, so the app's tile pairs -
+    // Case Number | Party Name, Filing | FIR, Advocate | Act, Case Type |
+    // Caveat - stay side by side as advocates know them.
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(max(140px, calc((100% - 36px) / 4)), 1fr))', gap: 12 }}>
+      {tiles.map((tile) => (
+        <button
+          key={tile.key}
+          type="button"
+          className="card"
+          onClick={() => onPick(tile.key)}
+          style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            gap: 8, padding: '18px 10px', cursor: 'pointer', textAlign: 'center', color: 'inherit',
+            minHeight: 112,
+          }}
+        >
+          <Icon name={tile.icon} size={28} />
+          <span className="body-md" style={{ fontWeight: 600 }}>{tile.labelId ? t(tile.labelId, tile.label) : tile.label}</span>
+          {tile.captcha ? <span className="badge badge-amber" style={{ fontSize: 10 }}>Captcha</span> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The search form for a tile (and its website variants). */
+function SearchBody({ search, goSearch, viewCnr }: { search: SearchKey; goSearch: (k: SearchKey) => void; viewCnr: (cnr: string) => void }) {
+  const court = useEcourtsCourtStore((s) => s.scope.court);
+  // Case History opens in place over the results (back returns to them).
+  const renderCase = (cnr: string, onBack: () => void) => <CaseHistoryScreen cnr={cnr} court={court} onBack={onBack} />;
+  switch (search) {
+    case 'case-number': return <AppSearchScreen key="case-number" mode="case-number" renderCase={renderCase} />;
+    case 'filing': return <AppSearchScreen key="filing" mode="filing" renderCase={renderCase} />;
+    case 'fir': return <AppSearchScreen key="fir" mode="fir" renderCase={renderCase} />;
+    case 'caveat': return <AppSearchScreen key="caveat" mode="caveat" renderCase={renderCase} />;
+    case 'party': return <AppSearchScreen key="party" mode="party" renderCase={renderCase} />;
+    case 'advocate': return <AppSearchScreen key="advocate" mode="advocate" renderCase={renderCase} />;
+    case 'cause-list':
+      return (
+        <CauseListWithCase
+          court={court}
+          extra={(
+            <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => goSearch('cause-list-web')}>
+              Cause list from the eCourts website (captcha) →
+            </button>
+          )}
+        />
+      );
+    case 'party-status':
+      return (
+        <WebVariant onBack={() => goSearch('party')} backLabel={PARENT_LABEL['party-status']!}>
+          <EcourtsWebSearchPanel key="party-status" sections={['party-status']} title="Party Name: Pending or Disposed" onOpenCnr={viewCnr} />
+        </WebVariant>
+      );
+    case 'advocate-name':
+    case 'advocate-bar':
+      return (
+        <WebVariant onBack={() => goSearch('advocate')} backLabel="Advocate">
+          <EcourtsWebSearchPanel key={search} sections={['advocate-bar', 'advocate-name']} initialSection={search} title="Advocate" onOpenCnr={viewCnr} />
+        </WebVariant>
+      );
+    case 'cause-list-web':
+      return (
+        <WebVariant onBack={() => goSearch('cause-list')} backLabel="Cause List">
+          <EcourtsWebSearchPanel key="cause-list-web" sections={['cause-list']} title="Cause List (Civil / Criminal)" onOpenCnr={viewCnr} />
+        </WebVariant>
+      );
+    // Instant (eCourts app service). Bar-code lookups only work on the
+    // website, so that variant stays one link away.
+    case 'advocate-causelist':
+      return (
+        <AppSearchScreen
+          key="advocate-causelist"
+          mode="advocate-causelist"
+          renderCase={renderCase}
+          related={[{ label: 'By Bar Code (captcha)', onClick: () => goSearch('advocate-causelist-web') }]}
+        />
+      );
+    case 'advocate-causelist-web':
+      return (
+        <WebVariant onBack={() => goSearch('advocate-causelist')} backLabel="Advocate's Cause List">
+          <EcourtsWebSearchPanel key="advocate-causelist-web" sections={['advocate-causelist']} title="Advocate's Cause List by Bar Code" onOpenCnr={viewCnr} />
+        </WebVariant>
+      );
+    case 'act': return <EcourtsWebSearchPanel key="act" sections={['act']} title="Act" onOpenCnr={viewCnr} />;
+    case 'case-type': return <AppSearchScreen key="case-type" mode="case-type" renderCase={renderCase} />;
+    case 'pretrial': return <PreTrialPanel onOpenCnr={viewCnr} />;
+    case 'orders':
+      return (
+        <EcourtsWebSearchPanel
+          key="orders"
+          sections={['orders-party', 'orders-case', 'orders-date', 'orders-court']}
+          title="Court Orders"
+          intro="Search by Party Name is instant. The others go through the eCourts website."
+          onOpenCnr={viewCnr}
+        />
+      );
+    case 'process': return <EcourtsWebSearchPanel key="process" sections={['process']} title="Process Details" onOpenCnr={viewCnr} />;
+    default: return null;
+  }
+}
+
+/** The app's "How to" panel under the CNR box, plus the CNR format. */
+function CnrHowTo({ onCaseStatus }: { onCaseStatus: () => void }) {
+  // Steps b-d and g are the eCourts app's own "How to" text (in the chosen
+  // language); step a is LexDraft's, since here the court switch is on top.
+  const { t, language } = useEcourtsT();
+  return (
+    <div className="card col" style={{ gap: 12 }}>
+      <div className="heading-sm">{t(L.howTo, 'How to')}</div>
+      <div className="body-sm col" style={{ gap: 6 }}>
+        {/* The app numbers its steps in the chosen script (b. / ஆ. / ...);
+            this first, LexDraft-only step stays unnumbered outside English. */}
+        <div>{language === 'english' ? 'a. Choose District Court or High Court above.' : `${t(L.districtCourt, 'District Court')} / ${t(L.highCourt, 'High Court')} ↑`}</div>
+        <div>{t(L.howToB, 'b. If you know the CNR Number of the case, enter the 16-character CNR without any hyphen or space.')}</div>
+        <div>{t(L.howToC, 'c. On clicking Search, the current status and the entire history of the case will be shown.')}</div>
+        <div>
+          {t(L.howToD, 'd. If you don\'t know the CNR, search by Case Number, Party Name, Advocate, Filing Number and more under Case Status.')}{' '}
+          <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '0 4px' }} onClick={onCaseStatus}>{t(L.caseStatus, 'Case Status')} →</button>
+        </div>
+        <div>{t(L.howToG, 'e. Cases you add to My Cases can be seen any time under My Cases.')}</div>
+      </div>
+      <div className="col" style={{ gap: 6 }}>
+        <div className="eyebrow">CNR Number format (16 characters)</div>
+        <div className="mono body-sm" style={{ letterSpacing: '0.06em' }}>
+          TN SA 05 000470 2017
+        </div>
+        <div className="body-sm muted">
+          State code (2) · District code (2) · Establishment code (2) · Case number (6) · Filing year (4)
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A variant of a search, with a clear way back to the main version. */
+function WebVariant({ onBack, backLabel, children }: { onBack: () => void; backLabel: string; children: React.ReactNode }) {
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onBack}>
+        ← Back to {backLabel} (instant search)
+      </button>
+      {children}
+    </div>
+  );
+}
+
+/** The app's Case History screen for one CNR, with its back arrow. */
+function CaseHistoryScreen({ cnr, court, onBack }: { cnr: string; court: Court; onBack: () => void }) {
+  const { data, isLoading, isError, isNotFound, error, queued, meta } = useEcourtsCnr(cnr, court);
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [cnr]);
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      {!data ? <BackArrow onClick={onBack} /> : null}
+      {isLoading ? <LoadingCard cnr={cnr} /> : null}
+      {queued ? <QueuedCard cnr={cnr} message={queued} /> : null}
+      {isError && !isNotFound ? <ErrorCard error={error} /> : null}
+      {data ? <StoredNote meta={meta} /> : null}
+      {data ? <div className="card"><CaseCard h={data} court={court} onBack={onBack} /></div> : null}
+      {!isLoading && !queued && (isNotFound || (!isError && !data)) ? (
+        <div className="card"><p className="body-md muted">eCourts did not return a record for this CNR.</p></div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Cause List screen; a case number opens Case History over the list. */
+function CauseListWithCase({ court, extra }: { court: Court; extra?: React.ReactNode }) {
+  const [cnr, setCnr] = useState<string | null>(null);
+  return (
+    <>
+      {cnr ? <CaseHistoryScreen cnr={cnr} court={court} onBack={() => setCnr(null)} /> : null}
+      <div style={{ display: cnr ? 'none' : undefined }}>
+        <CourtCauseListScreen onOpenCase={setCnr} extra={extra} />
+      </div>
+    </>
   );
 }
 
@@ -89,15 +436,16 @@ export function EcourtsView() {
 // Case Status tab — live CNR lookup (verified working against the backend).
 // ---------------------------------------------------------------------------
 
-function CaseStatusTab() {
+function CaseStatusTab({ initialCnr, court }: { initialCnr?: string; court: Court }) {
   // Two pieces of state because the input is a draft until "Look up" lands —
   // we only want to fire the query against the *submitted* CNR, not on every
-  // keystroke.
-  const [draft, setDraft] = useState<string>('');
-  const [submittedCnr, setSubmittedCnr] = useState<string>('');
-  const [court, setCourt] = useState<Court>('DC');
+  // keystroke. `initialCnr` (from "View case" elsewhere) looks up straight away.
+  const [draft, setDraft] = useState<string>(initialCnr ?? '');
+  const [submittedCnr, setSubmittedCnr] = useState<string>(initialCnr ?? '');
+  const { t } = useEcourtsT();
+  // The tier comes from the page's District Court | High Court switch.
 
-  const { data: history, isLoading, isError, isNotFound, error, isFetching } = useEcourtsCnr(submittedCnr, court);
+  const { data: history, isLoading, isError, isNotFound, error, queued, meta } = useEcourtsCnr(submittedCnr, court);
 
   const draftIsValid = CNR_RE.test(draft.trim().toUpperCase());
 
@@ -108,36 +456,37 @@ function CaseStatusTab() {
     setSubmittedCnr(cleaned);
   };
 
+  // As in the app, the Case History replaces the CNR box; back returns to it.
+  if (submittedCnr && history) {
+    return (
+      <div className="col" style={{ gap: 12 }}>
+        <StoredNote meta={meta} />
+        <div className="card">
+          <CaseCard h={history} court={court} onBack={() => setSubmittedCnr('')} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <p className="body-sm muted" style={{ maxWidth: 640 }}>
-        Search any matter by its CNR (Case Number Record), the 16-character national identifier.
-      </p>
-
       <form onSubmit={onSubmit} className="card" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <Icon name="search" size={18} />
         <input
           className="input"
           style={{ flex: 1, minWidth: 240, height: 48, fontSize: 16, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}
-          placeholder="Enter CNR · e.g. KLER010001682023"
+          placeholder={t(L.enterCnr, 'Enter 16 digit CNR number')}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          aria-label="CNR search"
+          onChange={(e) => setDraft(e.target.value.replace(/[\s-]/g, ''))}
+          aria-label="CNR Number"
           maxLength={16}
         />
-        <select
-          className="input"
-          style={{ height: 48, width: 120 }}
-          value={court}
-          onChange={(e) => setCourt(e.target.value as Court)}
-          aria-label="Court tier"
-        >
-          <option value="DC">District</option>
-          <option value="HC">High Court</option>
-        </select>
         <button type="submit" className="btn btn-primary btn-lg" disabled={!draftIsValid}>
-          Look up case <Icon name="arrow" size={14} />
+          {t(L.search, 'Search')} <Icon name="arrow" size={14} />
         </button>
+        {/* The app's "Scan QR Code": eCourts prints a CNR QR code on case
+            papers and orders. */}
+        <QrScanButton onCnr={(cnr) => { setDraft(cnr); setSubmittedCnr(cnr); }} />
       </form>
 
       {!draftIsValid && draft.length > 0 && (
@@ -146,7 +495,10 @@ function CaseStatusTab() {
         </div>
       )}
 
-      {isLoading || isFetching ? <LoadingCard cnr={submittedCnr} /> : null}
+      {/* Only the very first fetch shows a loader - a stored copy renders
+          straight away and background refreshes don't flash anything. */}
+      {isLoading ? <LoadingCard cnr={submittedCnr} /> : null}
+      {queued ? <QueuedCard cnr={submittedCnr} message={queued} /> : null}
 
       {/* A 404 ("no case found for this CNR") is an expected, well-formed
           answer, not a failure - it gets the dedicated amber card below.
@@ -154,9 +506,7 @@ function CaseStatusTab() {
           failures (5xx, network errors). */}
       {!isLoading && isError && !isNotFound ? <ErrorCard error={error} /> : null}
 
-      {!isLoading && !isError && history ? <CaseCard h={history} court={court} /> : null}
-
-      {submittedCnr && !isLoading && !isFetching && (isNotFound || (!isError && !history)) ? (
+      {submittedCnr && !isLoading && !queued && (isNotFound || (!isError && !history)) ? (
         <div className="card" style={{ borderColor: 'var(--warning)' }}>
           <div className="row" style={{ gap: 12 }}>
             <span className="dot dot-amber" />
@@ -172,842 +522,6 @@ function CaseStatusTab() {
 }
 
 // ---------------------------------------------------------------------------
-// Court-scoped search — case number / party / advocate / FIR / filing number /
-// act / cause list / caveat. All stay in-app: the form posts straight to
-// LexDraft's own /api/ecourts/search/* routes.
-//
-// Every one of these searches is scoped to a specific court (state, district,
-// court complex code, establishment code). State and district are reliable
-// dropdowns (backed by /ecourts/reference/*). The court-complex/establishment
-// *code* is a known-fragile lookup on eCourts' side today, so rather than a
-// picker that can silently fail, the advocate enters it directly - it's
-// printed on eCourts' own cause-list PDFs and case-status pages, and once
-// known for a court it's reused for every future search there.
-// ---------------------------------------------------------------------------
-
-type SearchMode = 'case-number' | 'party' | 'advocate' | 'fir' | 'filing' | 'act' | 'cause-list' | 'caveat';
-
-const MODE_COPY: Record<SearchMode, { title: string; blurb: string }> = {
-  'case-number': { title: 'Search by case number', blurb: 'Enter the case type, registration number and year.' },
-  party:         { title: 'Search by party name', blurb: 'Enter the petitioner or respondent name and year.' },
-  advocate:      { title: 'Search by advocate name', blurb: 'Enter the advocate’s name and year.' },
-  fir:           { title: 'Search by FIR number', blurb: 'Enter the police station code, FIR number and year.' },
-  filing:        { title: 'Search by filing number', blurb: 'Enter the filing number and year.' },
-  // KNOWN BROKEN server-side (see useEcourtsSearchAct's doc comment) - kept
-  // in the UI with an honest label rather than hidden, since eCourts may fix
-  // their endpoint without us shipping a client change.
-  act:           { title: 'Search by act (currently unavailable)', blurb: 'eCourts’ own backend rejects every request to this search today. This is not a bug on our side. Try another search mode.' },
-  'cause-list':  { title: 'Cause list', blurb: "Get today’s (or any date’s) docket for a court." },
-  caveat:        { title: 'Caveat search', blurb: 'Search caveats by caveator or caveatee name.' },
-};
-
-function CourtScopeSearchTab({ mode }: { mode: SearchMode }) {
-  const [court, setCourt] = useState<Court>('DC');
-  const [stateCode, setStateCode] = useState<number | ''>('');
-  const [distCode, setDistCode] = useState<number | ''>('');
-  const [courtCode, setCourtCode] = useState('0');
-  const [complexCode, setComplexCode] = useState('');
-  const [estCode, setEstCode] = useState('');
-
-  // A search result only carries a summary + CNR - viewing the full case
-  // (hearings, orders, "Add to my cases") reuses the same CNR pipeline the
-  // Case Status tab uses, so results and CNR lookup show identical detail.
-  //
-  // The detail card renders BELOW the result list, which can be long (dozens
-  // of rows) - without an explicit scroll, clicking "View" updates state
-  // correctly but the change happens off-screen and looks like nothing
-  // happened. Scroll it into view the same way ClientAutocomplete/
-  // SearchableSelect do elsewhere in this app.
-  const [viewCnr, setViewCnr] = useState<string | null>(null);
-  const viewCardRef = useRef<HTMLDivElement>(null);
-  const {
-    data: viewedCase, isLoading: viewLoading, isFetching: viewFetching,
-    isError: viewError, isNotFound: viewNotFound, error: viewErrorObj,
-  } = useEcourtsCnr(viewCnr, court);
-
-  const handleViewCnr = (cnr: string) => {
-    setViewCnr(cnr);
-  };
-
-  // Scroll the detail card into view only after React has committed the
-  // mount triggered by viewCnr changing - a setTimeout here would race the
-  // commit instead of guaranteeing it, same pattern as ClientAutocomplete.
-  useEffect(() => {
-    if (viewCnr) viewCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [viewCnr]);
-
-  const [caseType, setCaseType] = useState('');
-  const [regNo, setRegNo] = useState('');
-  const [partyName, setPartyName] = useState('');
-  const [advocateName, setAdvocateName] = useState('');
-  const [policeStCode, setPoliceStCode] = useState('');
-  const [firNo, setFirNo] = useState('');
-  const [filingNo, setFilingNo] = useState('');
-  const [actCode, setActCode] = useState('');
-  const [section, setSection] = useState('');
-  const [caveatorName, setCaveatorName] = useState('');
-  const [caveateeName, setCaveateeName] = useState('');
-  const [caveatSearchBy, setCaveatSearchBy] = useState<'Caveator' | 'Caveatee'>('Caveator');
-  const [year, setYear] = useState(String(new Date().getFullYear()));
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-
-  const { data: states, isLoading: statesLoading, isError: statesError, refetch: refetchStates } = useEcourtsStates(court);
-  const {
-    data: districts, isLoading: districtsLoading, isFetching: districtsFetching,
-    isError: districtsError, refetch: refetchDistricts,
-  } = useEcourtsDistricts(stateCode === '' ? null : stateCode, court);
-  const { data: complexes, isFetching: complexesFetching } = useEcourtsCourtComplexes(
-    stateCode === '' ? null : stateCode,
-    distCode === '' ? null : distCode,
-    court,
-  );
-  const { data: courts, isFetching: courtsFetching } = useEcourtsCourts(
-    stateCode === '' ? null : stateCode,
-    distCode === '' ? null : distCode,
-    complexCode || null,
-    court,
-  );
-  // Which judge(s) sit on the selected court - a 4th cascade level, live
-  // (not DB-cached like courts/complexes). Purely informational for now: the
-  // search itself still scopes by court, not by individual judge.
-  const { data: judgeBenches, isFetching: judgeBenchesFetching } = useEcourtsJudgeBenches(
-    stateCode === '' ? null : stateCode,
-    distCode === '' ? null : distCode,
-    courtCode && courtCode !== '0' ? courtCode : null,
-    court,
-  );
-  // Court-complex geolocation - scoped to the complex (one building), not
-  // the individual court, since every court inside shares one address.
-  const { data: courtLocation } = useEcourtsCourtLocation(
-    stateCode === '' ? null : stateCode,
-    distCode === '' ? null : distCode,
-    complexCode || null,
-    court,
-  );
-  // Real court names (ecourts_courts) are only captured for a handful of
-  // complexes so far - probing each court_code for its name is a live search
-  // call per code, much slower than the complex-list capture. Until that
-  // catches up, fall back to the court_codes already captured on the complex
-  // itself (no name, just the code) so the field is still a dropdown instead
-  // of free text.
-  const selectedComplex = complexes?.find((c) => c.complexCode === complexCode);
-  const codeOnlyCourts = selectedComplex?.courtCodes ?? [];
-
-  const searchCaseNumber = useEcourtsSearchCaseNumber();
-  const searchParty = useEcourtsSearchParty();
-  const searchAdvocate = useEcourtsSearchAdvocate();
-  const searchFir = useEcourtsSearchFir();
-  const searchFiling = useEcourtsSearchFilingNumber();
-  const searchAct = useEcourtsSearchAct();
-  const causeList = useEcourtsCauseList();
-  const caveatSearch = useEcourtsCaveatSearch();
-
-  const mutation = {
-    'case-number': searchCaseNumber,
-    party: searchParty,
-    advocate: searchAdvocate,
-    fir: searchFir,
-    filing: searchFiling,
-    act: searchAct,
-    'cause-list': causeList,
-    caveat: caveatSearch,
-  }[mode];
-
-  // Court code is REQUIRED for every mode - it's what actually goes upstream
-  // as `court_code_arr` (see ecourts.service.ts). Without it eCourts searches
-  // zero establishments and returns a response that looks exactly like "no
-  // matching cases" but means "searched nothing" (verified live). The Court
-  // dropdown above auto-fills this; estCode alone is NOT enough to submit -
-  // that was the bug (dropdown picked, courtCode left at '0', silent empty
-  // search) this check now catches.
-  const scopeReady = stateCode !== '' && distCode !== '' && estCode.trim().length > 0 && courtCode.trim().length > 0 && courtCode !== '0';
-  const fieldsReady = (() => {
-    switch (mode) {
-      case 'case-number': return caseType.trim() && regNo.trim();
-      case 'party': return partyName.trim();
-      case 'advocate': return advocateName.trim();
-      case 'fir': return policeStCode.trim() && firNo.trim();
-      case 'filing': return filingNo.trim();
-      case 'act': return actCode.trim();
-      case 'cause-list': return Boolean(date);
-      case 'caveat': return caveatorName.trim() || caveateeName.trim();
-      default: return false;
-    }
-  })();
-  const canSubmit = scopeReady && Boolean(fieldsReady);
-
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!canSubmit) return;
-    const scope = {
-      stateCode: Number(stateCode), distCode: Number(distCode),
-      courtCode: Number(courtCode) || 0,
-      estCode: estCode.trim(),
-      court,
-    };
-    const yr = Number(year);
-    switch (mode) {
-      case 'case-number':
-        searchCaseNumber.mutate({ ...scope, caseType: caseType.trim(), regNo: regNo.trim(), year: yr });
-        break;
-      case 'party':
-        searchParty.mutate({ ...scope, partyName: partyName.trim(), year: yr, stage: 'B' });
-        break;
-      case 'advocate':
-        searchAdvocate.mutate({ ...scope, advocateName: advocateName.trim(), year: yr, stage: 'B' });
-        break;
-      case 'fir':
-        searchFir.mutate({ ...scope, policeStCode: Number(policeStCode), firNo: firNo.trim(), firYear: yr });
-        break;
-      case 'filing':
-        searchFiling.mutate({ ...scope, filingNo: filingNo.trim(), filingYear: yr });
-        break;
-      case 'act':
-        searchAct.mutate({ ...scope, actCode: actCode.trim(), section: section.trim() || undefined, year: yr });
-        break;
-      case 'cause-list':
-        causeList.mutate({ ...scope, date });
-        break;
-      case 'caveat':
-        caveatSearch.mutate({ ...scope, caveatorName: caveatorName.trim() || undefined, caveateeName: caveateeName.trim() || undefined, searchBy: caveatSearchBy });
-        break;
-    }
-  };
-
-  const copy = MODE_COPY[mode];
-
-  return (
-    <div className="col stagger" style={{ gap: 24 }}>
-      {mode === 'act' ? (
-        <div className="card" style={{ borderColor: 'var(--warning)' }}>
-          <div className="row" style={{ gap: 12 }}>
-            <span className="dot dot-amber" />
-            <div>
-              <div className="heading-sm" style={{ marginBottom: 4 }}>This search is currently unavailable</div>
-              <p className="body-sm muted">eCourts' own backend rejects every request to this search today. This is not a bug on our side. Try another search mode.</p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card">
-        <div className="col" style={{ gap: 16 }}>
-          <div className="col" style={{ gap: 6 }}>
-            <div className="heading-sm">{copy.title}</div>
-            <p className="body-sm muted" style={{ maxWidth: 640 }}>{copy.blurb}</p>
-          </div>
-
-          <form onSubmit={onSubmit} className="col" style={{ gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">Court tier</span>
-                <select className="input" value={court} onChange={(e) => { setCourt(e.target.value as Court); setStateCode(''); setDistCode(''); }}>
-                  <option value="DC">District</option>
-                  <option value="HC">High Court</option>
-                </select>
-              </label>
-              <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">
-                  State {statesLoading ? '· loading…' : statesError ? '· failed to load' : ''}
-                </span>
-                <select
-                  className="input"
-                  value={stateCode}
-                  onChange={(e) => { setStateCode(e.target.value ? Number(e.target.value) : ''); setDistCode(''); }}
-                  disabled={statesLoading}
-                >
-                  <option value="">{statesLoading ? 'Loading states…' : 'Select state'}</option>
-                  {(states ?? []).map((s) => <option key={s.state_code} value={s.state_code}>{s.state_name}</option>)}
-                </select>
-                {statesError ? (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refetchStates()} style={{ alignSelf: 'flex-start' }}>
-                    eCourts didn't respond, retry
-                  </button>
-                ) : null}
-              </label>
-              <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">
-                  District {districtsFetching ? '· loading…' : districtsError ? '· failed to load' : ''}
-                </span>
-                <select
-                  className="input"
-                  value={distCode}
-                  onChange={(e) => setDistCode(e.target.value ? Number(e.target.value) : '')}
-                  disabled={stateCode === '' || districtsLoading}
-                >
-                  <option value="">
-                    {stateCode === '' ? 'Select a state first' : districtsFetching ? 'Loading districts…' : 'Select district'}
-                  </option>
-                  {(districts ?? []).map((d) => <option key={d.dist_code} value={d.dist_code}>{d.dist_name}</option>)}
-                </select>
-                {districtsError ? (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refetchDistricts()} style={{ alignSelf: 'flex-start' }}>
-                    eCourts didn't respond, retry
-                  </button>
-                ) : null}
-              </label>
-              <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">
-                  Court complex {complexesFetching ? '· loading…' : ''}
-                </span>
-                {complexes && complexes.length > 0 ? (
-                  <select
-                    className="input"
-                    value={complexCode}
-                    onChange={(e) => { setComplexCode(e.target.value); setEstCode(''); }}
-                    disabled={distCode === ''}
-                  >
-                    <option value="">Select court complex</option>
-                    {complexes.map((c) => (
-                      <option key={c.complexCode} value={c.complexCode}>
-                        {c.complexName}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    className="input"
-                    value={estCode}
-                    onChange={(e) => setEstCode(e.target.value)}
-                    placeholder={distCode === '' ? 'Select a district first' : 'e.g. 12 (this district isn\'t in our list yet)'}
-                    disabled={distCode === ''}
-                  />
-                )}
-                {courtLocation ? (
-                  <a
-                    href={`https://www.google.com/maps?q=${courtLocation.latitude},${courtLocation.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="body-sm"
-                    style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
-                  >
-                    View court on map →
-                  </a>
-                ) : null}
-              </label>
-              {complexes && complexes.length > 0 ? (
-                <label className="col" style={{ gap: 4 }}>
-                  <span className="body-sm muted">
-                    Court {courtsFetching ? '· loading…' : ''}
-                  </span>
-                  {courts && courts.length > 0 ? (
-                    <select
-                      className="input"
-                      value={estCode}
-                      onChange={(e) => { setEstCode(e.target.value); setCourtCode(e.target.value); }}
-                      disabled={!complexCode}
-                    >
-                      <option value="">Select court</option>
-                      {courts.map((c) => (
-                        <option key={c.courtCode} value={c.courtCode}>{c.courtName}</option>
-                      ))}
-                    </select>
-                  ) : codeOnlyCourts.length > 0 ? (
-                    <select
-                      className="input"
-                      value={estCode}
-                      onChange={(e) => { setEstCode(e.target.value); setCourtCode(e.target.value); }}
-                      disabled={!complexCode}
-                    >
-                      <option value="">Select court</option>
-                      {codeOnlyCourts.map((code) => (
-                        <option key={code} value={code}>Court {code}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="input"
-                      value={estCode}
-                      onChange={(e) => setEstCode(e.target.value)}
-                      placeholder={!complexCode ? 'Select a court complex first' : "e.g. 17 (this complex isn't in our list yet)"}
-                      disabled={!complexCode}
-                    />
-                  )}
-                </label>
-              ) : null}
-              <label className="col" style={{ gap: 4 }}>
-                <span className="body-sm muted">Court code</span>
-                <input
-                  className="input"
-                  value={courtCode}
-                  onChange={(e) => setCourtCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder={complexes && complexes.length > 0 ? 'auto-filled from Court above' : 'e.g. 6'}
-                />
-              </label>
-            </div>
-
-            {courtCode && courtCode !== '0' ? (
-              <div className="body-sm muted" style={{ marginTop: -4 }}>
-                {judgeBenchesFetching ? (
-                  'Loading judge/bench…'
-                ) : judgeBenches && judgeBenches.length > 0 ? (
-                  <>
-                    <span style={{ color: 'var(--text-tertiary)' }}>Bench: </span>
-                    {judgeBenches.map((jb, i) => (
-                      <span key={jb.code}>
-                        {jb.judgeName}{jb.designation ? ` (${jb.designation})` : ''}
-                        {i < judgeBenches.length - 1 ? ', ' : ''}
-                      </span>
-                    ))}
-                  </>
-                ) : null}
-              </div>
-            ) : null}
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-              {mode === 'case-number' && (
-                <>
-                  <Labeled label="Case type"><input className="input" value={caseType} onChange={(e) => setCaseType(e.target.value)} /></Labeled>
-                  <Labeled label="Registration number"><input className="input" value={regNo} onChange={(e) => setRegNo(e.target.value)} /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'party' && (
-                <>
-                  <Labeled label="Party name"><input className="input" value={partyName} onChange={(e) => setPartyName(e.target.value)} placeholder="e.g. Ramesh Kumar" /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'advocate' && (
-                <>
-                  <Labeled label="Advocate name"><input className="input" value={advocateName} onChange={(e) => setAdvocateName(e.target.value)} /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'fir' && (
-                <>
-                  <Labeled label="Police station code"><input className="input" value={policeStCode} onChange={(e) => setPoliceStCode(e.target.value.replace(/\D/g, ''))} /></Labeled>
-                  <Labeled label="FIR number"><input className="input" value={firNo} onChange={(e) => setFirNo(e.target.value)} /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'filing' && (
-                <>
-                  <Labeled label="Filing number"><input className="input" value={filingNo} onChange={(e) => setFilingNo(e.target.value)} /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'act' && (
-                <>
-                  <Labeled label="Act code"><input className="input" value={actCode} onChange={(e) => setActCode(e.target.value)} /></Labeled>
-                  <Labeled label="Section (optional)"><input className="input" value={section} onChange={(e) => setSection(e.target.value)} /></Labeled>
-                  <Labeled label="Year"><input className="input" value={year} onChange={(e) => setYear(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" /></Labeled>
-                </>
-              )}
-              {mode === 'cause-list' && (
-                <Labeled label="Date"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Labeled>
-              )}
-              {mode === 'caveat' && (
-                <>
-                  <Labeled label="Caveator name"><input className="input" value={caveatorName} onChange={(e) => setCaveatorName(e.target.value)} /></Labeled>
-                  <Labeled label="Caveatee name"><input className="input" value={caveateeName} onChange={(e) => setCaveateeName(e.target.value)} /></Labeled>
-                  <Labeled label="Search by">
-                    <select className="input" value={caveatSearchBy} onChange={(e) => setCaveatSearchBy(e.target.value as 'Caveator' | 'Caveatee')}>
-                      <option value="Caveator">Caveator</option>
-                      <option value="Caveatee">Caveatee</option>
-                    </select>
-                  </Labeled>
-                </>
-              )}
-            </div>
-
-            <div>
-              <button type="submit" className="btn btn-primary btn-lg" disabled={!canSubmit || mutation.isPending}>
-                {mutation.isPending ? 'Searching…' : 'Search'} <Icon name="search" size={14} />
-              </button>
-              {!scopeReady && (
-                <div className="body-sm muted" style={{ marginTop: 8 }}>
-                  Select state, district and enter the court complex code to search.
-                </div>
-              )}
-            </div>
-          </form>
-        </div>
-      </div>
-
-      {mutation.isPending ? <SearchLoadingCard /> : null}
-
-      {mutation.isError ? (
-        <div className="card" style={{ borderColor: 'var(--vermillion)' }}>
-          <div className="row" style={{ gap: 12 }}>
-            <span className="dot dot-vermillion" />
-            <div>
-              <div className="heading-sm" style={{ marginBottom: 4 }}>Search failed</div>
-              <p className="body-sm muted">
-                {(mutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error
-                  ?? (mutation.error as Error)?.message
-                  ?? 'The eCourts backend rejected this request. Double-check the establishment code for this court.'}
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {mutation.isSuccess ? (
-        <SearchResultRenderer
-          mode={mode}
-          data={mutation.data}
-          onViewCnr={handleViewCnr}
-          court={court}
-          scope={{ stateCode: stateCode === '' ? 0 : stateCode, distCode: distCode === '' ? 0 : distCode, courtCode: Number(courtCode) || 0 }}
-        />
-      ) : null}
-
-      {mode === 'caveat' && mutation.isSuccess && stateCode !== '' && distCode !== '' && courtCode && courtCode !== '0' ? (
-        <LowerCourtCaveatSection stateCode={stateCode} distCode={distCode} courtCode={Number(courtCode)} court={court} />
-      ) : null}
-
-      {viewCnr ? (
-        <div ref={viewCardRef}>
-          {(viewLoading || viewFetching) ? <LoadingCard cnr={viewCnr} /> : null}
-          {/* Same 404-vs-transport-failure split as CaseStatusTab: a 404 is
-              an expected "no record for this CNR" answer, not a failure. */}
-          {viewError && !viewNotFound ? <ErrorCard error={viewErrorObj} /> : null}
-          {viewedCase ? <CaseCard h={viewedCase} court={court} onAdded={() => setViewCnr(null)} /> : null}
-          {!viewLoading && !viewFetching && (viewNotFound || (!viewError && !viewedCase)) ? (
-            <div className="card" style={{ borderColor: 'var(--warning)' }}>
-              <div className="row" style={{ gap: 12 }}>
-                <span className="dot dot-amber" />
-                <div>
-                  <div className="heading-sm" style={{ marginBottom: 4 }}>No case found</div>
-                  <p className="body-sm muted">The eCourts backend did not return a record for this CNR.</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="col" style={{ gap: 4 }}>
-      <span className="body-sm muted">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-// A GENUINE zero-result search (court searched, nothing matched - distinct
-// from the "search never ran" amber warning above) used to just say "no
-// matching cases" with nothing else - the advocate was left guessing why
-// (wrong year? name spelled differently on the court record? wrong court
-// entirely?) with no way to tell from the UI alone. Confirmed live this is a
-// real gap, not a hypothetical: a real search (Kerala/Alappuzha/Sub Court
-// Chengannur/"shahul"/2026) correctly reported zero matches - genuinely
-// correct per the live eCourts data - but gave the advocate nothing to act
-// on next. eCourts' own party-name matching is narrower than a human expects
-// (closer to exact/prefix than fuzzy), so "check the name" is the single
-// highest-value hint, not a generic "try again."
-const ZERO_RESULT_HINTS: Record<SearchMode, string[]> = {
-  'party': [
-    'eCourts matches party names narrowly (closer to exact than fuzzy) - try just the surname, or the name exactly as it would appear on a court filing.',
-    'Confirm the year - this searches filings registered in the year entered, not the case\'s current year.',
-    'Double-check the court selected above - a case filed at a different court/complex in the same district won\'t show here.',
-  ],
-  'advocate': [
-    'Try the advocate\'s name exactly as enrolled (eCourts matching is narrow, not fuzzy).',
-    'Confirm the year - this searches filings registered in that year.',
-    'Double-check the court selected above.',
-  ],
-  'case-number': [
-    'Double-check the case type, number, and year match exactly what\'s on the filing.',
-    'Confirm the court selected above is the one the case was actually filed at.',
-  ],
-  'fir': [
-    'Confirm the FIR number and year exactly as registered.',
-    'Double-check the police station and court selected above.',
-  ],
-  'filing': [
-    'Confirm the filing number and year exactly as issued.',
-    'Double-check the court selected above.',
-  ],
-  'act': [
-    'Try a narrower or differently-worded act name - eCourts matching here is narrow.',
-  ],
-  'cause-list': [],
-  'caveat': [
-    'Try just the surname, or the name exactly as it would appear on a court filing.',
-    'Double-check the court selected above.',
-  ],
-};
-
-function ZeroResultHint({ mode }: { mode: SearchMode }) {
-  const hints = ZERO_RESULT_HINTS[mode];
-  if (!hints.length) return null;
-  return (
-    <ul className="body-sm muted" style={{ marginTop: 8, paddingLeft: 18 }}>
-      {hints.map((h, i) => <li key={i}>{h}</li>)}
-    </ul>
-  );
-}
-
-// eCourts search endpoints return varying, loosely-typed shapes per mode
-// (the PHP backend isn't uniform). Rather than guess a schema per mode and
-// break on the first mismatch, we detect a `status:"N"` error envelope and
-// otherwise render whatever list-shaped or object-shaped payload came back.
-function SearchResultRenderer({
-  mode, data, onViewCnr, court, scope,
-}: {
-  mode: SearchMode; data: unknown; onViewCnr: (cnr: string) => void; court: Court;
-  scope: { stateCode: number; distCode: number; courtCode: number };
-}) {
-  const obj = data as Record<string, unknown> | null;
-  if (obj && typeof obj === 'object' && obj.status === 'N') {
-    return (
-      <div className="card" style={{ borderColor: 'var(--warning)' }}>
-        <div className="row" style={{ gap: 12 }}>
-          <span className="dot dot-amber" />
-          <div>
-            <div className="heading-sm" style={{ marginBottom: 4 }}>No result</div>
-            <p className="body-sm muted">{String(obj.msg ?? 'eCourts did not return a match for this search.')}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // `{"no_of_establishments":0}` with NO establishment keys at all is a
-  // distinct failure mode, not a genuine "no matching cases" result: it
-  // means eCourts searched zero establishments (a `court_code_arr` scoping
-  // problem upstream), not that it searched the right court and found
-  // nothing. A real empty result still comes back with establishment
-  // entries present, just with empty `caseNos: []` inside them (handled
-  // below). Surfacing this the same as "no cases matched" has misled users
-  // before - call it out explicitly, same treatment as the Act-search
-  // "currently unavailable" banner.
-  if (
-    obj && typeof obj === 'object' && !Array.isArray(obj)
-    && obj.no_of_establishments === 0
-    && !Object.keys(obj).some((k) => k !== 'token' && k !== 'no_of_establishments')
-  ) {
-    return (
-      <div className="card" style={{ borderColor: 'var(--warning)' }}>
-        <div className="row" style={{ gap: 12 }}>
-          <span className="dot dot-amber" />
-          <div>
-            <div className="heading-sm" style={{ marginBottom: 4 }}>Search did not run against any court</div>
-            <p className="body-sm muted">
-              eCourts reports it searched zero establishments for this request - this is not the same as
-              "no matching cases", it means the search never actually ran against the court you selected.
-              Double-check the establishment/court selected above, or try the search again; this is a
-              known upstream quirk, not a sign that there's no such case.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (mode === 'cause-list') {
-    const items = (obj?.items as EcourtsCauseListEntry[] | undefined) ?? [];
-    if (!items.length) {
-      return <div className="card"><p className="body-sm muted">No cause-list entries for this date.</p></div>;
-    }
-    return (
-      <div className="card">
-        <div className="heading-sm" style={{ marginBottom: 10 }}>{items.length} {items.length === 1 ? 'entry' : 'entries'}</div>
-        <table className="tbl">
-          <thead><tr><th style={{ width: 100 }}>Court</th><th>Case</th><th>Parties</th></tr></thead>
-          <tbody>
-            {items.map((it, i) => (
-              <tr key={i}>
-                <td className="mono">{String(it.court_no ?? '—')}</td>
-                <td>{String(it.case_no ?? '—')}</td>
-                <td>{String(it.petparty_name ?? '')} v. {String(it.resparty_name ?? '')}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  // Case-search endpoints (party/advocate/FIR/filing/case-number/act) share
-  // this real, verified shape: an object keyed by establishment index
-  // ("0", "1", ...), each holding { establishment_name, caseNos: [...] }, plus
-  // a top-level `no_of_establishments` count and `token`. Those last two are
-  // metadata, NOT a result - rendering them as if they were a case (as a
-  // naive "dump every field" renderer would) is exactly what made a genuine
-  // zero-establishments response look like "1 result" with a case named "NO
-  // OF ESTABLISHMENTS: 0". Parse the real establishment/caseNos structure.
-  interface CaseRow {
-    cino?: string; case_no?: string; pet_name?: string; res_name?: string;
-    extra_party?: string; type_name?: string; case_year?: number | string;
-    date_of_decision?: string | null;
-    [k: string]: unknown;
-  }
-  const establishments: Array<{ name: string; cases: CaseRow[] }> = [];
-  if (obj && typeof obj === 'object') {
-    for (const [key, val] of Object.entries(obj)) {
-      if (key === 'token' || key === 'no_of_establishments') continue;
-      if (val && typeof val === 'object' && Array.isArray((val as { caseNos?: unknown }).caseNos)) {
-        const v = val as { establishment_name?: string; caseNos: CaseRow[] };
-        establishments.push({ name: v.establishment_name ?? `Establishment ${key}`, cases: v.caseNos });
-      }
-    }
-  }
-  const totalCases = establishments.reduce((n, e) => n + e.cases.length, 0);
-
-  if (establishments.length > 0) {
-    return (
-      <div className="col" style={{ gap: 16 }}>
-        <div className="body-sm muted">
-          {totalCases > 0
-            ? `${totalCases} ${totalCases === 1 ? 'case' : 'cases'} found across ${establishments.length} ${establishments.length === 1 ? 'court' : 'courts'}`
-            : `Searched ${establishments.length} ${establishments.length === 1 ? 'court' : 'courts'}, no matching cases`}
-        </div>
-        {establishments.map((est, ei) => (
-          <div key={ei} className="card">
-            <div className="heading-sm" style={{ marginBottom: 10 }}>{est.name}</div>
-            {est.cases.length === 0 ? (
-              <div>
-                <p className="body-sm muted">No cases matched this search in this court.</p>
-                <ZeroResultHint mode={mode} />
-              </div>
-            ) : (
-              <div className="col" style={{ gap: 8 }}>
-                {est.cases.map((c, i) => (
-                  <div key={i} className="col" style={{ gap: 8, padding: '8px 0', borderBottom: i < est.cases.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <div className="row" style={{ gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div className="col" style={{ gap: 2 }}>
-                        <div className="body-sm" style={{ fontWeight: 600 }}>
-                          {[c.pet_name, c.res_name].filter(Boolean).join(' v. ') || c.extra_party || c.case_no}
-                        </div>
-                        <div className="body-sm muted">
-                          {c.type_name ? `${c.type_name} · ` : ''}{c.case_no}{c.case_year ? `/${c.case_year}` : ''}
-                          {c.date_of_decision ? ` · Decided ${c.date_of_decision}` : ''}
-                        </div>
-                        {c.cino ? <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>CNR {c.cino}</span> : null}
-                        {c.cino ? <ResultStatusBadge cino={c.cino} court={court} /> : null}
-                      </div>
-                      {c.cino ? (
-                        <div className="row" style={{ gap: 8 }}>
-                          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onViewCnr(c.cino!)}>
-                            View
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                    {c.cino ? <LiveBusinessInline cino={c.cino} /> : null}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Fallback: an array (or object wrapping one) of case-like rows, for modes
-  // that don't follow the establishment/caseNos shape above.
-  const rows: Array<Record<string, unknown>> = Array.isArray(obj)
-    ? (obj as unknown as Array<Record<string, unknown>>)
-    : Array.isArray(obj?.data) ? (obj!.data as Array<Record<string, unknown>>)
-    : [];
-
-  if (!rows.length) {
-    return (
-      <div className="card">
-        <p className="body-sm muted">No cases matched this search.</p>
-        <ZeroResultHint mode={mode} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="col" style={{ gap: 12 }}>
-      <div className="body-sm muted">{rows.length} {rows.length === 1 ? 'result' : 'results'}</div>
-      {rows.map((row, i) => (
-        <div key={i} className="card">
-          <div className="grid-2" style={{ gap: 12 }}>
-            {Object.entries(row).filter(([k]) => !/^(token|status)$/i.test(k)).slice(0, 12).map(([k, v]) => (
-              <Field key={k} label={k.replace(/_/g, ' ').toUpperCase()} value={String(v ?? '—')} />
-            ))}
-          </div>
-          {mode === 'caveat' && row.caveat_no ? (
-            <CaveatDetailButton caveatNumber={String(row.caveat_no)} scope={scope} court={court} />
-          ) : null}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// caveatCaseHistoryWebService.php - detail for one specific caveat result row
-// (parties, subject, filing date). Found by re-auditing the full decompiled
-// APK, see ecourts.service.ts's fetchCaveatHistory doc comment. A caveat
-// number with nothing on record still returns a populated shape with every
-// field null - rendered as "No further detail on record" rather than hidden,
-// since the advocate explicitly asked to see it (unlike the auto-fetched
-// IA/Appellate sections, this is click-triggered so showing SOME response is
-// expected, not a silent no-op).
-function CaveatDetailButton({ caveatNumber, scope, court }: { caveatNumber: string; scope: { stateCode: number; distCode: number; courtCode: number }; court: Court }) {
-  const mutation = useEcourtsCaveatHistory();
-  const [shown, setShown] = useState(false);
-
-  const handleClick = () => {
-    setShown(true);
-    if (!mutation.data) mutation.mutate({ ...scope, caveatNumber, court });
-  };
-
-  if (!shown) {
-    return (
-      <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={handleClick}>
-        View caveat detail
-      </button>
-    );
-  }
-
-  if (mutation.isPending) return <p className="body-sm muted" style={{ marginTop: 8 }}>Loading…</p>;
-  if (mutation.isError) return <p className="body-sm muted" style={{ marginTop: 8 }}>Could not load caveat detail.</p>;
-
-  const h = mutation.data?.history;
-  const hasDetail = Boolean(h?.caveatorDetails.caveator_name || h?.caveateeDetails.caveatee_name || h?.caveatDetails.subject);
-  return (
-    <div className="col" style={{ marginTop: 8, gap: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-      {hasDetail ? (
-        <div className="grid-2" style={{ gap: 12 }}>
-          <Field label="CAVEATOR" value={h?.caveatorDetails.caveator_name || '—'} />
-          <Field label="CAVEATEE" value={h?.caveateeDetails.caveatee_name || '—'} />
-          <Field label="SUBJECT" value={h?.caveatDetails.subject || '—'} />
-          <Field label="DATE OF FILING" value={h?.caveatDetails.dt_filing || '—'} mono />
-        </div>
-      ) : (
-        <p className="body-sm muted">No further detail on record for this caveat.</p>
-      )}
-    </div>
-  );
-}
-
-// lowerCourtCaveat.php - whether a caveat exists at a LOWER court for the
-// same matter, one of the 6 endpoints found by re-auditing the full
-// decompiled APK (see ecourts.service.ts). Renders nothing on an empty
-// result (verified live: that's a legitimate "no lower-court caveat" answer,
-// not an error) - only appears after a caveat search has actually run.
-function LowerCourtCaveatSection({ stateCode, distCode, courtCode, court }: { stateCode: number; distCode: number; courtCode: number; court: Court }) {
-  const { data: items, isLoading } = useEcourtsLowerCourtCaveat(stateCode, distCode, courtCode, court);
-  if (isLoading || !items || items.length === 0) return null;
-  return (
-    <div className="card" style={{ marginTop: 16 }}>
-      <div className="heading-sm" style={{ marginBottom: 10 }}>Lower-court caveat on record</div>
-      <div className="col" style={{ gap: 8 }}>
-        {items.map((row, i) => (
-          <div key={i} className="grid-2" style={{ gap: 12 }}>
-            {Object.entries(row).filter(([k]) => !/^(token)$/i.test(k)).slice(0, 8).map(([k, v]) => (
-              <Field key={k} label={k.replace(/_/g, ' ').toUpperCase()} value={String(v ?? '—')} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
 
@@ -1017,39 +531,52 @@ function LoadingCard({ cnr }: { cnr: string }) {
       <div className="row" style={{ gap: 12 }}>
         <span className="dot dot-amber" />
         <div>
-          <div className="heading-sm" style={{ marginBottom: 4 }}>Fetching {cnr}…</div>
-          <p className="body-sm muted">eCourts upstream is famously slow; this can take 5-15 seconds.</p>
+          <div className="heading-sm" style={{ marginBottom: 4 }}>Getting {cnr} from eCourts…</div>
+          <p className="body-sm muted">
+            First time opening this case, so it comes straight from eCourts (usually 5 to 15 seconds).
+            LexDraft keeps a copy, so next time it opens instantly.
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-// Court-scope searches (party/case-number/advocate/etc.) hit the same slow
-// eCourts upstream but can run 20-30s+ (we've seen it time out at 30s) -
-// longer than a single CNR fetch. Without a visible loading state here the
-// page looks frozen/blank for that whole window; this fills it so the
-// advocate can see the search is actually in flight.
-function SearchLoadingCard() {
+/** eCourts was down/busy and nothing is stored yet: the server queued the
+ *  fetch (retrying with backoff) - say so plainly instead of spinning. */
+function QueuedCard({ cnr, message }: { cnr: string; message: string }) {
   return (
-    <div className="card">
+    <div className="card" style={{ borderColor: 'var(--warning)' }}>
       <div className="row" style={{ gap: 12 }}>
-        <span className="spinner" aria-hidden style={{
-          width: 14, height: 14, borderRadius: '50%',
-          border: '2px solid var(--border-subtle)', borderTopColor: 'var(--info)',
-          animation: 'ecourts-spin 0.8s linear infinite', flexShrink: 0,
-        }} />
+        <span className="dot dot-amber" />
         <div>
-          <div className="heading-sm" style={{ marginBottom: 4 }}>Searching eCourts…</div>
-          <p className="body-sm muted">
-            eCourts' live upstream is slow and can take 20-30 seconds, sometimes longer. This isn't stuck -
-            hang tight.
-          </p>
+          <div className="heading-sm" style={{ marginBottom: 4 }}>Waiting for eCourts: {cnr}</div>
+          <p className="body-sm muted">{message} This page also checks again every 20 seconds.</p>
         </div>
       </div>
-      <style>{`
-        @keyframes ecourts-spin { to { transform: rotate(360deg); } }
-      `}</style>
+    </div>
+  );
+}
+
+function ago(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const h = Math.round(mins / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(iso).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+}
+
+/** Where the shown case came from and how fresh it is. */
+function StoredNote({ meta }: { meta: { fetchedAt: string; stale: boolean; refreshing: boolean } | null }) {
+  if (!meta) return null;
+  return (
+    <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+      <span className={`dot ${meta.refreshing ? 'dot-cobalt' : 'dot-sage'}`} />
+      <span className="body-sm muted">
+        Updated from eCourts {ago(meta.fetchedAt)}
+        {meta.refreshing ? ' · getting the latest in the background' : ''}
+      </span>
     </div>
   );
 }
@@ -1069,165 +596,181 @@ function ErrorCard({ error }: { error: unknown }) {
   );
 }
 
-function CaseCard({ h, court, onAdded }: { h: EcourtsCaseHistory; court: Court; onAdded?: () => void }) {
+/**
+ * The full eCourts record of one CNR inside a matter's own page (case page >
+ * eCourts tab): the stored copy opens instantly and refreshes in the
+ * background. No back arrow or "Add Case" - it already is the matter.
+ */
+export function EcourtsCaseRecord({ cnr, court }: { cnr: string; court: Court }) {
+  const { data, isLoading, isError, isNotFound, error, queued, meta } = useEcourtsCnr(cnr, court);
+  return (
+    <div className="col" style={{ gap: 12 }}>
+      {isLoading ? <LoadingCard cnr={cnr} /> : null}
+      {queued ? <QueuedCard cnr={cnr} message={queued} /> : null}
+      {isError && !isNotFound ? <ErrorCard error={error} /> : null}
+      {data ? <StoredNote meta={meta} /> : null}
+      {data ? <div className="card"><CaseCard h={data} court={court} embedded /></div> : null}
+      {!isLoading && !queued && (isNotFound || (!isError && !data)) ? (
+        <div className="card"><p className="body-md muted">eCourts did not return a record for {cnr}{court === 'HC' ? ' in the High Court' : ' in the District Courts'}.</p></div>
+      ) : null}
+    </div>
+  );
+}
+
+function CaseCard({ h, court, onAdded, onBack, embedded }: { h: EcourtsCaseHistory; court: Court; onAdded?: () => void; onBack?: () => void; embedded?: boolean }) {
   const disposed = Boolean(h.date_of_decision && h.disp_name);
+  const { t, language } = useEcourtsT();
+  const navigate = useNavigate();
   const addToCases = useAddEcourtsCaseToMatters();
   const showToast = useUIStore((s) => s.showToast);
+  const { data: myCases } = useCases();
+  const inMyCases = myCases?.find((c) => (c.cnr ?? '').trim().toUpperCase() === h.cino.toUpperCase());
   const [added, setAdded] = useState(false);
-  // One LiveBusinessInline instance per case card; both the "Latest
-  // Business" purpose text and every hearing row trigger the SAME instance
-  // via this ref, so clicking either jumps straight into its captcha/result
-  // flow instead of needing the dedicated button first.
+  // One LiveBusinessInline instance per case; the Daily Status purpose and
+  // every hearing row trigger the same one.
   const liveBusinessRef = useRef<LiveBusinessInlineHandle>(null);
 
   const [hearingOpen, setHearingOpen] = useState(false);
   // Must match useAddEcourtsCaseToMatters' title construction exactly - the
-  // hearing modal resolves a matter by title string, so any divergence here
-  // would create a second, duplicate case instead of attaching to the one
-  // "Add to my cases" already created.
+  // hearing modal resolves a matter by title string.
   const caseTitle = `${h.petName || h.pet_name || 'Unknown'} v. ${h.resName || h.res_name || 'Unknown'}`;
 
   const handleAdd = async () => {
     try {
       await addToCases.mutateAsync({ history: h, court });
       setAdded(true);
-      showToast({ type: 'sage', text: 'Added to your matters and synced from eCourts' });
+      showToast({ type: 'sage', text: 'Added to My Cases and synced from eCourts' });
       onAdded?.();
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
-        ?.response?.data?.error ?? (err as Error).message ?? 'Could not add to matters';
-      // A case we already added isn't a failure the advocate needs to act
-      // on - it's already in Cases/Calendar, so "Add hearing" below should
-      // still work. Flip added=true on that one specific error instead of
-      // leaving the button stuck on a retry state for an action that can't
-      // succeed differently.
+        ?.response?.data?.error ?? (err as Error).message ?? 'Could not add to My Cases';
       if (msg.toLowerCase().includes('already in your matters')) setAdded(true);
       showToast({ type: 'vermillion', text: msg });
     }
   };
 
+  const andJoin = (a: string, aId: number, b: string, bId: number) =>
+    language === 'english' ? `${a} and ${b}` : `${t(aId, a)} ${t(L.and, 'and')} ${t(bId, b)}`;
+  const interim = h.interimOrder ?? [];
+  const finals = h.finalOrder ?? [];
+
+  // Case History exactly as the eCourts app lays it out: back arrow and
+  // Add Case on top, "Case History" + court name, then one collapsible bar
+  // per section (Case Details open first).
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
-      <div className="card">
-        <div className="row" style={{ alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
-              CNR · {h.cino}
-            </div>
-            <h2 className="heading-lg" style={{ marginBottom: 4 }}>
-              <em className="case-name">{(h.petName || h.pet_name) + ' v. ' + (h.resName || h.res_name)}</em>
-            </h2>
-            <p className="body-sm muted">{h.case_no} · {h.court_name}</p>
-          </div>
-          <div className="col" style={{ gap: 10, alignItems: 'flex-end' }}>
-            {disposed
-              ? <span className="badge badge-sage">{(h.disp_name ?? '').toUpperCase()}</span>
-              : <span className="badge badge-amber">PENDING</span>}
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => { void handleAdd(); }}
-              disabled={addToCases.isPending || added}
-              title="Save this matter to your Cases and pull its hearings from eCourts"
-            >
-              {added
-                ? <><Icon name="check" size={14} /> Added</>
-                : addToCases.isPending
-                  ? <>Adding…</>
-                  : <><Icon name="plus" size={14} /> Add to my cases</>}
+    <div className="col" style={{ gap: 12 }}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', display: embedded ? 'none' : undefined }}>
+        {onBack ? <BackArrow onClick={onBack} /> : <span />}
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          {inMyCases ? (
+            <button type="button" className="btn" onClick={() => navigate(`/app/cases/${inMyCases.id}?focus=ecourts&from=ecourts`)}>
+              <Icon name="check" size={14} /> In {t(L.myCases, 'My Cases')} · Open
             </button>
-            {added ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setHearingOpen(true)}
-                title="Add a hearing, deadline, or reminder for this matter - it shows up on your Calendar and triggers the same upcoming-hearing reminder as eCourts-synced dates"
-              >
-                <Icon name="calendar" size={14} /> Add hearing
-              </button>
-            ) : null}
-          </div>
+          ) : (
+            <button type="button" className="btn btn-primary" onClick={() => { void handleAdd(); }} disabled={addToCases.isPending || added}>
+              {added ? <><Icon name="check" size={14} /> Added</> : addToCases.isPending ? <>Adding…</> : <>{t(L.addCase, 'Add Case')} <Icon name="plus" size={14} /></>}
+            </button>
+          )}
+          {added || inMyCases ? (
+            <button type="button" className="btn" onClick={() => setHearingOpen(true)} title="Add a hearing, deadline or reminder for this matter">
+              <Icon name="calendar" size={14} /> Add hearing
+            </button>
+          ) : null}
         </div>
-
-        <hr className="hairline" style={{ margin: '20px 0' }} />
-
-        <div className="grid-2" style={{ gap: 24 }}>
-          <Field label="BENCH"          value={h.desgname || '—'} />
-          <Field label="DISTRICT"       value={`${h.district_name}, ${h.state_name}`} />
-          <Field label="DATE OF FILING" value={fmtDate(h.date_of_filing)} mono />
-          <Field
-            label={disposed ? 'DATE OF DECISION' : 'NEXT HEARING'}
-            value={fmtDate(disposed ? h.date_of_decision : h.date_next_list) || '—'}
-            mono
-          />
-          {h.purpose_name && <Field label="STAGE / PURPOSE" value={h.purpose_name} />}
-          {h.pet_adv && <Field label="PETITIONER ADVOCATE" value={h.pet_adv.trim()} />}
-          {h.res_adv && <Field label="RESPONDENT ADVOCATE" value={h.res_adv.trim()} />}
-          {h.fir_no && <Field label="FIR"
-            value={`${h.fir_no}/${h.fir_year}${h.fir_details ? ` · ${h.fir_details.split('^').filter(Boolean).join(' · ')}` : ''}`} />}
-        </div>
-
-        {h.act && h.act.length > 0 ? (
-          <>
-            <hr className="hairline" style={{ margin: '20px 0' }} />
-            <div className="col" style={{ gap: 8 }}>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-                ACTS & SECTIONS
-              </span>
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {h.act.map((a, i) => (
-                  <span key={i} className="badge" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {a.actCodeName.trim().replace(/\\$/, '')} §{a.actSectionName}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </>
-        ) : null}
-
-        {h.last_business_date && h.last_business_date.showbusiness === 'Y' ? (
-          <>
-            <hr className="hairline" style={{ margin: '20px 0' }} />
-            <div className="col" style={{ gap: 8 }}>
-              <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-                LATEST BUSINESS
-              </span>
-              <div className="grid-2" style={{ gap: 24 }}>
-                <Field
-                  label="PURPOSE"
-                  value={h.last_business_date.purpose || '—'}
-                  onClick={() => liveBusinessRef.current?.trigger()}
-                  title="Click to fetch live Business details from eCourts"
-                />
-                <Field label="BENCH" value={h.last_business_date.judge_name || '—'} />
-                <Field label="BUSINESS DATE" value={h.last_business_date.todays_date1 || h.last_business_date.todays_date} mono />
-                <Field
-                  label="NEXT DATE"
-                  value={h.last_business_date.nextdate ? fmtNextDate(h.last_business_date.nextdate) : '—'}
-                  mono
-                />
-              </div>
-              {h.last_business_date.businessStatus === 'Disposed'
-                ? <span className="badge badge-sage" style={{ alignSelf: 'flex-start' }}>DISPOSED</span>
-                : <span className="badge badge-amber" style={{ alignSelf: 'flex-start' }}>{h.last_business_date.businessStatus?.toUpperCase()}</span>}
-              <LiveBusinessInline ref={liveBusinessRef} cino={h.cino} eager />
-            </div>
-          </>
-        ) : null}
       </div>
 
-      {h.historyOfCaseHearing && h.historyOfCaseHearing.length > 0
-        ? <HearingsTable
+      <div className="col" style={{ alignItems: 'center', textAlign: 'center', gap: 2, margin: '4px 0 6px' }}>
+        <h2 className="heading-lg">{t(L.caseHistory, 'Case History')}</h2>
+        <span className="body-md">{h.court_name}</span>
+      </div>
+
+      <HistorySection title={t(L.caseDetails, 'Case Details')} defaultOpen>
+        <KvTable rows={[
+          [t(L.caseType, 'Case Type'), String(h.type_name ?? '')],
+          [t(L.filingNumber, 'Filing Number'), h.filing_no || (h.fil_no ? `${h.fil_no}/${h.fil_year}` : '')],
+          [t(L.filingDate, 'Filing Date'), dmy(h.date_of_filing)],
+          [t(L.registrationNumber, 'Registration Number'), h.reg_no ? `${h.reg_no}/${h.reg_year}` : ''],
+          [t(L.registrationDate, 'Registration Date'), dmy(h.dt_regis)],
+          [t(L.cnrNumber, 'CNR Number'), <span className="mono">{h.cino}</span>],
+        ]} />
+      </HistorySection>
+
+      <HistorySection title={t(L.caseStatus, 'Case Status')}>
+        <KvTable rows={[
+          [t(L.firstHearingDate, 'First Hearing Date'), dmy(h.date_first_list)],
+          disposed
+            ? [t(L.decisionDate, 'Decision Date'), dmy(h.date_of_decision)]
+            : [t(L.nextHearingDate, 'Next Hearing Date'), dmy(h.date_next_list) || 'Next date is not given'],
+          disposed
+            ? [t(L.caseStatus, 'Case Status'), 'CASE DISPOSED']
+            : [t(L.caseStage, 'Case Stage'), h.purpose_name || ''],
+          ...(disposed ? [[t(L.natureOfDisposal, 'Nature of Disposal'), h.disp_name || ''] as const] : []),
+          [language === 'english' ? 'Court Number and Judge' : `${t(L.courtNumber, 'Court Number')} ${t(L.and, 'and')} ${t(L.judge, 'Judge')}`, h.desgname || ''],
+        ]} />
+      </HistorySection>
+
+      <HistorySection title={t(L.qrCode, 'QR Code')}>
+        <CaseQrCode cnr={h.cino} />
+      </HistorySection>
+
+      <HistorySection title={andJoin('Petitioner', L.petitioner, 'Advocate', L.advocate)}>
+        <PartyList main={h.petName || h.pet_name} advocate={h.pet_adv} extras={h.ex_pet_namelegal} />
+      </HistorySection>
+
+      <HistorySection title={andJoin('Respondent', L.respondent, 'Advocate', L.advocate)}>
+        <PartyList main={h.resName || h.res_name} advocate={h.res_adv} extras={h.ex_res_namelegal} />
+      </HistorySection>
+
+      {h.act && h.act.length > 0 ? (
+        <HistorySection title={t(L.acts, 'Acts')}>
+          <table className="tbl">
+            <thead><tr><th>{t(L.underActs, 'Under Act(s)')}</th><th>{t(L.underSections, 'Under Section(s)')}</th></tr></thead>
+            <tbody>
+              {h.act.map((a, i) => (
+                <tr key={i}>
+                  <td>{a.actCodeName.trim().replace(/\\$/, '')}</td>
+                  <td>{a.actSectionName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </HistorySection>
+      ) : null}
+
+      {h.fir_no ? (
+        <HistorySection title={t(L.firDetails, 'FIR Details')}>
+          <KvTable rows={[
+            ...(h.fir_details ? h.fir_details.split('^').filter(Boolean).slice(0, 1).map((ps) => [t(L.policeStation, 'Police Station'), ps] as const) : []),
+            [t(L.firNumber, 'FIR Number'), String(h.fir_no)],
+            [t(L.year, 'Year'), String(h.fir_year ?? '')],
+          ]} />
+        </HistorySection>
+      ) : null}
+
+      {h.historyOfCaseHearing && h.historyOfCaseHearing.length > 0 ? (
+        <HistorySection title="History of Case Hearing">
+          <HearingsTable
             hearings={h.historyOfCaseHearing}
-            orders={[...(h.interimOrder ?? []), ...(h.finalOrder ?? [])]}
+            orders={[...interim, ...finals]}
             cino={h.cino}
+            court={court}
+            caseRef={h}
             onPurposeClick={() => liveBusinessRef.current?.trigger()}
           />
-        : null}
+        </HistorySection>
+      ) : null}
 
-      {((h.finalOrder?.length ?? 0) > 0 || (h.interimOrder?.length ?? 0) > 0)
-        ? <OrdersList finalOrders={h.finalOrder ?? []} interimOrders={h.interimOrder ?? []} cino={h.cino} />
-        : null}
+      {interim.length > 0 ? (
+        <HistorySection title={t(L.interimOrders, 'Interim Orders')}>
+          <OrdersTable orders={interim} cino={h.cino} court={court} caseRef={h} />
+        </HistorySection>
+      ) : null}
+
+      {finals.length > 0 ? (
+        <HistorySection title={t(L.finalOrders, 'Final Orders/Judgements')}>
+          <OrdersTable orders={finals} cino={h.cino} court={court} caseRef={h} />
+        </HistorySection>
+      ) : null}
 
       {h.transfer && h.transfer.length > 0 ? <TransferList transfers={h.transfer} /> : null}
 
@@ -1241,17 +784,144 @@ function CaseCard({ h, court, onAdded }: { h: EcourtsCaseHistory; court: Court; 
         court={court}
       />
 
+      {h.last_business_date && h.last_business_date.showbusiness === 'Y' ? (
+        <HistorySection title={t(L.dailyStatus, 'Daily Status')}>
+          <div className="col" style={{ gap: 10 }}>
+            <KvTable rows={[
+              [t(L.purposeOfHearing, 'Purpose of Hearing'), (
+                <button type="button" onClick={() => liveBusinessRef.current?.trigger()} title="Fetch live Business details from eCourts" style={{ textDecoration: 'underline', background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit', font: 'inherit' }}>
+                  {h.last_business_date.purpose || '—'}
+                </button>
+              )],
+              [t(L.judge, 'Judge'), h.last_business_date.judge_name || ''],
+              [t(L.businessOnDate, 'Business On Date'), h.last_business_date.todays_date1 || h.last_business_date.todays_date],
+              [t(L.nextHearingDate, 'Next Hearing Date'), h.last_business_date.nextdate ? fmtNextDate(h.last_business_date.nextdate) : ''],
+            ]} />
+            <BusinessPanel row={h.last_business_date} court={court} onFallback={() => liveBusinessRef.current?.trigger()} />
+            <LiveBusinessInline ref={liveBusinessRef} cino={h.cino} />
+          </div>
+        </HistorySection>
+      ) : null}
+
       <NewHearingModal
         open={hearingOpen}
         onClose={() => setHearingOpen(false)}
-        defaultCase={caseTitle}
+        defaultCase={inMyCases?.title || caseTitle}
         defaultCourt={h.court_name}
       />
     </div>
   );
 }
 
-function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: EcourtsHearing[]; orders: EcourtsOrder[]; cino: string; onPurposeClick: () => void }) {
+/** dd-mm-yyyy, as every date in the eCourts app. */
+function dmy(iso: string | undefined | null): string {
+  if (!iso) return '';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : iso;
+}
+
+/** The app's QR Code section - the case's CNR as a QR code. */
+function CaseQrCode({ cnr }: { cnr: string }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    QRCode.toDataURL(cnr, { margin: 1, width: 180 }).then((url) => { if (alive) setSrc(url); }).catch(() => undefined);
+    return () => { alive = false; };
+  }, [cnr]);
+  return (
+    <div className="col" style={{ alignItems: 'center', gap: 6, padding: 8 }}>
+      {src ? <img src={src} alt={`QR code for CNR ${cnr}`} width={180} height={180} style={{ background: '#fff', padding: 6, borderRadius: 6 }} /> : <span className="body-sm muted">…</span>}
+      <span className="mono body-sm">{cnr}</span>
+    </div>
+  );
+}
+
+/**
+ * View Business (daily status) for one hearing date, fetched straight from
+ * the eCourts app service - no captcha. If eCourts can't answer, offer the
+ * website (captcha) version as a fallback.
+ */
+function BusinessPanel({ row, court, onFallback }: { row: EcourtsHearing; court: Court; onFallback: () => void }) {
+  const q = useEcourtsBusiness(row, court);
+  if (q.isLoading) return <p className="body-sm muted">Loading business for {row.todays_date1 || row.todays_date}…</p>;
+  if (q.isError || !q.data) {
+    return (
+      <p className="body-sm muted">
+        eCourts did not return the business for this date.{' '}
+        <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '0 4px' }} onClick={onFallback}>
+          Try the eCourts website (captcha)
+        </button>
+      </p>
+    );
+  }
+  const d = q.data.details ?? {};
+  return (
+    <div className="col" style={{ gap: 10 }}>
+      <div className="body-sm muted">
+        Business on {String(d.businessDate ?? row.todays_date1 ?? '')}
+        {d.judge_name ? ` · ${String(d.judge_name)}` : ''}
+      </div>
+      {q.data.rows.length === 0 ? (
+        <p className="body-sm muted">No business recorded for this date.</p>
+      ) : (
+        <div className="grid-2" style={{ gap: 16 }}>
+          {q.data.rows.map((r, i) => <Field key={i} label={r.title.toUpperCase()} value={r.value || '—'} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One Case History section - the app's collapsible section bar. */
+function HistorySection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="col" style={{ gap: 0 }} aria-label={title}>
+      <SectionBar title={<span style={{ display: 'block', textAlign: 'center' }}>{title}</span>} open={open} onToggle={() => setOpen((o) => !o)} />
+      {open ? <div style={{ padding: '10px 2px 4px' }}>{children}</div> : null}
+    </section>
+  );
+}
+
+/** Party block as in the app: "1) Name" lines, each with "Advocate - …". */
+function PartyList({
+  main,
+  advocate,
+  extras,
+}: {
+  main: string | undefined;
+  advocate: string | undefined;
+  extras: EcourtsCaseHistory['ex_pet_namelegal'];
+}) {
+  const mainLines = (main ?? '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const adv = (advocate ?? '').trim();
+  const extraRows = (extras ?? []).filter((p) => (p.partyname ?? '').trim());
+  if (mainLines.length === 0 && extraRows.length === 0) return <p className="body-sm muted">—</p>;
+  return (
+    <div className="col" style={{ gap: 8 }}>
+      {mainLines.map((line, i) => (
+        <div key={`m${i}`} className="body-sm">
+          {/^\d+\)/.test(line) ? line : `${i + 1}) ${line}`}
+          {i === 0 && adv ? (
+            <div className="muted" style={{ paddingLeft: 16 }}>{/^advocate/i.test(adv) ? adv : `Advocate - ${adv}`}</div>
+          ) : null}
+        </div>
+      ))}
+      {extraRows.map((p, i) => (
+        <div key={`x${p.partyid ?? i}`} className="body-sm">
+          {`${mainLines.length + i + 1}) ${p.partyname.trim()}`}
+          {p.partyNameLegalHeirLitigantStatus ? <span className="muted"> ({p.partyNameLegalHeirLitigantStatus})</span> : null}
+          {p.advExtraAdvname ? (
+            <div className="muted" style={{ paddingLeft: 16 }}>Advocate - {String(p.advExtraAdvname).replace(/^Advocate\s*-\s*/i, '')}</div>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HearingsTable({ hearings, orders, cino, court, onPurposeClick, caseRef }: { hearings: EcourtsHearing[]; orders: EcourtsOrder[]; cino: string; court: Court; onPurposeClick: () => void; caseRef?: CaseRef }) {
+  const { t } = useEcourtsT();
   const [expanded, setExpanded] = useState<number | null>(null);
   const download = useDownloadOrderPdf();
   const showToast = useUIStore((s) => s.showToast);
@@ -1260,16 +930,7 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
   const handleDownload = async (o: EcourtsOrder, rowKey: string) => {
     setPendingKey(rowKey);
     try {
-      const fname = await download.mutateAsync({
-        cino,
-        filename: o.filename,
-        stateCd:   o.state_cd,
-        distCd:    o.dist_cd,
-        courtCode: o.court_code,
-        caseNo:    o.caseno,
-        cCode:     o.cCode,
-        bilingualFlag: o.bilingual_flag,
-      });
+      const fname = await download.mutateAsync(orderPdfInput(o, cino, court, caseRef));
       showToast({ type: 'sage', text: `Downloaded ${fname}` });
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
@@ -1281,23 +942,15 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
   };
 
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Hearings</h2>
-        <span className="spacer" />
-        <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-          {hearings.length} {hearings.length === 1 ? 'ENTRY' : 'ENTRIES'}
-        </span>
-      </div>
-      <div className="card">
+    <div style={{ overflowX: 'auto' }}>
         <table className="tbl">
           <thead>
             <tr>
-              <th style={{ width: 140 }}>Date</th>
-              <th>Purpose</th>
-              <th>Bench</th>
-              <th style={{ width: 140 }}>Next date</th>
-              <th style={{ width: 120 }}>Status</th>
+              {/* Columns and wording as in the eCourts app. */}
+              <th>{t(L.judge, 'Judge')}</th>
+              <th style={{ width: 130 }}>{t(L.businessOnDate, 'Business On Date')}</th>
+              <th style={{ width: 130 }}>{t(L.hearingDate, 'Hearing Date')}</th>
+              <th>{t(L.purposeOfHearing, 'Purpose of Hearing')}</th>
             </tr>
           </thead>
           <tbody>
@@ -1307,7 +960,7 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
               // rather than making the advocate hunt for it in the separate
               // Orders section below.
               const hearingDate = hr.todays_date1 || hr.todays_date;
-              const matchingOrder = orders.find((o) => o.order_date1f === hearingDate);
+              const matchingOrder = orders.find((o) => orderDate(o) === hearingDate);
               const isOpen = expanded === i;
               const rowKey = `hearing-${hearingDate}-${i}`;
               return (
@@ -1317,29 +970,30 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
                     style={{ cursor: 'pointer' }}
                     title="Click for this hearing's full detail"
                   >
-                    <td className="mono tabular" style={{ fontSize: 12 }}>{hearingDate}</td>
-                    <td>
+                    <td>{hr.judge_name}</td>
+                    <td className="mono tabular" style={{ fontSize: 12 }}>
+                      {/* As in the app, the Business On Date opens View Business
+                          (shown in the expanded row, no captcha). */}
                       <span
                         style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationStyle: 'dotted' }}
-                        title="Click to fetch live Business details from eCourts"
-                        onClick={(e) => { e.stopPropagation(); onPurposeClick(); }}
+                        title="View Business (daily status) for this date"
+                        onClick={(e) => { e.stopPropagation(); setExpanded(i); }}
                       >
-                        {hr.purpose}
+                        {hearingDate}
                       </span>
                     </td>
-                    <td>{hr.judge_name}</td>
                     <td className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
                       {hr.nextdate ? fmtNextDate(hr.nextdate) : '—'}
                     </td>
-                    <td>
-                      {hr.businessStatus === 'Disposed'
-                        ? <span className="badge badge-sage">DISPOSED</span>
-                        : <span className="badge badge-amber">{hr.businessStatus?.toUpperCase()}</span>}
-                    </td>
+                    <td>{hr.purpose}</td>
                   </tr>
                   {isOpen ? (
                     <tr>
-                      <td colSpan={5} style={{ background: 'var(--bg-subtle)', padding: '16px 12px' }}>
+                      <td colSpan={4} style={{ background: 'var(--bg-surface-2)', padding: '16px 12px' }}>
+                        <div className="eyebrow" style={{ marginBottom: 8 }}>{t(L.viewBusiness, 'View Business')}</div>
+                        <div onClick={(e) => e.stopPropagation()} style={{ marginBottom: 16 }}>
+                          <BusinessPanel row={hr} court={court} onFallback={onPurposeClick} />
+                        </div>
                         <div className="grid-2" style={{ gap: 16 }}>
                           <Field label="COURT NO" value={hr.court_no || '—'} />
                           <Field label="CASE NUMBER" value={hr.case_number || '—'} />
@@ -1372,7 +1026,6 @@ function HearingsTable({ hearings, orders, cino, onPurposeClick }: { hearings: E
             })}
           </tbody>
         </table>
-      </div>
     </div>
   );
 }
@@ -1451,30 +1104,50 @@ function BusinessNoteEditor({ cino, hearingDate }: { cino: string; hearingDate: 
   );
 }
 
-function OrdersList({ finalOrders, interimOrders, cino }: { finalOrders: EcourtsOrder[]; interimOrders: EcourtsOrder[]; cino: string }) {
-  const rows = [
-    ...interimOrders.map((o) => ({ ...o, kind: 'Interim' as const })),
-    ...finalOrders.map((o) => ({ ...o, kind: 'Final' as const })),
-  ];
+/** The case's own codes - fallbacks for an order row that lacks them. */
+interface CaseRef { state_code?: number; district_code?: number; court_code?: number; case_no?: string }
+
+/**
+ * The order PDF request from an order row. Interim and final rows differ
+ * (interim rows carry `order_date1`, final rows `order_date1f`; some rows
+ * lack codes), so missing codes come from the case, and the court tier is
+ * always sent - a High Court order must be fetched from the HC service.
+ */
+function orderPdfInput(o: EcourtsOrder, cino: string, court: Court, c?: CaseRef) {
+  const row = o as EcourtsOrder & Record<string, unknown>;
+  const num = (...vals: unknown[]) => {
+    for (const v of vals) { const n = Number(v); if (v !== undefined && v !== null && v !== '' && Number.isFinite(n)) return n; }
+    return 0;
+  };
+  return {
+    cino,
+    filename: String(row.filename ?? ''),
+    stateCd: num(row.state_cd, c?.state_code),
+    distCd: num(row.dist_cd, c?.district_code),
+    courtCode: num(row.court_code, c?.court_code),
+    caseNo: String(row.caseno || c?.case_no || ''),
+    cCode: num(row.cCode, row.court_code, c?.court_code),
+    bilingualFlag: String(row.bilingual_flag ?? '0'),
+    court,
+  };
+}
+
+const orderDate = orderDateOf;
+
+/** Interim Orders / Final Orders/Judgements table as in the app: Order
+ *  Number | Order Date | Order Details, where the details open the PDF. */
+function OrdersTable({ orders, cino, court, caseRef }: { orders: EcourtsOrder[]; cino: string; court: Court; caseRef?: CaseRef }) {
+  const { t } = useEcourtsT();
   const download = useDownloadOrderPdf();
   const showToast = useUIStore((s) => s.showToast);
   // Track which row is in-flight so the button on that row alone shows
   // "Fetching…"; eCourts is too slow to leave the whole table looking idle.
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
-  const handleDownload = async (o: EcourtsOrder, kind: 'Interim' | 'Final', rowKey: string) => {
+  const handleDownload = async (o: EcourtsOrder, rowKey: string) => {
     setPendingKey(rowKey);
     try {
-      const fname = await download.mutateAsync({
-        cino,
-        filename: o.filename,
-        stateCd:   o.state_cd,
-        distCd:    o.dist_cd,
-        courtCode: o.court_code,
-        caseNo:    o.caseno,
-        cCode:     o.cCode,
-        bilingualFlag: o.bilingual_flag,
-      });
+      const fname = await download.mutateAsync(orderPdfInput(o, cino, court, caseRef));
       showToast({ type: 'sage', text: `Downloaded ${fname}` });
     } catch (err) {
       const msg = (err as { response?: { data?: { error?: string } }; message?: string })
@@ -1483,90 +1156,63 @@ function OrdersList({ finalOrders, interimOrders, cino }: { finalOrders: Ecourts
     } finally {
       setPendingKey(null);
     }
-    // `kind` accepted just to keep the signature parallel for future filtering;
-    // currently we don't differentiate the backend call by interim/final.
-    void kind;
   };
 
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Orders & judgments</h2>
-        <span className="spacer" />
-        <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-          {rows.length} {rows.length === 1 ? 'DOCUMENT' : 'DOCUMENTS'}
-        </span>
-      </div>
-      <div className="card">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 80 }}>Kind</th>
-              <th style={{ width: 140 }}>Date</th>
-              <th>Description</th>
-              <th style={{ width: 140 }}>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((o, i) => {
-              const rowKey = `${o.order_id}-${i}`;
-              const isPending = pendingKey === rowKey;
-              return (
-                <tr key={rowKey}>
-                  <td>
-                    {o.kind === 'Final'
-                      ? <span className="badge badge-sage">FINAL</span>
-                      : <span className="badge">INTERIM</span>}
-                  </td>
-                  <td className="mono tabular" style={{ fontSize: 12 }}>{o.order_date1f}</td>
-                  <td>
-                    <div>{o.order_details}</div>
-                    <div className="mono tabular" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4, wordBreak: 'break-all' }}>
-                      {o.filename}
-                    </div>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => { void handleDownload(o, o.kind, rowKey); }}
-                      disabled={isPending}
-                      title="Fetch the order PDF from the eCourts gateway"
-                    >
-                      {isPending ? (
-                        <>Fetching…</>
-                      ) : (
-                        <><Icon name="download" size={12} /> Download</>
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th style={{ width: 90 }}>{t(L.orderNumber, 'Order Number')}</th>
+            <th style={{ width: 130 }}>{t(L.orderDate, 'Order Date')}</th>
+            <th>{t(L.orderDetails, 'Order Details')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((o, i) => {
+            const rowKey = `${o.order_id}-${i}`;
+            const isPending = pendingKey === rowKey;
+            return (
+              <tr key={rowKey}>
+                <td className="tabular">{o.order_id || i + 1}</td>
+                <td className="tabular">{orderDate(o) || '—'}</td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => { void handleDownload(o, rowKey); }}
+                    disabled={isPending}
+                    title="Open the order PDF from eCourts"
+                    style={{ textDecoration: 'underline', background: 'none', border: 0, padding: 0, cursor: 'pointer', color: 'inherit', font: 'inherit', fontWeight: 600 }}
+                  >
+                    {isPending ? 'Fetching…' : (o.order_details || 'Order')}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 function TransferList({ transfers }: { transfers: NonNullable<EcourtsCaseHistory['transfer']> }) {
+  const { t } = useEcourtsT();
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Court transfers</h2>
-      </div>
-      <div className="card">
-        <ul className="col stagger" style={{ gap: 12, listStyle: 'none', paddingLeft: 0 }}>
-          {transfers.map((t, i) => (
-            <li key={i} className="body-sm">
-              <span className="mono tabular" style={{ color: 'var(--text-tertiary)' }}>{t.transfer_date}</span>
-              <span style={{ marginLeft: 12 }}>{t.from_court} → {t.to_court}</span>
-            </li>
+    <HistorySection title={t(L.caseTransferDetails, 'Case Transfer Details')}>
+      <table className="tbl">
+        <thead><tr><th style={{ width: 130 }}>Transfer Date</th><th>From Court</th><th>To Court</th></tr></thead>
+        <tbody>
+          {transfers.map((tr, i) => (
+            <tr key={i}>
+              <td className="tabular">{tr.transfer_date}</td>
+              <td>{tr.from_court}</td>
+              <td>{tr.to_court}</td>
+            </tr>
           ))}
-        </ul>
-      </div>
-    </div>
+        </tbody>
+      </table>
+    </HistorySection>
   );
 }
 
@@ -1576,24 +1222,24 @@ function TransferList({ transfers }: { transfers: NonNullable<EcourtsCaseHistory
 // error) - same "don't show a blank section" discipline as TransferList.
 function IaBusinessSection({ cino, court }: { cino: string; court: Court }) {
   const { data: items, isLoading } = useEcourtsIaBusiness(cino, court);
+  const { t } = useEcourtsT();
   if (isLoading || !items || items.length === 0) return null;
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Interim applications</h2>
-      </div>
-      <div className="card">
-        <ul className="col stagger" style={{ gap: 12, listStyle: 'none', paddingLeft: 0 }}>
+    <HistorySection title={t(L.iaStatus, 'IA Status')}>
+      <table className="tbl">
+        <thead><tr><th>IA Number</th><th>{t(L.purposeOfHearing, 'Purpose of Hearing')}</th><th>{t(L.nextHearingDate, 'Next Date')}</th><th>{t(L.status, 'Status')}</th></tr></thead>
+        <tbody>
           {items.map((ia, i) => (
-            <li key={i} className="body-sm">
-              <span className="mono tabular" style={{ color: 'var(--text-tertiary)' }}>{ia.ia_no ?? `IA ${i + 1}`}</span>
-              <span style={{ marginLeft: 12 }}>{ia.purpose || '—'}</span>
-              {ia.businessStatus ? <span className="badge badge-amber" style={{ marginLeft: 12 }}>{ia.businessStatus.toUpperCase()}</span> : null}
-            </li>
+            <tr key={i}>
+              <td>{ia.ia_no ?? `IA ${i + 1}`}</td>
+              <td>{ia.purpose || '—'}</td>
+              <td className="tabular">{ia.nextdate || '—'}</td>
+              <td>{ia.businessStatus || '—'}</td>
+            </tr>
           ))}
-        </ul>
-      </div>
-    </div>
+        </tbody>
+      </table>
+    </HistorySection>
   );
 }
 
@@ -1609,6 +1255,7 @@ function AppellateInfoSection({
 }: { stateCode: number; distCode: number; courtCode: number; caseNumber1: string; appCsNo: string; court: Court }) {
   const mutation = useEcourtsAppellateInfo();
   const { mutate } = mutation;
+  const { t } = useEcourtsT();
   useEffect(() => {
     if (!caseNumber1 || !appCsNo) return;
     mutate({ stateCode, distCode, courtCode, caseNumber1, appCsNo, court });
@@ -1624,21 +1271,16 @@ function AppellateInfoSection({
   if (!hasContent) return null;
 
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Appellate information</h2>
-      </div>
-      <div className="card">
-        <p className="body-sm" style={{ marginBottom: 12 }}>{info.heading}</p>
-        <div className="grid-2" style={{ gap: 16 }}>
-          {info.app_aut ? <Field label="APPELLATE AUTHORITY" value={info.app_aut} /> : null}
-          {info.app_auth_desc ? <Field label="AUTHORITY DESCRIPTION" value={info.app_auth_desc} /> : null}
-          {info.dt_of_recp ? <Field label="DATE OF RECEIPT" value={info.dt_of_recp} mono /> : null}
-          {info.dt_of_oder ? <Field label="DATE OF ORDER" value={info.dt_of_oder} mono /> : null}
-        </div>
-        {info.order_brief ? <p className="body-sm muted" style={{ marginTop: 12 }}>{info.order_brief}</p> : null}
-      </div>
-    </div>
+    <HistorySection title={t(L.appellateInformation, 'Appellate Information')}>
+      {info.heading ? <p className="body-sm" style={{ marginBottom: 8 }}>{info.heading}</p> : null}
+      <KvTable rows={[
+        ...(info.app_aut ? [['Appellate Authority', info.app_aut] as const] : []),
+        ...(info.app_auth_desc ? [['Authority Description', info.app_auth_desc] as const] : []),
+        ...(info.dt_of_recp ? [['Date of Receipt', info.dt_of_recp] as const] : []),
+        ...(info.dt_of_oder ? [['Date of Order', info.dt_of_oder] as const] : []),
+        ...(info.order_brief ? [['Order', info.order_brief] as const] : []),
+      ]} />
+    </HistorySection>
   );
 }
 
@@ -1685,40 +1327,6 @@ function fmtNextDate(raw: string): string {
     return fmtDate(`${y}-${m}-${d}`);
   }
   return raw;
-}
-
-// =============================================================================
-// ResultStatusBadge — the Next/Disposal Date + status badge the official
-// eCourts app shows INLINE on every search result row (confirmed against a
-// real screenshot of the app: "Oct 01 2026 / Pending / Service Pending-
-// Summon" sitting right next to the case number, no click-through needed).
-// This portal previously only surfaced that after opening a case via
-// LiveBusinessInline below — filingCaseHistory.php (found by re-auditing the
-// decompiled APK, see ecourts.service.ts) carries date_next_list/
-// purpose_next keyed by the same CNR every result row already has, so this
-// auto-fetches per row instead of waiting for a click.
-// =============================================================================
-function ResultStatusBadge({ cino, court }: { cino: string; court: Court }) {
-  const { data, isLoading, isError } = useEcourtsFilingHistory(cino, court);
-  if (isLoading) return <span className="body-sm muted" style={{ fontSize: 11 }}>Loading status…</span>;
-  // A transient/failed fetch shouldn't block the rest of the row - the
-  // advocate still has case name/number/CNR and can open the case for the
-  // same data via LiveBusinessInline/View. Fail quiet, not blank-with-no-
-  // explanation (the exact silent-gap pattern this feature was built to fix).
-  if (isError || !data) return null;
-  const disposed = Boolean(data.date_of_decision);
-  return (
-    <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      {data.date_next_list ? (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-          Next: {data.date_next_list}
-        </span>
-      ) : null}
-      <span className={`badge ${disposed ? 'badge-sage' : 'badge-amber'}`} style={{ fontSize: 10 }}>
-        {disposed ? 'DISPOSED' : 'PENDING'}
-      </span>
-    </div>
-  );
 }
 
 // =============================================================================

@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useInvitations';
 import { useCan, useFirmUsers, useUpdateFirmUser } from '@/hooks/useFirmAdmin';
 import { Pagination } from '@/components/Pagination';
+import { PageHeader } from '@/components/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 
 type Status = 'active' | 'on-leave';
@@ -69,18 +70,11 @@ export function MembersView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>§ - CHAMBERS ROLL</div>
-          <h1 className="heading-xl">Members</h1>
-          <p className="body-md muted" style={{ marginTop: 8, maxWidth: 560 }}>
-            Partners, associates, and counsel of record. Roles control matter access, billing approvals, and signing authority.
-          </p>
-        </div>
-        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-          <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-            {stats.active} ACTIVE · {stats.onLeave} ON LEAVE
-          </span>
+      <PageHeader
+        title="Members"
+        description="Partners, associates and counsel in your firm, and the role each holds."
+        meta={`${stats.active} active · ${stats.onLeave} on leave`}
+        actions={
           <button
             type="button"
             className="btn btn-primary"
@@ -90,8 +84,8 @@ export function MembersView() {
           >
             <Icon name="plus" size={14} /> Invite member
           </button>
-        </div>
-      </div>
+        }
+      />
 
       <PendingInvitations />
 

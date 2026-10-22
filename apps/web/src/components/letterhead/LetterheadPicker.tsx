@@ -39,7 +39,8 @@ export function LetterheadPicker({
 
   return (
     <label className={`col ${className ?? ''}`} style={{ gap: 4 }}>
-      <span className="label" style={{ fontSize: 11 }}>{label}</span>
+      {/* Pass label="" when the surrounding card already names the control. */}
+      {label && <span className="label" style={{ fontSize: 11 }}>{label}</span>}
       <select
         className="input"
         value={selectValue}

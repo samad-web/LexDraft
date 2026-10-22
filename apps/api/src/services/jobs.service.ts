@@ -22,6 +22,7 @@ interface RegisteredJob {
    *  (pg-boss `schedule()`). Optional `tz` (IANA name) defaults to UTC. */
   cron?: string;
   tz?: string;
+  expireInSeconds?: number;
 }
 
 interface RegisterOptions {
@@ -29,9 +30,29 @@ interface RegisterOptions {
   cron?: string;
   /** IANA timezone for the cron (e.g. 'Asia/Kolkata'). Defaults to UTC. */
   tz?: string;
+  /** How long one run may take before pg-boss treats it as dead and retries
+   *  it. pg-boss's default is 15 minutes - too short for a sweep that walks
+   *  every case at a throttled pace. */
+  expireInSeconds?: number;
+}
+
+interface EnqueueOptions {
+  delaySec?: number;
+  singletonKey?: string;
+  /** Retry policy for handlers that throw on transient failures. */
+  retryLimit?: number;
+  retryDelay?: number;
+  retryBackoff?: boolean;
+  expireInSeconds?: number;
 }
 
 const registry: RegisteredJob[] = [];
+
+/** Job names whose recurring schedule was removed. Their handlers may still
+ *  be registered (for manual triggering) but must no longer fire on a cron.
+ *  - ecourts.sync.daily (02:00) -> replaced by ecourts.sync.morning/evening
+ *  - hearings.reminders.daily (02:30) -> now runs after the 09:00 sync */
+const RETIRED_SCHEDULES = ['ecourts.sync.daily', 'hearings.reminders.daily'];
 let boss: PgBoss | null = null;
 let starting: Promise<PgBoss | null> | null = null;
 
@@ -74,9 +95,17 @@ async function start(): Promise<PgBoss | null> {
       }
       // Register recurring schedules after workers are up. schedule() upserts
       // (ON CONFLICT (name) DO UPDATE), so changing a cron just re-points it.
+      // Schedules persist in Postgres, so a cron that is no longer wanted
+      // must be actively unscheduled - otherwise it keeps firing.
+      for (const name of RETIRED_SCHEDULES) {
+        await instance.unschedule(name);
+      }
       for (const job of registry) {
         if (!job.cron) continue;
-        await instance.schedule(job.name, job.cron, {}, job.tz ? { tz: job.tz } : {});
+        const scheduleOpts: PgBoss.ScheduleOptions = {};
+        if (job.tz) scheduleOpts.tz = job.tz;
+        if (job.expireInSeconds) scheduleOpts.expireInSeconds = job.expireInSeconds;
+        await instance.schedule(job.name, job.cron, {}, scheduleOpts);
         logger.info({ job: job.name, cron: job.cron, tz: job.tz ?? 'UTC' }, 'recurring job scheduled');
       }
       boss = instance;
@@ -94,7 +123,13 @@ export const jobs = {
     if (registry.some((j) => j.name === name)) {
       throw new Error(`Job "${name}" is already registered`);
     }
-    registry.push({ name, handler: handler as JobHandler<unknown>, cron: opts?.cron, tz: opts?.tz });
+    registry.push({
+      name,
+      handler: handler as JobHandler<unknown>,
+      cron: opts?.cron,
+      tz: opts?.tz,
+      expireInSeconds: opts?.expireInSeconds,
+    });
   },
 
   /** Boot the worker. Idempotent. */
@@ -103,7 +138,7 @@ export const jobs = {
   },
 
   /** Enqueue a job. In memory mode, runs the handler synchronously. */
-  async enqueue<T>(name: string, data: T, opts?: { delaySec?: number; singletonKey?: string }): Promise<string | null> {
+  async enqueue<T>(name: string, data: T, opts?: EnqueueOptions): Promise<string | null> {
     const instance = await start();
     if (!instance) {
       const job = registry.find((j) => j.name === name);
@@ -121,6 +156,10 @@ export const jobs = {
     const sendOpts: PgBoss.SendOptions = {};
     if (opts?.delaySec) sendOpts.startAfter = opts.delaySec;
     if (opts?.singletonKey) sendOpts.singletonKey = opts.singletonKey;
+    if (opts?.retryLimit !== undefined) sendOpts.retryLimit = opts.retryLimit;
+    if (opts?.retryDelay !== undefined) sendOpts.retryDelay = opts.retryDelay;
+    if (opts?.retryBackoff !== undefined) sendOpts.retryBackoff = opts.retryBackoff;
+    if (opts?.expireInSeconds !== undefined) sendOpts.expireInSeconds = opts.expireInSeconds;
     return instance.send(name, data as object, sendOpts);
   },
 
@@ -294,30 +333,164 @@ jobs.register('judges.roster.sync', async () => {
   );
 }, { cron: '0 3 * * 0', tz: 'Asia/Kolkata' });
 
-// Nightly eCourts case sync. Walks every active matter that carries a CNR,
-// re-pulls its history from eCourts, folds updates into the case + hearings,
-// and emails the matter owner when something a lawyer acts on moved (next
-// hearing date, status, stage, disposal). Sequential + throttled inside the
-// service so we don't hammer the gov backend. Schedule: 02:00 IST daily —
-// after courts have posted the day's business, before the morning rush.
-jobs.register('ecourts.sync.daily', async () => {
-  const { syncAllActiveCasesFromEcourts } = await import('./case-sync.service');
-  const summary = await syncAllActiveCasesFromEcourts();
-  logger.info(summary, 'ecourts.sync.daily complete');
-}, { cron: '0 2 * * *', tz: 'Asia/Kolkata' });
+// Scheduled eCourts case sync - 09:00 and 19:00 IST. Walks every live matter
+// with a usable CNR, re-pulls it from eCourts, folds updates into the case +
+// hearings, notifies on changes, and sends every advocate an in-app summary
+// of the run. eCourts goes down often: a circuit breaker stops the run when
+// it's unreachable and `ecourts.sync.retry` re-attempts the leftovers every
+// 30 min (see ecourts-sync-runs.service.ts).
+//   09:00 - advocates start the day with today's listings.
+//   19:00 - after courts have posted the day's business and next dates.
+const ECOURTS_RUN_EXPIRE_SEC = 4 * 3600;
 
-// Upcoming-hearing reminders. Runs just after the eCourts sync above (so a
-// hearing date that moved overnight is reflected the same morning) and
-// fires an in-app notification for every active case whose next hearing
-// falls within the reminder window - see sendUpcomingHearingReminders'
-// doc comment for why this wasn't actually happening before: the
-// reminder_offset_days field and this very job were both scaffolded and
-// never wired to anything.
+// eFiling tracking (efiling-tracker.service.ts) runs straight after each
+// slot's eCourts sync, in the same job, so the two never hit eCourts at
+// once. It must run even when the sync failed, and its own failure must not
+// stop the hearing reminders.
+async function trackEfilingsAfterSync(slot: 'morning' | 'evening'): Promise<void> {
+  try {
+    const { runEfilingTracking } = await import('./efiling-tracker.service');
+    await runEfilingTracking({ slot });
+  } catch (err) {
+    logger.error({ err, slot }, 'efiling tracking after eCourts sync failed');
+  }
+  // Then refresh cases advocates opened in the last week that aren't
+  // matters, so "View" on them is instant and current (case store, 0088).
+  try {
+    const { refreshRecentlyViewed } = await import('./ecourts-case-store.service');
+    await refreshRecentlyViewed(slot);
+  } catch (err) {
+    logger.error({ err, slot }, 'viewed-case refresh after eCourts sync failed');
+  }
+}
+
+// A case an advocate opened while eCourts was down: retried with backoff
+// (policy set at enqueue time), in-app notification when it lands.
+jobs.register<import('./ecourts-case-store.service').CaseFetchPayload>('ecourts.case.fetch', async (data) => {
+  const { runCaseFetchJob } = await import('./ecourts-case-store.service');
+  await runCaseFetchJob(data);
+});
+
+/** Everything one 09:00 / 19:00 slot does. `runDate` is set when a missed
+ *  slot is being caught up, so the run is recorded under the day it was for. */
+async function runSlot(slot: 'morning' | 'evening', runDate?: string): Promise<void> {
+  const { runScheduledSync } = await import('./ecourts-sync-runs.service');
+  try {
+    await runScheduledSync({ slot, ...(runDate ? { runDate } : {}) });
+  } finally {
+    await trackEfilingsAfterSync(slot);
+    if (slot === 'morning') {
+      // Hearing reminders read the DB, not eCourts - they must go out even
+      // when eCourts is down, using the last synced hearing dates.
+      const { sendUpcomingHearingReminders } = await import('./case-sync.service');
+      const summary = await sendUpcomingHearingReminders();
+      logger.info(summary, 'hearing reminders sent after morning sync');
+    }
+  }
+}
+
+jobs.register('ecourts.sync.morning', async () => {
+  await runSlot('morning');
+}, { cron: '0 9 * * *', tz: 'Asia/Kolkata', expireInSeconds: ECOURTS_RUN_EXPIRE_SEC });
+
+jobs.register('ecourts.sync.evening', async () => {
+  await runSlot('evening');
+}, { cron: '0 19 * * *', tz: 'Asia/Kolkata', expireInSeconds: ECOURTS_RUN_EXPIRE_SEC });
+
+// ---- Missed-run recovery -------------------------------------------------
+// The cron above fires only if the server is up at that exact minute, and
+// pg-boss never catches up. This makes the slots run without anyone doing
+// anything: checked at startup (index.ts) and every 15 minutes, a slot with
+// no ecourts_sync_runs record is run now (see missedSlot()).
+
+interface CatchupPayload { slot: 'morning' | 'evening'; runDate: string }
+
+jobs.register<CatchupPayload>('ecourts.sync.catchup', async ({ slot, runDate }) => {
+  const { missedSlot } = await import('./ecourts-sync-runs.service');
+  // Re-check: the real cron (or another catch-up) may have started it since.
+  const still = await missedSlot();
+  if (!still || still.slot !== slot || still.runDate !== runDate) return;
+  logger.warn({ slot, runDate }, 'eCourts scheduled update was missed (server not running at that time) - running it now');
+  await runSlot(slot, runDate);
+}, { expireInSeconds: ECOURTS_RUN_EXPIRE_SEC });
+
+/** Queue the latest missed slot, if any. Safe to call any number of times. */
+export async function ensureScheduledSyncRan(): Promise<void> {
+  try {
+    const { missedSlot } = await import('./ecourts-sync-runs.service');
+    const missed = await missedSlot();
+    if (!missed) return;
+    await jobs.enqueue<CatchupPayload>('ecourts.sync.catchup', { slot: missed.slot, runDate: missed.runDate }, {
+      singletonKey: `ecourts-catchup:${missed.slot}:${missed.runDate}`,
+      expireInSeconds: ECOURTS_RUN_EXPIRE_SEC,
+    });
+    logger.info(missed, 'queued catch-up for a missed eCourts update');
+  } catch (err) {
+    logger.error({ err }, 'missed eCourts update check failed');
+  }
+}
+
+jobs.register('ecourts.sync.watchdog', async () => {
+  await ensureScheduledSyncRan();
+}, { cron: '*/15 * * * *', tz: 'Asia/Kolkata' });
+
+interface EfilingTrackRetryPayload {
+  slot: 'morning' | 'evening' | 'manual';
+  runDate: string;
+  attempt: number;
+}
+
+// Re-tries filings eCourts couldn't answer, every 30 min (see tracker).
+jobs.register<EfilingTrackRetryPayload>('efiling.track.retry', async (data) => {
+  const { runEfilingTracking } = await import('./efiling-tracker.service');
+  await runEfilingTracking(data);
+});
+
+// Ad-hoc run ("Check now" in the eFiling view).
+jobs.register('efiling.track.manual', async () => {
+  const { runEfilingTracking } = await import('./efiling-tracker.service');
+  await runEfilingTracking({ slot: 'manual' });
+});
+
+interface EcourtsSyncRetryPayload {
+  slot: 'morning' | 'evening' | 'manual';
+  runDate: string;
+  attempt: number;
+  busyDeferrals?: number;
+}
+
+jobs.register<EcourtsSyncRetryPayload>('ecourts.sync.retry', async (data) => {
+  const { runScheduledSync } = await import('./ecourts-sync-runs.service');
+  await runScheduledSync(data);
+});
+
+// Ad-hoc full sync (no schedule - its old 02:00 cron is retired above).
+jobs.register('ecourts.sync.daily', async () => {
+  const { runScheduledSync } = await import('./ecourts-sync-runs.service');
+  await runScheduledSync({ slot: 'manual' });
+});
+
+// First fetch for a matter that was just added or had its CNR changed.
+// Throws only when eCourts is unreachable, so pg-boss retries with backoff
+// exactly those (policy set at enqueue time in ecourts-link.service.ts).
+interface EcourtsCaseLinkPayload {
+  caseId: string;
+  firmId: string;
+}
+
+jobs.register<EcourtsCaseLinkPayload>('ecourts.case.link', async (data) => {
+  const { runLinkJob } = await import('./ecourts-link.service');
+  await runLinkJob(data);
+});
+
+// Upcoming-hearing reminders. Runs automatically right after the 09:00
+// eCourts sync (above) so a hearing date that moved is reflected the same
+// morning. Kept registered without a cron for manual triggering.
 jobs.register('hearings.reminders.daily', async () => {
   const { sendUpcomingHearingReminders } = await import('./case-sync.service');
   const summary = await sendUpcomingHearingReminders();
   logger.info(summary, 'hearings.reminders.daily complete');
-}, { cron: '30 2 * * *', tz: 'Asia/Kolkata' });
+});
 
 // Permanently purge matters that have been soft-deleted for more than 30 days.
 // Deleting a matter marks deleted_at (recoverable via "Recently deleted"); this

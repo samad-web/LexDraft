@@ -10,6 +10,7 @@ import { offenceKbService } from '../services/offence-kb.service';
 import { caseNotesService } from '../services/case-notes.service';
 import { casesService } from '../services/cases.service';
 import { firmIdForUser } from '../services/tenant';
+import { firmFormatsService, isFirmFormatLabel } from '../services/firm-formats.service';
 import { requireFeature } from '../services/permissions.service';
 import {
   aiQuotaService,
@@ -673,6 +674,17 @@ function engineRoutingAllowed(email: string | undefined): boolean {
   return env.engineRoutingAllowlist.has(email.toLowerCase());
 }
 
+// The live engine's served doc types, cached briefly so /engine/status (hit on
+// every Draft page load) doesn't round-trip the engine each time.
+let servedCache: { at: number; value: Set<string> | null } | null = null;
+const SERVED_TTL_MS = 60_000;
+async function servedDocTypesCached(): Promise<Set<string> | null> {
+  if (servedCache && Date.now() - servedCache.at < SERVED_TTL_MS) return servedCache.value;
+  const value = engineClient.enabled ? await engineClient.servedDocTypes() : null;
+  servedCache = { at: Date.now(), value };
+  return value;
+}
+
 const EngineDraftBody = z.object({
   /** Draft-page document label, e.g. "Notice u/s 138 NI Act". */
   docLabel: z.string().min(1),
@@ -690,18 +702,28 @@ draftingRouter.get('/engine/status', requireFeature('drafting.ai'), async (req, 
   try {
     const email = req.user?.email;
     const allowed = engineRoutingAllowed(email);
-    const routableLabels = Object.keys(LABEL_TO_ENGINE_DOC).filter((l) =>
-      isRoutable(LABEL_TO_ENGINE_DOC[l]!),
-    );
+    // Only list what the LIVE engine serves: an imported format awaiting approval
+    // is hidden by the production engine, so it must not appear here either. If
+    // the engine can't be reached, fall back to the static list (as before).
+    const served = await servedDocTypesCached();
+    const routableLabels = Object.keys(LABEL_TO_ENGINE_DOC).filter((l) => {
+      const docType = LABEL_TO_ENGINE_DOC[l]!;
+      return isRoutable(docType) && (served === null || served.has(docType));
+    });
+    // The firm's own approved formats (uploaded on the Draft page).
+    const firmFormats = (await firmFormatsService.list(await firmIdForUser(req.user?.id), { approvedOnly: true }))
+      .map((f) => ({ id: f.id, label: f.label, title: f.title }));
+    const labels = [...routableLabels, ...firmFormats.map((f) => f.label)];
     res.json({
       enabled: allowed,
       // Documents the CURRENT user can draft through the engine right now (empty
       // until the allowlist flag is on for them).
-      docLabels: allowed ? routableLabels : [],
+      docLabels: allowed ? labels : [],
       // The full engine format catalogue, INDEPENDENT of the per-user flag, so
       // surfaces like "My formats" can bind a saved house-style format to a real
       // engine document even before engine routing is switched on for the user.
-      formats: routableLabels,
+      formats: labels,
+      firmFormats,
     });
   } catch (err) {
     next(err);
@@ -886,7 +908,11 @@ draftingRouter.post('/engine/sign-off', requireFeature('drafting.ai'), async (re
       res.status(403).json({ error: 'engine_routing_not_enabled' });
       return;
     }
-    const docType = LABEL_TO_ENGINE_DOC[parsed.docLabel];
+    let docType = LABEL_TO_ENGINE_DOC[parsed.docLabel];
+    if (!docType && isFirmFormatLabel(parsed.docLabel)) {
+      const firm = await firmFormatsService.getByLabel(await firmIdForUser(req.user?.id), parsed.docLabel);
+      docType = firm?.docType;
+    }
     if (!docType) {
       res.status(404).json({ error: 'doc_not_routable' });
       return;
@@ -1004,16 +1030,17 @@ async function intakeSetup(
     res.status(403).json({ error: 'engine_routing_not_enabled' });
     return null;
   }
-  if (!(await intakeService.routable(docLabel))) {
-    res.status(404).json({ error: 'doc_not_routable', docLabel });
-    return null;
-  }
   const userId = req.user?.id;
   if (!userId) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
   const firmId = await firmIdForUser(userId);
+  // firmId is needed to resolve the firm's own formats; built-ins ignore it.
+  if (!(await intakeService.routable(docLabel, firmId))) {
+    res.status(404).json({ error: 'doc_not_routable', docLabel });
+    return null;
+  }
   if (usesLlm) {
     // Extractor + phraser are real model calls — guard the quota like /generate.
     await aiQuotaService.assertCanGenerate(firmId, userId);

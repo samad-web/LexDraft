@@ -11,6 +11,7 @@ import { NewCaseModal } from '@/components/NewCaseModal';
 import { Gate } from '@/components/Gate';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useUIStore } from '@/store/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 // =============================================================================
 // ClientDetailView - /app/clients/:id
@@ -120,10 +121,8 @@ export function ClientDetailView(): JSX.Element {
   if (!client) {
     return (
       <div className="col stagger" style={{ gap: 20, padding: 8 }}>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/app/clients')} style={{ alignSelf: 'flex-start' }}>
-          <Icon name="arrow" size={14} /> Back to clients
-        </button>
-        <EmptyState title="Client not found" description="This client may have been deleted." />
+        <PageHeader title="Client" back={{ label: 'Clients', to: '/app/clients' }} />
+        <EmptyState icon="clients" title="Client not found" description="This client may have been deleted." />
       </div>
     );
   }
@@ -132,25 +131,24 @@ export function ClientDetailView(): JSX.Element {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => navigate('/app/clients')} style={{ alignSelf: 'flex-start' }}>
-        <Icon name="arrow" size={14} /> Back to clients
-      </button>
-
-      {/* Header */}
-      <div className="row" style={{ gap: 16, alignItems: 'center' }}>
-        <span className="avatar" aria-hidden="true" style={{ width: 48, height: 48, fontSize: 18 }}>
-          {initialsOf(client.name)}
-        </span>
-        <div style={{ minWidth: 0 }}>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Client</div>
-          <h1 className="heading-xl" style={{ marginBottom: 6 }}>{client.name}</h1>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <span className="badge badge-cobalt">{client.type.toUpperCase()}</span>
-            <span className={`badge ${badge.cls}`}>{badge.label}</span>
-            {client.portalEnabled && <span className="badge badge-sage">PORTAL ENABLED</span>}
-          </div>
+      <PageHeader
+        title={
+          <span className="row" style={{ gap: 12, alignItems: 'center' }}>
+            <span className="avatar" aria-hidden="true" style={{ width: 40, height: 40, fontSize: 16, flexShrink: 0 }}>
+              {initialsOf(client.name)}
+            </span>
+            <span style={{ minWidth: 0 }}>{client.name}</span>
+          </span>
+        }
+        description="Client profile, linked cases and their documents."
+        back={{ label: 'Clients', to: '/app/clients' }}
+      >
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <span className="badge badge-cobalt">{client.type.toUpperCase()}</span>
+          <span className={`badge ${badge.cls}`}>{badge.label}</span>
+          {client.portalEnabled && <span className="badge badge-sage">PORTAL ENABLED</span>}
         </div>
-      </div>
+      </PageHeader>
 
       {/* Contact facts */}
       <div className="card">

@@ -12,6 +12,7 @@ import { FAB } from '@/components/FAB';
 import { useDeleteWithUndo } from '@/hooks/useDeleteWithUndo';
 import { useAlert, useConfirm, useConfirmWithInput } from '@/components/ConfirmDialog';
 import { api } from '@/lib/api';
+import { PageHeader } from '@/components/PageHeader';
 
 // The board columns, in legal-intake order. The `qualified` enum value is
 // legacy (pre-redesign rows) — it is folded into the Consultation column below
@@ -254,20 +255,11 @@ export function LeadsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Intake pipeline</div>
-        <h1 className="heading-xl">Leads</h1>
-      </div>
-
-      <div className="row" style={{ flexWrap: 'wrap', gap: 16 }}>
-        <div className="col" style={{ gap: 4 }}>
-          <span className="eyebrow" style={{ color: 'var(--text-tertiary)' }}>
-            Weighted pipeline value
-          </span>
-          <span className="heading-lg mono tabular">₹{formatINR(weightedPipeline)}</span>
-          <span className="body-xs muted">Σ estimated fee × likelihood, live leads only</span>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Leads"
+        description="Prospective clients from enquiry to retainer. Drag a card to move its stage."
+        meta={`${leads.length} ${leads.length === 1 ? 'lead' : 'leads'}`}
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -294,7 +286,16 @@ export function LeadsView() {
             <Icon name="plus" size={14} /> Capture lead
           </button>
         </Gate>
-      </div>
+        </>}
+      >
+        <div className="col" style={{ gap: 4 }}>
+          <span className="eyebrow" style={{ color: 'var(--text-tertiary)' }}>
+            Weighted pipeline value
+          </span>
+          <span className="heading-lg mono tabular">₹{formatINR(weightedPipeline)}</span>
+          <span className="body-xs muted">Σ estimated fee × likelihood, live leads only</span>
+        </div>
+      </PageHeader>
       <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <Gate feature="leads.create">
         <FAB ariaLabel="Capture lead" onClick={() => setModalOpen(true)}>

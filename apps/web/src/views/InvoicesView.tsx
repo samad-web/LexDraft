@@ -8,6 +8,7 @@ import { NewInvoiceModal } from '@/components/NewInvoiceModal';
 import { InvoiceDetailModal } from '@/components/InvoiceDetailModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { apiClient } from '@/lib/api';
@@ -99,37 +100,10 @@ export function InvoicesView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Billing register</div>
-        <h1 className="heading-xl">Invoices</h1>
-      </div>
-
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
-          <input
-            type="search"
-            className="input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search by invoice number or client…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search invoices"
-          />
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)',
-              display: 'inline-flex',
-            }}
-          >
-            <Icon name="search" size={14} />
-          </span>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Invoices"
+        description="Raise invoices, track what clients owe, and export for GST filing."
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -246,7 +220,15 @@ export function InvoicesView() {
             <Icon name="plus" size={14} /> New invoice
           </button>
         </Gate>
-      </div>
+        </>}
+      >
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by invoice number or client…"
+          label="Search invoices"
+        />
+      </PageHeader>
       <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <Gate feature="billing.invoice">
         <FAB ariaLabel="New invoice" onClick={() => setModalOpen(true)}>

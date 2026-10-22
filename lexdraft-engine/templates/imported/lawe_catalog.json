@@ -1,0 +1,246 @@
+{
+  "forms": {
+    "Court_of_Small_Causes/Copy_Application.pdf": {
+      "doc_type": "copy_application",
+      "note": "forum=small_causes",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Notice_to_Appear_in_Person.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=show_cause (appear in person or by pleader to show cause)",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Process_Application.pdf": {
+      "doc_type": "process_application",
+      "note": "forum=small_causes",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Property.pdf": {
+      "doc_type": "court_warrant",
+      "note": "kind=possession (warrant to bailiff to deliver possession, E.P./H.R.C.)",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Summon.pdf": {
+      "doc_type": "summons",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Summon_thru_the_Inspector_of_Police.pdf": {
+      "doc_type": "summons",
+      "note": "kind=witness; served through the Inspector of Police (addressee line)",
+      "status": "covered"
+    },
+    "Court_of_Small_Causes/Vakalat.pdf": {
+      "doc_type": "vakalatnama",
+      "status": "covered"
+    },
+    "High_Court/Appellete_Side_-_Copy_Application.pdf": {
+      "doc_type": "copy_application",
+      "note": "forum=high_court",
+      "status": "covered"
+    },
+    "High_Court/Caveat_Petition.pdf": {
+      "doc_type": "caveat",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_Appellate_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=appellate",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_CAVEAT_Appellate_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=caveat_appellate",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_CAVEAT_Original_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=caveat_original",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_Criminal_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=criminal",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_Original_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=original",
+      "status": "covered"
+    },
+    "High_Court/Coding_Sheet_-_WRIT_Side.pdf": {
+      "doc_type": "coding_sheet",
+      "note": "side=writ",
+      "status": "covered"
+    },
+    "High_Court/Concise_Statement_of_claim.pdf": {
+      "doc_type": "madras_hc_original_side_suit_summons",
+      "status": "imported"
+    },
+    "High_Court/In_the_High_Court_of_-_Vakalat.pdf": {
+      "doc_type": "vakalatnama",
+      "status": "covered"
+    },
+    "High_Court/Madras_High_Court_-_Vakalat.pdf": {
+      "doc_type": "vakalatnama",
+      "status": "covered"
+    },
+    "High_Court/Memo_of_appearance.pdf": {
+      "doc_type": "memo_of_appearance",
+      "status": "covered"
+    },
+    "In_the_Court_of/Affidavit_of_Service.pdf": {
+      "doc_type": "affidavit_of_service",
+      "status": "covered"
+    },
+    "In_the_Court_of/Appear_in_the_court_in_person.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=appear_person",
+      "status": "covered"
+    },
+    "In_the_Court_of/Copy_Application.pdf": {
+      "doc_type": "copy_application",
+      "status": "covered"
+    },
+    "In_the_Court_of/Memo_of_Appearance.pdf": {
+      "doc_type": "memo_of_appearance",
+      "status": "covered"
+    },
+    "In_the_Court_of/Memorandum.pdf": {
+      "doc_type": "memorandum_furnish_sureties",
+      "note": "memo offering sureties after bail is granted",
+      "status": "covered"
+    },
+    "In_the_Court_of/Original_document_submission_.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=produce_documents (requisition to custodian to produce originals)",
+      "status": "covered"
+    },
+    "In_the_Court_of/Payment.pdf": {
+      "doc_type": "court_warrant",
+      "note": "kind=attach_movable (warrant of attachment, money decree)",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_Under_Sec.256-317_Cr.P.C.pdf": {
+      "doc_type": "s317_dispense_presence",
+      "note": "cover sheet only for the s.256 / s.317 petitions (s256_condone_absence / s317_dispense_presence)",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_Under_Sec._317_Cr.P.C.pdf": {
+      "doc_type": "s317_dispense_presence",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_for_Adjournment.pdf": {
+      "doc_type": "adjournment_petition",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_to_recall_warrant.pdf": {
+      "doc_type": "recall_warrant",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_under_order_5_rule_20.pdf": {
+      "doc_type": "substituted_service",
+      "status": "covered"
+    },
+    "In_the_Court_of/Petition_under_section_256_Cr.P.C.pdf": {
+      "doc_type": "s256_condone_absence",
+      "status": "covered"
+    },
+    "In_the_Court_of/Process_Application.pdf": {
+      "doc_type": "process_application",
+      "status": "covered"
+    },
+    "In_the_Court_of/Summons_in_a_summary_Suit(App_B_Form_No_4).pdf": {
+      "doc_type": "summons",
+      "note": "kind=summary_suit",
+      "status": "covered"
+    },
+    "In_the_Court_of/Surety_Affidavit.pdf": {
+      "doc_type": "surety_affidavit",
+      "status": "covered"
+    },
+    "In_the_Court_of/Surrender_Petition.pdf": {
+      "doc_type": "surrender_petition",
+      "status": "covered"
+    },
+    "In_the_Court_of/Urgent_Petition.pdf": {
+      "doc_type": "urgent_petition",
+      "status": "covered"
+    },
+    "In_the_Court_of/Vakalat.pdf": {
+      "doc_type": "vakalatnama",
+      "status": "covered"
+    },
+    "In_the_Court_of/Vakalatnama.pdf": {
+      "doc_type": "vakalatnama",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Application_for_certified_copies_under_rule_43.pdf": {
+      "doc_type": "copy_application",
+      "note": "forum=city_civil (rule_ref)",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Execution_Petition.pdf": {
+      "doc_type": "execution_application",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Form_24_of_the_New_C.P.C.pdf": {
+      "doc_type": "court_warrant",
+      "note": "kind=attach_immovable (O.XXI R.54 prohibitory order)",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_Assistant_City_Civil_judge.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=show_cause",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_City_Civil_Judge.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=show_cause",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_Principal_City_Civil_judge.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=show_cause",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Memorandum_of_Cavet_petition.pdf": {
+      "doc_type": "caveat",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Process_Application.pdf": {
+      "doc_type": "process_application",
+      "status": "covered"
+    },
+    "In_the_Court_of_City_Civil_Judge/Summon.pdf": {
+      "doc_type": "summons",
+      "status": "covered"
+    },
+    "Motor_Accident_Claim/Before_the_Motor_Accident_Claim_Tribunal.pdf": {
+      "doc_type": "mact_claim",
+      "status": "covered"
+    },
+    "Motor_Accident_Claim/Process_Application.pdf": {
+      "doc_type": "process_application",
+      "note": "forum=mact",
+      "status": "covered"
+    },
+    "Others/Appeal.pdf": {
+      "doc_type": "appeal_record_cost_schedule",
+      "note": "Form 476 list of documents to be translated/printed",
+      "status": "covered"
+    },
+    "Others/Application_for_Service_of_Process.pdf": {
+      "doc_type": "service_of_process_application",
+      "status": "covered"
+    },
+    "Others/Bail_Bond.pdf": {
+      "doc_type": "bail_bond",
+      "status": "covered"
+    },
+    "Others/Family_Court.pdf": {
+      "doc_type": "court_notice",
+      "note": "kind=family_court",
+      "status": "covered"
+    }
+  }
+}

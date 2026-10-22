@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon, ErrorState } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
+import { PageHeader } from '@/components/PageHeader';
 import { useDeleteWithUndo } from '@/hooks/useDeleteWithUndo';
 import { api } from '@/lib/api';
 import type { Clause } from '@lexdraft/types';
@@ -93,30 +94,27 @@ export function ClausesView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Clause bank · firm-approved language</div>
-          <h1 className="heading-xl">Clauses</h1>
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginTop: 4 }}>
-            {clauses.length} {clauses.length === 1 ? 'CLAUSE' : 'CLAUSES'} · {grouped.size} {grouped.size === 1 ? 'CATEGORY' : 'CATEGORIES'}
-          </div>
-        </div>
-        <span className="spacer" />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => setImportOpen(true)}
-        >
-          <Icon name="upload" size={14} /> Import
-        </button>
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => setNewOpen(true)}
-        >
-          <Icon name="plus" size={14} /> New clause
-        </button>
-      </div>
+      <PageHeader
+        title="Clause Bank"
+        description="Your firm's approved clause language, grouped by category. Copy into any draft."
+        meta={`${clauses.length} ${clauses.length === 1 ? 'clause' : 'clauses'} · ${grouped.size} ${grouped.size === 1 ? 'category' : 'categories'}`}
+        actions={<>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setImportOpen(true)}
+          >
+            <Icon name="upload" size={14} /> Import
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => setNewOpen(true)}
+          >
+            <Icon name="plus" size={14} /> New clause
+          </button>
+        </>}
+      />
 
       {isError && (
         <ErrorState

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ErrorState } from '@lexdraft/ui';
 import { api } from '@/lib/api';
 import { Pagination } from '@/components/Pagination';
+import { PageHeader } from '@/components/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
 
 type OldAct = 'IPC' | 'CrPC' | 'IEA';
@@ -58,16 +59,10 @@ export function SanhitaView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Statute translator</div>
-        <h1 className="heading-xl">Sanhita translator</h1>
-        <p className="body-sm muted" style={{ maxWidth: 720, marginTop: 8 }}>
-          Cross-reference the colonial-era IPC, CrPC and Indian Evidence Act to their 2023 successors -
-          Bharatiya Nyaya Sanhita (BNS), Bharatiya Nagarik Suraksha Sanhita (BNSS) and Bharatiya Sakshya
-          Adhiniyam (BSA). Coverage is curated, not exhaustive. Always verify against the bare Act before
-          relying on a mapping in court.
-        </p>
-      </div>
+      <PageHeader
+        title="Sanhita (IPC → BNS)"
+        description="Map IPC, CrPC and Evidence Act sections to BNS, BNSS and BSA."
+      />
 
       <div
         className="card"

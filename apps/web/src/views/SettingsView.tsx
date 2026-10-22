@@ -8,6 +8,7 @@ import { useConfirm } from '@/components/ConfirmDialog';
 import { useUIStore } from '@/store/ui';
 import { MfaEnrollmentModal } from '@/components/MfaEnrollmentModal';
 import { PillNav } from '@/components/PillNav';
+import { PageHeader } from '@/components/PageHeader';
 import { DeletionConfirmModal } from '@/components/DeletionConfirmModal';
 import {
   useCancelDeletion,
@@ -38,10 +39,10 @@ export function SettingsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Preferences</div>
-        <h1 className="heading-xl">Settings</h1>
-      </div>
+      <PageHeader
+        title="Settings"
+        description="Your account, security, language, letterheads and privacy choices."
+      />
 
       <PillNav items={TABS} value={tab} onChange={setTab} ariaLabel="Settings section" />
 

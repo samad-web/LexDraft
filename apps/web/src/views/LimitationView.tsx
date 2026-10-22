@@ -5,6 +5,7 @@ import { useLimitations, type LimitationRow as LimitationRowType } from '@/hooks
 import { NewLimitationModal } from '@/components/NewLimitationModal';
 import { LimitationCalculator } from '@/components/LimitationCalculator';
 import { Gate } from '@/components/Gate';
+import { PageHeader } from '@/components/PageHeader';
 import { downloadCsv } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -66,12 +67,11 @@ export function LimitationView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Statute of limitations</div>
-          <h1 className="heading-xl">Limitation tracker</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Limitation"
+        description="Track limitation deadlines across matters, most urgent first."
+        meta={isLoading || isError ? undefined : `${sorted.length} deadlines`}
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -109,7 +109,8 @@ export function LimitationView() {
             <Icon name="plus" size={14} /> Add deadline
           </button>
         </Gate>
-      </div>
+        </>}
+      />
       <NewLimitationModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       <LimitationCalculator />

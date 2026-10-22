@@ -5,6 +5,7 @@ import { documentsService } from './documents.service';
 import { draftsService } from './drafts.service';
 import { authService } from './auth.service';
 import { firmIdForUser } from './tenant';
+import { fyBoundaries, inrLabel } from './firm.service';
 import { db } from '../db/client';
 import { SEED_ALERTS } from '../data/seed';
 
@@ -28,6 +29,28 @@ async function listAlerts(firmId: string | null): Promise<Alert[]> {
     return rows.map((r) => ({ id: r.id, type: r.tone, text: r.text, detail: r.detail }));
   }
   return SEED_ALERTS;
+}
+
+/** Active clients and invoiced revenue for the current Indian FY (Apr-Mar). */
+async function clientAndRevenueTotals(
+  firmId: string | null,
+): Promise<{ clients: number; revenueFY: number } | null> {
+  if (!firmId) return null;
+  const sql = db();
+  if (!sql) return null;
+  const fy = fyBoundaries();
+  const [[clientRow], [revRow]] = await Promise.all([
+    sql<Array<{ n: number }>>`
+      select count(*)::int as n from clients
+      where firm_id = ${firmId}::uuid and status = 'active'
+    `,
+    sql<Array<{ total: number | string | null }>>`
+      select coalesce(sum(amount_inr), 0)::bigint as total from invoices
+      where firm_id = ${firmId}::uuid
+        and issued_date between ${fy.startCurrent} and ${fy.endCurrent}
+    `,
+  ]);
+  return { clients: clientRow?.n ?? 0, revenueFY: Number(revRow?.total ?? 0) };
 }
 
 function relativeFromIso(iso: string): string {
@@ -69,16 +92,20 @@ export const dashboardService = {
     }));
     const merged: DocumentRecord[] = [...draftDocs, ...docs].slice(0, 4);
     const clientNames = new Set(cases.map((c) => c.client).filter((n) => n && n.trim()));
+    const totals = await clientAndRevenueTotals(firmId);
     return {
       user: { name: user?.name ?? '', role: user?.role ?? '' },
       hearings,
+      myHearings: hearings.filter((h) => !h.assignedToUserId || h.assignedToUserId === userId),
       alerts,
       recentDocs: merged,
       stats: {
         activeMatters: cases.filter((c) => c.status === 'Active').length,
-        clients: clientNames.size,
+        // Prefer the clients directory; fall back to names on matters for
+        // firms that never filled it in.
+        clients: totals?.clients || clientNames.size,
         unread: alerts.length,
-        revenueFY: '-',
+        revenueFY: totals ? inrLabel(totals.revenueFY) : '-',
       },
     };
   },

@@ -383,6 +383,9 @@ export interface EngineDescribeField {
   // yet — the type exists so the /doc-types contract is honest; conditional form
   // rendering is separate frontend work.
   required_when?: { field: string; equals: string };
+  /** Human label, when the source supplies one (a firm's own format carries the
+   *  reader's labels). Absent for built-in engine doc types -> humanised key. */
+  label?: string;
 }
 
 export interface EngineDescribe {
@@ -471,7 +474,7 @@ export function intakeSectionsFromDescribe(desc: EngineDescribe): IntakeSectionS
     const type = ENGINE_KIND_TO_INTAKE[f.kind] ?? 'text';
     const cfg: IntakeFieldConfig = {
       key: f.key,
-      label: humanise(f.key),
+      label: f.label?.trim() || humanise(f.key),
       type,
       required: f.required,
       engineKeys: [f.key], // passthrough: form key IS the engine key

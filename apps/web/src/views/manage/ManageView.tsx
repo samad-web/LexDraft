@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { PillNav } from '@/components/PillNav';
+import { PageHeader } from '@/components/PageHeader';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { ManageUsersPanel } from './ManageUsersPanel';
 import { ManageInvitationsPanel } from './ManageInvitationsPanel';
@@ -43,24 +44,10 @@ export function ManageView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <header
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Firm administration</div>
-          <h1 className="display-md">User management</h1>
-          <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-            Manage who is in your firm, what they can do, and how they're organised. Roles,
-            practice groups, and audit are scoped to your firm only.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Roles & Access"
+        description="Control who is in your firm, what they can do, and their practice groups."
+      />
 
       <PillNav
         items={visibleTabs}

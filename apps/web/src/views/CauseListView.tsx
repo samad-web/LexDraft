@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Icon, ErrorState } from '@lexdraft/ui';
+import { Icon, ErrorState, EmptyState } from '@lexdraft/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUIStore } from '@/store/ui';
 import { useCalendarDay } from '@/hooks/useCalendar';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { PageHeader } from '@/components/PageHeader';
 
 type CauseStatus = 'today' | 'upcoming' | 'past';
 
@@ -66,12 +67,11 @@ export function CauseListView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Daily roster · {TODAY_LABEL}</div>
-          <h1 className="heading-xl">Cause list</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Cause List"
+        description="Today's listed matters, with court room, time and purpose."
+        meta={TODAY_LABEL}
+        actions={<>
         <button
           type="button"
           className="btn"
@@ -123,7 +123,8 @@ export function CauseListView() {
         >
           <Icon name="upload" size={14} /> Refresh roster
         </button>
-      </div>
+        </>}
+      />
 
       <div className="stat-row">
         <div>
@@ -216,8 +217,12 @@ export function CauseListView() {
             ))}
             {!isLoading && !isError && filtered.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                  <span className="body-sm muted">{ROWS.length === 0 ? 'No matters listed for today.' : 'No matters match this filter.'}</span>
+                <td colSpan={6}>
+                  <EmptyState
+                    variant="inline"
+                    icon="causelist"
+                    title={ROWS.length === 0 ? 'No matters listed for today' : 'No matters match this filter'}
+                  />
                 </td>
               </tr>
             )}

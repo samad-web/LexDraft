@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/ui';
 import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { FAB } from '@/components/FAB';
+import { PageHeader } from '@/components/PageHeader';
 
 interface ColumnDef {
   id: TaskColumn;
@@ -73,20 +74,19 @@ export function TasksView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Kanban board · drag to move</div>
-          <h1 className="heading-xl">Tasks</h1>
-        </div>
-        <span className="spacer" />
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="plus" size={14} /> New task
-        </button>
-      </div>
+      <PageHeader
+        title="Tasks"
+        description="Your firm's to-dos on a board. Drag a card to move it."
+        actions={
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="plus" size={14} /> New task
+          </button>
+        }
+      />
       <NewTaskModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <FAB ariaLabel="New task" onClick={() => setModalOpen(true)}>
         <Icon name="plus" size={22} />

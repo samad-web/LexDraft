@@ -460,6 +460,11 @@ PAYLOADS = {
         property_schedule="House and ground at 5 Main Street", addressed_to="The Judgment-Debtor"),
 }
 
+# Imported formats (templates/imported/) carry their own sample payload in the manifest.
+from src.service.adapters.imported import sample_payloads  # noqa: E402
+
+PAYLOADS.update(sample_payloads())
+
 
 def test_every_adapter_has_a_payload():
     registered = {a.doc_type for a in all_adapters()}

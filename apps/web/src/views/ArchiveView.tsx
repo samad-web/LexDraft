@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { EmptyState, ErrorState } from '@lexdraft/ui';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 import type { ArchivedMatter, CaseOutcome } from '@lexdraft/types';
 import { useArchive } from '@/hooks/useArchive';
 import { Pagination } from '@/components/Pagination';
@@ -42,13 +43,11 @@ export function ArchiveView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>§ - CLOSED MATTERS</div>
-        <h1 className="heading-xl">Archive</h1>
-        <p className="body-md muted" style={{ marginTop: 8, maxWidth: 640 }}>
-          A complete register of disposed matters across the chambers. Read-only - original files are preserved with their final orders.
-        </p>
-      </div>
+      <PageHeader
+        title="Closed Matters"
+        description="Read-only register of disposed matters, kept with their final orders."
+        meta={isLoading || isError ? undefined : `${archive.length} matters`}
+      />
 
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
@@ -58,17 +57,12 @@ export function ArchiveView() {
           ))}
         </div>
         <span className="spacer" />
-        <div className="row" style={{ gap: 8, alignItems: 'center', minWidth: 260 }}>
-          <Icon name="search" size={14} />
-          <input
-            className="input"
-            style={{ height: 36, fontSize: 13 }}
-            placeholder="Search CNR, title, client or court"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search archive"
-          />
-        </div>
+        <PageSearch
+          value={query}
+          onChange={setQuery}
+          placeholder="Search CNR, title, client or court"
+          label="Search archive"
+        />
       </div>
 
       <div className="card">

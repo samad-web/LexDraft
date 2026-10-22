@@ -391,12 +391,19 @@ export function FirmDashboardView() {
               )}
               {data.hearingsToday.map((h, i, arr) => (
                 <div
-                  key={`${h.case}-${i}`}
+                  key={h.id ?? `${h.case}-${i}`}
                   className="row"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(h.caseId ? `/app/cases/${h.caseId}` : '/app/causelist')}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(h.caseId ? `/app/cases/${h.caseId}` : '/app/causelist');
+                  }}
                   style={{
                     padding: '14px 0',
                     borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                     gap: 16,
+                    cursor: 'pointer',
                   }}
                 >
                   <div style={{ width: 56 }}>
@@ -426,6 +433,11 @@ export function FirmDashboardView() {
               <span className="body-sm muted">{data.alerts.length} active</span>
             </div>
             <div className="col" style={{ gap: 12 }}>
+              {data.alerts.length === 0 && (
+                <div className="body-sm muted" style={{ padding: '12px 0' }}>
+                  No active alerts.
+                </div>
+              )}
               {data.alerts.map((a, i) => (
                 <div key={i} className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
                   <span className={`dot dot-${a.type}`} style={{ marginTop: 8 }} />

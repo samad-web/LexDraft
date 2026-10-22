@@ -6,6 +6,7 @@ import { useCalendarMonth, useCalendarWeek } from '@/hooks/useCalendar';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { DayHearingsModal } from '@/components/DayHearingsModal';
 import { downloadIcs, type IcsEvent } from '@/lib/export-doc';
+import { PageHeader } from '@/components/PageHeader';
 
 type ViewMode = 'month' | 'week';
 
@@ -124,12 +125,10 @@ export function CalendarView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Hearings calendar</div>
-          <h1 className="heading-xl">Calendar</h1>
-        </div>
-        <span className="spacer" />
+      <PageHeader
+        title="Calendar"
+        description="Your hearings by month or week. Click a day to see or add hearings."
+        actions={<>
         <div
           role="tablist"
           aria-label="Calendar view"
@@ -152,7 +151,8 @@ export function CalendarView() {
         >
           <Icon name="plus" size={14} /> Add hearing
         </button>
-      </div>
+        </>}
+      />
 
       {mode === 'month' ? (
         <MonthPane

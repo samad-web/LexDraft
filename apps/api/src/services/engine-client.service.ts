@@ -92,6 +92,25 @@ export interface S138AffidavitDeponent {
   affirmDate?: string;
 }
 
+/** GET /v1/format-spec/contract — the engine owns the format-spec contract. */
+export interface EngineFormatContract {
+  system_prompt: string;
+  schema: Record<string, unknown>;
+  existing: Array<[string, string]>;
+  common_keys: string[];
+  block_styles: string[];
+  field_kinds: string[];
+}
+
+/** POST /v1/format-spec/check. `spec` comes back normalised. */
+export interface EngineSpecCheck {
+  ok: boolean;
+  problems: string[];
+  spec: unknown;
+  preview: string[];
+  describe: { fields: Array<{ key: string; kind: string; required: boolean; enum_values?: string[] }> } | null;
+}
+
 export class EngineValidationError extends Error {
   constructor(public issues: Array<{ field: string; code: string; message: string }>) {
     super('engine input validation failed');
@@ -298,6 +317,79 @@ export const engineClient = {
     if (status === 422) throw new EngineValidationError(json?.detail?.issues ?? json?.issues ?? []);
     if (status !== 200) throw new EngineError(`sign-off failed: ${status}`);
     return { version: json.version };
+  },
+
+  // ---- A firm's OWN format (spec sent with each call; engine is stateless) ----
+
+  /** What the format reader must produce: transcriber prompt, JSON schema, and
+   *  the engine vocabulary (existing doc types, common field keys). */
+  async formatContract(): Promise<EngineFormatContract> {
+    const { status, json } = await call('GET', '/v1/format-spec/contract');
+    if (status !== 200) throw new EngineError(`format-spec contract failed: ${status}`);
+    return json as EngineFormatContract;
+  },
+
+  /** Validate a spec + preview it rendered with sample data. */
+  async checkSpec(docType: string, spec: unknown): Promise<EngineSpecCheck> {
+    const { status, json } = await call('POST', '/v1/format-spec/check', { doc_type: docType, spec });
+    if (status !== 200) throw new EngineError(`format-spec check failed: ${status}`);
+    return {
+      ok: Boolean(json?.ok),
+      problems: json?.problems ?? [],
+      spec: json?.spec ?? spec,
+      preview: json?.preview ?? [],
+      describe: json?.describe ?? null,
+    };
+  },
+
+  /** Draft from a firm format's stored spec. Same result contract as draft(). */
+  async draftSpec(
+    docType: string,
+    spec: unknown,
+    version: number,
+    matterId: string,
+    fields: Record<string, unknown>,
+    opts: { slots?: Record<string, string>; render?: boolean; language?: string } = {},
+  ): Promise<EngineDraftResult> {
+    const current = await factSheetService.getCurrent(matterId);
+    if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
+    const { status, json } = await call('POST', '/v1/draft-spec', {
+      doc_type: docType,
+      spec,
+      status: 'approved',
+      version,
+      matter: { matter_id: matterId, version: current.version },
+      fields,
+      slots: opts.slots ?? {},
+      render: opts.render ?? true,
+      language: opts.language ?? 'EN',
+    });
+    if (status === 422 && json?.error === 'invalid_spec') {
+      throw new EngineError(`stored format is invalid: ${(json.problems ?? []).join('; ')}`);
+    }
+    if (status === 422) throw new EngineValidationError(json?.issues ?? json?.detail?.issues ?? []);
+    if (status !== 200) throw new EngineError(`draft-spec failed: ${status}`);
+    return {
+      outcome: 'generated',
+      docType,
+      signals: json.signals,
+      unfilledSlots: json.unfilled_slots ?? [],
+      blocks: json.blocks ?? [],
+      docxBase64: json.docx_base64 ?? null,
+      templateId: json.template_id ?? '',
+      templateVersion: json.template_version ?? 0,
+    };
+  },
+
+  /** Doc types the LIVE engine serves right now (null if it can't be reached). */
+  async servedDocTypes(): Promise<Set<string> | null> {
+    try {
+      const { status, json } = await call('GET', '/healthz');
+      if (status !== 200 || !Array.isArray(json?.doc_types)) return null;
+      return new Set(json.doc_types as string[]);
+    } catch {
+      return null;
+    }
   },
 
   /** dual_code_router only — resolve the procedural framework or refuse. */

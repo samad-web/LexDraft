@@ -10,6 +10,7 @@ import {
 } from '@/hooks/useLawsSearch';
 import { JurisdictionBadge } from '@/components/JurisdictionBadge';
 import { VerificationBadge } from '@/components/VerificationBadge';
+import { PageHeader } from '@/components/PageHeader';
 
 type ScopeKind = 'all' | 'central' | 'state';
 import { useUIStore } from '@/store/ui';
@@ -179,19 +180,16 @@ export function ResearchView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Research</div>
-        <h1 className="heading-xl">
-          {mode === 'ask' ? 'Ask Lex.AI a legal question' : 'Search Indian statutes & cases'}
-        </h1>
-        <p className="lede" style={{ maxWidth: '60ch', marginTop: 8 }}>
-          {mode === 'ask'
-            ? 'Synthesised answers from Indian statutes, Supreme Court & High Court judgments, with traceable citations.'
+      <PageHeader
+        title="Legal Research"
+        description={
+          mode === 'ask'
+            ? 'Ask Lex.AI a legal question; answers cite Indian statutes and judgments.'
             : lawsSearch.data?.source === 'local-bns'
-              ? 'Full-text search over the Bharatiya Nyaya Sanhita, 2023 (criminal code) — real gazette text, parsed but not yet counsel-verified. No other acts or case law are indexed yet.'
-              : 'Direct hybrid search (vector + keyword) over the indexed corpus. Returns matching sections with citations and source PDFs.'}
-        </p>
-      </div>
+              ? 'Search BNS, 2023 gazette text (not yet counsel-verified). Other acts aren’t indexed yet.'
+              : 'Search indexed Indian statutes and cases, with citations and source PDFs.'
+        }
+      />
 
       {/* Mode switcher */}
       <div className="row" role="tablist" style={{ gap: 4 }}>

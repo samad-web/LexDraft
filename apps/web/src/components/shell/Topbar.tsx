@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsFetching } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
+import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { ROUTE_TITLES } from './nav-config';
+import { ROUTE_TITLES, locateInNav, visibleNavGroups } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useSignOut } from '@/hooks/useAuth';
+
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export function Topbar() {
   const navigate = useNavigate();
@@ -26,8 +29,19 @@ export function Topbar() {
   // any react-query is in flight after the initial paint.
   const fetchingCount = useIsFetching();
 
+  // "Section › Page" straight from the sidebar config, so the Topbar always
+  // names a page exactly as the sidebar does. ROUTE_TITLES covers routes
+  // that aren't in the sidebar (or that this user can't see there).
+  const meFeatures = useMeFeatures();
+  const located = useMemo(
+    () => locateInNav(visibleNavGroups(meFeatures.data?.features ?? []), location.pathname),
+    [meFeatures.data, location.pathname],
+  );
   const segment = location.pathname.split('/')[2] || 'dashboard';
-  const meta = ROUTE_TITLES[segment] || { title: segment, eyebrow: '' };
+  const fallback = ROUTE_TITLES[segment] || { title: segment, eyebrow: '' };
+  const meta = located
+    ? { title: located.item.label, eyebrow: located.group.title }
+    : fallback;
 
   return (
     <div className="topbar">
@@ -70,8 +84,8 @@ export function Topbar() {
         aria-label="Open search and command palette"
       >
         <Icon name="search" size={14} />
-        <span className="topbar-search-label">Search cases, clients, docs…</span>
-        <kbd className="kbd topbar-search-kbd">⌘K</kbd>
+        <span className="topbar-search-label">Search matters, CNR, clients…</span>
+        <kbd className="kbd topbar-search-kbd">{IS_MAC ? '⌘K' : 'Ctrl K'}</kbd>
       </button>
 
       <button

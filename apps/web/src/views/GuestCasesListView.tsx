@@ -8,6 +8,7 @@
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, ErrorState, Icon, Skeleton } from '@lexdraft/ui';
 import { useGuestCases } from '@/hooks/useCoCounsel';
+import { PageHeader } from '@/components/PageHeader';
 
 export function GuestCasesListView() {
   const navigate = useNavigate();
@@ -15,14 +16,11 @@ export function GuestCasesListView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Cross-firm handovers</div>
-        <h1 className="heading-xl">Co-Counsel</h1>
-        <p className="body-sm muted" style={{ marginTop: 6 }}>
-          Matters other advocates have handed to you. You have read-only access - hearings, shared
-          notes, and documents - for exactly these cases.
-        </p>
-      </div>
+      <PageHeader
+        title="Co-Counsel"
+        description="Matters other advocates have handed to you, with read-only access."
+        meta={!isLoading && !isError ? `${cases.length} ${cases.length === 1 ? 'matter' : 'matters'}` : undefined}
+      />
 
       {isLoading && (
         <div className="col" style={{ gap: 12 }}>

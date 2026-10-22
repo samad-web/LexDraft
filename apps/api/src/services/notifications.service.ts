@@ -24,6 +24,8 @@ import { jobs } from './jobs.service';
 import { logger } from '../logger';
 import { decryptField } from '../lib/field-crypto';
 import type { AppNotification, NotificationTone, PortalNotificationPreferences } from '@lexdraft/types';
+import type { AdvocateSyncTally } from './ecourts-sync-runs.service';
+import type { EfilingTally } from './efiling-tracker.service';
 
 interface ClientLookup {
   id: string;
@@ -122,6 +124,19 @@ async function loadFirmRecipientUsers(firmId: string): Promise<Array<{ id: strin
   return rows
     .filter((r): r is { id: string; email: string } => !!r.email)
     .map((r) => ({ id: r.id, email: r.email }));
+}
+
+/** Who hears about a matter: its owner when they're still an active user,
+ *  otherwise the firm admins (same rule every case event here follows). */
+export async function resolveCaseRecipients(
+  firmId: string,
+  ownerUserId: string | null | undefined,
+): Promise<Array<{ id: string; email: string }>> {
+  if (ownerUserId) {
+    const u = await loadUser(ownerUserId);
+    if (u) return [{ id: u.id, email: u.email }];
+  }
+  return loadFirmRecipientUsers(firmId);
 }
 
 function prefAllows(prefs: Partial<PortalNotificationPreferences>, key: keyof PortalNotificationPreferences): boolean {
@@ -469,7 +484,7 @@ export const notify = {
         to: r.email,
         subject: `Case update from eCourts: ${summary.matterTitle}`,
         body: [
-          `The nightly eCourts sync found new activity on:`,
+          `The scheduled eCourts sync found new activity on:`,
           `  Matter: ${summary.matterTitle}`,
           `  CNR:    ${summary.cnr}`,
           ``,
@@ -480,6 +495,199 @@ export const notify = {
         ].join('\n'),
       });
     }
+  },
+
+  /**
+   * After every scheduled eCourts run (09:00 / 19:00 IST) and each of its
+   * retries: one in-app summary per advocate covering their matters. Deduped
+   * per (slot, date) so a retry rewrites the same row - and bumps it back to
+   * unread - rather than stacking a new one every 30 minutes.
+   */
+  async ecourtsSyncSummary(
+    firmId: string,
+    userId: string,
+    s: {
+      slot: 'morning' | 'evening' | 'manual';
+      runDate: string;
+      tally: AdvocateSyncTally;
+      retrying: boolean;
+      finalAttempt: boolean;
+    },
+  ): Promise<void> {
+    const t = s.tally;
+    if (t.total === 0) return;
+    const when = s.slot === 'morning' ? 'Morning (9 AM)' : s.slot === 'evening' ? 'Evening (7 PM)' : 'Manual';
+    const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+    const nextSlot = s.slot === 'morning' ? '7 PM today' : '9 AM tomorrow';
+
+    let tone: NotificationTone;
+    let title: string;
+    const parts: string[] = [];
+
+    if (t.synced === 0 && t.unreachable > 0) {
+      // Nothing got through - eCourts itself is down.
+      tone = 'amber';
+      title = `${when} eCourts update delayed: eCourts is not responding`;
+      parts.push(
+        s.retrying
+          ? `Could not reach eCourts for your ${plural(t.unreachable, 'case', 'cases')}. Retrying automatically every 30 minutes.`
+          : `eCourts stayed unreachable after repeated retries. Next automatic update at ${nextSlot}.`,
+      );
+      parts.push('Your cases still show the last successfully synced details.');
+    } else {
+      const needsAttention = t.unreachable + t.notFound + t.errored;
+      tone = needsAttention > 0 ? 'amber' : t.changed > 0 ? 'cobalt' : 'sage';
+      // "All 0 cases up to date" (seen live when every CNR was not found) is
+      // wrong - only claim "up to date" when nothing needs attention.
+      title = t.changed > 0
+        ? `${when} eCourts update: ${plural(t.changed, 'case', 'cases')} changed`
+        : needsAttention > 0
+          ? `${when} eCourts update: ${needsAttention === 1 ? '1 case needs' : `${needsAttention} cases need`} attention`
+          : `${when} eCourts update: all ${plural(t.synced, 'case', 'cases')} up to date`;
+      parts.push(`${t.synced} of ${t.total} synced`);
+      if (t.changed > 0) {
+        const names = t.changedTitles.join(', ');
+        parts.push(`${t.changed} updated${names ? ` (${names}${t.changed > t.changedTitles.length ? ', …' : ''})` : ''}`);
+      }
+      if (t.notFound > 0) parts.push(`${t.notFound} not found on eCourts. Check the CNR`);
+      if (t.errored > 0) parts.push(`${t.errored} could not be synced`);
+      if (t.unreachable > 0) {
+        parts.push(s.retrying ? `${t.unreachable} unreachable, retrying in 30 min` : `${t.unreachable} unreachable, next try ${nextSlot}`);
+      }
+    }
+
+    await notificationsStore.create({
+      firmId,
+      userId,
+      tone,
+      icon: 'ecourts',
+      title,
+      body: parts.join(' · '),
+      view: 'cases',
+      dedupeKey: `ecourts-run:${s.slot}:${s.runDate}`,
+    });
+  },
+
+  /** A matter saved while eCourts was down (or just added) got its first
+   *  successful fetch in the background. In-app only. */
+  async ecourtsCaseLinked(
+    firmId: string,
+    info: { caseId: string; matterTitle: string; cnr: string; hearings: number; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'sage',
+        icon: 'ecourts',
+        title: `Connected to eCourts: ${info.matterTitle}`,
+        body: `CNR ${info.cnr} · ${info.hearings} hearing${info.hearings === 1 ? '' : 's'} imported. It will refresh at 9 AM and 7 PM daily.`,
+        view: 'cases',
+        dedupeKey: `ecourts-link:${info.caseId}`,
+      });
+    }
+  },
+
+  /** eCourts answered but has no record for the matter's CNR on either tier. */
+  async ecourtsCaseNotFound(
+    firmId: string,
+    info: { caseId: string; matterTitle: string; cnr: string; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'amber',
+        icon: 'ecourts',
+        title: `CNR not found on eCourts: ${info.matterTitle}`,
+        body: `eCourts has no record for ${info.cnr}. Check the CNR on the matter. A newly registered case can take a day or two to appear, and LexDraft will keep checking at each scheduled update.`,
+        view: 'cases',
+        dedupeKey: `ecourts-link:${info.caseId}`,
+      });
+    }
+  },
+
+  /** The eFiling tracker found an e-filed case registered on eCourts. */
+  async efilingRegistered(
+    firmId: string,
+    info: { filingId: string; caseId: string; matterTitle: string; cnr: string; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'sage',
+        icon: 'ecourts',
+        title: `Registered by the court: ${info.matterTitle}`,
+        body: `Your e-filed case is on eCourts as CNR ${info.cnr}. LexDraft has connected the matter; hearings and orders will now refresh at 9 AM and 7 PM daily.`,
+        view: `efiling?filing=${info.filingId}`,
+        dedupeKey: `efiling-filing:${info.filingId}`,
+      });
+    }
+  },
+
+  /** Several eCourts cases match an e-filed case; the advocate must choose. */
+  async efilingNeedsChoice(
+    firmId: string,
+    info: { filingId: string; matterTitle: string; count: number; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'amber',
+        icon: 'ecourts',
+        title: `Confirm the eCourts case for: ${info.matterTitle}`,
+        body: `${info.count} registered cases on eCourts match this e-filing. Open eFiling and pick the right one. LexDraft won't guess.`,
+        view: `efiling?filing=${info.filingId}`,
+        dedupeKey: `efiling-filing:${info.filingId}`,
+      });
+    }
+  },
+
+  /**
+   * After each 09:00 / 19:00 eFiling tracking run (and its retries): one
+   * summary per advocate with open filings. Deduped per (slot, date).
+   */
+  async efilingTrackingSummary(
+    firmId: string,
+    userId: string,
+    s: { slot: 'morning' | 'evening' | 'manual'; runDate: string; tally: EfilingTally; retrying: boolean },
+  ): Promise<void> {
+    const t = s.tally;
+    const when = s.slot === 'morning' ? 'Morning (9 AM)' : s.slot === 'evening' ? 'Evening (7 PM)' : 'Manual';
+    const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+    const parts: string[] = [];
+    if (t.registeredNow > 0) {
+      const names = t.registeredTitles.join(', ');
+      parts.push(`${t.registeredNow} registered${names ? ` (${names}${t.registeredNow > t.registeredTitles.length ? ', …' : ''})` : ''}`);
+    }
+    if (t.needsChoice > 0) parts.push(`${t.needsChoice} need you to confirm the eCourts match`);
+    if (t.objected > 0) parts.push(`${plural(t.objected, 'objection', 'objections')} to cure`);
+    if (t.needsData > 0) parts.push(`${t.needsData} missing court or party details`);
+    if (t.awaiting > 0) parts.push(`${t.awaiting} awaiting registration`);
+    if (t.stale > 0) parts.push(`${t.stale} unregistered for 3+ weeks. Check with the registry`);
+    if (t.readyNotSubmitted > 0) parts.push(`${t.readyNotSubmitted} prepared or on the portal but not yet final-submitted`);
+    if (t.unreachable > 0) parts.push(s.retrying ? `eCourts not responding for ${t.unreachable}, retrying in 30 min` : `eCourts not responding for ${t.unreachable}, next check ${s.slot === 'morning' ? '7 PM' : '9 AM'}`);
+    if (parts.length === 0) return;
+
+    const attention = t.needsChoice + t.objected + t.needsData + t.stale + t.unreachable > 0;
+    await notificationsStore.create({
+      firmId,
+      userId,
+      tone: attention ? 'amber' : t.registeredNow > 0 ? 'sage' : 'cobalt',
+      icon: 'ecourts',
+      title: t.registeredNow > 0
+        ? `${when} eFiling update: ${plural(t.registeredNow, 'case', 'cases')} registered`
+        : `${when} eFiling update: ${plural(t.open, 'open filing', 'open filings')}`,
+      body: parts.join(' · '),
+      view: 'efiling',
+      dedupeKey: `efiling-run:${s.slot}:${s.runDate}`,
+    });
   },
 
   /**
@@ -543,7 +751,8 @@ export const notify = {
     const body = change.renewsAt ? `Plan renews ${change.renewsAt}.` : '';
     for (const r of recipients) {
       await notificationsStore.create({
-        firmId, userId: r.id, tone, icon: 'credit-card', title, body, view: 'billing',
+        // Plan & subscription live under Settings; there is no /app/billing route.
+        firmId, userId: r.id, tone, icon: 'credit-card', title, body, view: 'settings',
       });
     }
   },

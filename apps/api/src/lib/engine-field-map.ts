@@ -212,7 +212,8 @@ interface ContractField {
   // Not consumed by coercion yet — present so the snapshot type is honest.
   requiredWhen?: { field: string; equals: string };
 }
-type ContractEntry = { fields: ContractField[] };
+// `imported` marks a format added by lexdraft-engine's tools/import_format.py.
+type ContractEntry = { fields: ContractField[]; title?: string; imported?: boolean };
 
 // The committed engine-contract snapshot (same file the alignment test uses).
 // Lives in @lexdraft/types since both apps' production code and tests
@@ -357,6 +358,25 @@ function coerceRecordList(itemFields: ContractField[], v: unknown): unknown {
 function coerceToContract(docType: string, mapped: MappedFields): MappedFields {
   const entry = ENGINE_CONTRACT[docType];
   if (!entry) return mapped; // no contract -> leave as-is
+  return coerceToEntry(entry, mapped);
+}
+
+/**
+ * Map a form to engine fields for a doc type whose contract is NOT in the snapshot
+ * — a firm's own format, whose fields come from its stored spec. Same passthrough +
+ * coercion as every generated doc type, against the supplied field list.
+ */
+export function mapFormToFields(
+  fields: Array<{ key: string; kind: string; enum_values?: string[] }>,
+  form: Record<string, unknown>,
+): MappedFields {
+  const entry: ContractEntry = {
+    fields: fields.map((f) => ({ key: f.key, kind: f.kind, ...(f.enum_values ? { enumValues: f.enum_values } : {}) })),
+  };
+  return coerceToEntry(entry, mapPassthrough(form, {}));
+}
+
+function coerceToEntry(entry: ContractEntry, mapped: MappedFields): MappedFields {
   const byKey = new Map(entry.fields.map((f) => [f.key, f]));
   const out: Record<string, unknown> = {};
   // Track which flat per-row list keys we consume so they don't also leak through
@@ -504,7 +524,16 @@ const ROUTABLE_DOC_TYPES: readonly string[] = [
   'summons', 'court_notice', 'court_warrant',
 ];
 
-const ROUTABLE_SET = new Set(ROUTABLE_DOC_TYPES);
+/**
+ * Imported formats (lexdraft-engine tools/import_format.py: LAWE forms or an
+ * advocate's own format) are tagged `imported` in the contract snapshot. They are
+ * passthrough doc types, routable with no entry in the list above.
+ */
+const IMPORTED_DOC_TYPES: readonly string[] = Object.keys(ENGINE_CONTRACT).filter(
+  (docType) => ENGINE_CONTRACT[docType]?.imported === true,
+);
+
+const ROUTABLE_SET = new Set([...ROUTABLE_DOC_TYPES, ...IMPORTED_DOC_TYPES]);
 
 /** Whether an engine doc type has a form->engine mapping (i.e. is routable). */
 export function isRoutable(docType: string): boolean {
@@ -622,3 +651,10 @@ export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Court Notice': 'court_notice',
   'Court Warrant / Order': 'court_warrant',
 };
+
+// Imported formats are listed in the picker under their engine title; a title
+// that collides with a label above never overrides it.
+for (const docType of IMPORTED_DOC_TYPES) {
+  const title = ENGINE_CONTRACT[docType]?.title;
+  if (title && !(title in LABEL_TO_ENGINE_DOC)) LABEL_TO_ENGINE_DOC[title] = docType;
+}

@@ -4130,6 +4130,125 @@
     ],
     "title": "MACT claim petition (s.166 MV Act)"
   },
+  "madras_hc_original_side_suit_summons": {
+    "title": "Summons to Defendant in Civil Suit (Madras High Court, Original Side) with Concise Statement of Claim",
+    "required": [
+      "advocate",
+      "case_ref",
+      "claim_statement",
+      "defendant_name",
+      "plaintiff_name",
+      "presentation_date",
+      "recipient_address"
+    ],
+    "all": [
+      "advocate",
+      "advocate_chamber",
+      "case_ref",
+      "chief_justice_name",
+      "claim_statement",
+      "costs_amount",
+      "defendant_name",
+      "interest_rate",
+      "leave_order_date",
+      "munsiff_court_place",
+      "plaintiff_name",
+      "presentation_date",
+      "recipient_address",
+      "registrar_office",
+      "seal_date",
+      "served_by",
+      "service_date"
+    ],
+    "fields": [
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "plaintiff_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "defendant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "recipient_address",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "presentation_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "leave_order_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "chief_justice_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "seal_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "advocate",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "advocate_chamber",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "claim_statement",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "interest_rate",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "costs_amount",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "served_by",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "munsiff_court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "service_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "registrar_office",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "imported": true
+  },
   "maintenance": {
     "all": [
       "child_age",

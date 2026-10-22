@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { useEngineStatus } from '@/hooks/useEngineDraft';
+import { useDeleteFormat } from '@/hooks/useFirmFormats';
+import { useUIStore } from '@/store/ui';
 import { Modal } from './Modal';
+import { UploadFormatModal } from './UploadFormatModal';
 
 interface Props {
   open: boolean;
@@ -24,9 +27,32 @@ interface Props {
  */
 export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
   const engineStatus = useEngineStatus();
-  const formats = engineStatus.data?.formats ?? [];
+  const firmFormats = engineStatus.data?.firmFormats ?? [];
+  const firmLabels = useMemo(() => new Set(firmFormats.map((f) => f.label)), [firmFormats]);
+  const formats = useMemo(
+    () => (engineStatus.data?.formats ?? []).filter((l) => !firmLabels.has(l)),
+    [engineStatus.data?.formats, firmLabels],
+  );
   const enabled = Boolean(engineStatus.data?.enabled);
   const [query, setQuery] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const removeFormat = useDeleteFormat();
+  const showToast = useUIStore((s) => s.showToast);
+
+  const shownFirm = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? firmFormats.filter((f) => f.label.toLowerCase().includes(q)) : firmFormats;
+  }, [firmFormats, query]);
+
+  const onRemove = async (id: string, title: string) => {
+    if (!window.confirm(`Remove "${title}" from your firm's formats?`)) return;
+    try {
+      await removeFormat.mutateAsync(id);
+      showToast({ type: 'sage', text: 'Format removed' });
+    } catch {
+      showToast({ type: 'vermillion', text: 'Could not remove the format' });
+    }
+  };
 
   const groups = useMemo(() => groupFormats(formats), [formats]);
   const filtered = useMemo(() => {
@@ -80,6 +106,60 @@ export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
       {!engineStatus.isLoading && total > 0 && shown === 0 && (
         <span className="body-sm muted">No format matches “{query}”.</span>
       )}
+
+      <div className="col" style={{ gap: 6, marginBottom: 16 }}>
+        <div className="row" style={{ alignItems: 'center', gap: 8 }}>
+          <span
+            className="mono"
+            style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}
+          >
+            YOUR FIRM’S FORMATS
+          </span>
+          <span className="spacer" style={{ flex: 1 }} />
+          <button type="button" className="btn btn-sm" onClick={() => setUploading(true)}>
+            <Icon name="upload" size={12} aria-hidden /> Upload a format
+          </button>
+        </div>
+        {firmFormats.length === 0 ? (
+          <span className="body-xs muted">
+            Have a format your office uses that isn’t listed? Upload it and LexDraft will draft it from the case.
+          </span>
+        ) : (
+          <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {shownFirm.map((f) => {
+              const isCurrent = f.label === current;
+              return (
+                <span key={f.id} className="row" style={{ gap: 2, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    className={`btn btn-sm${isCurrent ? ' btn-primary' : ''}`}
+                    onClick={() => { onPick(f.label); onClose(); }}
+                  >
+                    {f.title}
+                    {isCurrent && <Icon name="check" size={12} aria-hidden />}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    aria-label={`Remove ${f.title}`}
+                    title="Remove"
+                    onClick={() => { void onRemove(f.id, f.title); }}
+                  >
+                    <Icon name="trash" size={12} aria-hidden />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <UploadFormatModal
+        open={uploading}
+        onClose={() => setUploading(false)}
+        onSaved={(label) => { setUploading(false); onPick(label); onClose(); }}
+        onUseExisting={(label) => { setUploading(false); onPick(label); onClose(); }}
+      />
 
       <div className="col" style={{ gap: 16 }}>
         {filtered.map((g) => (

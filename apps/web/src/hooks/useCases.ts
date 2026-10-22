@@ -2,13 +2,27 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Case, CaseAct, CaseParty, CasePipeline, MatterTimelineEvent } from '@lexdraft/types';
 import { api } from '@/lib/api';
 
-export type CaseWithPipeline = Case & { pipeline?: CasePipeline };
+/** eCourts connection state, present on GET /cases/:id (migration 0085). */
+export interface CaseEcourtsLink {
+  ecourtsLinkStatus?: 'unlinked' | 'pending' | 'linked' | 'not_found' | 'error';
+  ecourtsCourtTier?: 'DC' | 'HC' | null;
+  ecourtsLastAttemptAt?: string | null;
+  ecourtsLastError?: string | null;
+}
 
-export function useCases(filter?: { type?: string; q?: string }) {
+export type CaseWithPipeline = Case & CaseEcourtsLink & { pipeline?: CasePipeline };
+
+/** List rows also carry the matter's eCourts link status. */
+export type CaseListItem = Case & Pick<CaseEcourtsLink, 'ecourtsLinkStatus'>;
+
+/** `ecourts: 'attention'` = live matters not yet working with eCourts (no
+ *  CNR, waiting, CNR not found, error) - the "Connect matters" view. */
+export function useCases(filter?: { type?: string; q?: string; ecourts?: 'attention' }, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['cases', filter],
-    queryFn: () => api.get<{ items: Case[] }>('/cases', filter),
+    queryFn: () => api.get<{ items: CaseListItem[] }>('/cases', filter),
     select: (r) => r.items,
+    enabled: opts?.enabled ?? true,
   });
 }
 
@@ -169,6 +183,83 @@ export function useSyncCaseFromEcourts() {
       // Hearings come back from a separate query — refetch them too.
       qc.invalidateQueries({ queryKey: ['hearings'] });
       qc.invalidateQueries({ queryKey: ['calendar'] });
+      // The sync's live lookup also refreshed the stored eCourts copy that
+      // the case page's eCourts snapshot and tab read.
+      qc.invalidateQueries({ queryKey: ['ecourts', 'cnr'] });
+    },
+  });
+}
+
+export interface EcourtsCnrCandidate {
+  cino: string;
+  title: string;
+  establishment: string | null;
+  caseNo: string | null;
+}
+
+export type LinkCaseInput =
+  | { id: string; cnr: string; court?: 'DC' | 'HC' }
+  | {
+      id: string;
+      court?: 'DC' | 'HC';
+      stateCode: number;
+      distCode: number;
+      courtCode: number;
+      estCode: string;
+      caseType: string | number;
+      regNo: string | number;
+      year: number;
+    };
+
+export type LinkCaseResult =
+  | { status: 'linked'; cnr: string; case: CaseWithPipeline }
+  | { status: 'pending'; cnr: string; message: string; case: CaseWithPipeline }
+  | { status: 'choose'; candidates: EcourtsCnrCandidate[] };
+
+/**
+ * Connect a matter to eCourts after the fact - by CNR, or by case type +
+ * number + year (the server resolves the CNR). 'pending' means the CNR was
+ * saved but eCourts is down; the server keeps retrying in the background.
+ */
+export interface EcourtsImportItem { cnr: string; court?: 'DC' | 'HC' }
+export interface EcourtsImportResult {
+  created: Array<{ cnr: string; id: string }>;
+  existing: string[];
+  invalid: string[];
+}
+
+/** Which CNRs are already in matters - the import preview. */
+export function useEcourtsImportPreview() {
+  return useMutation({
+    mutationFn: (items: EcourtsImportItem[]) =>
+      api.post<{ existing: string[] }>('/cases/import/ecourts', { items, dryRun: true }),
+  });
+}
+
+/** My Cases import: new CNRs become matters that eCourts fills in. */
+export function useImportEcourtsCases() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (items: EcourtsImportItem[]) => api.post<EcourtsImportResult>('/cases/import/ecourts', { items }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['ecourts', 'sync-status'] });
+    },
+  });
+}
+
+export function useLinkCaseToEcourts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: LinkCaseInput) =>
+      api.post<LinkCaseResult>(`/cases/${id}/ecourts/link`, body),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['cases'] });
+      qc.invalidateQueries({ queryKey: ['cases', variables.id, 'acts'] });
+      qc.invalidateQueries({ queryKey: ['cases', variables.id, 'parties'] });
+      qc.invalidateQueries({ queryKey: ['hearings'] });
+      qc.invalidateQueries({ queryKey: ['calendar'] });
+      qc.invalidateQueries({ queryKey: ['ecourts', 'sync-status'] });
     },
   });
 }

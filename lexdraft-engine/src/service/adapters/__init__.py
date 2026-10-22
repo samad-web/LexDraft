@@ -497,3 +497,6 @@ from . import appeal_record_cost_schedule as _appeal_record_cost_schedule  # noq
 from . import summons as _summons  # noqa: E402,F401
 from . import court_notice as _court_notice  # noqa: E402,F401
 from . import court_warrant as _court_warrant  # noqa: E402,F401
+# Imported formats (templates/imported/manifest.json) — data-driven, registered
+# LAST so they can never shadow a built-in doc type.
+from . import imported as _imported  # noqa: E402,F401

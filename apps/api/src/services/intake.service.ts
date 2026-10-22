@@ -42,7 +42,8 @@ import {
   type EngineDraftResult,
   type EngineBundleDoc,
 } from './engine-client.service';
-import { mapFormToEngine, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
+import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
+import { firmFormatsService, isFirmFormatLabel, type FirmFormat } from './firm-formats.service';
 import { enrichFormWithBns, type BnsConcordanceEntry } from '../lib/bns-enrichment';
 import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
 import { intakeCompose } from './intake-compose.service';
@@ -416,6 +417,39 @@ async function buildS138AffidavitCompanion(
   }
 }
 
+/** A Draft-page label resolved for the intake. `firm` is set for a firm's own
+ *  format, whose spec is sent to the engine with every draft. */
+interface ResolvedDoc {
+  docType: string;
+  sections: IntakeSectionSpec[];
+  firm?: FirmFormat;
+}
+
+/** Form -> engine fields: firm formats coerce against their stored spec fields;
+ *  everything else through the shared contract mapper (unchanged). */
+function mapForDoc(
+  doc: ResolvedDoc,
+  form: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+): { fields: Record<string, unknown> } {
+  if (doc.firm) return mapFormToFields(doc.firm.spec.fields as Array<{ key: string; kind: string }>, { ...extra, ...form });
+  return mapFormToEngine(doc.docType, form, extra);
+}
+
+/** Draft through the engine: a firm format sends its spec (/v1/draft-spec);
+ *  every other doc type drafts by slug exactly as before. */
+function draftForDoc(
+  doc: ResolvedDoc,
+  matterId: string,
+  fields: Record<string, unknown>,
+  opts: { slots?: Record<string, string>; render?: boolean; language?: string },
+): Promise<EngineDraftResult> {
+  if (doc.firm) {
+    return engineClient.draftSpec(doc.docType, doc.firm.spec, doc.firm.version, matterId, fields, opts);
+  }
+  return engineClient.draft(doc.docType, matterId, fields, opts);
+}
+
 // Cache of engine-derived intake sections, keyed by engine doc_type. Populated
 // lazily from GET /v1/doc-types the first time a passthrough doc is resolved, so
 // the 45 passthrough doc types need no hand-written config (s.138 keeps its own).
@@ -429,7 +463,27 @@ const derivedSectionsCache = new Map<string, IntakeSectionSpec[]>();
  * engine doc type or the engine has no such doc type. */
 async function resolveDoc(
   docLabel: string,
-): Promise<{ docType: string; sections: IntakeSectionSpec[] } | null> {
+  firmId: string | null = null,
+): Promise<ResolvedDoc | null> {
+  // A firm's OWN format ("<title> (firm format)"): its fields come from the stored
+  // spec, never from the engine registry, and only this firm can resolve it.
+  if (isFirmFormatLabel(docLabel) && !LABEL_TO_ENGINE_DOC[docLabel]) {
+    const firm = await firmFormatsService.getByLabel(firmId, docLabel);
+    if (!firm) return null;
+    const sections = intakeSectionsFromDescribe({
+      doc_type: firm.docType,
+      title: firm.title,
+      slots: [],
+      fields: firm.spec.fields.map((f) => ({
+        key: f.key,
+        kind: f.kind,
+        required: f.required,
+        ...(Array.isArray(f['enum_values']) ? { enum_values: f['enum_values'] as string[] } : {}),
+        ...(typeof f['label'] === 'string' ? { label: f['label'] as string } : {}),
+      })),
+    });
+    return { docType: firm.docType, sections, firm };
+  }
   const docType = LABEL_TO_ENGINE_DOC[docLabel];
   if (!docType) return null;
 
@@ -472,12 +526,12 @@ export class IntakeError extends Error {}
 
 export const intakeService = {
   /** Is a Draft-page label drivable by the conversational intake loop? */
-  async routable(docLabel: string): Promise<boolean> {
-    // Cheap synchronous check first: a label with no engine mapping is never
-    // routable and needs no engine round-trip.
-    if (!LABEL_TO_ENGINE_DOC[docLabel]) return false;
+  async routable(docLabel: string, firmId: string | null = null): Promise<boolean> {
+    // Cheap synchronous check first: a label with no engine mapping (and not a
+    // firm format) is never routable and needs no engine round-trip.
+    if (!LABEL_TO_ENGINE_DOC[docLabel] && !isFirmFormatLabel(docLabel)) return false;
     try {
-      return (await resolveDoc(docLabel)) !== null;
+      return (await resolveDoc(docLabel, firmId)) !== null;
     } catch (err) {
       // Engine unreachable: this is a liveness problem, not "unroutable". Report
       // false here (so the guard doesn't 500); the actual start/startAuto call
@@ -489,7 +543,7 @@ export const intakeService = {
 
   /** Start a new conversation from the advocate's opening description. */
   async start(docLabel: string, message: string, ctx: RunCtx): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     // Seed practice defaults (e.g. TN s.138 itemised schedule + twice-amount
     // prayer) into the fresh form before the advocate says anything. The
@@ -508,7 +562,9 @@ export const intakeService = {
    * IntakeError the route turns into a "please pick a format" prompt.
    */
   async startAuto(message: string, ctx: RunCtx, instruction?: string): Promise<IntakeState> {
-    const labels = routableLabels();
+    // The firm's own approved formats are candidates too.
+    const firmLabels = (await firmFormatsService.list(ctx.firmId, { approvedOnly: true })).map((f) => f.label);
+    const labels = [...routableLabels(), ...firmLabels];
     // Classify the format. DETERMINISTIC mode (flag on) skips the LLM entirely and
     // uses the keyword classifier — instant, no network, no cost. Otherwise the LLM
     // classifies with the keyword classifier as a fallback.
@@ -573,7 +629,7 @@ export const intakeService = {
    * No new advocate message; it re-evaluates the current state with draftNow on.
    */
   async draftNow(matterId: string, docLabel: string, ctx: RunCtx): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const current = await factSheetService.getCurrent(matterId);
@@ -607,7 +663,7 @@ export const intakeService = {
     edits: Record<string, string>,
     ctx: RunCtx,
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const allowed = new Set(specs.map((f) => f.key));
@@ -642,7 +698,7 @@ export const intakeService = {
 
   /** Load the current state without changing anything (reopen a conversation). */
   async load(matterId: string, docLabel: string, ctx: RunCtx): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const current = await factSheetService.getCurrent(matterId);
@@ -663,7 +719,7 @@ export const intakeService = {
     ctx: RunCtx,
     via: 'narration' | 'question',
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
@@ -865,7 +921,7 @@ export const intakeService = {
     caption: string,
     ctx: RunCtx,
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel);
+    const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
@@ -1124,7 +1180,7 @@ export const intakeService = {
         state.form.court_kind = derived;
       }
     }
-    const { fields } = mapFormToEngine(doc.docType, state.form, {});
+    const { fields } = mapForDoc(doc,state.form, {});
     // Free-text SLOTS the engine merges into the template (kept separate from the
     // validated `fields`). Today: the s.138 complaint's debt paragraph (para 3),
     // composed from a deferment/acknowledgement agreement on file. Passed to every
@@ -1143,7 +1199,7 @@ export const intakeService = {
     let outcome: EngineDraftResult | null = null;
     let issues: IntakeIssue[] = [];
     try {
-      outcome = await engineClient.draft(doc.docType, matterId, fields, { render: true, slots, language: ctx.language });
+      outcome = await draftForDoc(doc, matterId,fields, { render: true, slots, language: ctx.language });
     } catch (err) {
       if (err instanceof EngineValidationError) {
         // The engine reports issues in ENGINE keys; translate to the FORM keys
@@ -1246,9 +1302,9 @@ export const intakeService = {
       }
       if (Object.keys(placeholders).length > 0) {
         const merged = { ...state.form, ...placeholders };
-        const { fields: filledFields } = mapFormToEngine(doc.docType, merged, {});
+        const { fields: filledFields } = mapForDoc(doc,merged, {});
         try {
-          const retry = await engineClient.draft(doc.docType, matterId, filledFields, { render: true, slots, language: ctx.language });
+          const retry = await draftForDoc(doc, matterId,filledFields, { render: true, slots, language: ctx.language });
           if (retry.outcome === 'generated') {
             let marked = syntheticDateValues.size
               ? markSyntheticDates(retry, syntheticDateValues)
@@ -1328,9 +1384,9 @@ export const intakeService = {
                 progressed = true;
               }
               if (!progressed) break; // nothing new to fill — cannot bypass further
-              const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
+              const { fields: bypassFields } = mapForDoc(doc,bypassed, {});
               try {
-                cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots, language: ctx.language });
+                cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language });
               } catch (err) {
                 if (err instanceof EngineValidationError) { progressed = false; break; }
                 throw err;
@@ -1338,7 +1394,7 @@ export const intakeService = {
             }
             if (cur.outcome === 'generated') {
               outcome = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
-              draftedFields = mapFormToEngine(doc.docType, bypassed, {}).fields;
+              draftedFields = mapForDoc(doc,bypassed, {}).fields;
               issues = [];
               preface.push(
                 `I drafted the whole document now. Anything I couldn’t find — including facts the document legally needs — is left as a clearly-marked [placeholder] for you to fill in the editor.`,
@@ -1415,9 +1471,9 @@ export const intakeService = {
           progressed = true;
         }
         if (!progressed) break;
-        const { fields: bypassFields } = mapFormToEngine(doc.docType, bypassed, {});
+        const { fields: bypassFields } = mapForDoc(doc,bypassed, {});
         try {
-          cur = await engineClient.draft(doc.docType, matterId, bypassFields, { render: true, slots, language: ctx.language });
+          cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language });
         } catch (err) {
           if (err instanceof EngineValidationError) { break; }
           throw err;
@@ -1425,7 +1481,7 @@ export const intakeService = {
       }
       if (cur.outcome === 'generated') {
         outcome = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
-        draftedFields = mapFormToEngine(doc.docType, bypassed, {}).fields;
+        draftedFields = mapForDoc(doc,bypassed, {}).fields;
         issues = [];
         state.transcript.push({
           role: 'assistant',

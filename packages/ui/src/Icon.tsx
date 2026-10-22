@@ -8,7 +8,9 @@ export type IconName =
   | 'plus' | 'moon' | 'sun' | 'home' | 'chat' | 'more' | 'arrow' | 'chevron'
   | 'chevronD' | 'upload' | 'download' | 'close' | 'check' | 'flag' | 'file'
   | 'shield' | 'globe' | 'menu' | 'eye' | 'eyeOff'
-  | 'mic' | 'micOff' | 'edit' | 'trash' | 'calculator';
+  | 'mic' | 'micOff' | 'edit' | 'trash' | 'calculator'
+  | 'gavel' | 'efiling' | 'handshake' | 'sparkle' | 'map' | 'box' | 'inbox'
+  | 'building' | 'key' | 'translate' | 'swap' | 'pie' | 'mail';
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -66,6 +68,19 @@ const PATHS: Record<IconName, ReactNode> = {
   edit:  (<><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></>),
   trash: (<><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></>),
   calculator: (<><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h2M12 10h2M16 10h2M8 14h2M12 14h2M16 14h2M8 18h2M12 18h2M16 18h2"/></>),
+  gavel: (<><path d="m14 13-8.5 8.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6M8 8l6-6M9 7l8 8M21 11l-8-8"/></>),
+  efiling: (<><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M12 18v-6M9 15l3-3 3 3"/></>),
+  handshake: (<><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3M3 4h8"/></>),
+  sparkle: (<><path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z"/><path d="M19 3v4M17 5h4"/></>),
+  map: (<><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></>),
+  box: (<><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></>),
+  inbox: (<><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></>),
+  building: (<><rect x="4" y="2" width="16" height="20"/><path d="M9 22v-4h6v4M8 6h2M14 6h2M8 10h2M14 10h2M8 14h2M14 14h2"/></>),
+  key: (<><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M16 7l3 3M14 9l2 2"/></>),
+  translate: (<><path d="M4 5h8M8 3v2M6 5c0 4 2 7 5 8M10 5c0 3-2 7-6 9"/><path d="m13 21 4-9 4 9M14.5 18h5"/></>),
+  swap: (<><path d="M4 8h14l-4-4M20 16H6l4 4"/></>),
+  pie: (<><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></>),
+  mail: (<><rect x="2" y="4" width="20" height="16"/><path d="m2 6 10 7 10-7"/></>),
 };
 
 export function Icon({ name, size = 16, className = '', ...rest }: IconProps) {

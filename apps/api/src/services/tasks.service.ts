@@ -11,6 +11,7 @@ interface TaskRow {
   assignee: string;
   comments_count: number;
   column_name: TaskColumn;
+  case_id?: string | null;
 }
 
 let memory: TaskBoard = JSON.parse(JSON.stringify(SEED_TASKS));
@@ -29,6 +30,7 @@ function fromRow(r: TaskRow): Task {
     assignee: r.assignee,
     comments: r.comments_count,
     column: r.column_name,
+    caseId: r.case_id ?? null,
   };
 }
 
@@ -41,11 +43,14 @@ export const tasksService = {
     if (!firmId) return emptyBoard();
     const sql = db();
     if (sql) {
+      // case_id (migration 0089) is read via to_jsonb so this keeps working on
+      // a database where that migration hasn't been applied yet.
       const rows = await sql<TaskRow[]>`
-        select id, case_label, title, due_date, priority, assignee, comments_count, column_name
-        from tasks
-        where firm_id = ${firmId}::uuid
-        order by created_at
+        select t.id, t.case_label, t.title, t.due_date, t.priority, t.assignee,
+               t.comments_count, t.column_name, to_jsonb(t) ->> 'case_id' as case_id
+        from tasks t
+        where t.firm_id = ${firmId}::uuid
+        order by t.created_at
       `;
       const board = emptyBoard();
       for (const row of rows) board[row.column_name].push(fromRow(row));

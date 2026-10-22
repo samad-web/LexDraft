@@ -61,10 +61,11 @@ export function createApp(): express.Express {
   }));
   app.use(express.urlencoded({ extended: false, limit: '16mb' }));
 
-  // IP-level coarse limiter - stops anonymous floods.
+  // IP-level coarse limiter - stops anonymous floods. API_IP_RATE_LIMIT lets
+  // a test harness (e2e/) raise it; production keeps the default.
   app.use('/api', rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 600,
+    limit: Number(process.env['API_IP_RATE_LIMIT']) || 600,
     standardHeaders: 'draft-7',
     legacyHeaders: false,
   }));

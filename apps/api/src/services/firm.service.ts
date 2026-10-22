@@ -21,13 +21,13 @@ import { hearingsService } from './hearings.service';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-function inrLabel(rupees: number): string {
+export function inrLabel(rupees: number): string {
   if (rupees >= 10_000_000) return `₹${(rupees / 10_000_000).toFixed(1)}Cr`;
   if (rupees >= 100_000) return `₹${(rupees / 100_000).toFixed(1)}L`;
   return `₹${rupees.toLocaleString('en-IN')}`;
 }
 
-function fyBoundaries(now = new Date()): {
+export function fyBoundaries(now = new Date()): {
   startCurrent: string;
   endCurrent: string;
   startPrior: string;

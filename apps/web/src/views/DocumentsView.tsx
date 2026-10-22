@@ -10,6 +10,7 @@ import { DocumentViewerModal } from '@/components/DocumentViewerModal';
 import { EditDocumentModal } from '@/components/EditDocumentModal';
 import { SendForSignatureModal } from '@/components/SendForSignatureModal';
 import { Gate } from '@/components/Gate';
+import { PageHeader } from '@/components/PageHeader';
 import { useUpdateDocumentPortalFlags } from '@/hooks/usePortalAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -138,27 +139,27 @@ export function DocumentsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Document registry</div>
-          <h1 className="heading-xl">Documents</h1>
-        </div>
-        <span className="spacer" />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => setModalOpen(true)}
-        >
-          <Icon name="upload" size={14} /> Upload
-        </button>
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => navigate('/app/draft')}
-        >
-          <Icon name="plus" size={14} /> New draft
-        </button>
-      </div>
+      <PageHeader
+        title="Document Vault"
+        description="Every pleading, notice, contract and receipt across your matters."
+        meta={docs.data ? `${all.length} documents` : undefined}
+        actions={<>
+          <button
+            className="btn"
+            type="button"
+            onClick={() => setModalOpen(true)}
+          >
+            <Icon name="upload" size={14} /> Upload
+          </button>
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => navigate('/app/draft')}
+          >
+            <Icon name="plus" size={14} /> New draft
+          </button>
+        </>}
+      />
 
       <div className="docs-grid split-rail" style={{ gap: 24 }}>
         {/* Folder rail */}

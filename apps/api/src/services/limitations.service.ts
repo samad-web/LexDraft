@@ -13,6 +13,7 @@ interface Row {
   basis_statute: string | null;
   basis_section: string | null;
   computed_from: string | Date | null;
+  case_id?: string | null;
 }
 
 function dateOnly(v: string | Date): string {
@@ -59,6 +60,7 @@ function fromRow(r: Row): LimitationRow {
     basisStatute: r.basis_statute,
     basisSection: r.basis_section,
     computedFrom: r.computed_from ? dateOnly(r.computed_from) : null,
+    caseId: r.case_id ?? null,
   };
 }
 
@@ -77,8 +79,9 @@ export const limitationsService = {
     if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
+    // case_id (migration 0089) via to_jsonb: safe before that migration runs.
     const rows = await sql<Row[]>`
-      select ${sql.unsafe(ROW_COLS)}
+      select ${sql.unsafe(ROW_COLS)}, to_jsonb(limitations) ->> 'case_id' as case_id
       from limitations
       where firm_id = ${firmId}::uuid
       order by deadline asc

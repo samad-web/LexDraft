@@ -10,6 +10,15 @@ import {
   kindForType,
 } from '../services/case-pipeline.service';
 import { syncCaseFromEcourts } from '../services/case-sync.service';
+import {
+  classifySyncError,
+  linkByCaseNumber,
+  linkByCnr,
+  queueLink,
+  recordSyncFailure,
+  type EcourtsLinkStatus,
+} from '../services/ecourts-link.service';
+import { existingCnrs, importCnrs, MAX_IMPORT } from '../services/ecourts-import.service';
 import { caseActsService } from '../services/case-acts.service';
 import { casePartiesService } from '../services/case-parties.service';
 import { caseApplicationsService } from '../services/case-applications.service';
@@ -44,6 +53,7 @@ const CaseUpdateInput = CaseInput.omit({ stage: true }).partial().strict(
 const CaseListQuery = z.object({
   type: z.string().optional(),
   q: z.string().optional(),
+  ecourts: z.enum(['attention']).optional(),
 });
 
 export const casesRouter: Router = Router();
@@ -59,6 +69,7 @@ casesRouter.get('/', requireFeature('matter.view'), validate({ query: CaseListQu
       firmId,
       type: typeof req.query['type'] === 'string' ? (req.query['type'] as string) : undefined,
       q:    typeof req.query['q']    === 'string' ? (req.query['q']    as string) : undefined,
+      ecourts: req.query['ecourts'] === 'attention' ? 'attention' : undefined,
     });
     res.json({ items });
   } catch (err) {
@@ -574,7 +585,55 @@ casesRouter.post(
           /* lazy fallback on read */
         }
       }
-      res.status(201).json(created);
+      // Connect the matter to eCourts in the background - whether it came
+      // from an eCourts search or was typed in by hand. Never blocks or
+      // fails creation: if eCourts is down the link job retries, and the
+      // 09:00 / 19:00 runs sweep up anything still pending.
+      let ecourtsLinkStatus: EcourtsLinkStatus | null = null;
+      if (firmId) {
+        try {
+          ecourtsLinkStatus = await queueLink(created.id, firmId);
+        } catch {
+          /* scheduled run will pick it up */
+        }
+      }
+      res.status(201).json({ ...created, ecourtsLinkStatus: ecourtsLinkStatus ?? 'unlinked' });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /cases/import/ecourts - My Cases import (the eCourts app's Import).
+// `dryRun` answers which CNRs are new vs already in matters, for the preview.
+const ImportInput = z.object({
+  items: z.array(z.object({
+    cnr: z.string().min(1).max(40),
+    court: z.enum(['DC', 'HC']).optional(),
+  })).min(1).max(MAX_IMPORT),
+  dryRun: z.boolean().optional(),
+});
+
+casesRouter.post(
+  '/import/ecourts',
+  requireFeature('matter.create'),
+  validate({ body: ImportInput }),
+  withAudit({ action: 'case.create', targetType: 'case' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) {
+        res.status(422).json({ error: 'No firm attached' });
+        return;
+      }
+      const body = req.body as z.infer<typeof ImportInput>;
+      if (body.dryRun) {
+        const cnrs = body.items.map((i) => i.cnr.trim().toUpperCase());
+        const have = await existingCnrs(firmId, cnrs);
+        res.json({ existing: cnrs.filter((c) => have.has(c)) });
+        return;
+      }
+      res.json(await importCnrs(firmId, body.items));
     } catch (err) {
       next(err);
     }
@@ -589,10 +648,25 @@ casesRouter.patch(
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
-      const updated = await casesService.update(strParam(req.params['id']), req.body, firmId);
+      const caseId = strParam(req.params['id']);
+      // Edit forms usually resend every field, CNR included - only a CNR
+      // that actually changed should reset the eCourts link and refetch.
+      const before = req.body.cnr !== undefined ? await casesService.get(caseId, firmId) : undefined;
+      const updated = await casesService.update(caseId, req.body, firmId);
       if (!updated) {
         res.status(404).json({ error: 'Case not found' });
         return;
+      }
+      const cnrChanged = before !== undefined
+        && (before.cnr ?? '').trim().toUpperCase() !== (updated.cnr ?? '').trim().toUpperCase();
+      if (cnrChanged && firmId) {
+        try {
+          const ecourtsLinkStatus = await queueLink(caseId, firmId);
+          res.json({ ...updated, ecourtsLinkStatus: ecourtsLinkStatus ?? 'unlinked' });
+          return;
+        } catch {
+          /* scheduled run will pick it up */
+        }
       }
       res.json(updated);
     } catch (err) {
@@ -623,7 +697,22 @@ casesRouter.post(
         return;
       }
       const body = req.body as z.infer<typeof SyncInput>;
-      const result = await syncCaseFromEcourts(strParam(req.params['id']), firmId, body);
+      const caseId = strParam(req.params['id']);
+      let result: Awaited<ReturnType<typeof syncCaseFromEcourts>>;
+      try {
+        result = await syncCaseFromEcourts(caseId, firmId, body);
+      } catch (err) {
+        const kind = classifySyncError(err);
+        await recordSyncFailure(caseId, kind, err);
+        if (kind !== 'upstream') throw err;
+        // eCourts itself is down - a raw 502/504 with a crypto or timeout
+        // message helps nobody. Say what's happening and what happens next.
+        res.status(503).json({
+          error: 'eCourts is not responding right now. Your matter still shows the last synced details, and it will be refreshed automatically at the next scheduled update (9 AM / 7 PM), or try Sync again in a few minutes.',
+          code: 'ecourts_unavailable',
+        });
+        return;
+      }
       // The case row in `result.caseRow` is in DB shape — re-attach the
       // pipeline snapshot like /:id and /:id/transition do so the client can
       // render the stepper without a second round trip.
@@ -634,9 +723,69 @@ casesRouter.post(
         sync: {
           changes:           result.changes,
           hearingsReplaced:  result.hearingsReplaced,
+          actsReplaced:      result.actsReplaced,
+          partiesReplaced:   result.partiesReplaced,
           sideDetected:      result.side,
           surfaceOnly:       result.surfaceOnly,
         },
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// POST /cases/:id/ecourts/link — connect a matter to eCourts after the fact.
+// For manual matters saved without a CNR (TEMP-… placeholder) or with a
+// wrong one. Either give the CNR directly, or the case type + registration
+// number + year in a chosen court and let eCourts resolve the CNR. Several
+// matches come back as `status: 'choose'` with candidates; resubmit with the
+// picked candidate's CNR.
+const CourtTier = z.enum(['DC', 'HC']);
+const LinkInput = z.union([
+  z.object({
+    cnr: z.string().min(16).max(20),
+    court: CourtTier.optional(),
+  }).strict(),
+  z.object({
+    court: CourtTier.optional(),
+    stateCode: z.number().int().positive(),
+    distCode: z.number().int().positive(),
+    courtCode: z.number().int().positive(),
+    estCode: z.string().min(1),
+    caseType: z.union([z.string().min(1), z.number().int()]),
+    regNo: z.union([z.string().min(1), z.number().int()]),
+    year: z.number().int().min(1950).max(2100),
+  }).strict(),
+]);
+
+casesRouter.post(
+  '/:id/ecourts/link',
+  requireFeature('matter.create'),
+  validate({ params: idParam, body: LinkInput }),
+  withAudit({ action: 'case.sync_from_ecourts', targetType: 'case' }),
+  async (req, res, next) => {
+    try {
+      const firmId = await firmIdForUser(req.user?.id);
+      if (!firmId) {
+        res.status(422).json({ error: 'No firm attached' });
+        return;
+      }
+      const caseId = strParam(req.params['id']);
+      const body = req.body as z.infer<typeof LinkInput>;
+      const outcome = 'cnr' in body
+        ? await linkByCnr(caseId, firmId, body.cnr, body.court)
+        : await linkByCaseNumber(caseId, firmId, body);
+      if (outcome.status === 'choose') {
+        res.json({ status: 'choose', candidates: outcome.candidates });
+        return;
+      }
+      const c = await casesService.get(caseId, firmId);
+      res.json({
+        status: outcome.status,
+        cnr: outcome.cnr,
+        ...(outcome.status === 'pending' ? { message: outcome.reason } : {}),
+        case: c,
       });
     } catch (err) {
       next(err);

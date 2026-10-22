@@ -20,6 +20,10 @@ const Schema = z.object({
   LLM_PROVIDER: z.enum(['auto', 'anthropic', 'xai', 'none']).default('auto'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+  /** Model that reads an uploaded drafting format (scan / PDF / Word) into an
+   *  engine template spec. Accuracy matters more than cost here: it runs once per
+   *  uploaded format, not per draft. */
+  FORMAT_READER_MODEL: z.string().default('claude-opus-5-5'),
   XAI_API_KEY: z.string().optional().default(''),
   XAI_MODEL: z.string().default('grok-4'),
   // Conversational-intake extractor/classifier use a SEPARATE, FAST model — the

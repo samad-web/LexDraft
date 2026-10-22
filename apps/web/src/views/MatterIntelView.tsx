@@ -10,6 +10,7 @@ import {
   type QuickStudy,
 } from '@/hooks/useMatterIntel';
 import { useUIStore } from '@/store/ui';
+import { PageHeader } from '@/components/PageHeader';
 
 /**
  * Matter Intelligence view. Two modes driven by the URL:
@@ -67,18 +68,10 @@ function MatterPicker() {
 
   return (
     <div className="col stack-5">
-      <div>
-        <div className="eyebrow">Matter Intelligence</div>
-        <h1 className="heading-xl" style={{ marginTop: 4, marginBottom: 8 }}>
-          Pick a matter, or start a quick study
-        </h1>
-        <p className="body-md muted" style={{ maxWidth: 720 }}>
-          Matter Intelligence ingests documents, generates a synthesised brief,
-          and answers cited questions. Use it on a real matter, or start a quick
-          study to upload a one-off file and chat about it without registering
-          anything in your case list.
-        </p>
-      </div>
+      <PageHeader
+        title="Matter Intelligence"
+        description="Pick a matter, or start a quick study, to get a brief and cited answers."
+      />
 
       {/* Quick-study CTA */}
       <div className="card matter-intel-quickstudy-cta" style={{ padding: 20 }}>
@@ -297,40 +290,19 @@ function MatterIntelForCase({ caseId }: { caseId: string }) {
 
   return (
     <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={() => navigate('/app/matter-intel')}
-          aria-label="Back to picker"
-        >
-          <Icon name="chevron" size={14} /> All matters
-        </button>
-        {caseQ.data && !isQuickStudy && (
-          <>
-            <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => navigate(`/app/cases/${caseId}`)}
-            >
-              Open matter
-            </button>
-          </>
-        )}
-        {isQuickStudy && (
-          <>
-            <span style={{ color: 'var(--text-tertiary)' }}>·</span>
-            <span className="badge badge-cream">QUICK STUDY</span>
-          </>
-        )}
-        <span className="spacer" />
-        {caseQ.data && (
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            {caseQ.data.title}
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title={caseQ.data?.title ?? 'Matter Intelligence'}
+        back={{ label: 'All matters', to: '/app/matter-intel' }}
+        description={isQuickStudy ? 'Quick study: a private sandbox, not listed in your Cases.' : undefined}        actions={caseQ.data && !isQuickStudy ? (
+          <button
+            type="button"
+            className="btn"
+            onClick={() => navigate(`/app/cases/${caseId}`)}
+          >
+            Open matter
+          </button>
+        ) : undefined}
+      />
 
       <MatterIntelPanel caseId={caseId} matterTitle={caseQ.data?.title} />
     </div>

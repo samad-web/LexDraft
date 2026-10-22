@@ -11,6 +11,7 @@ import { NewClientModal } from '@/components/NewClientModal';
 import { Gate } from '@/components/Gate';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 import { useAlert, useConfirm } from '@/components/ConfirmDialog';
 import { useUIStore } from '@/store/ui';
 import {
@@ -226,47 +227,28 @@ export function ClientsView() {
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
-      <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Register of clients</div>
-        <h1 className="heading-xl">Clients</h1>
-      </div>
-
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
-          <input
-            type="search"
-            className="input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search by client name…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search clients"
-          />
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)',
-              display: 'inline-flex',
-            }}
-          >
-            <Icon name="search" size={14} />
-          </span>
-        </div>
-        <span className="spacer" />
-        <Gate feature="client.create">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => setModalOpen(true)}
-          >
-            <Icon name="plus" size={14} /> Add client
-          </button>
-        </Gate>
-      </div>
+      <PageHeader
+        title="Clients"
+        description="Your client register, with open matters and client portal access."
+        actions={
+          <Gate feature="client.create">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setModalOpen(true)}
+            >
+              <Icon name="plus" size={14} /> Add client
+            </button>
+          </Gate>
+        }
+      >
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by client name…"
+          label="Search clients"
+        />
+      </PageHeader>
       <NewClientModal open={modalOpen} onClose={closeModal} existing={editingClient} />
       <Gate feature="client.create">
         <FAB ariaLabel="Add client" onClick={() => setModalOpen(true)}>

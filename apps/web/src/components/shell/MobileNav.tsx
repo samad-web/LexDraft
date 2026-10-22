@@ -14,12 +14,16 @@ interface NavEntry {
    *  sidebar's per-item gating so we don't surface paid affordances to
    *  free-tier users. */
   requiresFeature?: FeatureKey;
+  /** Other routes that should also light this entry up. */
+  alsoActiveOn?: string[];
 }
 
+// Phone use is mostly in court, so Hearings takes the slot Draft used to
+// have; Draft and everything else stay one tap away under More.
 const ITEMS: ReadonlyArray<NavEntry> = [
-  { id: 'dashboard', label: 'Home',  icon: 'home',  to: '/app/dashboard' },
-  { id: 'cases',     label: 'Cases', icon: 'cases', to: '/app/cases',  requiresFeature: 'matter.view' },
-  { id: 'draft',     label: 'Draft', icon: 'draft', to: '/app/draft',  requiresFeature: 'drafting.ai' },
+  { id: 'dashboard', label: 'Home',     icon: 'home',      to: '/app/dashboard' },
+  { id: 'hearings',  label: 'Hearings', icon: 'causelist', to: '/app/causelist', requiresFeature: 'matter.view', alsoActiveOn: ['/app/calendar', '/app/diary'] },
+  { id: 'cases',     label: 'Cases',    icon: 'cases',     to: '/app/cases',     requiresFeature: 'matter.view' },
   // Tasks icon (not 'chat' — that's a wholly different feature). Earlier
   // glyph was confusing.
   { id: 'tasks',     label: 'Tasks', icon: 'tasks', to: '/app/tasks',  requiresFeature: 'matter.view' },
@@ -41,7 +45,9 @@ export function MobileNav() {
     <nav className="mobile-nav" aria-label="Primary mobile">
       {visible.map((it) => {
         const path = location.pathname;
-        const active = it.to ? (path === it.to || path.startsWith(it.to + '/')) : false;
+        const active = [it.to, ...(it.alsoActiveOn ?? [])].some(
+          (to) => to !== undefined && (path === to || path.startsWith(to + '/')),
+        );
         return (
           <button
             key={it.id}

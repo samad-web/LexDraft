@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ChangeEvent, type DragEvent } from '
 import { useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { LawSidePanel } from '@/components/LawSidePanel';
+import { PageHeader } from '@/components/PageHeader';
 import {
   useAssignableUsers,
   useCreateReview,
@@ -287,21 +288,15 @@ export function ContractReviewView() {
       className={sourceText.trim() ? 'contract-review-layout split-2' : 'contract-review-layout'}
     >
     <div className="col stagger" style={{ gap: 24, minWidth: 0 }}>
-      <div className="row" style={{ alignItems: 'flex-start', gap: 16 }}>
-        <div style={{ flex: 1 }}>
-          <h1 className="heading-xl" style={{ marginBottom: 4 }}>
-            Contract Review
-          </h1>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            UPLOAD · CHOOSE PERSPECTIVE · GET RISK SCORE
-          </div>
-        </div>
-        {step === 3 && (
+      <PageHeader
+        title="Contract Review"
+        description="Upload a contract, choose your side, and get a clause-by-clause risk score."
+        actions={step === 3 ? (
           <button className="btn btn-ghost" onClick={reset}>
             <Icon name="plus" size={14} /> New review
           </button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* Step 1 - upload / paste */}
       {step < 3 && (
