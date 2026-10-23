@@ -3,6 +3,7 @@ import { Icon } from '@lexdraft/ui';
 import { useEngineStatus } from '@/hooks/useEngineDraft';
 import { useDeleteFormat } from '@/hooks/useFirmFormats';
 import {
+  previewBlankPdf,
   saveBlankPdf,
   useBlankFormat,
   useFormatLibrary,
@@ -20,7 +21,7 @@ interface Props {
   current: string | null;
   /** Draft a format — sets the Draft page's document type (+ an optional variant
    *  preset, e.g. a LAWE "Property" form = Court Warrant of possession). */
-  onPick: (label: string, preset?: Record<string, string>) => void;
+  onPick: (label: string, preset?: Record<string, string>, title?: string) => void;
   /** Open a format's blank form in the Draft page editor, to fill in by hand and
    *  then download as Word or PDF. */
   onOpenBlank: (label: string, blank: BlankForm) => void;
@@ -36,7 +37,9 @@ interface Row {
   /** The Draft-page label that drafts / renders it. */
   docLabel: string;
   preset?: Record<string, string>;
-  /** Extra trailing actions (firm: remove; LAWE: original). */
+  /** Offer a Preview (LexDraft's own PDF of the form, in a new tab). */
+  previewable?: boolean;
+  /** Extra trailing actions (firm: remove). */
   extra?: ReactNode;
 }
 
@@ -82,9 +85,9 @@ const ACTION: CSSProperties = { minWidth: 46, justifyContent: 'center' };
 /**
  * The FORMS LIBRARY. Every format the engine can draft, in three sections:
  *   - your firm's own formats (uploaded here, private to the firm);
- *   - the LAWE forms library (lawe.co.in), each mapped to the format that drafts
- *     it, with a link to the original on LAWE's site (never re-hosted here);
- *   - every engine format, grouped.
+ *   - every format, grouped by category — the engine formats together with the
+ *     court-forms library (each a named variant of a format); previews show
+ *     LexDraft's own rendering (the library's source files are never served).
  * Click a format's name to DRAFT it from the case; PDF downloads the blank form;
  * Word opens the blank form in the editor to fill in, then download.
  */
@@ -103,6 +106,9 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
   const [query, setQuery] = useState('');
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  // The ROW last picked: several LAWE forms draft as the same format, so the
+  // tick follows the row the advocate clicked, not every row sharing its label.
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
   const removeFormat = useDeleteFormat();
   const showToast = useUIStore((s) => s.showToast);
 
@@ -120,29 +126,36 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
       </button>
     ),
   }));
-  const laweRows: Row[] = lawe.map((f: LaweForm) => ({
-    key: `lawe:${f.id}`,
-    title: f.title,
-    subtitle: `${f.group} · drafts as ${f.docLabel}`,
-    docLabel: f.docLabel,
-    preset: f.preset,
-    extra: (
-      <a className="btn btn-ghost btn-sm" style={ACTION} href={f.url} target="_blank" rel="noopener noreferrer"
-        title="Open the original form on lawe.co.in" aria-label={`Original ${f.title} on lawe.co.in`}>
-        ↗
-      </a>
-    ),
-  }));
-  const groups = useMemo(() => groupFormats(formats), [formats]);
+  // Every format in one list: the engine formats plus the library's court forms
+  // (each a named variant of a format). A library form whose name is exactly an
+  // existing format's (e.g. "Bail Bond") isn't listed twice.
+  const allRows = useMemo((): Row[] => {
+    const formatRows: Row[] = formats.map((label) => ({
+      key: `fmt:${label}`, title: label, docLabel: label, previewable: true,
+    }));
+    const taken = new Set(formats.map((l) => l.trim().toLowerCase()));
+    const libraryRows: Row[] = lawe
+      .filter((f: LaweForm) => !taken.has(f.title.trim().toLowerCase()))
+      .map((f: LaweForm) => ({
+        key: `lib:${f.id}`,
+        title: f.title,
+        subtitle: `${f.group} · drafts as ${f.docLabel}`,
+        docLabel: f.docLabel,
+        preset: f.preset,
+        previewable: true,
+      }));
+    return [...formatRows, ...libraryRows];
+  }, [formats, lawe]);
 
   const shownFirm = firmRows.filter(matches);
-  const shownLawe = laweRows.filter(matches);
-  const shownGroups = groups
-    .map((g) => ({ group: g.group, rows: g.items.map((label): Row => ({ key: `fmt:${label}`, title: label, docLabel: label })).filter(matches) }))
-    .filter((g) => g.rows.length > 0);
+  const shownGroups = groupRows(allRows.filter(matches));
   const totalShown = shownGroups.reduce((n, g) => n + g.rows.length, 0);
 
-  const pick = (label: string, preset?: Record<string, string>) => { onPick(label, preset); onClose(); };
+  const pick = (label: string, preset?: Record<string, string>, title?: string, key?: string) => {
+    setPickedKey(key ?? null);
+    onClose();
+    onPick(label, preset, title ?? label);
+  };
 
   async function onRemove(id: string, title: string) {
     if (!window.confirm(`Remove "${title}" from your firm's formats?`)) return;
@@ -154,14 +167,20 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
     }
   }
 
-  const fetchBlank = async (row: Row, as: 'pdf' | 'word') => {
+  const fetchBlank = async (row: Row, as: 'pdf' | 'word' | 'preview') => {
     setBusy(`${row.key}:${as}`);
+    // Open the preview tab NOW (inside the click), or pop-up blockers stop it.
+    const tab = as === 'preview' ? window.open('', '_blank') : null;
+    if (tab) tab.document.title = `${row.title} — preview`;
     try {
       const form = await blank.mutateAsync({
         docLabel: row.docLabel,
         ...(row.preset && Object.keys(row.preset).length ? { preset: row.preset } : {}),
       });
-      if (as === 'pdf') {
+      if (as === 'preview') {
+        if (!tab) throw new Error('popup blocked');
+        await previewBlankPdf(tab, form.docxBase64, `${row.title} (blank)`);
+      } else if (as === 'pdf') {
         await saveBlankPdf(form.docxBase64, `${row.title} (blank)`);
         showToast({ type: 'sage', text: `${row.title}: blank PDF downloaded` });
       } else {
@@ -169,6 +188,7 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
         onClose();
       }
     } catch (err) {
+      tab?.close();
       const status = (err as { response?: { status?: number } })?.response?.status;
       showToast({
         type: 'amber',
@@ -182,12 +202,13 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
   };
 
   const renderRow = (row: Row) => {
-    const isCurrent = row.docLabel === current;
+    const isCurrent = row.docLabel === current && (pickedKey === null ? !row.preset && !row.subtitle : pickedKey === row.key);
     return (
       <div key={row.key} style={{ ...ROW, ...(isCurrent ? { borderColor: 'var(--text-primary)' } : {}) }}>
-        <button type="button" style={NAME} onClick={() => pick(row.docLabel, row.preset)} title={`Draft ${row.title}`}>
-          <span className="body-sm" style={ELLIPSIS}>
-            {row.title}{isCurrent && <Icon name="check" size={12} aria-hidden />}
+        <button type="button" style={NAME} onClick={() => pick(row.docLabel, row.preset, row.title, row.key)} title={`Draft ${row.title}`}>
+          <span className="body-sm" style={{ ...ELLIPSIS, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={ELLIPSIS}>{row.title}</span>
+            {isCurrent && <Icon name="check" size={12} aria-hidden style={{ flexShrink: 0 }} />}
           </span>
           {row.subtitle && <span className="body-xs muted" style={ELLIPSIS}>{row.subtitle}</span>}
         </button>
@@ -199,6 +220,13 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
           title="Open the blank form in the editor to fill in, then download as Word" onClick={() => { void fetchBlank(row, 'word'); }}>
           {busy === `${row.key}:word` ? '…' : 'Word'}
         </button>
+        {row.previewable && (
+          <button type="button" className="btn btn-ghost btn-sm" style={ACTION} disabled={busy !== null}
+            title="Preview this form (opens in a new tab)" aria-label={`Preview ${row.title}`}
+            onClick={() => { void fetchBlank(row, 'preview'); }}>
+            {busy === `${row.key}:preview` ? '…' : '↗'}
+          </button>
+        )}
         {row.extra}
       </div>
     );
@@ -265,18 +293,8 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
         onUseExisting={(label) => { setUploading(false); pick(label); }}
       />
 
-      {/* LAWE FORMS LIBRARY */}
-      {laweRows.length > 0 && shownLawe.length > 0 && (
-        <section style={{ marginBottom: 20 }}>
-          {heading(`LAWE FORMS LIBRARY · ${shownLawe.length}`, (
-            <span className="body-xs muted">Court forms from lawe.co.in · ↗ opens the original</span>
-          ))}
-          <div style={GRID}>{shownLawe.map(renderRow)}</div>
-        </section>
-      )}
-
-      {/* ALL FORMATS */}
-      {heading('ALL FORMATS', <span className="body-xs muted">{q ? `${totalShown} of ${formats.length}` : `${formats.length} formats`}</span>)}
+      {/* ALL FORMATS — one categorised list */}
+      {heading('ALL FORMATS', <span className="body-xs muted">{q ? `${totalShown} of ${allRows.length}` : `${allRows.length} formats`}</span>)}
       {engineStatus.isLoading && <span className="body-sm muted">Loading formats…</span>}
       {!engineStatus.isLoading && formats.length === 0 && <span className="body-sm muted">No engine formats available.</span>}
       {!engineStatus.isLoading && formats.length > 0 && totalShown === 0 && (
@@ -295,11 +313,12 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
 }
 
 /**
- * Bucket the engine's flat label list into readable groups by keyword. Purely
- * cosmetic — every label still routes by itself; this only organises the picker.
- * Anything unmatched falls into "Other".
+ * Bucket formats into readable groups by keyword — on the row's own name first,
+ * then on the format that drafts it (so a court form named "Property" lands with
+ * warrants). Purely cosmetic: every row still drafts by itself. Unmatched rows go
+ * to "Other".
  */
-function groupFormats(formats: string[]): Array<{ group: string; items: string[] }> {
+function groupRows(rows: Row[]): Array<{ group: string; rows: Row[] }> {
   const buckets: Array<{ group: string; test: (l: string) => boolean }> = [
     { group: 'Notices', test: (l) => /notice|reply/i.test(l) },
     { group: 'Pleadings', test: (l) => /plaint|written statement|suit|petition|complaint|caveat|appeal/i.test(l) },
@@ -310,19 +329,18 @@ function groupFormats(formats: string[]): Array<{ group: string; items: string[]
     { group: 'Appearance & Registry', test: (l) => /vakalat|appearance|coding|memorandum/i.test(l) },
     { group: 'Court-Issued', test: (l) => /summons|court notice|court warrant/i.test(l) },
   ];
-  const groups = new Map<string, string[]>();
-  const put = (group: string, label: string) => {
-    const arr = groups.get(group) ?? [];
-    arr.push(label);
-    groups.set(group, arr);
-  };
-  for (const label of formats) {
-    const bucket = buckets.find((b) => b.test(label));
-    put(bucket?.group ?? 'Other', label);
+  const groups = new Map<string, Row[]>();
+  for (const row of rows) {
+    const bucket = buckets.find((b) => b.test(row.title)) ?? buckets.find((b) => b.test(row.docLabel));
+    const group = bucket?.group ?? 'Other';
+    groups.set(group, [...(groups.get(group) ?? []), row]);
   }
   // Preserve the bucket order defined above; "Other" last.
   const ordered = [...buckets.map((b) => b.group), 'Other'];
   return ordered
     .filter((g) => groups.has(g))
-    .map((group) => ({ group, items: (groups.get(group) ?? []).sort((a, b) => a.localeCompare(b)) }));
+    .map((group) => ({
+      group,
+      rows: (groups.get(group) ?? []).sort((a, b) => a.title.localeCompare(b.title) || (a.subtitle ?? '').localeCompare(b.subtitle ?? '')),
+    }));
 }

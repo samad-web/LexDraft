@@ -94,6 +94,7 @@ async def _render_generated(
     want_render: bool,
     language: str = "EN",
     template: Optional[Tuple[Any, str, int]] = None,
+    banner_in_document: bool = True,
 ) -> Dict[str, Any]:
     """Shape a NON-refused build result into the `generated` wire payload, rendering
     the .docx when `want_render`. Factored out of `draft` so the bundle endpoint can
@@ -131,6 +132,11 @@ async def _render_generated(
         from pathlib import Path
         from ..components.render import render_to_docx
         ctx = signoff.resolve_context(context, document=doc_type, factsheet=matter)
+        # The caller (the Node app) can keep the review banner OUT of the document
+        # text and show draft status in its own UI. signals.review_banner above is
+        # still reported, and sign-off rules (unfilled slots) are unchanged.
+        if not banner_in_document:
+            ctx["review_banner"] = ""
         tmp = Path(tempfile.gettempdir()) / f"lexdraft_{doc_type}_{matter.matter_id}.docx"
         await run_in_threadpool(render_to_docx, template_file, ctx, tmp)
         # TAMIL / HINDI OUTPUT (proof, vakalatnama): translate the produced .docx IN
@@ -239,7 +245,8 @@ async def draft(doc_type: str, body: Dict[str, Any],
     # 4. GENERATED -> render (banner + marker resolved via sign-off state).
     out = await _render_generated(
         doc_type=doc_type, result=result, matter=matter, want_render=want_render,
-        language=language)
+        language=language,
+        banner_in_document=body.get("review_banner_in_document", True) is not False)
     return JSONResponse(status_code=200, content=out)
 
 
@@ -332,16 +339,17 @@ async def draft_bundle_s138(body: Dict[str, Any],
     affidavit_result = await run_in_threadpool(affidavit_adapter.build, **aff_kwargs)
 
     # --- 4. Shape both documents through the shared renderer --------------------
+    banner_in_doc = body.get("review_banner_in_document", True) is not False
     complaint_out = await _render_generated(
         doc_type="s138_complaint", result=complaint_result,
-        matter=matter, want_render=want_render)
+        matter=matter, want_render=want_render, banner_in_document=banner_in_doc)
 
     if getattr(affidavit_result, "refused", False):
         affidavit_out = _refusal_payload("affidavit", affidavit_result, affidavit_adapter)
     else:
         affidavit_out = await _render_generated(
             doc_type="affidavit", result=affidavit_result,
-            matter=matter, want_render=want_render)
+            matter=matter, want_render=want_render, banner_in_document=banner_in_doc)
 
     return JSONResponse(status_code=200, content={
         "outcome": "generated",
@@ -534,6 +542,7 @@ async def draft_spec(body: Dict[str, Any],
     out = await _render_generated(
         doc_type=doc_type, result=result, matter=matter,
         want_render=body.get("render", True), language=body.get("language", "EN"),
+        banner_in_document=body.get("review_banner_in_document", True) is not False,
         template=(template_file, f"spec:{runtime_spec.spec_hash(spec)[:16]}", entry["version"]))
     return JSONResponse(status_code=200, content=out)
 

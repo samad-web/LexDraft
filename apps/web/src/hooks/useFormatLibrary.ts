@@ -8,7 +8,8 @@ export interface LaweForm {
   title: string;
   /** LAWE's section (e.g. "High Court", "In the Court of"). */
   group: string;
-  /** The original scanned form on lawe.co.in (opened there; never re-hosted). */
+  /** Where LAWE publishes the form (reference only — the app previews LexDraft's
+   *  own rendering instead, never LAWE's file). */
   url: string;
   /** The Draft-page format label that drafts this form. */
   docLabel: string;
@@ -54,6 +55,13 @@ export function saveDocx(base64: string, fileName: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Show a blank form as PDF in a tab the caller opened synchronously on click
+ *  (so pop-up blockers allow it). Same server-side court-layout render as save. */
+export async function previewBlankPdf(tab: Window, docxBase64: string, fileName: string): Promise<void> {
+  const blob = await api.postBlob('/drafting/engine/docx-to-pdf', { docxBase64, fileName });
+  tab.location.href = URL.createObjectURL(blob);
 }
 
 /** Convert a blank form's Word file to PDF (server-side, same court layout) and save it. */

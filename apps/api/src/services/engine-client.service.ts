@@ -215,6 +215,8 @@ export const engineClient = {
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
 
     const { status, json } = await call('POST', `/v1/draft/${docType}`, {
+      // Draft status is shown in the app; keep the banner line out of the document.
+      review_banner_in_document: false,
       // "Draft now" only: accept visible [… to be provided] gaps in required text.
       ...(opts.allowPlaceholders ? { allow_placeholders: true } : {}),
       matter: { matter_id: matterId, version: current.version },
@@ -264,6 +266,7 @@ export const engineClient = {
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
 
     const { status, json } = await call('POST', '/v1/draft-bundle/s138_complaint', {
+      review_banner_in_document: false,
       matter: { matter_id: matterId, version: current.version },
       fields,
       affidavit: {
@@ -356,6 +359,7 @@ export const engineClient = {
     const current = await factSheetService.getCurrent(matterId);
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
     const { status, json } = await call('POST', '/v1/draft-spec', {
+      review_banner_in_document: false,
       ...(opts.allowPlaceholders ? { allow_placeholders: true } : {}),
       doc_type: docType,
       spec,

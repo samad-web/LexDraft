@@ -26,6 +26,7 @@ import {
 import { contextToBriefPreamble, type DraftCaseContext } from '@/lib/draft-case-context';
 import { useCreateDocument } from '@/hooks/useDocuments';
 import { DictateButton } from '../DictateButton';
+import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
 
 /** Best-effort document type from a filename, so a repaired upload lands with a
@@ -54,6 +55,13 @@ interface Props {
   docLabel: string | null;
   /** Variant pre-selected from the forms library (e.g. a warrant's kind). */
   preset?: Record<string, string> | null;
+  /** The format picked in the forms library, as the advocate saw it (e.g. the
+   *  LAWE title "Notice to Appear in Person"). Shown as the selected format. */
+  selectedTitle?: string | null;
+  /** Open the forms library to pick a different format. */
+  onChangeFormat?: () => void;
+  /** Drop the picked format (back to auto-detect from the description). */
+  onClearFormat?: () => void;
   /** Fired with the drafted (or refused) state so the parent can render it. */
   onDrafted: (state: IntakeState) => void;
   /** Fired with the format the engine settled on (for the page banner/title). */
@@ -135,7 +143,7 @@ function fileToAttachment(file: File): Promise<IntakeAttachmentFile> {
   });
 }
 
-export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs }: Props) {
+export function DraftBotModal({ open, onClose, inline, docLabel, preset, selectedTitle, onChangeFormat, onClearFormat, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs }: Props) {
   const start = useIntakeStart();
   const startAuto = useIntakeStartAuto();
   const reply = useIntakeReply();
@@ -148,6 +156,9 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
   const [language, setLanguage] = useState<string>(LANGUAGES[0]);
   const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The state behind an "I still need X" — its fields are offered as inputs.
+  const [needs, setNeeds] = useState<IntakeState | null>(null);
+  const [needsLang, setNeedsLang] = useState<'EN' | 'HI' | 'TA'>('EN');
   // Files the advocate dropped into the "couldn't read" repair zone. They are
   // (a) fed to THIS draft immediately via the engine attach path, and (b)
   // persisted back onto the case so the byte-less rows are permanently fixed —
@@ -253,6 +264,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
   const submit = async () => {
     if (!canSubmit) return;
     setError(null);
+    setNeeds(null);
     const message = prompt.trim();
     // A hint the engine folds into the brief so the model phrasing honours it.
     const bnsNote = useBns ? ' Draft using the BNS / BNSS (2023) provisions where applicable.' : '';
@@ -327,7 +339,12 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
             : fields.length
               ? ` Please add: ${fields.join(', ')}, then Submit again.`
               : '';
-        setError(`This can’t be drafted yet: ${s.refusal.reason}.${remedy}`);
+        const canAsk = neededFields(s).length > 0;
+        setNeeds(canAsk ? s : null);
+        setNeedsLang(langCode);
+        setError(canAsk
+          ? `This can’t be drafted yet: ${s.refusal.reason}. Fill in what’s needed below.`
+          : `This can’t be drafted yet: ${s.refusal.reason}.${remedy}`);
         return;
       }
       if (s.status !== 'generated' || !s.draft) {
@@ -341,10 +358,15 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
         const s138Hint = isS138Complaint
           ? ` (If you meant the demand NOTICE rather than the court complaint, say “draft a Notice u/s 138”; it needs fewer details.)`
           : '';
+        const canAsk = neededFields(s).length > 0;
+        setNeeds(canAsk ? s : null);
+        setNeedsLang(langCode);
         setError(
           missing.length
             ? `To draft this ${s.docLabel}, I still need: ${missing.join(', ')}. ` +
-              `These are required for this document and weren’t in what you gave me. Add them above and Submit again.` +
+              (canAsk
+                ? 'Choose or fill them in below, then click Draft with these.'
+                : 'These are required for this document and weren’t in what you gave me. Add them above and Submit again.') +
               s138Hint
             : 'I need a little more to draft this. Add the missing facts above and Submit again.',
         );
@@ -552,6 +574,15 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
         </div>
 
         {error && <p className="draftbot-modal__error" role="alert">{error}</p>}
+        {needs && (
+          <NeededFieldsPanel
+            key={`${needs.matterId}:${needs.version}`}
+            state={needs}
+            language={needsLang}
+            onDrafted={(s) => { setNeeds(null); setError(null); onActiveLabel?.(s.docLabel); onDrafted(s); reset(); onClose(); }}
+            onStill={(s, message) => { setNeeds(neededFields(s).length ? s : null); setError(message); }}
+          />
+        )}
       </div>
   );
 
@@ -578,7 +609,9 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
     return (
       <form className="dc-composer" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
         <div className="dc-composer-head">
-          <h2 className="dc-title">{activeLabel ? `Continue: ${activeLabel}` : 'What do you want to draft?'}</h2>
+          <h2 className="dc-title">
+            {docLabel ? `Draft: ${selectedTitle || docLabel}` : activeLabel ? `Continue: ${activeLabel}` : 'What do you want to draft?'}
+          </h2>
           <p className="dc-sub">
             Name the document and give the facts in your own words, or attach the cheque, notice or order.
             The engine writes the complete document; anything genuinely missing is left as a marked
@@ -586,6 +619,41 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
           </p>
         </div>
 
+        {docLabel && (
+          <div
+            role="status"
+            style={{ border: '1px solid var(--text-primary)', borderRadius: 10, padding: '12px 14px', margin: '4px 0 14px' }}
+          >
+            <div className="row" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <Icon name="check" size={16} aria-hidden />
+              <div className="col" style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+                  FORMAT ADDED
+                </span>
+                <span className="body-sm" style={{ fontWeight: 600 }}>
+                  {selectedTitle || docLabel}
+                  {selectedTitle && selectedTitle !== docLabel && (
+                    <span className="body-xs muted" style={{ fontWeight: 400 }}> · drafts as {docLabel}</span>
+                  )}
+                </span>
+              </div>
+              {onChangeFormat && (
+                <button type="button" className="btn btn-sm" onClick={onChangeFormat} disabled={busy}>Change</button>
+              )}
+              {onClearFormat && (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onClearFormat} disabled={busy}
+                  aria-label="Remove the selected format">Remove</button>
+              )}
+            </div>
+            <p className="body-sm" style={{ margin: '8px 0 0' }}>
+              {caseContext?.title
+                ? <>Drafting for <strong>{caseContext.title}</strong>. Add any details below (optional), then click <strong>Draft document</strong>.</>
+                : <>Pick the case to draft for on the right, or add the details below, then click <strong>Draft document</strong>. Anything missing is left as a [placeholder].</>}
+            </p>
+          </div>
+        )}
+
+        {!docLabel && (
         <div className="dc-starters" role="group" aria-label="Start with a document">
           <span className="dc-starters-label">Start with</span>
           {STARTERS.map((s) => (
@@ -594,6 +662,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
             </button>
           ))}
         </div>
+        )}
 
         {repairZone}
 
@@ -699,6 +768,15 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDraft
 
         {busy && <div className="dc-progress" aria-live="polite">Reading the facts and drafting the full document…</div>}
         {error && <p className="dc-error" role="alert">{error}</p>}
+        {needs && (
+          <NeededFieldsPanel
+            key={`${needs.matterId}:${needs.version}`}
+            state={needs}
+            language={needsLang}
+            onDrafted={(s) => { setNeeds(null); setError(null); onActiveLabel?.(s.docLabel); onDrafted(s); reset(); onClose(); }}
+            onStill={(s, message) => { setNeeds(neededFields(s).length ? s : null); setError(message); }}
+          />
+        )}
       </form>
     );
   }

@@ -138,14 +138,20 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language 
   );
 }
 
-function FieldInput({ field, value, disabled, onChange }: {
+/** "judicial_separation" -> "Judicial separation" for display; the value sent stays raw. */
+function optionLabel(o: string): string {
+  const t = o.replace(/_/g, ' ').trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+export function FieldInput({ field, value, disabled, onChange }: {
   field: FactSheetField; value: string; disabled: boolean; onChange: (v: string) => void;
 }) {
   if (field.type === 'select' && field.options?.length) {
     return (
       <select className="input" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
         <option value="">Choose…</option>
-        {field.options.map((o) => <option key={o} value={o}>{o}</option>)}
+        {field.options.map((o) => <option key={o} value={o}>{optionLabel(o)}</option>)}
       </select>
     );
   }

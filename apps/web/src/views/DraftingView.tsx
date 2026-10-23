@@ -184,6 +184,9 @@ export function DraftingView() {
   const [formatsOpen, setFormatsOpen] = useState(false);
   // Variant chosen in the forms library (e.g. LAWE "Property" = warrant of possession).
   const [formatPreset, setFormatPreset] = useState<Record<string, string> | null>(null);
+  // The format's name as picked in the library (a LAWE title may differ from the
+  // engine format that drafts it), shown on the drafting card.
+  const [formatTitle, setFormatTitle] = useState<string | null>(null);
   // The intake state behind the current engine draft — drives the live
   // Missing-details panel (null for model drafts / no draft).
   const [engineSession, setEngineSession] = useState<IntakeState | null>(null);
@@ -617,6 +620,7 @@ export function DraftingView() {
     setCompanionDoc(null);
     setEngineSession(null);
     setFormatPreset(null);
+    setFormatTitle(null);
     // Back to the empty state; the next matter starts from the DraftBot modal.
     setDraftBotOpen(false);
   };
@@ -1326,6 +1330,14 @@ export function DraftingView() {
               onClose={() => setDraftBotOpen(false)}
               docLabel={formatPicked ? docType : null}
               preset={formatPreset}
+              selectedTitle={formatTitle}
+              onChangeFormat={() => setFormatsOpen(true)}
+              onClearFormat={() => {
+                setFormatPicked(false);
+                setFormatPreset(null);
+                setFormatTitle(null);
+                setActiveEngineLabel(null);
+              }}
               onActiveLabel={setActiveEngineLabel}
               activeLabel={activeEngineLabel}
               onDrafted={acceptEngineDraft}
@@ -2356,10 +2368,18 @@ export function DraftingView() {
         current={docType}
         onClose={() => setFormatsOpen(false)}
         onOpenBlank={openBlankInEditor}
-        onPick={(label, preset) => {
+        onPick={(label, preset, title) => {
+          // A draft is on screen: the drafting card is hidden behind it. Starting
+          // the new format means leaving that draft, so ask first.
+          if (hasOutput || stageMode) {
+            if (!window.confirm(`Start a new draft with "${title ?? label}"? The draft on screen will be closed (save it to My drafts first if you need it).`)) return;
+            reset();
+          }
           setDocType(label);
           setFormatPicked(true);
           setFormatPreset(preset ?? null);
+          setFormatTitle(title ?? label);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
           setActiveEngineLabel(label);
           // Picking a format opens the DraftBot modal primed for that format.
           setDraftBotOpen(true);
