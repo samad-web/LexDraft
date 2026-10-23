@@ -442,7 +442,7 @@ function draftForDoc(
   doc: ResolvedDoc,
   matterId: string,
   fields: Record<string, unknown>,
-  opts: { slots?: Record<string, string>; render?: boolean; language?: string },
+  opts: { slots?: Record<string, string>; render?: boolean; language?: string; allowPlaceholders?: boolean },
 ): Promise<EngineDraftResult> {
   if (doc.firm) {
     return engineClient.draftSpec(doc.docType, doc.firm.spec, doc.firm.version, matterId, fields, opts);
@@ -542,13 +542,23 @@ export const intakeService = {
   },
 
   /** Start a new conversation from the advocate's opening description. */
-  async start(docLabel: string, message: string, ctx: RunCtx): Promise<IntakeState> {
+  async start(
+    docLabel: string,
+    message: string,
+    ctx: RunCtx,
+    preset?: Record<string, string>,
+  ): Promise<IntakeState> {
     const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     // Seed practice defaults (e.g. TN s.138 itemised schedule + twice-amount
     // prayer) into the fresh form before the advocate says anything. The
     // extractor may still overwrite these from the narration.
     const initial: StoredState = { form: seedDefaults(doc.sections), meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '', lastExtractFailed: false, bnsConcordance: [] };
+    // A forms-library variant (e.g. warrant kind) seeds only fields this doc has.
+    const allowedKeys = new Set(fieldSpecs(doc.sections).map((f) => f.key));
+    for (const [key, value] of Object.entries(preset ?? {})) {
+      if (allowedKeys.has(key) && String(value).trim()) initial.form[key] = String(value).trim();
+    }
     const sheet = await factSheetService.create(pack(initial, docLabel), ctx);
     return this._turn(sheet.matterId, docLabel, message, ctx, 'narration');
   },
@@ -662,6 +672,7 @@ export const intakeService = {
     docLabel: string,
     edits: Record<string, string>,
     ctx: RunCtx,
+    opts: { draftNow?: boolean } = {},
   ): Promise<IntakeState> {
     const doc = await resolveDoc(docLabel, ctx.firmId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
@@ -693,6 +704,13 @@ export const intakeService = {
     }
 
     const revised = await factSheetService.revise(matterId, pack(state, docLabel), ctx);
+    if (opts.draftNow) {
+      // Live update: re-draft straight away, gaps as [placeholders] — the same
+      // path as "Draft now", with no question phrasing (fast, no model call).
+      return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, {
+        phrase: false, bumpAsks: false, draftNow: true,
+      });
+    }
     return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, { phrase: true });
   },
 
@@ -1199,7 +1217,7 @@ export const intakeService = {
     let outcome: EngineDraftResult | null = null;
     let issues: IntakeIssue[] = [];
     try {
-      outcome = await draftForDoc(doc, matterId,fields, { render: true, slots, language: ctx.language });
+      outcome = await draftForDoc(doc, matterId,fields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
     } catch (err) {
       if (err instanceof EngineValidationError) {
         // The engine reports issues in ENGINE keys; translate to the FORM keys
@@ -1304,7 +1322,7 @@ export const intakeService = {
         const merged = { ...state.form, ...placeholders };
         const { fields: filledFields } = mapForDoc(doc,merged, {});
         try {
-          const retry = await draftForDoc(doc, matterId,filledFields, { render: true, slots, language: ctx.language });
+          const retry = await draftForDoc(doc, matterId,filledFields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
           if (retry.outcome === 'generated') {
             let marked = syntheticDateValues.size
               ? markSyntheticDates(retry, syntheticDateValues)
@@ -1386,7 +1404,7 @@ export const intakeService = {
               if (!progressed) break; // nothing new to fill — cannot bypass further
               const { fields: bypassFields } = mapForDoc(doc,bypassed, {});
               try {
-                cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language });
+                cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
               } catch (err) {
                 if (err instanceof EngineValidationError) { progressed = false; break; }
                 throw err;
@@ -1473,7 +1491,7 @@ export const intakeService = {
         if (!progressed) break;
         const { fields: bypassFields } = mapForDoc(doc,bypassed, {});
         try {
-          cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language });
+          cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
         } catch (err) {
           if (err instanceof EngineValidationError) { break; }
           throw err;

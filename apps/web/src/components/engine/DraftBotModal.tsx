@@ -52,6 +52,8 @@ interface Props {
   inline?: boolean;
   /** The format to draft, or null to auto-detect from the prompt. */
   docLabel: string | null;
+  /** Variant pre-selected from the forms library (e.g. a warrant's kind). */
+  preset?: Record<string, string> | null;
   /** Fired with the drafted (or refused) state so the parent can render it. */
   onDrafted: (state: IntakeState) => void;
   /** Fired with the format the engine settled on (for the page banner/title). */
@@ -133,7 +135,7 @@ function fileToAttachment(file: File): Promise<IntakeAttachmentFile> {
   });
 }
 
-export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs }: Props) {
+export function DraftBotModal({ open, onClose, inline, docLabel, preset, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs }: Props) {
   const start = useIntakeStart();
   const startAuto = useIntakeStartAuto();
   const reply = useIntakeReply();
@@ -179,8 +181,10 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
   // With a case attached, the case particulars/notes ARE the substance, so a
   // short instruction like "draft a legal notice" is enough. Without a case we
   // keep the 10-char / attachment minimum so a bare click can't draft nothing.
+  // A format picked from the library can be drafted with nothing typed: it
+  // drafts at once with [placeholders] the Missing-details panel then fills.
   const canSubmit =
-    (prompt.trim().length >= (caseContext ? 3 : 10) || files.length > 0 || !!caseContext) && !busy;
+    (prompt.trim().length >= (caseContext ? 3 : 10) || files.length > 0 || !!caseContext || !!docLabel) && !busy;
 
   const pickFiles = (list: FileList | null) => {
     if (!list || list.length === 0) return;
@@ -266,7 +270,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
       .filter(Boolean)
       .join('\n\n')
       .trim()
-      || 'I’m attaching documents for this matter.';
+      || (files.length === 0 && docLabel ? 'Draft the selected format from the details on record.' : 'I’m attaching documents for this matter.');
 
     try {
       // 1) Open the conversation — auto-detect the format unless one was picked.
@@ -275,7 +279,10 @@ export function DraftBotModal({ open, onClose, inline, docLabel, onDrafted, onAc
       //    document (e.g. a s.138 NOTICE on file, whose text would otherwise
       //    dominate `opening` and mis-route the complaint back to a notice).
       let s: IntakeState = docLabel
-        ? await start.mutateAsync({ docLabel, message: opening })
+        ? await start.mutateAsync({
+            docLabel, message: opening,
+            ...(preset && Object.keys(preset).length ? { preset } : {}),
+          })
         : await startAuto.mutateAsync({
             message: opening,
             ...(userPart ? { instruction: userPart } : {}),

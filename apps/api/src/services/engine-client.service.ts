@@ -209,12 +209,14 @@ export const engineClient = {
     docType: string,
     matterId: string,
     fields: Record<string, unknown>,
-    opts: { slots?: Record<string, string>; render?: boolean; language?: string } = {},
+    opts: { slots?: Record<string, string>; render?: boolean; language?: string; allowPlaceholders?: boolean } = {},
   ): Promise<EngineDraftResult> {
     const current = await factSheetService.getCurrent(matterId);
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
 
     const { status, json } = await call('POST', `/v1/draft/${docType}`, {
+      // "Draft now" only: accept visible [… to be provided] gaps in required text.
+      ...(opts.allowPlaceholders ? { allow_placeholders: true } : {}),
       matter: { matter_id: matterId, version: current.version },
       fields,
       slots: opts.slots ?? {},
@@ -349,11 +351,12 @@ export const engineClient = {
     version: number,
     matterId: string,
     fields: Record<string, unknown>,
-    opts: { slots?: Record<string, string>; render?: boolean; language?: string } = {},
+    opts: { slots?: Record<string, string>; render?: boolean; language?: string; allowPlaceholders?: boolean } = {},
   ): Promise<EngineDraftResult> {
     const current = await factSheetService.getCurrent(matterId);
     if (!current) throw new EngineError(`no fact sheet for matter ${matterId}`);
     const { status, json } = await call('POST', '/v1/draft-spec', {
+      ...(opts.allowPlaceholders ? { allow_placeholders: true } : {}),
       doc_type: docType,
       spec,
       status: 'approved',
@@ -379,6 +382,34 @@ export const engineClient = {
       templateId: json.template_id ?? '',
       templateVersion: json.template_version ?? 0,
     };
+  },
+
+  /** A doc type (or a firm spec) rendered as a blank, editable form. `null` when
+   *  the format can't be produced without the case facts (engine 409). */
+  async blank(input: {
+    docType: string;
+    spec?: unknown;
+    preset?: Record<string, string>;
+  }): Promise<{ docxBase64: string } | { needsFacts: string }> {
+    const { status, json } = await call('POST', '/v1/blank', {
+      doc_type: input.docType,
+      ...(input.spec !== undefined ? { spec: input.spec } : {}),
+      preset: input.preset ?? {},
+    });
+    if (status === 409) return { needsFacts: json?.reason ?? 'this format needs the case details' };
+    if (status === 404) throw new EngineError(`unknown doc_type ${input.docType}`);
+    if (status !== 200) throw new EngineError(`blank failed: ${status}`);
+    return { docxBase64: json.docx_base64 };
+  },
+
+  /** The LAWE forms library: each form, its original-PDF link, and the doc type
+   *  (+ variant preset) that drafts it here. */
+  async laweCatalog(): Promise<Array<{
+    id: string; title: string; group: string; url: string; doc_type: string; preset: Record<string, string>;
+  }>> {
+    const { status, json } = await call('GET', '/v1/lawe-catalog');
+    if (status !== 200) throw new EngineError(`lawe-catalog failed: ${status}`);
+    return json?.forms ?? [];
   },
 
   /** Doc types the LIVE engine serves right now (null if it can't be reached). */

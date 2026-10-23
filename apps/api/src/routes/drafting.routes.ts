@@ -730,6 +730,61 @@ draftingRouter.get('/engine/status', requireFeature('drafting.ai'), async (req, 
   }
 });
 
+// The FORMS LIBRARY (Draft page "Formats"): the LAWE forms, each mapped to the
+// Draft-page label that drafts it here (+ the variant preset) and a link to the
+// original on lawe.co.in. LexDraft never re-hosts LAWE's own files. Cached
+// briefly — it only changes on an engine deploy.
+let laweCache: { at: number; value: unknown[] } | null = null;
+draftingRouter.get('/engine/library', requireFeature('drafting.ai'), async (_req, res, next) => {
+  try {
+    if (!laweCache || Date.now() - laweCache.at > 10 * 60_000) {
+      const forms = engineClient.enabled ? await engineClient.laweCatalog() : [];
+      const labelFor = new Map(Object.entries(LABEL_TO_ENGINE_DOC).map(([label, dt]) => [dt, label]));
+      const value = forms
+        .map((f) => ({
+          id: f.id, title: f.title, group: f.group, url: f.url,
+          docLabel: labelFor.get(f.doc_type) ?? null, preset: f.preset ?? {},
+        }))
+        .filter((f) => f.docLabel !== null);
+      laweCache = { at: Date.now(), value };
+    }
+    res.json({ lawe: laweCache.value, laweSource: 'https://www.lawe.co.in/lawe-downloads.html' });
+  } catch (err) {
+    if (err instanceof EngineDisabledError) { res.json({ lawe: [], laweSource: null }); return; }
+    next(err);
+  }
+});
+
+// A format as a BLANK, editable Word form (Draft page "Download blank").
+// 409 needs_facts when the format's legal checks need real facts to render.
+const BlankBody = z.object({
+  docLabel: z.string().min(1),
+  preset: z.record(z.string(), z.string().max(200)).optional(),
+});
+draftingRouter.post('/engine/blank', requireFeature('drafting.ai'), async (req, res, next) => {
+  try {
+    const parsed = BlankBody.parse(req.body);
+    let docType = LABEL_TO_ENGINE_DOC[parsed.docLabel];
+    let spec: unknown;
+    if (!docType && isFirmFormatLabel(parsed.docLabel)) {
+      const firm = await firmFormatsService.getByLabel(await firmIdForUser(req.user?.id), parsed.docLabel);
+      if (firm) { docType = firm.docType; spec = firm.spec; }
+    }
+    if (!docType) { res.status(404).json({ error: 'doc_not_routable' }); return; }
+    const out = await engineClient.blank({
+      docType, ...(spec !== undefined ? { spec } : {}), ...(parsed.preset ? { preset: parsed.preset } : {}),
+    });
+    if ('needsFacts' in out) {
+      res.status(409).json({ error: 'needs_facts', message: out.needsFacts });
+      return;
+    }
+    res.json({ docxBase64: out.docxBase64, fileName: `${parsed.docLabel} (blank)` });
+  } catch (err) {
+    if (err instanceof EngineDisabledError) { res.status(503).json({ error: 'engine_unavailable' }); return; }
+    next(err);
+  }
+});
+
 // Ensure a fact sheet exists for this draft and return its matterId. The Draft
 // page has no fact sheet of its own yet; this creates one (version 1) from the
 // current form so the engine has a versioned matter to key sign-off on. If a
@@ -966,6 +1021,9 @@ const IntakeStart = z.object({
   docLabel: z.string().min(1),
   message: z.string().min(1).max(CASE_CONTEXT_MAX),
   provider: z.enum(['xai', 'anthropic']).optional(),
+  /** Variant pre-selected from the forms library (e.g. a LAWE "Property" form =
+   *  Court Warrant with kind=possession). Seeds the form; the facts still win. */
+  preset: z.record(z.string(), z.string().max(200)).optional(),
 });
 
 const IntakeReply = z.object({
@@ -989,6 +1047,10 @@ const IntakeEdit = z.object({
   matterId: z.string().uuid(),
   docLabel: z.string().min(1),
   edits: z.record(z.string(), z.string()).refine((e) => Object.keys(e).length > 0, 'no edits'),
+  /** Live "Missing details" panel: save the edits, then re-draft at once with
+   *  [placeholders] for whatever is still missing (no questions asked). */
+  draftNow: z.boolean().optional(),
+  language: z.enum(['EN', 'HI', 'TA']).optional(),
 });
 
 const IntakeLoad = z.object({
@@ -1118,7 +1180,7 @@ draftingRouter.post('/engine/intake/start', requireFeature('drafting.ai'), llmGe
     try {
       const state = await intakeService.start(parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
-      });
+      }, parsed.preset);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1181,7 +1243,9 @@ draftingRouter.post('/engine/intake/edit', requireFeature('drafting.ai'), llmGen
     const ctx = await intakeSetup(req, res, parsed.docLabel, true);
     if (!ctx) return;
     try {
-      const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, ctx);
+      const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, {
+        ...ctx, ...(parsed.language ? { language: parsed.language } : {}),
+      }, { draftNow: parsed.draftNow === true });
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }

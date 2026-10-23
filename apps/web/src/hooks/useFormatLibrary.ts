@@ -1,0 +1,50 @@
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+
+/** One LAWE form in the library, mapped to the Draft-page format that drafts it. */
+export interface LaweForm {
+  id: string;
+  /** The title the LAWE site shows (e.g. "Petition to recall warrant"). */
+  title: string;
+  /** LAWE's section (e.g. "High Court", "In the Court of"). */
+  group: string;
+  /** The original scanned form on lawe.co.in (opened there; never re-hosted). */
+  url: string;
+  /** The Draft-page format label that drafts this form. */
+  docLabel: string;
+  /** Variant pre-selected for this form (e.g. a warrant's kind). */
+  preset: Record<string, string>;
+}
+
+export function useFormatLibrary() {
+  return useQuery({
+    queryKey: ['format-library'],
+    queryFn: () => api.get<{ lawe: LaweForm[]; laweSource: string | null }>('/drafting/engine/library'),
+    staleTime: 10 * 60_000,
+  });
+}
+
+/** Fetch a format as a blank, editable Word form. Rejects with status 409 when
+ *  the format can only be produced from the case details. */
+export function useBlankFormat() {
+  return useMutation({
+    mutationFn: (input: { docLabel: string; preset?: Record<string, string> }) =>
+      api.post<{ docxBase64: string; fileName: string }>('/drafting/engine/blank', input),
+  });
+}
+
+/** Save a base64 .docx to the advocate's computer. */
+export function saveDocx(base64: string, fileName: string): void {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileName.replace(/[^\w.() -]+/g, '_')}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}

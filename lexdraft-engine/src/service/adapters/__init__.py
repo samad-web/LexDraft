@@ -212,7 +212,8 @@ class Adapter:
 
     # ---- inbound validation + coercion (the 422 boundary) -----------------
 
-    def coerce(self, payload: Mapping[str, Any]) -> Dict[str, Any]:
+    def coerce(self, payload: Mapping[str, Any], *,
+               allow_placeholders: bool = False) -> Dict[str, Any]:
         """Validate + coerce inbound `fields` JSON into engine kwargs.
 
         Raises AdapterValidationError (-> 422) on any missing-required or malformed
@@ -227,13 +228,15 @@ class Adapter:
             if isinstance(spec, ListFieldSpec):
                 self._coerce_list(spec, payload, kwargs, issues)
             else:
-                self._coerce_scalar_field(spec, payload, kwargs, issues)
+                self._coerce_scalar_field(spec, payload, kwargs, issues,
+                                          allow_placeholders=allow_placeholders)
 
         if issues:
             raise AdapterValidationError(issues)
         return kwargs
 
-    def _coerce_scalar_field(self, spec: FieldSpec, payload, kwargs, issues) -> None:
+    def _coerce_scalar_field(self, spec: FieldSpec, payload, kwargs, issues, *,
+                             allow_placeholders: bool = False) -> None:
         required = spec.is_required(payload)
         present = spec.key in payload and payload[spec.key] is not None
         if not present:
@@ -253,8 +256,12 @@ class Adapter:
         # carrying an unfilled-slot placeholder ("[deponent name to be provided]")
         # is likewise MISSING, not a valid value: the form is incomplete, so it is
         # a 422, never a filled field that reaches the pipeline.
+        # allow_placeholders (the "Draft now" gesture only): a visible
+        # "[… to be provided]" gap is accepted so the whole document renders; it
+        # still counts as an unfilled slot, so the draft cannot be signed off.
         if required and spec.kind == "string" and (
-            not str(coerced).strip() or SLOT_PATTERN.search(str(coerced))
+            not str(coerced).strip()
+            or (SLOT_PATTERN.search(str(coerced)) and not allow_placeholders)
         ):
             issues.append(FieldIssue(spec.key, "required", "this field is required"))
             return

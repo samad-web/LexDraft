@@ -799,6 +799,8 @@ export interface IntakeStartRequest {
   /** The advocate's free description of the matter. */
   message: string;
   provider?: 'xai' | 'anthropic';
+  /** Variant pre-selected from the forms library (e.g. warrant kind). */
+  preset?: Record<string, string>;
 }
 
 /** Continue an intake conversation with the advocate's next message. */
@@ -816,6 +818,9 @@ export interface IntakeEditRequest {
   docLabel: string;
   /** field key -> new value (empty string clears the field). */
   edits: Record<string, string>;
+  /** Re-draft immediately with [placeholders] for remaining gaps (live panel). */
+  draftNow?: boolean;
+  language?: 'EN' | 'HI' | 'TA';
 }
 
 /** One file attached to the intake conversation (session-only, base64). */

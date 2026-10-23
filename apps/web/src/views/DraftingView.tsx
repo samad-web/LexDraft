@@ -28,6 +28,7 @@ import {
 import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
+import { LiveDetailsPanel } from '@/components/engine/LiveDetailsPanel';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
@@ -165,6 +166,11 @@ export function DraftingView() {
   const [letterheadChoice, setLetterheadChoice] = useState<string | null | undefined>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [formatsOpen, setFormatsOpen] = useState(false);
+  // Variant chosen in the forms library (e.g. LAWE "Property" = warrant of possession).
+  const [formatPreset, setFormatPreset] = useState<Record<string, string> | null>(null);
+  // The intake state behind the current engine draft — drives the live
+  // Missing-details panel (null for model drafts / no draft).
+  const [engineSession, setEngineSession] = useState<IntakeState | null>(null);
   // True once the advocate explicitly chose a format (Formats picker). Until then
   // the conversation AUTO-DETECTS the document type from their description.
   const [formatPicked, setFormatPicked] = useState(false);
@@ -404,7 +410,7 @@ export function DraftingView() {
   // modal). The engine returns either a generated draft (blocks) or a refusal
   // (a legal finding) — surface each honestly. NO fact sheet; the advocate edits
   // the document text and its [placeholders] directly.
-  const acceptEngineDraft = (s: IntakeState) => {
+  const acceptEngineDraft = (s: IntakeState, opts: { live?: boolean } = {}) => {
     if (s.status === 'refused' && s.refusal) {
       const msg = s.refusal.reason || 'The engine can’t draft this as it stands.';
       setError(msg);
@@ -420,6 +426,7 @@ export function DraftingView() {
       return;
     }
     const detected = s.docLabel;
+    setEngineSession(s);
     setDocType(detected);
     const primaryBody = s.draft.blocks.map((b) => b.text).join('\n\n');
     if (!primaryBody.trim()) return;
@@ -453,6 +460,8 @@ export function DraftingView() {
     stream.seed({ docType: detected, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
     setError(null);
+    // A live update from the Missing-details panel: no "draft ready" toasts.
+    if (opts.live) return;
     showToast({
       type: 'sage',
       text: companion && companionBody
@@ -529,6 +538,7 @@ export function DraftingView() {
     // Drop any captured pipeline open-items; a fresh single-shot generation
     // falls back to a live placeholder scan of the new draft.
     setOpenItems(null);
+    setEngineSession(null);
     const fields: Record<string, string> = {};
     schema.sections.forEach((sec) =>
       sec.fields.forEach((f) => {
@@ -561,6 +571,8 @@ export function DraftingView() {
     setOpenItems(null);
     setEngineDocxBase64(null);
     setCompanionDoc(null);
+    setEngineSession(null);
+    setFormatPreset(null);
     // Back to the empty state; the next matter starts from the DraftBot modal.
     setDraftBotOpen(false);
   };
@@ -838,6 +850,7 @@ export function DraftingView() {
   // only a rasterised working copy.
   const downloadEngineDocx = () => {
     if (!engineDocxBase64) return;
+    if (hasLocalEdits) { triggerExport('DOCX'); return; } // edited text wins
     downloadDocxBase64(engineDocxBase64, activeDocType);
   };
 
@@ -959,6 +972,7 @@ export function DraftingView() {
     setEditedHtml(d.editedHtml || null);
     setIsEditing(false);
     setCurrentDraftId(d.id);
+    setEngineSession(null); // a saved draft has no live intake behind it
     setMyDraftsOpen(false);
     setStageMode(true);
     // Seed the stream display with the saved body so the preview renders
@@ -1026,7 +1040,7 @@ export function DraftingView() {
     // formatted filing .docx — tables, backing sheet, exact font/alignment. The
     // client-side HTML rasterisation flattens that layout, so it's only the
     // fallback (when there's no engine .docx, or the server render is unavailable).
-    if (docxBase64) {
+    if (docxBase64 && !hasLocalEdits) {
       // INSTANT PATH: the preview pane already rendered THIS engine .docx to a PDF
       // blob (previewPdfUrl). Reuse it directly — no second server round-trip, so
       // the Download PDF button fires immediately instead of waiting on LibreOffice.
@@ -1090,7 +1104,8 @@ export function DraftingView() {
     // (PDF via LibreOffice, or the .docx itself for Word), exactly like the
     // "Download PDF" button does. Only fall through to the HTML export when there
     // is no engine .docx (model-only drafts) or the server render is unavailable.
-    if (engineDocxBase64) {
+    // After hand edits the engine .docx is stale: export the edited text below.
+    if (engineDocxBase64 && !hasLocalEdits) {
       if (fmt === 'DOCX') {
         downloadDocxBase64(engineDocxBase64, activeDocType);
         showToast({ type: 'sage', text: `${fmt} prepared` });
@@ -1182,6 +1197,14 @@ export function DraftingView() {
           <button
             className="btn"
             type="button"
+            onClick={() => setFormatsOpen(true)}
+            title="Every format: draft it from the case, or download it blank as an editable Word form"
+          >
+            <Icon name="documents" size={14} /> Formats
+          </button>
+          <button
+            className="btn"
+            type="button"
             onClick={() => setTemplatesOpen(true)}
           >
             <Icon name="file" size={14} /> Templates
@@ -1222,6 +1245,7 @@ export function DraftingView() {
               open={draftBotOpen}
               onClose={() => setDraftBotOpen(false)}
               docLabel={formatPicked ? docType : null}
+              preset={formatPreset}
               onActiveLabel={setActiveEngineLabel}
               activeLabel={activeEngineLabel}
               onDrafted={acceptEngineDraft}
@@ -1910,6 +1934,17 @@ export function DraftingView() {
                 <LetterheadPicker label="" value={letterheadChoice} onChange={setLetterheadChoice} className="dw-letterhead" />
               </section>
 
+              {/* MISSING DETAILS — live: typing re-drafts the document */}
+              {engineSession && engineSession.status === 'generated' && (
+                <LiveDetailsPanel
+                  state={engineSession}
+                  locked={hasLocalEdits}
+                  onUnlock={() => setEditedHtml(null)}
+                  onUpdated={(s) => acceptEngineDraft(s, { live: true })}
+                  language={outputLang}
+                />
+              )}
+
               {/* BEFORE FILING */}
               {hasOpenItems(effectiveOpenItems) && (
                 <section className="dc-card">
@@ -2240,9 +2275,10 @@ export function DraftingView() {
         open={formatsOpen}
         current={docType}
         onClose={() => setFormatsOpen(false)}
-        onPick={(label) => {
+        onPick={(label, preset) => {
           setDocType(label);
           setFormatPicked(true);
+          setFormatPreset(preset ?? null);
           setActiveEngineLabel(label);
           // Picking a format opens the DraftBot modal primed for that format.
           setDraftBotOpen(true);

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import { useEngineStatus } from '@/hooks/useEngineDraft';
 import { useDeleteFormat } from '@/hooks/useFirmFormats';
+import { saveDocx, useBlankFormat, useFormatLibrary, type LaweForm } from '@/hooks/useFormatLibrary';
 import { useUIStore } from '@/store/ui';
 import { Modal } from './Modal';
 import { UploadFormatModal } from './UploadFormatModal';
@@ -11,38 +12,61 @@ interface Props {
   onClose: () => void;
   /** The format currently chosen, so it can be marked in the list. */
   current: string | null;
-  /** Choose a format to draft — sets the Draft page's document type. */
-  onPick: (label: string) => void;
+  /** Draft a format — sets the Draft page's document type (+ an optional variant
+   *  preset, e.g. a LAWE "Property" form = Court Warrant of possession). */
+  onPick: (label: string, preset?: Record<string, string>) => void;
 }
 
 /**
- * The engine FORMAT picker — lets the advocate choose which of the engine's
- * drafting formats to produce (all of them, not just the curated General-AI set).
- * The list is the engine's own catalogue (GET /engine/status -> `formats`), so it
- * always reflects exactly what the engine can draft — the DPC pleadings/deeds and
- * the TN/Madras court forms alike, with no per-format wiring here.
- *
- * Picking a format sets the Draft page's document type; when the engine path is
- * enabled for this advocate, the Engine-Routed card then activates for it.
+ * The FORMS LIBRARY. Every format the engine can draft, in three sections:
+ *   - your firm's own formats (uploaded here, private to the firm);
+ *   - the LAWE forms library (lawe.co.in), each mapped to the format that drafts
+ *     it, with a link to the original on LAWE's site (never re-hosted here);
+ *   - every engine format, grouped.
+ * Each format can be DRAFTED (opens the drafting card for it — the case, typed
+ * details and attachments fill it) or DOWNLOADED BLANK as an editable Word form.
  */
 export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
   const engineStatus = useEngineStatus();
+  const library = useFormatLibrary();
+  const blank = useBlankFormat();
   const firmFormats = engineStatus.data?.firmFormats ?? [];
   const firmLabels = useMemo(() => new Set(firmFormats.map((f) => f.label)), [firmFormats]);
   const formats = useMemo(
     () => (engineStatus.data?.formats ?? []).filter((l) => !firmLabels.has(l)),
     [engineStatus.data?.formats, firmLabels],
   );
+  const lawe = library.data?.lawe ?? [];
   const enabled = Boolean(engineStatus.data?.enabled);
   const [query, setQuery] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const removeFormat = useDeleteFormat();
   const showToast = useUIStore((s) => s.showToast);
 
-  const shownFirm = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return q ? firmFormats.filter((f) => f.label.toLowerCase().includes(q)) : firmFormats;
-  }, [firmFormats, query]);
+  const q = query.trim().toLowerCase();
+  const shownFirm = useMemo(
+    () => (q ? firmFormats.filter((f) => f.label.toLowerCase().includes(q)) : firmFormats),
+    [firmFormats, q],
+  );
+  const shownLawe = useMemo(
+    () => (q
+      ? lawe.filter((f) => `${f.title} ${f.group} ${f.docLabel}`.toLowerCase().includes(q))
+      : lawe),
+    [lawe, q],
+  );
+  const groups = useMemo(() => groupFormats(formats), [formats]);
+  const filtered = useMemo(() => {
+    if (!q) return groups;
+    return groups
+      .map((g) => ({ ...g, items: g.items.filter((label) => label.toLowerCase().includes(q)) }))
+      .filter((g) => g.items.length > 0);
+  }, [groups, q]);
+
+  const total = formats.length;
+  const shown = filtered.reduce((n, g) => n + g.items.length, 0);
+
+  const pick = (label: string, preset?: Record<string, string>) => { onPick(label, preset); onClose(); };
 
   const onRemove = async (id: string, title: string) => {
     if (!window.confirm(`Remove "${title}" from your firm's formats?`)) return;
@@ -54,67 +78,79 @@ export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
     }
   };
 
-  const groups = useMemo(() => groupFormats(formats), [formats]);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return groups;
-    return groups
-      .map((g) => ({ ...g, items: g.items.filter((label) => label.toLowerCase().includes(q)) }))
-      .filter((g) => g.items.length > 0);
-  }, [groups, query]);
+  const download = async (key: string, docLabel: string, fileTitle: string, preset?: Record<string, string>) => {
+    setDownloading(key);
+    try {
+      const out = await blank.mutateAsync({ docLabel, ...(preset && Object.keys(preset).length ? { preset } : {}) });
+      saveDocx(out.docxBase64, `${fileTitle} (blank)`);
+      showToast({ type: 'sage', text: `${fileTitle}: blank Word form downloaded` });
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      showToast({
+        type: 'amber',
+        text: status === 409
+          ? `${fileTitle} can only be produced from the case details. Use Draft instead.`
+          : `Could not download ${fileTitle}.`,
+      });
+    } finally {
+      setDownloading(null);
+    }
+  };
 
-  const total = formats.length;
-  const shown = filtered.reduce((n, g) => n + g.items.length, 0);
+  const DownloadButton = ({ id, docLabel, title, preset }: { id: string; docLabel: string; title: string; preset?: Record<string, string> }) => (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      title="Download blank (editable Word)"
+      aria-label={`Download ${title} as a blank Word form`}
+      disabled={downloading !== null}
+      onClick={() => { void download(id, docLabel, title, preset); }}
+    >
+      {downloading === id ? '…' : <Icon name="download" size={12} aria-hidden />}
+    </button>
+  );
+
+  const eyebrow = (text: string) => (
+    <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
+      {text}
+    </span>
+  );
 
   return (
     <Modal
       open={open}
       onClose={onClose}
+      width={820}
       eyebrow="Formats"
-      title="Choose a format to draft"
-      description="Every format the engine can produce: pick one and the drafting card opens for it. The engine still decides what each format needs and enforces the legal hard-stops."
+      title="Forms library"
+      description="Draft any format from the case, or download it blank as an editable Word form. Drafting fills it from the case you picked, what you type and anything you attach."
       footer={<button type="button" className="btn" onClick={onClose}>Done</button>}
     >
       {!enabled && (
-        <p className="body-sm" style={{ color: 'var(--warning)', marginBottom: 10 }}>
-          Engine-routed drafting isn’t switched on for your account yet. You can browse
-          the formats, but drafting through them needs the beta enabled by your admin.
+        <p className="body-sm" style={{ marginBottom: 10 }}>
+          Engine-routed drafting isn’t switched on for your account yet. You can browse and download
+          blank formats, but drafting through them needs the beta enabled by your admin.
         </p>
       )}
 
-      <div className="row" style={{ gap: 8, marginBottom: 12, alignItems: 'center' }}>
+      <div className="row" style={{ gap: 8, marginBottom: 14, alignItems: 'center' }}>
         <div className="row" style={{ gap: 6, flex: 1, alignItems: 'center' }}>
           <Icon name="search" size={14} aria-hidden />
           <input
             className="input"
             style={{ flex: 1 }}
-            placeholder="Search formats… (e.g. bail, vakalat, sale deed)"
+            placeholder="Search formats… (e.g. bail, vakalat, warrant, sale deed)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
           />
         </div>
-        <span className="body-xs muted" style={{ whiteSpace: 'nowrap' }}>
-          {query ? `${shown} of ${total}` : `${total} formats`}
-        </span>
       </div>
 
-      {engineStatus.isLoading && <span className="body-sm muted">Loading formats…</span>}
-      {!engineStatus.isLoading && total === 0 && (
-        <span className="body-sm muted">No engine formats available.</span>
-      )}
-      {!engineStatus.isLoading && total > 0 && shown === 0 && (
-        <span className="body-sm muted">No format matches “{query}”.</span>
-      )}
-
-      <div className="col" style={{ gap: 6, marginBottom: 16 }}>
+      {/* YOUR FIRM'S FORMATS */}
+      <div className="col" style={{ gap: 6, marginBottom: 18 }}>
         <div className="row" style={{ alignItems: 'center', gap: 8 }}>
-          <span
-            className="mono"
-            style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}
-          >
-            YOUR FIRM’S FORMATS
-          </span>
+          {eyebrow('YOUR FIRM’S FORMATS')}
           <span className="spacer" style={{ flex: 1 }} />
           <button type="button" className="btn btn-sm" onClick={() => setUploading(true)}>
             <Icon name="upload" size={12} aria-hidden /> Upload a format
@@ -122,34 +158,24 @@ export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
         </div>
         {firmFormats.length === 0 ? (
           <span className="body-xs muted">
-            Have a format your office uses that isn’t listed? Upload it and LexDraft will draft it from the case.
+            Have a format your office uses that isn’t listed? Upload it (PDF, scan or photo, Word) and
+            LexDraft will draft it from the case.
           </span>
         ) : (
           <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-            {shownFirm.map((f) => {
-              const isCurrent = f.label === current;
-              return (
-                <span key={f.id} className="row" style={{ gap: 2, alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className={`btn btn-sm${isCurrent ? ' btn-primary' : ''}`}
-                    onClick={() => { onPick(f.label); onClose(); }}
-                  >
-                    {f.title}
-                    {isCurrent && <Icon name="check" size={12} aria-hidden />}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    aria-label={`Remove ${f.title}`}
-                    title="Remove"
-                    onClick={() => { void onRemove(f.id, f.title); }}
-                  >
-                    <Icon name="trash" size={12} aria-hidden />
-                  </button>
-                </span>
-              );
-            })}
+            {shownFirm.map((f) => (
+              <span key={f.id} className="row" style={{ gap: 2, alignItems: 'center' }}>
+                <button type="button" className={`btn btn-sm${f.label === current ? ' btn-primary' : ''}`} onClick={() => pick(f.label)}>
+                  {f.title}
+                  {f.label === current && <Icon name="check" size={12} aria-hidden />}
+                </button>
+                <DownloadButton id={`firm:${f.id}`} docLabel={f.label} title={f.title} />
+                <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${f.title}`} title="Remove"
+                  onClick={() => { void onRemove(f.id, f.title); }}>
+                  <Icon name="trash" size={12} aria-hidden />
+                </button>
+              </span>
+            ))}
           </div>
         )}
       </div>
@@ -157,32 +183,62 @@ export function FormatPickerModal({ open, onClose, current, onPick }: Props) {
       <UploadFormatModal
         open={uploading}
         onClose={() => setUploading(false)}
-        onSaved={(label) => { setUploading(false); onPick(label); onClose(); }}
-        onUseExisting={(label) => { setUploading(false); onPick(label); onClose(); }}
+        onSaved={(label) => { setUploading(false); pick(label); }}
+        onUseExisting={(label) => { setUploading(false); pick(label); }}
       />
 
+      {/* LAWE FORMS LIBRARY */}
+      {lawe.length > 0 && (
+        <details open={Boolean(q)} style={{ marginBottom: 18 }}>
+          <summary className="row" style={{ cursor: 'pointer', gap: 8, alignItems: 'center', listStyle: 'none' }}>
+            {eyebrow(`LAWE FORMS LIBRARY (${shownLawe.length})`)}
+            <span className="body-xs muted">Court forms from lawe.co.in, ready to draft here</span>
+          </summary>
+          <div className="col" style={{ gap: 2, marginTop: 8 }}>
+            {shownLawe.map((f: LaweForm) => (
+              <div key={f.id} className="row" style={{ gap: 8, alignItems: 'center', padding: '4px 0', borderBottom: '1px solid var(--border)' }}>
+                <div className="col" style={{ flex: 1, minWidth: 0 }}>
+                  <span className="body-sm">{f.title}</span>
+                  <span className="body-xs muted">{f.group} · drafts as {f.docLabel}</span>
+                </div>
+                <button type="button" className="btn btn-sm" onClick={() => pick(f.docLabel, f.preset)}>Draft</button>
+                <DownloadButton id={`lawe:${f.id}`} docLabel={f.docLabel} title={f.title} preset={f.preset} />
+                <a className="btn btn-ghost btn-sm" href={f.url} target="_blank" rel="noopener noreferrer"
+                  title="Open the original form on lawe.co.in">
+                  Original ↗
+                </a>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+
+      {/* ALL FORMATS */}
+      <div className="row" style={{ alignItems: 'center', marginBottom: 6 }}>
+        {eyebrow('ALL FORMATS')}
+        <span className="spacer" style={{ flex: 1 }} />
+        <span className="body-xs muted">{q ? `${shown} of ${total}` : `${total} formats`}</span>
+      </div>
+      {engineStatus.isLoading && <span className="body-sm muted">Loading formats…</span>}
+      {!engineStatus.isLoading && total === 0 && <span className="body-sm muted">No engine formats available.</span>}
+      {!engineStatus.isLoading && total > 0 && shown === 0 && (
+        <span className="body-sm muted">No format matches “{query}”.</span>
+      )}
       <div className="col" style={{ gap: 16 }}>
         {filtered.map((g) => (
           <div key={g.group} className="col" style={{ gap: 6 }}>
-            <span
-              className="mono"
-              style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}
-            >
-              {g.group.toUpperCase()}
-            </span>
+            {eyebrow(g.group.toUpperCase())}
             <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
               {g.items.map((label) => {
                 const isCurrent = label === current;
                 return (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`btn btn-sm${isCurrent ? ' btn-primary' : ''}`}
-                    onClick={() => { onPick(label); onClose(); }}
-                  >
-                    {label}
-                    {isCurrent && <Icon name="check" size={12} aria-hidden />}
-                  </button>
+                  <span key={label} className="row" style={{ gap: 2, alignItems: 'center' }}>
+                    <button type="button" className={`btn btn-sm${isCurrent ? ' btn-primary' : ''}`} onClick={() => pick(label)}>
+                      {label}
+                      {isCurrent && <Icon name="check" size={12} aria-hidden />}
+                    </button>
+                    <DownloadButton id={`fmt:${label}`} docLabel={label} title={label} />
+                  </span>
                 );
               })}
             </div>

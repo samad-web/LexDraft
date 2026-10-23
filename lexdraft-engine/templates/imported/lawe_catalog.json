@@ -3,21 +3,33 @@
     "Court_of_Small_Causes/Copy_Application.pdf": {
       "doc_type": "copy_application",
       "note": "forum=small_causes",
+      "preset": {
+        "forum": "small_causes"
+      },
       "status": "covered"
     },
     "Court_of_Small_Causes/Notice_to_Appear_in_Person.pdf": {
       "doc_type": "court_notice",
       "note": "kind=show_cause (appear in person or by pleader to show cause)",
+      "preset": {
+        "kind": "show_cause"
+      },
       "status": "covered"
     },
     "Court_of_Small_Causes/Process_Application.pdf": {
       "doc_type": "process_application",
       "note": "forum=small_causes",
+      "preset": {
+        "forum": "small_causes"
+      },
       "status": "covered"
     },
     "Court_of_Small_Causes/Property.pdf": {
       "doc_type": "court_warrant",
       "note": "kind=possession (warrant to bailiff to deliver possession, E.P./H.R.C.)",
+      "preset": {
+        "kind": "possession"
+      },
       "status": "covered"
     },
     "Court_of_Small_Causes/Summon.pdf": {
@@ -27,6 +39,9 @@
     "Court_of_Small_Causes/Summon_thru_the_Inspector_of_Police.pdf": {
       "doc_type": "summons",
       "note": "kind=witness; served through the Inspector of Police (addressee line)",
+      "preset": {
+        "kind": "witness"
+      },
       "status": "covered"
     },
     "Court_of_Small_Causes/Vakalat.pdf": {
@@ -36,6 +51,9 @@
     "High_Court/Appellete_Side_-_Copy_Application.pdf": {
       "doc_type": "copy_application",
       "note": "forum=high_court",
+      "preset": {
+        "forum": "high_court"
+      },
       "status": "covered"
     },
     "High_Court/Caveat_Petition.pdf": {
@@ -45,31 +63,49 @@
     "High_Court/Coding_Sheet_-_Appellate_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=appellate",
+      "preset": {
+        "side": "appellate"
+      },
       "status": "covered"
     },
     "High_Court/Coding_Sheet_-_CAVEAT_Appellate_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=caveat_appellate",
+      "preset": {
+        "side": "caveat_appellate"
+      },
       "status": "covered"
     },
     "High_Court/Coding_Sheet_-_CAVEAT_Original_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=caveat_original",
+      "preset": {
+        "side": "caveat_original"
+      },
       "status": "covered"
     },
     "High_Court/Coding_Sheet_-_Criminal_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=criminal",
+      "preset": {
+        "side": "criminal"
+      },
       "status": "covered"
     },
     "High_Court/Coding_Sheet_-_Original_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=original",
+      "preset": {
+        "side": "original"
+      },
       "status": "covered"
     },
     "High_Court/Coding_Sheet_-_WRIT_Side.pdf": {
       "doc_type": "coding_sheet",
       "note": "side=writ",
+      "preset": {
+        "side": "writ"
+      },
       "status": "covered"
     },
     "High_Court/Concise_Statement_of_claim.pdf": {
@@ -95,6 +131,9 @@
     "In_the_Court_of/Appear_in_the_court_in_person.pdf": {
       "doc_type": "court_notice",
       "note": "kind=appear_person",
+      "preset": {
+        "kind": "appear_person"
+      },
       "status": "covered"
     },
     "In_the_Court_of/Copy_Application.pdf": {
@@ -113,11 +152,17 @@
     "In_the_Court_of/Original_document_submission_.pdf": {
       "doc_type": "court_notice",
       "note": "kind=produce_documents (requisition to custodian to produce originals)",
+      "preset": {
+        "kind": "produce_documents"
+      },
       "status": "covered"
     },
     "In_the_Court_of/Payment.pdf": {
       "doc_type": "court_warrant",
       "note": "kind=attach_movable (warrant of attachment, money decree)",
+      "preset": {
+        "kind": "attach_movable"
+      },
       "status": "covered"
     },
     "In_the_Court_of/Petition_Under_Sec.256-317_Cr.P.C.pdf": {
@@ -152,6 +197,9 @@
     "In_the_Court_of/Summons_in_a_summary_Suit(App_B_Form_No_4).pdf": {
       "doc_type": "summons",
       "note": "kind=summary_suit",
+      "preset": {
+        "kind": "summary_suit"
+      },
       "status": "covered"
     },
     "In_the_Court_of/Surety_Affidavit.pdf": {
@@ -177,6 +225,9 @@
     "In_the_Court_of_City_Civil_Judge/Application_for_certified_copies_under_rule_43.pdf": {
       "doc_type": "copy_application",
       "note": "forum=city_civil (rule_ref)",
+      "preset": {
+        "forum": "city_civil"
+      },
       "status": "covered"
     },
     "In_the_Court_of_City_Civil_Judge/Execution_Petition.pdf": {
@@ -186,21 +237,33 @@
     "In_the_Court_of_City_Civil_Judge/Form_24_of_the_New_C.P.C.pdf": {
       "doc_type": "court_warrant",
       "note": "kind=attach_immovable (O.XXI R.54 prohibitory order)",
+      "preset": {
+        "kind": "attach_immovable"
+      },
       "status": "covered"
     },
     "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_Assistant_City_Civil_judge.pdf": {
       "doc_type": "court_notice",
       "note": "kind=show_cause",
+      "preset": {
+        "kind": "show_cause"
+      },
       "status": "covered"
     },
     "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_City_Civil_Judge.pdf": {
       "doc_type": "court_notice",
       "note": "kind=show_cause",
+      "preset": {
+        "kind": "show_cause"
+      },
       "status": "covered"
     },
     "In_the_Court_of_City_Civil_Judge/In_the_court_of_the_Principal_City_Civil_judge.pdf": {
       "doc_type": "court_notice",
       "note": "kind=show_cause",
+      "preset": {
+        "kind": "show_cause"
+      },
       "status": "covered"
     },
     "In_the_Court_of_City_Civil_Judge/Memorandum_of_Cavet_petition.pdf": {
@@ -222,6 +285,9 @@
     "Motor_Accident_Claim/Process_Application.pdf": {
       "doc_type": "process_application",
       "note": "forum=mact",
+      "preset": {
+        "forum": "mact"
+      },
       "status": "covered"
     },
     "Others/Appeal.pdf": {
@@ -240,6 +306,9 @@
     "Others/Family_Court.pdf": {
       "doc_type": "court_notice",
       "note": "kind=family_court",
+      "preset": {
+        "kind": "family_court"
+      },
       "status": "covered"
     }
   }

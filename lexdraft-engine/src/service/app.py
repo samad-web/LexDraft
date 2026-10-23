@@ -221,7 +221,7 @@ async def draft(doc_type: str, body: Dict[str, Any],
 
     # 1. VALIDATE + COERCE (the 422 boundary). Raises AdapterValidationError -> 422
     #    via the handler above, BEFORE the pipeline is ever called.
-    kwargs = adapter.coerce(fields)
+    kwargs = adapter.coerce(fields, allow_placeholders=bool(body.get("allow_placeholders")))
     # Narrative slots (model-drafted prose) are merged in as-is; a slot the caller
     # omits stays the pipeline's own [to be drafted] placeholder.
     for slot_key, slot_val in slots.items():
@@ -527,7 +527,8 @@ async def draft_spec(body: Dict[str, Any],
         return JSONResponse(status_code=422, content={"error": "invalid_spec", "problems": problems})
     matter = _matter_from_request(body.get("matter") or {})
     adapter = adapter_for(doc_type, entry)
-    kwargs = adapter.coerce(body.get("fields") or {})   # 422 via the handler
+    kwargs = adapter.coerce(body.get("fields") or {},   # 422 via the handler
+                            allow_placeholders=bool(body.get("allow_placeholders")))
     result = await run_in_threadpool(adapter.build, **kwargs)
     template_file = await run_in_threadpool(runtime_spec.template_for, spec)
     out = await _render_generated(
@@ -535,3 +536,81 @@ async def draft_spec(body: Dict[str, Any],
         want_render=body.get("render", True), language=body.get("language", "EN"),
         template=(template_file, f"spec:{runtime_spec.spec_hash(spec)[:16]}", entry["version"]))
     return JSONResponse(status_code=200, content=out)
+
+
+# --------------------------------------------------------------------------
+# Blank forms (Draft page "Download blank (Word)") — src/service/blank.py.
+# --------------------------------------------------------------------------
+
+@app.post("/v1/blank")
+async def blank_form(body: Dict[str, Any],
+                     authorization: Optional[str] = Header(default=None)) -> JSONResponse:
+    """Render a doc type (or a request-supplied firm spec) as a blank, editable
+    form. 200 {docx_base64, blocks}; 409 when the format can't be produced
+    without real facts (the UI then offers "Draft this"); 404 unknown doc type."""
+    _check_token(authorization)
+    import tempfile
+    from pathlib import Path
+    from ..components.render import render_to_docx
+    from ..imports import runtime_spec
+    from . import blank
+    from .adapters.imported import adapter_for
+
+    preset = body.get("preset") or {}
+    if not isinstance(preset, dict):
+        preset = {}
+    if body.get("spec") is not None:
+        doc_type, spec, entry, problems = _spec_from_body(body, default_status="approved")
+        if problems:
+            return JSONResponse(status_code=422, content={"error": "invalid_spec", "problems": problems})
+        adapter = adapter_for(doc_type, entry)
+        template_file = await run_in_threadpool(runtime_spec.template_for, spec)
+    else:
+        doc_type = body.get("doc_type")
+        try:
+            adapter = adapters.get_adapter(str(doc_type))
+        except KeyError:
+            raise HTTPException(status_code=404, detail=f"unknown doc_type {doc_type!r}")
+        template_file = _template_for(adapter.doc_type)
+
+    try:
+        ctx = await run_in_threadpool(blank.blank_context, adapter, preset)
+    except blank.BlankRefused as exc:
+        return JSONResponse(status_code=409, content={"error": "needs_facts", "reason": str(exc)})
+
+    def _render() -> Dict[str, Any]:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "blank.docx"
+            render_to_docx(template_file, ctx, out)
+            blank.scrub_sentinels(out)
+            return {"docx_base64": base64.b64encode(out.read_bytes()).decode("ascii"),
+                    "blocks": _extract_blocks(out)}
+
+    payload = await run_in_threadpool(_render)
+    return JSONResponse(status_code=200, content={"doc_type": adapter.doc_type, **payload})
+
+
+@app.get("/v1/lawe-catalog")
+async def lawe_catalog(authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """The LAWE forms library (templates/imported/lawe_catalog.json): each form's
+    site title, original-PDF link, the doc type that drafts it here, and the
+    variant preset (e.g. a warrant's kind). Forms whose doc type this engine
+    doesn't serve (an unapproved import in production) are left out."""
+    _check_token(authorization)
+    from ..imports import lawe
+    served = {a.doc_type for a in adapters.all_adapters()}
+    forms: List[Dict[str, Any]] = []
+    for fid, c in sorted(lawe.load_catalog()["forms"].items()):
+        doc_type = c.get("doc_type")
+        if c.get("status") == "not_a_format" or doc_type not in served:
+            continue
+        folder, _, filename = fid.partition("/")
+        forms.append({
+            "id": fid,
+            "title": lawe.title_of(filename),
+            "group": folder.replace("_", " "),
+            "url": lawe.form_url(folder, filename),
+            "doc_type": doc_type,
+            "preset": c.get("preset") or {},
+        })
+    return {"source": "LAWE (lawe.co.in)", "forms": forms}
