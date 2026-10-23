@@ -1746,7 +1746,7 @@ function routableLabels(): string[] {
  *  brief to one of the given labels by common cues; null if nothing matches (the
  *  caller then asks the advocate to pick). Only returns a label present in
  *  `labels`, so it can never route to something the engine can't draft. */
-function keywordGuessLabel(brief: string, labels: string[]): string | null {
+export function keywordGuessLabel(brief: string, labels: string[]): string | null {
   const t = brief.toLowerCase();
   const has = (label: string) => labels.includes(label);
   // Word-boundaried cues — avoid substring false positives (e.g. "please" must not
@@ -1789,6 +1789,17 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     // "recall petition", "recall warrant", "recall the warrant", "s.70(2)".
     [/\brecall\s+petition\b|\brecall\s+(the\s+)?warrant\b|\b70\s*\(?2\)?\b/,
      'Recall Petition (s.70(2) CrPC)'],
+    // COURT-ISSUED instruments (TN forms). Matched BEFORE the generic execution /
+    // bail / notice cues, so "warrant of attachment in execution of the decree" is a
+    // Court Warrant (not an Execution Application) and "court notice" is not a
+    // demand notice. Deliberately NARROW — the instruction cue wins outright, so a
+    // bare "warrant" / "summons" must not hijack "bail … NBW issued" or
+    // "substituted service of summons". A recall of a warrant is caught above.
+    [/\bcourt\s+warrant\b|\bwarrant\s+(?:of|for)\s+(?:the\s+)?(?:attachment|delivery|possession)\b|\b(?:attachment|possession)\s+warrant\b|\bprohibitory\s+order\b|\b(?:draft|prepare|issue)\s+(?:a\s+|the\s+)?warrant\b(?!\s+of\s+arrest)/,
+     'Court Warrant / Order'],
+    [/\bcourt\s+summons\b|\b(?:draft|prepare|issue)\s+(?:a\s+|the\s+)?summons\b|\bsummons\s+to\s+(?:the\s+)?(?:defendant|witness)\b/,
+     'Court Summons'],
+    [/\bcourt\s+notice\b|\bnotice\s+(?:from|by|of)\s+the\s+court\b/, 'Court Notice'],
     // A clear "affidavit" intent must win over the generic notice/cheque cues below —
     // an advocate who typed "draft an affidavit" means the standalone affidavit, even
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against
@@ -1810,6 +1821,15 @@ function keywordGuessLabel(brief: string, labels: string[]): string | null {
     [/\bbail\b|\barrest(ed)?\b|\bcustody\b|\bremand\b/, 'Regular Bail Application'],
     [/\bvakalat/, 'Vakalatnama'],
     [/written statement|defendant.*\brepl/, 'Written Statement'],
+    // Pre-litigation NOTICES — matched BEFORE the plaint cue, whose "recovery of"
+    // would otherwise turn "legal notice for recovery of dues" into a plaint. Never
+    // when the advocate names a plaint/suit. The statutory notices come first.
+    [/\b(?:section|sec\.?|s\.?|u\/s)\s*106\b|\bnotice\s+to\s+(?:quit|vacate)\b|\bquit\s+notice\b/,
+     'Notice u/s 106 TPA (Ejectment)'],
+    [/\b(?:section|sec\.?|s\.?|u\/s)\s*80\s*(?:of\s+(?:the\s+)?)?(?:cpc|c\.p\.c\.?|code of civil procedure)\b/,
+     'Notice u/s 80 CPC'],
+    [/^(?!.*\b(?:plaint|suit)\b)(?:.*\b(?:legal|demand)\s+notice\b|.*\bnotice\b.*\b(?:recovery|dues|payment|outstanding|repay)).*/,
+     'General Demand Notice'],
     [/\bplaint\b|civil suit|recovery of/, 'Plaint (Money Recovery)'],
     [/\bmaintenance\b/, 'Maintenance Petition'],
     [/\bdivorce\b/, 'Divorce Petition (Contested)'],
