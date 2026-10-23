@@ -1,8 +1,8 @@
 {
   "doc_types": {
     "madras_hc_original_side_suit_summons": {
-      "approved_by": null,
-      "approved_on": null,
+      "approved_by": "Your Name",
+      "approved_on": "2026-10-23",
       "court_issued": true,
       "fields": [
         {
@@ -215,7 +215,7 @@
         "ref": "https://www.lawe.co.in/downloads/forms/High_Court/Concise_Statement_of_claim.pdf",
         "sha256": "fc1c6a95cb09aac142659539f618dbdb8e43bc75abfe07477f1adb96b1e109a3"
       },
-      "status": "pending_review",
+      "status": "approved",
       "summary": "This is the writ of summons issued by the High Court of Judicature at Madras on its Ordinary Original Civil Jurisdiction, commanding the defendant to appear, file a written statement and produce documents, with the concise statement of the claim, acknowledgment of service and service endorsement on the reverse. It is taken out by the plaintiff's counsel and issued under the Court's seal after a civil suit is instituted on the Original Side.",
       "template": "madras_hc_original_side_suit_summons.docx",
       "title": "Summons to Defendant in Civil Suit (Madras High Court, Original Side) with Concise Statement of Claim",
