@@ -43,6 +43,20 @@ export function Topbar() {
     ? { title: located.item.label, eyebrow: located.group.title }
     : fallback;
 
+  // Back on every page except the dashboard (the home). Prefer real history
+  // so the user lands where they came from; on a fresh tab / deep link fall
+  // back to the parent route (/app/cases/123 → /app/cases), else the dashboard.
+  const isHome = /^\/app\/?(dashboard\/?)?$/.test(location.pathname);
+  const goBack = () => {
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0;
+    if (idx > 0) {
+      navigate(-1);
+      return;
+    }
+    const parts = location.pathname.split('/').filter(Boolean);
+    navigate(parts.length > 2 ? `/${parts.slice(0, -1).join('/')}` : '/app/dashboard');
+  };
+
   return (
     <div className="topbar">
       <button
@@ -53,6 +67,19 @@ export function Topbar() {
       >
         <Icon name="menu" size={18} />
       </button>
+
+      {!isHome && (
+        <button
+          type="button"
+          className="btn btn-ghost topbar-back"
+          onClick={goBack}
+          aria-label="Go back"
+          title="Back"
+        >
+          <Icon name="chevron" size={16} style={{ transform: 'rotate(180deg)' }} />
+          <span className="topbar-back-label">Back</span>
+        </button>
+      )}
 
       <div className="topbar-title">
         <div className="topbar-title-row">

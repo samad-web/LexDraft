@@ -626,6 +626,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
    the search-icon-only button on tablet/phone; "Sign out" condenses to
    an icon button on phone widths. */
 .topbar-menu        { display: none; padding: 0 8px; flex-shrink: 0; }
+.topbar-back        { flex-shrink: 0; gap: 4px; padding: 0 10px 0 6px; border-color: var(--border-default); }
 .topbar-title       { min-width: 0; flex: 1; }
 .topbar-title-row   { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
 .topbar-eyebrow     { font-size: 10px; color: var(--text-tertiary); }
@@ -761,6 +762,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
     font-size: 12px;
   }
   .topbar-eyebrow { display: none; }
+  .topbar-back { padding: 0 8px; }
+  .topbar-back-label { display: none; }
   .topbar-theme { display: none; }
   .mobile-nav { display: flex !important; }
 }
