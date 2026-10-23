@@ -614,3 +614,26 @@ async def lawe_catalog(authorization: Optional[str] = Header(default=None)) -> D
             "preset": c.get("preset") or {},
         })
     return {"source": "LAWE (lawe.co.in)", "forms": forms}
+
+
+@app.post("/v1/apply-edits")
+async def apply_text_edits(body: Dict[str, Any],
+                           authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Put the advocate's edited paragraphs back into the engine .docx so the
+    download keeps the court layout. matched=false (no docx) when paragraphs were
+    added/removed — the caller then uses its generic export."""
+    _check_token(authorization)
+    from .apply_edits import apply_edits
+    raw = body.get("docx_base64")
+    paras = body.get("paragraphs")
+    if not isinstance(raw, str) or not isinstance(paras, list) or not all(isinstance(p, str) for p in paras):
+        raise HTTPException(status_code=422, detail={"error": "validation", "issues": [
+            {"field": "paragraphs", "code": "type", "message": "docx_base64 + paragraphs[] required"}]})
+    try:
+        src = base64.b64decode(raw, validate=True)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="docx_base64 is not valid base64")
+    out = await run_in_threadpool(apply_edits, src, paras)
+    if out is None:
+        return {"matched": False}
+    return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii")}

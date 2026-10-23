@@ -778,7 +778,25 @@ draftingRouter.post('/engine/blank', requireFeature('drafting.ai'), async (req, 
       res.status(409).json({ error: 'needs_facts', message: out.needsFacts });
       return;
     }
-    res.json({ docxBase64: out.docxBase64, fileName: `${parsed.docLabel} (blank)` });
+    res.json({ docxBase64: out.docxBase64, blocks: out.blocks, fileName: `${parsed.docLabel} (blank)` });
+  } catch (err) {
+    if (err instanceof EngineDisabledError) { res.status(503).json({ error: 'engine_unavailable' }); return; }
+    next(err);
+  }
+});
+
+// Download after HAND EDITS: write the edited paragraphs back into the engine
+// .docx so the Word/PDF keeps the court layout. {matched:false} when paragraphs
+// were added/removed (the client then uses its generic export).
+const ApplyEditsBody = z.object({
+  docxBase64: z.string().min(1).max(20_000_000),
+  paragraphs: z.array(z.string().max(20_000)).max(5_000),
+});
+draftingRouter.post('/engine/apply-edits', requireFeature('drafting.ai'), async (req, res, next) => {
+  try {
+    const parsed = ApplyEditsBody.parse(req.body);
+    const docx = await engineClient.applyEdits(parsed.docxBase64, parsed.paragraphs);
+    res.json(docx ? { matched: true, docxBase64: docx } : { matched: false });
   } catch (err) {
     if (err instanceof EngineDisabledError) { res.status(503).json({ error: 'engine_unavailable' }); return; }
     next(err);

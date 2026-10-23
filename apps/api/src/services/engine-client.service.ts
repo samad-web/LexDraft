@@ -390,7 +390,7 @@ export const engineClient = {
     docType: string;
     spec?: unknown;
     preset?: Record<string, string>;
-  }): Promise<{ docxBase64: string } | { needsFacts: string }> {
+  }): Promise<{ docxBase64: string; blocks: EngineBlock[] } | { needsFacts: string }> {
     const { status, json } = await call('POST', '/v1/blank', {
       doc_type: input.docType,
       ...(input.spec !== undefined ? { spec: input.spec } : {}),
@@ -399,7 +399,7 @@ export const engineClient = {
     if (status === 409) return { needsFacts: json?.reason ?? 'this format needs the case details' };
     if (status === 404) throw new EngineError(`unknown doc_type ${input.docType}`);
     if (status !== 200) throw new EngineError(`blank failed: ${status}`);
-    return { docxBase64: json.docx_base64 };
+    return { docxBase64: json.docx_base64, blocks: json.blocks ?? [] };
   },
 
   /** The LAWE forms library: each form, its original-PDF link, and the doc type
@@ -410,6 +410,14 @@ export const engineClient = {
     const { status, json } = await call('GET', '/v1/lawe-catalog');
     if (status !== 200) throw new EngineError(`lawe-catalog failed: ${status}`);
     return json?.forms ?? [];
+  },
+
+  /** Write edited paragraphs back into an engine .docx (keeps the court layout).
+   *  null when paragraphs were added/removed — the caller falls back. */
+  async applyEdits(docxBase64: string, paragraphs: string[]): Promise<string | null> {
+    const { status, json } = await call('POST', '/v1/apply-edits', { docx_base64: docxBase64, paragraphs });
+    if (status !== 200) throw new EngineError(`apply-edits failed: ${status}`);
+    return json?.matched ? (json.docx_base64 as string) : null;
   },
 
   /** Doc types the LIVE engine serves right now (null if it can't be reached). */

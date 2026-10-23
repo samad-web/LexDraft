@@ -29,6 +29,7 @@ import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { LiveDetailsPanel } from '@/components/engine/LiveDetailsPanel';
+import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
@@ -110,6 +111,21 @@ function seedDefaults(): ValuesByDoc {
     seed[type] = values;
   }
   return seed;
+}
+
+/** The edited document as display paragraphs — one per <p>/<div>/<li>, each
+ *  <br> a line — the same blocks the engine render was shown as. */
+function editedParagraphs(html: string): string[] {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  const out: string[] = [];
+  const push = (text: string) => {
+    for (const line of text.replace(/\u00a0/g, ' ').split('\n')) {
+      if (line.trim()) out.push(line.replace(/\s+$/, ''));
+    }
+  };
+  doc.body.childNodes.forEach((node) => push(node.textContent ?? ''));
+  return out;
 }
 
 export function DraftingView() {
@@ -474,6 +490,34 @@ export function DraftingView() {
         text: `Applied ${s.bnsConcordance!.length} BNS/BNSS conversion${s.bnsConcordance!.length === 1 ? '' : 's'}: legacy sections mapped to the 2023 Sanhitas.`,
       });
     }
+  };
+
+  // A format's BLANK form, opened in the editor (forms library "Word"): the
+  // advocate fills it in by hand, then downloads Word / PDF from the Export card.
+  // No intake behind it, so no live Missing-details panel.
+  const openBlankInEditor = (title: string, blank: BlankForm) => {
+    const body = blank.blocks.map((b) => b.text).join('\n\n');
+    if (!body.trim()) {
+      showToast({ type: 'amber', text: 'That blank form came back empty.' });
+      return;
+    }
+    setEngineSession(null);
+    setDocType(title);
+    setActiveEngineLabel(title);
+    setEngineDocxBase64(blank.docxBase64);
+    setCompanionDoc(null);
+    setCurrentDraftId(null);
+    setBnsConcordance([]);
+    setOpenItems(collectOpenItems({ bodyText: body }));
+    stream.reset();
+    skipResetOnSeedRef.current = true;
+    stream.seed({ docType: title, text: body, generatedAt: new Date().toISOString() });
+    setStageMode(true);
+    setError(null);
+    // Straight into Edit, so the advocate can type into the blank lines.
+    setEditedHtml(plainTextToHtml(body));
+    setIsEditing(true);
+    showToast({ type: 'sage', text: `${title}: blank form open. Type into it, then download.` });
   };
 
   // DRAFT NOW (DraftBot-style): the advocate has given content; draft the WHOLE
@@ -848,9 +892,35 @@ export function DraftingView() {
 
   // The main draft's filing copy; the client-side PDF/DOCX buttons below are
   // only a rasterised working copy.
-  const downloadEngineDocx = () => {
+  /** The engine .docx with the advocate's hand edits written back into its own
+   *  paragraphs (court layout kept). null when there's nothing to merge, or when
+   *  paragraphs were added/removed — callers then use the generic export. */
+  const editedEngineDocx = async (): Promise<string | null> => {
+    if (!engineDocxBase64 || editedHtml === null) return null;
+    try {
+      const out = await api.post<{ matched: boolean; docxBase64?: string }>('/drafting/engine/apply-edits', {
+        docxBase64: engineDocxBase64,
+        paragraphs: editedParagraphs(editedHtml),
+      });
+      return out.matched && out.docxBase64 ? out.docxBase64 : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const downloadEngineDocx = async () => {
     if (!engineDocxBase64) return;
-    if (hasLocalEdits) { triggerExport('DOCX'); return; } // edited text wins
+    if (hasLocalEdits) {
+      const merged = await editedEngineDocx();
+      if (merged) {
+        downloadDocxBase64(merged, activeDocType);
+        showToast({ type: 'sage', text: 'Word file prepared with your edits' });
+        return;
+      }
+      showToast({ type: 'amber', text: 'Paragraphs were added or removed, so this Word copy uses a simplified layout.' });
+      triggerExport('DOCX');
+      return;
+    }
     downloadDocxBase64(engineDocxBase64, activeDocType);
   };
 
@@ -1035,16 +1105,24 @@ export function DraftingView() {
 
   /** Export ONE document's HTML to a rasterised working-copy PDF, honouring the
    *  inline letterhead choice. Shared by the complaint and affidavit PDF buttons. */
-  const downloadPdfOf = async (bodyHtml: string, title: string, docxBase64?: string | null) => {
+  const downloadPdfOf = async (bodyHtml: string, title: string, docxBase64In?: string | null) => {
+    let docxBase64 = docxBase64In ?? null;
     // PREFER the engine .docx -> PDF (LibreOffice) so the PDF is IDENTICAL to the
     // formatted filing .docx — tables, backing sheet, exact font/alignment. The
     // client-side HTML rasterisation flattens that layout, so it's only the
     // fallback (when there's no engine .docx, or the server render is unavailable).
-    if (docxBase64 && !hasLocalEdits) {
+    // After hand edits, render the PDF from the engine .docx WITH the edits merged
+    // in (same court layout); fall back to the HTML copy only if that's impossible.
+    if (docxBase64 && hasLocalEdits && docxBase64 === engineDocxBase64) {
+      const merged = await editedEngineDocx();
+      docxBase64 = merged;
+      if (!merged) showToast({ type: 'amber', text: 'Paragraphs were added or removed, so this PDF uses a simplified layout.' });
+    }
+    if (docxBase64) {
       // INSTANT PATH: the preview pane already rendered THIS engine .docx to a PDF
       // blob (previewPdfUrl). Reuse it directly — no second server round-trip, so
       // the Download PDF button fires immediately instead of waiting on LibreOffice.
-      if (docxBase64 === engineDocxBase64 && previewPdfUrl) {
+      if (!hasLocalEdits && docxBase64 === engineDocxBase64 && previewPdfUrl) {
         const a = document.createElement('a');
         a.href = previewPdfUrl;
         a.download = `${title.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
@@ -1104,16 +1182,18 @@ export function DraftingView() {
     // (PDF via LibreOffice, or the .docx itself for Word), exactly like the
     // "Download PDF" button does. Only fall through to the HTML export when there
     // is no engine .docx (model-only drafts) or the server render is unavailable.
-    // After hand edits the engine .docx is stale: export the edited text below.
-    if (engineDocxBase64 && !hasLocalEdits) {
+    // After hand edits, export from the engine .docx WITH the edits merged in;
+    // only if paragraphs were added/removed fall through to the HTML export.
+    const exportDocxB64 = hasLocalEdits ? await editedEngineDocx() : engineDocxBase64;
+    if (exportDocxB64) {
       if (fmt === 'DOCX') {
-        downloadDocxBase64(engineDocxBase64, activeDocType);
+        downloadDocxBase64(exportDocxB64, activeDocType);
         showToast({ type: 'sage', text: `${fmt} prepared` });
         return;
       }
       if (fmt === 'PDF') {
         // INSTANT PATH — reuse the preview's already-rendered PDF blob (see above).
-        if (previewPdfUrl) {
+        if (previewPdfUrl && !hasLocalEdits) {
           const a = document.createElement('a');
           a.href = previewPdfUrl;
           a.download = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
@@ -1125,7 +1205,7 @@ export function DraftingView() {
         }
         try {
           const blob = await api.postBlob('/drafting/engine/docx-to-pdf', {
-            docxBase64: engineDocxBase64,
+            docxBase64: exportDocxB64,
             fileName: `${activeDocType}-${draftDate}`,
           });
           const url = URL.createObjectURL(blob);
@@ -2275,6 +2355,7 @@ export function DraftingView() {
         open={formatsOpen}
         current={docType}
         onClose={() => setFormatsOpen(false)}
+        onOpenBlank={openBlankInEditor}
         onPick={(label, preset) => {
           setDocType(label);
           setFormatPicked(true);

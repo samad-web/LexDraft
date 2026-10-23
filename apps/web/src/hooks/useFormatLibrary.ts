@@ -24,12 +24,19 @@ export function useFormatLibrary() {
   });
 }
 
+/** A blank form: the Word file plus its text (one block per paragraph). */
+export interface BlankForm {
+  docxBase64: string;
+  blocks: Array<{ key: string; text: string }>;
+  fileName: string;
+}
+
 /** Fetch a format as a blank, editable Word form. Rejects with status 409 when
  *  the format can only be produced from the case details. */
 export function useBlankFormat() {
   return useMutation({
     mutationFn: (input: { docLabel: string; preset?: Record<string, string> }) =>
-      api.post<{ docxBase64: string; fileName: string }>('/drafting/engine/blank', input),
+      api.post<BlankForm>('/drafting/engine/blank', input),
   });
 }
 
@@ -43,6 +50,19 @@ export function saveDocx(base64: string, fileName: string): void {
   const a = document.createElement('a');
   a.href = url;
   a.download = `${fileName.replace(/[^\w.() -]+/g, '_')}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/** Convert a blank form's Word file to PDF (server-side, same court layout) and save it. */
+export async function saveBlankPdf(docxBase64: string, fileName: string): Promise<void> {
+  const blob = await api.postBlob('/drafting/engine/docx-to-pdf', { docxBase64, fileName });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileName.replace(/[^\w.() -]+/g, '_')}.pdf`;
   document.body.appendChild(a);
   a.click();
   a.remove();
