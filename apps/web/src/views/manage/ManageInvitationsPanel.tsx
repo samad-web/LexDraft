@@ -44,7 +44,7 @@ export function ManageInvitationsPanel() {
         <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
           <div className="heading-sm" style={{ marginBottom: 8 }}>No invitations yet</div>
           <div className="body-sm muted" style={{ marginBottom: 16 }}>
-            Send an invite from the button above. The link is also copied to your clipboard for sharing.
+            Create an invite from the button above, then share its link with your colleague.
           </div>
           <button type="button" className="btn btn-primary" onClick={() => setInviteOpen(true)}>
             Send your first invite
@@ -80,7 +80,15 @@ export function ManageInvitationsPanel() {
                       type="button"
                       className="btn btn-sm"
                       onClick={() => resend.mutate(i.id, {
-                        onSuccess: () => showToast({ type: 'sage', text: 'Invite resent' }),
+                        onSuccess: (r) => {
+                          void navigator.clipboard?.writeText(`${window.location.origin}/invite/${r.token}`).catch(() => undefined);
+                          showToast({
+                            type: 'sage',
+                            text: r.emailSent
+                              ? `Invitation emailed again to ${i.email}. Valid for 7 more days.`
+                              : `Extended 7 days and link copied. Email isn't set up, so share it with ${i.email} yourself.`,
+                          });
+                        },
                         onError: (err) => showToast({
                           type: 'vermillion',
                           text: (err as Error).message || 'Couldn’t resend',

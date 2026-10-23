@@ -176,7 +176,15 @@ function PendingInvitations() {
               }}
               onResend={() =>
                 resend.mutate(inv.id, {
-                  onSuccess: () => showToast({ type: 'sage', text: `Invitation refreshed for ${inv.email}` }),
+                  onSuccess: (r) => {
+                    void navigator.clipboard?.writeText(`${window.location.origin}/invite/${r.token}`).catch(() => undefined);
+                    showToast({
+                      type: 'sage',
+                      text: r.emailSent
+                        ? `Invitation emailed again to ${inv.email}. Valid for 7 more days.`
+                        : `Extended 7 days and link copied. Email isn't set up, so share it with ${inv.email} yourself.`,
+                    });
+                  },
                   onError: (err) => showToast({
                     type: 'vermillion',
                     text: (err as Error)?.message || `Couldn’t resend invitation for ${inv.email}`,

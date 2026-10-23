@@ -5,7 +5,7 @@ import { authService } from '../services/auth.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireAuth } from '../middleware/auth';
 import { requireFeature } from '../services/permissions.service';
-import { validate, uuidParam } from '../middleware/validate';
+import { validate } from '../middleware/validate';
 import { tokenLookupLimiter } from '../middleware/rateLimit';
 
 const InviteRoles = z.enum([
@@ -15,13 +15,23 @@ const InviteRoles = z.enum([
   'Junior Associate',
   'Of Counsel',
   'Paralegal',
+  'Other',
 ]);
+
+// Access levels a custom ("Other") role may inherit. No Firm Admin: admin
+// rights go through the Managing Partner preset.
+const CustomRoleAccess = z.enum(['Partner', 'Senior Associate', 'Associate', 'Paralegal', 'Legal Secretary', 'Intern']);
 
 const Create = z.object({
   email: z.string().email(),
   role: InviteRoles,
+  customRoleName: z.string().trim().min(2).max(60).optional(),
+  accessLevel: CustomRoleAccess.optional(),
   message: z.string().max(500).optional(),
-}).strict();
+}).strict().refine(
+  (v) => v.role !== 'Other' || (!!v.customRoleName && !!v.accessLevel),
+  { message: 'Name the role and choose its access level', path: ['customRoleName'] },
+);
 
 const Accept = z.object({
   name: z.string().min(1).max(200),
@@ -34,6 +44,10 @@ const Accept = z.object({
 const TokenParam = z.object({
   token: z.string().regex(/^[A-Za-z0-9_-]{20,128}$/, 'Invalid token shape'),
 });
+
+// Invitation ids are text ('inv_' + hex, see generateId), not uuids. Using
+// uuidParam here rejected every cancel/resend with a 400.
+const InvitationIdParam = z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{4,64}$/, 'Invalid invitation id') });
 
 export const invitationsRouter: Router = Router();
 
@@ -117,7 +131,7 @@ invitationsRouter.post(
 invitationsRouter.delete(
   '/:id',
   requireFeature('admin.users'),
-  validate({ params: uuidParam }),
+  validate({ params: InvitationIdParam }),
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
@@ -136,7 +150,7 @@ invitationsRouter.delete(
 invitationsRouter.post(
   '/:id/resend',
   requireFeature('admin.users'),
-  validate({ params: uuidParam }),
+  validate({ params: InvitationIdParam }),
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);

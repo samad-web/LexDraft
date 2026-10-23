@@ -66,24 +66,41 @@ interface UserRow {
  * Returns null when there's no match - the user will fall through to
  * baseline-only permissions, which is the safer default than guessing.
  */
-function systemRoleNameFor(roleText: string): string | null {
+export function systemRoleNameFor(roleText: string): string | null {
   switch (roleText) {
     case 'Solo Advocate':    return 'Solo Advocate';
     case 'Practice Lead':    return 'Practice Group Lead';
     case 'Managing Partner': return 'Firm Admin';
     case 'Firm Admin':       return 'Firm Admin';
+    // Invitation presets (InviteMemberModal). Before these were mapped,
+    // invited members landed with role_id = null and baseline-only access.
+    case 'Senior Associate': return 'Senior Associate';
+    case 'Associate':        return 'Associate';
+    case 'Junior Associate': return 'Associate';
+    case 'Of Counsel':       return 'Senior Associate';
+    case 'Paralegal':        return 'Paralegal';
     default:                 return null;
   }
 }
 
-async function resolveSystemRoleId(roleText: string): Promise<string | null> {
-  const name = systemRoleNameFor(roleText);
-  if (!name) return null;
+/** Role id for a role label: a system role via systemRoleNameFor, else a
+ *  firm-defined custom role of that name (created by an "Other" invite). */
+async function resolveSystemRoleId(roleText: string, firmId?: string | null): Promise<string | null> {
   const sql = db();
   if (!sql) return null;
+  const name = systemRoleNameFor(roleText);
+  if (name) {
+    const rows = await sql<Array<{ id: string }>>`
+      select id from roles
+      where firm_id is null and is_system = true and name = ${name}
+      limit 1
+    `;
+    return rows[0]?.id ?? null;
+  }
+  if (!firmId) return null;
   const rows = await sql<Array<{ id: string }>>`
     select id from roles
-    where firm_id is null and is_system = true and name = ${name}
+    where firm_id = ${firmId}::uuid and lower(name) = lower(${roleText})
     limit 1
   `;
   return rows[0]?.id ?? null;
@@ -238,7 +255,7 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
     // Resolve the system role id so the resolver's plan ∩ role intersection
     // actually grants this user something. Without role_id they'd see
     // baseline-only features.
-    const roleId = await resolveSystemRoleId(record.role);
+    const roleId = await resolveSystemRoleId(record.role, firmId);
     const rows = await sql<UserRow[]>`
       with inserted as (
         insert into users (

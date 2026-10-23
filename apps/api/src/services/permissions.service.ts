@@ -252,9 +252,16 @@ export async function resolveFeatures(userId: string): Promise<MeFeaturesRespons
         where pf.plan_tier = u.plan_tier and pf.enabled = true
       ),
       role_set as (
+        -- A firm custom role (e.g. "Office Manager" from an "Other" invite)
+        -- inherits its base system role's grants via roles.base_role_id.
         select rf.feature_key
         from role_features rf, u
-        where rf.role_id = u.role_id and rf.enabled = true
+        where rf.enabled = true
+          and rf.role_id in (
+            select u.role_id
+            union
+            select r.base_role_id from roles r where r.id = u.role_id and r.base_role_id is not null
+          )
       ),
       grant_overrides as (
         select feature_key from user_feature_overrides

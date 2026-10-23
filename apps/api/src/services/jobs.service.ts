@@ -182,6 +182,11 @@ interface EmailSendPayload {
   to: string;
   subject: string;
   body: string;
+  /** Display name shown as the sender, e.g. "Asha Rao (via LexDraft)". The
+   *  address stays EMAIL_FROM so SPF/DKIM pass. */
+  fromName?: string;
+  /** Where replies go - typically the acting user's sign-in email. */
+  replyTo?: string;
 }
 
 jobs.register<EmailSendPayload>('email.send', async (data) => {
@@ -189,7 +194,13 @@ jobs.register<EmailSendPayload>('email.send', async (data) => {
   // SMTP_HOST is configured, logs to stdout otherwise. Never throws; we
   // don't want a transient SMTP failure to crash the job queue.
   const { emailService } = await import('./email.service');
-  const ok = await emailService.send({ to: data.to, subject: data.subject, body: data.body });
+  const ok = await emailService.send({
+    to: data.to,
+    subject: data.subject,
+    body: data.body,
+    ...(data.fromName ? { fromName: data.fromName } : {}),
+    ...(data.replyTo ? { replyTo: data.replyTo } : {}),
+  });
   if (!ok && env.hasSmtp) {
     logger.warn({ to: data.to, subject: data.subject }, 'email.send: transport rejected');
   }

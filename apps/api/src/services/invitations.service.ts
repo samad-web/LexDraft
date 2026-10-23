@@ -5,14 +5,17 @@ import type {
   AcceptInvitationRequest,
   AuthResponse,
   CreateInvitationRequest,
+  CustomRoleAccess,
   Invitation,
   InvitationPublic,
   InvitationStatus,
-  InviteRole,
   User,
 } from '@lexdraft/types';
 import { env } from '../env';
 import { db } from '../db/client';
+import { jobs } from './jobs.service';
+import { logger } from '../logger';
+import { systemRoleNameFor } from './auth.service';
 
 const INVITATION_TTL_DAYS = 7;
 // Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
@@ -30,7 +33,7 @@ interface InvitationRow {
   id: string;
   firm_id: string | null;
   email: string;
-  role: InviteRole;
+  role: string;
   firm_name: string;
   invited_by_id: string | null;
   invited_by_name: string;
@@ -144,6 +147,76 @@ async function assertSeatCapNotExceeded(firmId: string | null): Promise<void> {
   }
 }
 
+const PRESET_ROLES = new Set([
+  'Managing Partner', 'Senior Associate', 'Associate', 'Junior Associate', 'Of Counsel', 'Paralegal',
+]);
+
+/**
+ * "Other" invites: the inviter names the role (e.g. "Office Manager") and picks
+ * the access level it inherits. Stored as a firm-scoped custom role whose
+ * base_role_id points at that system role; the permission resolver follows
+ * base_role_id. Reuses an existing firm role of the same name (case-insensitive)
+ * so inviting a second "Office Manager" doesn't fork the role.
+ */
+async function ensureCustomRole(firmId: string, name: string, access: CustomRoleAccess): Promise<string> {
+  const clean = name.replace(/\s+/g, ' ').trim();
+  if (clean.length < 2 || clean.length > 60) {
+    throw Object.assign(new Error('Role name must be 2 to 60 characters'), { status: 400 });
+  }
+  if (PRESET_ROLES.has(clean) || systemRoleNameFor(clean)) {
+    // A preset name typed into "Other" should just be that preset.
+    return clean;
+  }
+  const sql = db();
+  if (!sql) return clean;
+  const [system] = await sql<Array<{ id: string; name: string }>>`
+    select id, name from roles where firm_id is null and is_system = true and name = ${access} limit 1
+  `;
+  if (!system) throw Object.assign(new Error('Unknown access level'), { status: 400 });
+  const [clash] = await sql<Array<{ id: string }>>`
+    select id from roles where firm_id is null and is_system = true and lower(name) = lower(${clean}) limit 1
+  `;
+  if (clash) throw Object.assign(new Error(`"${clean}" is a built-in role name. Pick it from the list instead.`), { status: 400 });
+  await sql`
+    insert into roles (firm_id, name, description, is_system, base_role_id)
+    values (${firmId}::uuid, ${clean}, ${`Custom role with ${system.name} access`}, false, ${system.id}::uuid)
+    on conflict (firm_id, lower(name)) where firm_id is not null do nothing
+  `;
+  return clean;
+}
+
+/** Email the acceptance link. Returns false when SMTP isn't configured (the
+ *  mail would only be logged), so the UI can tell the inviter to share the
+ *  link themselves. Never throws - the invitation already exists. */
+async function sendInvitationEmail(inv: Invitation, replyTo?: string | null): Promise<boolean> {
+  if (!env.hasSmtp) return false;
+  const link = `${env.webPublicBaseUrl.replace(/\/+$/, '')}/invite/${inv.token}`;
+  try {
+    await jobs.enqueue('email.send', {
+      to: inv.email,
+      // Reads as coming from the inviter; replies reach their sign-in email.
+      fromName: `${inv.invitedBy.name} (via LexDraft)`,
+      ...(replyTo ? { replyTo } : {}),
+      subject: `${inv.invitedBy.name} invited you to join ${inv.firm} on LexDraft`,
+      body: [
+        `Hello,`,
+        ``,
+        `${inv.invitedBy.name} has invited you to join ${inv.firm} on LexDraft as ${inv.role}.`,
+        ...(inv.message ? [``, `"${inv.message}"`] : []),
+        ``,
+        `Accept the invitation and set your password here:`,
+        link,
+        ``,
+        `This link expires on ${new Date(inv.expiresAt).toDateString()}.`,
+      ].join('\n'),
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, invitationId: inv.id }, 'invitation email enqueue failed');
+    return false;
+  }
+}
+
 export const invitationsService = {
   async list(firmId: string | null): Promise<Invitation[]> {
     if (!firmId) return [];
@@ -179,6 +252,15 @@ export const invitationsService = {
     // an actionable 402 with the current usage in the error payload.
     await assertSeatCapNotExceeded(firmId);
 
+    let role: string = input.role;
+    if (input.role === 'Other') {
+      if (!input.customRoleName?.trim() || !input.accessLevel) {
+        throw Object.assign(new Error('Name the role and choose its access level'), { status: 400 });
+      }
+      if (!firmId) throw Object.assign(new Error('No firm attached'), { status: 422 });
+      role = await ensureCustomRole(firmId, input.customRoleName, input.accessLevel);
+    }
+
     const email = input.email.toLowerCase().trim();
     const id = generateId();
     const token = generateToken();
@@ -206,14 +288,15 @@ export const invitationsService = {
           id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
           status, token, expires_at, message
         ) values (
-          ${id}, ${persistedFirmId}, ${email}, ${input.role}, ${firm},
+          ${id}, ${persistedFirmId}, ${email}, ${role}, ${firm},
           ${inviterUuid}, ${inviter.name},
           'pending', ${token}, ${expiresAt}, ${input.message?.trim() || null}
         )
         returning id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
                   status, token, expires_at, accepted_at, message, created_at
       `;
-      return fromRow(rows[0]!);
+      const created = fromRow(rows[0]!);
+      return { ...created, emailSent: await sendInvitationEmail(created, inviter.email) };
     }
 
     for (const existing of memInvites.values()) {
@@ -228,7 +311,7 @@ export const invitationsService = {
     const inv: Invitation = {
       id,
       email,
-      role: input.role,
+      role,
       firm,
       invitedBy: { id: inviter.id, name: inviter.name },
       status: 'pending',
@@ -267,11 +350,13 @@ export const invitationsService = {
   async resend(id: string, firmId: string | null): Promise<Invitation | undefined> {
     if (!firmId) return undefined;
     const sql = db();
-    const newToken = generateToken();
+    // Keep the token: links the inviter already shared (WhatsApp etc.) must
+    // keep working. Only the expiry is extended. To kill a leaked link,
+    // cancel the invitation and invite again.
     const newExpires = isoPlusDays(INVITATION_TTL_DAYS);
     if (sql) {
       const rows = await sql<InvitationRow[]>`
-        update invitations set token = ${newToken}, expires_at = ${newExpires}
+        update invitations set expires_at = ${newExpires}
         where id = ${id}
           and status = 'pending'
           and firm_id = ${firmId}::uuid
@@ -279,16 +364,19 @@ export const invitationsService = {
                   status, token, expires_at, accepted_at, message, created_at
       `;
       const row = rows[0];
-      return row ? fromRow(row) : undefined;
+      if (!row) return undefined;
+      const refreshed = fromRow(row);
+      const [inviter] = row.invited_by_id
+        ? await sql<Array<{ email: string }>>`select email from users where id = ${row.invited_by_id}::uuid limit 1`
+        : [];
+      return { ...refreshed, emailSent: await sendInvitationEmail(refreshed, inviter?.email) };
     }
     const inv = memInvites.get(id);
     if (!inv || inv.status !== 'pending') return undefined;
     if (memInviteFirm.get(id) !== firmId) return undefined;
-    memByToken.delete(inv.token);
-    const refreshed: Invitation = { ...inv, token: newToken, expiresAt: newExpires };
+    const refreshed: Invitation = { ...inv, expiresAt: newExpires };
     memInvites.set(id, refreshed);
-    memByToken.set(refreshed.token, refreshed.id);
-    return refreshed;
+    return { ...refreshed, emailSent: false };
   },
 
   async lookupByToken(token: string): Promise<InvitationPublic> {

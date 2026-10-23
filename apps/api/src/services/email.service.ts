@@ -25,6 +25,10 @@ export interface EmailMessage {
   html?: string;
   /** Override the From address. Defaults to env.EMAIL_FROM. */
   from?: string;
+  /** Sender display name on the EMAIL_FROM address ("Asha Rao (via
+   *  LexDraft)"). We never send *as* a user's own mailbox: without that
+   *  mailbox's credentials the message fails SPF/DKIM and lands in spam. */
+  fromName?: string;
   /** Reply-To header. Useful for notifications that should route replies
    *  back to a human (e.g. "advocate@firm.com"). */
   replyTo?: string;
@@ -59,6 +63,12 @@ function defaultFrom(): string {
   return 'LexDraft <no-reply@lexdraft.local>';
 }
 
+/** "LexDraft <no-reply@x.com>" -> "no-reply@x.com"; a bare address passes through. */
+function fromAddress(from: string): string {
+  const m = /<([^>]+)>/.exec(from);
+  return (m ? m[1]! : from).trim();
+}
+
 function plainToHtml(body: string): string {
   // Cheap escape + line breaks; covers the vast majority of templates the API
   // sends today (engagement letters, invitations, reminders) without a full
@@ -88,7 +98,9 @@ export const emailService = {
     }
     try {
       await t.sendMail({
-        from: msg.from ?? defaultFrom(),
+        from: msg.from ?? (msg.fromName
+          ? { name: msg.fromName, address: fromAddress(defaultFrom()) }
+          : defaultFrom()),
         to: msg.to,
         subject: msg.subject,
         text: msg.body,

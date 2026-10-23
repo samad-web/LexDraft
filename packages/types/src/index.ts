@@ -893,12 +893,23 @@ export type InviteRole =
   | 'Of Counsel'
   | 'Paralegal';
 
+/** Access level a custom ("Other") role inherits its permissions from.
+ *  Firm Admin is deliberately not offered - invite as Managing Partner. */
+export type CustomRoleAccess =
+  | 'Partner'
+  | 'Senior Associate'
+  | 'Associate'
+  | 'Paralegal'
+  | 'Legal Secretary'
+  | 'Intern';
+
 export type InvitationStatus = 'pending' | 'accepted' | 'cancelled' | 'expired';
 
 export interface Invitation {
   id: ID;
   email: string;
-  role: InviteRole;
+  /** A preset InviteRole, or a firm-defined custom role name. */
+  role: string;
   firm: string;
   invitedBy: { id: ID; name: string };
   status: InvitationStatus;
@@ -910,12 +921,15 @@ export interface Invitation {
   acceptedAt?: string;
   /** Optional personal note from the inviter. */
   message?: string;
+  /** Set on create/resend: true when the link was emailed (SMTP configured),
+   *  false when the inviter has to share the link themselves. */
+  emailSent?: boolean;
 }
 
 /** Public payload safe to expose by token (no internal firm/user IDs). */
 export interface InvitationPublic {
   email: string;
-  role: InviteRole;
+  role: string;
   firm: string;
   invitedBy: string;
   expiresAt: string;
@@ -924,7 +938,10 @@ export interface InvitationPublic {
 
 export interface CreateInvitationRequest {
   email: string;
-  role: InviteRole;
+  /** A preset role, or 'Other' together with customRoleName + accessLevel. */
+  role: InviteRole | 'Other';
+  customRoleName?: string;
+  accessLevel?: CustomRoleAccess;
   message?: string;
 }
 
