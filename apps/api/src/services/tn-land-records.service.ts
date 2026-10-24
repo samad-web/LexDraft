@@ -147,6 +147,9 @@ interface Session {
   mobile: string | null;
   /** What the advocate searched, kept for the filing label. */
   summary: Record<string, string>;
+  /** Dropdown values picked so far, in order - re-applied when the site
+   *  posts back its form with them cleared (wrong captcha). */
+  picks: Partial<Record<LandListField, string>>;
   result: LandResult | null;
   pdf: Buffer | null;
 }
@@ -159,6 +162,9 @@ export class LandRecordsError extends HttpError {
 }
 
 const sessions = new Map<string, Session>();
+/** Per-advocate count of session opens - lets an older, replaced open bow out. */
+const startGen = new Map<string, number>();
+export const SUPERSEDED = 'Replaced by a newer Land Records search.';
 
 function touch(s: Session): void {
   clearTimeout(s.idleTimer);
@@ -204,16 +210,21 @@ async function setField(page: Page, selector: string, value: string): Promise<vo
   const el = await page.$(selector);
   if (!el) throw new LandRecordsError(502, `The Land Records page layout has changed (missing ${selector}).`);
   const tag = await el.evaluate((e: { tagName: string }) => e.tagName.toLowerCase());
-  try {
-    if (tag === 'select') await page.selectOption(selector, value, { timeout: 5_000 });
-    else {
-      await page.fill(selector, value, { timeout: 5_000 });
-      // Text fields load lists on change (survey -> sub divisions).
-      await page.dispatchEvent(selector, 'change');
+  // A hidden control would make fill/selectOption wait out their timeout
+  // (5 s seen live on Patta's survey box) - go straight to the fallback.
+  const visible = await el.isVisible().catch(() => false);
+  if (visible) {
+    try {
+      if (tag === 'select') await page.selectOption(selector, value, { timeout: 5_000 });
+      else {
+        await page.fill(selector, value, { timeout: 5_000 });
+        // Text fields load lists on change (survey -> sub divisions).
+        await page.dispatchEvent(selector, 'change');
+      }
+      return;
+    } catch {
+      /* not interactable after all - fall back below */
     }
-    return;
-  } catch {
-    /* hidden - fall back below */
   }
   await page.evaluate(({ selector, value }) => {
     const e = document.querySelector(selector);
@@ -416,10 +427,13 @@ export function prepareLandRecords(): void {
 /** The ready home page if there is a fresh one, else load one now. */
 async function takeHome(): Promise<HomePage> {
   lastUse = Date.now();
-  const ready = warm ? await warm : null;
+  // Claim the ready page BEFORE awaiting it - two opens arriving together
+  // must never share one page (the replaced one closes it).
+  const claimed = warm;
   warm = null;
   // Prepare the next one straight away.
   void refreshWarm();
+  const ready = claimed ? await claimed : null;
   if (ready && Date.now() - ready.loadedAt < WARM_MAX_AGE_MS && !ready.page.isClosed()) return ready;
   if (ready) void ready.context.close().catch(() => {});
   return openHome();
@@ -431,19 +445,29 @@ async function takeHome(): Promise<HomePage> {
  */
 export async function startLandSession(userId: string, service: LandService): Promise<LandSessionStart> {
   const cfg = LAND_SERVICES[service];
+  // One live session per advocate: a newer open replaces this one, and this
+  // request then ends quietly (409) instead of reporting the site as down.
+  const gen = (startGen.get(userId) ?? 0) + 1;
+  startGen.set(userId, gen);
+  const superseded = () => startGen.get(userId) !== gen;
   for (const s of [...sessions.values()]) if (s.userId === userId) await closeSession(s.id);
 
   let home: HomePage;
   try {
     home = await takeHome();
+    if (superseded()) {
+      void home.context.close().catch(() => {});
+      throw new LandRecordsError(409, SUPERSEDED);
+    }
   } catch (err) {
+    if (err instanceof LandRecordsError) throw err;
     logger.warn({ err, service }, 'tn-land: home page load failed');
     throw new LandRecordsError(502, 'Could not reach Land Records (eservices.tn.gov.in) right now. Try again in a few minutes.');
   }
   const { browser, context, page } = home;
   const session: Session = {
     id: randomUUID(), userId, service, browser, context, page, dialogs: home.dialogs,
-    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, result: null, pdf: null,
+    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, picks: {}, result: null, pdf: null,
   };
   sessions.set(session.id, session);
   touch(session);
@@ -479,6 +503,7 @@ export async function startLandSession(userId: string, service: LandService): Pr
     return out;
   } catch (err) {
     await closeSession(session.id);
+    if (superseded()) throw new LandRecordsError(409, SUPERSEDED);
     if (err instanceof LandRecordsError) throw err;
     logger.warn({ err, service }, 'tn-land: page load failed');
     throw new LandRecordsError(502, 'Could not reach Land Records (eservices.tn.gov.in) right now. Try again in a few minutes.');
@@ -519,6 +544,9 @@ export async function selectLandField(sessionId: string, userId: string, field: 
     }, SELECT_ID[next]);
   }
   await setField(s.page, SELECT_ID[field], value);
+  const order: LandListField[] = ['district', 'taluk', 'village', 'ward', 'block', 'survey', 'subdiv'];
+  for (const later of order.slice(order.indexOf(field) + 1)) delete s.picks[later];
+  s.picks[field] = value;
   const options = next ? await waitForOptions(s.page, SELECT_ID[next], next) : [];
   const out: LandSelectResult = { next, options };
   if (cfg.form === 'rural' && field === 'taluk') out.askLandType = value.split('/')[1] === 'Y';
@@ -538,6 +566,13 @@ export async function loadSubdivisions(sessionId: string, userId: string, survey
     const el = document.getElementById('subdivNo');
     if (el) el.innerHTML = '<option value="">Please Select ...</option>';
   });
+  // Patta shows the survey box only after 'View Patta/Chitta using: Survey Number'.
+  if (s.service === 'patta') {
+    await s.page.evaluate(() => {
+      const r = document.querySelector('input[name="viewOpt"][value="sur"]');
+      if (r && !r.checked) r.click();
+    });
+  }
   await setField(s.page, '#surveyNo', surveyNo.trim());
   const options = await waitForOptions(s.page, SELECT_ID.subdiv, 'subdiv');
   const msg = lastDialog(s, from);
@@ -556,8 +591,29 @@ async function applyLandType(s: Session, landType: 'R' | 'N'): Promise<void> {
   }, landType);
 }
 
+/** After a post-back the site's form comes back with its lists reset; pick
+ *  the advocate's values again, waiting for each list the site reloads. */
+async function reapplyPicks(s: Session): Promise<void> {
+  if (!s.picks.district) return;
+  const current = await s.page.evaluate(() => document.getElementById('districtCode')?.value ?? '').catch(() => '');
+  if (current === s.picks.district) return;
+  await waitForOptions(s.page, SELECT_ID.district, 'district');
+  for (const field of ['district', 'taluk', 'village', 'ward', 'block', 'survey', 'subdiv'] as LandListField[]) {
+    const value = s.picks[field];
+    if (!value) break;
+    await waitForValue(s.page, SELECT_ID[field], value);
+    await setField(s.page, SELECT_ID[field], value);
+  }
+}
+
+async function waitForValue(page: Page, selector: string, value: string): Promise<void> {
+  await page.waitForFunction(({ selector, value }) => [...(document.querySelectorAll(selector + ' option') as Iterable<{ value: string }>)].some((o) => o.value === value),
+    { selector, value }, { timeout: STEP_TIMEOUT_MS }).catch(() => { throw new LandRecordsError(502, 'Land Records did not reload its lists - start again.'); });
+}
+
 /** Fill the advocate's text fields into the site's form. */
 async function fillForm(s: Session, f: LandFormFields): Promise<void> {
+  await reapplyPicks(s);
   const cfg = LAND_SERVICES[s.service];
   const { page } = s;
   if (cfg.form === 'appid') {
@@ -726,10 +782,15 @@ async function submitAndRead(s: Session): Promise<LandResult> {
   const cfg = LAND_SERVICES[s.service];
   const { page } = s;
   const from = s.dialogs.length;
-  const startUrl = page.url();
   const popup = cfg.popup ? s.context.waitForEvent('page', { timeout: 40_000 }).catch(() => null) : null;
   const download = page.waitForEvent('download', { timeout: 40_000 }).catch(() => null);
-  const nav = page.waitForURL((u) => u.toString() !== startUrl, { timeout: 40_000 }).catch(() => null);
+  // Any new document in the main frame counts - the site posts back to the
+  // same URL on a second try, so "URL changed" is not enough.
+  const nav = page.waitForEvent('framenavigated', { predicate: (f) => f === page.mainFrame(), timeout: 40_000 })
+    .then(async () => {
+      await page.waitForLoadState('domcontentloaded', { timeout: 30_000 }).catch(() => {});
+      return true;
+    }, () => false);
 
   await page.evaluate(() => {
     const btn = document.querySelector('form input[type="submit"], form button[type="submit"]');
@@ -740,10 +801,10 @@ async function submitAndRead(s: Session): Promise<LandResult> {
   if (cfg.popup) {
     // FMB / TSLR sketch: the site asks Collabland for a token and opens the
     // sketch in a new window - keep that window's document.
-    const opened = await Promise.race([popup, nav.then(() => null)]);
+    const opened = await Promise.race([popup, nav.then((moved) => (moved ? null : new Promise<null>(() => {})))]);
     if (opened) return readPopup(s, opened);
   }
-  const navigated = await Promise.race([nav, download.then(() => null)]);
+  const navigated = await Promise.race([nav, download.then(() => false)]);
   const dl = navigated ? null : await Promise.race([download, page.waitForTimeout(1500).then(() => null)]);
   if (dl) {
     const path = await dl.path();
@@ -758,8 +819,15 @@ async function submitAndRead(s: Session): Promise<LandResult> {
     const msg = lastDialog(s, from);
     throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'Land Records did not answer - try again.');
   }
-  await page.waitForLoadState('load');
-  await page.waitForTimeout(800);
+  // The site posts back to its form with an inline message when it rejects
+  // the input ("Incorrect Value(enter the same as shown)" for a wrong captcha).
+  const rejected = await page.evaluate(() => {
+    const t = (document.body?.innerText ?? '').replace(/\s+/g, ' ');
+    const m = /Incorrect Value\s*\(enter the same as shown\)|Invalid (?:captcha|authentication value)/i.exec(t);
+    return m ? m[0] : null;
+  }).catch(() => null);
+  if (rejected && (await page.$('#captcha, #captEntr'))) throw new LandRecordsError(400, `Land Records: ${rejected}`);
+  await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
   return readResultPage(s);
 }
 
@@ -880,4 +948,19 @@ process.on('beforeExit', () => {
 });
 
 /** Visible for tests. */
-export const __testing = { nextList, readResultPage };
+export const __testing = {
+  nextList,
+  /** Read a result page that is already open in `page` (fixture tests). */
+  readResultFromPage: (page: Page, service: LandService = 'patta') => readResultPage({
+    id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, result: null, pdf: null, mobile: null,
+    browser: null as unknown as Browser, context: null as unknown as BrowserContext, idleTimer: setTimeout(() => {}, 0),
+  }),
+  /** Give a live session a result + PDF without the OTP (e2e: filing flow). */
+  setSessionResult: (sessionId: string, result: LandResult, pdf: Buffer, summary: Record<string, string>) => {
+    const s = sessions.get(sessionId);
+    if (!s) throw new Error('no such session');
+    s.result = result;
+    s.pdf = pdf;
+    Object.assign(s.summary, summary);
+  },
+};

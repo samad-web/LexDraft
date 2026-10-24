@@ -26,7 +26,9 @@ import { LandResultPanel } from './LandResultPanel';
 
 const MOBILE_KEY = 'lexdraft.landRecords.mobile';
 const APP_ID_RE = /^[0-9]{4}\/[A-Z0-9][0-9]{3}\/[0-9]{2}\/[0-9]{6}$/;
-const SURVEY_RE = /^[1-9][0-9A-Za-z/-]{0,5}$/;
+/** Land Records keeps an OTP valid for 2 minutes (its own countdown). */
+const OTP_VALID_SEC = 120;
+const SURVEY_RE =/^[1-9][0-9A-Za-z/-]{0,5}$/;
 
 type Lists = Partial<Record<LandListField, LandOption[]>>;
 type Picks = Partial<Record<LandListField, string>>;
@@ -88,26 +90,55 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   const [result, setResult] = useState<LandResult | null>(null);
   const sessionRef = useRef<string | null>(null);
   const loadedSurvey = useRef<string | null>(null);
+  const captchaInput = useRef<HTMLInputElement | null>(null);
+  /** When the current OTP was sent (ms) - drives the 2-minute countdown. */
+  const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!otpSentAt) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [otpSentAt]);
+  const otpLeft = otpSentAt ? Math.max(0, OTP_VALID_SEC - Math.floor((now - otpSentAt) / 1000)) : 0;
+  // Put the cursor in the captcha box whenever a (new) captcha arrives.
+  useEffect(() => { if (captchaImg) captchaInput.current?.focus(); }, [captchaImg]);
+
+  /** Bumped on every open and on leave: an answer for an older open is stale. */
+  const attempt = useRef(0);
 
   const open = (): void => {
     setSession(null); setLists({}); setPicks({}); setAskLandType(false); setLandType('');
     setSurveyNo(''); setSubdivText(''); setOtpSent(null); setOtp(''); setCaptcha(''); setResult(null);
-    setMessage(null); setExpired(false);
-    start.mutate(service, {
-      onSuccess: (s) => {
+    setCaptchaImg(null); setMessage(null); setExpired(false);
+    const mine = ++attempt.current;
+    start.mutateAsync(service).then(
+      (s) => {
+        // Left the screen (or reopened) meanwhile: close the session it made.
+        if (mine !== attempt.current) { end.mutate(s.sessionId); return; }
         sessionRef.current = s.sessionId;
         setSession(s);
         setLists({ district: s.districts });
         setCaptchaImg(s.captchaImage ?? null);
       },
-      onError: (err) => setMessage(errorText(err, 'Could not reach Land Records.')),
-    });
+      (err) => {
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        // 409 = replaced by a newer open of ours - nothing to tell the advocate.
+        if (mine !== attempt.current || status === 409) return;
+        setMessage(errorText(err, 'Could not reach Land Records.'));
+      },
+    );
   };
 
   // Open the site's page for this service; close the browser on leave.
   useEffect(() => {
-    open();
+    // Deferred a tick so a mount that is torn down at once (React StrictMode
+    // in dev, or a quick back-and-forth) never sends a second open - each
+    // extra open used up the page the server had ready.
+    const timer = setTimeout(open, 0);
     return () => {
+      clearTimeout(timer);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- a plain counter, meant to be the live value
+      attempt.current++;
       if (sessionRef.current) end.mutate(sessionRef.current);
       sessionRef.current = null;
     };
@@ -218,21 +249,35 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
     setMessage(null);
     sendOtp.mutate(
       { sessionId: session.sessionId, mobile, fields: fields() },
-      { onSuccess: (r) => { setOtpSent(r.message); setOtp(''); }, onError: (err) => fail(err, 'Land Records did not send the OTP.') },
+      { onSuccess: (r) => { setOtpSent(r.message); setOtp(''); setOtpSentAt(Date.now()); setNow(Date.now()); }, onError: (err) => fail(err, 'Land Records did not send the OTP.') },
     );
   };
 
-  const onConfirmOtp = (e: FormEvent): void => {
-    e.preventDefault();
-    if (!session || !/^\d{6}$/.test(otp)) return;
+  /** Fetch the record with this OTP (on Confirm, or as soon as 6 digits are in). */
+  const verifyCode = (code: string): void => {
+    if (!session || !/^\d{6}$/.test(code) || verifyOtp.isPending) return;
     setMessage(null);
     verifyOtp.mutate(
-      { sessionId: session.sessionId, otp },
+      { sessionId: session.sessionId, otp: code },
       {
         onSuccess: (r) => { if (r.status === 'ok') setResult(r.result); },
         onError: (err) => fail(err, 'The OTP was not accepted.'),
       },
     );
+  };
+
+  const onConfirmOtp = (e: FormEvent): void => {
+    e.preventDefault();
+    verifyCode(otp);
+  };
+
+  /** Typed, picked from the phone's SMS suggestion, or pasted ("Your OTP is
+   *  123456 ..."): keep the 6 digits, and fetch as soon as they are in. */
+  const onOtpInput = (raw: string): void => {
+    const digits = raw.replace(/\D/g, '');
+    const code = digits.length > 6 ? (/\b(\d{6})\b/.exec(raw)?.[1] ?? digits.slice(0, 6)) : digits;
+    setOtp(code);
+    if (code.length === 6) verifyCode(code);
   };
 
   const onSubmitCaptcha = (e: FormEvent): void => {
@@ -424,25 +469,31 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                 value={mobile}
                 onChange={(e) => { setMobile(e.target.value.replace(/\D/g, '')); setOtpSent(null); }}
               />
-              <button type="button" className="btn" disabled={!ready || !/^[6-9]\d{9}$/.test(mobile) || sendOtp.isPending} onClick={onGetOtp}>
+              <button type="button" className="btn" disabled={!ready || !/^[6-9]\d{9}$/.test(mobile) || sendOtp.isPending || (Boolean(otpSent) && otpLeft > 0)} onClick={onGetOtp}>
                 {sendOtp.isPending ? 'Sending…' : otpSent ? 'Resend OTP' : 'Get OTP'}
               </button>
             </div>
             {!ready && session ? <span className="body-sm muted">Fill the details above, then Get OTP. Land Records texts the OTP to this number.</span> : null}
             {otpSent ? (
               <form className="col" style={{ gap: 10 }} onSubmit={onConfirmOtp}>
-                <span className="body-sm">{otpSent}</span>
+                <span className="body-sm">
+                  {otpSent}{' '}
+                  {otpLeft > 0
+                    ? <span className="muted tabular">Valid for {Math.floor(otpLeft / 60)}:{String(otpLeft % 60).padStart(2, '0')}</span>
+                    : <b>OTP expired - use Resend OTP.</b>}
+                </span>
                 <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <input
                     className="input"
                     style={{ maxWidth: 220 }}
                     inputMode="numeric"
-                    maxLength={6}
+                    autoComplete="one-time-code"
                     placeholder="OTP(6 digit)"
                     aria-label="OTP(6 digit)"
                     autoFocus
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                    disabled={verifyOtp.isPending}
+                    onChange={(e) => onOtpInput(e.target.value)}
                   />
                   <button type="submit" className="btn btn-primary" disabled={otp.length !== 6 || verifyOtp.isPending}>
                     {verifyOtp.isPending ? 'Fetching…' : 'Confirm OTP'}
@@ -458,14 +509,24 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
             <span className="body-sm" style={{ fontWeight: 600 }}>Enter authentication Value:</span>
             <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {captchaImg ? (
-                <img src={captchaImg} alt="Captcha from Land Records" style={{ height: 44, borderRadius: 4, border: '1px solid var(--border-default)', background: '#fff' }} />
+                <img src={captchaImg} alt="Captcha from Land Records" style={{ height: 56, borderRadius: 4, border: '1px solid var(--border-default)', background: '#fff' }} />
               ) : (
-                <span className="body-sm muted" style={{ height: 44, minWidth: 120, display: 'inline-grid', placeItems: 'center', borderRadius: 4, border: '1px dashed var(--border-default)' }}>
+                <span className="body-sm muted" style={{ height: 56, minWidth: 150, display: 'inline-grid', placeItems: 'center', borderRadius: 4, border: '1px dashed var(--border-default)' }}>
                   {start.isPending ? 'Loading…' : '—'}
                 </span>
               )}
               <button type="button" className="btn btn-ghost btn-sm" onClick={onRefreshCaptcha} disabled={refreshCaptcha.isPending} aria-label="New captcha">↻</button>
-              <input className="input" style={{ maxWidth: 160 }} value={captcha} onChange={(e) => setCaptcha(e.target.value)} aria-label="Authentication value" />
+              <input
+                ref={captchaInput}
+                className="input"
+                style={{ maxWidth: 160, fontSize: 18, letterSpacing: '0.08em' }}
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder="Answer"
+                value={captcha}
+                onChange={(e) => setCaptcha(e.target.value.replace(/[^0-9]/g, ''))}
+                aria-label="Authentication value"
+              />
             </div>
             <div className="row" style={{ justifyContent: 'center' }}>
               <button type="submit" className="btn btn-primary" style={{ minWidth: 140 }} disabled={!ready || !captcha.trim() || submitCaptcha.isPending}>
