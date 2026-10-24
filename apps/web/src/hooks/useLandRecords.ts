@@ -102,10 +102,16 @@ export function useSendLandOtp() {
   });
 }
 
+/** OTP confirmed: the record - or, for Order Copy / Verify Patta, the
+ *  captcha the site asks for next (finish with useSubmitLandCaptcha). */
+export type LandOtpVerify =
+  | { status: 'ok'; result: LandResult }
+  | { status: 'captcha'; captchaImage: string };
+
 export function useVerifyLandOtp() {
   return useMutation({
     mutationFn: ({ sessionId, otp }: { sessionId: string; otp: string }) =>
-      api.post<LandSubmit>(`${BASE}/sessions/${sessionId}/otp/verify`, { otp }),
+      api.post<LandOtpVerify>(`${BASE}/sessions/${sessionId}/otp/verify`, { otp }),
   });
 }
 

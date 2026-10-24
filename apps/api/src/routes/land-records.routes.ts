@@ -130,7 +130,9 @@ landRecordsRouter.post(
   validate({ params: SessionParam, body: z.object({ otp: z.string().regex(/^\d{6}$/, 'The OTP is 6 digits') }) }),
   async (req, res, next) => {
     try {
-      res.json({ status: 'ok', result: await land.verifyLandOtp(sessionId(req), userId(req), req.body.otp) });
+      // { status: 'ok', result } or, for Order Copy / Verify Patta,
+      // { status: 'captcha', captchaImage } - finish via /captcha.
+      res.json(await land.verifyLandOtp(sessionId(req), userId(req), req.body.otp));
     } catch (err) {
       next(err);
     }

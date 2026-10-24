@@ -91,6 +91,9 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   const sessionRef = useRef<string | null>(null);
   const loadedSurvey = useRef<string | null>(null);
   const captchaInput = useRef<HTMLInputElement | null>(null);
+  const verifying = useRef(false);
+  /** Order Copy / Verify Patta: OTP confirmed, the site now wants its captcha. */
+  const [otpCaptcha, setOtpCaptcha] = useState(false);
   /** When the current OTP was sent (ms) - drives the 2-minute countdown. */
   const [otpSentAt, setOtpSentAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -109,7 +112,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   const open = (): void => {
     setSession(null); setLists({}); setPicks({}); setAskLandType(false); setLandType('');
     setSurveyNo(''); setSubdivText(''); setOtpSent(null); setOtp(''); setCaptcha(''); setResult(null);
-    setCaptchaImg(null); setMessage(null); setExpired(false);
+    setCaptchaImg(null); setMessage(null); setExpired(false); setOtpCaptcha(false); setOtpSentAt(null);
     const mine = ++attempt.current;
     start.mutateAsync(service).then(
       (s) => {
@@ -146,8 +149,14 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   }, [service]);
 
   const fail = (err: unknown, fallback: string): void => {
-    const status = (err as { response?: { status?: number } })?.response?.status;
-    if (status === 404) setExpired(true);
+    const res = (err as { response?: { status?: number; data?: { code?: string } } })?.response;
+    // Another step for this search is still running - its own answer follows.
+    if (res?.data?.code === 'BUSY') return;
+    if (res?.status === 404) setExpired(true);
+    // The site refused the OTP (or reset its form): start the OTP step over.
+    if (res?.data?.code === 'OTP_REJECTED') {
+      setOtpSent(null); setOtp(''); setOtpSentAt(null); setOtpCaptcha(false); setCaptchaImg(null);
+    }
     setMessage(errorText(err, fallback));
   };
 
@@ -255,13 +264,20 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
 
   /** Fetch the record with this OTP (on Confirm, or as soon as 6 digits are in). */
   const verifyCode = (code: string): void => {
-    if (!session || !/^\d{6}$/.test(code) || verifyOtp.isPending) return;
+    // A ref, not isPending: the 6th digit and a Confirm/Enter can land in the
+    // same tick, and a second confirm spends the OTP the first one used.
+    if (!session || !/^\d{6}$/.test(code) || verifying.current) return;
+    verifying.current = true;
     setMessage(null);
     verifyOtp.mutate(
       { sessionId: session.sessionId, otp: code },
       {
-        onSuccess: (r) => { if (r.status === 'ok') setResult(r.result); },
+        onSuccess: (r) => {
+          if (r.status === 'ok') setResult(r.result);
+          else { setOtpCaptcha(true); setCaptchaImg(r.captchaImage); setCaptcha(''); }
+        },
         onError: (err) => fail(err, 'The OTP was not accepted.'),
+        onSettled: () => { verifying.current = false; },
       },
     );
   };
@@ -474,7 +490,8 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
               </button>
             </div>
             {!ready && session ? <span className="body-sm muted">Fill the details above, then Get OTP. Land Records texts the OTP to this number.</span> : null}
-            {otpSent ? (
+            {otpCaptcha ? <span className="body-sm" style={{ fontWeight: 600 }}>OTP confirmed. Now enter the authentication value below.</span> : null}
+            {otpSent && !otpCaptcha ? (
               <form className="col" style={{ gap: 10 }} onSubmit={onConfirmOtp}>
                 <span className="body-sm">
                   {otpSent}{' '}
@@ -504,7 +521,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
           </div>
         ) : null}
 
-        {gate === 'captcha' ? (
+        {gate === 'captcha' || otpCaptcha ? (
           <form className="col" style={{ gap: 10 }} onSubmit={onSubmitCaptcha}>
             <span className="body-sm" style={{ fontWeight: 600 }}>Enter authentication Value:</span>
             <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

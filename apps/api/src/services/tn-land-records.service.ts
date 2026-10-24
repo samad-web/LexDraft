@@ -77,15 +77,18 @@ interface ServiceConfig {
   captchaInput?: string;
   /** The result opens in a new window (FMB / TSLR sketch via Collabland). */
   popup?: boolean;
+  /** OTP services whose Submit block, revealed after the OTP is confirmed,
+   *  also holds a captcha (Order Copy: #captEntr, Verify Patta: #captcha). */
+  captchaAfterOtp?: string;
 }
 
 export const LAND_SERVICES: Record<LandService, ServiceConfig> = {
   'patta':        { href: 'land/chittaCheckNewRural_en.html', title: 'View Patta / Chitta / FMB - (Rural / Natham)', gate: 'otp', action: 'AC01', form: 'rural' },
   'a-register':   { href: 'land/areg.html', title: 'View A-Register Extract - (Rural / Natham)', gate: 'otp', action: 'AC02', form: 'rural' },
-  'verify-patta': { href: 'land/verify_chitta.html', title: 'Verify Patta / Chitta - (Rural / Natham)', gate: 'otp', action: 'AC07', form: 'refno' },
+  'verify-patta': { href: 'land/verify_chitta.html', title: 'Verify Patta / Chitta - (Rural / Natham)', gate: 'otp', action: 'AC07', form: 'refno', captchaAfterOtp: '#captcha' },
   'poramboke':    { href: 'land/poramboke.html', title: 'Verify Government / Private (Poramboke) Land', gate: 'captcha', form: 'rural-plain', captchaInput: '#captcha' },
   'fmb':          { href: 'land/chittaCheckNewRuralFMB_en.html', title: 'FMB Sketch - (Rural / Natham)', gate: 'otp', action: 'AC03', form: 'rural', popup: true },
-  'order-copy':   { href: 'land/orderCopy.html', title: 'View Patta Order Copy', gate: 'otp', action: 'AC06', form: 'appid' },
+  'order-copy':   { href: 'land/orderCopy.html', title: 'View Patta Order Copy', gate: 'otp', action: 'AC06', form: 'appid', captchaAfterOtp: '#captEntr' },
   'tslr-extract': { href: 'land/chittaCheckNewUrban_en.html', title: 'TSLR Extract', gate: 'otp', action: 'AC04', form: 'urban' },
   'tslr-sketch':  { href: 'land/chittaCheckNewUrbanFMB_en.html', title: 'TSLR Sketch - Urban', gate: 'otp', action: 'AC05', form: 'urban', popup: true },
   'app-status':   { href: 'login/Appstatus.html', title: 'Application Status', gate: 'captcha', form: 'appid', captchaInput: '#captEntr' },
@@ -150,14 +153,32 @@ interface Session {
   /** Dropdown values picked so far, in order - re-applied when the site
    *  posts back its form with them cleared (wrong captcha). */
   picks: Partial<Record<LandListField, string>>;
+  /** A site step (OTP, captcha, submit) is in progress. */
+  busy: boolean;
+  /** The OTP sent last was confirmed by the site (reset on every send). */
+  otpVerified: boolean;
   result: LandResult | null;
   pdf: Buffer | null;
 }
 
 export class LandRecordsError extends HttpError {
-  constructor(status: number, message: string) {
+  /** code: LAND_RECORDS, or a specific one the screen acts on -
+   *  OTP_REJECTED (get a new OTP), CAPTCHA_REJECTED, BUSY. */
+  constructor(status: number, message: string, code = 'LAND_RECORDS') {
     // Operator-authored messages - safe to show even for 5xx.
-    super(status, message, { code: 'LAND_RECORDS', expose: true });
+    super(status, message, { code, expose: true });
+  }
+}
+
+/** Run one site step at a time per session - a second OTP / captcha / submit
+ *  while one is running would race the site's token chain. */
+async function exclusive<T>(s: Session, fn: () => Promise<T>): Promise<T> {
+  if (s.busy) throw new LandRecordsError(409, 'Already working on this - wait a moment.', 'BUSY');
+  s.busy = true;
+  try {
+    return await fn();
+  } finally {
+    s.busy = false;
   }
 }
 
@@ -467,7 +488,7 @@ export async function startLandSession(userId: string, service: LandService): Pr
   const { browser, context, page } = home;
   const session: Session = {
     id: randomUUID(), userId, service, browser, context, page, dialogs: home.dialogs,
-    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, picks: {}, result: null, pdf: null,
+    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null,
   };
   sessions.set(session.id, session);
   touch(session);
@@ -652,7 +673,16 @@ async function fillForm(s: Session, f: LandFormFields): Promise<void> {
     }
     // Survey + sub division were picked through loadSubdivisions; set the
     // sub division last in case the survey change reset it.
-    if (f.subdivNo) await setField(page, '#subdivNo', f.subdivNo);
+    if (f.subdivNo) {
+      // A posted-back form (after a rejected OTP) lost its sub division list:
+      // type the survey number again so the site reloads it.
+      const listed = await page.evaluate((v) => [...(document.querySelectorAll('#subdivNo option') as Iterable<{ value: string }>)].some((o) => o.value === v), f.subdivNo);
+      if (!listed && f.surveyNo) {
+        await setField(page, '#surveyNo', f.surveyNo.trim());
+        await waitForValue(page, SELECT_ID.subdiv, f.subdivNo);
+      }
+      await setField(page, '#subdivNo', f.subdivNo);
+    }
     if (f.surveyNo) s.summary['Survey Number'] = `${f.surveyNo.trim()}${f.subdivNo && f.subdivNo !== '-' ? `/${f.subdivNo}` : ''}`;
     return;
   }
@@ -689,48 +719,108 @@ export async function sendLandOtp(sessionId: string, userId: string, mobile: str
   const cfg = LAND_SERVICES[s.service];
   if (cfg.gate !== 'otp' || !cfg.action) throw new LandRecordsError(400, 'This service uses a captcha, not an OTP.');
   if (!MOBILE_RE.test(mobile)) throw new LandRecordsError(400, 'Enter a 10-digit mobile number.');
-  await fillForm(s, fields);
-  await readLocation(s);
-  await setField(s.page, '#mobileno', mobile);
-  s.mobile = mobile;
-  const from = s.dialogs.length;
-  const response = s.page.waitForResponse((r) => /ajax\.html\?page=otp/i.test(r.url()), { timeout: 25_000 }).catch(() => null);
-  await s.page.evaluate(({ mobile, action }) => {
-    if (typeof window.otpgenerate === 'function') setTimeout(() => window.otpgenerate(mobile, action, 'en'), 0);
-  }, { mobile, action: cfg.action });
-  const res = await response;
-  await s.page.waitForTimeout(800);
-  const shown = await isVisible(s.page, '#otpcodeview');
-  const msg = lastDialog(s, from);
-  if (!shown) {
-    if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`);
-    throw new LandRecordsError(res ? 400 : 504, res ? 'Land Records did not send the OTP. Check the details and try again.' : 'Land Records did not answer - try again.');
-  }
-  const sms = await s.page.evaluate(() => (document.getElementById('smsmsg')?.innerText ?? '').replace(/\s+/g, ' ').trim());
-  return { message: sms || `OTP sent to XXXXXX${mobile.slice(6)}.` };
+  return exclusive(s, async () => {
+    await fillForm(s, fields);
+    await readLocation(s);
+    // The site disables these after a confirmed OTP; a resend starts afresh.
+    await s.page.evaluate(() => {
+      for (const id of ['mobileno', 'otpno', 'sendtpid']) { const el = document.getElementById(id); if (el) el.disabled = false; }
+    });
+    await setField(s.page, '#mobileno', mobile);
+    s.mobile = mobile;
+    s.otpVerified = false;
+    const from = s.dialogs.length;
+    const response = s.page.waitForResponse((r) => /ajax\.html\?page=otp/i.test(r.url()), { timeout: 25_000 }).catch(() => null);
+    // Click the site's own "Get OTP" (its onclick runs otpgenerate with the
+    // form's values); fall back to the same call if the button is hidden.
+    await s.page.evaluate(({ mobile, action }) => {
+      const b = document.getElementById('sendtpid');
+      if (b && b.offsetParent !== null) setTimeout(() => b.click(), 0);
+      else if (typeof window.otpgenerate === 'function') setTimeout(() => window.otpgenerate(mobile, action, 'en'), 0);
+    }, { mobile, action: cfg.action });
+    const res = await response;
+    await s.page.waitForTimeout(800);
+    const shown = await isVisible(s.page, '#otpcodeview');
+    const msg = lastDialog(s, from);
+    if (!shown) {
+      if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`);
+      throw new LandRecordsError(res ? 400 : 504, res ? 'Land Records did not send the OTP. Check the details and try again.' : 'Land Records did not answer - try again.');
+    }
+    const sms = await s.page.evaluate(() => (document.getElementById('smsmsg')?.innerText ?? '').replace(/\s+/g, ' ').trim());
+    return { message: sms || `OTP sent to XXXXXX${mobile.slice(6)}.` };
+  });
 }
 
 /** Confirm the OTP, submit the form, and read the result. */
-export async function verifyLandOtp(sessionId: string, userId: string, otp: string): Promise<LandResult> {
+export type LandOtpVerify =
+  | { status: 'ok'; result: LandResult }
+  /** Order Copy / Verify Patta: the OTP is confirmed and the site now asks
+   *  for its captcha too - finish with submitLandCaptcha. */
+  | { status: 'captcha'; captchaImage: string };
+
+/** The site's state after its own verify_otp succeeded: Submit block shown
+ *  and the hidden otpno_ver / mobileno_ver filled (what the server reads). */
+async function otpConfirmed(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const sub = document.getElementById('sub_id');
+    const shown = Boolean(sub && window.getComputedStyle(sub).display !== 'none');
+    const ver = document.getElementById('otpno_ver')?.value ?? '';
+    return shown && /^\d{6}$/.test(ver);
+  });
+}
+
+/**
+ * Confirm the OTP exactly as a person does on the site: type it into the
+ * OTP box and click the site's own "Confirm OTP" button (verify_otp, which
+ * rotates the page token and fills otpno_ver / mobileno_ver). Then submit -
+ * or, where the site asks for a captcha after the OTP, return that captcha.
+ */
+export async function verifyLandOtp(sessionId: string, userId: string, otp: string): Promise<LandOtpVerify> {
   const s = getSession(sessionId, userId);
   const cfg = LAND_SERVICES[s.service];
   if (cfg.gate !== 'otp' || !cfg.action || !s.mobile) throw new LandRecordsError(400, 'Send the OTP first.');
   if (!/^\d{6}$/.test(otp.trim())) throw new LandRecordsError(400, 'The OTP is 6 digits.');
-  await setField(s.page, '#otpno', otp.trim());
-  const from = s.dialogs.length;
-  await s.page.evaluate(({ mobile, otp, action }) => {
-    if (typeof window.verify_otp === 'function') setTimeout(() => window.verify_otp(mobile, otp, 'en', action), 0);
-  }, { mobile: s.mobile, otp: otp.trim(), action: cfg.action });
-  try {
-    await s.page.waitForFunction(() => {
-      const e = document.getElementById('sub_id');
-      return Boolean(e && window.getComputedStyle(e).display !== 'none');
-    }, undefined, { timeout: STEP_TIMEOUT_MS });
-  } catch {
-    const msg = lastDialog(s, from);
-    throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'The OTP was not accepted - check it and try again.');
-  }
-  return submitAndRead(s);
+  return exclusive(s, async () => {
+    // Never confirm twice: a second verify_otp spends the token/OTP the
+    // first one already used, and the site then answers "Invalid otp".
+    if (!(s.otpVerified && await otpConfirmed(s.page))) {
+      await setField(s.page, '#otpno', otp.trim());
+      const from = s.dialogs.length;
+      const clicked = await s.page.evaluate(() => {
+        const b = document.getElementById('otpval');
+        if (b && window.getComputedStyle(b).display !== 'none' && !b.disabled) { b.click(); return true; }
+        return false;
+      });
+      if (!clicked) {
+        // Button hidden (site variant): call the same handler it would.
+        await s.page.evaluate(({ mobile, otp, action }) => window.verify_otp?.(mobile, otp, 'en', action), { mobile: s.mobile, otp: otp.trim(), action: cfg.action });
+      }
+      // Done when the site shows its Submit block with otpno_ver filled; or
+      // stop at once when it alerts anything but "verified" (wrong OTP, ...).
+      const confirmed = s.page.waitForFunction(() => {
+        const sub = document.getElementById('sub_id');
+        return Boolean(sub && window.getComputedStyle(sub).display !== 'none')
+          && /^\d{6}$/.test(document.getElementById('otpno_ver')?.value ?? '');
+      }, undefined, { timeout: STEP_TIMEOUT_MS }).then(() => true, () => false);
+      const refused = (async () => {
+        for (let i = 0; i < STEP_TIMEOUT_MS / 100; i++) {
+          const msg = lastDialog(s, from);
+          if (msg && !/verified/i.test(msg)) return true;
+          await new Promise((r) => setTimeout(r, 100));
+        }
+        return false;
+      })();
+      const ok = await Promise.race([confirmed, refused.then((r) => (r ? false : new Promise<boolean>(() => {})))]);
+      if (!ok) {
+        const msg = lastDialog(s, from);
+        throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'The OTP was not accepted - check it and try again.', 'OTP_REJECTED');
+      }
+      s.otpVerified = true;
+      logger.info({ service: s.service }, 'tn-land: OTP confirmed by the site');
+    }
+    if (cfg.captchaAfterOtp) return { status: 'captcha', captchaImage: await captchaImage(s.page) };
+    return { status: 'ok', result: await submitAndRead(s) };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -754,23 +844,32 @@ export type LandCaptchaSubmit =
 export async function submitLandCaptcha(sessionId: string, userId: string, captcha: string, fields: LandFormFields): Promise<LandCaptchaSubmit> {
   const s = getSession(sessionId, userId);
   const cfg = LAND_SERVICES[s.service];
-  if (cfg.gate !== 'captcha' || !cfg.captchaInput) throw new LandRecordsError(400, 'This service uses an OTP, not a captcha.');
-  await fillForm(s, fields);
-  await readLocation(s);
-  await setField(s.page, cfg.captchaInput, captcha.trim());
-  const before = s.page.url();
-  try {
-    return { status: 'ok', result: await submitAndRead(s) };
-  } catch (err) {
-    // Still on the form (or back on it) with a captcha complaint - hand out a fresh one.
-    const msg = err instanceof LandRecordsError ? err.message : '';
-    const onForm = s.page.url() === before || (await s.page.$(cfg.captchaInput)) !== null;
-    if (onForm && /captcha|authentication|value/i.test(msg)) {
-      const fresh = await refreshLandCaptcha(sessionId, userId);
-      return { status: 'retry', reason: 'Incorrect authentication value - try the new one.', captchaImage: fresh.captchaImage };
+  // Captcha-only services, or the captcha the site shows after the OTP.
+  const input = cfg.gate === 'captcha' ? cfg.captchaInput : cfg.captchaAfterOtp;
+  if (!input) throw new LandRecordsError(400, 'This service uses an OTP, not a captcha.');
+  if (cfg.gate === 'otp' && !(s.otpVerified && await otpConfirmed(s.page))) throw new LandRecordsError(400, 'Confirm the OTP first.', 'OTP_REJECTED');
+  return exclusive(s, async () => {
+    // OTP pages keep the form exactly as it was confirmed - never re-fill it.
+    if (cfg.gate === 'captcha') {
+      await fillForm(s, fields);
+      await readLocation(s);
     }
-    throw err;
-  }
+    await setField(s.page, input, captcha.trim());
+    try {
+      return { status: 'ok', result: await submitAndRead(s) };
+    } catch (err) {
+      // The site posted its form back with a captcha complaint: hand out the new one.
+      if (err instanceof LandRecordsError && err.code === 'CAPTCHA_REJECTED') {
+        // After an OTP the site's posted-back form has lost the confirmed OTP.
+        if (cfg.gate === 'otp') {
+          s.mobile = null;
+          throw new LandRecordsError(400, `${err.message}. The site reset the form - get a new OTP and try again.`, 'OTP_REJECTED');
+        }
+        return { status: 'retry', reason: 'Incorrect authentication value - try the new one.', captchaImage: await captchaImage(s.page) };
+      }
+      throw err;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -792,19 +891,41 @@ async function submitAndRead(s: Session): Promise<LandResult> {
       return true;
     }, () => false);
 
-  await page.evaluate(() => {
-    const btn = document.querySelector('form input[type="submit"], form button[type="submit"]');
-    if (btn) btn.click();
-    else document.forms[0]?.requestSubmit?.();
+  // Click what a person clicks: the visible control in the site's Submit
+  // block - a real submit button, or FMB / TSLR sketch's
+  // `onclick="return validate_fmb('en')"` / validate_tslr button (AJAX, then
+  // the sketch opens in a new window; there is no form post on those pages).
+  const clicked = await page.evaluate(() => {
+    const visible = (el: { offsetParent: unknown } | null) => Boolean(el && el.offsetParent !== null);
+    const inSub = [...(document.querySelectorAll('#sub_id input[type="submit"], #sub_id input[type="button"], #sub_id button') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
+    const btn = inSub ?? [...(document.querySelectorAll('form input[type="submit"], form button[type="submit"]') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
+    if (!btn) return false;
+    btn.click();
+    return true;
   });
+  if (!clicked) throw new LandRecordsError(502, 'The Land Records page has no Submit button where expected - start again.');
+  // The site reports problems with alert() (e.g. on the sketch pages).
+  const alerted = (async () => {
+    for (let i = 0; i < 400; i++) {
+      if (s.dialogs.length > from) return true;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return false;
+  })();
 
   if (cfg.popup) {
     // FMB / TSLR sketch: the site asks Collabland for a token and opens the
     // sketch in a new window - keep that window's document.
-    const opened = await Promise.race([popup, nav.then((moved) => (moved ? null : new Promise<null>(() => {})))]);
+    const opened = await Promise.race([
+      popup,
+      nav.then((moved) => (moved ? null : new Promise<null>(() => {}))),
+      alerted.then((a) => (a ? null : new Promise<null>(() => {}))),
+    ]);
     if (opened) return readPopup(s, opened);
+    const msg = lastDialog(s, from);
+    if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`, /otp/i.test(msg) ? 'OTP_REJECTED' : 'LAND_RECORDS');
   }
-  const navigated = await Promise.race([nav, download.then(() => false)]);
+  const navigated = await Promise.race([nav, download.then(() => false), alerted.then((a) => (a ? false : new Promise<boolean>(() => {})))]);
   const dl = navigated ? null : await Promise.race([download, page.waitForTimeout(1500).then(() => null)]);
   if (dl) {
     const path = await dl.path();
@@ -819,14 +940,29 @@ async function submitAndRead(s: Session): Promise<LandResult> {
     const msg = lastDialog(s, from);
     throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'Land Records did not answer - try again.');
   }
-  // The site posts back to its form with an inline message when it rejects
-  // the input ("Incorrect Value(enter the same as shown)" for a wrong captcha).
-  const rejected = await page.evaluate(() => {
-    const t = (document.body?.innerText ?? '').replace(/\s+/g, ' ');
-    const m = /Incorrect Value\s*\(enter the same as shown\)|Invalid (?:captcha|authentication value)/i.exec(t);
-    return m ? m[0] : null;
+  // When the site rejects the request it posts its own form back with a
+  // message (its `.fadeout` slot, or inline text): "Invalid otp",
+  // "Incorrect Value(enter the same as shown)", ... That page is never a
+  // result - report its message instead (seen live 2026-10-24: "Invalid otp"
+  // was shown to an advocate as if it were the chitta).
+  const postedBack = await page.evaluate(() => {
+    const isForm = Boolean(document.querySelector('#sendtpid, #otpno, #captEntr, #captcha, #applicationid'))
+      && Boolean(document.querySelector('form input[type="submit"], #sub_id'));
+    if (!isForm) return null;
+    const slot = [...(document.querySelectorAll('.fadeout, font[color="red"], .normal_text_red, .errormsg') as Iterable<{ innerText?: string }>)]
+      .map((e) => (e.innerText ?? '').replace(/\s+/g, ' ').trim())
+      .filter((t) => t && t.length < 200 && !/fields are mandatory/i.test(t));
+    const body = (document.body?.innerText ?? '').replace(/\s+/g, ' ');
+    const known = /Invalid otp[^.]*|Incorrect Value\s*\(enter the same as shown\)|Invalid (?:captcha|authentication value)|No (?:record|data)s? found[^.]*/i.exec(body);
+    return known?.[0] ?? slot[0] ?? 'The request was not accepted';
   }).catch(() => null);
-  if (rejected && (await page.$('#captcha, #captEntr'))) throw new LandRecordsError(400, `Land Records: ${rejected}`);
+  if (postedBack) {
+    logger.info({ service: s.service, message: postedBack.slice(0, 120) }, 'tn-land: site posted its form back');
+    const code = /otp/i.test(postedBack) ? 'OTP_REJECTED'
+      : /incorrect value|authentication|captcha/i.test(postedBack) ? 'CAPTCHA_REJECTED' : 'LAND_RECORDS';
+    if (code === 'OTP_REJECTED') s.mobile = null;
+    throw new LandRecordsError(400, `Land Records: ${postedBack}`, code);
+  }
   await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
   return readResultPage(s);
 }
@@ -901,11 +1037,19 @@ async function readPopup(s: Session, popup: Page): Promise<LandResult> {
   const cfg = LAND_SERVICES[s.service];
   let bytes: Buffer | null = null;
   try {
-    const res = await popup.waitForResponse((r) => r.request().resourceType() === 'document', { timeout: 30_000 }).catch(() => null);
-    if (res && /pdf/i.test(res.headers()['content-type'] ?? '')) bytes = Buffer.from(await res.body());
+    // The window may have finished loading before we looked, so ask it what
+    // it holds rather than waiting for its response.
+    await popup.waitForLoadState('domcontentloaded', { timeout: 30_000 });
+    const type = await popup.evaluate(() => document.contentType ?? '').catch(() => '');
+    if (/pdf/i.test(type)) {
+      // A PDF viewer page: fetch the document itself in the same session.
+      const res = await s.context.request.get(popup.url(), { timeout: 30_000 });
+      if (res.ok()) bytes = Buffer.from(await res.body());
+    }
     if (!bytes) {
-      await popup.waitForLoadState('load', { timeout: 30_000 });
-      await popup.waitForTimeout(1500);
+      await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
+      // Collabland draws the sketch with script; give it a moment.
+      await popup.waitForTimeout(800);
       bytes = await popup.pdf({ format: 'A4', printBackground: true });
     }
   } catch (err) {
@@ -952,9 +1096,21 @@ export const __testing = {
   nextList,
   /** Read a result page that is already open in `page` (fixture tests). */
   readResultFromPage: (page: Page, service: LandService = 'patta') => readResultPage({
-    id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, result: null, pdf: null, mobile: null,
+    id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null, mobile: null,
     browser: null as unknown as Browser, context: null as unknown as BrowserContext, idleTimer: setTimeout(() => {}, 0),
   }),
+  /** Register an already-open page as a session at the OTP step (flow tests
+   *  against fixture pages that behave like the site's). */
+  adoptPage: (page: Page, context: BrowserContext, service: LandService, userId: string, mobile = '9876543210'): string => {
+    const id = randomUUID();
+    const s: Session = {
+      id, userId, service, browser: null as unknown as Browser, context, page, dialogs: [],
+      idleTimer: setTimeout(() => {}, 0), mobile, summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null,
+    };
+    page.on('dialog', (d) => { s.dialogs.push(d.message()); void d.accept().catch(() => {}); });
+    sessions.set(id, s);
+    return id;
+  },
   /** Give a live session a result + PDF without the OTP (e2e: filing flow). */
   setSessionResult: (sessionId: string, result: LandResult, pdf: Buffer, summary: Record<string, string>) => {
     const s = sessions.get(sessionId);
