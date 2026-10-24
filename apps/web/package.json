@@ -10,9 +10,19 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "clean": "rm -rf dist .turbo .vite"
+    "clean": "rm -rf dist .turbo .vite",
+    "build:mobile": "tsc -b --noCheck && vite build --mode mobile",
+    "cap:sync": "pnpm build:mobile && cap sync android",
+    "android:apk": "pnpm cap:sync && cd android && .\\gradlew.bat assembleDebug",
+    "android:release": "pnpm cap:sync && cd android && .\\gradlew.bat assembleRelease",
+    "android:open": "cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/share": "^8.0.3",
     "@lexdraft/types": "workspace:*",
     "@lexdraft/ui": "workspace:*",
     "@tanstack/react-query": "^5.59.16",
@@ -34,6 +44,7 @@
     "zustand": "^5.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@lexdraft/eslint-config": "workspace:*",
     "@lexdraft/tailwind-config": "workspace:*",
     "@lexdraft/tsconfig": "workspace:*",

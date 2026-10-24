@@ -16,7 +16,7 @@ import {
   type LandService,
   type LandSessionStart,
 } from '@/hooks/useLandRecords';
-import { LField, LRow, LandTitleBar, SurveyHints, errorText, landMeta } from './LandUi';
+import { LField, LRow, LandFetching, LandOpening, LandTitleBar, Loadable, Spinner, SurveyHints, errorText, landMeta } from './LandUi';
 import { LandResultPanel } from './LandResultPanel';
 
 // One Land Records service, laid out like its page on eservices.tn.gov.in.
@@ -326,15 +326,17 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
       || (select.isPending && select.variables?.field === order[order.indexOf(field) - 1]);
     return (
       <LField label={label} required={required}>
-        <select
-          className="input"
-          value={picks[field] ?? ''}
-          disabled={!session || !opts || loading}
-          onChange={(e) => pick(field, e.target.value)}
-        >
-          <option value="">{loading ? 'Loading…' : 'Please Select ...'}</option>
-          {(opts ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        <Loadable loading={loading}>
+          <select
+            className="input"
+            value={picks[field] ?? ''}
+            disabled={!session || !opts || loading}
+            onChange={(e) => pick(field, e.target.value)}
+          >
+            <option value="">{loading ? `Loading ${label.toLowerCase()}s…` : 'Please Select ...'}</option>
+            {(opts ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </Loadable>
       </LField>
     );
   };
@@ -358,7 +360,11 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   return (
     <div className="col" style={{ gap: 14 }}>
       <LandTitleBar title={meta.screenTitle} onHome={onHome} />
-      <div className="card col" style={{ gap: 16, padding: 18 }}>
+      {start.isPending && !session ? <LandOpening title={meta.screenTitle} /> : (
+      <div className="card col lr-form" style={{ gap: 16, padding: 18 }}>
+        {verifyOtp.isPending || submitCaptcha.isPending ? (
+          <LandFetching text={service === 'app-status' ? 'Checking the application status…' : `Fetching the ${meta.screenTitle.replace(/^View /, '')}…`} />
+        ) : null}
 
         {form === 'rural' || form === 'rural-plain' || form === 'urban' ? (
           <LRow>
@@ -430,15 +436,17 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
               </LField>
               {form === 'rural' ? (
                 <LField label="Sub Division Number" required>
-                  <select
-                    className="input"
-                    value={picks.subdiv ?? ''}
-                    disabled={!lists.subdiv || subdivs.isPending}
-                    onChange={(e) => { setPicks((p) => ({ ...p, subdiv: e.target.value })); setOtpSent(null); }}
-                  >
-                    <option value="">{subdivs.isPending ? 'Loading…' : 'Please Select ...'}</option>
-                    {(lists.subdiv ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <Loadable loading={subdivs.isPending}>
+                    <select
+                      className="input"
+                      value={picks.subdiv ?? ''}
+                      disabled={!lists.subdiv || subdivs.isPending}
+                      onChange={(e) => { setPicks((p) => ({ ...p, subdiv: e.target.value })); setOtpSent(null); }}
+                    >
+                      <option value="">{subdivs.isPending ? 'Loading sub divisions…' : 'Please Select ...'}</option>
+                      {(lists.subdiv ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </Loadable>
                 </LField>
               ) : (
                 <LField label="Sub Division Number">
@@ -486,7 +494,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                 onChange={(e) => { setMobile(e.target.value.replace(/\D/g, '')); setOtpSent(null); }}
               />
               <button type="button" className="btn" disabled={!ready || !/^[6-9]\d{9}$/.test(mobile) || sendOtp.isPending || (Boolean(otpSent) && otpLeft > 0)} onClick={onGetOtp}>
-                {sendOtp.isPending ? 'Sending…' : otpSent ? 'Resend OTP' : 'Get OTP'}
+                {sendOtp.isPending ? <><Spinner size={12} /> Sending…</> : otpSent ? 'Resend OTP' : 'Get OTP'}
               </button>
             </div>
             {!ready && session ? <span className="body-sm muted">Fill the details above, then Get OTP. Land Records texts the OTP to this number.</span> : null}
@@ -529,7 +537,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                 <img src={captchaImg} alt="Captcha from Land Records" style={{ height: 56, borderRadius: 4, border: '1px solid var(--border-default)', background: '#fff' }} />
               ) : (
                 <span className="body-sm muted" style={{ height: 56, minWidth: 150, display: 'inline-grid', placeItems: 'center', borderRadius: 4, border: '1px dashed var(--border-default)' }}>
-                  {start.isPending ? 'Loading…' : '—'}
+                  {start.isPending || refreshCaptcha.isPending ? <Spinner size={16} /> : '—'}
                 </span>
               )}
               <button type="button" className="btn btn-ghost btn-sm" onClick={onRefreshCaptcha} disabled={refreshCaptcha.isPending} aria-label="New captcha">↻</button>
@@ -558,6 +566,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
           <div><button type="button" className="btn btn-sm" onClick={open}>Start again</button></div>
         ) : null}
       </div>
+      )}
       <p className="body-sm muted" style={{ margin: 0 }}>
         {meta.blurb} Fetched live from Tamil Nadu Land Records eServices (eservices.tn.gov.in). The {gate === 'captcha' ? 'captcha is' : 'OTP goes to the mobile number you enter and is'} only passed through - LexDraft never stores it.
       </p>

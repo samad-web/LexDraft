@@ -4,7 +4,7 @@ import { useCases } from '@/hooks/useCases';
 import { useTitleReports } from '@/hooks/useTitleReports';
 import { fetchLandPdf, useSaveLandResult, type LandResult, type LandService } from '@/hooks/useLandRecords';
 import { triggerBlobDownload } from '@/lib/blob-download';
-import { errorText } from './LandUi';
+import { Spinner, errorText } from './LandUi';
 
 // The result of a Land Records search, read off the site's result page as
 // plain text, plus the PDF of that page (or the sketch the site opened).
@@ -109,7 +109,7 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
             </div>
             <div>
               <button type="button" className="btn btn-primary" disabled={(!caseId && !reportId) || save.isPending} onClick={file}>
-                {save.isPending ? 'Filing…' : 'File'}
+                {save.isPending ? <><Spinner size={12} /> Filing…</> : 'File'}
               </button>
             </div>
           </div>

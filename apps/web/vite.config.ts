@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   resolve: {
     alias: {
@@ -19,7 +19,8 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true,
+    // The Android build ships dist/ inside the APK; maps would just add weight.
+    sourcemap: mode !== 'mobile',
     target: 'es2022',
   },
-});
+}));

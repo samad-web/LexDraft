@@ -94,3 +94,61 @@ export function errorText(err: unknown, fallback: string): string {
   return (err as { response?: { data?: { error?: string } } })?.response?.data?.error
     ?? (err instanceof Error ? err.message : fallback);
 }
+
+/** Small monochrome spinner (inherits the text colour). */
+export function Spinner({ size = 14 }: { size?: number }) {
+  return <span className="lr-spin" aria-hidden style={{ width: size, height: size }} />;
+}
+
+/** A select / input with a spinner at its right edge while its list loads. */
+export function Loadable({ loading, children }: { loading: boolean; children: ReactNode }) {
+  return (
+    <span className={`lr-loadable${loading ? ' is-loading' : ''}`} aria-busy={loading || undefined}>
+      {children}
+      {loading ? <span className="lr-loadable-spin"><Spinner size={14} /></span> : null}
+    </span>
+  );
+}
+
+/** Shown while the service's page is being opened on the Land Records site. */
+export function LandOpening({ title }: { title: string }) {
+  return (
+    <div className="card col lr-opening" role="status" aria-live="polite">
+      <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+        <Spinner size={18} />
+        <div className="col" style={{ gap: 2 }}>
+          <span style={{ fontWeight: 600 }}>Opening {title}…</span>
+          <span className="body-sm muted">Connecting to Tamil Nadu Land Records and loading the district list. This usually takes a few seconds.</span>
+        </div>
+      </div>
+      <div className="lr-skel-row">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="col" style={{ gap: 6 }}>
+            <span className="lr-skel" style={{ width: 70, height: 12 }} />
+            <span className="lr-skel" style={{ width: '100%', height: 40 }} />
+          </div>
+        ))}
+      </div>
+      <div className="lr-skel-row">
+        {[0, 1].map((i) => (
+          <div key={i} className="col" style={{ gap: 6 }}>
+            <span className="lr-skel" style={{ width: 110, height: 12 }} />
+            <span className="lr-skel" style={{ width: '100%', height: 40 }} />
+          </div>
+        ))}
+      </div>
+      <span className="lr-skel" style={{ width: 220, height: 40 }} />
+    </div>
+  );
+}
+
+/** Covers the form while the record is fetched after OTP / captcha. */
+export function LandFetching({ text }: { text: string }) {
+  return (
+    <div className="lr-fetching" role="status" aria-live="polite">
+      <Spinner size={22} />
+      <span style={{ fontWeight: 600 }}>{text}</span>
+      <span className="body-sm muted">Land Records can take up to a minute. Please keep this page open.</span>
+    </div>
+  );
+}

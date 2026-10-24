@@ -13,6 +13,9 @@
 **/coverage
 **/tsconfig.tsbuildinfo
 
+# Capacitor Android project (built on a dev machine, not in the web image).
+apps/web/android
+
 # Secrets and per-environment config. NEVER bake these into an image.
 .env
 .env.*

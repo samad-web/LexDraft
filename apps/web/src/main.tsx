@@ -7,10 +7,12 @@ import { queryClient } from './lib/queryClient';
 import { hydrateUIAttributes } from './store/ui';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { initNative } from './lib/native';
 import './styles/tokens.css';
 import './styles/globals.css';
 
 hydrateUIAttributes();
+initNative();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

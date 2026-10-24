@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pre-Android-12 launch background; 12+ draws the launcher icon itself. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+    <item android:drawable="@drawable/ic_launcher_mark" android:gravity="center"
+        android:width="160dp" android:height="160dp" />
+</layer-list>

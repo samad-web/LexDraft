@@ -7,7 +7,7 @@ import {
   useUpdateLandApplication,
   type LandApplication,
 } from '@/hooks/useLandRecords';
-import { LField, LRow, errorText } from './LandUi';
+import { LField, LRow, Spinner, errorText } from './LandUi';
 
 // Patta transfer / F-Line applications the firm follows. Land Records'
 // Application Status page needs a captcha, so LexDraft can't check them on
@@ -92,7 +92,7 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
         </LRow>
         <div>
           <button type="submit" className="btn btn-primary" disabled={!APP_ID_RE.test(applicationId.trim().toUpperCase()) || add.isPending}>
-            {add.isPending ? 'Saving…' : 'Follow'}
+            {add.isPending ? <><Spinner size={12} /> Saving…</> : 'Follow'}
           </button>
         </div>
         {message ? <p className="body-sm" role="status" style={{ margin: 0, fontWeight: 600 }}>{message}</p> : null}
@@ -103,7 +103,7 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
 
       <div className="card col" style={{ gap: 10, padding: 18 }}>
         <strong>My Applications{open.length ? ` (${open.length})` : ''}</strong>
-        {apps.isLoading ? <p className="body-sm muted">Loading…</p> : null}
+        {apps.isLoading ? <div className="col" role="status" aria-label="Loading applications" style={{ gap: 8 }}>{[0, 1, 2].map((i) => <span key={i} className="lr-skel" style={{ width: '100%', height: 52 }} />)}</div> : null}
         {apps.isError && !pending ? <p className="body-sm">{errorText(apps.error, 'Could not load applications.')}</p> : null}
         {!apps.isLoading && open.length === 0 ? <p className="body-sm muted" style={{ margin: 0 }}>No applications followed yet.</p> : null}
         {open.length > 0 ? (
