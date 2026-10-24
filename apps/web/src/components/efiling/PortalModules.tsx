@@ -789,7 +789,7 @@ const VAKALAT_KINDS: FilingKind[] = ['new_case', 'caveat'];
 export function VakalatModule({ view = 'assign', onOpen }: { view?: 'assign' | 'accept' | 'print'; onOpen: (id: string) => void }) {
   const { data: filings } = useEfilingFilings();
   const rows = (filings ?? []).filter((f) => VAKALAT_KINDS.includes(f.kind));
-  const printLink = <Link className="btn btn-ghost btn-sm" to="/app/calculators?tab=vakalatnama">Print Vakalat (vakalatnama) →</Link>;
+  const printLink = <Link className="btn btn-ghost btn-sm" to="/app/draft">Draft a vakalatnama →</Link>;
 
   if (view === 'print') {
     const cols: PortalColumn<EfilingFiling>[] = [
@@ -799,7 +799,7 @@ export function VakalatModule({ view = 'assign', onOpen }: { view?: 'assign' | '
       { key: 'lit', header: 'Name of Litigant', cell: (f) => <ClientName caseId={f.caseId} /> },
       { key: 'adv', header: 'Advocate', cell: () => 'MySelf' },
       { key: 'mob', header: 'Mobile No.', cell: (f) => <ClientMobile caseId={f.caseId} /> },
-      { key: 'dl', header: 'Download Template', cell: () => <Link className="btn btn-primary btn-sm" to="/app/calculators?tab=vakalatnama">Download</Link> },
+      { key: 'dl', header: 'Download Template', cell: () => <Link className="btn btn-primary btn-sm" to="/app/draft">Draft</Link> },
     ];
     return (
       <Card>

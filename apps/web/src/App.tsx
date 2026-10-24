@@ -51,7 +51,7 @@ const DiaryView = lazy(() => import('@/views/DiaryView').then((m) => ({ default:
 const CauseListView = lazy(() => import('@/views/CauseListView').then((m) => ({ default: m.CauseListView })));
 const EcourtsView = lazy(() => import('@/views/EcourtsView').then((m) => ({ default: m.EcourtsView })));
 const EfilingView = lazy(() => import('@/views/EfilingView').then((m) => ({ default: m.EfilingView })));
-const StampView = lazy(() => import('@/views/StampView').then((m) => ({ default: m.StampView })));
+const LandRecordsView = lazy(() => import('@/views/LandRecordsView').then((m) => ({ default: m.LandRecordsView })));
 const ArchiveView = lazy(() => import('@/views/ArchiveView').then((m) => ({ default: m.ArchiveView })));
 const PhysicalDocsView = lazy(() => import('@/views/PhysicalDocsView').then((m) => ({ default: m.PhysicalDocsView })));
 const MembersView = lazy(() => import('@/views/MembersView').then((m) => ({ default: m.MembersView })));
@@ -295,7 +295,9 @@ export function App() {
               <Route path="/app/causelist"  element={<CauseListView />} />
               <Route path="/app/ecourts"    element={<EcourtsView />} />
               <Route path="/app/efiling"    element={<EfilingView />} />
-              <Route path="/app/stamp"      element={<StampView />} />
+              <Route path="/app/land-records" element={<LandRecordsView />} />
+              {/* The stamp duty report now lives in the calculator (PDF download there). */}
+              <Route path="/app/stamp"      element={<Navigate to="/app/calculators?tab=stamp-duty" replace />} />
               <Route path="/app/archive"    element={<ArchiveView />} />
               <Route path="/app/physical-docs" element={<PhysicalDocsView />} />
               <Route path="/app/firm"       element={<FirmDashboardView />} />

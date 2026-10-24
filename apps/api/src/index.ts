@@ -33,6 +33,12 @@ void import('./services/document-render.service')
   .then((m) => m.documentRenderService.warmUp())
   .catch((err) => logger.warn({ err }, 'document-render warm-up failed'));
 
+// Same for Land Records (eservices.tn.gov.in): start its browser and pay the
+// slow first-tab start-up now, so the first service an advocate opens is quick.
+void import('./services/tn-land-records.service')
+  .then((m) => m.warmLandBrowser())
+  .catch((err) => logger.warn({ err }, 'land-records warm-up failed'));
+
 // Boot the background worker. When DATABASE_URL is blank this is a no-op and
 // jobs run inline at enqueue time.
 jobs.start()

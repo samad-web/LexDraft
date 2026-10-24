@@ -95,6 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { id: 'ecourts', label: 'eCourts', icon: 'ecourts', to: '/app/ecourts', requiresFeature: 'matter.view' },
       { id: 'efiling', label: 'eFiling', icon: 'efiling', to: '/app/efiling', requiresFeature: 'matter.view' },
+      { id: 'land-records', label: 'Land Records', icon: 'map', to: '/app/land-records', requiresFeature: 'matter.view' },
     ],
   },
   {
@@ -159,12 +160,8 @@ export const NAV_GROUPS: NavGroup[] = [
         ],
       },
       {
-        // Court fee / stamp duty / vakalatnama - daily-use filing-cost tools.
-        id: 'calculators', label: 'Court Fee & Stamp', icon: 'calculator', to: '/app/calculators',
-        tabs: [
-          { label: 'Court Fee & Stamp Duty',  to: '/app/calculators', requiresFeature: 'tools.calculators' },
-          { label: 'Stamp Duty Report (PDF)', to: '/app/stamp' },
-        ],
+        // Court fee / stamp duty - daily-use filing-cost tools.
+        id: 'calculators', label: 'Court Fee & Stamp', icon: 'calculator', to: '/app/calculators', requiresFeature: 'tools.calculators',
       },
     ],
   },
@@ -269,6 +266,7 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   causelist:  { title: 'Hearings',        eyebrow: 'Cause list' },
   ecourts:    { title: 'eCourts',         eyebrow: 'Case search & court records' },
   efiling:    { title: 'eFiling',         eyebrow: 'National e-Filing portal' },
+  'land-records': { title: 'Land Records', eyebrow: 'Tamil Nadu Land Records eServices' },
   stamp:      { title: 'Court Fee & Stamp', eyebrow: 'Stamp duty report (PDF)' },
   archive:    { title: 'Documents',       eyebrow: 'Closed matters' },
   firm:       { title: 'Firm Overview',   eyebrow: 'Chambers performance' },
@@ -276,7 +274,7 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   manage:     { title: 'People & Roles',  eyebrow: 'Roles & access' },
   settings:   { title: 'Settings',        eyebrow: 'Preferences' },
   sanhita:           { title: 'Legal Research',  eyebrow: 'Sanhita · IPC → BNS, CrPC → BNSS, Evidence → BSA' },
-  calculators:       { title: 'Court Fee & Stamp', eyebrow: 'Court fee · stamp duty · vakalatnama' },
+  calculators:       { title: 'Court Fee & Stamp', eyebrow: 'Court fee · stamp duty' },
   coverage:          { title: 'Coverage Board',   eyebrow: 'Hearing coverage requests' },
   'co-counsel':      { title: 'Co-Counsel',       eyebrow: 'Matters handed to you by other firms' },
   'practice-analytics': { title: 'Insights',      eyebrow: 'Workload & profitability' },

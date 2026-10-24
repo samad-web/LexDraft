@@ -1,0 +1,883 @@
+import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { randomUUID } from 'node:crypto';
+import { logger } from '../logger';
+import { HttpError } from '../lib/errors';
+
+// Page-context callbacks below run in the browser; this package has no DOM
+// lib, so declare the globals they touch (same pattern as ecourts-web-search).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- DOM global, no dom lib in this tsconfig
+declare const document: any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- DOM global, no dom lib in this tsconfig
+declare const window: any;
+
+// =============================================================================
+// tn-land-records.service
+//
+// Tamil Nadu Land Records eServices (eservices.tn.gov.in/eservicesnew, CLA /
+// Survey & Settlement). Every service the site's home menu offers, in its
+// order and with its labels:
+//
+//   patta          View Patta / Chitta / FMB - (Rural / Natham) mobile OTP AC01
+//   a-register     View A-Register Extract - (Rural / Natham)  mobile OTP AC02
+//   verify-patta   Verify Patta / Chitta - (Rural / Natham)    mobile OTP AC07
+//   poramboke      Verify Government / Private (Poramboke)     CAPTCHA
+//   fmb            FMB Sketch - (Rural / Natham)                mobile OTP AC03
+//   order-copy     View Patta Order Copy                        mobile OTP AC06
+//   tslr-extract   TSLR Extract                                 mobile OTP AC04
+//   tslr-sketch    TSLR Sketch - Urban                          mobile OTP AC05
+//   app-status     Application Status                           CAPTCHA
+//   fline          F-Line Sketch / Statement                    CAPTCHA
+//
+// ("Integrated Land Record" is skipped: the site's own link carries rno=null
+// and answers "INVALID ACCESS TO THE SITE!" - seen 2026-10-24.)
+//
+// Same rules as the eCourts website searches: a real browser opens the home
+// page and follows the site's own menu link (each link carries a one-time
+// token the site issues per visit), the site's own JavaScript loads every
+// dropdown, and the advocate supplies the gate - the OTP the site texts to
+// the mobile number the advocate enters, or the CAPTCHA they read. LexDraft
+// never reads, guesses or replays either, and does not regenerate the
+// site's tokens outside its own pages.
+//
+// Results come back as plain text (key/value pairs and table rows read off
+// the rendered page) plus a PDF print of that page, so nothing from the
+// third-party page is injected into LexDraft's UI. The PDF can be filed into
+// a matter's documents or a title report's search trail.
+//
+// Field ids and functions come from the site's land/*.html, js/common.js,
+// js/landform.js and js/captcha.js (2026-10-24).
+// =============================================================================
+
+const BASE = 'https://eservices.tn.gov.in/eservicesnew';
+const IDLE_TIMEOUT_MS = 8 * 60 * 1000;
+const STEP_TIMEOUT_MS = 20_000;
+
+export type LandService =
+  | 'patta' | 'a-register' | 'verify-patta' | 'poramboke' | 'fmb'
+  | 'order-copy' | 'tslr-extract' | 'tslr-sketch' | 'app-status' | 'fline';
+
+/** Which form the service page shows. */
+type FormShape =
+  | 'rural'        // District > Taluk (code/natham flag) > Village, Survey text -> Sub Division list
+  | 'rural-plain'  // District > Taluk > Village, Survey + Sub Division as text (poramboke)
+  | 'urban'        // District > Taluk > Town > Ward > Block > Survey list > Sub Division list
+  | 'appid'        // Application Id
+  | 'refno';       // Reference Number
+
+interface ServiceConfig {
+  /** The home-page menu link (path before `?`). */
+  href: string;
+  /** The site's menu label. */
+  title: string;
+  gate: 'otp' | 'captcha';
+  /** otpgenerate / verify_otp action id. */
+  action?: string;
+  form: FormShape;
+  /** Captcha input id, for CAPTCHA services. */
+  captchaInput?: string;
+  /** The result opens in a new window (FMB / TSLR sketch via Collabland). */
+  popup?: boolean;
+}
+
+export const LAND_SERVICES: Record<LandService, ServiceConfig> = {
+  'patta':        { href: 'land/chittaCheckNewRural_en.html', title: 'View Patta / Chitta / FMB - (Rural / Natham)', gate: 'otp', action: 'AC01', form: 'rural' },
+  'a-register':   { href: 'land/areg.html', title: 'View A-Register Extract - (Rural / Natham)', gate: 'otp', action: 'AC02', form: 'rural' },
+  'verify-patta': { href: 'land/verify_chitta.html', title: 'Verify Patta / Chitta - (Rural / Natham)', gate: 'otp', action: 'AC07', form: 'refno' },
+  'poramboke':    { href: 'land/poramboke.html', title: 'Verify Government / Private (Poramboke) Land', gate: 'captcha', form: 'rural-plain', captchaInput: '#captcha' },
+  'fmb':          { href: 'land/chittaCheckNewRuralFMB_en.html', title: 'FMB Sketch - (Rural / Natham)', gate: 'otp', action: 'AC03', form: 'rural', popup: true },
+  'order-copy':   { href: 'land/orderCopy.html', title: 'View Patta Order Copy', gate: 'otp', action: 'AC06', form: 'appid' },
+  'tslr-extract': { href: 'land/chittaCheckNewUrban_en.html', title: 'TSLR Extract', gate: 'otp', action: 'AC04', form: 'urban' },
+  'tslr-sketch':  { href: 'land/chittaCheckNewUrbanFMB_en.html', title: 'TSLR Sketch - Urban', gate: 'otp', action: 'AC05', form: 'urban', popup: true },
+  'app-status':   { href: 'login/Appstatus.html', title: 'Application Status', gate: 'captcha', form: 'appid', captchaInput: '#captEntr' },
+  'fline':        { href: 'land/fline_en.html', title: 'F-Line Sketch / Statement', gate: 'captcha', form: 'appid', captchaInput: '#captEntr' },
+};
+
+/** A dropdown the advocate picks from; options come live from the site. */
+export type LandListField = 'district' | 'taluk' | 'village' | 'ward' | 'block' | 'survey' | 'subdiv';
+
+const SELECT_ID: Record<LandListField, string> = {
+  district: '#districtCode', taluk: '#talukCode', village: '#villageCode',
+  ward: '#wardNo', block: '#blockCode', survey: '#surveyNo', subdiv: '#subdivNo',
+};
+
+export interface LandOption { value: string; label: string }
+
+/** Text fields the advocate fills before the OTP / CAPTCHA step. */
+export interface LandFormFields {
+  /** patta only: view by Patta Number ('pt') or Survey Number ('sur'). */
+  viewBy?: 'pt' | 'sur';
+  pattaNo?: string;
+  /** Rural taluks that also keep Natham records (taluk flag Y). */
+  landType?: 'R' | 'N';
+  /** Rural survey number (text) - urban picks it from a list. */
+  surveyNo?: string;
+  /** Poramboke: sub division as text; others pick it from the list. */
+  subdivNo?: string;
+  applicationId?: string;
+  refNo?: string;
+}
+
+export interface LandResultSection {
+  heading: string | null;
+  headers: string[];
+  rows: string[][];
+}
+
+export interface LandResult {
+  /** The result page's own title line. */
+  title: string;
+  /** Label : value pairs found on the page (Patta Number, Owner, ...). */
+  fields: Array<{ label: string; value: string }>;
+  sections: LandResultSection[];
+  /** Plain-text of the result area, for "no records" style answers. */
+  text: string;
+  /** A PDF of the result (page print, or the sketch the site opened). */
+  hasPdf: boolean;
+}
+
+interface Session {
+  id: string;
+  userId: string;
+  service: LandService;
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+  dialogs: string[];
+  idleTimer: ReturnType<typeof setTimeout>;
+  mobile: string | null;
+  /** What the advocate searched, kept for the filing label. */
+  summary: Record<string, string>;
+  result: LandResult | null;
+  pdf: Buffer | null;
+}
+
+export class LandRecordsError extends HttpError {
+  constructor(status: number, message: string) {
+    // Operator-authored messages - safe to show even for 5xx.
+    super(status, message, { code: 'LAND_RECORDS', expose: true });
+  }
+}
+
+const sessions = new Map<string, Session>();
+
+function touch(s: Session): void {
+  clearTimeout(s.idleTimer);
+  s.idleTimer = setTimeout(() => void closeSession(s.id), IDLE_TIMEOUT_MS);
+}
+
+async function closeSession(id: string): Promise<void> {
+  const s = sessions.get(id);
+  if (!s) return;
+  sessions.delete(id);
+  clearTimeout(s.idleTimer);
+  // The browser is shared; each session owns only its context.
+  await s.context.close().catch((err) => logger.warn({ err, id }, 'tn-land: context close failed'));
+}
+
+function getSession(id: string, userId: string): Session {
+  const s = sessions.get(id);
+  if (!s || s.userId !== userId) throw new LandRecordsError(404, 'This Land Records session has expired - start again.');
+  touch(s);
+  return s;
+}
+
+export async function endLandSession(id: string, userId: string): Promise<void> {
+  const s = sessions.get(id);
+  if (s && s.userId === userId) await closeSession(id);
+}
+
+const clean = (v: string): string => v.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+
+/** The site's last alert() text since `from`, if any. */
+function lastDialog(s: Session, from: number): string | null {
+  const msgs = s.dialogs.slice(from).map(clean).filter(Boolean);
+  return msgs.length ? msgs[msgs.length - 1]! : null;
+}
+
+// ---------------------------------------------------------------------------
+// Page helpers
+// ---------------------------------------------------------------------------
+
+/** Set a control the way a user would, so the site's onchange handler (which
+ *  loads the next dropdown) runs. Falls back to value + change event. */
+async function setField(page: Page, selector: string, value: string): Promise<void> {
+  const el = await page.$(selector);
+  if (!el) throw new LandRecordsError(502, `The Land Records page layout has changed (missing ${selector}).`);
+  const tag = await el.evaluate((e: { tagName: string }) => e.tagName.toLowerCase());
+  try {
+    if (tag === 'select') await page.selectOption(selector, value, { timeout: 5_000 });
+    else {
+      await page.fill(selector, value, { timeout: 5_000 });
+      // Text fields load lists on change (survey -> sub divisions).
+      await page.dispatchEvent(selector, 'change');
+    }
+    return;
+  } catch {
+    /* hidden - fall back below */
+  }
+  await page.evaluate(({ selector, value }) => {
+    const e = document.querySelector(selector);
+    e.value = value;
+    try {
+      e.dispatchEvent(new window.Event('change', { bubbles: true }));
+    } catch { /* page handler error */ }
+  }, { selector, value });
+}
+
+async function readOptions(page: Page, selector: string): Promise<LandOption[]> {
+  return page.evaluate((sel) => [...(document.querySelectorAll(`${sel} option`) as Iterable<{ value: string; textContent: string }>)]
+    .filter((o) => o.value && o.value !== '00' && o.value !== '-1')
+    .map((o) => ({ value: o.value, label: o.textContent.replace(/\s+/g, ' ').trim() }))
+    .filter((o) => o.label && !/please select|--select/i.test(o.label)), selector);
+}
+
+/** Wait until a select has real options (the site fills them by AJAX). */
+async function waitForOptions(page: Page, selector: string, what: string): Promise<LandOption[]> {
+  try {
+    await page.waitForFunction((sel) => [...(document.querySelectorAll(`${sel} option`) as Iterable<{ value: string; textContent: string }>)]
+      .some((o) => o.value && o.value !== '00' && !/please select|--select/i.test(o.textContent)), selector, { timeout: STEP_TIMEOUT_MS });
+  } catch {
+    return [];
+  }
+  const opts = await readOptions(page, selector);
+  if (opts.length === 0) logger.info({ what }, 'tn-land: empty list');
+  return opts;
+}
+
+async function isVisible(page: Page, selector: string): Promise<boolean> {
+  return page.evaluate((sel) => {
+    const e = document.querySelector(sel);
+    return Boolean(e && e.offsetParent !== null && window.getComputedStyle(e).display !== 'none');
+  }, selector);
+}
+
+/** The site's arithmetic CAPTCHA arrives as a data: URI on #captcha_name. */
+async function captchaImage(page: Page): Promise<string> {
+  try {
+    const handle = await page.waitForFunction(() => {
+      const img = document.getElementById('captcha_name');
+      const src = img?.getAttribute('src') ?? '';
+      return src.startsWith('data:image') && src.length > 200 ? src : false;
+    }, undefined, { timeout: STEP_TIMEOUT_MS });
+    return (await handle.jsonValue()) as string;
+  } catch {
+    // Not a data URI (older page variant) - screenshot the image instead.
+    try {
+      const buf = await page.locator('#captcha_name').screenshot({ timeout: 8_000 });
+      return `data:image/png;base64,${buf.toString('base64')}`;
+    } catch (err) {
+      logger.warn({ err }, 'tn-land: captcha image unavailable');
+      throw new LandRecordsError(502, 'Could not load the captcha from Land Records - try again.');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Session start + dropdown steps
+// ---------------------------------------------------------------------------
+
+export interface LandSessionStart {
+  sessionId: string;
+  service: LandService;
+  title: string;
+  gate: 'otp' | 'captcha';
+  form: FormShape;
+  districts: LandOption[];
+  captchaImage?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Speed (measured 2026-10-24: ~12 s to open a service, of which ~2 s browser
+// launch and ~7 s the home page pulling its icons / stylesheets one by one,
+// although the site answers in ~0.5 s):
+//   - one shared browser; each session is its own context (cookies apart)
+//   - the home page is only the step that hands out the menu link, so it
+//     loads without images / fonts / stylesheets / other hosts; service pages
+//     load in full (their styling is what the result PDF prints)
+//   - one home page is kept loaded and ready while Land Records is in use, so
+//     opening a service is a single click on the site's own link
+// ---------------------------------------------------------------------------
+
+const WARM_MAX_AGE_MS = 4 * 60 * 1000;     // a ready home page older than this is reloaded
+const ACTIVE_WINDOW_MS = 20 * 60 * 1000;   // keep a page ready this long after the last use
+const HOME_SKIP = new Set(['image', 'font', 'media', 'stylesheet']);
+
+let browserPromise: Promise<Browser> | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (!browserPromise) {
+    // CHROMIUM_PATH: Alpine's chromium in the Docker image; unset in dev.
+    browserPromise = chromium.launch({
+      executablePath: process.env.CHROMIUM_PATH || undefined,
+      headless: true,
+      args: ['--disable-dev-shm-usage'],
+    }).then((b) => {
+      b.once('disconnected', () => {
+        browserPromise = null;
+        warm = null;
+        for (const s of sessions.values()) if (s.browser === b) sessions.delete(s.id);
+      });
+      return b;
+    }).catch((err) => {
+      browserPromise = null;
+      throw err;
+    });
+  }
+  return browserPromise;
+}
+
+interface HomePage {
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
+  /** alert() texts - handed to the session that takes this page. */
+  dialogs: string[];
+  loadedAt: number;
+}
+
+let warm: Promise<HomePage | null> | null = null;
+let lastUse = 0;
+let warmTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** A fresh context on the site's home page, menu links present. */
+async function openHome(): Promise<HomePage> {
+  const browser = await getBrowser();
+  const context = await browser.newContext({ acceptDownloads: true });
+  try {
+    // See ecourts-web-search: tsx can wrap page callbacks in `__name`.
+    await context.addInitScript('window.__name = window.__name || function (f) { return f; };');
+    await context.route('**/*', (route) => {
+      const req = route.request();
+      let onHome = false;
+      try { onHome = /\/eservicesnew\/(index\.html)?(\?|$)/.test(req.frame().url()); } catch { /* no frame */ }
+      if (onHome && req.resourceType() !== 'document'
+          && (HOME_SKIP.has(req.resourceType()) || !new URL(req.url()).hostname.endsWith('tn.gov.in'))) {
+        return route.abort();
+      }
+      return route.continue();
+    });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30_000);
+    const home: HomePage = { browser, context, page, dialogs: [], loadedAt: 0 };
+    // The site talks through alert(); keep the text for the advocate.
+    page.on('dialog', (d) => {
+      home.dialogs.push(d.message());
+      void d.accept().catch(() => {});
+    });
+    await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await page.locator('a[href^="land/"]').first().waitFor({ state: 'attached', timeout: STEP_TIMEOUT_MS });
+    home.loadedAt = Date.now();
+    return home;
+  } catch (err) {
+    await context.close().catch(() => {});
+    throw err;
+  }
+}
+
+function scheduleWarm(): void {
+  if (warmTimer) clearTimeout(warmTimer);
+  warmTimer = setTimeout(() => void refreshWarm(), WARM_MAX_AGE_MS);
+  warmTimer.unref?.();
+}
+
+/** Keep one ready home page while Land Records is in use; let it all go after. */
+async function refreshWarm(): Promise<void> {
+  const old = warm;
+  warm = null;
+  if (old) void old.then((h) => h?.context.close().catch(() => {}));
+  // Idle: drop the ready page but keep the browser itself running - starting
+  // it again costs several seconds (first tab ~6 s on Windows).
+  if (Date.now() - lastUse > ACTIVE_WINDOW_MS) return;
+  warm = openHome().catch((err) => {
+    logger.info({ err: String(err) }, 'tn-land: could not pre-load the home page');
+    return null;
+  });
+  scheduleWarm();
+}
+
+/** At API start: launch the shared browser and open (then close) one tab, so
+ *  neither slow first-time cost lands on an advocate. */
+export async function warmLandBrowser(): Promise<void> {
+  const browser = await getBrowser();
+  const context = await browser.newContext();
+  try {
+    await context.newPage();
+  } finally {
+    await context.close().catch(() => {});
+  }
+}
+
+/** Called when the Land Records screen opens, so the first service is quick. */
+export function prepareLandRecords(): void {
+  lastUse = Date.now();
+  if (!warm) void refreshWarm();
+}
+
+/** The ready home page if there is a fresh one, else load one now. */
+async function takeHome(): Promise<HomePage> {
+  lastUse = Date.now();
+  const ready = warm ? await warm : null;
+  warm = null;
+  // Prepare the next one straight away.
+  void refreshWarm();
+  if (ready && Date.now() - ready.loadedAt < WARM_MAX_AGE_MS && !ready.page.isClosed()) return ready;
+  if (ready) void ready.context.close().catch(() => {});
+  return openHome();
+}
+
+/**
+ * Follow the service's menu link on the site's home page, as an advocate
+ * would. One live session per advocate.
+ */
+export async function startLandSession(userId: string, service: LandService): Promise<LandSessionStart> {
+  const cfg = LAND_SERVICES[service];
+  for (const s of [...sessions.values()]) if (s.userId === userId) await closeSession(s.id);
+
+  let home: HomePage;
+  try {
+    home = await takeHome();
+  } catch (err) {
+    logger.warn({ err, service }, 'tn-land: home page load failed');
+    throw new LandRecordsError(502, 'Could not reach Land Records (eservices.tn.gov.in) right now. Try again in a few minutes.');
+  }
+  const { browser, context, page } = home;
+  const session: Session = {
+    id: randomUUID(), userId, service, browser, context, page, dialogs: home.dialogs,
+    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, result: null, pdf: null,
+  };
+  sessions.set(session.id, session);
+  touch(session);
+  page.once('crash', () => void closeSession(session.id));
+
+  try {
+    const link = page.locator(`a[href^="${cfg.href}"]`).first();
+    if (await link.count() === 0) throw new LandRecordsError(502, 'The Land Records home page no longer lists this service.');
+    // Menu links open in the same tab; drop any target so the session keeps one page.
+    await link.evaluate((a: { removeAttribute: (n: string) => void }) => a.removeAttribute('target'));
+    await Promise.all([
+      page.waitForURL((u) => u.pathname.endsWith(cfg.href.split('/').pop()!), { timeout: 45_000, waitUntil: 'domcontentloaded' }),
+      link.evaluate((a: { click: () => void }) => a.click()),
+    ]);
+    // Service pages load in full from here on.
+    await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
+    // The site's handlers come from scripts that may still be loading.
+    if (cfg.gate === 'otp') {
+      await page.waitForFunction(() => typeof window.otpgenerate === 'function', undefined, { timeout: STEP_TIMEOUT_MS })
+        .catch(() => { throw new LandRecordsError(502, 'The Land Records page did not finish loading - try again.'); });
+    }
+    const invalid = await page.evaluate(() => /INVALID ACCESS TO THE SITE/i.test(document.body?.innerText ?? ''));
+    if (invalid) throw new LandRecordsError(502, 'Land Records refused the visit. Try again in a minute.');
+
+    const districts = cfg.form === 'appid' || cfg.form === 'refno'
+      ? []
+      : await waitForOptions(page, SELECT_ID.district, 'district');
+    if (cfg.form !== 'appid' && cfg.form !== 'refno' && districts.length === 0) {
+      throw new LandRecordsError(502, 'Land Records did not load its district list - try again.');
+    }
+    const out: LandSessionStart = { sessionId: session.id, service, title: cfg.title, gate: cfg.gate, form: cfg.form, districts };
+    if (cfg.gate === 'captcha') out.captchaImage = await captchaImage(page);
+    return out;
+  } catch (err) {
+    await closeSession(session.id);
+    if (err instanceof LandRecordsError) throw err;
+    logger.warn({ err, service }, 'tn-land: page load failed');
+    throw new LandRecordsError(502, 'Could not reach Land Records (eservices.tn.gov.in) right now. Try again in a few minutes.');
+  }
+}
+
+/** Which list follows each pick, per form shape. */
+function nextList(form: FormShape, field: LandListField): LandListField | null {
+  if (form === 'urban') {
+    const order: LandListField[] = ['district', 'taluk', 'village', 'ward', 'block', 'survey', 'subdiv'];
+    const i = order.indexOf(field);
+    return i >= 0 && i < order.length - 1 ? order[i + 1]! : null;
+  }
+  if (field === 'district') return 'taluk';
+  if (field === 'taluk') return 'village';
+  return null;
+}
+
+export interface LandSelectResult {
+  next: LandListField | null;
+  options: LandOption[];
+  /** Rural taluk that also keeps Natham records - ask Rural / Natham. */
+  askLandType?: boolean;
+  message?: string;
+}
+
+/** Pick a value in one of the site's dropdowns and return the next list. */
+export async function selectLandField(sessionId: string, userId: string, field: LandListField, value: string): Promise<LandSelectResult> {
+  const s = getSession(sessionId, userId);
+  const cfg = LAND_SERVICES[s.service];
+  const from = s.dialogs.length;
+  const next = nextList(cfg.form, field);
+  // Clear the next list first so we wait for the fresh one, not the old one.
+  if (next) {
+    await s.page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (el && el.tagName === 'SELECT') el.innerHTML = '';
+    }, SELECT_ID[next]);
+  }
+  await setField(s.page, SELECT_ID[field], value);
+  const options = next ? await waitForOptions(s.page, SELECT_ID[next], next) : [];
+  const out: LandSelectResult = { next, options };
+  if (cfg.form === 'rural' && field === 'taluk') out.askLandType = value.split('/')[1] === 'Y';
+  const msg = lastDialog(s, from);
+  if (msg) out.message = msg;
+  return out;
+}
+
+/** Rural: type the survey number; the site loads its sub divisions. */
+export async function loadSubdivisions(sessionId: string, userId: string, surveyNo: string, landType?: 'R' | 'N'): Promise<LandSelectResult> {
+  const s = getSession(sessionId, userId);
+  const cfg = LAND_SERVICES[s.service];
+  if (cfg.form !== 'rural') throw new LandRecordsError(400, 'This service takes the sub division as text.');
+  const from = s.dialogs.length;
+  if (landType) await applyLandType(s, landType);
+  await s.page.evaluate(() => {
+    const el = document.getElementById('subdivNo');
+    if (el) el.innerHTML = '<option value="">Please Select ...</option>';
+  });
+  await setField(s.page, '#surveyNo', surveyNo.trim());
+  const options = await waitForOptions(s.page, SELECT_ID.subdiv, 'subdiv');
+  const msg = lastDialog(s, from);
+  return { next: null, options, ...(msg ? { message: msg } : {}) };
+}
+
+async function applyLandType(s: Session, landType: 'R' | 'N'): Promise<void> {
+  // FMB uses a single "Natham" checkbox; the others a Rural / Natham radio pair.
+  await s.page.evaluate((lt) => {
+    const boxes = [...(document.querySelectorAll('input[name="landtype"]') as Iterable<{ type: string; value: string; checked: boolean; click: () => void }>)];
+    for (const b of boxes) {
+      if (b.type === 'checkbox') {
+        if ((lt === 'N') !== b.checked) b.click();
+      } else if (b.value === lt && !b.checked) b.click();
+    }
+  }, landType);
+}
+
+/** Fill the advocate's text fields into the site's form. */
+async function fillForm(s: Session, f: LandFormFields): Promise<void> {
+  const cfg = LAND_SERVICES[s.service];
+  const { page } = s;
+  if (cfg.form === 'appid') {
+    if (!f.applicationId) throw new LandRecordsError(400, 'Enter the Application Id.');
+    await setField(page, '#applicationid', f.applicationId.trim());
+    s.summary['Application Id'] = f.applicationId.trim();
+    return;
+  }
+  if (cfg.form === 'refno') {
+    if (!f.refNo) throw new LandRecordsError(400, 'Enter the Reference Number.');
+    await setField(page, '#refNo', f.refNo.trim());
+    s.summary['Reference Number'] = f.refNo.trim();
+    return;
+  }
+  if (cfg.form === 'rural-plain') {
+    if (!f.surveyNo || !f.subdivNo) throw new LandRecordsError(400, 'Enter the Survey Number and Sub Division Number.');
+    await setField(page, '#surveyNo', f.surveyNo.trim());
+    await setField(page, '#subdivNo', f.subdivNo.trim());
+    s.summary['Survey Number'] = `${f.surveyNo.trim()}/${f.subdivNo.trim()}`;
+    return;
+  }
+  if (cfg.form === 'rural') {
+    if (f.landType) await applyLandType(s, f.landType);
+    if (s.service === 'patta') {
+      const by = f.viewBy ?? 'sur';
+      await page.evaluate((v) => {
+        const r = document.querySelector(`input[name="viewOpt"][value="${v}"]`);
+        if (r && !r.checked) r.click();
+      }, by);
+      if (by === 'pt') {
+        if (!f.pattaNo) throw new LandRecordsError(400, 'Enter the Patta Number.');
+        await setField(page, '#pattaNo', f.pattaNo.trim());
+        s.summary['Patta Number'] = f.pattaNo.trim();
+        return;
+      }
+    }
+    // Survey + sub division were picked through loadSubdivisions; set the
+    // sub division last in case the survey change reset it.
+    if (f.subdivNo) await setField(page, '#subdivNo', f.subdivNo);
+    if (f.surveyNo) s.summary['Survey Number'] = `${f.surveyNo.trim()}${f.subdivNo && f.subdivNo !== '-' ? `/${f.subdivNo}` : ''}`;
+    return;
+  }
+  // urban: every value was picked from the site's lists.
+  const surveyPicked = await page.evaluate(() => document.getElementById('subdivNo')?.value ?? '');
+  if (!surveyPicked && f.subdivNo) await setField(page, '#subdivNo', f.subdivNo);
+}
+
+/** Location labels as the site shows them, for the filed document's name. */
+async function readLocation(s: Session): Promise<void> {
+  const loc = await s.page.evaluate(() => {
+    const pick = (id: string) => {
+      const el = document.getElementById(id);
+      if (!el || el.tagName !== 'SELECT' || el.selectedIndex < 0) return '';
+      return (el.options[el.selectedIndex]?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    };
+    return { District: pick('districtCode'), Taluk: pick('talukCode'), Village: pick('villageCode'), Ward: pick('wardNo'), Block: pick('blockCode') };
+  });
+  for (const [k, v] of Object.entries(loc)) if (v && !/select/i.test(v)) s.summary[k] = v;
+}
+
+// ---------------------------------------------------------------------------
+// OTP services
+// ---------------------------------------------------------------------------
+
+const MOBILE_RE = /^[6-9]\d{9}$/;
+
+/**
+ * Fill the form and ask the site to text an OTP to the advocate's mobile
+ * (the site's own otpgenerate, which also validates the form first).
+ */
+export async function sendLandOtp(sessionId: string, userId: string, mobile: string, fields: LandFormFields): Promise<{ message: string }> {
+  const s = getSession(sessionId, userId);
+  const cfg = LAND_SERVICES[s.service];
+  if (cfg.gate !== 'otp' || !cfg.action) throw new LandRecordsError(400, 'This service uses a captcha, not an OTP.');
+  if (!MOBILE_RE.test(mobile)) throw new LandRecordsError(400, 'Enter a 10-digit mobile number.');
+  await fillForm(s, fields);
+  await readLocation(s);
+  await setField(s.page, '#mobileno', mobile);
+  s.mobile = mobile;
+  const from = s.dialogs.length;
+  const response = s.page.waitForResponse((r) => /ajax\.html\?page=otp/i.test(r.url()), { timeout: 25_000 }).catch(() => null);
+  await s.page.evaluate(({ mobile, action }) => {
+    if (typeof window.otpgenerate === 'function') setTimeout(() => window.otpgenerate(mobile, action, 'en'), 0);
+  }, { mobile, action: cfg.action });
+  const res = await response;
+  await s.page.waitForTimeout(800);
+  const shown = await isVisible(s.page, '#otpcodeview');
+  const msg = lastDialog(s, from);
+  if (!shown) {
+    if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`);
+    throw new LandRecordsError(res ? 400 : 504, res ? 'Land Records did not send the OTP. Check the details and try again.' : 'Land Records did not answer - try again.');
+  }
+  const sms = await s.page.evaluate(() => (document.getElementById('smsmsg')?.innerText ?? '').replace(/\s+/g, ' ').trim());
+  return { message: sms || `OTP sent to XXXXXX${mobile.slice(6)}.` };
+}
+
+/** Confirm the OTP, submit the form, and read the result. */
+export async function verifyLandOtp(sessionId: string, userId: string, otp: string): Promise<LandResult> {
+  const s = getSession(sessionId, userId);
+  const cfg = LAND_SERVICES[s.service];
+  if (cfg.gate !== 'otp' || !cfg.action || !s.mobile) throw new LandRecordsError(400, 'Send the OTP first.');
+  if (!/^\d{6}$/.test(otp.trim())) throw new LandRecordsError(400, 'The OTP is 6 digits.');
+  await setField(s.page, '#otpno', otp.trim());
+  const from = s.dialogs.length;
+  await s.page.evaluate(({ mobile, otp, action }) => {
+    if (typeof window.verify_otp === 'function') setTimeout(() => window.verify_otp(mobile, otp, 'en', action), 0);
+  }, { mobile: s.mobile, otp: otp.trim(), action: cfg.action });
+  try {
+    await s.page.waitForFunction(() => {
+      const e = document.getElementById('sub_id');
+      return Boolean(e && window.getComputedStyle(e).display !== 'none');
+    }, undefined, { timeout: STEP_TIMEOUT_MS });
+  } catch {
+    const msg = lastDialog(s, from);
+    throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'The OTP was not accepted - check it and try again.');
+  }
+  return submitAndRead(s);
+}
+
+// ---------------------------------------------------------------------------
+// CAPTCHA services
+// ---------------------------------------------------------------------------
+
+export async function refreshLandCaptcha(sessionId: string, userId: string): Promise<{ captchaImage: string }> {
+  const s = getSession(sessionId, userId);
+  await s.page.evaluate(() => {
+    const img = document.getElementById('captcha_name');
+    if (img) img.setAttribute('src', '');
+    if (typeof window.loadcpatcha === 'function') window.loadcpatcha();
+  });
+  return { captchaImage: await captchaImage(s.page) };
+}
+
+export type LandCaptchaSubmit =
+  | { status: 'ok'; result: LandResult }
+  | { status: 'retry'; reason: string; captchaImage: string };
+
+export async function submitLandCaptcha(sessionId: string, userId: string, captcha: string, fields: LandFormFields): Promise<LandCaptchaSubmit> {
+  const s = getSession(sessionId, userId);
+  const cfg = LAND_SERVICES[s.service];
+  if (cfg.gate !== 'captcha' || !cfg.captchaInput) throw new LandRecordsError(400, 'This service uses an OTP, not a captcha.');
+  await fillForm(s, fields);
+  await readLocation(s);
+  await setField(s.page, cfg.captchaInput, captcha.trim());
+  const before = s.page.url();
+  try {
+    return { status: 'ok', result: await submitAndRead(s) };
+  } catch (err) {
+    // Still on the form (or back on it) with a captcha complaint - hand out a fresh one.
+    const msg = err instanceof LandRecordsError ? err.message : '';
+    const onForm = s.page.url() === before || (await s.page.$(cfg.captchaInput)) !== null;
+    if (onForm && /captcha|authentication|value/i.test(msg)) {
+      const fresh = await refreshLandCaptcha(sessionId, userId);
+      return { status: 'retry', reason: 'Incorrect authentication value - try the new one.', captchaImage: fresh.captchaImage };
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Submit + read
+// ---------------------------------------------------------------------------
+
+/** Click the site's own Submit (runs its validate()), then read what comes back. */
+async function submitAndRead(s: Session): Promise<LandResult> {
+  const cfg = LAND_SERVICES[s.service];
+  const { page } = s;
+  const from = s.dialogs.length;
+  const startUrl = page.url();
+  const popup = cfg.popup ? s.context.waitForEvent('page', { timeout: 40_000 }).catch(() => null) : null;
+  const download = page.waitForEvent('download', { timeout: 40_000 }).catch(() => null);
+  const nav = page.waitForURL((u) => u.toString() !== startUrl, { timeout: 40_000 }).catch(() => null);
+
+  await page.evaluate(() => {
+    const btn = document.querySelector('form input[type="submit"], form button[type="submit"]');
+    if (btn) btn.click();
+    else document.forms[0]?.requestSubmit?.();
+  });
+
+  if (cfg.popup) {
+    // FMB / TSLR sketch: the site asks Collabland for a token and opens the
+    // sketch in a new window - keep that window's document.
+    const opened = await Promise.race([popup, nav.then(() => null)]);
+    if (opened) return readPopup(s, opened);
+  }
+  const navigated = await Promise.race([nav, download.then(() => null)]);
+  const dl = navigated ? null : await Promise.race([download, page.waitForTimeout(1500).then(() => null)]);
+  if (dl) {
+    const path = await dl.path();
+    const { readFile } = await import('node:fs/promises');
+    const bytes = path ? await readFile(path) : null;
+    if (!bytes || bytes.indexOf('%PDF-') < 0) throw new LandRecordsError(502, 'Land Records returned an unexpected file.');
+    s.pdf = bytes.subarray(bytes.indexOf('%PDF-'));
+    s.result = { title: cfg.title, fields: [], sections: [], text: 'The document was downloaded from Land Records.', hasPdf: true };
+    return s.result;
+  }
+  if (!navigated) {
+    const msg = lastDialog(s, from);
+    throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'Land Records did not answer - try again.');
+  }
+  await page.waitForLoadState('load');
+  await page.waitForTimeout(800);
+  return readResultPage(s);
+}
+
+/** The slice of a DOM element the result reader touches (no dom lib here). */
+interface PageEl {
+  innerText?: string;
+  querySelector: (s: string) => PageEl | null;
+  querySelectorAll: (s: string) => Iterable<PageEl>;
+  previousElementSibling: PageEl | null;
+}
+
+/** Read the rendered result as plain text and print it to PDF. */
+async function readResultPage(s: Session): Promise<LandResult> {
+  const { page } = s;
+  const read = await page.evaluate(() => {
+    const txt = (el: { innerText?: string } | null) => (el?.innerText ?? '').replace(/\s+/g, ' ').trim();
+    const root = document.querySelector('section') ?? document.body;
+    const fields: Array<{ label: string; value: string }> = [];
+    const sections: Array<{ heading: string | null; headers: string[]; rows: string[][] }> = [];
+    for (const table of [...(root.querySelectorAll('table') as Iterable<PageEl>)]) {
+      // Only innermost tables - layout tables wrap the data ones.
+      if (table.querySelector('table')) continue;
+      const trs = [...table.querySelectorAll('tr')];
+      const grid = trs.map((tr) => [...tr.querySelectorAll('th, td')].map((c) => txt(c)));
+      const nonEmpty = grid.filter((r) => r.some(Boolean));
+      if (nonEmpty.length === 0) continue;
+      // Two-cell "Label : value" rows read as fields.
+      if (nonEmpty.every((r) => r.filter(Boolean).length <= 2) && nonEmpty.length <= 30
+          && nonEmpty.some((r) => r.length === 2 && r[0] && r[1])) {
+        for (const r of nonEmpty) {
+          const [label, value] = r.filter(Boolean);
+          if (label && value) fields.push({ label: label.replace(/\s*:\s*$/, ''), value: value.replace(/^\s*:\s*/, '') });
+        }
+        continue;
+      }
+      const thRow = trs.findIndex((tr) => tr.querySelector('th'));
+      const headerIdx = thRow >= 0 ? thRow : 0;
+      const headers = grid[headerIdx] ?? [];
+      const rows = grid.slice(headerIdx + 1).filter((r) => r.some(Boolean));
+      let heading: string | null = null;
+      let prev = table.previousElementSibling;
+      while (prev && !heading) {
+        const t = txt(prev);
+        if (t && t.length < 160) heading = t;
+        prev = prev.previousElementSibling;
+      }
+      sections.push({ heading, headers, rows });
+    }
+    const titleEl = root.querySelector('h1, h2, h3, .head, .container-fluid span');
+    return { title: txt(titleEl), fields, sections, text: txt(root).slice(0, 1500) };
+  });
+  const invalid = /INVALID ACCESS TO THE SITE/i.test(read.text);
+  if (invalid) throw new LandRecordsError(502, 'Land Records ended the session - start again.');
+  try {
+    s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
+  } catch (err) {
+    logger.warn({ err }, 'tn-land: pdf print failed');
+    s.pdf = null;
+  }
+  s.result = {
+    title: read.title || LAND_SERVICES[s.service].title,
+    fields: read.fields,
+    sections: read.sections,
+    text: read.text,
+    hasPdf: Boolean(s.pdf),
+  };
+  return s.result;
+}
+
+async function readPopup(s: Session, popup: Page): Promise<LandResult> {
+  const cfg = LAND_SERVICES[s.service];
+  let bytes: Buffer | null = null;
+  try {
+    const res = await popup.waitForResponse((r) => r.request().resourceType() === 'document', { timeout: 30_000 }).catch(() => null);
+    if (res && /pdf/i.test(res.headers()['content-type'] ?? '')) bytes = Buffer.from(await res.body());
+    if (!bytes) {
+      await popup.waitForLoadState('load', { timeout: 30_000 });
+      await popup.waitForTimeout(1500);
+      bytes = await popup.pdf({ format: 'A4', printBackground: true });
+    }
+  } catch (err) {
+    logger.warn({ err }, 'tn-land: sketch window failed');
+  }
+  await popup.close().catch(() => {});
+  if (!bytes || bytes.indexOf('%PDF-') < 0) throw new LandRecordsError(502, 'The sketch did not open from Land Records - try again.');
+  s.pdf = bytes.subarray(bytes.indexOf('%PDF-'));
+  s.result = { title: cfg.title, fields: [], sections: [], text: 'Sketch received from Land Records (Collabland).', hasPdf: true };
+  return s.result;
+}
+
+// ---------------------------------------------------------------------------
+// The result's PDF, for download / filing
+// ---------------------------------------------------------------------------
+
+export function landSessionPdf(sessionId: string, userId: string): { pdf: Buffer; filename: string; label: string; summary: Record<string, string>; service: LandService; result: LandResult } {
+  const s = getSession(sessionId, userId);
+  if (!s.pdf || !s.result) throw new LandRecordsError(404, 'There is no Land Records result to save yet.');
+  const cfg = LAND_SERVICES[s.service];
+  const where = [s.summary.Village, s.summary.Taluk, s.summary.District].filter(Boolean).join(', ');
+  const key = s.summary['Survey Number'] ? `S.No. ${s.summary['Survey Number']}`
+    : s.summary['Patta Number'] ? `Patta ${s.summary['Patta Number']}`
+    : s.summary['Application Id'] ?? s.summary['Reference Number'] ?? '';
+  const label = [cfg.title.replace(/\s*-\s*\(.*\)$/, ''), key, where].filter(Boolean).join(' - ');
+  const filename = `${label.replace(/[^\w.-]+/g, '_').slice(0, 120) || 'land-record'}.pdf`;
+  return { pdf: s.pdf, filename, label, summary: { ...s.summary }, service: s.service, result: s.result };
+}
+
+/** The service a live session is running (null once it has expired). */
+export function landSessionService(sessionId: string, userId: string): LandService | null {
+  const s = sessions.get(sessionId);
+  return s && s.userId === userId ? s.service : null;
+}
+
+process.on('beforeExit', () => {
+  for (const s of sessions.values()) void closeSession(s.id);
+  if (warmTimer) clearTimeout(warmTimer);
+  void browserPromise?.then((b) => b.close()).catch(() => {});
+});
+
+/** Visible for tests. */
+export const __testing = { nextList, readResultPage };

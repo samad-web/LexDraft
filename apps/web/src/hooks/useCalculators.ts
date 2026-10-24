@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 /**
@@ -97,6 +97,7 @@ export function useCourtFee(params: { state?: string; value?: number }) {
         value: params.value,
       }),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -115,6 +116,7 @@ export function useStampDuty(params: { state?: string; instrument?: string; valu
         value: params.value,
       }),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 

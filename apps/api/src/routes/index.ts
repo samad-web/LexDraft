@@ -21,6 +21,7 @@ import { researchRouter } from './research.routes';
 import { lawsRouter } from './laws.routes';
 import { ecourtsRouter } from './ecourts.routes';
 import { efilingRouter } from './efiling.routes';
+import { landRecordsRouter } from './land-records.routes';
 import { judgesRouter } from './judges.routes';
 import { dashboardRouter } from './dashboard.routes';
 import { searchRouter } from './search.routes';
@@ -171,6 +172,8 @@ apiRouter.use('/research', requireAuth, requireActivePlan, researchRouter);
 apiRouter.use('/laws',     requireAuth, requireActivePlan, lawsRouter);
 apiRouter.use('/ecourts',  requireAuth, requireActivePlan, ecourtsRouter);
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingRouter);
+// Tamil Nadu Land Records eServices (patta / chitta / A-Register / FMB / TSLR).
+apiRouter.use('/land-records', requireAuth, requireActivePlan, landRecordsRouter);
 apiRouter.use('/judges',   requireAuth, requireActivePlan, judgesRouter);
 apiRouter.use('/clauses',     requireAuth, requireActivePlan, clausesRouter);
 apiRouter.use('/clients',     requireAuth, requireActivePlan, clientsRouter);

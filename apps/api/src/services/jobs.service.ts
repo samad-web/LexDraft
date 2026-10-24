@@ -51,8 +51,9 @@ const registry: RegisteredJob[] = [];
 /** Job names whose recurring schedule was removed. Their handlers may still
  *  be registered (for manual triggering) but must no longer fire on a cron.
  *  - ecourts.sync.daily (02:00) -> replaced by ecourts.sync.morning/evening
- *  - hearings.reminders.daily (02:30) -> now runs after the 09:00 sync */
-const RETIRED_SCHEDULES = ['ecourts.sync.daily', 'hearings.reminders.daily'];
+ *  - hearings.reminders.daily (02:30) -> now runs after the 09:00 sync
+ *  - tn-land.reminders.morning/evening -> Land Records reminders dropped (user, 2026-10-24) */
+const RETIRED_SCHEDULES = ['ecourts.sync.daily', 'hearings.reminders.daily', 'tn-land.reminders.morning', 'tn-land.reminders.evening'];
 let boss: PgBoss | null = null;
 let starting: Promise<PgBoss | null> | null = null;
 
