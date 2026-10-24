@@ -15,7 +15,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
-  __testing, landSessionPdf, submitLandCaptcha, verifyLandOtp, LandRecordsError,
+  __testing, landSessionPdf, loadSubdivisions, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
 } from '../src/services/tn-land-records.service';
 
 const FX = 'https://eservices.tn.gov.in/fx';
@@ -156,6 +156,62 @@ describe('OTP services follow the site', () => {
     id = __testing.adoptPage(page, ctx, 'order-copy', USER);
     await verifyLandOtp(id, USER, '123456');
     expect(await code(submitLandCaptcha(id, USER, '9', {}))).toBe('OTP_REJECTED');
+    await ctx.close();
+  });
+
+  it('patta: the sub division survives the site reloading its list (Get OTP -> Confirm -> result)', async () => {
+    // Like the site: typing the survey number reloads the sub division list
+    // a moment later (getSubdivNo), which resets the pick; validate() then
+    // refuses an empty sub division ("Please Enter Subdivision Number").
+    const page0 = `<!doctype html><html><body><section>
+<form name="landForm" method="post" action="${FX}/result" onsubmit="return check();">
+  <select id="districtCode" name="districtCode"><option value="">-</option><option value="38" selected>Tenkasi</option></select>
+  <select id="talukCode" name="talukCode"><option value="05/Y" selected>Shencottai</option></select>
+  <select id="villageCode" name="villageCode"><option value="011" selected>Panpoli</option></select>
+  <input type="radio" name="viewOpt" value="sur" checked>
+  <input type="radio" name="landtype" value="N" checked>
+  <input id="surveyNo" name="surveyNo" onchange="reload()">
+  <select id="subdivNo" name="subdivNo"><option value="">Please Select ...</option></select>
+  <input id="mobileno" name="mobileno">
+  <input type="button" id="sendtpid" value="Get OTP" onclick="sendOtp()">
+  <div id="otpcodeview" style="display:none"><input id="otpno" name="otpno"><input type="button" id="otpval" value="Confirm OTP" onclick="verify()"></div>
+  <input type="hidden" id="otpno_ver" name="otpno_ver"><input type="hidden" id="mobileno_ver" name="mobileno_ver">
+  <div id="sub_id" style="display:none"><input type="submit" value="Submit"></div>
+</form></section>
+<script>
+  window.otpgenerate = function () {};
+  function reload() {
+    setTimeout(function () {
+      document.getElementById('subdivNo').innerHTML = '<option value="">Please Select ...</option><option value="9">9</option><option value="10">10</option>';
+    }, 400);
+  }
+  function sendOtp() {
+    fetch('${FX}/ajax.html?page=otpgeneratenew', { method: 'POST' }).then(function () { document.getElementById('otpcodeview').style.display = 'block'; });
+  }
+  function verify() {
+    setTimeout(function () {
+      document.getElementById('otpno_ver').value = document.getElementById('otpno').value;
+      document.getElementById('mobileno_ver').value = document.getElementById('mobileno').value;
+      alert('Your OTP has been verified');
+      document.getElementById('sub_id').style.display = 'block';
+    }, 200);
+  }
+  function check() {
+    if (!document.getElementById('subdivNo').value) { alert('Please Enter Subdivision Number'); return false; }
+    return true;
+  }
+</script></body></html>`;
+    const { ctx, page } = await open('/patta-reload', {
+      '/patta-reload': () => page0,
+      '/ajax.html': () => '{"statusCode":"true","new_tk":"x"}',
+      '/result': (body: string) => (/subdivNo=10/.test(body) && /surveyNo=685/.test(body) ? resultPage : '<html><body>wrong form values</body></html>'),
+    });
+    const id = __testing.adoptPage(page, ctx, 'patta', USER);
+    const sd = await loadSubdivisions(id, USER, '685', 'N');
+    expect(sd.options.map((o) => o.value)).toContain('10');
+    await sendLandOtp(id, USER, '9876543210', { viewBy: 'sur', landType: 'N', surveyNo: '685', subdivNo: '10' });
+    const out = await verifyLandOtp(id, USER, '213924');
+    expect(out.status).toBe('ok');
     await ctx.close();
   });
 

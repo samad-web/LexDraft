@@ -155,6 +155,8 @@ interface Session {
   picks: Partial<Record<LandListField, string>>;
   /** A site step (OTP, captcha, submit) is in progress. */
   busy: boolean;
+  /** The text fields last filled into the site form (re-asserted before sends). */
+  formFields: LandFormFields | null;
   /** The OTP sent last was confirmed by the site (reset on every send). */
   otpVerified: boolean;
   result: LandResult | null;
@@ -239,8 +241,12 @@ async function setField(page: Page, selector: string, value: string): Promise<vo
       if (tag === 'select') await page.selectOption(selector, value, { timeout: 5_000 });
       else {
         await page.fill(selector, value, { timeout: 5_000 });
-        // Text fields load lists on change (survey -> sub divisions).
-        await page.dispatchEvent(selector, 'change');
+        // Leave the box, as a person does: the browser fires the site's
+        // onchange ONCE, now (survey -> getSubdivNo reloads the list). An
+        // extra dispatched change + the native one on a later blur made the
+        // site reload the list again AFTER a sub division was picked,
+        // clearing it ("Please Enter Subdivision Number", seen live).
+        await page.evaluate((sel) => document.querySelector(sel)?.blur(), selector);
       }
       return;
     } catch {
@@ -488,7 +494,7 @@ export async function startLandSession(userId: string, service: LandService): Pr
   const { browser, context, page } = home;
   const session: Session = {
     id: randomUUID(), userId, service, browser, context, page, dialogs: home.dialogs,
-    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null,
+    idleTimer: setTimeout(() => {}, 0), mobile: null, summary: {}, picks: {}, busy: false, otpVerified: false, formFields: null, result: null, pdf: null,
   };
   sessions.set(session.id, session);
   touch(session);
@@ -634,6 +640,7 @@ async function waitForValue(page: Page, selector: string, value: string): Promis
 
 /** Fill the advocate's text fields into the site's form. */
 async function fillForm(s: Session, f: LandFormFields): Promise<void> {
+  s.formFields = { ...f };
   await reapplyPicks(s);
   const cfg = LAND_SERVICES[s.service];
   const { page } = s;
@@ -691,6 +698,33 @@ async function fillForm(s: Session, f: LandFormFields): Promise<void> {
   if (!surveyPicked && f.subdivNo) await setField(page, '#subdivNo', f.subdivNo);
 }
 
+/**
+ * Right before a send (Get OTP, final Submit): let any list the site is still
+ * reloading arrive, then make sure its survey / sub division boxes still hold
+ * the advocate's values - the site's own validate() reads them, and a late
+ * getSubdivNo reload clears the sub division.
+ */
+async function reassertForm(s: Session): Promise<void> {
+  const f = s.formFields;
+  const cfg = LAND_SERVICES[s.service];
+  if (!f || (cfg.form !== 'rural' && cfg.form !== 'rural-plain')) return;
+  if (s.service === 'patta' && f.viewBy === 'pt') return;
+  await s.page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => {});
+  const now = await s.page.evaluate(() => ({
+    survey: document.getElementById('surveyNo')?.value ?? '',
+    subdiv: document.getElementById('subdivNo')?.value ?? '',
+  }));
+  if (f.surveyNo && now.survey.trim().toUpperCase() !== f.surveyNo.trim().toUpperCase()) {
+    await setField(s.page, '#surveyNo', f.surveyNo.trim());
+    if (cfg.form === 'rural' && f.subdivNo) await waitForValue(s.page, SELECT_ID.subdiv, f.subdivNo);
+  }
+  if (f.subdivNo && now.subdiv !== f.subdivNo) {
+    // Selecting a sub division fires nothing on the site - safe to set.
+    await setField(s.page, cfg.form === 'rural' ? SELECT_ID.subdiv : '#subdivNo', f.subdivNo);
+    logger.info({ service: s.service }, 'tn-land: sub division restored before send');
+  }
+}
+
 /** Location labels as the site shows them, for the filed document's name. */
 async function readLocation(s: Session): Promise<void> {
   const loc = await s.page.evaluate(() => {
@@ -722,6 +756,7 @@ export async function sendLandOtp(sessionId: string, userId: string, mobile: str
   return exclusive(s, async () => {
     await fillForm(s, fields);
     await readLocation(s);
+    await reassertForm(s);
     // The site disables these after a confirmed OTP; a resend starts afresh.
     await s.page.evaluate(() => {
       for (const id of ['mobileno', 'otpno', 'sendtpid']) { const el = document.getElementById(id); if (el) el.disabled = false; }
@@ -891,6 +926,7 @@ async function submitAndRead(s: Session): Promise<LandResult> {
       return true;
     }, () => false);
 
+  await reassertForm(s);
   // Click what a person clicks: the visible control in the site's Submit
   // block - a real submit button, or FMB / TSLR sketch's
   // `onclick="return validate_fmb('en')"` / validate_tslr button (AJAX, then
@@ -1096,7 +1132,7 @@ export const __testing = {
   nextList,
   /** Read a result page that is already open in `page` (fixture tests). */
   readResultFromPage: (page: Page, service: LandService = 'patta') => readResultPage({
-    id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null, mobile: null,
+    id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, busy: false, otpVerified: false, formFields: null, result: null, pdf: null, mobile: null,
     browser: null as unknown as Browser, context: null as unknown as BrowserContext, idleTimer: setTimeout(() => {}, 0),
   }),
   /** Register an already-open page as a session at the OTP step (flow tests
@@ -1105,11 +1141,23 @@ export const __testing = {
     const id = randomUUID();
     const s: Session = {
       id, userId, service, browser: null as unknown as Browser, context, page, dialogs: [],
-      idleTimer: setTimeout(() => {}, 0), mobile, summary: {}, picks: {}, busy: false, otpVerified: false, result: null, pdf: null,
+      idleTimer: setTimeout(() => {}, 0), mobile, summary: {}, picks: {}, busy: false, otpVerified: false, formFields: null, result: null, pdf: null,
     };
     page.on('dialog', (d) => { s.dialogs.push(d.message()); void d.accept().catch(() => {}); });
     sessions.set(id, s);
     return id;
+  },
+  /** Fill the site form as Get OTP would (no OTP sent) and read the site's
+   *  own boxes after any late list reload (live check of the form state). */
+  fillAndRead: async (sessionId: string, userId: string, fields: LandFormFields) => {
+    const s = getSession(sessionId, userId);
+    await fillForm(s, fields);
+    await reassertForm(s);
+    await s.page.waitForTimeout(1500);
+    return s.page.evaluate(() => ({
+      survey: document.getElementById('surveyNo')?.value ?? '',
+      subdiv: document.getElementById('subdivNo')?.value ?? '',
+    }));
   },
   /** Give a live session a result + PDF without the OTP (e2e: filing flow). */
   setSessionResult: (sessionId: string, result: LandResult, pdf: Buffer, summary: Record<string, string>) => {
