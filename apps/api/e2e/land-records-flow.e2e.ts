@@ -15,7 +15,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
-  __testing, landSessionPdf, loadSubdivisions, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
+  __testing, landSessionPdf, loadSubdivisions, selectLandField, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
 } from '../src/services/tn-land-records.service';
 
 const FX = 'https://eservices.tn.gov.in/fx';
@@ -211,6 +211,59 @@ describe('OTP services follow the site', () => {
     expect(sd.options.map((o) => o.value)).toContain('10');
     await sendLandOtp(id, USER, '9876543210', { viewBy: 'sur', landType: 'N', surveyNo: '685', subdivNo: '10' });
     const out = await verifyLandOtp(id, USER, '213924');
+    expect(out.status).toBe('ok');
+    await ctx.close();
+  });
+
+  it('order copy: a result that embeds its PDF returns that document, not a blank print', async () => {
+    const sub = `<input id="captEntr" name="captEntr"><img id="captcha_name" src="${CAPTCHA}"><input type="submit" value="Submit">`;
+    const pdf = '%PDF-1.4\n% ORDERCOPY-MARKER\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF';
+    const { ctx, page } = await open('/order', {
+      '/order': () => otpForm({ action: `${FX}/order-result`, sub, extraTop: '<input id="applicationid" name="applicationid" value="2026/0412/05/001234">' }),
+      '/order-result': () => `<!doctype html><html><body><section><h3>Patta Order Copy</h3><iframe src="${FX}/order.pdf" width="600" height="800"></iframe></section></body></html>`,
+      '/order.pdf': () => pdf,
+    });
+    const id = __testing.adoptPage(page, ctx, 'order-copy', USER);
+    expect(await verifyLandOtp(id, USER, '123456')).toMatchObject({ status: 'captcha' });
+    const out = await submitLandCaptcha(id, USER, '7', {});
+    expect(out.status).toBe('ok');
+    if (out.status === 'ok') expect(out.result.text).toMatch(/document from Land Records is ready/);
+    expect(landSessionPdf(id, USER).pdf.toString()).toContain('ORDERCOPY-MARKER');
+    await ctx.close();
+  });
+
+  it('TSLR: the sub division pick survives the survey list reload through Get OTP -> result', async () => {
+    const pageHtml = `<!doctype html><html><body><section>
+<form name="landForm" method="post" action="${FX}/tslr-result" onsubmit="return check();">
+  <select id="surveyNo" name="surveyNo" onchange="reload()"><option value="">Please Select ...</option><option value="12">12</option></select>
+  <select id="subdivNo" name="subdivNo"><option value="">Please Select ...</option></select>
+  <input id="mobileno" name="mobileno"><input type="button" id="sendtpid" value="Get OTP" onclick="sendOtp()">
+  <div id="otpcodeview" style="display:none"><input id="otpno" name="otpno"><input type="button" id="otpval" value="Confirm OTP" onclick="verify()"></div>
+  <input type="hidden" id="otpno_ver" name="otpno_ver"><input type="hidden" id="mobileno_ver" name="mobileno_ver">
+  <div id="sub_id" style="display:none"><input type="submit" value="Submit"></div>
+</form></section>
+<script>
+  window.otpgenerate = function () {};
+  function reload() { setTimeout(function () { document.getElementById('subdivNo').innerHTML = '<option value="">Please Select ...</option><option value="3:A">3</option><option value="4:B">4</option>'; }, 300); }
+  function sendOtp() {
+    // The site reloads lists around the OTP send too - simulate a late reset.
+    reload();
+    fetch('${FX}/ajax.html?page=otpgeneratenew', { method: 'POST' }).then(function () { document.getElementById('otpcodeview').style.display = 'block'; });
+  }
+  function verify() { setTimeout(function () { document.getElementById('otpno_ver').value = document.getElementById('otpno').value; document.getElementById('mobileno_ver').value = document.getElementById('mobileno').value; alert('Your OTP has been verified'); document.getElementById('sub_id').style.display = 'block'; }, 200); }
+  function check() { if (!document.getElementById('subdivNo').value) { alert('Please Select Sub Division No.'); return false; } return true; }
+</script></body></html>`;
+    const { ctx, page } = await open('/tslr', {
+      '/tslr': () => pageHtml,
+      '/ajax.html': () => '{"statusCode":"true"}',
+      '/tslr-result': (body: string) => (/subdivNo=4%3AB/.test(body) ? resultPage : '<html><body>wrong form values</body></html>'),
+    });
+    const id = __testing.adoptPage(page, ctx, 'tslr-extract', USER);
+    const sd = await selectLandField(id, USER, 'survey', '12');
+    expect(sd.options.map((o) => o.value)).toContain('4:B');
+    await selectLandField(id, USER, 'subdiv', '4:B');
+    await sendLandOtp(id, USER, '9876543210', { subdivNo: '4:B' });
+    const out = await verifyLandOtp(id, USER, '123456');
     expect(out.status).toBe('ok');
     await ctx.close();
   });

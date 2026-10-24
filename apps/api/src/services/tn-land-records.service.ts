@@ -707,7 +707,22 @@ async function fillForm(s: Session, f: LandFormFields): Promise<void> {
 async function reassertForm(s: Session): Promise<void> {
   const f = s.formFields;
   const cfg = LAND_SERVICES[s.service];
-  if (!f || (cfg.form !== 'rural' && cfg.form !== 'rural-plain')) return;
+  if (!f) return;
+  if (cfg.form === 'urban') {
+    // TSLR: every value is a pick from the site's lists; the sub division
+    // list reloads when the survey changes - put the pick back if cleared.
+    const want = s.picks.subdiv ?? f.subdivNo;
+    if (!want) return;
+    await s.page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => {});
+    const now = await s.page.evaluate(() => document.getElementById('subdivNo')?.value ?? '');
+    if (now !== want) {
+      await waitForValue(s.page, SELECT_ID.subdiv, want);
+      await setField(s.page, SELECT_ID.subdiv, want);
+      logger.info({ service: s.service }, 'tn-land: sub division restored before send');
+    }
+    return;
+  }
+  if (cfg.form !== 'rural' && cfg.form !== 'rural-plain') return;
   if (s.service === 'patta' && f.viewBy === 'pt') return;
   await s.page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => {});
   const now = await s.page.evaluate(() => ({
@@ -1011,6 +1026,54 @@ interface PageEl {
   previousElementSibling: PageEl | null;
 }
 
+/** Fetch a URL from inside the page, as its own scripts would - same
+ *  cookies and session as the visit. Null on failure. */
+async function fetchInPage(page: Page, url: string): Promise<Buffer | null> {
+  const b64 = await page.evaluate(async (u) => {
+    const r = await fetch(u, { credentials: 'include' });
+    if (!r.ok) return null;
+    const bytes = new Uint8Array(await r.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return window.btoa(bin);
+  }, url).catch(() => null);
+  return b64 ? Buffer.from(b64, 'base64') : null;
+}
+
+/** A PDF the result page embeds (iframe / embed / object) or links to,
+ *  fetched with the session's cookies; null when there is none. Only the
+ *  site's own host (and Collabland) is followed. */
+async function embeddedPdf(s: Session): Promise<Buffer | null> {
+  const urls = await s.page.evaluate(() => {
+    const out: string[] = [];
+    const add = (v: string | null | undefined) => { if (v && !v.startsWith('javascript:') && !v.startsWith('#')) out.push(new URL(v, document.baseURI).toString()); };
+    for (const el of [...(document.querySelectorAll('iframe[src], embed[src], object[data]') as Iterable<{ getAttribute: (n: string) => string | null }>)]) {
+      add(el.getAttribute('src') ?? el.getAttribute('data'));
+    }
+    for (const a of [...(document.querySelectorAll('a[href]') as Iterable<{ getAttribute: (n: string) => string | null; textContent: string | null }>)]) {
+      const href = a.getAttribute('href') ?? '';
+      if (/\.pdf(\?|$)|pdf|download|viewdoc|ordercopy/i.test(href) || /download|view (?:order|pdf|copy)|pdf/i.test(a.textContent ?? '')) add(href);
+    }
+    return [...new Set(out)].slice(0, 4);
+  }).catch(() => [] as string[]);
+  for (const url of urls) {
+    let host = '';
+    try { host = new URL(url).hostname; } catch { continue; }
+    if (!host.endsWith('tn.gov.in') && !host.endsWith('collabland-tn.gov.in')) continue;
+    try {
+      const body = await fetchInPage(s.page, url);
+      const at = body ? body.indexOf('%PDF-') : -1;
+      if (body && at >= 0 && at < 1024) {
+        logger.info({ service: s.service }, 'tn-land: result document fetched');
+        return body.subarray(at);
+      }
+    } catch (err) {
+      logger.info({ err: String(err) }, 'tn-land: embedded document not fetched');
+    }
+  }
+  return null;
+}
+
 /** Read the rendered result as plain text and print it to PDF. */
 async function readResultPage(s: Session): Promise<LandResult> {
   const { page } = s;
@@ -1053,17 +1116,24 @@ async function readResultPage(s: Session): Promise<LandResult> {
   });
   const invalid = /INVALID ACCESS TO THE SITE/i.test(read.text);
   if (invalid) throw new LandRecordsError(502, 'Land Records ended the session - start again.');
-  try {
-    s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
-  } catch (err) {
-    logger.warn({ err }, 'tn-land: pdf print failed');
-    s.pdf = null;
+  // Some results are a document, not a page (an order copy / F-Line
+  // statement embedded or linked as a PDF). A print of the page would show
+  // that frame blank, so fetch the document itself in the same session.
+  s.pdf = await embeddedPdf(s);
+  const documentOnly = Boolean(s.pdf) && read.fields.length === 0 && read.sections.length === 0;
+  if (!s.pdf) {
+    try {
+      s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
+    } catch (err) {
+      logger.warn({ err }, 'tn-land: pdf print failed');
+      s.pdf = null;
+    }
   }
   s.result = {
     title: read.title || LAND_SERVICES[s.service].title,
     fields: read.fields,
     sections: read.sections,
-    text: read.text,
+    text: documentOnly ? 'The document from Land Records is ready - download it or file it below.' : read.text,
     hasPdf: Boolean(s.pdf),
   };
   return s.result;
@@ -1079,8 +1149,7 @@ async function readPopup(s: Session, popup: Page): Promise<LandResult> {
     const type = await popup.evaluate(() => document.contentType ?? '').catch(() => '');
     if (/pdf/i.test(type)) {
       // A PDF viewer page: fetch the document itself in the same session.
-      const res = await s.context.request.get(popup.url(), { timeout: 30_000 });
-      if (res.ok()) bytes = Buffer.from(await res.body());
+      bytes = await fetchInPage(popup, popup.url());
     }
     if (!bytes) {
       await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
