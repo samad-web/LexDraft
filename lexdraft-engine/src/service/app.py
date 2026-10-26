@@ -137,6 +137,14 @@ async def _render_generated(
         # still reported, and sign-off rules (unfilled slots) are unchanged.
         if not banner_in_document:
             ctx["review_banner"] = ""
+        # The "[figures unverified — pending advocate review]" line is a status
+        # note, not pleading text: keep it out of the filed document. It is still
+        # reported in signals.unverified_marker for the app to show if it wants.
+        # Only that line — an imported format's "not yet approved" marker uses the
+        # same slot and must stay.
+        from ..verify.tables import UNVERIFIED_MARKER
+        if ctx.get("unverified_marker") == UNVERIFIED_MARKER:
+            ctx["unverified_marker"] = ""
         tmp = Path(tempfile.gettempdir()) / f"lexdraft_{doc_type}_{matter.matter_id}.docx"
         await run_in_threadpool(render_to_docx, template_file, ctx, tmp)
         # TAMIL / HINDI OUTPUT (proof, vakalatnama): translate the produced .docx IN
@@ -234,8 +242,15 @@ async def draft(doc_type: str, body: Dict[str, Any],
         if slot_key in adapter.slots and isinstance(slot_val, str):
             kwargs[slot_key] = slot_val
 
-    # 2. BUILD (engine work -> threadpool).
-    result = await run_in_threadpool(adapter.build, **kwargs)
+    # 2. BUILD (engine work -> threadpool). Contradictory custody dates (the "as on"
+    #    date before custody began) are a client input problem: 422 on as_on, not a 500.
+    from ..rules.custody_computation import CustodyInputError
+    try:
+        result = await run_in_threadpool(adapter.build, **kwargs)
+    except CustodyInputError as err:
+        raise adapters.AdapterValidationError([adapters.FieldIssue(
+            field="as_on", code="malformed",
+            message=f"The 'as on' date must be on or after the custody start date ({err}).")])
 
     # 3. REFUSAL -> 200 with outcome:"refused" (a legal finding, not an error).
     if getattr(result, "refused", False):
