@@ -9,6 +9,15 @@ describe('particularsOf — format-independent keys', () => {
     expect(keys(a)).toEqual(keys(b));
   });
 
+  it('reads day-periods in digits, words, singular and "fifteen (15)" form alike', () => {
+    const lost = lostParticulars(
+      'in custody for 1 days; pay within 15 days; 60 days; forty-five days',
+      'in custody for one day; pay within fifteen (15) days; sixty days; 45 days',
+    );
+    expect(lost).toEqual([]);
+    expect(lostParticulars('pay within 15 days', 'pay within thirty days').map((p) => p.raw)).toEqual(['15 days']);
+  });
+
   it('ignores the fillable [to be drafted] marker but keeps other markers', () => {
     const ps = particularsOf('GROUNDS: [to be drafted]. Presented through [bank where presented to be provided].');
     expect(ps.map((p) => p.raw)).toEqual(['[bank where presented to be provided]']);

@@ -23,7 +23,8 @@ const RX = {
   wordy: /\b(\d{1,2})(?:st|nd|rd|th)?\s+(?:day\s+of\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?,?\s+(\d{4})\b/gi,
   section: /\b(?:sections?|secs?\.?|s\.|ss\.|u\/s\.?|§)\s*(\d+[A-Z]?(?:\s*\(\s*[\da-z]+\s*\))*)/gi,
   article: /\b(?:article|art\.)\s*(\d+[A-Z]?(?:\s*\(\s*[\da-z]+\s*\))*)/gi,
-  days: /\b(\d+)\s+days\b/gi,
+  // "15 days", "fifteen (15) days", "one day", "1 days" — all the same period.
+  days: /\b(\d+|[a-z]+(?:[-\s][a-z]+)?)\s+(?:\(\s*\d+\s*\)\s+)?days?\b/gi,
   citation: /\(\d{4}\)\s*\d+\s*SCC\s*\d+|\d{4}\s*SCC\s*OnLine\s*[A-Za-z]+\s*\d+|AIR\s*\d{4}\s*[A-Z][A-Za-z]*\s*\d+/g,
   marker: /\[[^\]\n]{2,60}\]/g,
 };
@@ -37,6 +38,25 @@ export interface Particular {
   key: string;
   /** As written, for messages. */
   raw: string;
+}
+
+const UNITS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven',
+  'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+/** "15" / "fifteen" / "forty-five" / "ninety" -> 15 / 15 / 45 / 90; null if not a number. */
+function countOf(word: string): number | null {
+  if (/^\d+$/.test(word)) return Number(word);
+  const parts = word.toLowerCase().split(/[-\s]/);
+  let n = 0;
+  for (const p of parts) {
+    const u = UNITS.indexOf(p);
+    const t = TENS.indexOf(p);
+    if (u >= 0) n += u;
+    else if (t >= 2) n += t * 10;
+    else return null;
+  }
+  return n;
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -57,7 +77,11 @@ export function particularsOf(text: string): Particular[] {
   }
   for (const m of text.matchAll(RX.section)) push('section', m[1]!.replace(/\s+/g, '').toLowerCase(), m[0]);
   for (const m of text.matchAll(RX.article)) push('article', m[1]!.replace(/\s+/g, '').toLowerCase(), m[0]);
-  for (const m of text.matchAll(RX.days)) push('days', m[1]!, m[0]);
+  for (const m of text.matchAll(RX.days)) {
+    // A two-word capture like "within fifteen" falls back to its last word.
+    const n = countOf(m[1]!) ?? countOf(m[1]!.split(/[-\s]/).pop()!);
+    if (n !== null) push('days', String(n), m[0]);
+  }
   for (const m of text.matchAll(RX.citation)) push('citation', m[0].replace(/\s+/g, '').toLowerCase(), m[0]);
   for (const m of text.matchAll(RX.marker)) {
     const k = m[0].toLowerCase();

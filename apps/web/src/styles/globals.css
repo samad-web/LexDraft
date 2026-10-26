@@ -1552,7 +1552,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   background: var(--bg-surface-2); border: 1px solid var(--border-subtle);
 }
 .dw-pdf { display: block; width: 100%; height: 78vh; border: 0; border-radius: 4px; background: #fff; }
-.dw-pending { text-align: center; padding: 8px; font-size: 12px; color: var(--text-tertiary); }
+.dw-pending { text-align: center; padding: 120px 16px; font-size: 13px; color: var(--text-tertiary); }
 .dw-editor { max-width: 860px; margin: 0 auto; }
 
 .dw-wide { width: 100%; justify-content: center; }

@@ -1962,7 +1962,11 @@ export function DraftingView() {
                 className="dw-pdf"
               />
             )}
-            {hasOutput && !isEditing && (!previewPdfUrl || hasLocalEdits || streaming) && (
+            {/* The HTML text view only when there is no formatted PDF coming: while the
+                engine .docx converts (a few seconds) show the pending state instead, so
+                the advocate never sees a differently laid-out copy flash first. */}
+            {hasOutput && !isEditing && (!previewPdfUrl || hasLocalEdits || streaming)
+              && !(previewPdfPending && !hasLocalEdits && !streaming) && (
               <div
                 className="court-prose court-prose-paper"
                 lang={outputLangCode}
