@@ -759,6 +759,24 @@ describe('intake DRAFT NOW — fill gaps with placeholders, never fabricate, hon
   });
 });
 
+describe('draft-now date fill — "as on" is the drafting date, not a gap', () => {
+  it('fills a missing as_on with today and does NOT mark it as a placeholder date', async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const synthetic = new Set<string>();
+    const today = new Date().toISOString().slice(0, 10);
+    // Base stand-in = the arrest date on record; using it for as_on computed "1 days".
+    expect(fillMissingDate('as_on', '2026-10-10', { custody_since: '2026-10-10' }, synthetic)).toBe(today);
+    expect(synthetic.size).toBe(0);
+  });
+
+  it('keeps the marked stand-in for any other missing date', async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const synthetic = new Set<string>();
+    expect(fillMissingDate('offence_date', '2026-10-10', {}, synthetic)).toBe('2026-10-10');
+    expect([...synthetic]).toEqual(['2026-10-10']);
+  });
+});
+
 describe('intake loop — auto-detect the format (startAuto)', () => {
   it('classifies the opening brief and runs intake for the detected label', async () => {
     classifyQueue.push({ label: 'Notice u/s 138 NI Act', confidence: 'high' });
