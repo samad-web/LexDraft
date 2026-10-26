@@ -23,6 +23,7 @@
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",
     "@capacitor/share": "^8.0.3",
+    "@capgo/capacitor-social-login": "8.5.15",
     "@lexdraft/types": "workspace:*",
     "@lexdraft/ui": "workspace:*",
     "@tanstack/react-query": "^5.59.16",

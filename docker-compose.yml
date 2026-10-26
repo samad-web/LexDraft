@@ -81,6 +81,7 @@ services:
         # Empty = SPA calls /api on its own origin. For local dev the SPA
         # hits the host:4000 API directly via CORS — override per env.
         VITE_API_URL: ${VITE_API_URL:-}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
       # Web doesn't *need* the API to be healthy to serve static files,

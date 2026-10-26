@@ -7,6 +7,8 @@ import { db } from '../db/client';
 import { mfaService } from './mfa.service';
 import { getPlanState, evaluatePlanState } from './plan-status.service';
 import { ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
+import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
+import { normalizePhone, phoneOtpService } from './phone-otp.service';
 
 /**
  * Transitional response returned by signIn when the user is MFA-enrolled
@@ -35,6 +37,9 @@ export function isMfaChallenge(r: SignInResult): r is MfaChallengeResponse {
 
 interface StoredUser extends User {
   passwordHash: string;
+  /** Google + WhatsApp sign-up only (migration 0094). */
+  googleSub?: string;
+  phone?: string;
 }
 
 interface UserRow {
@@ -44,6 +49,8 @@ interface UserRow {
   role: string;
   is_superadmin: boolean;
   password_hash: string;
+  /** Migration 0094. */
+  google_sub?: string | null;
   firm_id: string | null;
   firm_name: string | null;
   plan_tier: string | null;
@@ -217,7 +224,7 @@ function rowToPublic(row: UserRow): User {
 }
 
 const USER_SELECT_WITH_FIRM = `
-  select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.firm_id,
+  select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.google_sub, u.firm_id,
          u.enrolment, u.primary_court, u.practice_areas, u.default_language_code,
          f.name as firm_name, f.plan_tier,
          f.plan_status, f.trial_ends_at, f.is_demo
@@ -225,7 +232,9 @@ const USER_SELECT_WITH_FIRM = `
   left join firms f on f.id = u.firm_id
 `;
 
-async function findByEmail(email: string): Promise<{ publicUser: User; passwordHash: string } | undefined> {
+async function findByEmail(
+  email: string,
+): Promise<{ publicUser: User; passwordHash: string; googleSub?: string | null } | undefined> {
   const sql = db();
   if (sql) {
     const rows = await sql<UserRow[]>`
@@ -234,7 +243,7 @@ async function findByEmail(email: string): Promise<{ publicUser: User; passwordH
     `;
     const row = rows[0];
     if (!row) return undefined;
-    return { publicUser: rowToPublic(row), passwordHash: row.password_hash };
+    return { publicUser: rowToPublic(row), passwordHash: row.password_hash, googleSub: row.google_sub };
   }
   const stored = memUsers.get(email.toLowerCase());
   if (!stored) return undefined;
@@ -340,12 +349,14 @@ async function insertUserWithNewFirm(
       with inserted as (
         insert into users (
           firm_id, name, email, role, role_id, is_superadmin, password_hash,
-          enrolment, primary_court, practice_areas
+          enrolment, primary_court, practice_areas,
+          google_sub, phone, phone_verified_at
         )
         values (
           ${newFirmId}::uuid, ${record.name}, ${record.email.toLowerCase()},
           ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
-          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null}
+          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null},
+          ${record.googleSub ?? null}, ${record.phone ?? null}, ${record.phone ? new Date() : null}
         )
         returning id, name, email, role, is_superadmin, password_hash, firm_id,
                   enrolment, primary_court, practice_areas
@@ -358,6 +369,104 @@ async function insertUserWithNewFirm(
     `;
   });
   return rowToPublic(rows[0]!);
+}
+
+/** Token handed to a Google user who has no account yet. Signed with a
+ *  derived secret so it can never pass requireAuth as a session token. */
+const SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:google-signup`;
+
+interface SignupTokenClaims {
+  google: GoogleIdentity;
+  /** Present once the WhatsApp OTP has been verified. */
+  phone?: string;
+}
+
+function issueSignupToken(claims: SignupTokenClaims): string {
+  return jwt.sign({ purpose: 'google-signup', ...claims }, SIGNUP_TOKEN_SECRET, { expiresIn: '30m' });
+}
+
+function verifySignupToken(token: string): SignupTokenClaims {
+  try {
+    const c = jwt.verify(token, SIGNUP_TOKEN_SECRET) as SignupTokenClaims & { purpose?: string };
+    if (c.purpose !== 'google-signup' || !c.google?.sub) throw new Error('wrong purpose');
+    return { google: c.google, phone: c.phone };
+  } catch {
+    throw new UnauthorizedError('Your sign-up session expired. Continue with Google again.');
+  }
+}
+
+/** One WhatsApp number per account, so the number identifies the user. */
+async function assertPhoneUnused(phone: string): Promise<void> {
+  const sql = db();
+  if (!sql) return;
+  const rows = await sql<{ id: string }[]>`select id from users where phone = ${phone} limit 1`;
+  if (rows[0]) {
+    throw new ConflictError('This WhatsApp number is already linked to a LexDraft account. Sign in with that account instead.');
+  }
+}
+
+export interface GoogleSignupRequired {
+  signupRequired: true;
+  signupToken: string;
+  profile: { email: string; name: string; picture?: string };
+}
+
+export interface GoogleSignUpInput {
+  signupToken: string;
+  name?: string;
+  role: SignUpRequest['role'];
+  firm?: string;
+  enrolment?: string;
+  primaryCourt?: string;
+  practiceAreas?: string;
+  intent?: SignUpIntent;
+}
+
+/** Post-authentication gate shared by password and Google sign-in: plan
+ *  status check, then the MFA branches documented on authService.signIn. */
+async function completeSignIn(publicUser: User): Promise<SignInResult> {
+  // Refuse to issue a token when the firm's plan is already inactive.
+  // Mid-session enforcement is handled by the requireActivePlan middleware;
+  // doing the same check here means the user never sees the dashboard
+  // flash before getting kicked out by the first authenticated request.
+  // Superadmins bypass so they can still log in to fix lapsed customers.
+  if (!publicUser.isSuperadmin) {
+    const planState = await getPlanState(publicUser.id);
+    const planCheck = evaluatePlanState(planState);
+    if (!planCheck.ok) {
+      throw new PaymentRequiredError('Your firm plan is no longer active. Please renew to continue.', {
+        code: planCheck.reason,
+        details: planCheck.renewsAt ? { renewsAt: planCheck.renewsAt.toISOString() } : undefined,
+      });
+    }
+  }
+
+  // MFA gate. signInGate hits the DB once for the user's MFA state +
+  // role-requirement flags. The in-memory mode (no DATABASE_URL) throws
+  // there - guard the call so dev-mode logins still work.
+  let gate: { enrolled: boolean; required: boolean } = { enrolled: false, required: false };
+  try {
+    gate = await mfaService.signInGate(publicUser.id);
+  } catch {
+    // In-memory mode, or first-boot before migration 0019 ran. Fall
+    // through to the legacy { user, token } response.
+  }
+
+  if (gate.enrolled) {
+    const challenge = await mfaService.openSignInChallenge(publicUser.id);
+    return {
+      mfaRequired: true,
+      challengeId: challenge.challengeId,
+      expiresAt: challenge.expiresAt,
+    };
+  }
+
+  const response: AuthResponseWithMfa = {
+    user: publicUser,
+    token: issueToken(publicUser),
+  };
+  if (gate.required) response.mustEnrollMfa = true;
+  return response;
 }
 
 export const authService = {
@@ -423,48 +532,102 @@ export const authService = {
     const ok = await bcrypt.compare(password, lookup.passwordHash);
     if (!ok) throw new UnauthorizedError('Invalid credentials');
 
-    // Refuse to issue a token when the firm's plan is already inactive.
-    // Mid-session enforcement is handled by the requireActivePlan middleware;
-    // doing the same check here means the user never sees the dashboard
-    // flash before getting kicked out by the first authenticated request.
-    // Superadmins bypass so they can still log in to fix lapsed customers.
-    if (!lookup.publicUser.isSuperadmin) {
-      const planState = await getPlanState(lookup.publicUser.id);
-      const planCheck = evaluatePlanState(planState);
-      if (!planCheck.ok) {
-        throw new PaymentRequiredError('Your firm plan is no longer active. Please renew to continue.', {
-          code: planCheck.reason,
-          details: planCheck.renewsAt ? { renewsAt: planCheck.renewsAt.toISOString() } : undefined,
-        });
+    return completeSignIn(lookup.publicUser);
+  },
+
+  /**
+   * "Sign in with Google". An existing account (matched on Google's `sub`,
+   * else on the verified email - which links the Google account to it) goes
+   * through the same plan + MFA gate as a password sign-in. An unknown
+   * Google account gets a short-lived sign-up token instead: the client must
+   * verify a WhatsApp number (startSignupOtp / verifySignupOtp) and then call
+   * googleSignUp to create the account.
+   */
+  async googleSignIn(credential: string): Promise<SignInResult | GoogleSignupRequired> {
+    const google = await verifyGoogleIdToken(credential);
+    const sql = db();
+    if (!sql) throw new Error('DATABASE_URL not configured');
+
+    const bySub = await sql<UserRow[]>`
+      ${sql.unsafe(USER_SELECT_WITH_FIRM)}
+      where u.google_sub = ${google.sub} limit 1
+    `;
+    if (bySub[0]) return completeSignIn(rowToPublic(bySub[0]));
+
+    const byEmail = await findByEmail(google.email);
+    if (byEmail) {
+      if (byEmail.googleSub && byEmail.googleSub !== google.sub) {
+        throw new UnauthorizedError('This email is linked to a different Google account.');
       }
+      await sql`
+        update users set google_sub = ${google.sub}, updated_at = now()
+        where id = ${byEmail.publicUser.id}::uuid and google_sub is null
+      `;
+      return completeSignIn(byEmail.publicUser);
     }
 
-    // MFA gate. signInGate hits the DB once for the user's MFA state +
-    // role-requirement flags. The in-memory mode (no DATABASE_URL) throws
-    // there - guard the call so dev-mode logins still work.
-    let gate: { enrolled: boolean; required: boolean } = { enrolled: false, required: false };
-    try {
-      gate = await mfaService.signInGate(lookup.publicUser.id);
-    } catch {
-      // In-memory mode, or first-boot before migration 0019 ran. Fall
-      // through to the legacy { user, token } response.
-    }
-
-    if (gate.enrolled) {
-      const challenge = await mfaService.openSignInChallenge(lookup.publicUser.id);
-      return {
-        mfaRequired: true,
-        challengeId: challenge.challengeId,
-        expiresAt: challenge.expiresAt,
-      };
-    }
-
-    const response: AuthResponseWithMfa = {
-      user: lookup.publicUser,
-      token: issueToken(lookup.publicUser),
+    return {
+      signupRequired: true,
+      signupToken: issueSignupToken({ google }),
+      profile: { email: google.email, name: google.name, picture: google.picture },
     };
-    if (gate.required) response.mustEnrollMfa = true;
-    return response;
+  },
+
+  /** Send a WhatsApp OTP to the number a new Google user entered. */
+  async startSignupOtp(input: { signupToken: string; phone: string; ip: string | null }) {
+    const claims = verifySignupToken(input.signupToken);
+    const phone = normalizePhone(input.phone);
+    await assertPhoneUnused(phone);
+    const challenge = await phoneOtpService.start({ phone, googleSub: claims.google.sub, ip: input.ip });
+    return { ...challenge, phone };
+  },
+
+  /** Prove the OTP. Returns a fresh sign-up token that carries the verified
+   *  phone, which googleSignUp requires. */
+  async verifySignupOtp(input: { signupToken: string; challengeId: string; code: string }) {
+    const claims = verifySignupToken(input.signupToken);
+    const phone = await phoneOtpService.verify({
+      challengeId: input.challengeId,
+      code: input.code,
+      googleSub: claims.google.sub,
+    });
+    return { signupToken: issueSignupToken({ google: claims.google, phone }), phone };
+  },
+
+  /** Create the account for a Google user whose WhatsApp number is verified. */
+  async googleSignUp(input: GoogleSignUpInput): Promise<AuthResponse> {
+    const claims = verifySignupToken(input.signupToken);
+    if (!claims.phone) throw new UnauthorizedError('Verify your WhatsApp number first.');
+    const { google, phone } = claims;
+    if (await findByEmail(google.email)) throw new ConflictError('Email already registered');
+    await assertPhoneUnused(phone);
+
+    const name = input.name?.trim() || google.name;
+    const role: User['role'] =
+      input.role === 'solo' ? 'Solo Advocate' : input.role === 'group' ? 'Practice Lead' : 'Managing Partner';
+    const signUpShape: SignUpRequest = { ...input, name, email: google.email, password: '' };
+    const user = await insertUserWithNewFirm(
+      {
+        id: '',
+        name,
+        email: google.email,
+        role,
+        firm: input.firm ?? '',
+        isSuperadmin: false,
+        // password_hash is NOT NULL. A random, never-disclosed secret means
+        // the account has no usable password until an admin resets one.
+        passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 10),
+        enrolment: input.enrolment,
+        primaryCourt: input.primaryCourt,
+        practiceAreas: input.practiceAreas,
+        googleSub: google.sub,
+        phone,
+      },
+      deriveFirmName(signUpShape),
+      planTierForSignUpRole(input.role),
+      input.intent ?? 'trial',
+    );
+    return { user, token: issueToken(user) };
   },
 
   async signUp(input: SignUpRequest): Promise<AuthResponse> {

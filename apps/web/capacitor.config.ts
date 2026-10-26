@@ -16,6 +16,12 @@ const config: CapacitorConfig = {
       insetsHandling: 'native',
       style: 'LIGHT',
     },
+    // Native Google sign-in (Credential Manager). Only Google is bundled, so
+    // no Facebook SDK / advertising-id permission ends up in the APK.
+    SocialLogin: {
+      providers: { google: true, facebook: false, apple: false, twitter: false },
+      logLevel: 1,
+    },
   },
 };
 

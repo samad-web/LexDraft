@@ -4,7 +4,9 @@ import { authService } from '../services/auth.service';
 import { firmEnquiriesService } from '../services/firm-enquiries.service';
 import { demoRequestsService } from '../services/demo-requests.service';
 import { requireAuth } from '../middleware/auth';
-import { signInLimiter, signUpLimiter } from '../middleware/rateLimit';
+import { otpSendLimiter, signInLimiter, signUpLimiter } from '../middleware/rateLimit';
+import { env } from '../env';
+import { ForbiddenError } from '../lib/errors';
 
 const SignIn = z.object({
   email: z.string().email().max(254),
@@ -30,6 +32,29 @@ const SignUp = z.object({
    *                         eligible on these tenants.
    * Existing clients that omit it default to 'trial' so behaviour matches
    * the new self-serve funnel without breaking any current caller. */
+  intent: z.enum(['trial', 'paid', 'demo']).optional(),
+}).strict();
+
+const GoogleSignIn = z.object({
+  credential: z.string().min(20).max(4096),
+}).strict();
+const SignupOtpStart = z.object({
+  signupToken: z.string().min(20).max(4096),
+  phone: z.string().min(8).max(24),
+}).strict();
+const SignupOtpVerify = z.object({
+  signupToken: z.string().min(20).max(4096),
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+}).strict();
+const GoogleSignUp = z.object({
+  signupToken: z.string().min(20).max(4096),
+  name: z.string().min(1).max(200).optional(),
+  role: z.enum(['solo', 'group', 'firm']),
+  firm: z.string().max(200).optional(),
+  enrolment: z.string().max(80).optional(),
+  primaryCourt: z.string().max(160).optional(),
+  practiceAreas: z.string().max(280).optional(),
   intent: z.enum(['trial', 'paid', 'demo']).optional(),
 }).strict();
 
@@ -67,8 +92,52 @@ authRouter.post('/sign-in', signInLimiter, async (req, res, next) => {
 
 authRouter.post('/sign-up', signUpLimiter, async (req, res, next) => {
   try {
+    // New accounts come in through Google + WhatsApp OTP (below). Existing
+    // password users still sign in at /sign-in.
+    if (!env.passwordSignupEnabled) {
+      throw new ForbiddenError('Create your account with Google.', { code: 'password_signup_disabled' });
+    }
     const body = SignUp.parse(req.body);
     res.status(201).json(await authService.signUp(body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Google sign-in. Existing account -> same response shape as /sign-in.
+// Unknown Google account -> { signupRequired, signupToken, profile }; the
+// client then verifies a WhatsApp number and calls /google/sign-up.
+authRouter.post('/google', signInLimiter, async (req, res, next) => {
+  try {
+    const body = GoogleSignIn.parse(req.body);
+    res.json(await authService.googleSignIn(body.credential));
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/signup/otp/send', otpSendLimiter, async (req, res, next) => {
+  try {
+    const body = SignupOtpStart.parse(req.body);
+    res.json(await authService.startSignupOtp({ ...body, ip: req.ip ?? null }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/signup/otp/verify', signInLimiter, async (req, res, next) => {
+  try {
+    const body = SignupOtpVerify.parse(req.body);
+    res.json(await authService.verifySignupOtp(body));
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/google/sign-up', signUpLimiter, async (req, res, next) => {
+  try {
+    const body = GoogleSignUp.parse(req.body);
+    res.status(201).json(await authService.googleSignUp(body));
   } catch (err) {
     next(err);
   }

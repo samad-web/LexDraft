@@ -142,6 +142,33 @@ const Schema = z.object({
    *  prod - kept off by default and double-gated on NODE_ENV below. */
   DEV_AUTH_AUTO_PROVISION: z.enum(['true', 'false']).default('false'),
 
+  /** Google OAuth client id(s) whose ID tokens /auth/google accepts, comma
+   *  separated (web client first; add the Android client id when the native
+   *  app gets Google sign-in). Blank disables Google sign-in. */
+  GOOGLE_CLIENT_IDS: z.string().optional().default(''),
+  /** Self-serve email + password sign-up. New accounts are meant to come in
+   *  through Google + WhatsApp OTP, so this is off in production unless set
+   *  to 'true'; outside production it stays on unless set to 'false' (the
+   *  e2e suites sign up with passwords). Existing users can always sign in
+   *  with their password either way. */
+  PASSWORD_SIGNUP: z.enum(['true', 'false']).optional(),
+
+  /** WhatsApp OTP delivery. 'console' logs the code to the API log (dev
+   *  only - refused in production). 'wasi' sends the approved authentication
+   *  template through the Wasi Hub API (wasi.sirahagents.com). 'meta' sends it
+   *  through the WhatsApp Cloud API directly. */
+  WHATSAPP_PROVIDER: z.enum(['console', 'wasi', 'meta']).default('console'),
+  WASI_API_BASE_URL: z.string().default('https://wasi.sirahagents.com'),
+  WASI_API_KEY: z.string().optional().default(''),
+  /** Wasi account id (GET /api/v1/account -> client_id). Not a secret. */
+  WASI_CLIENT_ID: z.string().optional().default(''),
+  WHATSAPP_META_PHONE_NUMBER_ID: z.string().optional().default(''),
+  WHATSAPP_META_ACCESS_TOKEN: z.string().optional().default(''),
+  WHATSAPP_META_API_VERSION: z.string().default('v21.0'),
+  /** Name + language of the approved authentication template. */
+  WHATSAPP_OTP_TEMPLATE: z.string().default('test_message'),
+  WHATSAPP_OTP_TEMPLATE_LANG: z.string().default('en'),
+
   /** Per-provider HMAC-SHA256 webhook secrets. Each provider stamps a
    *  hex digest of the raw body in the `x-signature` header (or a
    *  provider-specific header - see services/webhooks.verify.ts). Any
@@ -232,6 +259,10 @@ export const env = {
   devAuthAutoProvision:
     parsed.data.NODE_ENV !== 'production'
     && parsed.data.DEV_AUTH_AUTO_PROVISION === 'true',
+  googleClientIds: parsed.data.GOOGLE_CLIENT_IDS.split(',').map((s) => s.trim()).filter(Boolean),
+  passwordSignupEnabled: parsed.data.NODE_ENV === 'production'
+    ? parsed.data.PASSWORD_SIGNUP === 'true'
+    : parsed.data.PASSWORD_SIGNUP !== 'false',
   // Same double-gate pattern: unsigned webhooks only flow when NODE_ENV is
   // non-prod AND the operator opts in explicitly.
   webhookAllowUnverified:

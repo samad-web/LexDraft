@@ -1,8 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Icon, FieldError, validators } from '@lexdraft/ui';
-import { useSignUp, useDemoRequest } from '@/hooks/useAuth';
+import { Icon } from '@lexdraft/ui';
+import { useGoogleSignUp, useDemoRequest } from '@/hooks/useAuth';
 import { useUIStore } from '@/store/ui';
+import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
+import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
 
 /**
  * SignupView — the new landing-funnel destination at `/signup?intent=…`.
@@ -278,29 +280,41 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
   );
 }
 
+/** The Google account already has a LexDraft account: useGoogleSignIn has
+ *  set the session, so go straight in. MFA-enrolled users finish on /auth. */
+function useExistingAccountHandler(): (resp: SignInResult) => void {
+  const navigate = useNavigate();
+  const showToast = useUIStore((s) => s.showToast);
+  return (resp) => {
+    if (isMfaChallenge(resp)) {
+      showToast({ type: 'cobalt', text: 'You already have an account. Sign in to continue.' });
+      navigate('/auth');
+      return;
+    }
+    navigate(resp.user.isSuperadmin ? '/admin' : '/app/dashboard', { replace: true });
+  };
+}
+
 function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
   // Interactive demo === instant trial provisioning with the is_demo flag set.
   // The user gets a tenant they can poke at; the in-app banner surfaces a
   // "Convert to a real account" CTA once they decide.
-  const signUp = useSignUp();
+  const signUp = useGoogleSignUp();
   const showToast = useUIStore((s) => s.showToast);
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const onSignedIn = useExistingAccountHandler();
+  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  const passwordError = passwordTouched ? validators.minLength(password, 8, 'Password') : null;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !verified) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
-        email: email.trim(),
-        name: name.trim() || 'Demo User',
-        password,
+        signupToken: verified.signupToken,
+        name: name.trim() || undefined,
         role: 'solo',
         intent: 'demo',
       });
@@ -320,35 +334,26 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
         Fresh sandbox account, ready in seconds. No card. We'll flag the
         session as a demo so it doesn't mix with real practice data.
       </p>
-      <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Labelled label="Your name">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
-        </Labelled>
-        <Labelled label="Email *">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-        </Labelled>
-        <Labelled label="Password *">
-          <input
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setPasswordTouched(true)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            aria-invalid={!!passwordError}
-            aria-describedby={passwordError ? 'interactive-demo-password-error' : undefined}
+      {!verified ? (
+        <div className="card" style={{ padding: 24 }}>
+          <GoogleWhatsAppVerify
+            onSignedIn={onSignedIn}
+            onVerified={(v) => { setVerified(v); setName(v.profile.name); }}
           />
-          <div className="body-xs muted" style={{ marginTop: 4 }}>At least 8 characters.</div>
-          <FieldError id="interactive-demo-password-error" error={passwordError} />
-        </Labelled>
-        <div style={{ marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
-            {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
-          </button>
         </div>
-      </form>
+      ) : (
+        <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <VerifiedLine verified={verified} />
+          <Labelled label="Your name">
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
+          </Labelled>
+          <div style={{ marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+              {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
@@ -358,14 +363,12 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
 // ---------------------------------------------------------------------------
 
 function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
-  const signUp = useSignUp();
+  const signUp = useGoogleSignUp();
   const showToast = useUIStore((s) => s.showToast);
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const onSignedIn = useExistingAccountHandler();
+  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordTouched, setPasswordTouched] = useState(false);
-  const passwordError = passwordTouched ? validators.minLength(password, 8, 'Password') : null;
   const [role, setRole] = useState<'solo' | 'group' | 'firm'>('solo');
   const [firm, setFirm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -382,13 +385,12 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !verified) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
-        email: email.trim(),
-        name: name.trim(),
-        password,
+        signupToken: verified.signupToken,
+        name: name.trim() || undefined,
         role,
         firm: firm.trim() || undefined,
         intent: props.intent,
@@ -407,59 +409,62 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
         {subline}
       </p>
-      <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Labelled label="Your name *">
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
-        </Labelled>
-        <Labelled label="Work email *">
-          <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
-        </Labelled>
-        <Labelled label="Password *">
-          <input
-            className="input"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onBlur={() => setPasswordTouched(true)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            aria-invalid={!!passwordError}
-            aria-describedby={passwordError ? 'signup-form-password-error' : undefined}
+      {!verified ? (
+        <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <p className="body-sm" style={{ color: 'var(--text-secondary)' }}>
+            Continue with your Google account, then verify your WhatsApp number.
+          </p>
+          <GoogleWhatsAppVerify
+            buttonText="signup_with"
+            onSignedIn={onSignedIn}
+            onVerified={(v) => { setVerified(v); setName(v.profile.name); }}
           />
-          <div className="body-xs muted" style={{ marginTop: 4 }}>At least 8 characters.</div>
-          <FieldError id="signup-form-password-error" error={passwordError} />
-        </Labelled>
-        <Labelled label="Practice setup">
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-            {(['solo', 'group', 'firm'] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`chip ${role === r ? 'active' : ''}`}
-                onClick={() => setRole(r)}
-              >
-                {r === 'solo' ? 'Solo' : r === 'group' ? 'Practice group' : 'Firm'}
-              </button>
-            ))}
-          </div>
-        </Labelled>
-        {role !== 'solo' && (
-          <Labelled label="Practice or firm name">
-            <input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="e.g. Mehta & Co." autoComplete="organization" />
+        </div>
+      ) : (
+        <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <VerifiedLine verified={verified} />
+          <Labelled label="Your name *">
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
           </Labelled>
-        )}
-        <div style={{ marginTop: 8 }}>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
-            {isSubmitting || signUp.isPending ? 'Creating…' : ctaLabel}
-          </button>
-        </div>
-        <div className="body-xs muted" style={{ marginTop: 4 }}>
-          {isTrial
-            ? 'Your trial gives full access to the plan you select. After 14 days, pick a plan to keep going.'
-            : 'You can switch plans any time from Settings → Billing.'}
-        </div>
-      </form>
+          <Labelled label="Practice setup">
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+              {(['solo', 'group', 'firm'] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  className={`chip ${role === r ? 'active' : ''}`}
+                  onClick={() => setRole(r)}
+                >
+                  {r === 'solo' ? 'Solo' : r === 'group' ? 'Practice group' : 'Firm'}
+                </button>
+              ))}
+            </div>
+          </Labelled>
+          {role !== 'solo' && (
+            <Labelled label="Practice or firm name">
+              <input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="e.g. Mehta & Co." autoComplete="organization" />
+            </Labelled>
+          )}
+          <div style={{ marginTop: 8 }}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+              {isSubmitting || signUp.isPending ? 'Creating…' : ctaLabel}
+            </button>
+          </div>
+          <div className="body-xs muted" style={{ marginTop: 4 }}>
+            {isTrial
+              ? 'Your trial gives full access to the plan you select. After 14 days, pick a plan to keep going.'
+              : 'You can switch plans any time from Settings → Billing.'}
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function VerifiedLine(props: { verified: VerifiedGoogleSignup }): JSX.Element {
+  return (
+    <div className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+      {props.verified.profile.email} · WhatsApp {props.verified.phone} verified
     </div>
   );
 }

@@ -55,6 +55,71 @@ export function useSignUp() {
   });
 }
 
+// ---- Google sign-in + WhatsApp-verified sign-up ----------------------------
+
+export interface GoogleSignupRequired {
+  signupRequired: true;
+  /** Short-lived token for the sign-up steps below; not a session. */
+  signupToken: string;
+  profile: { email: string; name: string; picture?: string };
+}
+export type GoogleSignInResult = SignInResult | GoogleSignupRequired;
+
+export function isGoogleSignupRequired(r: GoogleSignInResult): r is GoogleSignupRequired {
+  return (r as GoogleSignupRequired).signupRequired === true;
+}
+
+/** Existing account: same handling as useSignIn (session or MFA challenge).
+ *  New Google account: no session; the caller runs the WhatsApp step. */
+export function useGoogleSignIn() {
+  const setSession = useAuthStore((s) => s.setSession);
+  const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);
+  const qc = useQueryClient();
+  return useMutation<GoogleSignInResult, Error, { credential: string }>({
+    mutationFn: (body) => api.post<GoogleSignInResult>('/auth/google', body),
+    onSuccess: (r) => {
+      if (isGoogleSignupRequired(r) || isMfaChallenge(r)) return;
+      qc.clear();
+      setSession(r.user, r.token);
+      setForceMfaEnrollment(!!r.mustEnrollMfa);
+    },
+  });
+}
+
+export function useSendSignupOtp() {
+  return useMutation({
+    mutationFn: (body: { signupToken: string; phone: string }) =>
+      api.post<{ challengeId: string; expiresAt: string; resendAfterSeconds: number; phone: string }>(
+        '/auth/signup/otp/send', body,
+      ),
+  });
+}
+
+export function useVerifySignupOtp() {
+  return useMutation({
+    mutationFn: (body: { signupToken: string; challengeId: string; code: string }) =>
+      api.post<{ signupToken: string; phone: string }>('/auth/signup/otp/verify', body),
+  });
+}
+
+export interface GoogleSignUpRequest extends Omit<SignUpRequest, 'email' | 'password' | 'name'> {
+  /** Must be the token returned by useVerifySignupOtp. */
+  signupToken: string;
+  name?: string;
+}
+
+export function useGoogleSignUp() {
+  const setSession = useAuthStore((s) => s.setSession);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: GoogleSignUpRequest) => api.post<AuthResponse>('/auth/google/sign-up', body),
+    onSuccess: (r) => {
+      qc.clear();
+      setSession(r.user, r.token);
+    },
+  });
+}
+
 export type FirmEnquirySize = '9-25' | '26-50' | '51-100' | '100+';
 
 export interface FirmEnquiryRequest {

@@ -33,6 +33,16 @@ export const signUpLimiter = rateLimit({
   message: { error: 'Too many sign-up attempts from this IP. Try again later.' },
 });
 
+// WhatsApp OTP sends cost money per message, so cap them per IP on top of
+// the per-number limits in phone-otp.service.
+export const otpSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many verification codes requested from this network. Try again later.' },
+});
+
 // Survey draft writes - one respondent can comfortably generate 30-60 PUTs
 // across a full survey session (one per debounced answer change). 120/hour
 // gives generous headroom for a single user without leaving the endpoint

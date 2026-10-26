@@ -74,7 +74,7 @@ export function UsersView() {
         <input
           className="input"
           style={{ flex: 1 }}
-          placeholder="Search by name or email…"
+          placeholder="Search by name, email or WhatsApp number…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -98,6 +98,7 @@ export function UsersView() {
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>WhatsApp</th>
               <th>Firm</th>
               <th>Role</th>
               <th>Status</th>
@@ -109,6 +110,7 @@ export function UsersView() {
               <tr key={`sk-${i}`}>
                 <td><Skeleton width={120} height={14} /></td>
                 <td><Skeleton width={180} height={12} /></td>
+                <td><Skeleton width={110} height={12} /></td>
                 <td><Skeleton width={130} height={13} /></td>
                 <td><Skeleton width={100} height={13} /></td>
                 <td><Skeleton width={62} height={20} radius="pill" /></td>
@@ -123,6 +125,7 @@ export function UsersView() {
             <tr>
               <th>Name</th>
               <th>Email</th>
+              <th>WhatsApp</th>
               <th>Firm</th>
               <th>Role</th>
               <th>Status</th>
@@ -136,7 +139,15 @@ export function UsersView() {
                   {u.name}
                   {u.isSuperadmin && <span className="badge badge-vermillion mono" style={{ marginLeft: 8, fontSize: 9 }}>SUPER</span>}
                 </td>
-                <td className="mono" style={{ fontSize: 12 }}>{u.email}</td>
+                <td className="mono" style={{ fontSize: 12 }}>
+                  {u.email}
+                  {u.signInMethod === 'google' && <span className="badge mono" style={{ marginLeft: 8, fontSize: 9 }}>GOOGLE</span>}
+                </td>
+                <td className="mono" style={{ fontSize: 12 }}>
+                  {u.phone ? (
+                    <a href={`https://wa.me/${u.phone.replace(/^\+/, '')}`} target="_blank" rel="noreferrer">{u.phone}</a>
+                  ) : '-'}
+                </td>
                 <td>{u.firmName ?? '-'}</td>
                 <td>{u.role}</td>
                 <td>
@@ -202,7 +213,7 @@ export function UsersView() {
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
+              <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
             )}
           </tbody>
         </table>

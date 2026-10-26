@@ -1032,6 +1032,11 @@ export interface AdminUserSummary {
   createdAt: string;
   /** Last sign-in (ISO) or null if the user never signed in. */
   lastSeenAt: string | null;
+  /** E.164 WhatsApp number verified at sign-up (Google sign-ups). */
+  phone?: string | null;
+  phoneVerifiedAt?: string | null;
+  /** 'google' once a Google account is linked, else 'password'. */
+  signInMethod?: 'google' | 'password';
 }
 
 export type AuditAction =

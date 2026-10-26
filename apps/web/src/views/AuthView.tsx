@@ -1,15 +1,26 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, FieldError, validators } from '@lexdraft/ui';
-import { useSignIn, useSignUp, useFirmEnquiry, type FirmEnquirySize } from '@/hooks/useAuth';
+import {
+  isGoogleSignupRequired,
+  useFirmEnquiry,
+  useGoogleSignIn,
+  useGoogleSignUp,
+  useSignIn,
+  type FirmEnquirySize,
+  type GoogleSignupRequired,
+} from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
-import { isMfaChallenge } from '@/lib/auth-types';
+import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
+import { googleSignInAvailable } from '@/lib/google';
+import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
 
 // =============================================================================
 // AuthView - Sign in / Sign up + 3-step onboarding
 // Ported from _design/lexdraft/project/views/auth.jsx, mapped to v2 Monochrome
-// tokens, wired to useSignIn / useSignUp. The "ADMIN" affordance is kept -
-// the API auto-promotes such accounts to superadmin.
+// tokens. Sign in: Google first, email + password kept for existing
+// accounts. Create account: Google, then a WhatsApp-verified number, then
+// the practice profile (useGoogleSignUp).
 // =============================================================================
 
 type AuthTab = 'signin' | 'signup';
@@ -27,7 +38,7 @@ const ROLE_OPTIONS: RoleOption[] = [
   { id: 'firm', label: 'Firm', sub: '9+ people' },
 ];
 
-const STEP_LABELS: readonly string[] = ['', 'Profile', 'Firm details', 'Done'];
+const STEP_LABELS: readonly string[] = ['', 'Google & WhatsApp', 'Profile', 'Done'];
 
 // Maps the `?reason=` value the api.ts interceptor appends on a 402 to a
 // human-friendly banner copy. Anything we don't recognise falls through to
@@ -42,7 +53,8 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
 export function AuthView() {
   const navigate = useNavigate();
   const signIn = useSignIn();
-  const signUp = useSignUp();
+  const googleSignIn = useGoogleSignIn();
+  const signUp = useGoogleSignUp();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Renewal banner. Populated when the api.ts response interceptor redirects
@@ -79,21 +91,19 @@ export function AuthView() {
   const [signinEmailTouched, setSigninEmailTouched] = useState(false);
   const signinEmailError = signinEmailTouched ? validators.email(signinEmail) : null;
 
-  // Sign-up state
+  // Sign-up state. `googleSignup` is set when Google returned "no account
+  // yet" (from either tab); `verified` once the WhatsApp code is proved.
+  const [googleSignup, setGoogleSignup] = useState<GoogleSignupRequired | null>(null);
+  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [enrolment, setEnrolment] = useState('');
-  const [password, setPassword] = useState('');
   const [firm, setFirm] = useState('');
   const [primaryCourt, setPrimaryCourt] = useState('');
   const [practiceAreas, setPracticeAreas] = useState('');
 
   const [signupEmailTouched, setSignupEmailTouched] = useState(false);
-  const [signupPasswordTouched, setSignupPasswordTouched] = useState(false);
   const signupEmailError = signupEmailTouched ? validators.email(email) : null;
-  const signupPasswordError = signupPasswordTouched
-    ? validators.minLength(password, 8, 'Password')
-    : null;
 
   // Firm-enquiry state (separate flow from self-serve sign-up). Reuses
   // `name` + `email` from sign-up so the prospect doesn't retype if they
@@ -133,6 +143,37 @@ export function AuthView() {
     );
   };
 
+  // Shared by the email form, the Sign-in Google button and the sign-up
+  // Google step (when the Google account already has a LexDraft account).
+  const handleSignedIn = (resp: SignInResult) => {
+    if (isMfaChallenge(resp)) {
+      setTab('signin');
+      setMfaChallenge({ challengeId: resp.challengeId, expiresAt: resp.expiresAt });
+      return;
+    }
+    onComplete(resp);
+  };
+
+  const handleGoogleCredential = (credential: string) => {
+    googleSignIn.mutate(
+      { credential },
+      {
+        onSuccess: (r) => {
+          if (isGoogleSignupRequired(r)) {
+            // New Google account - continue in Create account.
+            setGoogleSignup(r);
+            setVerified(null);
+            setTab('signup');
+            setStep(0);
+            setRole(null);
+            return;
+          }
+          handleSignedIn(r);
+        },
+      },
+    );
+  };
+
   // Called by the MFA sub-step after a successful challenge exchange. The
   // useMfaVerifyChallenge hook has already set the session; we just need to
   // navigate to the right landing page.
@@ -143,12 +184,11 @@ export function AuthView() {
 
   const handleSignUp = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!role) return;
+    if (!role || !verified) return;
     signUp.mutate(
       {
-        email,
-        password,
-        name,
+        signupToken: verified.signupToken,
+        name: name.trim() || undefined,
         role,
         firm: firm || undefined,
         enrolment: enrolment || undefined,
@@ -281,6 +321,8 @@ export function AuthView() {
                     setTab(id);
                     setStep(0);
                     setRole(null);
+                    setGoogleSignup(null);
+                    setVerified(null);
                   }}
                   style={{
                     padding: '12px 20px',
@@ -332,6 +374,46 @@ export function AuthView() {
         )}
 
         {/* SIGN IN */}
+        {tab === 'signin' && !mfaChallenge && googleSignInAvailable() && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+            <GoogleButton onCredential={handleGoogleCredential} text="signin_with" />
+            {googleSignIn.isPending && (
+              <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
+            )}
+            {googleSignIn.isError && (
+              <div
+                role="alert"
+                style={{
+                  fontSize: 13,
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '10px 12px',
+                }}
+              >
+                {googleSignIn.error.message}
+              </div>
+            )}
+            <div
+              className="mono"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                fontSize: 10,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+                marginTop: 8,
+              }}
+            >
+              <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+              or with email
+              <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+            </div>
+          </div>
+        )}
+
         {tab === 'signin' && !mfaChallenge && (
           <form
             onSubmit={handleSignIn}
@@ -463,7 +545,9 @@ export function AuthView() {
                 marginBottom: 4,
               }}
             >
-              Choose how you’ll use LexDraft
+              {googleSignup
+                ? `No LexDraft account for ${googleSignup.profile.email} yet. Choose how you’ll use LexDraft.`
+                : 'Choose how you’ll use LexDraft'}
             </p>
             <div className="facts-grid-3" style={{ gap: 10 }}>
               {ROLE_OPTIONS.map((r) => {
@@ -740,23 +824,39 @@ export function AuthView() {
           </form>
         )}
 
-        {/* SIGN UP - STEP 1 (profile) — Solo / Practice */}
+        {/* SIGN UP - STEP 1 (Google + WhatsApp) — Solo / Practice */}
         {tab === 'signup' && step === 1 && role !== 'firm' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+              Continue with your Google account, then verify your WhatsApp number.
+            </p>
+            <GoogleWhatsAppVerify
+              startWith={googleSignup}
+              buttonText="signup_with"
+              onSignedIn={handleSignedIn}
+              onVerified={(v) => {
+                setVerified(v);
+                setName(v.profile.name);
+                setStep(2);
+              }}
+            />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(0)}>
+              Back
+            </button>
+          </div>
+        )}
+
+        {/* SIGN UP - STEP 2 (firm) */}
+        {tab === 'signup' && step === 2 && (
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              // Gate step transition on validation. Native required + the
-              // email validator above flag the bad fields, but the form
-              // would still advance to step 2 on every Enter press without
-              // this guard — meaning a bad email only surfaces at the
-              // final API call. Force-touch the email field so the
-              // FieldError renders if it wasn't already.
-              setSignupEmailTouched(true);
-              if (!name.trim() || signupEmailError || password.length < 8) return;
-              setStep(2);
-            }}
+            onSubmit={handleSignUp}
             style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
           >
+            {verified && (
+              <div className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                {verified.profile.email} · WhatsApp {verified.phone} verified
+              </div>
+            )}
             <div>
               <label className="label required" htmlFor="signup-name">Full name</label>
               <input
@@ -768,23 +868,6 @@ export function AuthView() {
                 required
                 autoComplete="name"
               />
-            </div>
-            <div>
-              <label className="label required" htmlFor="signup-email">Email</label>
-              <input
-                id="signup-email"
-                className="input"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onBlur={() => setSignupEmailTouched(true)}
-                placeholder="advocate@chambers.law"
-                required
-                autoComplete="email"
-                aria-invalid={!!signupEmailError}
-                aria-describedby={signupEmailError ? 'signup-email-error' : undefined}
-              />
-              <FieldError id="signup-email-error" error={signupEmailError} />
             </div>
             <div>
               <label className="label" htmlFor="signup-enrolment">
@@ -799,36 +882,6 @@ export function AuthView() {
                 placeholder="D/4419/2018"
               />
             </div>
-            <div>
-              <label className="label required" htmlFor="signup-password">
-                Password
-                <span className="hint">Min 8 characters</span>
-              </label>
-              <PasswordInput
-                id="signup-password"
-                value={password}
-                onChange={(v) => setPassword(v)}
-                onBlur={() => setSignupPasswordTouched(true)}
-                autoComplete="new-password"
-                required
-                minLength={8}
-                aria-invalid={!!signupPasswordError}
-                aria-describedby={signupPasswordError ? 'signup-password-error' : undefined}
-              />
-              <FieldError id="signup-password-error" error={signupPasswordError} />
-            </div>
-            <button type="submit" className="btn btn-primary btn-block btn-lg">
-              Continue <Icon name="arrow" size={14} />
-            </button>
-          </form>
-        )}
-
-        {/* SIGN UP - STEP 2 (firm) */}
-        {tab === 'signup' && step === 2 && (
-          <form
-            onSubmit={handleSignUp}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
             <div>
               <label className="label" htmlFor="signup-firm">
                 {role === 'solo' ? 'Chambers name' : 'Firm name'}
@@ -880,7 +933,7 @@ export function AuthView() {
             <button
               type="submit"
               className="btn btn-primary btn-block btn-lg"
-              disabled={signUp.isPending}
+              disabled={signUp.isPending || !verified}
             >
               {signUp.isPending ? 'Creating account…' : 'Finish setup'}
             </button>

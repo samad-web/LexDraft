@@ -40,6 +40,9 @@ COPY apps/web apps/web
 # reverse proxy fronts both web and api on the same hostname.
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
+# Google OAuth web client id for "Sign in with Google" (public, not a secret).
+ARG VITE_GOOGLE_CLIENT_ID=""
+ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
 RUN pnpm --filter @lexdraft/web build
 

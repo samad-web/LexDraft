@@ -122,6 +122,10 @@ interface UserRow {
   status: UserStatus;
   created_at: Date;
   last_seen_at: Date | null;
+  /** Migration 0094. */
+  phone: string | null;
+  phone_verified_at: Date | null;
+  google_sub: string | null;
 }
 
 const ALL_MODULES: FeatureModule[] = [
@@ -167,6 +171,9 @@ function rowToUserSummary(r: UserRow): AdminUserSummary {
     status: r.status,
     createdAt: r.created_at.toISOString(),
     lastSeenAt: r.last_seen_at ? r.last_seen_at.toISOString() : null,
+    phone: r.phone ?? null,
+    phoneVerifiedAt: r.phone_verified_at ? r.phone_verified_at.toISOString() : null,
+    signInMethod: r.google_sub ? 'google' : 'password',
   };
 }
 
@@ -219,7 +226,8 @@ export const adminService = {
       sql<FlagRow[]>`select module, enabled, updated_at from feature_flags where firm_id = ${id}::uuid`,
       sql<UserRow[]>`
         select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
-               f.name as firm_name, u.status, u.created_at, u.last_seen_at
+               f.name as firm_name, u.status, u.created_at, u.last_seen_at,
+             u.phone, u.phone_verified_at, u.google_sub
         from users u left join firms f on f.id = u.firm_id
         where u.firm_id = ${id}::uuid
         order by u.created_at asc
@@ -509,7 +517,8 @@ export const adminService = {
     if (!sql) return [];
     const rows = await sql<UserRow[]>`
       select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
-             f.name as firm_name, u.status, u.created_at, u.last_seen_at
+             f.name as firm_name, u.status, u.created_at, u.last_seen_at,
+             u.phone, u.phone_verified_at, u.google_sub
       from users u
       left join firms f on f.id = u.firm_id
       where (${filter.firmId ?? null}::uuid is null or u.firm_id = ${filter.firmId ?? null}::uuid)
@@ -518,6 +527,7 @@ export const adminService = {
           ${filter.q ?? null}::text is null
           or lower(u.name) like '%' || lower(${filter.q ?? null}) || '%'
           or lower(u.email) like '%' || lower(${filter.q ?? null}) || '%'
+          or u.phone like '%' || ${filter.q ?? null} || '%'
         )
       order by u.created_at desc
       limit 500
@@ -568,7 +578,8 @@ export const adminService = {
     });
     const rows = await sql<UserRow[]>`
       select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
-             f.name as firm_name, u.status, u.created_at, u.last_seen_at
+             f.name as firm_name, u.status, u.created_at, u.last_seen_at,
+             u.phone, u.phone_verified_at, u.google_sub
       from users u left join firms f on f.id = u.firm_id
       where u.id = ${id}::uuid limit 1
     `;
