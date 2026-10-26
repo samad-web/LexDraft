@@ -37,7 +37,8 @@ const ROLE_OPTIONS: RoleOption[] = [
   { id: 'firm', label: 'Firm', sub: '9+ people' },
 ];
 
-const STEP_LABELS: readonly string[] = ['', 'Google & WhatsApp', 'Profile', 'Done'];
+// Shown above the new-account steps (step index 0..2).
+const STEP_LABELS: readonly string[] = ['Practice type', 'WhatsApp number', 'Profile'];
 
 // Maps the `?reason=` value the api.ts interceptor appends on a 402 to a
 // human-friendly banner copy. Anything we don't recognise falls through to
@@ -130,7 +131,7 @@ export function AuthView() {
       {
         onSuccess: (r) => {
           if (isGoogleSignupRequired(r)) {
-            // New Google account - continue in Create account.
+            // New Google account - set up the practice next.
             setGoogleSignup(r);
             setVerified(null);
             setTab('signup');
@@ -214,15 +215,13 @@ export function AuthView() {
     boxShadow: 'var(--shadow-popover)',
   };
 
-  const tabRowStyle: CSSProperties = {
-    display: 'flex',
-    justifyContent: 'center',
-    gap: 0,
-    marginBottom: 28,
-    borderBottom: '1px solid var(--border-subtle)',
+  const backToStart = () => {
+    setTab('signin');
+    setStep(0);
+    setRole(null);
+    setGoogleSignup(null);
+    setVerified(null);
   };
-
-  const showTabs = (!isSignup || step === 0) && !mfaChallenge;
 
   const noticeStyle: CSSProperties = {
     fontSize: 13,
@@ -282,49 +281,11 @@ export function AuthView() {
           </div>
         </div>
 
-        {/* Tabs OR step indicator */}
-        {showTabs ? (
-          <div style={tabRowStyle} role="tablist" aria-label="Authentication mode">
-            {([
-              ['signin', 'Sign in'],
-              ['signup', 'Create account'],
-            ] as const).map(([id, label]) => {
-              const active = tab === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => {
-                    setTab(id);
-                    setStep(0);
-                    setRole(null);
-                    setGoogleSignup(null);
-                    setVerified(null);
-                  }}
-                  style={{
-                    padding: '12px 20px',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    borderBottom: active
-                      ? '2px solid var(--text-primary)'
-                      : '2px solid transparent',
-                    marginBottom: -1,
-                    background: 'transparent',
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        ) : (
+        {/* Step indicator - only while setting up a new account */}
+        {isSignup && !mfaChallenge && (
           <div style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-              {[1, 2, 3].map((s) => (
+              {[0, 1, 2].map((s) => (
                 <div
                   key={s}
                   style={{
@@ -337,7 +298,7 @@ export function AuthView() {
               ))}
             </div>
             <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              STEP {step} OF 3 · {STEP_LABELS[step]}
+              STEP {step + 1} OF 3 · {STEP_LABELS[step]}
             </div>
           </div>
         )}
@@ -389,8 +350,16 @@ export function AuthView() {
                 </button>
               </div>
             )}
+            <div style={{ textAlign: 'center' }}>
+              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, margin: 0 }}>
+                Welcome
+              </h1>
+              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
+                Sign in or create your account with Google.
+              </p>
+            </div>
             {googleSignInAvailable() ? (
-              <GoogleButton onCredential={handleGoogleCredential} text="signin_with" />
+              <GoogleButton onCredential={handleGoogleCredential} text="continue_with" />
             ) : (
               <div role="status" style={noticeStyle}>Google sign-in is not configured.</div>
             )}
@@ -400,8 +369,34 @@ export function AuthView() {
             {googleSignIn.isError && (
               <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
             )}
-            <p className="body-sm muted" style={{ textAlign: 'center', lineHeight: 1.55 }}>
-              Existing members: use the Google account with the same email as your LexDraft account.
+            <ul
+              style={{
+                listStyle: 'none',
+                margin: 0,
+                padding: '14px 16px',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.5,
+              }}
+            >
+              <li><strong style={{ color: 'var(--text-primary)' }}>Already a member?</strong> Use the Google account with your LexDraft email.</li>
+              <li><strong style={{ color: 'var(--text-primary)' }}>New here?</strong> After Google, verify your WhatsApp number and set up your practice.</li>
+            </ul>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              style={{ alignSelf: 'center' }}
+              onClick={() => { setTab('signup'); setRole('firm'); setStep(1); }}
+            >
+              Firm with 9+ lawyers? Talk to our team
+            </button>
+            <p className="body-xs muted" style={{ textAlign: 'center', lineHeight: 1.5 }}>
+              By continuing you agree to LexDraft&rsquo;s terms of service and privacy policy.
             </p>
           </div>
         )}
@@ -418,8 +413,8 @@ export function AuthView() {
               }}
             >
               {googleSignup
-                ? `No LexDraft account for ${googleSignup.profile.email} yet. Choose how you’ll use LexDraft.`
-                : 'Choose how you’ll use LexDraft'}
+                ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Let’s set up your account for ${googleSignup.profile.email}. How will you use LexDraft?`
+                : 'How will you use LexDraft?'}
             </p>
             <div className="facts-grid-3" style={{ gap: 10 }}>
               {ROLE_OPTIONS.map((r) => {
@@ -468,6 +463,9 @@ export function AuthView() {
               onClick={() => setStep(1)}
             >
               Continue <Icon name="arrow" size={14} />
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }} onClick={backToStart}>
+              {googleSignup ? 'Use a different Google account' : 'Back'}
             </button>
           </div>
         )}
