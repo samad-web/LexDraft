@@ -86,7 +86,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
         `I'd like you to join ${created.firm} on LexDraft as ${created.role}.`,
         ...(created.message ? ['', created.message] : []),
         '',
-        'Open this link to accept and set your password:',
+        'Open this link and continue with Google to join:',
         link,
         '',
         `The link is valid until ${new Date(created.expiresAt).toDateString()}.`,
@@ -213,7 +213,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
             </div>
             <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className="body-sm muted">
-                Valid for 7 days. They open it, set a name and password, and join your firm.
+                Valid for 7 days. They open it, continue with Google, verify their WhatsApp number, and join your firm.
               </span>
               <span className="spacer" />
               <a

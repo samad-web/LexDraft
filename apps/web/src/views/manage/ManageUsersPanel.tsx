@@ -104,8 +104,8 @@ export function ManageUsersPanel() {
     <div className="col" style={{ gap: 16 }}>
       <div className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div className="body-sm muted" style={{ flex: 1, minWidth: 200 }}>
-          Add a member two ways: <strong>Add member</strong> creates the account immediately with a password
-          you control; <strong>Send invite</strong> emails a link so they set their own password.
+          Add a member two ways: <strong>Add member</strong> creates the account immediately and they sign in
+          with Google; <strong>Send invite</strong> sends a link where they sign in with Google and verify their WhatsApp number.
         </div>
         <button type="button" className="btn" onClick={() => setInviteOpen(true)}>
           + Send invite

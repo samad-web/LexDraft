@@ -45,10 +45,7 @@ const CreateBody = z.object({
 
 const AcceptByToken = z.object({
   name: z.string().min(1).max(200),
-  password: z.string().min(8).max(128),
-  // Required for open-link invites (no email on file at creation time);
-  // ignored for email-first invites. See co-counsel.service.ts::acceptByToken.
-  email: z.string().email().optional(),
+  signupToken: z.string().min(20).max(4096),
 }).strict();
 
 export const coCounselRouter: Router = Router();

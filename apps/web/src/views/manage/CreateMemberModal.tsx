@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Select } from '@lexdraft/ui';
 import type { FirmCreateUserResponse, PracticeGroup, Role } from '@lexdraft/types';
 import { Modal, Field } from '@/components/Modal';
@@ -17,9 +17,8 @@ interface Props {
  * Create-and-assign-login flow for a Firm Admin (spec §3.3 alt path).
  *
  * Distinct from the link-based invite (Manage → Invitations tab): this creates
- * an active user immediately with credentials the admin shares out-of-band.
- * The auto-generated password follows the same `${FirstName}@123` pattern as
- * the firm-bootstrap flow.
+ * an active user immediately. LexDraft is Google-only, so the member signs in
+ * with the Google account for this email - there is no password to share.
  */
 export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCreated }: Props) {
   const create = useCreateFirmUser();
@@ -29,8 +28,6 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
   const [email, setEmail] = useState('');
   const [roleId, setRoleId] = useState('');
   const [practiceGroupId, setPracticeGroupId] = useState('');
-  const [autoPassword, setAutoPassword] = useState(true);
-  const [password, setPassword] = useState('');
 
   // Default role to "Associate" when present, otherwise the first role -
   // spares the admin one click in the common case.
@@ -47,8 +44,6 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
     setEmail('');
     setRoleId('');
     setPracticeGroupId('');
-    setAutoPassword(true);
-    setPassword('');
   };
 
   const handleClose = () => {
@@ -60,24 +55,7 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
 
   const trimmedEmail = email.trim();
   const emailValid = /^\S+@\S+\.\S+$/.test(trimmedEmail);
-  const pwValid    = autoPassword || password.length >= 8;
-  const canSubmit  = emailValid && roleId.length > 0 && pwValid && !create.isPending;
-
-  const previewPassword = useMemo(() => {
-    if (!autoPassword) return null;
-    const sourceName = name.trim()
-      || (trimmedEmail.split('@')[0] ?? '')
-        .split(/[._-]+/)
-        .filter(Boolean)
-        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-        .join(' ');
-    const firstToken = sourceName.split(/\s+/)[0] ?? '';
-    const sanitized  = firstToken.replace(/[^A-Za-z0-9]/g, '');
-    const firstName  = sanitized.length > 0
-      ? sanitized.charAt(0).toUpperCase() + sanitized.slice(1).toLowerCase()
-      : 'User';
-    return `${firstName}@123`;
-  }, [autoPassword, name, trimmedEmail]);
+  const canSubmit  = emailValid && roleId.length > 0 && !create.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +66,6 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
         ...(name.trim() ? { name: name.trim() } : {}),
         roleId,
         practiceGroupId: practiceGroupId || undefined,
-        ...(autoPassword ? {} : { password }),
       });
       reset();
       onCreated(result);
@@ -106,7 +83,7 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
       onClose={handleClose}
       eyebrow="New member"
       title="Add a member with login"
-      description="Creates an active account immediately. Use this when you want to set the password yourself; otherwise pick the Invitations tab to send a link instead."
+      description="Creates an active account immediately. The member signs in with the Google account for this email. To have them verify their WhatsApp number, send an invite from the Invitations tab instead."
       width={520}
       onSubmit={handleSubmit}
       footer={
@@ -171,48 +148,6 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
         </Field>
       )}
 
-      <Field label="PASSWORD">
-        <label
-          style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '10px 12px',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={autoPassword}
-            onChange={(e) => setAutoPassword(e.target.checked)}
-          />
-          <span className="body-sm">
-            Auto-generate as <span className="mono">Name@123</span>
-            {previewPassword && (
-              <span className="muted">
-                {' · preview: '}
-                <span className="mono">{previewPassword}</span>
-              </span>
-            )}
-          </span>
-        </label>
-        {!autoPassword && (
-          <input
-            type="text"
-            className="input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            minLength={8}
-            style={{ marginTop: 8 }}
-          />
-        )}
-        {!autoPassword && password.length > 0 && password.length < 8 && (
-          <div className="body-xs" style={{ color: 'var(--danger)', marginTop: 6 }}>
-            Minimum 8 characters.
-          </div>
-        )}
-      </Field>
     </Modal>
   );
 }
@@ -225,7 +160,7 @@ export function CreatedMemberDialog({
   const showToast = useUIStore((s) => s.showToast);
   if (!result) return null;
 
-  const { user, tempPassword } = result;
+  const { user } = result;
   const copy = (value: string, label: string) => {
     void navigator.clipboard?.writeText(value);
     showToast({ type: 'sage', text: `${label} copied` });
@@ -237,11 +172,7 @@ export function CreatedMemberDialog({
       onClose={onClose}
       eyebrow="Member created"
       title={`${user.name} is ready`}
-      description={
-        tempPassword
-          ? 'Share these credentials with the member out-of-band (encrypted email, password manager, in-person). The temporary password is shown only on this screen - ask them to change it on first sign-in.'
-          : 'The account is active. Share the password you set with the member separately.'
-      }
+      description="The account is active. The member signs in with Google using this email."
       width={500}
       footer={
         <button type="button" className="btn btn-primary" onClick={onClose}>
@@ -252,19 +183,6 @@ export function CreatedMemberDialog({
       <CredentialRow label="Name"  value={user.name}  onCopy={() => copy(user.name, 'Name')} />
       <CredentialRow label="Email" value={user.email} onCopy={() => copy(user.email, 'Email')} mono />
       {user.role && <CredentialRow label="Role"  value={user.role.name} onCopy={() => copy(user.role!.name, 'Role')} />}
-      {tempPassword ? (
-        <CredentialRow
-          label="Temporary password"
-          value={tempPassword}
-          onCopy={() => copy(tempPassword, 'Password')}
-          mono
-          highlight
-        />
-      ) : (
-        <div className="body-sm muted" style={{ padding: '10px 0' }}>
-          Password: <em>set at create time</em> - share it separately.
-        </div>
-      )}
       <div
         className="body-xs muted"
         style={{
@@ -274,8 +192,8 @@ export function CreatedMemberDialog({
           borderRadius: 'var(--radius-sm)',
         }}
       >
-        Ask the member to sign in at <span className="mono">/auth</span> and change
-        their password from settings on first login.
+        Ask the member to open <span className="mono">/auth</span> and choose
+        <strong> Sign in with Google</strong> with <span className="mono">{user.email}</span>.
       </div>
     </Modal>
   );

@@ -261,7 +261,7 @@ function SecurityPanel() {
     const ok = await confirm({
       title: 'Disable two-factor authentication?',
       message:
-        'Your account will rely on password alone. If your role requires MFA, you will be forced to re-enrol on next sign-in.',
+        'Your account will rely on Google sign-in alone. If your role requires MFA, you will be forced to re-enrol on next sign-in.',
       confirmLabel: 'Disable',
       cancelLabel: 'Keep enabled',
       danger: true,
@@ -315,7 +315,7 @@ function SecurityPanel() {
             )}
             <p className="muted body-sm" style={{ margin: 0 }}>
               Two-factor authentication adds a one-time code from your phone
-              on top of your password. It takes about a minute to set up.
+              on top of Google sign-in. It takes about a minute to set up.
             </p>
             <div>
               <button

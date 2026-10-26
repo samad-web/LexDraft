@@ -476,16 +476,18 @@ export const coCounselService = {
     if (!invRow.case_id) throw new UnprocessableEntityError('Invitation has no linked case');
 
     // Open-link invites (migration 0074) have no email on file - the
-    // accepting advocate supplies their own. Email-first invites already
-    // know the recipient's address; body.email is ignored for those so a
-    // forged body can't redirect an addressed invite to a different inbox.
-    const email = invRow.email ?? body.email?.toLowerCase().trim();
-    if (!email) throw new BadRequestError('Email is required to accept this invitation');
+    // advocate's Google email becomes their account email. Email-first
+    // invites may only be claimed by the Google account for that address.
+    const { google, phone } = await authService.verifiedSignup(body.signupToken);
+    if (invRow.email && invRow.email.toLowerCase() !== google.email) {
+      throw new ForbiddenError(`This invitation was sent to ${invRow.email}. Continue with the Google account for that email.`);
+    }
 
     const auth = await authService.registerCoCounselGuest({
       name: body.name.trim(),
-      email,
-      password: body.password,
+      email: google.email,
+      googleSub: google.sub,
+      phone,
     });
     const newUser = auth.user;
 

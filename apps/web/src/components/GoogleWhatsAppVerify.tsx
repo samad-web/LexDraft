@@ -35,6 +35,9 @@ interface Props {
    *  (e.g. the user pressed Google on the Sign in tab with a new account). */
   startWith?: GoogleSignupRequired | null;
   buttonText?: 'continue_with' | 'signup_with' | 'signin_with';
+  /** Invitations addressed to one email: refuse any other Google account
+   *  before the WhatsApp step, rather than failing at the very end. */
+  expectedEmail?: string | null;
 }
 
 const noticeStyle: CSSProperties = {
@@ -46,7 +49,7 @@ const noticeStyle: CSSProperties = {
   padding: '10px 12px',
 };
 
-export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with' }: Props) {
+export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with', expectedEmail }: Props) {
   const googleSignIn = useGoogleSignIn();
   const sendOtp = useSendSignupOtp();
   const verifyOtp = useVerifySignupOtp();
@@ -56,6 +59,7 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
   const [challenge, setChallenge] = useState<{ id: string; phone: string } | null>(null);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
+  const [wrongAccount, setWrongAccount] = useState<string | null>(null);
 
   useEffect(() => {
     if (startWith) setPending(startWith);
@@ -72,8 +76,16 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
       { credential },
       {
         onSuccess: (r) => {
-          if (isGoogleSignupRequired(r)) setPending(r);
-          else onSignedIn(r);
+          if (!isGoogleSignupRequired(r)) {
+            onSignedIn(r);
+            return;
+          }
+          if (expectedEmail && r.profile.email.toLowerCase() !== expectedEmail.toLowerCase()) {
+            setWrongAccount(`This invitation is for ${expectedEmail}. You chose ${r.profile.email} - continue with the Google account for ${expectedEmail}.`);
+            return;
+          }
+          setWrongAccount(null);
+          setPending(r);
         },
       },
     );
@@ -121,6 +133,7 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
         {googleSignIn.isError && (
           <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
         )}
+        {wrongAccount && <div role="alert" style={noticeStyle}>{wrongAccount}</div>}
       </div>
     );
   }
@@ -310,5 +323,7 @@ function WebGoogleButton({ onCredential, text = 'continue_with' }: {
   }, [text]);
 
   if (loadError) return <div role="alert" style={noticeStyle}>{loadError}</div>;
-  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center', minHeight: 44 }} />;
+  // colorScheme: Google's button iframe is a light document; on a dark page a
+  // mismatched color-scheme paints an opaque white box around it.
+  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center', minHeight: 44, colorScheme: 'light' }} />;
 }

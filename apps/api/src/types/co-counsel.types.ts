@@ -134,11 +134,10 @@ export interface GuestCaseDetail {
 
 export interface AcceptHandoverByTokenInput {
   name: string;
-  password: string;
-  /** Required when the invitation has no email on file (open-link invites -
-   *  see migration 0074). Ignored for email-first invites, which already
-   *  know the recipient's address from creation time. */
-  email?: string;
+  /** From /auth/signup/otp/verify: Google identity + verified WhatsApp
+   *  number. Its Google email is the new account's email (open-link
+   *  invites) and must match the invite's email (email-first invites). */
+  signupToken: string;
 }
 
 export interface AcceptHandoverResult {

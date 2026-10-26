@@ -179,7 +179,7 @@ export function useCoCounselInviteByToken(token: string | undefined) {
  *  creation time) and ignored for email-first invites. */
 export function useAcceptCoCounselByToken() {
   return useMutation({
-    mutationFn: ({ token, body }: { token: string; body: { name: string; password: string; email?: string } }) =>
+    mutationFn: ({ token, body }: { token: string; body: { name: string; signupToken: string } }) =>
       api.post<AcceptHandoverResult>(`/co-counsel/accept/by-token/${token}`, body),
   });
 }

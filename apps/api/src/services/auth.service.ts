@@ -269,12 +269,14 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
       with inserted as (
         insert into users (
           firm_id, name, email, role, role_id, is_superadmin, password_hash,
-          enrolment, primary_court, practice_areas
+          enrolment, primary_court, practice_areas,
+          google_sub, phone, phone_verified_at
         )
         values (
           ${firmId}, ${record.name}, ${record.email.toLowerCase()},
           ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
-          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null}
+          ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null},
+          ${record.googleSub ?? null}, ${record.phone ?? null}, ${record.phone ? new Date() : null}
         )
         returning id, name, email, role, is_superadmin, password_hash, firm_id,
                   enrolment, primary_court, practice_areas
@@ -393,6 +395,12 @@ function verifySignupToken(token: string): SignupTokenClaims {
   } catch {
     throw new UnauthorizedError('Your sign-up session expired. Continue with Google again.');
   }
+}
+
+/** password_hash is NOT NULL. Google accounts get a random, never-disclosed
+ *  secret, so the account has no usable password. */
+export function unusablePasswordHash(): Promise<string> {
+  return bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 10);
 }
 
 /** One WhatsApp number per account, so the number identifies the user. */
@@ -596,11 +604,7 @@ export const authService = {
 
   /** Create the account for a Google user whose WhatsApp number is verified. */
   async googleSignUp(input: GoogleSignUpInput): Promise<AuthResponse> {
-    const claims = verifySignupToken(input.signupToken);
-    if (!claims.phone) throw new UnauthorizedError('Verify your WhatsApp number first.');
-    const { google, phone } = claims;
-    if (await findByEmail(google.email)) throw new ConflictError('Email already registered');
-    await assertPhoneUnused(phone);
+    const { google, phone } = await authService.verifiedSignup(input.signupToken);
 
     const name = input.name?.trim() || google.name;
     const role: User['role'] =
@@ -614,9 +618,7 @@ export const authService = {
         role,
         firm: input.firm ?? '',
         isSuperadmin: false,
-        // password_hash is NOT NULL. A random, never-disclosed secret means
-        // the account has no usable password until an admin resets one.
-        passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 10),
+        passwordHash: await unusablePasswordHash(),
         enrolment: input.enrolment,
         primaryCourt: input.primaryCourt,
         practiceAreas: input.practiceAreas,
@@ -628,6 +630,21 @@ export const authService = {
       input.intent ?? 'trial',
     );
     return { user, token: issueToken(user) };
+  },
+
+  /**
+   * Every account is created from a Google identity plus a WhatsApp number
+   * proved by OTP. Self sign-up, invitation acceptance and co-counsel
+   * acceptance all call this to unwrap the verified sign-up token.
+   */
+  async verifiedSignup(signupToken: string): Promise<{ google: GoogleIdentity; phone: string }> {
+    const claims = verifySignupToken(signupToken);
+    if (!claims.phone) throw new UnauthorizedError('Verify your WhatsApp number first.');
+    if (await findByEmail(claims.google.email)) {
+      throw new ConflictError('An account with this Google email already exists. Sign in with Google instead.');
+    }
+    await assertPhoneUnused(claims.phone);
+    return { google: claims.google, phone: claims.phone };
   },
 
   async signUp(input: SignUpRequest): Promise<AuthResponse> {
@@ -747,7 +764,7 @@ export const authService = {
    * the self-serve default.
    */
   async registerExternalUser(
-    record: User & { passwordHash: string },
+    record: User & { passwordHash: string; googleSub?: string; phone?: string },
     firmId: string | null,
   ): Promise<void> {
     const existing = await findByEmail(record.email);
@@ -769,7 +786,8 @@ export const authService = {
   async registerCoCounselGuest(record: {
     name: string;
     email: string;
-    password: string;
+    googleSub: string;
+    phone: string;
   }): Promise<AuthResponse> {
     const existing = await findByEmail(record.email);
     if (existing) throw new ConflictError('Email already registered');
@@ -781,7 +799,9 @@ export const authService = {
         role: 'Solo Advocate',
         firm: '',
         isSuperadmin: false,
-        passwordHash: bcrypt.hashSync(record.password, 10),
+        passwordHash: await unusablePasswordHash(),
+        googleSub: record.googleSub,
+        phone: record.phone,
       },
       `${record.name} (Solo)`,
       'Solo',

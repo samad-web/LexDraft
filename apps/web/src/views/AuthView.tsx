@@ -6,7 +6,6 @@ import {
   useFirmEnquiry,
   useGoogleSignIn,
   useGoogleSignUp,
-  useSignIn,
   type FirmEnquirySize,
   type GoogleSignupRequired,
 } from '@/hooks/useAuth';
@@ -18,9 +17,9 @@ import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@
 // =============================================================================
 // AuthView - Sign in / Sign up + 3-step onboarding
 // Ported from _design/lexdraft/project/views/auth.jsx, mapped to v2 Monochrome
-// tokens. Sign in: Google first, email + password kept for existing
-// accounts. Create account: Google, then a WhatsApp-verified number, then
-// the practice profile (useGoogleSignUp).
+// tokens. Google is the only way in. Sign in: Google (existing accounts are
+// matched on email). Create account: Google, then a WhatsApp-verified
+// number, then the practice profile (useGoogleSignUp).
 // =============================================================================
 
 type AuthTab = 'signin' | 'signup';
@@ -52,7 +51,6 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
 
 export function AuthView() {
   const navigate = useNavigate();
-  const signIn = useSignIn();
   const googleSignIn = useGoogleSignIn();
   const signUp = useGoogleSignUp();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -85,12 +83,6 @@ export function AuthView() {
     expiresAt: string;
   } | null>(null);
 
-  // Sign-in state
-  const [signinEmail, setSigninEmail] = useState('');
-  const [signinPassword, setSigninPassword] = useState('');
-  const [signinEmailTouched, setSigninEmailTouched] = useState(false);
-  const signinEmailError = signinEmailTouched ? validators.email(signinEmail) : null;
-
   // Sign-up state. `googleSignup` is set when Google returned "no account
   // yet" (from either tab); `verified` once the WhatsApp code is proved.
   const [googleSignup, setGoogleSignup] = useState<GoogleSignupRequired | null>(null);
@@ -121,30 +113,8 @@ export function AuthView() {
 
   // ---- Submitters ---------------------------------------------------------
 
-  const handleSignIn = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    signIn.mutate(
-      { email: signinEmail, password: signinPassword },
-      {
-        onSuccess: (resp) => {
-          // Branch on whether the server demanded an MFA challenge. The
-          // useSignIn hook handles the session-creation side; we only deal
-          // with where to route the user from here.
-          if (isMfaChallenge(resp)) {
-            setMfaChallenge({
-              challengeId: resp.challengeId,
-              expiresAt: resp.expiresAt,
-            });
-            return;
-          }
-          onComplete(resp);
-        },
-      },
-    );
-  };
-
-  // Shared by the email form, the Sign-in Google button and the sign-up
-  // Google step (when the Google account already has a LexDraft account).
+  // Shared by the Sign-in Google button and the sign-up Google step (when
+  // the Google account already has a LexDraft account).
   const handleSignedIn = (resp: SignInResult) => {
     if (isMfaChallenge(resp)) {
       setTab('signin');
@@ -253,6 +223,15 @@ export function AuthView() {
   };
 
   const showTabs = (!isSignup || step === 0) && !mfaChallenge;
+
+  const noticeStyle: CSSProperties = {
+    fontSize: 13,
+    color: 'var(--text-primary)',
+    background: 'var(--bg-surface-2)',
+    border: '1px solid var(--border-strong)',
+    borderRadius: 'var(--radius-md)',
+    padding: '10px 12px',
+  };
 
   // ---- Render -------------------------------------------------------------
 
@@ -374,93 +353,8 @@ export function AuthView() {
         )}
 
         {/* SIGN IN */}
-        {tab === 'signin' && !mfaChallenge && googleSignInAvailable() && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
-            <GoogleButton onCredential={handleGoogleCredential} text="signin_with" />
-            {googleSignIn.isPending && (
-              <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
-            )}
-            {googleSignIn.isError && (
-              <div
-                role="alert"
-                style={{
-                  fontSize: 13,
-                  background: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-strong)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px',
-                }}
-              >
-                {googleSignIn.error.message}
-              </div>
-            )}
-            <div
-              className="mono"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                fontSize: 10,
-                letterSpacing: '0.14em',
-                textTransform: 'uppercase',
-                color: 'var(--text-tertiary)',
-                marginTop: 8,
-              }}
-            >
-              <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-              or with email
-              <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
-            </div>
-          </div>
-        )}
-
         {tab === 'signin' && !mfaChallenge && (
-          <form
-            onSubmit={handleSignIn}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
-            <div>
-              <label className="label required" htmlFor="signin-email">Email</label>
-              <input
-                id="signin-email"
-                className="input"
-                type="email"
-                placeholder="advocate@chambers.law"
-                value={signinEmail}
-                onChange={(e) => setSigninEmail(e.target.value)}
-                onBlur={() => setSigninEmailTouched(true)}
-                required
-                autoComplete="email"
-                aria-invalid={!!signinEmailError}
-                aria-describedby={signinEmailError ? 'signin-email-error' : undefined}
-              />
-              <FieldError id="signin-email-error" error={signinEmailError} />
-            </div>
-            <div>
-              <label className="label required" htmlFor="signin-password">Password</label>
-              <PasswordInput
-                id="signin-password"
-                value={signinPassword}
-                onChange={(v) => setSigninPassword(v)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
-            {/*
-              "Remember me" removed — checkbox had no wired state.
-              Self-serve "Forgot password" also removed pending a
-              server-side reset flow; until it ships, point users to
-              support so they aren't stranded.
-            */}
-            <div style={{ textAlign: 'right', marginTop: -4 }}>
-              <a
-                href="mailto:support@lexdraft.in?subject=Forgot%20password"
-                style={{ fontSize: 12, color: 'var(--text-secondary)' }}
-              >
-                Forgot password? Contact support
-              </a>
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {planMessage && (
               <div
                 role="status"
@@ -495,43 +389,21 @@ export function AuthView() {
                 </button>
               </div>
             )}
-            {signIn.isError && (
-              <div
-                role="alert"
-                style={{
-                  fontSize: 13,
-                  color: 'var(--danger)',
-                  background: 'var(--danger-bg)',
-                  border: '1px solid var(--danger)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px',
-                }}
-              >
-                {(signIn.error as Error | null)?.message ?? 'Sign-in failed.'}
-              </div>
+            {googleSignInAvailable() ? (
+              <GoogleButton onCredential={handleGoogleCredential} text="signin_with" />
+            ) : (
+              <div role="status" style={noticeStyle}>Google sign-in is not configured.</div>
             )}
-            <button
-              type="submit"
-              className="btn btn-primary btn-lg btn-block"
-              disabled={signIn.isPending}
-            >
-              {signIn.isPending ? 'Signing in…' : 'Sign in'}
-            </button>
-            {import.meta.env.DEV && (
-              <p
-                className="mono"
-                style={{
-                  fontSize: 10,
-                  color: 'var(--text-tertiary)',
-                  textAlign: 'center',
-                  marginTop: 8,
-                  letterSpacing: '0.12em',
-                }}
-              >
-                TIP: USE EMAIL CONTAINING "ADMIN" FOR SUPERADMIN DEMO
-              </p>
+            {googleSignIn.isPending && (
+              <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
             )}
-          </form>
+            {googleSignIn.isError && (
+              <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
+            )}
+            <p className="body-sm muted" style={{ textAlign: 'center', lineHeight: 1.55 }}>
+              Existing members: use the Google account with the same email as your LexDraft account.
+            </p>
+          </div>
         )}
 
         {/* SIGN UP - STEP 0 (role) */}
@@ -1162,81 +1034,5 @@ function MfaChallengeStep({
         </button>
       </div>
     </form>
-  );
-}
-
-// ===========================================================================
-// PasswordInput - input with an inline show/hide eye toggle. Local to AuthView
-// because it's only ever used here; if a third password field shows up
-// elsewhere we'll lift it into @lexdraft/ui.
-// ===========================================================================
-
-interface PasswordInputProps {
-  id: string;
-  value: string;
-  onChange: (next: string) => void;
-  onBlur?: () => void;
-  autoComplete?: string;
-  placeholder?: string;
-  required?: boolean;
-  minLength?: number;
-  'aria-invalid'?: boolean;
-  'aria-describedby'?: string;
-}
-
-function PasswordInput({
-  id,
-  value,
-  onChange,
-  onBlur,
-  autoComplete,
-  placeholder,
-  required,
-  minLength,
-  'aria-invalid': ariaInvalid,
-  'aria-describedby': ariaDescribedby,
-}: PasswordInputProps) {
-  const [visible, setVisible] = useState(false);
-  return (
-    <div style={{ position: 'relative' }}>
-      <input
-        id={id}
-        className="input"
-        type={visible ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        required={required}
-        minLength={minLength}
-        aria-invalid={ariaInvalid}
-        aria-describedby={ariaDescribedby}
-        style={{ paddingRight: 38 }}
-      />
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        aria-label={visible ? 'Hide password' : 'Show password'}
-        aria-pressed={visible}
-        tabIndex={-1}
-        style={{
-          position: 'absolute',
-          right: 6,
-          top: '50%',
-          transform: 'translateY(-50%)',
-          background: 'transparent',
-          border: 0,
-          padding: 6,
-          cursor: 'pointer',
-          color: 'var(--text-tertiary)',
-          display: 'flex',
-          alignItems: 'center',
-          borderRadius: 'var(--radius-sm)',
-        }}
-      >
-        <Icon name={visible ? 'eyeOff' : 'eye'} size={16} />
-      </button>
-    </div>
   );
 }

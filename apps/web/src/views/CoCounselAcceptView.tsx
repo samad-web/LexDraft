@@ -10,6 +10,8 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useAcceptCoCounselByToken, useCoCounselInviteByToken } from '@/hooks/useCoCounsel';
+import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import type { SignInResult } from '@/lib/auth-types';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 
@@ -23,27 +25,20 @@ export function CoCounselAcceptView() {
   const accept = useAcceptCoCounselByToken();
 
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
+
+  // Already a LexDraft user: this link is for new advocates, so sign them in;
+  // the handover itself is accepted from inside the app.
+  const handleExisting = (_resp: SignInResult) => {
+    showToast({ type: 'cobalt', text: 'You already have a LexDraft account - accept the handover from inside the app.' });
+    navigate('/app/dashboard', { replace: true });
+  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!token) return;
-    if (data?.requiresEmail && !/\S+@\S+\.\S+/.test(email.trim())) {
-      showToast({ type: 'vermillion', text: 'Enter a valid email address.' });
-      return;
-    }
-    if (password !== confirm) {
-      showToast({ type: 'vermillion', text: 'Passwords do not match.' });
-      return;
-    }
-    if (password.length < 8) {
-      showToast({ type: 'vermillion', text: 'Password must be at least 8 characters.' });
-      return;
-    }
+    if (!token || !verified) return;
     accept.mutate(
-      { token, body: { name: name.trim(), password, email: data?.requiresEmail ? email.trim() : undefined } },
+      { token, body: { name: name.trim(), signupToken: verified.signupToken } },
       {
         onSuccess: (result) => {
           if (result.auth) {
@@ -164,7 +159,16 @@ export function CoCounselAcceptView() {
               </p>
             </div>
 
+            {!verified ? (
+              <GoogleWhatsAppVerify
+                onSignedIn={handleExisting}
+                onVerified={(v) => { setVerified(v); setName(v.profile.name); }}
+              />
+            ) : (
             <form onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+              <div className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                {verified.profile.email} · WhatsApp {verified.phone} verified
+              </div>
               <div>
                 <label className="label" htmlFor="cocounsel-name">Your full name</label>
                 <input
@@ -178,50 +182,6 @@ export function CoCounselAcceptView() {
                   autoComplete="name"
                 />
               </div>
-              {data.requiresEmail && (
-                <div>
-                  <label className="label" htmlFor="cocounsel-email">Your email</label>
-                  <input
-                    id="cocounsel-email"
-                    className="input"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="advocate@example.com"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-              )}
-              <div>
-                <label className="label" htmlFor="cocounsel-password">Choose a password</label>
-                <input
-                  id="cocounsel-password"
-                  className="input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  minLength={8}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="cocounsel-confirm">Confirm password</label>
-                <input
-                  id="cocounsel-confirm"
-                  className="input"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  placeholder="Repeat password"
-                  minLength={8}
-                  required
-                  autoComplete="new-password"
-                />
-              </div>
-
               {accept.isError && (
                 <div
                   role="alert"
@@ -243,17 +203,13 @@ export function CoCounselAcceptView() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                disabled={
-                  accept.isPending
-                  || !name.trim()
-                  || password.length < 8
-                  || (data.requiresEmail && !/\S+@\S+\.\S+/.test(email.trim()))
-                }
+                disabled={accept.isPending || !name.trim()}
                 style={{ marginTop: 4 }}
               >
                 {accept.isPending ? 'Setting up…' : 'Accept and take over this matter'}
               </button>
             </form>
+            )}
 
             <div className="body-sm muted" style={{ textAlign: 'center', marginTop: 4 }}>
               By accepting you agree to LexDraft&rsquo;s terms of service and privacy policy.

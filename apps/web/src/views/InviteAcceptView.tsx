@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Icon, FieldError } from '@lexdraft/ui';
+import { Icon } from '@lexdraft/ui';
 import { useAcceptInvitation, useInvitationByToken } from '@/hooks/useInvitations';
+import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 
@@ -15,26 +17,20 @@ export function InviteAcceptView() {
   const accept = useAcceptInvitation();
 
   const [name, setName] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [confirmTouched, setConfirmTouched] = useState(false);
-  const confirmError = confirmTouched && confirm && password !== confirm
-    ? 'Passwords do not match.'
-    : null;
+  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
+
+  // The Google account already has a LexDraft account - the invite is for
+  // new members, so just sign them in.
+  const handleExisting = (resp: SignInResult) => {
+    showToast({ type: 'cobalt', text: 'You already have a LexDraft account - signed you in.' });
+    navigate(isMfaChallenge(resp) ? '/auth' : '/app/dashboard', { replace: true });
+  };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!token) return;
-    if (password !== confirm) {
-      showToast({ type: 'vermillion', text: 'Passwords do not match.' });
-      return;
-    }
-    if (password.length < 8) {
-      showToast({ type: 'vermillion', text: 'Password must be at least 8 characters.' });
-      return;
-    }
+    if (!token || !verified) return;
     accept.mutate(
-      { token, body: { name: name.trim(), password } },
+      { token, body: { name: name.trim(), signupToken: verified.signupToken } },
       {
         onSuccess: (auth) => {
           setSession(auth.user, auth.token);
@@ -150,7 +146,17 @@ export function InviteAcceptView() {
               )}
             </div>
 
+            {!verified ? (
+              <GoogleWhatsAppVerify
+                expectedEmail={data.email}
+                onSignedIn={handleExisting}
+                onVerified={(v) => { setVerified(v); setName(v.profile.name); }}
+              />
+            ) : (
             <form onSubmit={handleSubmit} className="col" style={{ gap: 14 }}>
+              <div className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                {verified.profile.email} · WhatsApp {verified.phone} verified
+              </div>
               <div>
                 <label className="label" htmlFor="invite-name">Your full name</label>
                 <input
@@ -163,37 +169,6 @@ export function InviteAcceptView() {
                   autoFocus
                 />
               </div>
-              <div>
-                <label className="label" htmlFor="invite-password">Choose a password</label>
-                <input
-                  id="invite-password"
-                  className="input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  minLength={8}
-                  required
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="invite-confirm">Confirm password</label>
-                <input
-                  id="invite-confirm"
-                  className="input"
-                  type="password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  onBlur={() => setConfirmTouched(true)}
-                  placeholder="Repeat password"
-                  minLength={8}
-                  required
-                  aria-invalid={!!confirmError}
-                  aria-describedby={confirmError ? 'invite-confirm-error' : undefined}
-                />
-                <FieldError id="invite-confirm-error" error={confirmError} />
-              </div>
-
               {accept.isError && (
                 <div
                   role="alert"
@@ -215,12 +190,13 @@ export function InviteAcceptView() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                disabled={accept.isPending || !name.trim() || password.length < 8 || password !== confirm}
+                disabled={accept.isPending || !name.trim()}
                 style={{ marginTop: 4 }}
               >
                 {accept.isPending ? 'Joining…' : `Accept and join ${data.firm}`}
               </button>
             </form>
+            )}
 
             <div className="body-sm muted" style={{ textAlign: 'center', marginTop: 4 }}>
               By accepting you agree to LexDraft’s terms of service and privacy policy.

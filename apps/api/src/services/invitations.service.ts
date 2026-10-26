@@ -1,8 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type {
-  AcceptInvitationRequest,
   AuthResponse,
   CreateInvitationRequest,
   CustomRoleAccess,
@@ -15,7 +13,7 @@ import { env } from '../env';
 import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
-import { systemRoleNameFor } from './auth.service';
+import { systemRoleNameFor, unusablePasswordHash } from './auth.service';
 
 const INVITATION_TTL_DAYS = 7;
 // Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
@@ -410,10 +408,15 @@ export const invitationsService = {
     return toPublic(inv);
   },
 
+  /** `body.google` / `body.phone` come from authService.verifiedSignup - the
+   *  invitee signed in with Google and proved a WhatsApp number. */
   async accept(
     token: string,
-    body: AcceptInvitationRequest,
-    registerUser: (u: User & { passwordHash: string }, firmId: string | null) => Promise<void>,
+    body: { name: string; google: { sub: string; email: string }; phone: string },
+    registerUser: (
+      u: User & { passwordHash: string; googleSub?: string; phone?: string },
+      firmId: string | null,
+    ) => Promise<void>,
   ): Promise<AuthResponse> {
     const sql = db();
     let bundle: InvitationWithFirm;
@@ -445,7 +448,16 @@ export const invitationsService = {
     // silently overpopulated firm.
     await assertSeatCapNotExceeded(firmId);
 
-    const passwordHash = await bcrypt.hash(body.password, 10);
+    // The invite is addressed to one inbox; only the Google account for that
+    // email may claim it.
+    if (body.google.email.toLowerCase() !== inv.email.toLowerCase()) {
+      throw Object.assign(
+        new Error(`This invitation was sent to ${inv.email}. Continue with the Google account for that email.`),
+        { status: 403 },
+      );
+    }
+
+    const passwordHash = await unusablePasswordHash();
     const provisionalId = randomBytes(8).toString('hex');
     const user: User = {
       id: provisionalId,
@@ -456,7 +468,7 @@ export const invitationsService = {
       isSuperadmin: false,
     };
 
-    await registerUser({ ...user, passwordHash }, firmId);
+    await registerUser({ ...user, passwordHash, googleSub: body.google.sub, phone: body.phone }, firmId);
 
     if (sql) {
       const rows = await sql<{ id: string }[]>`

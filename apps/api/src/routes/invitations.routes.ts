@@ -35,7 +35,7 @@ const Create = z.object({
 
 const Accept = z.object({
   name: z.string().min(1).max(200),
-  password: z.string().min(8).max(128),
+  signupToken: z.string().min(20).max(4096),
 }).strict();
 
 // Anonymous token lookup is the principal brute-force surface. Bound the
@@ -73,9 +73,10 @@ invitationsRouter.post(
   async (req, res, next) => {
     try {
       const body = req.body as z.infer<typeof Accept>;
+      const { google, phone } = await authService.verifiedSignup(body.signupToken);
       const auth = await invitationsService.accept(
         (req.params as { token: string }).token,
-        body,
+        { name: body.name, google, phone },
         (record, firmId) => authService.registerExternalUser(record, firmId),
       );
       res.status(201).json(auth);

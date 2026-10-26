@@ -83,6 +83,11 @@ export const authRouter: Router = Router();
 
 authRouter.post('/sign-in', signInLimiter, async (req, res, next) => {
   try {
+    // Google is the only way in (POST /google). Kept behind a switch so
+    // test suites and an emergency fallback can still use passwords.
+    if (!env.passwordSigninEnabled) {
+      throw new ForbiddenError('Sign in with Google.', { code: 'password_signin_disabled' });
+    }
     const body = SignIn.parse(req.body);
     res.json(await authService.signIn(body));
   } catch (err) {

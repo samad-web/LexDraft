@@ -7,6 +7,7 @@
  *     audience is still the Web client id, so the API needs no change.
  */
 import { Capacitor } from '@capacitor/core';
+import type { SocialLogin as SocialLoginPlugin } from '@capgo/capacitor-social-login';
 
 export const GOOGLE_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 
@@ -14,7 +15,7 @@ export const googleSignInAvailable = (): boolean => !!GOOGLE_CLIENT_ID;
 
 export const isNativeApp = (): boolean => Capacitor.isNativePlatform();
 
-let nativeReady: Promise<typeof import('@capgo/capacitor-social-login')['SocialLogin']> | null = null;
+let nativeReady: Promise<typeof SocialLoginPlugin> | null = null;
 
 /** Android: open the system Google account picker and return the ID token. */
 export async function nativeGoogleCredential(): Promise<string> {
