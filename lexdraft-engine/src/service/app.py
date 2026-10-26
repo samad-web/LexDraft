@@ -147,6 +147,9 @@ async def _render_generated(
             ctx["unverified_marker"] = ""
         tmp = Path(tempfile.gettempdir()) / f"lexdraft_{doc_type}_{matter.matter_id}.docx"
         await run_in_threadpool(render_to_docx, template_file, ctx, tmp)
+        # Served copy only: collapse blank-paragraph gaps, Indian dd.mm.yyyy dates.
+        from .tidy import tidy_docx
+        await run_in_threadpool(tidy_docx, tmp)
         # TAMIL / HINDI OUTPUT (proof, vakalatnama): translate the produced .docx IN
         # PLACE so the exact layout/tables are preserved and only the words change.
         # Only when the caller asked for TA/HI; EN is the untouched default.
@@ -597,20 +600,34 @@ async def blank_form(body: Dict[str, Any],
             raise HTTPException(status_code=404, detail=f"unknown doc_type {doc_type!r}")
         template_file = _template_for(adapter.doc_type)
 
+    # The pipeline's legal checks need real facts; on stand-ins they can refuse
+    # (no offence date, shares not totalling 100%…). A blank form has no facts to
+    # check, so fall back to rendering the template alone with fill-in lines.
+    refused_reason: Optional[str] = None
     try:
         ctx = await run_in_threadpool(blank.blank_context, adapter, preset)
     except blank.BlankRefused as exc:
-        return JSONResponse(status_code=409, content={"error": "needs_facts", "reason": str(exc)})
+        refused_reason = str(exc)
+        ctx = blank.fallback_context(adapter, preset)
+
+    from .tidy import tidy_docx
 
     def _render() -> Dict[str, Any]:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "blank.docx"
-            render_to_docx(template_file, ctx, out)
+            render_to_docx(template_file, ctx, out,
+                           jinja_env=blank.lenient_env() if refused_reason else None)
             blank.scrub_sentinels(out)
+            tidy_docx(out)
             return {"docx_base64": base64.b64encode(out.read_bytes()).decode("ascii"),
                     "blocks": _extract_blocks(out)}
 
-    payload = await run_in_threadpool(_render)
+    try:
+        payload = await run_in_threadpool(_render)
+    except Exception:
+        if refused_reason is None:
+            raise
+        return JSONResponse(status_code=409, content={"error": "needs_facts", "reason": refused_reason})
     return JSONResponse(status_code=200, content={"doc_type": adapter.doc_type, **payload})
 
 

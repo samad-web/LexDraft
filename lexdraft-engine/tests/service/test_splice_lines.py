@@ -54,6 +54,18 @@ def test_fewer_paragraphs_removes_surplus():
     ]
 
 
+def test_blank_spacers_inside_the_range_are_removed():
+    d = Document()
+    for t in ["HEAD", "1. A.", "", "", "2. B.", "", "PRAYER"]:
+        d.add_paragraph(t)
+    buf = io.BytesIO()
+    d.save(buf)
+    out = splice_lines(buf.getvalue(), 1, 2, ["1. New A.", "2. New B.", "3. New C."])
+    paras = [p.text for p in Document(io.BytesIO(out)).paragraphs]
+    # The spacers between the old body lines are gone; the one before PRAYER stays.
+    assert paras[-6:] == ["HEAD", "1. New A.", "2. New B.", "3. New C.", "", "PRAYER"]
+
+
 def test_bad_ranges_return_none():
     assert splice_lines(SRC, 3, 1, ["x"]) is None
     assert splice_lines(SRC, 1, 9, ["x"]) is None

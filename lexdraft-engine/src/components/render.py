@@ -31,8 +31,11 @@ def render_to_docx(
     template: Union[str, Path],
     context: Mapping[str, Any],
     out_path: Union[str, Path],
+    jinja_env: Any = None,
 ) -> Path:
-    """Render `template` with `context` to a .docx at `out_path`."""
+    """Render `template` with `context` to a .docx at `out_path`. `jinja_env`
+    overrides docxtpl's default environment (blank forms render unknown values
+    as fill-in lines)."""
     tpl_path = template if isinstance(template, Path) else template_path(str(template))
     if not Path(tpl_path).exists():
         raise FileNotFoundError(
@@ -40,7 +43,7 @@ def render_to_docx(
             f"(python templates/build_templates.py)."
         )
     doc = DocxTemplate(str(tpl_path))
-    doc.render(dict(context))
+    doc.render(dict(context), jinja_env)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out))

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional
 
 from docx import Document
+from jinja2 import ChainableUndefined, Environment
 
 from .adapters import Adapter, AdapterValidationError, FieldSpec, ListFieldSpec
 
@@ -91,6 +92,31 @@ def blank_context(adapter: Adapter, preset: Optional[Mapping[str, Any]] = None) 
         raise BlankRefused(getattr(refusal, "reason", "") or getattr(result, "reason", "")
                            or "this format needs the case details to be drafted")
     ctx = dict(result.context)
+    ctx["review_banner"] = ""
+    ctx["unverified_marker"] = ""
+    return ctx
+
+
+class _FillInUndefined(ChainableUndefined):
+    """A value the blank form has no fact for: prints as a fill-in line, is falsy
+    (so optional paragraphs drop out) and iterates as empty (no schedule rows)."""
+
+    def __str__(self) -> str:
+        return BLANK
+
+
+def lenient_env() -> Environment:
+    """Template environment for the template-only fallback below."""
+    return Environment(undefined=_FillInUndefined)
+
+
+def fallback_context(adapter: Adapter, preset: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    """Context for rendering the TEMPLATE ALONE when the pipeline refuses the
+    stand-ins. A blank form has no facts, so its legal checks (offence date, share
+    totals, attesting witnesses…) can't meaningfully pass or fail — they belong to
+    a real draft. The stand-in payload fills the fields it names; every other
+    template value renders through lenient_env() as a fill-in line."""
+    ctx: Dict[str, Any] = dict(blank_payload(adapter, preset))
     ctx["review_banner"] = ""
     ctx["unverified_marker"] = ""
     return ctx

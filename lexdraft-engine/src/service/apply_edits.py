@@ -109,6 +109,14 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
     if not picked:
         return None
 
+    # Blank spacer paragraphs BETWEEN the replaced ones belonged to the old
+    # skeleton's layout; left in place they show as gaps inside the new body.
+    elems = [p._p for p in doc.paragraphs]
+    first, last = elems.index(picked[0]._p), elems.index(picked[-1]._p)
+    for el in elems[first + 1:last]:
+        if el not in {p._p for p in picked} and not "".join(el.itertext()).strip():
+            el.getparent().remove(el)
+
     model, insert_after = picked[-1], picked[-1]._p
     for i, text in enumerate(new):
         if i < len(picked):
