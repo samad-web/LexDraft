@@ -449,6 +449,10 @@ export function DraftingView() {
     const detected = s.docLabel;
     setEngineSession(s);
     setDocType(detected);
+    // The new engine draft supersedes any earlier hand edits (a live update only
+    // runs once the advocate has unlocked, i.e. discarded, their edits).
+    setEditedHtml(null);
+    setIsEditing(false);
     const primaryBody = s.draft.blocks.map((b) => b.text).join('\n\n');
     if (!primaryBody.trim()) return;
     setActiveEngineLabel(detected);
@@ -588,6 +592,10 @@ export function DraftingView() {
     // falls back to a live placeholder scan of the new draft.
     setOpenItems(null);
     setEngineSession(null);
+    // A model-stream draft has no engine .docx: drop the previous one so the
+    // preview, PDF and Word download can't serve the OLD document.
+    setEngineDocxBase64(null);
+    setCompanionDoc(null);
     const fields: Record<string, string> = {};
     schema.sections.forEach((sec) =>
       sec.fields.forEach((f) => {
@@ -644,7 +652,14 @@ export function DraftingView() {
   // Once the advocate edits the draft locally, the engine .docx (and its rendered
   // PDF) no longer reflect what they see, so the preview must switch back to the
   // editable HTML view — otherwise their edits would be invisible behind a stale PDF.
-  const hasLocalEdits = editedHtml !== null;
+  // Opening Edit seeds editedHtml with the draft itself; only count it as an edit
+  // once the text actually differs — else the preview and exports would leave the
+  // filing PDF for the rasterised copy without the advocate changing a word.
+  const hasLocalEdits = useMemo(
+    () => editedHtml !== null
+      && editedParagraphs(editedHtml).join('\n') !== editedParagraphs(plainTextToHtml(output)).join('\n'),
+    [editedHtml, output],
+  );
   // The draft as display blocks — what Redraft edits and what Related law searches.
   const draftParagraphs = useMemo(() => editedParagraphs(displayHtml), [displayHtml]);
 
@@ -1865,7 +1880,7 @@ export function DraftingView() {
                     </span>
                   ) : hasOutput ? (
                     <span className="dw-status">
-                      {currentDraftId ? (editedHtml !== null ? 'Edited · not saved' : 'Saved to My drafts') : 'Not saved yet'}
+                      {currentDraftId ? (hasLocalEdits ? 'Edited · not saved' : 'Saved to My drafts') : 'Not saved yet'}
                     </span>
                   ) : null}
                 </div>
@@ -1889,7 +1904,7 @@ export function DraftingView() {
                       <Icon name="edit" size={13} /> Edit
                     </button>
                   </div>
-                  {!isEditing && editedHtml !== null && (
+                  {!isEditing && hasLocalEdits && (
                     <button
                       className="btn btn-sm btn-ghost" type="button"
                       title="Discard manual edits and restore the generated draft"
@@ -1916,7 +1931,10 @@ export function DraftingView() {
               {showMobileForm ? 'Close brief' : `Edit brief · ${completion}%`}
             </button>
           )}
-          {output && !streaming && (
+          {/* Model-path drafts only. An engine draft's gaps are filled through the
+              engine (LiveDetailsPanel in the rail); this panel's Regenerate re-drafts
+              through the model stream and would leave the engine .docx stale. */}
+          {output && !streaming && !engineDocxBase64 && !engineSession && (
             <DraftMissingFields
               schema={schema}
               values={values}
