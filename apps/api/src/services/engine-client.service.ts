@@ -427,10 +427,13 @@ export const engineClient = {
   /** Replace engine-block lines [start, end] of a .docx with new paragraphs (a
    *  composed body), keeping the rest of the court layout. null when the range
    *  can't be mapped — the caller keeps the plain engine draft. */
-  async spliceLines(docxBase64: string, start: number, end: number, paragraphs: string[]): Promise<string | null> {
+  async spliceLines(
+    docxBase64: string, start: number, end: number, paragraphs: string[],
+  ): Promise<{ docxBase64: string; blocks: Array<{ key: string; text: string; align?: string; bold?: boolean }> } | null> {
     const { status, json } = await call('POST', '/v1/splice-lines', { docx_base64: docxBase64, start, end, paragraphs });
     if (status !== 200) throw new EngineError(`splice-lines failed: ${status}`);
-    return json?.matched ? (json.docx_base64 as string) : null;
+    // blocks = the spliced file re-read (text + layout), so they always match it.
+    return json?.matched ? { docxBase64: json.docx_base64 as string, blocks: json.blocks ?? [] } : null;
   },
 
   /** Doc types the LIVE engine serves right now (null if it can't be reached). */

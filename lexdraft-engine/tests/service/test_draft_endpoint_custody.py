@@ -27,6 +27,15 @@ def test_as_on_before_custody_is_422_on_as_on():
     assert [i["field"] for i in r.json()["issues"]] == ["as_on"]
 
 
+def test_blocks_carry_layout():
+    r = client.post("/v1/draft/regular_bail", json={"matter": MATTER, "fields": FIELDS, "render": True})
+    blocks = r.json()["blocks"]
+    court = next(b for b in blocks if b["text"].startswith("IN THE COURT OF"))
+    assert court["align"] == "center" and court.get("bold") is True
+    body = next(b for b in blocks if b["text"].startswith("1."))
+    assert "align" not in body or body["align"] != "center"
+
+
 def test_unverified_marker_not_in_the_document():
     r = client.post("/v1/draft/regular_bail", json={"matter": MATTER, "fields": FIELDS, "render": True})
     assert r.status_code == 200, r.text

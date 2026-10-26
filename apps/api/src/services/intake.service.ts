@@ -1552,11 +1552,18 @@ export const intakeService = {
             // and file the bare skeleton. If the splice can't be done, keep the
             // plain engine draft whole rather than show text the file doesn't have.
             const { start, end, paragraphs } = composeResult.splice;
-            const docx = await engineClient.spliceLines(draft.docxBase64, start, end, paragraphs).catch((err) => {
+            const spliced = await engineClient.spliceLines(draft.docxBase64, start, end, paragraphs).catch((err) => {
               logger.warn({ err }, 'intake: splice of composed body failed');
               return null;
             });
-            if (docx) draft = { ...draft, blocks: composeResult.blocks, docxBase64: docx };
+            // Blocks re-read from the spliced file carry its layout (align/bold).
+            if (spliced) {
+              draft = {
+                ...draft,
+                blocks: spliced.blocks.length ? spliced.blocks : composeResult.blocks,
+                docxBase64: spliced.docxBase64,
+              };
+            }
           }
         }
       }

@@ -77,12 +77,31 @@ def _extract_blocks(docx_path) -> List[Dict[str, str]]:
     paragraph. Keeps inline editing possible (decision #3) while the .docx is the
     filing artifact. Both carry the banners; the banners are paragraphs too, so
     they appear in the blocks exactly as in the docx (not a rendering detail)."""
-    from ..components.render import extract_text
-    text = extract_text(docx_path)
-    blocks: List[Dict[str, str]] = []
-    for i, line in enumerate(text.splitlines()):
-        if line.strip():
-            blocks.append({"key": f"p{i}", "text": line})
+    # Each line also carries its paragraph's layout (align, bold) so the app's
+    # editor can show the document as it prints — centred bold headings, right-
+    # aligned signature lines — instead of a column of plain text.
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    names = {WD_ALIGN_PARAGRAPH.CENTER: "center", WD_ALIGN_PARAGRAPH.RIGHT: "right",
+             WD_ALIGN_PARAGRAPH.JUSTIFY: "justify"}
+    blocks: List[Dict[str, Any]] = []
+    i = 0
+    for p in Document(str(docx_path)).paragraphs:
+        align = p.alignment
+        if align is None and p.style is not None:
+            align = p.style.paragraph_format.alignment
+        runs = [r for r in p.runs if r.text.strip()]
+        bold = bool(runs) and all(
+            r.bold or (r.bold is None and p.style is not None and p.style.font.bold) for r in runs)
+        for line in p.text.rstrip().split("\n"):
+            if line.strip():
+                block: Dict[str, Any] = {"key": f"p{i}", "text": line.rstrip()}
+                if align in names:
+                    block["align"] = names[align]
+                if bold:
+                    block["bold"] = True
+                blocks.append(block)
+            i += 1
     return blocks
 
 
@@ -704,4 +723,14 @@ async def splice_text_lines(body: Dict[str, Any],
     out = await run_in_threadpool(splice_lines, src, start, end, paras)
     if out is None:
         return {"matched": False}
-    return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii")}
+
+    def _blocks() -> List[Dict[str, Any]]:
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "spliced.docx"
+            path.write_bytes(out)
+            return _extract_blocks(path)
+
+    return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii"),
+            "blocks": await run_in_threadpool(_blocks)}

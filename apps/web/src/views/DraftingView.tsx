@@ -115,6 +115,20 @@ function seedDefaults(): ValuesByDoc {
   return seed;
 }
 
+/** Engine blocks -> editor HTML that looks like the printed document: one <p> per
+ *  line, keeping the paragraph's alignment and bold. The text is the same as the
+ *  plain-text view, so edits still map back onto the .docx line for line. */
+function blocksToHtml(blocks: ReadonlyArray<{ text: string; align?: string; bold?: boolean }>): string {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return blocks
+    .map((b) => {
+      const style = b.align && b.align !== 'left' ? ` style="text-align:${b.align}"` : '';
+      const text = esc(b.text);
+      return `<p${style}>${b.bold ? `<strong>${text}</strong>` : text}</p>`;
+    })
+    .join('');
+}
+
 /** The smallest line range [start, end] of `before` that, replaced by
  *  `paragraphs`, turns it into `after` — the shared head and tail are trimmed off.
  *  A pure insertion or deletion absorbs one neighbouring line so the range and its
@@ -197,6 +211,9 @@ export function DraftingView() {
   const [stageMode, setStageMode] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
+  // The engine draft's formatted HTML, paired with the text it was built from: used
+  // for the editor/preview only while the draft text is still that text.
+  const [engineView, setEngineView] = useState<{ text: string; html: string } | null>(null);
   const [draftDate, setDraftDate] = useState<string>(todayIso());
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'PDF' | 'DOCX' | null>(null);
@@ -503,6 +520,8 @@ export function DraftingView() {
     const body = companionBody
       ? `${primaryBody}\n\n\n──────────────────────────────\n${companion!.docLabel.toUpperCase()}\n──────────────────────────────\n\n${companionBody}`
       : primaryBody;
+    // Editor shows the document's own layout (single-document drafts).
+    setEngineView(companionBody ? null : { text: body, html: blocksToHtml(s.draft.blocks) });
 
     // Open items = the [placeholder] gaps left in the body (scanned live).
     setOpenItems(collectOpenItems({ bodyText: body }));
@@ -551,8 +570,11 @@ export function DraftingView() {
     stream.seed({ docType: title, text: body, generatedAt: new Date().toISOString() });
     setStageMode(true);
     setError(null);
-    // Straight into Edit, so the advocate can type into the blank lines.
-    setEditedHtml(plainTextToHtml(body));
+    // Straight into Edit, so the advocate can type into the blank lines — laid out
+    // as the form prints (centred headings, bold titles).
+    const html = blocksToHtml(blank.blocks);
+    setEngineView({ text: body, html });
+    setEditedHtml(html);
     setIsEditing(true);
     showToast({ type: 'sage', text: `${title}: blank form open. Type into it, then download.` });
   };
@@ -666,7 +688,9 @@ export function DraftingView() {
   const output = stream.text;
   const streaming = stream.isStreaming;
   const hasOutput = Boolean(output) || streaming;
-  const displayHtml = editedHtml ?? plainTextToHtml(output);
+  // Formatted (engine layout) when available for this exact text, else plain.
+  const baseHtml = engineView && engineView.text === output ? engineView.html : plainTextToHtml(output);
+  const displayHtml = editedHtml ?? baseHtml;
   // The body actually shown in the read-only preview and sent to export: the
   // same HTML, but with the legally-salient words BOLDED so every drafting path
   // reads like a filed document (Times New Roman is enforced by .court-prose /
@@ -1927,7 +1951,7 @@ export function DraftingView() {
                     <button
                       type="button" role="tab" aria-selected={isEditing} className={isEditing ? 'is-on' : ''}
                       onClick={() => {
-                        if (editedHtml === null) setEditedHtml(plainTextToHtml(output));
+                        if (editedHtml === null) setEditedHtml(baseHtml);
                         setIsEditing(true);
                       }}
                     >
@@ -2088,13 +2112,17 @@ export function DraftingView() {
                     const range = changedRange(draftParagraphs, paras);
                     if (range && engineDocxBase64 && !hasLocalEdits && !companionDoc) {
                       try {
-                        const out = await api.post<{ matched: boolean; docxBase64?: string }>(
-                          '/drafting/engine/splice-lines',
-                          { docxBase64: engineDocxBase64, ...range },
-                        );
+                        const out = await api.post<{
+                          matched: boolean; docxBase64?: string;
+                          blocks?: Array<{ text: string; align?: string; bold?: boolean }>;
+                        }>('/drafting/engine/splice-lines', { docxBase64: engineDocxBase64, ...range });
                         if (out.matched && out.docxBase64) {
+                          // Text + layout re-read from the updated .docx, so the editor
+                          // shows exactly what the PDF prints.
+                          const text = out.blocks?.length ? out.blocks.map((b) => b.text).join('\n\n') : paras.join('\n\n');
+                          setEngineView(out.blocks?.length ? { text, html: blocksToHtml(out.blocks) } : null);
                           skipResetOnSeedRef.current = true;
-                          stream.seed({ docType: activeDocType, text: paras.join('\n\n'), generatedAt: new Date().toISOString() });
+                          stream.seed({ docType: activeDocType, text, generatedAt: new Date().toISOString() });
                           setEditedHtml(null);
                           setEngineDocxBase64(out.docxBase64);
                           showToast({ type: 'sage', text: 'Redraft applied' });

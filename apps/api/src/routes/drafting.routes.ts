@@ -859,8 +859,8 @@ const SpliceLinesBody = z.object({
 draftingRouter.post('/engine/splice-lines', requireFeature('drafting.ai'), async (req, res, next) => {
   try {
     const p = SpliceLinesBody.parse(req.body);
-    const docx = await engineClient.spliceLines(p.docxBase64, p.start, p.end, p.paragraphs);
-    res.json(docx ? { matched: true, docxBase64: docx } : { matched: false });
+    const spliced = await engineClient.spliceLines(p.docxBase64, p.start, p.end, p.paragraphs);
+    res.json(spliced ? { matched: true, docxBase64: spliced.docxBase64, blocks: spliced.blocks } : { matched: false });
   } catch (err) {
     if (err instanceof EngineDisabledError) { res.status(503).json({ error: 'engine_unavailable' }); return; }
     next(err);
