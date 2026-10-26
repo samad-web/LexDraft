@@ -29,6 +29,8 @@ import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { LiveDetailsPanel } from '@/components/engine/LiveDetailsPanel';
+import { DraftRevisePanel } from '@/components/DraftRevisePanel';
+import { LawSidePanel } from '@/components/LawSidePanel';
 import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
@@ -643,6 +645,8 @@ export function DraftingView() {
   // PDF) no longer reflect what they see, so the preview must switch back to the
   // editable HTML view — otherwise their edits would be invisible behind a stale PDF.
   const hasLocalEdits = editedHtml !== null;
+  // The draft as display blocks — what Redraft edits and what Related law searches.
+  const draftParagraphs = useMemo(() => editedParagraphs(displayHtml), [displayHtml]);
 
   // PREVIEW == FILING PDF. When the engine produced a .docx for this draft, render
   // it to PDF once (server-side LibreOffice) and show that PDF in the preview pane,
@@ -2019,6 +2023,33 @@ export function DraftingView() {
                     : 'Working copy, not for filing: fixed margins and non-selectable text. A filing copy comes only from engine drafts.'}
                 </p>
               </section>
+
+              {/* REDRAFT — one-line instruction, proposed edits accepted by the advocate */}
+              {!isEditing && (
+                <DraftRevisePanel
+                  docType={activeDocType}
+                  paragraphs={draftParagraphs}
+                  onAccept={(paras, layoutKept) => {
+                    // One <p> per line, so editedParagraphs() reads back the same
+                    // blocks and the engine .docx write-back still lines up.
+                    setEditedHtml(plainTextToHtml(paras.join('\n\n')));
+                    showToast({
+                      type: layoutKept ? 'sage' : 'amber',
+                      text: layoutKept ? 'Redraft applied' : 'Redraft applied · Word download will use a simplified layout',
+                    });
+                  }}
+                />
+              )}
+
+              {/* RELATED LAW — grounded statute hits from the laws corpus. The panel
+                  searches the trailing ~800 chars, so lead with the doc type and the
+                  opening (facts) paragraphs rather than the signature block. */}
+              <LawSidePanel
+                context={`${activeDocType}. ${draftParagraphs.slice(0, 15).join(' ')}`.slice(0, 800)}
+                title="Related law"
+                k={5}
+                debounceMs={800}
+              />
 
               {/* LETTERHEAD */}
               <section className="dc-card">

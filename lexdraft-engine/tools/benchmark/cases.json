@@ -1,0 +1,188 @@
+{
+  "_about": "Fictional fact patterns for a blind drafting benchmark. Paste each `brief` VERBATIM into every tool being compared. `key_facts` must appear in a correct draft (a nested list = any one of these spellings). `expect: flag` cases contain a planted legal defect (`trap_issue`) a careful drafter must point out instead of drafting as if it were fine. All names and numbers are invented.",
+  "cases": [
+    {
+      "id": "s138_notice",
+      "averments": "s138_notice",
+      "doc_type": "Legal notice under Section 138 NI Act",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a statutory demand notice under Section 138 of the Negotiable Instruments Act. Sender: M/s. Kaveri Steel Traders, a sole proprietorship of Mr. R. Senthil Kumar, No. 14, Anna Salai, Chennai 600002. Addressee: Mr. P. Arun Prakash, No. 7, Gandhi Road, Tambaram, Chennai 600045. Arun bought TMT bars on credit and issued cheque No. 482913 dated 01.09.2026 for Rs. 3,75,000 drawn on Indian Bank, Tambaram branch, towards the invoice dues. We presented it at our bank, City Union Bank, Anna Salai branch, on 10.10.2026. It was returned unpaid on 13.10.2026 with the memo 'Funds Insufficient'. We received the return memo on 15.10.2026. Notice is from our advocate, Mr. K. Meenakshi Sundaram.",
+      "key_facts": ["Kaveri Steel Traders", "Senthil Kumar", "Arun Prakash", "482913", ["3,75,000", "375000"], "Indian Bank", "13.10.2026", ["Funds Insufficient", "insufficient funds"], ["15 days", "fifteen days"]]
+    },
+    {
+      "id": "s138_notice_late",
+      "averments": "s138_notice",
+      "doc_type": "Legal notice under Section 138 NI Act",
+      "new_codes": false,
+      "expect": "flag",
+      "trap_issue": "The return memo was received on 05.08.2026, so the 30-day window to send the s.138 notice expired on 04.09.2026. A notice sent now cannot found a s.138 prosecution; the drafter must say so (civil recovery remains).",
+      "brief": "Draft a Section 138 NI Act demand notice. Sender: Ms. S. Lakshmi, No. 22, Kamarajar Street, Madurai 625001. Addressee: Mr. V. Ganesh, No. 3, North Masi Street, Madurai 625001. Ganesh borrowed Rs. 2,00,000 as a hand loan and issued cheque No. 110457 dated 01.07.2026 on State Bank of India, Madurai Main branch. It was presented on 01.08.2026 and returned on 04.08.2026 as 'Account Closed'. Lakshmi received the return memo from her bank on 05.08.2026. Please send the notice today.",
+      "key_facts": ["Lakshmi", "Ganesh", "110457", ["2,00,000", "200000"], ["Account Closed"]]
+    },
+    {
+      "id": "s138_complaint",
+      "averments": "s138_complaint",
+      "doc_type": "Complaint under Section 138 NI Act",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a private complaint under Sections 138 and 142 NI Act before the Judicial Magistrate, Fast Track Court for NI Act cases, Saidapet, Chennai. Complainant: Mr. M. Rajendran, proprietor of Rajendran Packaging, No. 5, Mount Road, Guindy, Chennai 600032. Accused: M/s. Sunrise Foods Private Limited, No. 90, Velachery Main Road, Chennai 600042, and its Managing Director Mr. A. Karthik, who is in charge of and responsible for its day-to-day business. Sunrise issued cheque No. 655120 dated 10.08.2026 for Rs. 6,20,000 drawn on HDFC Bank, Velachery branch, towards packaging supplies. Presented at the complainant's bank, Karur Vysya Bank, Guindy branch (within this court's jurisdiction), on 20.09.2026; returned 22.09.2026 'Funds Insufficient'; memo received 24.09.2026. Statutory notice sent by RPAD on 30.09.2026, served on both accused on 03.10.2026. No payment within 15 days. Complainant will give evidence himself.",
+      "key_facts": ["Rajendran", "Sunrise Foods", "Karthik", "655120", ["6,20,000", "620000"], "HDFC Bank", "22.09.2026", "30.09.2026", "03.10.2026", ["Section 141", "s.141", "141"]]
+    },
+    {
+      "id": "regular_bail",
+      "averments": "regular_bail",
+      "doc_type": "Regular bail petition",
+      "new_codes": true,
+      "expect": "draft",
+      "brief": "Draft a regular bail petition before the Judicial Magistrate No. II, Egmore, Chennai. Petitioner/Accused: Mr. D. Vignesh, aged 24, son of Mr. Dhanapal, No. 18, Pudupet, Chennai 600002. Crime No. 412 of 2026 of E-2 Royapettah Police Station, registered under Section 303(2) of the Bharatiya Nyaya Sanhita, 2023 (theft of a mobile phone worth Rs. 18,000). Arrested on 10.10.2026, in judicial custody since 11.10.2026. The phone has been recovered. He has no previous cases, is a delivery executive, and supports his widowed mother. He will furnish sureties and abide by any conditions.",
+      "key_facts": ["Vignesh", "Dhanapal", "412 of 2026", "Royapettah", ["303(2)", "303 (2)"], ["Bharatiya Nyaya Sanhita", "BNS"], "10.10.2026"]
+    },
+    {
+      "id": "anticipatory_bail",
+      "averments": "anticipatory_bail",
+      "doc_type": "Anticipatory bail petition",
+      "new_codes": true,
+      "expect": "draft",
+      "brief": "Draft an anticipatory bail petition before the Principal Sessions Judge, Coimbatore. Petitioner: Mr. N. Suresh Babu, aged 41, No. 66, Race Course Road, Coimbatore 641018, a textile trader. FIR in Crime No. 233 of 2026 of Central Crime Branch, Coimbatore, under Sections 316(2) and 318(4) of the Bharatiya Nyaya Sanhita, 2023, on a complaint by a business partner, Mr. T. Prabhu, alleging misappropriation of Rs. 12,00,000 from their partnership. The petitioner says it is a civil accounts dispute; a civil suit O.S. No. 145 of 2026 for rendition of accounts is pending before the Principal District Court, Coimbatore. Police called him for enquiry on 18.10.2026 and he fears arrest. No prior criminal record. Ready to cooperate with investigation.",
+      "key_facts": ["Suresh Babu", "233 of 2026", ["316(2)", "316 (2)"], ["318(4)", "318 (4)"], "Prabhu", ["12,00,000", "1200000"], "145 of 2026", ["482", "Section 482"]]
+    },
+    {
+      "id": "default_bail",
+      "averments": "default_bail",
+      "doc_type": "Default (statutory) bail petition",
+      "new_codes": true,
+      "expect": "draft",
+      "brief": "Draft a default bail petition before the Judicial Magistrate No. I, Tiruchirappalli. Accused: Mr. K. Mohan, aged 35, No. 9, Thillai Nagar, Tiruchirappalli 620018. Crime No. 301 of 2026 of Cantonment Police Station under Section 318(4) BNS (cheating, punishable up to 7 years). Arrested and produced before the Magistrate on 10.08.2026; in judicial custody since then. As of 25.10.2026 no final report has been filed. File the petition today, before any charge sheet is filed.",
+      "key_facts": ["Mohan", "301 of 2026", ["318(4)", "318 (4)"], "10.08.2026", ["60 days", "sixty days"], ["187", "Section 187"]]
+    },
+    {
+      "id": "default_bail_early",
+      "averments": "default_bail",
+      "doc_type": "Default (statutory) bail petition",
+      "new_codes": true,
+      "expect": "flag",
+      "trap_issue": "For an offence punishable up to 7 years the default-bail period is 60 days from first remand (10.08.2026 -> 09.10.2026), but the charge sheet was filed on 20.09.2026, inside that period. No indefeasible right to default bail arose; the drafter must say so rather than claim it.",
+      "brief": "Draft a default bail petition under Section 187(3) BNSS before the Judicial Magistrate No. I, Tiruchirappalli. Accused: Mr. S. Ramesh, aged 29, No. 4, Srirangam, Tiruchirappalli 620006. Crime No. 287 of 2026 of Fort Police Station under Section 318(4) BNS. First remanded on 10.08.2026. The police filed the final report on 20.09.2026. He is still in custody and wants default bail.",
+      "key_facts": ["Ramesh", "287 of 2026", "10.08.2026", "20.09.2026"]
+    },
+    {
+      "id": "plaint",
+      "averments": "plaint",
+      "doc_type": "Plaint for recovery of money",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a plaint for recovery of money before the City Civil Court, Chennai. Plaintiff: M/s. Lotus Electricals, a partnership firm represented by its managing partner Mr. G. Venkatesh, No. 31, Ritchie Street, Chennai 600002. Defendant: M/s. Bright Homes Builders, No. 12, OMR, Sholinganallur, Chennai 600119. The plaintiff supplied electrical fittings under invoices No. LE/221 dated 05.01.2026 (Rs. 4,10,000) and No. LE/239 dated 18.02.2026 (Rs. 4,30,000), total Rs. 8,40,000. Goods were accepted; nothing paid despite reminders and a legal notice dated 10.07.2026 (served 14.07.2026, no reply). Claim the principal of Rs. 8,40,000 with interest at 18% p.a. from the invoice dates and costs.",
+      "key_facts": ["Lotus Electricals", "Venkatesh", "Bright Homes", "LE/221", "LE/239", ["8,40,000", "840000"], "10.07.2026", ["18%", "18 %", "eighteen percent"]]
+    },
+    {
+      "id": "summary_suit",
+      "averments": "summary_suit",
+      "doc_type": "Summary suit under Order XXXVII CPC",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a summary suit under Order XXXVII CPC before the Madras High Court (Original Side) on a dishonoured cheque. Plaintiff: Ms. R. Divya, No. 2, Boat Club Road, Chennai 600028. Defendant: Mr. J. Harish, No. 40, Poes Garden, Chennai 600086. Harish signed a written loan agreement dated 15.01.2026 for Rs. 45,00,000 repayable on 15.07.2026, and issued cheque No. 300871 dated 15.07.2026 for Rs. 45,00,000 on Axis Bank, Teynampet branch, which was dishonoured on 18.07.2026 ('Payment Stopped by Drawer'). Claim Rs. 45,00,000 with interest at 12% p.a. as agreed.",
+      "key_facts": ["Divya", "Harish", "15.01.2026", ["45,00,000", "4500000"], "300871", ["Order XXXVII", "Order 37"], ["12%", "12 %"]]
+    },
+    {
+      "id": "summary_suit_oral",
+      "averments": "summary_suit",
+      "doc_type": "Summary suit under Order XXXVII CPC",
+      "new_codes": false,
+      "expect": "flag",
+      "trap_issue": "There is no written contract, bill of exchange, hundi or promissory note - only an oral loan and a WhatsApp acknowledgement. A summary suit under Order XXXVII does not lie; the drafter should say an ordinary money suit is the remedy.",
+      "brief": "Draft a summary suit under Order XXXVII CPC before the City Civil Court, Chennai. Plaintiff: Mr. B. Anand, No. 8, Mylapore, Chennai 600004. Defendant: Mr. C. Selvam, No. 19, Adyar, Chennai 600020. Anand gave Selvam an oral hand loan of Rs. 6,00,000 in cash on 01.02.2026, repayable in three months. There is no written agreement, cheque or promissory note; Selvam acknowledged the debt in a WhatsApp message on 10.06.2026 but has not paid.",
+      "key_facts": ["Anand", "Selvam", ["6,00,000", "600000"]]
+    },
+    {
+      "id": "injunction",
+      "averments": "injunction",
+      "doc_type": "Suit for permanent injunction",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a suit for permanent injunction before the District Munsif Court, Tambaram. Plaintiff: Mrs. K. Saraswathi, aged 58, No. 3, Lakshmi Nagar, Chitlapakkam, Chennai 600064. Defendant: Mr. P. Murugan, her neighbour, No. 4, Lakshmi Nagar, Chitlapakkam. Suit property: vacant land of 2,400 sq.ft. in Survey No. 118/2B, Chitlapakkam village, Tambaram taluk, purchased by sale deed Doc. No. 3321 of 2011, SRO Tambaram; patta No. 1204 stands in her name. On 05.10.2026 the defendant tried to put up a fence on the eastern side and threatened to dispossess her. She is in possession. Seek permanent injunction restraining interference with her peaceful possession.",
+      "key_facts": ["Saraswathi", "Murugan", ["118/2B", "118/2-B"], "3321 of 2011", "1204", "05.10.2026", ["2,400", "2400"]]
+    },
+    {
+      "id": "writ_petition",
+      "averments": "writ_petition",
+      "doc_type": "Writ petition (mandamus) under Article 226",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a writ petition under Article 226 before the High Court of Judicature at Madras seeking a writ of mandamus. Petitioner: Mr. A. Natarajan, aged 62, retired Assistant, School Education Department, No. 11, Vadapalani, Chennai 600026. Respondents: (1) State of Tamil Nadu represented by the Secretary, School Education Department, Fort St. George, Chennai 600009; (2) the Director of School Education, Chennai 600006; (3) the Accountant General (A&E), Tamil Nadu. He retired on 31.03.2026; his pension proposal has not been sanctioned. He made a representation dated 10.06.2026 to the 2nd respondent and a reminder dated 20.08.2026; no action. Pray for a direction to consider the representation and sanction pension and terminal benefits within a time frame.",
+      "key_facts": ["Natarajan", ["Article 226", "Art. 226"], "31.03.2026", "10.06.2026", "20.08.2026", ["mandamus", "Mandamus"], "Director of School Education"]
+    },
+    {
+      "id": "mact_claim",
+      "averments": "mact_claim",
+      "doc_type": "Motor accident compensation claim (death)",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a claim petition under Section 166 of the Motor Vehicles Act, 1988 before the Motor Accidents Claims Tribunal (Special District Court), Chennai. Deceased: Mr. S. Kannan, aged 34, software tester earning Rs. 45,000 per month. On 12.05.2026 at about 8:30 p.m., while riding his motorcycle TN-09-BX-4471 on GST Road near Pallavaram, he was hit from behind by a lorry TN-22-AK-9032 driven rashly by its driver (1st respondent), owned by Mr. R. Shankar (2nd respondent) and insured with United India Insurance Co. Ltd., Policy No. 0412/31/26/9988 (3rd respondent). He died on the spot. FIR Crime No. 188 of 2026, Pallavaram Traffic Investigation police. Claimants: his wife Mrs. K. Priya (31), son K. Arjun (6) and mother Mrs. S. Lakshmi (60). Claim Rs. 85,00,000.",
+      "key_facts": ["Kannan", "TN-09-BX-4471", "TN-22-AK-9032", "12.05.2026", "United India", "0412/31/26/9988", "188 of 2026", ["45,000", "45000"], ["Section 166", "s.166", "166"]]
+    },
+    {
+      "id": "maintenance",
+      "averments": "maintenance",
+      "doc_type": "Maintenance petition by wife",
+      "new_codes": true,
+      "expect": "draft",
+      "brief": "Draft a maintenance petition by a wife and minor child before the Family Court, Chennai, under the new criminal procedure code. Petitioners: Mrs. M. Revathi (29) and minor daughter R. Nila (4), No. 6, Perambur, Chennai 600011. Respondent: Mr. S. Raghu, No. 27, Anna Nagar, Chennai 600040, a bank officer earning about Rs. 1,10,000 per month. Married on 20.11.2020 at Chennai. He drove them out on 15.03.2026 and has paid nothing since. Revathi has no income. Claim Rs. 25,000 per month for her and Rs. 15,000 per month for the child.",
+      "key_facts": ["Revathi", "Nila", "Raghu", "20.11.2020", "15.03.2026", ["25,000", "25000"], ["15,000", "15000"], ["144", "Section 144"]]
+    },
+    {
+      "id": "dv_application",
+      "averments": "dv_application",
+      "doc_type": "Application under Section 12 of the Protection of Women from Domestic Violence Act",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft an application under Section 12 of the Protection of Women from Domestic Violence Act, 2005 before the Judicial Magistrate, Mahila Court, Chennai. Aggrieved person: Mrs. J. Anitha (32), presently at her parents' house, No. 15, Kilpauk, Chennai 600010. Respondents: husband Mr. V. Sathish (36) and mother-in-law Mrs. V. Kamala (61), No. 44, Ashok Nagar, Chennai 600083 (the shared household). Married 05.06.2019. Repeated physical assault (latest on 02.09.2026, treated at Government Kilpauk Medical College Hospital), demands for Rs. 5,00,000 more dowry, and she was thrown out on 03.09.2026. A Domestic Incident Report was recorded by the Protection Officer on 12.09.2026. Seek protection, residence, monetary relief of Rs. 30,000 per month and custody of their son (5).",
+      "key_facts": ["Anitha", "Sathish", "Kamala", "05.06.2019", "02.09.2026", "12.09.2026", ["Section 12", "s.12"], ["30,000", "30000"]]
+    },
+    {
+      "id": "divorce_contested",
+      "averments": "divorce_contested",
+      "doc_type": "Divorce petition on ground of cruelty",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a petition for divorce under Section 13(1)(ia) of the Hindu Marriage Act, 1955 before the Family Court, Coimbatore. Petitioner/husband: Mr. R. Dinesh (34), No. 2, R.S. Puram, Coimbatore 641002. Respondent/wife: Mrs. D. Kavya (30), now at No. 9, Saibaba Colony, Coimbatore 641011. Married on 10.02.2021 at Sri Koniamman Temple, Coimbatore under Hindu rites; no children. Cruelty: repeated public humiliation at his workplace, false complaint to police dated 14.01.2025 that was closed as false, threats of suicide to coerce him. She left the matrimonial home on 01.03.2025 and they have lived apart since. No collusion, no condonation.",
+      "key_facts": ["Dinesh", "Kavya", "10.02.2021", "14.01.2025", "01.03.2025", ["13(1)(ia)", "13 (1) (ia)"], ["Hindu Marriage Act"]]
+    },
+    {
+      "id": "divorce_mutual_first",
+      "averments": "divorce_mutual_first",
+      "doc_type": "Joint petition for divorce by mutual consent (first motion)",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a joint first-motion petition for divorce by mutual consent under Section 13B(1) of the Hindu Marriage Act, 1955 before the Family Court, Chennai. Petitioner 1: Mr. L. Prakash (37), No. 21, T. Nagar, Chennai 600017. Petitioner 2: Mrs. P. Shalini (33), No. 5, Besant Nagar, Chennai 600090. Married 25.08.2017 at Chennai; one son P. Rohan (7). Living separately since 01.03.2025. Terms: Rohan stays with the mother with weekend access to the father; the husband pays Rs. 30,00,000 as full and final permanent alimony and child support (Rs. 15,00,000 on first motion, Rs. 15,00,000 on second); no other claims; the wife returns the husband's family jewellery.",
+      "key_facts": ["Prakash", "Shalini", "Rohan", "25.08.2017", "01.03.2025", ["13B", "13-B"], ["30,00,000", "3000000"]]
+    },
+    {
+      "id": "divorce_mutual_second",
+      "averments": "divorce_mutual_second",
+      "doc_type": "Joint petition for divorce by mutual consent (second motion)",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft the second-motion petition under Section 13B(2) of the Hindu Marriage Act, 1955 before the Family Court, Chennai in H.M.O.P. No. 912 of 2026. Petitioners: Mr. L. Prakash and Mrs. P. Shalini (married 25.08.2017, separated since 01.03.2025). The first motion was recorded on 15.04.2026. Six months have passed; both still want divorce. The first instalment of Rs. 15,00,000 was paid by DD on 15.04.2026; the balance Rs. 15,00,000 will be paid by DD before the court on the date of the second motion. Custody terms are unchanged.",
+      "key_facts": ["Prakash", "Shalini", "912 of 2026", "15.04.2026", ["13B(2)", "13-B(2)", "13B (2)"], ["15,00,000", "1500000"]]
+    },
+    {
+      "id": "consumer_complaint",
+      "averments": "consumer_complaint",
+      "doc_type": "Consumer complaint",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a consumer complaint under Section 35 of the Consumer Protection Act, 2019 before the District Consumer Disputes Redressal Commission, Chennai (South). Complainant: Mr. H. Balaji, No. 10, Velachery, Chennai 600042. Opposite parties: (1) Coolwave Appliances Ltd., No. 1, Industrial Estate, Guindy, Chennai 600032 (manufacturer); (2) Metro Digital Store, No. 77, Velachery Main Road, Chennai 600042 (dealer). He bought a Coolwave double-door refrigerator, model CW-560, on 12.04.2026 for Rs. 62,000 (invoice No. MDS/1182). It stopped cooling on 20.05.2026; three service visits (complaint IDs CW55102, CW55877, CW56340) failed; the dealer refused replacement on 01.08.2026. Seek refund of Rs. 62,000 with interest, Rs. 50,000 compensation for food loss and mental agony, and Rs. 10,000 costs.",
+      "key_facts": ["Balaji", "Coolwave", "Metro Digital", "CW-560", "MDS/1182", "12.04.2026", ["62,000", "62000"], ["Section 35", "s.35"]]
+    },
+    {
+      "id": "general_notice",
+      "averments": "general_notice",
+      "doc_type": "Legal notice for refund of security deposit",
+      "new_codes": false,
+      "expect": "draft",
+      "brief": "Draft a legal notice from tenant to landlord for refund of security deposit. Client: Ms. A. Farzana, now at No. 3, Royapettah, Chennai 600014. Addressee: Mr. K. Raman, owner of Flat 2B, Sai Residency, No. 50, Adyar, Chennai 600020. Rental agreement dated 01.06.2023 at Rs. 28,000 per month with a security deposit of Rs. 1,50,000. She vacated on 31.08.2026 after one month's written notice dated 30.07.2026 and handed over keys on that date; the flat was in good condition and all rent and maintenance were paid. He has not refunded the deposit despite WhatsApp requests. Demand refund within 15 days with interest at 12% p.a. from 31.08.2026, failing which legal proceedings will follow. Notice through advocate Mr. S. Ibrahim.",
+      "key_facts": ["Farzana", "Raman", "Sai Residency", "01.06.2023", ["1,50,000", "150000"], "31.08.2026", ["12%", "12 %"], ["15 days", "fifteen days"]]
+    }
+  ]
+}

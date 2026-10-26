@@ -5,6 +5,12 @@ import { draftAgentService, NoProviderError } from '../services/draft-agent.serv
 import { draftingOrchestratorService } from '../services/drafting-orchestrator.service';
 import { draftAutoService } from '../services/draft-auto.service';
 import { draftChatService } from '../services/draft-chat.service';
+import {
+  draftReviseService,
+  ReviseUnavailableError,
+  MAX_REVISE_CHARS,
+  MAX_REVISE_PARAGRAPHS,
+} from '../services/draft-revise.service';
 import { draftExtractService } from '../services/draft-extract.service';
 import { offenceKbService } from '../services/offence-kb.service';
 import { caseNotesService } from '../services/case-notes.service';
@@ -512,6 +518,44 @@ draftingRouter.post('/chat', requireFeature('drafting.ai'), llmGenerationLimiter
     // Conversational turn only — no drafting.
     res.json({ intent: chat.intent, reply: chat.reply, draft: null });
   } catch (err) {
+    next(err);
+  }
+});
+
+// One-line redraft instruction on a finished draft. Returns PROPOSED paragraph
+// edits plus guard warnings; nothing is applied until the advocate accepts in the
+// UI. See draft-revise.service for the no-invented-facts rules.
+const ReviseBody = z.object({
+  docType: z.string().min(1).max(200),
+  instruction: z.string().min(3).max(2_000),
+  paragraphs: z.array(z.string().max(20_000)).min(1).max(MAX_REVISE_PARAGRAPHS),
+  focus: z.object({ from: z.number().int().min(0), to: z.number().int().min(0) }).optional(),
+  provider: z.enum(['xai', 'anthropic']).optional(),
+});
+
+draftingRouter.post('/revise', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const parsed = ReviseBody.parse(req.body);
+    if (parsed.paragraphs.reduce((n, p) => n + p.length, 0) > MAX_REVISE_CHARS) {
+      res.status(413).json({ error: 'draft_too_long', code: 'draft_too_long' });
+      return;
+    }
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const firmId = await firmIdForUser(userId);
+    const { provider, focus, ...rest } = parsed;
+    const result = await draftReviseService.revise(
+      {
+        ...rest,
+        ...(provider ? { provider } : {}),
+        ...(focus && focus.from <= focus.to ? { focus } : {}),
+      },
+      { firmId, userId },
+    );
+    res.json(result);
+  } catch (err) {
+    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+    if (err instanceof ReviseUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
     next(err);
   }
 });

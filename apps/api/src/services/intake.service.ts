@@ -47,6 +47,7 @@ import { firmFormatsService, isFirmFormatLabel, type FirmFormat } from './firm-f
 import { enrichFormWithBns, type BnsConcordanceEntry } from '../lib/bns-enrichment';
 import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
 import { intakeCompose } from './intake-compose.service';
+import { COMPOSE_DOC_TYPES } from '../lib/compose-families';
 import { extractDeterministic } from './intake-extract-rules.service';
 import { extractText } from '../lib/text-extraction';
 import { ocrImage } from '../lib/image-ocr';
@@ -1521,13 +1522,27 @@ export const intakeService = {
       if (env.intakeComposeEnabled && composeAppliesTo(doc.docType)) {
         const composeResult = await intakeCompose.compose({
           docLabel,
+          docType: doc.docType,
           engineBlocks: outcome.blocks,
           facts: labelledFacts(specs, state.form),
           ...(ctx.provider ? { provider: ctx.provider } : {}),
           onUsage: (u) => recordUsage(ctx, u),
         });
         if (composeResult.composed) {
-          draft = { ...draft, blocks: composeResult.blocks };
+          if (!draft.docxBase64) {
+            draft = { ...draft, blocks: composeResult.blocks };
+          } else if (composeResult.splice) {
+            // The preview PDF and the Word download come from the .docx, so the
+            // composed body must be written INTO it — else the advocate would see
+            // and file the bare skeleton. If the splice can't be done, keep the
+            // plain engine draft whole rather than show text the file doesn't have.
+            const { start, end, paragraphs } = composeResult.splice;
+            const docx = await engineClient.spliceLines(draft.docxBase64, start, end, paragraphs).catch((err) => {
+              logger.warn({ err }, 'intake: splice of composed body failed');
+              return null;
+            });
+            if (docx) draft = { ...draft, blocks: composeResult.blocks, docxBase64: docx };
+          }
         }
       }
       // A s.138 COMPLAINT pairs with a proof AFFIDAVIT (same facts, first-person
@@ -1694,21 +1709,14 @@ export const intakeService = {
 /**
  * Which engine doc types the COMPOSE enrichment pass is allowed to run on.
  *
- * Compose's prompt (intake-compose.service.buildComposePrompt) hard-codes the
- * TARGET STRUCTURE of a cheque-dishonour (s.138) notice — cheque tables, the
- * deferment-agreement acknowledgment paragraph, the §138/141/142 characterisation,
- * the aggregate demand. On s.138 that enrichment is audited and fabricates nothing
- * (every hard fact traces to the validated field map). On ANY OTHER doc type it
- * mis-shapes the document: it discards the engine's correct template structure and
- * re-drafts it as notice-style numbered prose — which on an affidavit dropped the
- * AFFIDAVIT-OF heading, re-numbered the prayer into the averments, and paraphrased
- * the attestation block into a line no template contains ("Attested by: <notary>").
- *
- * So compose is scoped to the doc types it was written and verified for. Adding a
- * doc type here means authoring (and auditing) a compose structure for it first.
+ * Compose once re-drafted the WHOLE document from an s.138-notice structure; on an
+ * affidavit that dropped the AFFIDAVIT-OF heading, re-numbered the prayer into the
+ * averments and paraphrased the attestation block. It now composes only the
+ * numbered body (head, prayer and tail kept verbatim) with a per-family drafting
+ * guide, so it is scoped to the pleading/notice types that have a guide
+ * (intake-compose COMPOSE_DOC_TYPES). Affidavits, court forms and memos stay
+ * excluded — their wording is the format. Adding a type means adding its guide.
  */
-const COMPOSE_DOC_TYPES = new Set<string>(['s138_notice']);
-
 function composeAppliesTo(docType: string): boolean {
   return COMPOSE_DOC_TYPES.has(docType);
 }

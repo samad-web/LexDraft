@@ -18,6 +18,8 @@ beforeEach(() => {
     return {
       ok: next.status < 400,
       status: next.status,
+      // The Anthropic SDK reads response headers; without them every call throws.
+      headers: new Headers({ 'content-type': 'application/json' }),
       json: async () => next.body,
       text: async () => JSON.stringify(next.body),
     } as Response;
@@ -32,7 +34,79 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose } from '../intake-compose.service';
+import { intakeCompose, segmentBlocks } from '../intake-compose.service';
+
+// A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
+// a numbered prayer, then the place line.
+const BAIL = [
+  'PETITION FOR REGULAR BAIL UNDER SECTION 483 BNSS',
+  '[DRAFT — for advocate review; not to be filed until reviewed and signed off]',
+  '1. The petitioner, Dinesh Kumar, aged 34, lorry driver, residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+  '2. Prosecution case in brief: [to be drafted]',
+  '3. The offence is registered under BNS s.303(2), BNS s.317(2).',
+  '4. The petitioner was taken into custody on 2024-09-16 and has, as on 2024-12-20, been in custody for 96 days.',
+  '5. Investigation status: the charge sheet has been filed.',
+  '6. GROUNDS: [to be drafted]',
+  "7. It is prayed that this Hon'ble Court may be pleased to enlarge the petitioner on bail.",
+  'Place: Chennai',
+].map((text, i) => ({ key: `p${i}`, text }));
+const BAIL_FACTS = { 'Accused name': 'Dinesh Kumar', 'Occupation': 'lorry driver', 'Arrest date': '2024-09-16' };
+
+describe('intake-compose — body-only composition', () => {
+  it('segments head / body / prayer / tail', () => {
+    expect(segmentBlocks(BAIL)).toEqual({ start: 2, bodyEnd: 7, end: 8, startNumber: 1 });
+  });
+
+  it('keeps head, prayer and tail verbatim, renumbers the prayer, and returns the splice', async () => {
+    fetchQueue.push(anthropicReply([
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+      '4. That the charge sheet has been filed, so the investigation is complete and custodial interrogation is no longer required.',
+      '5. That the petitioner has a fixed residence and occupation, so there is no risk of flight.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+
+    expect(r.composed).toBe(true);
+    const texts = r.blocks.map((b) => b.text);
+    expect(texts.slice(0, 2)).toEqual([BAIL[0]!.text, BAIL[1]!.text]);
+    expect(texts.at(-2)).toBe("6. It is prayed that this Hon'ble Court may be pleased to enlarge the petitioner on bail.");
+    expect(texts.at(-1)).toBe('Place: Chennai');
+    expect(r.splice).toEqual({ start: 2, end: 8, paragraphs: texts.slice(2, -1) });
+    // The bail guide reached the model.
+    expect(JSON.stringify(fetchCalls[0]!.body)).toContain('GROUNDS, numbered');
+  });
+
+  it('rejects a composition that drops a section from the skeleton', async () => {
+    fetchQueue.push(anthropicReply('1. The petitioner, Dinesh Kumar, is a lorry driver.\n\n2. The offence is under BNS s.303(2).\n\n3. Arrested on 2024-09-16, in custody 96 days as on 2024-12-20.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(false);
+    expect(r.blocks).toEqual(BAIL);
+    expect(r.rejectedReason).toContain('317(2)');
+  });
+
+  it('strips an invented sentence instead of discarding the whole draft', async () => {
+    fetchQueue.push(anthropicReply([
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai. He paid Rs. 50,000/- as compensation to the complainant.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.blocks.map((b) => b.text).join(' ')).not.toContain('50,000');
+    expect(r.removedSentences).toEqual(['He paid Rs. 50,000/- as compensation to the complainant.']);
+  });
+});
 
 describe('intake-compose — compose only argues GIVEN facts', () => {
   const ENGINE_BLOCKS = [

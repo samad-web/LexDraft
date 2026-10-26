@@ -646,3 +646,30 @@ async def apply_text_edits(body: Dict[str, Any],
     if out is None:
         return {"matched": False}
     return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii")}
+
+
+@app.post("/v1/splice-lines")
+async def splice_text_lines(body: Dict[str, Any],
+                            authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Replace display lines [start, end] of an engine .docx with new paragraphs
+    (a composed body), keeping the rest of the court layout. matched=false when
+    the range can't be mapped — the caller keeps the plain engine draft."""
+    _check_token(authorization)
+    from .apply_edits import splice_lines
+    raw = body.get("docx_base64")
+    paras = body.get("paragraphs")
+    start, end = body.get("start"), body.get("end")
+    if (not isinstance(raw, str) or not isinstance(paras, list)
+            or not all(isinstance(p, str) for p in paras)
+            or not isinstance(start, int) or not isinstance(end, int)):
+        raise HTTPException(status_code=422, detail={"error": "validation", "issues": [
+            {"field": "paragraphs", "code": "type",
+             "message": "docx_base64 + start + end + paragraphs[] required"}]})
+    try:
+        src = base64.b64decode(raw, validate=True)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="docx_base64 is not valid base64")
+    out = await run_in_threadpool(splice_lines, src, start, end, paras)
+    if out is None:
+        return {"matched": False}
+    return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii")}

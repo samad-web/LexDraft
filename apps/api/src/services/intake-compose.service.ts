@@ -7,15 +7,26 @@
 //   engine. Its INPUT is the engine's own rendered blocks + the validated fact
 //   map — NEVER the raw advocate transcript or attachment text. Its job is to
 //   turn the engine's bare deterministic skeleton into a fuller, better-argued
-//   notice (the way a real advocate writes one — invoice tables, a deferment-
-//   agreement argument, verbatim memo quotes — only when those facts are
-//   actually present), while being CONSTITUTIONALLY FORBIDDEN from stating
-//   anything not traceable to a supplied fact.
+//   document (the way a real advocate writes one — a proper narrative of facts,
+//   numbered grounds, the "[to be drafted]" sections actually drafted) while being
+//   CONSTITUTIONALLY FORBIDDEN from stating anything not traceable to a supplied fact.
 //
-//   verify(...) then fact-checks the composed draft against the same fact map
-//   and REJECTS (falls back to the engine's plain draft) if it finds a claim
-//   that isn't backed by a fact — this is the safety net that makes "the model
-//   drafts" survivable: it never gets the last word on what's true.
+//   Only the numbered BODY is composed. The engine's head (title, banners, cause
+//   title) and tail (place, signature, verification) stay byte-identical, and the
+//   PRAYER paragraphs are kept verbatim (only renumbered) — the relief and the
+//   formal blocks are legal structure, not prose to improve. segmentBlocks() finds
+//   that body; the caller splices the composed paragraphs into the engine .docx
+//   over exactly that line range, so the filing copy matches the preview.
+//
+//   Checks before the advocate sees anything (draft-guards):
+//     LOST        a section, amount, date, day-period, citation or [marker] in the
+//                 skeleton body that the composed body dropped  -> reject.
+//     INTRODUCED  such a particular found in neither the skeleton nor the facts
+//                 -> strip just those sentences (then re-check LOST).
+//     VERIFY      a model fact-check; flagged claims are stripped the same way, and
+//                 a claim that can't be located rejects the composition.
+//   Any rejection falls back to the engine's plain draft — never a document that
+//   failed a check.
 //
 // This module must NEVER import the general drafting orchestrator/agent/auto/
 // chat pipeline — that pipeline extracts its OWN facts from raw prose with no
@@ -30,6 +41,8 @@ import { withRetry } from '../lib/retry';
 import { type NormalizedUsage } from '../lib/llm-usage';
 import { claudeComplete } from '../lib/anthropic-client';
 import { grokComplete } from '../lib/grok-client';
+import { introducedParticulars, lostParticulars, stripSentences } from '../lib/draft-guards';
+import { COMPOSE_FAMILY, type ComposeFamily } from '../lib/compose-families';
 import type { IntakeDraft } from '@lexdraft/types';
 
 type Provider = 'xai' | 'anthropic' | 'none';
@@ -40,14 +53,19 @@ interface LlmResult extends NormalizedUsage {
 
 export interface ComposeResult {
   /** The composed blocks, ready to show the advocate — either the model's
-   *  enriched prose (if it passed VERIFY) or the engine's own plain draft
-   *  (if composition failed or didn't pass verification). */
+   *  enriched prose (if it passed every check) or the engine's own plain draft
+   *  (if composition failed or didn't pass). */
   blocks: Array<{ key: string; text: string }>;
   /** True when the model's composed prose was used; false = fell back to the
    *  engine's plain deterministic draft (composition unavailable or rejected). */
   composed: boolean;
-  /** Present only when composed=false because VERIFY rejected the draft. */
+  /** Present only when composed=false because a check rejected the draft. */
   rejectedReason?: string;
+  /** When composed: the engine block range [start, end] (inclusive) the composed
+   *  paragraphs replace — the caller writes the same splice into the .docx. */
+  splice?: { start: number; end: number; paragraphs: string[] };
+  /** Sentences removed by the checks (shown to nobody; logged for tuning). */
+  removedSentences?: string[];
   modelUsed: string;
 }
 
@@ -74,26 +92,22 @@ function providerTag(provider: Provider): string {
 async function complete(provider: Provider, system: string, user: string, maxTokens: number): Promise<LlmResult> {
   if (provider === 'anthropic') return callClaude(system, user, maxTokens, modelFor('anthropic'));
   if (provider === 'xai') return callGrok(system, user, maxTokens, modelFor('xai'));
-  throw new Error('LLM disabled');
+  throw new Error('no LLM provider configured');
 }
 
 async function callClaude(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
+  // claudeComplete throws HttpRetryError on API errors (incl. 429/5xx), so
+  // withRetry backs off and retries exactly as the old inline fetch did.
   return withRetry(
-    // claudeComplete uses the shared SDK client, applies the ephemeral cache_control
-    // on the system block, and throws HttpRetryError on API errors so withRetry still
-    // triggers on 429/5xx exactly as the raw-fetch path did.
     () => claudeComplete({ system, user, maxTokens, model }),
-    { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'compose Claude retry') },
+    { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'intake-compose Claude retry') },
   );
 }
 
 async function callGrok(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
   return withRetry(
-    // grokComplete uses the shared SDK client and throws HttpRetryError on API errors
-    // so withRetry still triggers on 429/5xx exactly as the raw-fetch path did; its
-    // returned usage is the same NormalizedUsage the former xaiUsage mapping produced.
     () => grokComplete({ system, user, maxTokens, model }),
-    { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'compose Grok retry') },
+    { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'intake-compose Grok retry') },
   );
 }
 
@@ -136,83 +150,149 @@ export function normaliseComposedMarkdown(text: string): string {
   return out.join('\n');
 }
 
-// ---- COMPOSE ----------------------------------------------------------------
+// ---- SEGMENT ----------------------------------------------------------------
 
-function buildComposePrompt(args: {
-  docLabel: string;
-  engineBlocks: Array<{ key: string; text: string }>;
-  facts: Record<string, string>;
-}): { system: string; user: string } {
-  const system = `You are a senior Indian advocate's drafting associate, redrafting the FULL PROSE of "${args.docLabel}" from a deterministic engine's bare-bones skeleton (already legally validated — every citation, hard-stop, and legal conclusion in it is correct and MUST survive into your draft). Your output must read like a notice actually filed by a practising advocate: thorough, well-organised, and precisely argued — not a terse fill-in-the-blank form. Every fact you state must be traceable to the "Facts" list or the skeleton; you decide nothing about what is true or legally required, only how to ARGUE and PRESENT what is already given.
+const NUMBERED = /^\s*(\d+)([A-Z]?)\s*[.)]\s/;
+const SUB_ITEM = /^\s+\S|^\s*(?:\([0-9a-z]{1,4}\)|[A-Z][.)]|[a-z][.)]|[ivx]+[.)])\s/;
+const PRAYER = /\bPRAYER\b|\bit is (?:therefore )?(?:most )?(?:humbly |respectfully )?prayed\b/i;
 
-TARGET STRUCTURE for a cheque-dishonour (s.138) notice — include EACH paragraph below ONLY IF the underlying fact exists in your Facts/skeleton; skip a paragraph entirely (don't pad it with placeholders) when its fact is absent:
-1. Opening: instructed by and on behalf of the client, issuing this notice.
-2. The business/commercial relationship between the parties (if a nature-of-liability fact describes an ongoing relationship, not just a bare debt).
-3. Itemised particulars of the underlying transaction — render as a TABLE if the facts list multiple dated items (invoices, deliveries, agreements) with amounts; a single line if there is only one.
-4. The cheque(s) issued in discharge of that liability — a TABLE when there is more than one cheque (columns: S.No., Cheque No., Date, Amount, Bank & Branch), a single sentence for one cheque.
-5. If the facts mention a SEPARATE agreement about the cheques themselves (e.g. a deferment/settlement/standstill agreement, its date, and any admission-of-liability figure within it) — a dedicated paragraph arguing that this agreement is a clear, unequivocal, and continuing acknowledgment of the debt, strengthening (never substituting for) the dishonour claim. Quote the agreement's admission figure if given.
-6. Presentation of the cheque(s) for encashment (date, bank).
-7. Dishonour — the return memo, its date, and its stated reason. If a VERBATIM reason/endorsement text is in the facts, quote it in quotation marks exactly as given.
-8. Receipt of the dishonour memo by the client (the limitation anchor).
-9. The legal characterisation: state plainly that the above facts constitute an offence punishable under Section 138 of the Negotiable Instruments Act, 1881, committed by the drawer — and, ONLY IF a fact indicates the drawer/client is a company/firm/entity (not a natural person), that the persons in charge of and responsible for its conduct of business are liable under Section 141, and note Section 142 governs the procedure/limitation for taking cognizance. Do NOT cite 141/142 for an individual drawer with no entity fact given.
-10. The demand: pay the total sum (state the arithmetic clearly if it is a sum of several cheques) within the statutory period.
-11. Consequence of non-payment: prosecution under Section 138 (and 141 if cited above), at the drawer's risk as to costs and consequences.
-12. Signature block, then a closing line: "This notice is issued without prejudice to any other civil or criminal remedies available to my client in law."
-
-HARD RULES — you are arguing given facts, not discovering new ones:
-- You may ONLY state facts that appear in the "Facts" list below or the engine's own skeleton text. If a fact is not there, DO NOT mention it, DO NOT imply it, DO NOT invent a plausible-sounding elaboration, and DO NOT include the paragraph that would need it.
-- NEVER invent a date, amount, name, section number, invoice number, agreement date, or any other specific data point not given to you.
-- If a "[placeholder]" or "[DATE TO BE CONFIRMED]" marker appears in the engine's skeleton, KEEP that exact marker in your output, verbatim — do not fill it with a real value and do not delete it.
-- Preserve every citation, statute reference, and legal conclusion from the engine's skeleton exactly — you may add supporting sentences and paragraphs, never remove or alter a legal conclusion the engine already reached.
-- Render a table as a Markdown table (header row + |---| separator row + data rows) — the caller converts it to a real document table.
-- BOLD (using **double asterisks**) every operative fact the first time it appears in the body: party names, cheque numbers, amounts, dates, the dishonour reason, and section numbers. Do not bold ordinary connective prose.
-
-PROSE QUALITY — this is filing-ready legal drafting, not a fact dump:
-- A FACT VALUE may be raw/unpunctuated prose lifted from the source document. NEVER paste such a value into your output verbatim mid-sentence — reword it into a grammatically complete, properly punctuated sentence of your own.
-- NEVER join two different facts into one sentence with a semicolon, comma-splice, or "namely X; Y" construction.
-- Write CONNECTED, flowing prose within each paragraph — not a string of short disconnected sentences. Use subordinate clauses and transitions ("in discharge of the said liability", "notwithstanding the said undertaking", "by reason of the foregoing") the way an advocate would, so a paragraph reads as one continuous argument, not a bullet list in sentence form.
-- Match the register of a practising advocate's notice: formal, precise, unhurried. Prefer "My client states that..." / "It is submitted that..." / "You are hereby called upon to..." framing.
-- Output ONLY the redrafted document body as plain paragraphs/tables (numbered where the source is numbered), no preamble, no markdown fences around the whole thing, no commentary.`;
-
-  const factLines = Object.entries(args.facts)
-    .filter(([, v]) => v && String(v).trim())
-    .map(([k, v]) => `- ${k}: ${v}`)
-    .join('\n');
-
-  const skeleton = args.engineBlocks.map((b) => b.text).join('\n\n');
-
-  const user = `# Facts (the ONLY facts you may state)\n${factLines || '(none beyond what is in the skeleton)'}\n\n# Engine's validated skeleton (the legal structure + citations you must preserve)\n${skeleton}\n\n# Task\nRewrite the skeleton above into the full target structure, including only the paragraphs whose underlying facts are actually present, following the hard rules exactly.`;
-  return { system, user };
+export interface Segments {
+  /** First line of the numbered run (the composed body starts here). */
+  start: number;
+  /** Last line of the composed body (inclusive). */
+  bodyEnd: number;
+  /** Last line of the numbered run, incl. the prayer (inclusive) — the splice end. */
+  end: number;
+  /** The number the body opens with ("1" usually). */
+  startNumber: number;
 }
 
 /**
- * Compose enriched prose from the engine's ALREADY-VALIDATED draft. Never
- * called with raw prose — only with `outcome.blocks` (already legally checked)
- * and the flat fact map the engine drafted from. Returns null on any failure
- * (no key, network error, empty response) so the caller falls back to the
- * engine's plain draft — composition is a pure enhancement, never a
- * requirement to produce SOME document.
+ * Find the engine draft's numbered body. Engine renders are: banners/title/cause
+ * title (unnumbered) -> a run of numbered paragraphs with indented sub-items ->
+ * place/date/signature (unnumbered). Within the run, the first numbered paragraph
+ * that is a prayer starts the kept-verbatim prayer. null = no usable body.
  */
-async function compose(args: {
-  docLabel: string;
-  engineBlocks: Array<{ key: string; text: string }>;
-  facts: Record<string, string>;
-  provider?: 'xai' | 'anthropic';
-  onUsage?: (u: NormalizedUsage & { provider: Provider; model: string }) => void;
-}): Promise<{ text: string; modelUsed: string } | null> {
-  const provider = resolveProvider(args.provider);
-  if (provider === 'none') return null;
-  const { system, user } = buildComposePrompt(args);
-  try {
-    const result = await complete(provider, system, user, 3000);
-    const modelUsed = providerTag(provider);
-    args.onUsage?.({ ...result, provider, model: modelFor(provider) });
-    const text = result.text.trim();
-    return text ? { text, modelUsed } : null;
-  } catch (err) {
-    logger.warn({ err }, 'intake-compose: compose call failed, falling back to engine draft');
-    return null;
+export function segmentBlocks(blocks: Array<{ text: string }>): Segments | null {
+  const start = blocks.findIndex((b) => NUMBERED.test(b.text));
+  if (start === -1) return null;
+  let end = start;
+  while (end + 1 < blocks.length && (NUMBERED.test(blocks[end + 1]!.text) || SUB_ITEM.test(blocks[end + 1]!.text))) {
+    end += 1;
   }
+  let bodyEnd = end;
+  for (let i = start; i <= end; i += 1) {
+    if (NUMBERED.test(blocks[i]!.text) && PRAYER.test(blocks[i]!.text)) {
+      bodyEnd = i - 1;
+      break;
+    }
+  }
+  if (bodyEnd < start) return null;
+  return { start, bodyEnd, end, startNumber: Number(NUMBERED.exec(blocks[start]!.text)![1]) };
+}
+
+/** Renumber the numbered prayer lines to continue after the composed body. */
+function renumberFrom(lines: string[], next: number): string[] {
+  let n = next;
+  return lines.map((l) => (NUMBERED.test(l) ? l.replace(NUMBERED, (_m, _d, _s) => `${n++}. `) : l));
+}
+
+function lastNumber(paragraphs: string[], fallback: number): number {
+  for (let i = paragraphs.length - 1; i >= 0; i -= 1) {
+    const m = NUMBERED.exec(paragraphs[i]!);
+    if (m) return Number(m[1]);
+  }
+  return fallback;
+}
+
+// ---- DRAFTING GUIDES ----------------------------------------------------------
+
+/** How a practising advocate structures the BODY of each document family. Each item
+ *  is included only when its underlying fact exists — never padded. */
+const GUIDES: Record<ComposeFamily, string> = {
+  s138_notice: `1. Opening: instructed by and on behalf of the client, issuing this notice.
+2. The business/commercial relationship between the parties, if a fact describes one.
+3. The underlying transaction — each dated item (invoice, delivery, loan) as its own sub-paragraph (a), (b)… with its amount.
+4. The cheque(s) issued in discharge of that liability — one sub-paragraph per cheque (number, date, amount, bank and branch).
+5. If a SEPARATE agreement about the cheques exists (deferment/settlement), a paragraph arguing it is a clear and continuing acknowledgment of the debt, quoting its admission figure if given.
+6. Presentation for encashment (date, bank). 7. Dishonour — memo date and reason, quoting a verbatim reason exactly. 8. Receipt of the memo by the client.
+9. Legal characterisation: an offence under Section 138 of the Negotiable Instruments Act, 1881; Section 141 ONLY if the drawer is a company/firm.
+10. The demand within the statutory period (state the arithmetic if several cheques). 11. Consequence of non-payment. Close with: "This notice is issued without prejudice to any other civil or criminal remedies available to my client in law."`,
+  bail: `1. The petitioner's particulars (age, occupation, residence) and roots in the community.
+2. The prosecution case in brief — a neutral narrative of the FIR allegations as given; no argument here.
+3. Arrest, remand and custody period; the stage of investigation (charge sheet filed or not).
+4. GROUNDS, numbered, each ONE self-standing proposition opening "That…", strongest and most objective first. Each ground answers a specific objection (gravity, flight risk, tampering, antecedents, stage of investigation, parity, period in custody, health/family) using a FACT given — never a bare character assurance.
+5. The undertaking to abide by conditions and cooperate.`,
+  complaint: `1. The complainant's description and capacity (proprietor / authorised representative).
+2. The accused — and, where an accused is a company/firm, the persons in charge of and responsible for its business (Section 141), only if such facts are given.
+3. The transaction and the legally enforceable debt. 4. The cheque(s). 5. Presentation and dishonour (memo, reason).
+6. The statutory notice, its dispatch and service; failure to pay within 15 days. 7. The cause of action and when it arose.
+8. Territorial jurisdiction (the payee's bank branch). 9. Limitation — filed within one month of the cause of action.
+10. The documents relied on and that the complainant will lead evidence.`,
+  suit: `1. The parties' descriptions. 2. The facts in chronological order, each event in its own paragraph with dates and amounts.
+3. Any demand, notice and reply. 4. The cause of action and when and where it arose.
+5. Jurisdiction (territorial and pecuniary) and valuation/court fee — only as stated in the skeleton.
+6. Limitation, as stated in the skeleton. 7. That no other suit on the same cause of action is pending, if the skeleton says so.`,
+  writ: `1. The petitioner's description and locus standi. 2. The respondents and why each is "State" or a public authority.
+3. The facts in chronological order: the representations made (with dates) and the action or inaction complained of.
+4. GROUNDS, lettered A, B, C…, each a distinct legal proposition (arbitrariness under Article 14, failure to exercise jurisdiction, violation of the stated rule) — only provisions already in the skeleton.
+5. The legal right and corresponding duty. 6. Alternative remedy / why it is not efficacious. 7. That no other petition is pending on the same cause.`,
+  family: `1. The parties' particulars. 2. Marriage — date, place, rites, registration; children with ages.
+3. The facts in chronological order, each incident in its own paragraph with its date.
+4. The statutory ground relied on and how the facts establish it.
+5. The statutory declarations the skeleton contains (no collusion, no condonation, jurisdiction, no other proceedings).`,
+  notice: `1. Opening: instructed by and on behalf of the client. 2. The relationship/agreement between the parties with dates.
+3. The facts giving rise to the claim, chronologically. 4. The client's legal position (no new citations).
+5. The specific demand and the period to comply. 6. The consequence of non-compliance; reservation of rights.`,
+  consumer: `1. The complainant as a "consumer". 2. Each opposite party and its role (manufacturer / dealer / service provider).
+3. The purchase or service — date, invoice, price. 4. The defect or deficiency and each complaint/service visit, dated.
+5. The refusal to remedy. 6. Deficiency in service / unfair trade practice. 7. Pecuniary and territorial jurisdiction and limitation, as in the skeleton.`,
+  mact: `1. The accident — date, time, place, vehicles (registration numbers) and how it occurred (rash and negligent driving).
+2. The deceased/injured — age, occupation, income. 3. The claimants and their relationship and dependency.
+4. The FIR and the owner and insurer of the offending vehicle, with policy number. 5. The heads of compensation claimed, as given.`,
+  generic: `Write the body as a practising advocate would: the parties, the facts in chronological order (one event per paragraph), then the legal grounds as numbered self-standing propositions, then any statutory declarations the skeleton contains.`,
+};
+
+// ---- COMPOSE ----------------------------------------------------------------
+
+function factLinesOf(facts: Record<string, string>): string {
+  return Object.entries(facts)
+    .filter(([, v]) => v && String(v).trim())
+    .map(([k, v]) => `- ${k}: ${v}`)
+    .join('\n');
+}
+
+function buildComposePrompt(args: {
+  docLabel: string;
+  docType: string;
+  head: string;
+  body: string;
+  prayer: string;
+  startNumber: number;
+  facts: Record<string, string>;
+}): { system: string; user: string } {
+  const guide = GUIDES[COMPOSE_FAMILY[args.docType] ?? 'generic'];
+  const system = `You are a senior Indian advocate's drafting associate. You redraft the BODY of "${args.docLabel}" from a deterministic engine's skeleton, which is already legally validated: every citation, statutory averment, computation and legal conclusion in it is correct and MUST survive into your draft. Your output must read like a document actually filed by a practising advocate: thorough, well-organised and precisely argued, not a terse fill-in-the-blank form.
+
+STRUCTURE of the body (include each item ONLY if its underlying fact exists; skip it rather than pad it):
+${guide}
+
+HARD RULES — you argue given facts, you never discover new ones:
+- State ONLY facts in the "Facts" list or the skeleton. If a fact is not there, do not mention, imply or elaborate it, and drop the paragraph that would need it.
+- NEVER invent a date, amount, name, number, section, Act, case citation or event. Do not compute new dates.
+- Every section/Act citation, amount, date, day-period and computation in the skeleton body must appear in your body (you may restate, reorder and argue them).
+- "[to be drafted]" in the skeleton means: draft that part from the facts. If the facts can't support it, leave "[to be drafted]" in place. Keep every OTHER [bracketed marker] exactly as written.
+- Do NOT write the title, cause title, prayer, verification, place/date or signature — they are assembled separately. Your grounds must support the prayer given for context.
+- Formal Indian legal English, respectful to the court ("It is respectfully submitted that…", "My client states that…" for notices). Connected, flowing prose within each paragraph; never paste a raw fact value mid-sentence — reword it; never join two facts with a semicolon or "namely X; Y".
+- Plain text only: no Markdown, no bold, no tables. Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
+
+  const user =
+    `# Facts (the ONLY facts you may state)\n${factLinesOf(args.facts) || '(none beyond what is in the skeleton)'}\n\n` +
+    `# Document head (context only — do not repeat)\n${args.head || '(none)'}\n\n` +
+    `# Skeleton body (redraft this)\n${args.body}\n\n` +
+    `# Prayer (context only — do not repeat)\n${args.prayer || '(none)'}\n\n` +
+    `# Task\nRedraft the skeleton body into the full structure above, following the hard rules exactly.`;
+  return { system, user };
 }
 
 // ---- VERIFY -------------------------------------------------------------
@@ -222,76 +302,131 @@ interface VerifyRaw {
   unsupported_claims: string[];
 }
 
-function buildVerifyPrompt(args: { composedText: string; facts: Record<string, string> }): { system: string; user: string } {
-  const system = `You fact-check a drafted legal document against a list of KNOWN FACTS. Output ONLY JSON: { "pass": boolean, "unsupported_claims": ["<verbatim sentence or specific claim not backed by any known fact>"] }. A claim is UNSUPPORTED if it states a specific date, amount, name, number, or event not present in the known facts and not a standard legal-boilerplate phrase (boilerplate like "without prejudice to all rights" or "constrained to prosecute" is always fine — only flag INVENTED FACTS, not legal phrasing).
+function buildVerifyPrompt(args: { composedText: string; skeleton: string; facts: Record<string, string> }): { system: string; user: string } {
+  const system = `You fact-check a drafted legal document against KNOWN FACTS and the engine skeleton it was drafted from. Output ONLY JSON: { "pass": boolean, "unsupported_claims": ["<the shortest exact phrase from the draft that states the unsupported fact>"] }. A claim is UNSUPPORTED if it states a specific date, amount, name, number, place or event present in neither the known facts nor the skeleton.
 
-NOT UNSUPPORTED — do NOT flag these, they are legitimate: a TOTAL/SUM/AGGREGATE amount that is the arithmetic sum of two or more individual amounts that ARE in the known facts (e.g. if the facts list "Cheque amount: 399088" and "Cheque 2 — amount: 300000", a demand for "699088" is SUPPORTED — check the arithmetic yourself before flagging; if it sums correctly, it is not a fabrication). Also not unsupported: a plain restatement, reordering, or renumbering of a known fact; a value converted to words (e.g. "399088" written as "three lakh ninety-nine thousand eighty-eight"); standard section citations (138, 141, 142 of the NI Act) accompanying a cheque-dishonour notice — these are legal boilerplate for this document type, not invented facts; bold markup (**text**) or a markdown table — formatting is not a factual claim, evaluate only the words inside it; a legal ARGUMENT connecting two given facts (e.g. "the said agreement therefore constitutes a continuing acknowledgment of the debt" when both the agreement and the debt ARE known facts) is legitimate advocacy, not fabrication — only flag it if it asserts a NEW factual detail (a date, amount, or name) that isn't in the known facts.
+NOT unsupported: legal boilerplate and advocacy ("constrained to prosecute", "the petitioner is not a flight risk as he is a permanent resident" when residence is a known fact); a legal argument connecting known facts; a restatement, reordering or renumbering of a known fact; a value written in words; a total that is the correct arithmetic sum of known amounts (check it); any citation or section that is in the skeleton.
 
-pass=false if unsupported_claims is non-empty.`;
-  const factLines = Object.entries(args.facts)
-    .filter(([, v]) => v && String(v).trim())
-    .map(([k, v]) => `- ${k}: ${v}`)
-    .join('\n');
-  const user = `# Known facts\n${factLines}\n\n# Drafted document to check\n${args.composedText}`;
+Quote each unsupported claim EXACTLY as it appears in the draft so it can be located. pass=false if unsupported_claims is non-empty.`;
+  const user = `# Known facts\n${factLinesOf(args.facts)}\n\n# Engine skeleton\n${args.skeleton}\n\n# Drafted body to check\n${args.composedText}`;
   return { system, user };
 }
 
-/** Fact-check a composed draft. Returns {pass:true} if it cannot run the check
- *  (fail CLOSED on error would block every draft; instead we log and let the
- *  caller decide — intake-compose.compose's caller always treats a verify
- *  failure/timeout the same as an explicit fail, per composeAndVerify below). */
 async function verify(args: {
   composedText: string;
+  skeleton: string;
   facts: Record<string, string>;
   provider?: 'xai' | 'anthropic';
-}): Promise<{ pass: boolean; unsupportedClaims: string[] }> {
+}): Promise<{ ok: boolean; unsupportedClaims: string[] }> {
   const provider = resolveProvider(args.provider);
-  if (provider === 'none') return { pass: false, unsupportedClaims: ['verify unavailable (no LLM provider)'] };
+  if (provider === 'none') return { ok: false, unsupportedClaims: ['verify unavailable (no LLM provider)'] };
   const { system, user } = buildVerifyPrompt(args);
   try {
-    const result = await complete(provider, system, user, 800);
+    const result = await complete(provider, system, user, 1500);
     const raw = parseJsonLoose<VerifyRaw>(result.text);
-    if (!raw) return { pass: false, unsupportedClaims: ['verify response unparseable'] };
-    return { pass: Boolean(raw.pass) && (raw.unsupported_claims ?? []).length === 0, unsupportedClaims: raw.unsupported_claims ?? [] };
+    if (!raw) return { ok: false, unsupportedClaims: ['verify response unparseable'] };
+    // ok = the check ran; claims (possibly empty) are what it flagged.
+    return { ok: true, unsupportedClaims: (raw.unsupported_claims ?? []).filter((c) => typeof c === 'string' && c.trim()) };
   } catch (err) {
     logger.warn({ err }, 'intake-compose: verify call failed');
-    return { pass: false, unsupportedClaims: ['verify call failed'] };
+    return { ok: false, unsupportedClaims: ['verify call failed'] };
   }
 }
 
+function toParagraphs(text: string): string[] {
+  return normaliseComposedMarkdown(text)
+    .split(/\n{2,}/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 /**
- * The full COMPOSE -> VERIFY pipeline. ONLY call this after the engine has
+ * The full COMPOSE -> CHECK -> VERIFY pipeline. ONLY call this after the engine has
  * returned outcome:'generated'. Falls back to the engine's own plain draft
- * (composed:false) on ANY failure — a missing LLM key, a network error, or a
- * VERIFY rejection — so the advocate ALWAYS gets a document, and it is NEVER
- * one that failed a fact-check.
+ * (composed:false) on ANY failure — a missing LLM key, a network error, a lost
+ * particular, or a verify claim that can't be located — so the advocate ALWAYS gets
+ * a document, and it is NEVER one that failed a check.
  */
 export async function composeAndVerify(args: {
   docLabel: string;
+  /** Engine doc type (e.g. "regular_bail") — picks the drafting guide. */
+  docType?: string;
   engineBlocks: Array<{ key: string; text: string }>;
   facts: Record<string, string>;
   provider?: 'xai' | 'anthropic';
   onUsage?: (u: NormalizedUsage & { provider: Provider; model: string }) => void;
 }): Promise<ComposeResult> {
   const plain = { blocks: args.engineBlocks, composed: false as const, modelUsed: 'engine:template' };
-  const composed = await compose(args);
-  if (!composed) return plain;
+  const reject = (reason: string): ComposeResult => {
+    logger.warn({ docType: args.docType, reason }, 'intake-compose: rejected, falling back to engine skeleton');
+    return { ...plain, rejectedReason: reason };
+  };
 
-  const verdict = await verify({ composedText: composed.text, facts: args.facts, provider: args.provider });
-  if (!verdict.pass) {
-    logger.warn({ unsupportedClaims: verdict.unsupportedClaims }, 'intake-compose: VERIFY rejected composed draft, falling back to engine skeleton');
-    return { ...plain, rejectedReason: verdict.unsupportedClaims.join('; ') };
+  const seg = segmentBlocks(args.engineBlocks);
+  if (!seg) return plain;
+  const lines = args.engineBlocks.map((b) => b.text);
+  const head = lines.slice(0, seg.start).join('\n');
+  const body = lines.slice(seg.start, seg.bodyEnd + 1).join('\n');
+  const prayerLines = lines.slice(seg.bodyEnd + 1, seg.end + 1);
+  const tail = lines.slice(seg.end + 1);
+  const skeleton = lines.join('\n');
+
+  const provider = resolveProvider(args.provider);
+  if (provider === 'none') return plain;
+  const { system, user } = buildComposePrompt({
+    docLabel: args.docLabel,
+    docType: args.docType ?? 's138_notice',
+    head, body, prayer: prayerLines.join('\n'), startNumber: seg.startNumber, facts: args.facts,
+  });
+  let composedText: string;
+  try {
+    const result = await complete(provider, system, user, 8000);
+    args.onUsage?.({ ...result, provider, model: modelFor(provider) });
+    composedText = result.text.trim();
+  } catch (err) {
+    logger.warn({ err }, 'intake-compose: compose call failed, falling back to engine draft');
+    return plain;
+  }
+  if (!composedText) return plain;
+
+  let paragraphs = toParagraphs(composedText);
+  const removed: string[] = [];
+  const factText = Object.values(args.facts).join('\n');
+
+  // INTRODUCED: particulars from nowhere -> strip those sentences.
+  const introduced = introducedParticulars(paragraphs.join('\n'), [skeleton, factText]);
+  if (introduced.length) {
+    const s = stripSentences(paragraphs, introduced.map((p) => p.raw));
+    paragraphs = s.paragraphs;
+    removed.push(...s.removed);
   }
 
-  // Normalise the light Markdown the compose prompt emits into CLEAN text before it
-  // becomes block data. The blocks are plain-text and flow to the preview, Copy, Save
-  // and export alike — so raw "**" / table pipes must not survive here (a rendered-only
-  // fix leaves asterisks in the copied/saved document). Bold emphasis is a display
-  // concern the filing .docx carries via its template; the block text stays clean prose.
-  const clean = normaliseComposedMarkdown(composed.text);
-  const paragraphs = clean.split(/\n{2,}/).map((t) => t.trim()).filter(Boolean);
-  const blocks = paragraphs.map((text, i) => ({ key: `composed_${i}`, text }));
-  return { blocks, composed: true, modelUsed: composed.modelUsed };
+  // VERIFY: a model fact-check of what's left; flagged claims stripped the same way.
+  const verdict = await verify({ composedText: paragraphs.join('\n\n'), skeleton, facts: args.facts, provider: args.provider });
+  if (!verdict.ok) return reject(verdict.unsupportedClaims.join('; '));
+  if (verdict.unsupportedClaims.length) {
+    const s = stripSentences(paragraphs, verdict.unsupportedClaims);
+    if (s.unresolved.length) return reject(`unlocated claims: ${verdict.unsupportedClaims.join('; ')}`);
+    paragraphs = s.paragraphs;
+    removed.push(...s.removed);
+  }
+
+  // LOST: anything load-bearing from the skeleton body that didn't survive.
+  const lost = lostParticulars(body, paragraphs.join('\n'));
+  if (lost.length) return reject(`dropped from the skeleton: ${lost.map((p) => p.raw).join(', ')}`);
+  if (!paragraphs.length) return reject('nothing left after checks');
+
+  const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
+  const spliced = [...paragraphs, ...prayer];
+  const blocks = [...lines.slice(0, seg.start), ...spliced, ...tail].map((text, i) => ({ key: `composed_${i}`, text }));
+  if (removed.length) logger.info({ docType: args.docType, removed }, 'intake-compose: sentences removed by checks');
+  return {
+    blocks,
+    composed: true,
+    splice: { start: seg.start, end: seg.end, paragraphs: spliced },
+    ...(removed.length ? { removedSentences: removed } : {}),
+    modelUsed: providerTag(provider),
+  };
 }
 
 // Namespaced export (mirrors intakeLlm.extract/.phrase) so intake.service calls
