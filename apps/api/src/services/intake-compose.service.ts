@@ -77,10 +77,10 @@ function resolveProvider(override?: 'xai' | 'anthropic'): Provider {
   return env.llmProvider;
 }
 
+// Compose WRITES the pleading, so it always uses the heavy drafting model.
+// INTAKE_MODEL is the fast extractor/classifier model; compose once borrowed it,
+// which silently drafted every pleading on the small model.
 function modelFor(provider: Provider): string {
-  if (env.intakeModel && (env.intakeProvider === provider || env.intakeProvider === '')) {
-    return env.intakeModel;
-  }
   return provider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL;
 }
 
