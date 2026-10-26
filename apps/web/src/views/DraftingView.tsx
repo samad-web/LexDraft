@@ -115,6 +115,34 @@ function seedDefaults(): ValuesByDoc {
   return seed;
 }
 
+/** The smallest line range [start, end] of `before` that, replaced by
+ *  `paragraphs`, turns it into `after` — the shared head and tail are trimmed off.
+ *  A pure insertion or deletion absorbs one neighbouring line so the range and its
+ *  replacement are never empty (the engine splice needs both). null = no change. */
+function changedRange(before: string[], after: string[]): { start: number; end: number; paragraphs: string[] } | null {
+  let p = 0;
+  while (p < before.length && p < after.length && before[p] === after[p]) p += 1;
+  let s = 0;
+  while (s < before.length - p && s < after.length - p && before[before.length - 1 - s] === after[after.length - 1 - s]) s += 1;
+  let start = p;
+  let end = before.length - 1 - s;
+  let paragraphs = after.slice(p, after.length - s);
+  if (end < start && paragraphs.length === 0) return null;
+  if (end < start || paragraphs.length === 0) {
+    if (start > 0) {
+      start -= 1;
+      paragraphs = [before[start]!, ...paragraphs];
+      end = Math.max(end, start);
+    } else if (end + 1 < before.length) {
+      end += 1;
+      paragraphs = [...paragraphs, before[end]!];
+    } else {
+      return null;
+    }
+  }
+  return { start, end, paragraphs };
+}
+
 /** The edited document as display paragraphs — one per <p>/<div>/<li>, each
  *  <br> a line — the same blocks the engine render was shown as. */
 function editedParagraphs(html: string): string[] {
@@ -707,10 +735,12 @@ export function DraftingView() {
   // The open items to show below the preview: the captured set from an accepted
   // pipeline draft when present, otherwise a live scan of the current draft text
   // for bracketed placeholders. Derived-only — never fed back into the body.
-  const effectiveOpenItems = useMemo<OpenItems>(
-    () => openItems ?? collectOpenItems({ bodyText: htmlToPlainText(displayHtml) }),
-    [openItems, displayHtml],
-  );
+  // Placeholders always come from the text on screen: a set captured when the
+  // draft arrived goes stale the moment a Redraft or hand edit fills a gap.
+  const effectiveOpenItems = useMemo<OpenItems>(() => {
+    const live = collectOpenItems({ bodyText: htmlToPlainText(displayHtml) });
+    return openItems ? { ...openItems, placeholders: live.placeholders } : live;
+  }, [openItems, displayHtml]);
 
   // Sanhita stale-IPC scan: when generation finishes (or a draft is loaded),
   // POST the body to /api/sanhita/scan and surface chips for any matches that
@@ -2051,7 +2081,29 @@ export function DraftingView() {
                 <DraftRevisePanel
                   docType={activeDocType}
                   paragraphs={draftParagraphs}
-                  onAccept={(paras, layoutKept) => {
+                  onAccept={async (paras, layoutKept) => {
+                    // Engine draft, untouched by hand: write the changed lines INTO the
+                    // .docx and make that the draft, so the formatted preview, PDF and
+                    // Word download all show the redraft in the court layout.
+                    const range = changedRange(draftParagraphs, paras);
+                    if (range && engineDocxBase64 && !hasLocalEdits && !companionDoc) {
+                      try {
+                        const out = await api.post<{ matched: boolean; docxBase64?: string }>(
+                          '/drafting/engine/splice-lines',
+                          { docxBase64: engineDocxBase64, ...range },
+                        );
+                        if (out.matched && out.docxBase64) {
+                          skipResetOnSeedRef.current = true;
+                          stream.seed({ docType: activeDocType, text: paras.join('\n\n'), generatedAt: new Date().toISOString() });
+                          setEditedHtml(null);
+                          setEngineDocxBase64(out.docxBase64);
+                          showToast({ type: 'sage', text: 'Redraft applied' });
+                          return;
+                        }
+                      } catch {
+                        // Fall through to the editor-only copy below.
+                      }
+                    }
                     // One <p> per line, so editedParagraphs() reads back the same
                     // blocks and the engine .docx write-back still lines up.
                     setEditedHtml(plainTextToHtml(paras.join('\n\n')));

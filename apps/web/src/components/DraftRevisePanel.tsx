@@ -32,7 +32,7 @@ export function DraftRevisePanel({
 }: {
   docType: string;
   paragraphs: string[];
-  onAccept: (paragraphs: string[], layoutKept: boolean) => void;
+  onAccept: (paragraphs: string[], layoutKept: boolean) => void | Promise<void>;
 }) {
   const [instruction, setInstruction] = useState('');
   const [busy, setBusy] = useState(false);

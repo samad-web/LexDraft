@@ -847,6 +847,26 @@ draftingRouter.post('/engine/apply-edits', requireFeature('drafting.ai'), async 
   }
 });
 
+// Replace engine-block lines [start, end] of an engine .docx with new paragraphs —
+// how an accepted Redraft reaches the filing copy (paragraphs added or removed
+// included), so the preview PDF and downloads keep the court layout.
+const SpliceLinesBody = z.object({
+  docxBase64: z.string().min(1).max(20_000_000),
+  start: z.number().int().min(0),
+  end: z.number().int().min(0),
+  paragraphs: z.array(z.string().max(20_000)).min(1).max(5_000),
+});
+draftingRouter.post('/engine/splice-lines', requireFeature('drafting.ai'), async (req, res, next) => {
+  try {
+    const p = SpliceLinesBody.parse(req.body);
+    const docx = await engineClient.spliceLines(p.docxBase64, p.start, p.end, p.paragraphs);
+    res.json(docx ? { matched: true, docxBase64: docx } : { matched: false });
+  } catch (err) {
+    if (err instanceof EngineDisabledError) { res.status(503).json({ error: 'engine_unavailable' }); return; }
+    next(err);
+  }
+});
+
 // Ensure a fact sheet exists for this draft and return its matterId. The Draft
 // page has no fact sheet of its own yet; this creates one (version 1) from the
 // current form so the engine has a versioned matter to key sign-off on. If a

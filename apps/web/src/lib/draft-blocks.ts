@@ -197,6 +197,8 @@ export function scanPlaceholders(text: string): string[] {
     // Ignore neutral/numeric brackets (citations, footnote markers) — a real
     // placeholder always contains at least one letter to describe what's missing.
     if (!/[a-z]/i.test(raw)) continue;
+    // The engine's review banners are status lines, not facts to fill.
+    if (/pending advocate review|for advocate review/i.test(raw)) continue;
     const key = raw.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
