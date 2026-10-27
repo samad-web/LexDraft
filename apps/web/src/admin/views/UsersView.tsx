@@ -47,6 +47,48 @@ function profileLine(u: AdminUserSummary): string {
   return [...parts, place].filter(Boolean).join(' · ');
 }
 
+/** Every sign-up detail, in the order the panel and the CSV show them. */
+function detailRows(u: AdminUserSummary): [string, string][] {
+  return [
+    ['Name', u.name],
+    ['Email', u.email],
+    ['WhatsApp', u.phone ?? ''],
+    ['WhatsApp verified', u.phoneVerifiedAt ? formatDate(u.phoneVerifiedAt) : ''],
+    ['Account type', u.accountType ? ACCOUNT_TYPE_LABEL[u.accountType] : ''],
+    ['Role', u.role],
+    ['Firm', u.firmName ?? ''],
+    ['Enrolment no.', u.enrolment ?? ''],
+    ['Primary court', u.primaryCourt ?? ''],
+    ['Practice areas', u.practiceAreas ?? ''],
+    ['College', u.college ?? ''],
+    ['Year of study', u.studyYear ?? ''],
+    ['Team size', u.teamSize ?? ''],
+    ['City', u.city ?? ''],
+    ['State', u.state ?? ''],
+    ['Plan', planLabel(u)],
+    ['Storage used', formatBytes(u.storageBytes ?? 0)],
+    ['Storage limit', u.storageLimitBytes ? formatBytes(u.storageLimitBytes) : 'Unlimited'],
+    ['Sign-in method', u.signInMethod === 'google' ? 'Google' : 'Password'],
+    ['Joined', formatDate(u.createdAt)],
+    ['Last active', formatDate(u.lastSeenAt)],
+    ['Status', u.status],
+  ];
+}
+
+function downloadCsv(users: AdminUserSummary[]) {
+  if (users.length === 0) return;
+  const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const header = detailRows(users[0]!).map(([k]) => k);
+  const lines = [header, ...users.map((u) => detailRows(u).map(([, v]) => v))].map((r) => r.map(cell).join(','));
+  // BOM so Excel opens the file as UTF-8.
+  const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lexdraft-users-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 export function UsersView() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
@@ -54,13 +96,19 @@ export function UsersView() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('');
   const [sort, setSort] = useState<SortKey>('newest');
   const { data: allUsers = [], isLoading } = useAdminUsers({ q: q || undefined, status: status || undefined });
+  const [stateFilter, setStateFilter] = useState('');
+  const states = useMemo(
+    () => [...new Set(allUsers.map((u) => u.state?.trim()).filter((s): s is string => !!s))].sort(),
+    [allUsers],
+  );
   const users = useMemo(() => {
     const filtered = allUsers.filter((u) =>
-      !typeFilter ? true : typeFilter === 'free' ? u.freePlan : u.accountType === typeFilter);
+      (!typeFilter ? true : typeFilter === 'free' ? u.freePlan : u.accountType === typeFilter)
+      && (!stateFilter ? true : stateFilter === '-' ? !u.state?.trim() : u.state?.trim() === stateFilter));
     if (sort === 'storage') return [...filtered].sort((a, b) => (b.storageBytes ?? 0) - (a.storageBytes ?? 0));
     if (sort === 'active') return [...filtered].sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''));
     return filtered;
-  }, [allUsers, typeFilter, sort]);
+  }, [allUsers, typeFilter, stateFilter, sort]);
   const pager = usePagination(users);
   const setFirmFreePlan = useSetFirmFreePlan();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
@@ -71,6 +119,7 @@ export function UsersView() {
   const showToast = useUIStore((s) => s.showToast);
   const confirm = useConfirm();
   const [resetResult, setResetResult] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [detail, setDetail] = useState<AdminUserSummary | null>(null);
 
   const handleImpersonate = async (u: AdminUserSummary) => {
     const ok = await confirm({
@@ -130,7 +179,12 @@ export function UsersView() {
     <div className="col stagger" style={{ gap: 24 }}>
       <header>
         <div className="eyebrow" style={{ marginBottom: 8 }}>Users</div>
-        <h1 className="display-md">Cross-firm directory · {users.length}</h1>
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
+          <h1 className="display-md">Cross-firm directory · {users.length}</h1>
+          <button type="button" className="btn btn-sm" disabled={users.length === 0} onClick={() => downloadCsv(users)}>
+            Export CSV
+          </button>
+        </div>
       </header>
 
       <div style={{ display: 'flex', gap: 12 }}>
@@ -151,6 +205,17 @@ export function UsersView() {
               { value: 'student', label: 'Law students' },
               { value: 'firm', label: 'Firms' },
               { value: 'free', label: 'On free plan' },
+            ]}
+          />
+        </div>
+        <div style={{ width: 170 }}>
+          <Select
+            value={stateFilter}
+            onChange={setStateFilter}
+            options={[
+              { value: '', label: 'All states' },
+              ...states.map((s) => ({ value: s, label: s })),
+              { value: '-', label: 'State not given' },
             ]}
           />
         </div>
@@ -186,6 +251,7 @@ export function UsersView() {
               <th>Name</th>
               <th>Email</th>
               <th>WhatsApp</th>
+              <th>State</th>
               <th>Plan</th>
               <th>Storage</th>
               <th>Joined</th>
@@ -200,6 +266,7 @@ export function UsersView() {
                 <td><Skeleton width={120} height={14} /></td>
                 <td><Skeleton width={180} height={12} /></td>
                 <td><Skeleton width={110} height={12} /></td>
+                <td><Skeleton width={80} height={13} /></td>
                 <td><Skeleton width={110} height={13} /></td>
                 <td><Skeleton width={70} height={13} /></td>
                 <td><Skeleton width={80} height={13} /></td>
@@ -217,6 +284,7 @@ export function UsersView() {
               <th>Name</th>
               <th>Email</th>
               <th>WhatsApp</th>
+              <th>State</th>
               <th>Plan</th>
               <th>Storage</th>
               <th>Joined</th>
@@ -229,7 +297,14 @@ export function UsersView() {
             {pager.slice.map((u) => (
               <tr key={u.id}>
                 <td>
-                  {u.name}
+                  <button
+                    type="button"
+                    onClick={() => setDetail(u)}
+                    title="View all details"
+                    style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: 3 }}
+                  >
+                    {u.name}
+                  </button>
                   {u.isSuperadmin && <span className="badge badge-vermillion mono" style={{ marginLeft: 8, fontSize: 9 }}>SUPER</span>}
                   {u.accountType && <span className="badge mono" style={{ marginLeft: 8, fontSize: 9 }}>{ACCOUNT_TYPE_LABEL[u.accountType]}</span>}
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
@@ -248,6 +323,7 @@ export function UsersView() {
                     <a href={`https://wa.me/${u.phone.replace(/^\+/, '')}`} target="_blank" rel="noreferrer">{u.phone}</a>
                   ) : '-'}
                 </td>
+                <td style={{ fontSize: 12 }}>{u.state || '-'}</td>
                 <td style={{ fontSize: 12 }}>{planLabel(u)}</td>
                 <td className="mono" style={{ fontSize: 12 }}>
                   {formatBytes(u.storageBytes ?? 0)}
@@ -327,7 +403,7 @@ export function UsersView() {
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
+              <tr><td colSpan={10} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
             )}
           </tbody>
         </table>
@@ -340,6 +416,47 @@ export function UsersView() {
           pageSize={pager.pageSize}
           onChange={pager.setPage}
         />
+      )}
+
+      {detail && (
+        <div
+          role="dialog"
+          aria-label={`Details for ${detail.name}`}
+          style={{
+            position: 'fixed', inset: 0, background: 'var(--scrim)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
+          }}
+          onClick={() => setDetail(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-lg)', padding: 28, width: 560, maxWidth: 'calc(100vw - 32px)',
+              maxHeight: 'calc(100vh - 64px)', overflowY: 'auto',
+            }}
+          >
+            <div className="eyebrow">User details</div>
+            <h3 className="display" style={{ fontSize: 20, fontWeight: 600, marginTop: 4 }}>{detail.name}</h3>
+            <table className="tbl" style={{ marginTop: 16 }}>
+              <tbody>
+                {detailRows(detail).map(([k, v]) => (
+                  <tr key={k}>
+                    <td className="muted" style={{ fontSize: 12, width: 170 }}>{k}</td>
+                    <td style={{ fontSize: 13 }}>
+                      {k === 'WhatsApp' && v
+                        ? <a className="mono" href={`https://wa.me/${v.replace(/^\+/, '')}`} target="_blank" rel="noreferrer">{v}</a>
+                        : (v || '-')}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button type="button" className="btn btn-primary" onClick={() => setDetail(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {resetResult && (
