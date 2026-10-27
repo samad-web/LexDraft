@@ -570,7 +570,8 @@ export const authService = {
       // means 401 - no account is silently created and no superadmin can
       // ever materialize via the email-contains-'admin' shortcut.
       if (!env.devAuthAutoProvision) {
-        throw new UnauthorizedError('Invalid credentials');
+        // Sign in never creates an account: point them at sign-up instead.
+        throw new UnauthorizedError('No LexDraft account uses this email. Create your free account first.', { code: 'account_not_found' });
       }
       const isAdminish = email.toLowerCase().includes('admin');
       const localPart = email.split('@')[0] ?? '';

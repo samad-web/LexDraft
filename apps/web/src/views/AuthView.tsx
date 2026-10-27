@@ -138,7 +138,11 @@ export function AuthView() {
     ? 'Use at least 8 characters.'
     : confirmPassword && confirmPassword !== newPassword ? 'The passwords do not match.' : null;
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
-  const startTrial = () => { setMfaChallenge(null); setGoogleSignup(null); setVerified(null); setRole(null); setStep(0); setTab('signup'); };
+  // A preset role (the Firm tab's trial link) skips the role picker.
+  const startTrial = (preset: Role | null = null) => {
+    setMfaChallenge(null); setGoogleSignup(null); setVerified(null);
+    setRole(preset); setStep(preset ? 1 : 0); setTab('signup');
+  };
   const bookDemo = () => { setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
   const onComplete = (resp?: { user?: { isSuperadmin?: boolean } }) =>
@@ -452,7 +456,16 @@ export function AuthView() {
                 </button>
               </label>
               {signIn.isError && (
-                <div role="alert" style={noticeStyle}>{signIn.error.message}</div>
+                (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
+                  <div role="alert" style={noticeStyle}>
+                    No LexDraft account uses this email.{' '}
+                    <button type="button" className="auth-link" onClick={() => startTrial(audience === 'firm' ? 'group' : null)}>
+                      {audience === 'firm' ? 'Start your firm’s 14-day trial' : 'Create your free account'}
+                    </button>
+                  </div>
+                ) : (
+                  <div role="alert" style={noticeStyle}>{signIn.error.message}</div>
+                )
               )}
               <div className="auth-actions">
                 <a className="auth-forgot" href="mailto:support@lexdraft.in?subject=Forgot%20password">Forgot password?</a>
@@ -473,10 +486,15 @@ export function AuthView() {
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>New firm on LexDraft?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Book a demo</button></>
+                <>New firm on LexDraft?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
               ) : (
-                <>New to LexDraft?{' '}<button type="button" className="auth-link" onClick={startTrial}>Start a 14-day free trial</button></>
+                <>New to LexDraft?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
               )}
+            </p>
+            <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
+              {audience === 'firm'
+                ? 'Every feature for 14 days · no card needed'
+                : 'Free for advocates & law students till 1 June 2027'}
             </p>
             <button
               type="button"
