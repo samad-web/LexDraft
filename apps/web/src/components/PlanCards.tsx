@@ -82,11 +82,18 @@ interface Props {
   currentId?: BillingPlanId | null;
   /** Hide feature lists (narrow places). */
   compact?: boolean;
+  /** Wide pages: up to this many cards per row (default two). */
+  columns?: number;
 }
 
-export function PlanCards({ plans, cycle, selected, onSelect, currentId, compact }: Props) {
+export function PlanCards({ plans, cycle, selected, onSelect, currentId, compact, columns }: Props) {
   return (
-    <div className="facts-grid-2" style={{ gap: 10 }}>
+    <div
+      className={columns ? undefined : 'facts-grid-2'}
+      style={columns
+        ? { display: 'grid', gap: 12, gridTemplateColumns: `repeat(auto-fit, minmax(${columns >= 4 ? 190 : 220}px, 1fr))` }
+        : { gap: 10 }}
+    >
       {plans.map((p) => {
         const active = selected === p.id;
         const price = planPrice(p, cycle);

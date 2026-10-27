@@ -6,11 +6,12 @@ import { env } from '../env';
 import { db } from '../db/client';
 import { mfaService } from './mfa.service';
 import { getPlanState, evaluatePlanState } from './plan-status.service';
-import { ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
+import { BadRequestError, ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
 import { billingService } from './billing.service';
+import { assertDeliverableEmail } from '../lib/email-check';
 
 /**
  * Transitional response returned by signIn when the user is MFA-enrolled
@@ -77,6 +78,8 @@ interface UserRow {
   plan_status: 'trial' | 'active' | 'past_due' | 'cancelled' | null;
   trial_ends_at: string | Date | null;
   is_demo: boolean | null;
+  /** Migration 0097: null until the post-sign-up onboarding is finished. */
+  onboarded_at?: Date | null;
 }
 
 /**
@@ -106,7 +109,7 @@ export function systemRoleNameFor(roleText: string): string | null {
 
 /** Role id for a role label: a system role via systemRoleNameFor, else a
  *  firm-defined custom role of that name (created by an "Other" invite). */
-async function resolveSystemRoleId(roleText: string, firmId?: string | null): Promise<string | null> {
+export async function resolveSystemRoleId(roleText: string, firmId?: string | null): Promise<string | null> {
   const sql = db();
   if (!sql) return null;
   const name = systemRoleNameFor(roleText);
@@ -255,12 +258,13 @@ function rowToPublic(row: UserRow): User {
     ? (row.trial_ends_at instanceof Date ? row.trial_ends_at.toISOString() : row.trial_ends_at)
     : null;
   user.isDemo = !!row.is_demo;
+  if (row.onboarded_at === null) user.needsOnboarding = true;
   return user;
 }
 
 const USER_SELECT_WITH_FIRM = `
   select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.google_sub, u.firm_id,
-         u.enrolment, u.primary_court, u.practice_areas, u.default_language_code,
+         u.enrolment, u.primary_court, u.practice_areas, u.default_language_code, u.onboarded_at,
          f.name as firm_name, f.plan_tier,
          f.plan_status, f.trial_ends_at, f.is_demo
   from users u
@@ -420,6 +424,7 @@ async function insertUserWithNewFirm(
 /** Token handed to a Google user who has no account yet. Signed with a
  *  derived secret so it can never pass requireAuth as a session token. */
 const SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:google-signup`;
+const EMAIL_SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:email-signup`;
 
 interface SignupTokenClaims {
   google: GoogleIdentity;
@@ -672,6 +677,70 @@ export const authService = {
   },
 
   /** Send a WhatsApp OTP to the number a new Google user entered. */
+  /** Sign-up form (name, email, WhatsApp number, password): checks the email
+   *  and number are free and sends the WhatsApp code. The account is made by
+   *  completeEmailSignup once the code is entered. */
+  async startEmailSignup(input: { name: string; email: string; phone: string; ip: string | null }) {
+    const email = input.email.trim().toLowerCase();
+    await assertDeliverableEmail(email);
+    const phone = normalizePhone(input.phone);
+    if (phone.startsWith('+91') && !/^\+91[6-9]\d{9}$/.test(phone)) {
+      throw new BadRequestError('Enter a valid 10-digit Indian mobile number that uses WhatsApp.');
+    }
+    if (await findByEmail(email)) {
+      throw new ConflictError('An account with this email already exists. Sign in instead.');
+    }
+    await assertPhoneUnused(phone);
+    const challenge = await phoneOtpService.start({ phone, googleSub: `email:${email}`, ip: input.ip });
+    const signupToken = jwt.sign(
+      { purpose: 'email-signup', name: input.name.trim(), email, phone },
+      EMAIL_SIGNUP_TOKEN_SECRET,
+      { expiresIn: '30m' },
+    );
+    return { ...challenge, phone, signupToken };
+  },
+
+  /** Verifies the WhatsApp code and creates the account. Plan and practice
+   *  details follow on /onboarding. */
+  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }): Promise<AuthResponse> {
+    let claims: { purpose?: string; name?: string; email?: string; phone?: string };
+    try {
+      claims = jwt.verify(input.signupToken, EMAIL_SIGNUP_TOKEN_SECRET) as typeof claims;
+      if (claims.purpose !== 'email-signup' || !claims.email || !claims.phone || !claims.name) throw new Error('bad');
+    } catch {
+      throw new UnauthorizedError('Your sign-up session expired. Start again.');
+    }
+    const phone = await phoneOtpService.verify({
+      challengeId: input.challengeId,
+      code: input.code,
+      googleSub: `email:${claims.email}`,
+    });
+    if (await findByEmail(claims.email)) {
+      throw new ConflictError('An account with this email already exists. Sign in instead.');
+    }
+    await assertPhoneUnused(phone);
+    const user = await insertUserWithNewFirm(
+      {
+        id: '',
+        name: claims.name,
+        email: claims.email,
+        role: 'Solo Advocate',
+        firm: '',
+        isSuperadmin: false,
+        passwordHash: await bcrypt.hash(input.password, 10),
+        phone,
+        profile: {},
+      },
+      `${claims.name} (Solo)`,
+      'Solo',
+      'trial',
+    );
+    const sql = db();
+    if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
+    user.needsOnboarding = true;
+    return { user, token: issueToken(user) };
+  },
+
   async startSignupOtp(input: { signupToken: string; phone: string; ip: string | null }) {
     const claims = verifySignupToken(input.signupToken);
     const phone = normalizePhone(input.phone);
@@ -720,9 +789,15 @@ export const authService = {
       planTierForSignUpRole(input.role),
       input.intent ?? 'trial',
     );
-    const plan = input.plan ?? (input.role === 'group' ? 'practice' : 'free');
-    await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
-      .catch(() => undefined);
+    if (input.plan) {
+      await billingService.recordSignup(user.id, input.plan, input.plan === 'free' ? null : input.billingCycle ?? 'monthly')
+        .catch(() => undefined);
+    } else {
+      // Plan and practice details come next, on /onboarding.
+      const sql = db();
+      if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
+      user.needsOnboarding = true;
+    }
     return { user, token: issueToken(user) };
   },
 

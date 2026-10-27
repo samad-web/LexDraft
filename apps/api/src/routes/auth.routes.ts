@@ -165,6 +165,38 @@ authRouter.post('/signup/otp/verify', signInLimiter, async (req, res, next) => {
   }
 });
 
+// Sign-up form: name, email, WhatsApp number -> code on WhatsApp; then the
+// code + password create the account (plan and practice on /onboarding).
+const EmailSignupStart = z.object({
+  name: z.string().trim().min(1, 'Enter your name').max(200),
+  email: z.string().email('Enter a valid email').max(254),
+  phone: z.string().min(8).max(24),
+}).strict();
+const EmailSignupComplete = z.object({
+  signupToken: z.string().min(20).max(4096),
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  password: z.string().min(8, 'Use at least 8 characters').max(128),
+}).strict();
+
+authRouter.post('/signup/email/start', otpSendLimiter, async (req, res, next) => {
+  try {
+    const body = EmailSignupStart.parse(req.body);
+    res.json(await authService.startEmailSignup({ ...body, ip: req.ip ?? null }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/signup/email/complete', signUpLimiter, async (req, res, next) => {
+  try {
+    const body = EmailSignupComplete.parse(req.body);
+    res.status(201).json(await authService.completeEmailSignup(body));
+  } catch (err) {
+    next(err);
+  }
+});
+
 authRouter.post('/google/sign-up', signUpLimiter, async (req, res, next) => {
   try {
     const body = GoogleSignUp.parse(req.body);

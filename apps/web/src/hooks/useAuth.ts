@@ -102,6 +102,60 @@ export function useGoogleSignIn() {
   });
 }
 
+/** Google check for the sign-up page: same call as useGoogleSignIn but it
+ *  does NOT start a session, so an existing account can be shown to the
+ *  user first ("you already have an account") instead of jumping in. */
+export function useGoogleSignupCheck() {
+  return useMutation<GoogleSignInResult, Error, { credential: string }>({
+    mutationFn: (body) => api.post<GoogleSignInResult>('/auth/google', body),
+  });
+}
+
+/** Starts the session for a sign-in result obtained by useGoogleSignupCheck. */
+export function useApplySignIn() {
+  const setSession = useAuthStore((s) => s.setSession);
+  const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);
+  const qc = useQueryClient();
+  return (r: SignInResult) => {
+    if (isMfaChallenge(r)) return;
+    qc.clear();
+    setSession(r.user, r.token);
+    setForceMfaEnrollment(!!r.mustEnrollMfa);
+  };
+}
+
+// ---- Sign-up form: name, email, WhatsApp number, password -----------------
+
+export interface EmailSignupChallenge {
+  signupToken: string;
+  challengeId: string;
+  expiresAt: string;
+  resendAfterSeconds: number;
+  phone: string;
+}
+
+/** Checks the email and number are free and sends the WhatsApp code. */
+export function useEmailSignupStart() {
+  return useMutation({
+    mutationFn: (body: { name: string; email: string; phone: string }) =>
+      api.post<EmailSignupChallenge>('/auth/signup/email/start', body),
+  });
+}
+
+/** Code + password -> the account is created and the session starts. */
+export function useEmailSignupComplete() {
+  const setSession = useAuthStore((s) => s.setSession);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { signupToken: string; challengeId: string; code: string; password: string }) =>
+      api.post<AuthResponse>('/auth/signup/email/complete', body),
+    onSuccess: (r) => {
+      qc.clear();
+      setSession(r.user, r.token);
+    },
+  });
+}
+
 export function useSendSignupOtp() {
   return useMutation({
     mutationFn: (body: { signupToken: string; phone: string }) =>

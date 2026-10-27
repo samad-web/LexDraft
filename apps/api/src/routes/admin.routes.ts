@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
 import { billingService } from '../services/billing.service';
+import { storage } from '../services/storage.service';
+import { db } from '../db/client';
 import { aiUsageReportService } from '../services/ai-usage-report.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
@@ -117,6 +119,24 @@ adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
 });
 
 // ---- free launch plan switches ---------------------------------------------
+
+// The ID document a user uploaded on /onboarding: a short-lived link.
+adminRouter.get('/users/:id/id-document', async (req, res, next) => {
+  try {
+    const sql = db();
+    const [row] = sql
+      ? await sql<{ id_document_key: string | null }[]>`select id_document_key from users where id = ${req.params.id}::uuid`
+      : [];
+    if (!row?.id_document_key) {
+      res.status(404).json({ error: 'No ID document uploaded' });
+      return;
+    }
+    const link = await storage().presignDownload({ key: row.id_document_key, expiresInSec: 300 });
+    res.json({ url: link.downloadUrl });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Self-serve billing: who picked which plan, who stopped at checkout, who pays.
 adminRouter.get('/billing', async (_req, res, next) => {

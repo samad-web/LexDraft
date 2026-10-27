@@ -4601,6 +4601,12 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   font: inherit; font-size: 15px; font-weight: 500; color: var(--text-primary);
 }
 .auth-field input::placeholder { color: var(--text-tertiary); }
+/* Sign-up field problems. Monochrome on purpose (red is reserved for
+   buttons that name a mandatory issue): bold ink text under the field and
+   a heavier underline on the field itself. */
+.auth-field:has(input[aria-invalid="true"]) { border-bottom: 2px solid var(--text-primary); }
+.auth-field-error { display: block; margin-top: -8px; font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+.auth-field-error::before { content: '! '; font-weight: 700; }
 .auth-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
 .auth-actions-note { font-size: 12.5px; font-weight: 600; line-height: 1.45; color: var(--text-secondary); }
 .btn-pill { border-radius: 999px; }

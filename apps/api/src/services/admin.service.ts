@@ -149,6 +149,12 @@ interface UserRow {
   renews_at?: Date | null;
   billing_cycle?: 'monthly' | 'annual' | null;
   selected_plan?: 'free' | 'solo' | 'practice' | 'firm' | null;
+  id_document_type?: string | null;
+  id_document_number?: string | null;
+  has_id_document?: boolean | null;
+  gstin?: string | null;
+  address_line?: string | null;
+  pincode?: string | null;
 }
 
 const ALL_MODULES: FeatureModule[] = [
@@ -213,6 +219,12 @@ function rowToUserSummary(r: UserRow): AdminUserSummary {
     renewsAt: r.renews_at ? new Date(r.renews_at).toISOString() : null,
     billingCycle: r.billing_cycle ?? null,
     selectedPlan: r.selected_plan ?? null,
+    idDocumentType: r.id_document_type ?? null,
+    idDocumentNumber: r.id_document_number ?? null,
+    hasIdDocument: !!r.has_id_document,
+    gstin: r.gstin ?? null,
+    addressLine: r.address_line ?? null,
+    pincode: r.pincode ?? null,
   };
 }
 
@@ -270,7 +282,9 @@ export const adminService = {
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
-             f.renews_at, f.billing_cycle, f.selected_plan
+             f.renews_at, f.billing_cycle, f.selected_plan,
+             u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.gstin, u.address_line, u.pincode
         from users u left join firms f on f.id = u.firm_id
         where u.firm_id = ${id}::uuid
         order by u.created_at asc
@@ -567,7 +581,9 @@ export const adminService = {
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
-             f.renews_at, f.billing_cycle, f.selected_plan
+             f.renews_at, f.billing_cycle, f.selected_plan,
+             u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.gstin, u.address_line, u.pincode
       from users u
       left join firms f on f.id = u.firm_id
       where (${filter.firmId ?? null}::uuid is null or u.firm_id = ${filter.firmId ?? null}::uuid)
@@ -672,7 +688,9 @@ export const adminService = {
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
-             f.renews_at, f.billing_cycle, f.selected_plan
+             f.renews_at, f.billing_cycle, f.selected_plan,
+             u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.gstin, u.address_line, u.pincode
       from users u left join firms f on f.id = u.firm_id
       where u.id = ${id}::uuid limit 1
     `;

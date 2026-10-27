@@ -227,6 +227,9 @@ export interface User {
    *  funnel — UI badges the session and surfaces "Convert to a real
    *  account" CTAs. */
   isDemo?: boolean;
+  /** Self-serve account that has not finished /onboarding yet (plan +
+   *  practice details). Absent once done. */
+  needsOnboarding?: boolean;
 }
 
 export interface AuthResponse {
@@ -1068,6 +1071,13 @@ export interface AdminUserSummary {
   renewsAt?: string | null;
   billingCycle?: BillingCycle | null;
   selectedPlan?: BillingPlanId | null;
+  /** Verification details from /onboarding (migration 0097). */
+  idDocumentType?: string | null;
+  idDocumentNumber?: string | null;
+  hasIdDocument?: boolean;
+  gstin?: string | null;
+  addressLine?: string | null;
+  pincode?: string | null;
   /** Bytes of uploaded files held by the user's firm (the user's own for a
    *  solo / free account), and its limit (null = unlimited). */
   storageBytes?: number;
@@ -1154,6 +1164,41 @@ export interface AdminBillingSummary {
   abandonedCheckouts: number;
   /** Sign-ups by chosen plan, last 30 days. */
   signupsByPlan: Record<string, number>;
+}
+
+/** POST /onboarding/complete - the plan and practice details picked on
+ *  /onboarding after the account is created. */
+export interface OnboardingCompleteRequest {
+  plan: 'free' | 'solo' | 'practice';
+  cycle?: BillingCycle;
+  /** Free plan only: advocate or law student. */
+  kind?: 'advocate' | 'student';
+  firm?: string;
+  enrolment?: string;
+  primaryCourt?: string;
+  practiceAreas?: string;
+  city?: string;
+  state?: string;
+  college?: string;
+  studyYear?: string;
+  teamSize?: string;
+  /** Verification step. */
+  idDocumentType?: 'bar_council_id' | 'enrolment_certificate' | 'student_id' | 'aadhaar' | 'pan';
+  idDocumentNumber?: string;
+  /** Storage keys from POST /onboarding/upload. */
+  idDocumentKey?: string;
+  logoKey?: string;
+  gstin?: string;
+  addressLine?: string;
+  pincode?: string;
+}
+
+export interface OnboardingCompleteResponse {
+  user: User;
+  /** Solo: Dodo's payment page to open next. */
+  checkoutUrl?: string;
+  /** Solo when the payment page could not be opened; the account stays on Free. */
+  checkoutError?: string;
 }
 
 /** One superadmin switch for the free launch plan. */

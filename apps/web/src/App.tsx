@@ -43,6 +43,7 @@ const DocumentsView = lazy(() => import('@/views/DocumentsView').then((m) => ({ 
 const ResearchView = lazy(() => import('@/views/ResearchView').then((m) => ({ default: m.ResearchView })));
 const SettingsView = lazy(() => import('@/views/SettingsView').then((m) => ({ default: m.SettingsView })));
 const BillingView = lazy(() => import('@/views/BillingView').then((m) => ({ default: m.BillingView })));
+const OnboardingView = lazy(() => import('@/views/OnboardingView').then((m) => ({ default: m.OnboardingView })));
 const CalendarView = lazy(() => import('@/views/CalendarView').then((m) => ({ default: m.CalendarView })));
 const ClientsView = lazy(() => import('@/views/ClientsView').then((m) => ({ default: m.ClientsView })));
 const ClientDetailView = lazy(() => import('@/views/ClientDetailView').then((m) => ({ default: m.ClientDetailView })));
@@ -238,6 +239,14 @@ export function App() {
     if (isAdminRoute) return <><AdminLoginView /><Toast /></>;
     return <Navigate to="/auth" replace state={{ from: location }} />;
   }
+
+  // New self-serve accounts pick a plan and set up the practice first.
+  const onboarding = !!user.needsOnboarding && !user.isSuperadmin && !actAs;
+  if (location.pathname.startsWith('/onboarding')) {
+    if (!onboarding) return <Navigate to="/app/dashboard" replace />;
+    return <><Suspense fallback={pageFallback}><OnboardingView /></Suspense><Toast /></>;
+  }
+  if (onboarding) return <Navigate to="/onboarding" replace />;
 
   if (isAdminRoute) {
     if (!user.isSuperadmin) {

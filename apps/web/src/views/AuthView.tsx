@@ -6,7 +6,10 @@ import {
   useFirmEnquiry,
   useGoogleSignIn,
   useGoogleSignUp,
+  useEmailSignupComplete,
+  useEmailSignupStart,
   useSignIn,
+  type EmailSignupChallenge,
   type FirmEnquirySize,
   type GoogleSignupRequired,
 } from '@/hooks/useAuth';
@@ -14,12 +17,12 @@ import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
-import { indiaStateOptions } from '@/lib/india-states';
-import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { LogoMark } from '@/components/brand/Logo';
 import { CycleToggle, PlanCards, SIGNUP_PLANS } from '@/components/PlanCards';
-import { useRenewCheckout, useStartCheckout } from '@/hooks/useBilling';
-import type { BillingCycle, BillingPlanId, PaidPlanId } from '@lexdraft/types';
+import { useRenewCheckout } from '@/hooks/useBilling';
+import { readIntro } from '@/lib/intro';
+import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
 // =============================================================================
 // AuthView - Sign in / Sign up + 3-step onboarding
@@ -32,16 +35,27 @@ import type { BillingCycle, BillingPlanId, PaidPlanId } from '@lexdraft/types';
 type AuthTab = 'signin' | 'signup';
 type Role = 'solo' | 'student' | 'group' | 'firm';
 
-// Launch pricing (api: lib/free-plan.ts, services/billing.service.ts):
-//   free     -> solo advocate or law student, free till 1 June 2027
-//   solo     -> paid on Dodo right after the account is created
-//   practice -> law firm, 14-day trial of every feature, pay in-app
-//   firm     -> 9+ people, enquiry form (no self-serve account)
-function roleForPlan(plan: BillingPlanId, freeKind: 'solo' | 'student'): Role {
-  if (plan === 'free') return freeKind;
-  if (plan === 'solo') return 'solo';
-  if (plan === 'practice') return 'group';
-  return 'firm';
+
+const EMAIL_TYPOS: Record<string, string> = {
+  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com',
+  'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.in': 'gmail.com',
+  'gmaill.com': 'gmail.com', 'yaho.com': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'outlok.com': 'outlook.com',
+};
+
+/** Field problems on the sign-up form; the server re-checks every one
+ *  (and also that the email's domain receives mail). */
+function signupProblems(f: { name: string; email: string; phone: string; password: string }) {
+  const email = f.email.trim().toLowerCase();
+  const [local, domain] = email.split('@');
+  const typo = domain && EMAIL_TYPOS[domain] ? `${local}@${EMAIL_TYPOS[domain]}` : null;
+  const digits = f.phone.replace(/\D/g, '').replace(/^(91|0)(?=[6-9]\d{9}$)/, '');
+  return {
+    name: f.name.trim().length < 2 ? 'Enter your full name' : null,
+    email: !email ? 'Enter your email' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email) ? 'Enter a valid email address' : null,
+    emailTypo: typo,
+    phone: !digits ? 'Enter your WhatsApp number' : !/^[6-9]\d{9}$/.test(digits) ? 'Enter a 10-digit mobile number that uses WhatsApp' : null,
+    password: f.password.length < 8 ? 'Use at least 8 characters' : null,
+  };
 }
 
 /** Sign-in refused because the trial / plan ended: the owner gets a token to
@@ -51,11 +65,8 @@ function renewTokenFrom(err: unknown): string | null {
   return data?.status === 402 ? data.data?.details?.renewToken ?? null : null;
 }
 
-const STUDY_YEARS = ['1st year', '2nd year', '3rd year', '4th year', '5th year', 'LL.M.', 'Graduated'];
-const TEAM_SIZES = ['2-3', '4-8', '9-25', '26+'];
 
 // Shown above the new-account steps (step index 0..2).
-const STEP_LABELS: readonly string[] = ['Choose a plan', 'WhatsApp & Google', 'Your details'];
 
 // Maps the `?reason=` value the api.ts interceptor appends on a 402 to a
 // human-friendly banner copy. Anything we don't recognise falls through to
@@ -89,17 +100,23 @@ export function AuthView() {
     setSearchParams(next, { replace: true });
   };
 
-  const [tab, setTab] = useState<AuthTab>('signin');
+  // /auth?signup=1 (landing page CTA) opens the sign-up form directly.
+  const [tab, setTab] = useState<AuthTab>(() => (searchParams.get('signup') ? 'signup' : 'signin'));
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [role, setRole] = useState<Role | null>(null);
   // Step 1 of sign-up: the plan, and (Free) whether advocate or student.
-  const [plan, setPlan] = useState<BillingPlanId | null>(null);
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
-  const [freeKind, setFreeKind] = useState<'solo' | 'student'>('solo');
-  const startCheckout = useStartCheckout();
   const renewCheckout = useRenewCheckout();
   const [renewPlan, setRenewPlan] = useState<PaidPlanId>('solo');
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
+  // Sign-up form. The landing page's "What's your name?" pre-fills the name.
+  const signupStart = useEmailSignupStart();
+  const signupComplete = useEmailSignupComplete();
+  const [suName, setSuName] = useState(() => readIntro().name ?? '');
+  const [suEmail, setSuEmail] = useState('');
+  const [suPhone, setSuPhone] = useState('');
+  const [suCode, setSuCode] = useState('');
+  const [suChallenge, setSuChallenge] = useState<EmailSignupChallenge | null>(null);
 
   // MFA challenge sub-step. Populated when the sign-in POST returns
   // { mfaRequired: true, challengeId, expiresAt } instead of a session.
@@ -113,19 +130,11 @@ export function AuthView() {
   // Sign-up state. `googleSignup` is set when Google returned "no account
   // yet" (from either tab); `verified` once the WhatsApp code is proved.
   const [googleSignup, setGoogleSignup] = useState<GoogleSignupRequired | null>(null);
-  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [enrolment, setEnrolment] = useState('');
   const [firm, setFirm] = useState('');
   const [primaryCourt, setPrimaryCourt] = useState('');
   const [practiceAreas, setPracticeAreas] = useState('');
-  const [city, setCity] = useState('');
-  const [stateName, setStateName] = useState('');
-  const [college, setCollege] = useState('');
-  const [studyYear, setStudyYear] = useState('');
-  const [teamSize, setTeamSize] = useState('');
-  const stateOptions = useMemo(() => indiaStateOptions(), []);
 
   const [signupEmailTouched, setSignupEmailTouched] = useState(false);
   const signupEmailError = signupEmailTouched ? validators.email(email) : null;
@@ -139,26 +148,25 @@ export function AuthView() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
-  const isSignup = tab === 'signup';
   // Who is signing in (the left tabs): copy changes, and the "new here" link
   // starts a trial (advocate) or a firm enquiry / demo (firm).
-  const [audience, setAudience] = useState<'advocate' | 'firm'>('advocate');
+  const [audience, setAudience] = useState<'advocate' | 'firm'>(() => (readIntro().size === 'team' ? 'firm' : 'advocate'));
   // Email + password sign-in; Google is offered underneath.
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const passwordProblem = newPassword && newPassword.length < 8
-    ? 'Use at least 8 characters.'
-    : confirmPassword && confirmPassword !== newPassword ? 'The passwords do not match.' : null;
+  // Field errors show once a field is left, or for all fields on START.
+  const [suTouched, setSuTouched] = useState<Record<string, boolean>>({});
+  const suProblems = signupProblems({ name: suName, email: suEmail, phone: suPhone, password: newPassword });
+  const suShow = (f: 'name' | 'email' | 'phone' | 'password') => (suTouched[f] ? suProblems[f] : null);
+  const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
-    setMfaChallenge(null); setGoogleSignup(null); setVerified(null);
-    setRole(preset); setPlan(preset === 'group' ? 'practice' : null);
-    setStep(preset ? 1 : 0); setTab('signup');
+    setMfaChallenge(null); setGoogleSignup(null); 
+    setRole(preset); setStep(0); setTab('signup');
   };
   const bookDemo = () => { setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
@@ -186,11 +194,10 @@ export function AuthView() {
           if (isGoogleSignupRequired(r)) {
             // New Google account - set up the practice next.
             setGoogleSignup(r);
-            setVerified(null);
+            
             setTab('signup');
             setStep(0);
             setRole(null);
-            setPlan(null);
             return;
           }
           handleSignedIn(r);
@@ -216,38 +223,23 @@ export function AuthView() {
     );
   };
 
-  const handleSignUp = (e: FormEvent<HTMLFormElement>) => {
+
+  const handleSignupStart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!role || !verified || newPassword.length < 8 || newPassword !== confirmPassword) return;
-    signUp.mutate(
-      {
-        signupToken: verified.signupToken,
-        password: newPassword,
-        name: name.trim() || undefined,
-        role,
-        firm: firm || undefined,
-        enrolment: enrolment || undefined,
-        primaryCourt: primaryCourt || undefined,
-        practiceAreas: practiceAreas || undefined,
-        city: city.trim() || undefined,
-        state: stateName || undefined,
-        college: role === 'student' ? college.trim() || undefined : undefined,
-        studyYear: role === 'student' ? studyYear || undefined : undefined,
-        teamSize: role === 'group' ? teamSize || undefined : undefined,
-        plan: plan === 'solo' || plan === 'practice' ? plan : 'free',
-        billingCycle: plan === 'solo' || plan === 'practice' ? cycle : undefined,
-      },
-      {
-        onSuccess: (resp) => {
-          // Solo is paid up front: straight to Dodo's checkout. If that can't
-          // open, the account still works on the free plan.
-          if (plan === 'solo') {
-            startCheckout.mutate({ plan: 'solo', cycle }, { onError: () => onComplete(resp) });
-            return;
-          }
-          onComplete(resp);
-        },
-      },
+    setSuTouched({ name: true, email: true, phone: true, password: true });
+    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password) return;
+    signupStart.mutate(
+      { name: suName.trim(), email: suEmail.trim(), phone: suPhone.trim() },
+      { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
+    );
+  };
+
+  const handleSignupComplete = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!suChallenge) return;
+    signupComplete.mutate(
+      { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword },
+      { onSuccess: () => navigate('/onboarding', { replace: true }) },
     );
   };
 
@@ -290,9 +282,8 @@ export function AuthView() {
     setTab('signin');
     setStep(0);
     setRole(null);
-    setPlan(null);
     setGoogleSignup(null);
-    setVerified(null);
+    
   };
 
   const noticeStyle: CSSProperties = {
@@ -376,28 +367,6 @@ export function AuthView() {
             For Indian advocates
           </div>
         </div>
-
-        {/* Step indicator - only while setting up a new account */}
-        {isSignup && !mfaChallenge && (
-          <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-              {[0, 1, 2].map((s) => (
-                <div
-                  key={s}
-                  style={{
-                    flex: 1,
-                    height: 3,
-                    background: s <= step ? 'var(--text-primary)' : 'var(--border-subtle)',
-                    borderRadius: 'var(--radius-full)',
-                  }}
-                />
-              ))}
-            </div>
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-              STEP {step + 1} OF 3 · {STEP_LABELS[step]}
-            </div>
-          </div>
-        )}
 
         {/* MFA challenge - interleaved between password POST and session creation. */}
         {tab === 'signin' && mfaChallenge && (
@@ -561,48 +530,169 @@ export function AuthView() {
           </div>
         )}
 
-        {/* SIGN UP - STEP 0 (choose a plan) */}
-        {tab === 'signup' && step === 0 && (
+        {/* SIGN UP - form (name, email, WhatsApp, password) -> START sends a
+            WhatsApp code -> code creates the account -> /onboarding. A new
+            Google account (footer button) continues in the block below. */}
+        {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', margin: 0 }}>
-              {googleSignup
-                ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Choose a plan for ${googleSignup.profile.email}.`
-                : 'Choose your plan. You can upgrade any time from inside the app.'}
-            </p>
-            <CycleToggle cycle={cycle} onChange={setCycle} />
-            <PlanCards plans={SIGNUP_PLANS} cycle={cycle} selected={plan} onSelect={setPlan} />
-            {plan === 'free' && (
-              <div role="group" aria-label="I am" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
-                <span className="body-sm" style={{ color: 'var(--text-secondary)' }}>I am</span>
-                {(['solo', 'student'] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    aria-pressed={freeKind === k}
-                    className={`btn btn-sm${freeKind === k ? ' btn-primary' : ''}`}
-                    onClick={() => setFreeKind(k)}
-                  >
-                    {k === 'solo' ? 'an advocate' : 'a law student'}
+            <div style={{ textAlign: 'center' }}>
+              <h1 className="auth-title">{audience === 'firm' ? 'Free trial' : 'Create account'}</h1>
+              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
+                {suChallenge
+                  ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
+                  : audience === 'firm'
+                    ? '14 days of every feature. No card needed.'
+                    : 'Free for advocates & law students till 1 June 2027.'}
+              </p>
+            </div>
+            {!suChallenge ? (
+              <form onSubmit={handleSignupStart} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <label className="auth-field">
+                  <Icon name="clients" size={16} />
+                  <input autoComplete="name" placeholder="Your name" aria-label="Your name" required value={suName} onChange={(e) => setSuName(e.target.value)} onBlur={() => touch('name')} aria-invalid={!!suShow('name')} />
+                </label>
+                {suShow('name') && <span role="alert" className="auth-field-error">{suShow('name')}</span>}
+                <label className="auth-field">
+                  <Icon name="mail" size={16} />
+                  <input type="email" inputMode="email" autoComplete="email" placeholder={audience === 'firm' ? 'Work email' : 'Email'} aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
+                </label>
+                {suShow('email') && <span role="alert" className="auth-field-error">{suShow('email')}</span>}
+                {!suProblems.email && suProblems.emailTypo && (
+                  <span role="alert" className="auth-field-error">
+                    Did you mean <strong>{suProblems.emailTypo}</strong>?{' '}
+                    <button type="button" className="auth-link" onClick={() => setSuEmail(suProblems.emailTypo!)}>Use it</button>
+                  </span>
+                )}
+                <label className="auth-field">
+                  <Icon name="chat" size={16} />
+                  <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number (10 digits)" aria-label="WhatsApp number" required value={suPhone} onChange={(e) => setSuPhone(e.target.value)} onBlur={() => touch('phone')} aria-invalid={!!suShow('phone')} />
+                </label>
+                {suShow('phone') && <span role="alert" className="auth-field-error">{suShow('phone')}</span>}
+                <label className="auth-field">
+                  <Icon name="key" size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="Password (8+ characters)"
+                    aria-label="Password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onBlur={() => touch('password')}
+                    aria-invalid={!!suShow('password')}
+                  />
+                  <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                   </button>
-                ))}
-              </div>
+                </label>
+                {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
+                <span className="body-xs" style={{ color: 'var(--text-tertiary)', marginTop: -6 }}>
+                  We send a 6-digit code on WhatsApp to verify your number. All fields are required.
+                </span>
+                {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
+                <div className="auth-actions">
+                  <span className="body-xs" style={{ color: 'var(--text-tertiary)', maxWidth: 240, lineHeight: 1.5 }}>
+                    By starting you agree to DifAI&rsquo;s Terms and Privacy Policy.
+                  </span>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-lg btn-pill auth-submit"
+                    disabled={signupStart.isPending}
+                  >
+                    {signupStart.isPending ? 'Sending…' : 'Start'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSignupComplete} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <label className="auth-field">
+                  <Icon name="shield" size={16} />
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="6-digit code"
+                    aria-label="Verification code"
+                    autoFocus
+                    value={suCode}
+                    onChange={(e) => setSuCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    style={{ letterSpacing: '0.3em' }}
+                  />
+                </label>
+                {signupComplete.isError && <div role="alert" style={noticeStyle}>{signupComplete.error.message}</div>}
+                <div className="auth-actions">
+                  <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => { setSuChallenge(null); setSuCode(''); signupComplete.reset(); }}>
+                    Change details
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-lg btn-pill auth-submit" disabled={signupComplete.isPending || suCode.length !== 6}>
+                    {signupComplete.isPending ? 'Creating…' : 'Verify'}
+                  </button>
+                </div>
+              </form>
             )}
-            <button
-              type="button"
-              className="btn btn-primary btn-block btn-lg"
-              disabled={!plan}
-              style={{ opacity: plan ? 1 : 0.4 }}
-              onClick={() => {
-                if (!plan) return;
-                setRole(roleForPlan(plan, freeKind));
-                setStep(1);
+            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+              Already have {audience === 'firm' ? 'a practice' : 'an account'}?{' '}
+              <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
+            </p>
+          </div>
+        )}
+
+        {/* SIGN UP - one screen: WhatsApp number + password + Google, then the
+            WhatsApp code. The account is created right after the code, and
+            /onboarding takes over (plan, practice details). */}
+        {tab === 'signup' && step === 0 && googleSignup && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ textAlign: 'center' }}>
+              <h1 className="auth-title">{audience === 'firm' ? 'Free trial' : 'Create account'}</h1>
+              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
+                {googleSignup
+                  ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`
+                  : audience === 'firm'
+                    ? '14 days of every feature. No card needed.'
+                    : 'Free for advocates & law students till 1 June 2027.'}
+              </p>
+            </div>
+            <GoogleWhatsAppVerify
+              phoneFirst
+              afterPhone={(
+              <div>
+                <label className="label required" htmlFor="signup-password">
+                  Password
+                  <span className="hint">At least 8 characters</span>
+                </label>
+                <input
+                  id="signup-password"
+                  className="input"
+                  type="password"
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={8}
+                />
+              </div>
+              )}
+              ready={newPassword.length >= 8}
+              notReadyText="Enter your WhatsApp number and a password"
+              startWith={googleSignup}
+              buttonText="signup_with"
+              onSignedIn={handleSignedIn}
+              onVerified={(v) => {
+                signUp.mutate(
+                  { signupToken: v.signupToken, password: newPassword, name: v.profile.name, role: 'solo' },
+                  { onSuccess: () => navigate('/onboarding', { replace: true }) },
+                );
               }}
-            >
-              {plan === 'firm' ? 'Book a demo' : 'Continue'} <Icon name="arrow" size={14} />
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }} onClick={backToStart}>
-              {googleSignup ? 'Use a different Google account' : 'Back to sign in'}
-            </button>
+            />
+            {signUp.isPending && <p className="body-sm muted" style={{ textAlign: 'center' }}>Creating your account…</p>}
+            {signUp.isError && <div role="alert" style={noticeStyle}>{(signUp.error as Error | null)?.message ?? 'Sign-up failed.'}</div>}
+            <p className="body-xs" style={{ textAlign: 'center', margin: 0, color: 'var(--text-tertiary)' }}>
+              Next you choose a plan and set up your practice.
+            </p>
+            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+              Already have an account?{' '}
+              <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
+            </p>
           </div>
         )}
 
@@ -830,206 +920,6 @@ export function AuthView() {
           </form>
         )}
 
-        {/* SIGN UP - STEP 1 (Google + WhatsApp) — Solo / Practice */}
-        {tab === 'signup' && step === 1 && role !== 'firm' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              Enter your WhatsApp number, then continue with your Google account. We send a code on WhatsApp to verify the number.
-            </p>
-            <GoogleWhatsAppVerify
-              phoneFirst
-              startWith={googleSignup}
-              buttonText="signup_with"
-              onSignedIn={handleSignedIn}
-              onVerified={(v) => {
-                setVerified(v);
-                setName(v.profile.name);
-                setStep(2);
-              }}
-            />
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(0)}>
-              Back
-            </button>
-          </div>
-        )}
-
-        {/* SIGN UP - STEP 2 (firm) */}
-        {tab === 'signup' && step === 2 && (
-          <form
-            onSubmit={handleSignUp}
-            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
-          >
-            {verified && (
-              <div className="mono" style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
-                {verified.profile.email} · WhatsApp {verified.phone} verified
-              </div>
-            )}
-            <div>
-              <label className="label required" htmlFor="signup-name">Full name</label>
-              <input
-                id="signup-name"
-                className="input"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Aarav Sharma"
-                required
-                autoComplete="name"
-              />
-            </div>
-            {role === 'student' ? (
-              <>
-                <div>
-                  <label className="label required" htmlFor="signup-college">College / university</label>
-                  <input
-                    id="signup-college"
-                    className="input"
-                    value={college}
-                    onChange={(e) => setCollege(e.target.value)}
-                    placeholder="Government Law College, Chennai"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="signup-year">Year of study</label>
-                  <select id="signup-year" className="input" value={studyYear} onChange={(e) => setStudyYear(e.target.value)}>
-                    <option value="">Select…</option>
-                    {STUDY_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label className="label" htmlFor="signup-enrolment">
-                    Bar Council Enrolment No.
-                    <span className="hint">Optional</span>
-                  </label>
-                  <input
-                    id="signup-enrolment"
-                    className="input mono"
-                    value={enrolment}
-                    onChange={(e) => setEnrolment(e.target.value)}
-                    placeholder="D/4419/2018"
-                  />
-                </div>
-                <div>
-                  <label className={`label${role === 'group' ? ' required' : ''}`} htmlFor="signup-firm">
-                    {role === 'solo' ? 'Chambers name' : 'Firm name'}
-                  </label>
-                  <input
-                    id="signup-firm"
-                    className="input"
-                    value={firm}
-                    onChange={(e) => setFirm(e.target.value)}
-                    placeholder="Sharma & Associates"
-                    autoComplete="organization"
-                    required={role === 'group'}
-                  />
-                </div>
-                {role === 'group' && (
-                  <div>
-                    <label className="label" htmlFor="signup-team">Team size</label>
-                    <select id="signup-team" className="input" value={teamSize} onChange={(e) => setTeamSize(e.target.value)}>
-                      <option value="">Select…</option>
-                      {TEAM_SIZES.map((t) => <option key={t} value={t}>{t} people</option>)}
-                    </select>
-                  </div>
-                )}
-                <div>
-                  <label className="label" htmlFor="signup-court">Primary court</label>
-                  <input
-                    id="signup-court"
-                    className="input"
-                    value={primaryCourt}
-                    onChange={(e) => setPrimaryCourt(e.target.value)}
-                    placeholder="Delhi High Court"
-                  />
-                </div>
-                <div>
-                  <label className="label" htmlFor="signup-areas">Practice areas</label>
-                  <input
-                    id="signup-areas"
-                    className="input"
-                    value={practiceAreas}
-                    onChange={(e) => setPracticeAreas(e.target.value)}
-                    placeholder="Civil, Commercial, Banking"
-                  />
-                </div>
-              </>
-            )}
-            <div className="facts-grid-2" style={{ gap: 14 }}>
-              <div>
-                <label className="label" htmlFor="signup-city">City</label>
-                <input
-                  id="signup-city"
-                  className="input"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Chennai"
-                  autoComplete="address-level2"
-                />
-              </div>
-              <div>
-                <label className="label" htmlFor="signup-state">State</label>
-                <select id="signup-state" className="input" value={stateName} onChange={(e) => setStateName(e.target.value)}>
-                  <option value="">Select…</option>
-                  {stateOptions.map((o) => <option key={o.value} value={o.label}>{o.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="label required" htmlFor="signup-password">
-                Password
-                <span className="hint">At least 8 characters</span>
-              </label>
-              <input
-                id="signup-password"
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-                required
-              />
-            </div>
-            <div>
-              <label className="label required" htmlFor="signup-password2">Confirm password</label>
-              <input
-                id="signup-password2"
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              <FieldError error={passwordProblem} />
-            </div>
-            {signUp.isError && (
-              <div
-                role="alert"
-                style={{
-                  fontSize: 13,
-                  color: 'var(--danger)',
-                  background: 'var(--danger-bg)',
-                  border: '1px solid var(--danger)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px',
-                }}
-              >
-                {(signUp.error as Error | null)?.message ?? 'Sign-up failed.'}
-              </div>
-            )}
-            <button
-              type="submit"
-              className="btn btn-primary btn-block btn-lg"
-              disabled={signUp.isPending || !verified || newPassword.length < 8 || newPassword !== confirmPassword}
-            >
-              {signUp.isPending ? 'Creating account…' : 'Finish setup'}
-            </button>
-          </form>
-        )}
         </div>
         {tab === 'signin' && !mfaChallenge && (
           <div className="auth-foot">
@@ -1041,10 +931,14 @@ export function AuthView() {
             )}
           </div>
         )}
-        {tab === 'signup' && (
+        {tab === 'signup' && step === 0 && !googleSignup && !suChallenge && (
           <div className="auth-foot">
-            <span>New accounts: Google, a WhatsApp code, then a password</span>
-            <span className="auth-foot-g"><GoogleG /> Google</span>
+            <span>Or sign up with</span>
+            {googleSignInAvailable() ? (
+              <GoogleButton onCredential={handleGoogleCredential} text="signup_with" shape="pill" width={210} />
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
           </div>
         )}
         </div>

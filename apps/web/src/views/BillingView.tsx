@@ -101,7 +101,7 @@ export function BillingView() {
       ) : (
         <>
           <CycleToggle cycle={cycle} onChange={setCycle} />
-          <PlanCards plans={data.plans} cycle={cycle} selected={selected} onSelect={setSelected} currentId={current} />
+          <PlanCards plans={data.plans} cycle={cycle} selected={selected} onSelect={setSelected} currentId={current} columns={4} />
 
           {!data.canManage && (
             <p className="body-sm muted">Only the account owner can change the plan. Ask them to upgrade from this page.</p>

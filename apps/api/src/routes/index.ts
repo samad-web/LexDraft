@@ -42,6 +42,7 @@ import { physicalDocumentsRouter } from './physical-documents.routes';
 import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
 import { billingRouter } from './billing.routes';
+import { onboardingRouter } from './onboarding.routes';
 import { notificationsRouter } from './notifications.routes';
 import { teamChatRouter } from './team-chat.routes';
 import { meMfaRouter } from './me-mfa.routes';
@@ -191,6 +192,8 @@ apiRouter.use('/me',          requireAuth, meRouter);
 // Plan & billing (Dodo Payments). Mixed: the webhook and renew-checkout are
 // public, the rest require auth. No requireActivePlan so lapsed firms can pay.
 apiRouter.use('/billing', billingRouter);
+// Post-sign-up onboarding (plan + practice details). Auth only, no plan gate.
+apiRouter.use('/onboarding', requireAuth, onboardingRouter);
 // In-app notification feed. requireAuth but NOT requireActivePlan — a user
 // with a lapsed plan should still be able to read and clear their bell.
 apiRouter.use('/notifications', requireAuth, notificationsRouter);

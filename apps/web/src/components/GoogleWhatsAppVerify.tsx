@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { Icon } from '@lexdraft/ui';
 import {
   isGoogleSignupRequired,
+  useApplySignIn,
   useGoogleSignIn,
+  useGoogleSignupCheck,
   useSendSignupOtp,
   useVerifySignupOtp,
   type GoogleSignupRequired,
@@ -41,6 +43,12 @@ interface Props {
   /** Ask for the WhatsApp number before the Google button, and send the
    *  code as soon as Google confirms a new account (sign-up page). */
   phoneFirst?: boolean;
+  /** Extra fields the parent needs before Google / sending the code (e.g. a
+   *  password). The buttons stay disabled until true. */
+  ready?: boolean;
+  notReadyText?: string;
+  /** Fields shown under the WhatsApp number, before Google (phoneFirst). */
+  afterPhone?: ReactNode;
 }
 
 const noticeStyle: CSSProperties = {
@@ -52,8 +60,14 @@ const noticeStyle: CSSProperties = {
   padding: '10px 12px',
 };
 
-export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with', expectedEmail, phoneFirst }: Props) {
-  const googleSignIn = useGoogleSignIn();
+export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with', expectedEmail, phoneFirst, ready = true, notReadyText, afterPhone }: Props) {
+  // Sign-up page (phoneFirst): check the Google account without starting a
+  // session, so an existing account is announced rather than entered.
+  const googleSignInDirect = useGoogleSignIn();
+  const googleCheck = useGoogleSignupCheck();
+  const googleSignIn = phoneFirst ? googleCheck : googleSignInDirect;
+  const applySignIn = useApplySignIn();
+  const [existing, setExisting] = useState<{ result: SignInResult; email: string } | null>(null);
   const sendOtp = useSendSignupOtp();
   const verifyOtp = useVerifySignupOtp();
 
@@ -80,6 +94,11 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
       {
         onSuccess: (r) => {
           if (!isGoogleSignupRequired(r)) {
+            if (phoneFirst) {
+              const email = 'user' in r ? r.user.email : '';
+              setExisting({ result: r, email });
+              return;
+            }
             onSignedIn(r);
             return;
           }
@@ -124,6 +143,28 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
     );
   };
 
+  // ---- Google account already has an account (sign-up page) ---------------
+  if (existing) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div role="alert" style={noticeStyle}>
+          {existing.email ? <strong className="mono">{existing.email}</strong> : 'This Google account'} already has a DifAI
+          account, so no new account was created. Sign in to it, or choose a different Google account to create a new one.
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary btn-block btn-lg"
+          onClick={() => { applySignIn(existing.result); onSignedIn(existing.result); }}
+        >
+          Sign in to this account
+        </button>
+        <button type="button" className="btn btn-block" onClick={() => { setExisting(null); googleCheck.reset(); }}>
+          Use a different Google account
+        </button>
+      </div>
+    );
+  }
+
   // ---- Step 1: Google ------------------------------------------------------
   if (!pending) {
     if (!googleSignInAvailable()) {
@@ -154,9 +195,10 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
             />
           </div>
         )}
-        {phoneFirst && !phoneLooksValid ? (
+        {phoneFirst && afterPhone}
+        {phoneFirst && (!phoneLooksValid || !ready) ? (
           <button type="button" className="btn btn-primary btn-block btn-lg" disabled style={{ opacity: 0.4 }}>
-            Enter your WhatsApp number to continue
+            {notReadyText ?? 'Enter your WhatsApp number to continue'}
           </button>
         ) : (
           <GoogleButton onCredential={handleCredential} text={buttonText} />
@@ -219,8 +261,9 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
             autoFocus
           />
         </div>
+        {afterPhone}
         {sendOtp.isError && <div role="alert" style={noticeStyle}>{sendOtp.error.message}</div>}
-        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sendOtp.isPending || phone.trim().length < 10}>
+        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sendOtp.isPending || phone.trim().length < 10 || !ready}>
           {sendOtp.isPending ? 'Sending…' : 'Send code on WhatsApp'}
         </button>
       </form>
