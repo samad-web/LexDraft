@@ -439,12 +439,17 @@ function mapS138Complaint(form: Record<string, unknown>, extra: Record<string, u
   const withoutFlatCheques: Record<string, unknown> = {};
   const flatChequeRe = /^(cheque_no|cheque_date|cheque_amount|drawee_bank)(_\d+)?$/;
   for (const [k, v] of Object.entries(form)) {
-    if (flatChequeRe.test(k)) continue;
+    if (flatChequeRe.test(k) || k === 'notice_service_status') continue;
     withoutFlatCheques[k] = v;
   }
   const passthrough = coerceToContract('s138_complaint', mapPassthrough(withoutFlatCheques, extra));
   const fields: Record<string, unknown> = { ...passthrough.fields };
   if (cheques.length > 0) fields.cheques = cheques;
+  // The Draft-page form asks "How was the notice served?" as one choice; the
+  // engine takes it as two deemed-service flags (both default false).
+  const service = (str(form.notice_service_status) ?? '').toLowerCase();
+  if (service.startsWith('refused')) fields.notice_refused = true;
+  else if (service.startsWith('returned unclaimed') || service.startsWith('unclaimed')) fields.notice_unclaimed = true;
   return { fields };
 }
 

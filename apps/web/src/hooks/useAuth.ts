@@ -43,6 +43,22 @@ export function useSignIn() {
   });
 }
 
+/** Superadmin console sign-in (/admin): username + password, no Google. */
+export function useAdminSignIn() {
+  const setSession = useAuthStore((s) => s.setSession);
+  const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);
+  const qc = useQueryClient();
+  return useMutation<SignInResult, Error, { username: string; password: string }>({
+    mutationFn: (body) => api.post<SignInResult>('/auth/admin/sign-in', body),
+    onSuccess: (r) => {
+      if (isMfaChallenge(r)) return;
+      qc.clear();
+      setSession(r.user, r.token);
+      setForceMfaEnrollment(!!r.mustEnrollMfa);
+    },
+  });
+}
+
 export function useSignUp() {
   const setSession = useAuthStore((s) => s.setSession);
   const qc = useQueryClient();

@@ -163,8 +163,12 @@ describe('engine-field-map — passthrough (non-s.138 doc types)', () => {
   });
 
   it('every LABEL_TO_ENGINE_DOC target is routable', () => {
+    // Standalone affidavit keeps its picker label but is deliberately not routed
+    // until its generated form is switched on (see ROUTABLE_DOC_TYPES).
+    const DELIBERATELY_UNROUTED = new Set(['affidavit']);
     for (const docType of Object.values(LABEL_TO_ENGINE_DOC)) {
-      expect(isRoutable(docType)).toBe(true);
+      if (DELIBERATELY_UNROUTED.has(docType)) continue;
+      expect(isRoutable(docType), docType).toBe(true);
     }
   });
 

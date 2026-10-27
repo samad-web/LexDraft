@@ -542,6 +542,19 @@ export const authService = {
    *      most need to be inside.
    *   3. Everyone else → normal { user, token }.
    */
+  /**
+   * Superadmin console sign-in by username (the account's login id, stored in
+   * users.email but not necessarily an email address) + password. Non-superadmin
+   * accounts are refused with the same message as a wrong password.
+   */
+  async adminSignIn(username: string, password: string): Promise<SignInResult> {
+    const lookup = await findByEmail(username.trim());
+    const ok = !!lookup && lookup.publicUser.isSuperadmin
+      && await bcrypt.compare(password, lookup.passwordHash);
+    if (!ok || !lookup) throw new UnauthorizedError('Invalid username or password');
+    return completeSignIn(lookup.publicUser);
+  },
+
   async signIn({ email, password }: SignInRequest): Promise<SignInResult> {
     // Empty password is never valid - refuse before any DB lookup so the
     // legitimate "no password supplied" path can't get confused with a real

@@ -54,6 +54,16 @@ function loadBaseline(): Baseline {
 // must be reachable by label).
 const BESPOKE = new Set(['s138_notice']);
 
+// Doc types whose custom mapper reshapes SOME web keys (engine-field-map.ts): the
+// consumed web keys are replaced by the engine keys the mapper emits; every other
+// key is still checked like a passthrough doc type.
+const BRIDGED: Record<string, { consumes: RegExp; provides: string[] }> = {
+  s138_complaint: {
+    consumes: /^(cheque_no|cheque_date|cheque_amount|drawee_bank)(_\d+)?$|^notice_service_status$/,
+    provides: ['cheques', 'notice_refused', 'notice_unclaimed'],
+  },
+};
+
 /** Parse DOC_SCHEMAS: top-level label -> its field `key:` names. Textual parse (no
  *  web bundle import); mirrors the audit tool. */
 function parseWebSchemas(src: string): Map<string, Set<string>> {
@@ -129,8 +139,12 @@ describe('web DOC_SCHEMAS ↔ engine contract alignment', () => {
     const regressions: string[] = [];
     for (const [label, slug] of engineLabels) {
       if (BESPOKE.has(slug)) continue;
-      const wkeys = web.get(label);
-      if (!wkeys) continue; // unreachable — covered above
+      const rawKeys = web.get(label);
+      if (!rawKeys) continue; // unreachable — covered above
+      const bridge = BRIDGED[slug];
+      const wkeys = bridge
+        ? new Set([...[...rawKeys].filter((k) => !bridge.consumes.test(k)), ...bridge.provides])
+        : rawKeys;
       const c = contract[slug];
       if (!c) {
         regressions.push(`${label} -> ${slug}: no contract entry (regenerate snapshot)`);

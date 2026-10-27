@@ -92,6 +92,7 @@ const PortalMessagesView = lazy(() =>
 const PortalProfileView = lazy(() =>
   import('@/views/portal/PortalProfileView').then((m) => ({ default: m.PortalProfileView })));
 import { AdminShell } from '@/admin/AdminShell';
+import { AdminLoginView } from '@/admin/AdminLoginView';
 const AdminDashboardView = lazy(() => import('@/admin/views/AdminDashboardView').then((m) => ({ default: m.AdminDashboardView })));
 const AiUsageView = lazy(() => import('@/admin/views/AiUsageView').then((m) => ({ default: m.AiUsageView })));
 const AdminFirmsView = lazy(() => import('@/admin/views/FirmsView').then((m) => ({ default: m.FirmsView })));
@@ -231,6 +232,8 @@ export function App() {
   }
 
   if (!user) {
+    // The superadmin console has its own username + password sign-in.
+    if (isAdminRoute) return <><AdminLoginView /><Toast /></>;
     return <Navigate to="/auth" replace state={{ from: location }} />;
   }
 

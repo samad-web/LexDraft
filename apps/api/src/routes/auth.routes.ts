@@ -116,6 +116,21 @@ authRouter.post('/sign-up', signUpLimiter, async (req, res, next) => {
   }
 });
 
+// Superadmin console sign-in (/admin): username + password, no Google. Only
+// superadmin accounts get through; everyone else gets the same 401.
+const AdminSignIn = z.object({
+  username: z.string().min(1).max(254),
+  password: z.string().min(1).max(128),
+}).strict();
+authRouter.post('/admin/sign-in', signInLimiter, async (req, res, next) => {
+  try {
+    const body = AdminSignIn.parse(req.body);
+    res.json(await authService.adminSignIn(body.username, body.password));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Google sign-in. Existing account -> same response shape as /sign-in.
 // Unknown Google account -> { signupRequired, signupToken, profile }; the
 // client then verifies a WhatsApp number and calls /google/sign-up.
