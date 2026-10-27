@@ -9,4 +9,4 @@ Disallow: /sign/
 Disallow: /co-counsel/
 Disallow: /survey
 
-Sitemap: https://difai.sirahdigital.com/sitemap.xml
+Sitemap: https://difai.sirahdigital.in/sitemap.xml

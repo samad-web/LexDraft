@@ -2,13 +2,13 @@
 #
 # Drop this file at /etc/caddy/Caddyfile on the VPS, OR — if you already
 # have a Caddyfile fronting Supabase / Evolution API — copy just the
-# `difai.sirahdigital.com { ... }` block into it and reload:
+# `difai.sirahdigital.in { ... }` block into it and reload:
 #
 #   sudo cp Caddyfile /etc/caddy/Caddyfile
 #   sudo systemctl reload caddy
 #
 # Caddy auto-provisions a Let's Encrypt cert on first request, provided:
-#   - difai.sirahdigital.com resolves (A/AAAA) to this host's public IP.
+#   - difai.sirahdigital.in resolves (A/AAAA) to this host's public IP.
 #   - Ports 80 and 443 are reachable from the internet (UFW: `sudo ufw
 #     allow 80,443/tcp`).
 #
@@ -16,7 +16,7 @@
 # and the SPA to 127.0.0.1:8080 — i.e. you run:
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 
-difai.sirahdigital.com {
+difai.sirahdigital.in {
     encode gzip zstd
 
     # /api/* → API container. We deliberately use `handle` (not `handle_path`)
@@ -50,7 +50,7 @@ difai.sirahdigital.com {
 
     # Per-vhost access log. Rotation kicks in at 100 MB or 14 files.
     log {
-        output file /var/log/caddy/difai.sirahdigital.com.log {
+        output file /var/log/caddy/difai.sirahdigital.in.log {
             roll_size 100mb
             roll_keep 14
         }
