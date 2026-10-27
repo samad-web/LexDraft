@@ -9,7 +9,8 @@ import {
   customStagesForFirm,
   kindForType,
 } from '../services/case-pipeline.service';
-import { syncCaseFromEcourts } from '../services/case-sync.service';
+import { sendUpcomingHearingReminders, syncCaseFromEcourts } from '../services/case-sync.service';
+import { materializeCaseHearings } from '../services/hearings.service';
 import {
   classifySyncError,
   linkByCaseNumber,
@@ -57,6 +58,22 @@ const CaseListQuery = z.object({
 });
 
 export const casesRouter: Router = Router();
+
+/**
+ * A matter saved with a hearing date: show it on Hearings / Calendar now
+ * (a hearing row for that date) and remind right away if it is within the
+ * reminder window, instead of waiting for the 09:00 run. Never blocks or
+ * fails the save.
+ */
+async function afterHearingDate(firmId: string | null, caseId: string): Promise<void> {
+  if (!firmId) return;
+  try {
+    await materializeCaseHearings(firmId, caseId);
+    await sendUpcomingHearingReminders({ caseId });
+  } catch {
+    /* the 09:00 run catches up */
+  }
+}
 
 function strParam(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -597,6 +614,7 @@ casesRouter.post(
           /* scheduled run will pick it up */
         }
       }
+      if (created.next) void afterHearingDate(firmId, created.id);
       res.status(201).json({ ...created, ecourtsLinkStatus: ecourtsLinkStatus ?? 'unlinked' });
     } catch (err) {
       next(err);
@@ -657,6 +675,7 @@ casesRouter.patch(
         res.status(404).json({ error: 'Case not found' });
         return;
       }
+      if (req.body.next !== undefined) void afterHearingDate(firmId, caseId);
       const cnrChanged = before !== undefined
         && (before.cnr ?? '').trim().toUpperCase() !== (updated.cnr ?? '').trim().toUpperCase();
       if (cnrChanged && firmId) {

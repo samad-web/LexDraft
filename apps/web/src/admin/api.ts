@@ -19,6 +19,7 @@ import type {
   FirmDetail,
   FirmPlan,
   FirmSummary,
+  FreePlanSwitchState,
   ImpersonationGrant,
   PlatformStats,
   TemplateScope,
@@ -45,6 +46,12 @@ export const adminApi = {
   updateFlags:    (id: string, patch: AdminUpdateFlagsRequest) =>
     api.patch<{ items: FeatureFlag[] }>(`/admin/firms/${id}/flags`, patch).then((r) => r.items),
   updateBranding: (id: string, patch: AdminUpdateBrandingRequest) => api.patch<FirmBranding>(`/admin/firms/${id}/branding`, patch),
+
+  // ---- free launch plan switches --------------------------------------
+  freePlanSwitches: () =>
+    api.get<{ items: FreePlanSwitchState[] }>('/admin/free-plan/switches').then((r) => r.items),
+  setFreePlanSwitch: (key: FreePlanSwitchState['key'], enabled: boolean) =>
+    api.patch<{ items: FreePlanSwitchState[] }>(`/admin/free-plan/switches/${key}`, { enabled }).then((r) => r.items),
 
   // ---- users (cross-firm) ----------------------------------------------
   listUsers: (filter: { firmId?: string; status?: UserStatus; q?: string } = {}) =>

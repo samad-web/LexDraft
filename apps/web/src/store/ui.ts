@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { switchThemeAnimated } from '@/lib/theme-transition';
 
 export type Lang = 'EN' | 'HI' | 'TA';
 export type Theme = 'light' | 'dark';
@@ -91,13 +92,12 @@ export const useUIStore = create<UIState>()(
       setLang: (lang) => set({ lang }),
       setForceMfaEnrollment: (forceMfaEnrollment) => set({ forceMfaEnrollment }),
       setTheme: (theme) => {
-        applyTheme(theme);
-        set({ theme });
+        if (theme === get().theme) return;
+        switchThemeAnimated(() => { applyTheme(theme); set({ theme }); });
       },
       toggleTheme: () => {
         const next: Theme = get().theme === 'light' ? 'dark' : 'light';
-        applyTheme(next);
-        set({ theme: next });
+        switchThemeAnimated(() => { applyTheme(next); set({ theme: next }); });
       },
       toggleCmdK: (open) => set((s) => ({ cmdK: open ?? !s.cmdK })),
       toggleSidebar: (open) => set((s) => ({ sidebarOpen: open ?? !s.sidebarOpen })),

@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { DocumentRecord } from '@lexdraft/types';
 import { Icon } from '@lexdraft/ui';
 import { Modal } from './Modal';
 import { useDraft } from '@/hooks/useDrafts';
 import { useDocument, useDocumentDownloadUrl } from '@/hooks/useDocuments';
+import { canEmbedPdf } from '@/lib/pdf-embed';
+
+const PdfPages = lazy(() => import('./PdfPages').then((m) => ({ default: m.PdfPages })));
 
 interface DocumentViewerModalProps {
   doc: DocumentRecord | null;
@@ -173,7 +176,19 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
         )}
 
         {/* Uploaded PDF - inline iframe preview */}
-        {!isLoading && !isError && hasFile && isPdf && previewUrl && (
+        {/* No built-in PDF viewer (Android app / mobile browsers): draw the pages. */}
+        {!isLoading && !isError && hasFile && isPdf && previewUrl && !canEmbedPdf() && (
+          <Suspense fallback={<p className="body-md muted" style={{ textAlign: 'center', padding: 32 }}>Loading document…</p>}>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto', background: 'var(--bg-surface-2)', padding: 8 }}>
+              <PdfPages
+                url={previewUrl}
+                aria-label={doc?.name ?? 'Document'}
+                fallback={<p className="body-md muted" style={{ textAlign: 'center', padding: 32 }}>Preview unavailable. Use Download.</p>}
+              />
+            </div>
+          </Suspense>
+        )}
+        {!isLoading && !isError && hasFile && isPdf && previewUrl && canEmbedPdf() && (
           <iframe
             src={previewUrl}
             title={doc?.name ?? 'Document'}

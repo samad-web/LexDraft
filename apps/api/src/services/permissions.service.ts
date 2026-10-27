@@ -16,6 +16,7 @@ import type { FeatureKey, MeFeaturesResponse, UserPlan } from '@lexdraft/types';
 import { db } from '../db/client';
 import { authService } from './auth.service';
 import { cacheBroadcaster } from './cache-broadcaster';
+import { FREE_PLAN_SWITCHES, FREE_PLAN_SWITCH_FEATURES, type FreePlanSwitch } from '../lib/free-plan';
 
 interface ResolverRow {
   user_id: string;
@@ -27,6 +28,20 @@ interface RoleSummaryRow {
   name: string;
   is_system: boolean;
   plan_tier: UserPlan | null;
+  free_plan: boolean;
+}
+
+/** Current on/off state of the free-plan switches. Missing rows count as
+ *  off. Read on every uncached resolve; the per-user cache bounds the cost. */
+export async function loadFreePlanSwitches(): Promise<Record<FreePlanSwitch, boolean>> {
+  const out: Record<FreePlanSwitch, boolean> = { team_chat: false, analytics: false, limitation: false, co_counsel: false };
+  const sql = db();
+  if (!sql) return out;
+  const rows = await sql<{ switch_key: FreePlanSwitch; enabled: boolean }[]>`
+    select switch_key, enabled from free_plan_switches
+  `;
+  for (const r of rows) if (r.switch_key in out) out[r.switch_key] = r.enabled;
+  return out;
 }
 
 const CACHE_TTL_MS = 60_000;
@@ -48,6 +63,8 @@ const cache = new Map<string, CachedEntry>();
 const BASELINE_FEATURES: ReadonlyArray<FeatureKey> = [
   'profile.view', 'profile.update', 'announcements.view',
   'shared.documents', 'search.workspace',
+  // Baseline since 0095 so free accounts can have them switched off.
+  'limitation.use', 'co_counsel.handover',
   // Matter Intelligence (migration 0041) ships with default_baseline = true;
   // mirror that in the demo-mode fallback so the sidebar entry + Intelligence
   // tab show up when DATABASE_URL is unset.
@@ -214,7 +231,7 @@ export async function resolveFeatures(userId: string): Promise<MeFeaturesRespons
 
   // 1. Fetch role summary + plan in one round-trip.
   const [roleRow] = await sql<RoleSummaryRow[]>`
-    select r.id, r.name, r.is_system, f.plan_tier
+    select r.id, r.name, r.is_system, f.plan_tier, coalesce(f.free_plan, false) as free_plan
     from users u
     left join roles r on r.id = u.role_id
     left join firms f on f.id = u.firm_id
@@ -290,6 +307,18 @@ export async function resolveFeatures(userId: string): Promise<MeFeaturesRespons
   `;
 
   const features = new Set<FeatureKey>(rows.map((r) => r.feature_key));
+
+  // 3. Free launch plan: the superadmin's switches decide whether a free
+  //    account gets each switched feature group, regardless of plan/role.
+  if (roleRow?.free_plan) {
+    const switches = await loadFreePlanSwitches();
+    for (const s of FREE_PLAN_SWITCHES) {
+      for (const key of FREE_PLAN_SWITCH_FEATURES[s.key]) {
+        if (switches[s.key]) features.add(key);
+        else features.delete(key);
+      }
+    }
+  }
 
   cache.set(userId, { features, role, plan, expiresAt: now + CACHE_TTL_MS });
   return { features: [...features], role, plan };

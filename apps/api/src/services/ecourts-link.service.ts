@@ -174,6 +174,16 @@ export async function runLinkJob(data: LinkJobPayload): Promise<void> {
       hearings: result.hearingsReplaced,
       ownerUserId: row.created_by_user_id,
     });
+    // The hearings just came from eCourts - remind now if the next one is
+    // close, rather than at tomorrow's 09:00 run. Best-effort.
+    try {
+      const { materializeCaseHearings } = await import('./hearings.service');
+      await materializeCaseHearings(data.firmId, data.caseId);
+      const { sendUpcomingHearingReminders } = await import('./case-sync.service');
+      await sendUpcomingHearingReminders({ caseId: data.caseId });
+    } catch (err) {
+      logger.warn({ caseId: data.caseId, err: errorMessage(err) }, 'ecourts-link: reminder after link failed');
+    }
   } catch (err) {
     const kind = classifySyncError(err);
     await recordSyncFailure(data.caseId, kind, err);

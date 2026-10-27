@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
@@ -36,6 +36,9 @@ import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
 import { exportPdf, exportDocx } from '@/lib/export-doc';
+import { canEmbedPdf } from '@/lib/pdf-embed';
+// pdf.js is only needed where the browser can't show the PDF itself.
+const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import type { DocTemplate } from '@/lib/doc-templates';
 import { useDraft, useSaveDraft } from '@/hooks/useDrafts';
@@ -2009,12 +2012,33 @@ export function DraftingView() {
                 the printable document. While it converts, or during streaming, or
                 after local edits, show the HTML preview so the pane is never blank. */}
             {hasOutput && !isEditing && previewPdfUrl && !streaming && !hasLocalEdits && (
-              <iframe
-                key={previewPdfUrl}
-                title="Document preview"
-                src={`${previewPdfUrl}#toolbar=1&navpanes=0&view=FitH`}
-                className="dw-pdf"
-              />
+              canEmbedPdf() ? (
+                <iframe
+                  key={previewPdfUrl}
+                  title="Document preview"
+                  src={`${previewPdfUrl}#toolbar=1&navpanes=0&view=FitH`}
+                  className="dw-pdf"
+                />
+              ) : (
+                // No built-in PDF viewer (Android app / mobile browsers): draw the pages.
+                <Suspense fallback={<div className="dw-pending">Preparing the formatted preview…</div>}>
+                  <PdfPages
+                    key={previewPdfUrl}
+                    url={previewPdfUrl}
+                    className="dw-pdf-pages"
+                    aria-label="Document preview"
+                    fallback={(
+                      <div
+                        className="court-prose court-prose-paper"
+                        lang={outputLangCode}
+                        dir="ltr"
+                        style={{ margin: '0 auto' }}
+                        dangerouslySetInnerHTML={{ __html: previewHtml }}
+                      />
+                    )}
+                  />
+                </Suspense>
+              )
             )}
             {/* The HTML text view only when there is no formatted PDF coming: while the
                 engine .docx converts (a few seconds) show the pending state instead, so

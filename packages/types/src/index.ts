@@ -243,11 +243,19 @@ export interface SignUpRequest {
   email: string;
   password: string;
   name: string;
-  role: 'solo' | 'group' | 'firm';
+  /** solo + student land on the free launch plan; group + firm on a
+   *  14-day trial of the Firm plan. */
+  role: 'solo' | 'student' | 'group' | 'firm';
   firm?: string;
   enrolment?: string;
   primaryCourt?: string;
   practiceAreas?: string;
+  /** Sign-up profile (migration 0095). */
+  city?: string;
+  state?: string;
+  college?: string;
+  studyYear?: string;
+  teamSize?: string;
   /** What landed the user here. Drives the firm's initial plan_status:
    *  trial gets a 14-day clock; paid lands directly active; demo is a
    *  trial with the is_demo flag set so the UI can badge / convert it. */
@@ -1038,6 +1046,34 @@ export interface AdminUserSummary {
   phoneVerifiedAt?: string | null;
   /** 'google' once a Google account is linked, else 'password'. */
   signInMethod?: 'google' | 'password';
+  /** Sign-up profile (migration 0095). Null on older accounts. */
+  accountType?: 'advocate' | 'student' | 'firm' | null;
+  enrolment?: string | null;
+  primaryCourt?: string | null;
+  practiceAreas?: string | null;
+  city?: string | null;
+  state?: string | null;
+  college?: string | null;
+  studyYear?: string | null;
+  teamSize?: string | null;
+  /** The account's plan: free launch plan, trial or paid tier. */
+  planTier?: FirmPlanTier | null;
+  planStatus?: BillingStatus | null;
+  freePlan?: boolean;
+  trialEndsAt?: string | null;
+  /** Bytes of uploaded files held by the user's firm (the user's own for a
+   *  solo / free account), and its limit (null = unlimited). */
+  storageBytes?: number;
+  storageLimitBytes?: number | null;
+}
+
+/** One superadmin switch for the free launch plan. */
+export interface FreePlanSwitchState {
+  key: 'team_chat' | 'analytics' | 'limitation' | 'co_counsel';
+  label: string;
+  description: string;
+  enabled: boolean;
+  updatedAt: string | null;
 }
 
 export type AuditAction =
@@ -1059,6 +1095,7 @@ export type AuditAction =
   | 'template.create'
   | 'template.update'
   | 'template.delete'
+  | 'free_plan.switch.update'
   // Tenant-scoped CRUD audit actions.
   | 'case.create'      | 'case.update'      | 'case.delete' | 'case.restore' | 'case.transition' | 'case.sync_from_ecourts'
   | 'case.pipeline.node.add'  | 'case.pipeline.node.update'  | 'case.pipeline.node.delete'
@@ -1272,6 +1309,9 @@ export interface AdminUpdatePlanRequest {
   status?: BillingStatus;
   mrrInr?: number;
   renewsAt?: string | null;
+  /** Free launch plan on/off (migration 0095). Turn off when converting a
+   *  free account to paid. */
+  freePlan?: boolean;
 }
 
 export interface AdminUpdateFlagsRequest {

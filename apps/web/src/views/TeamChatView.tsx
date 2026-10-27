@@ -104,14 +104,12 @@ export function TeamChatView() {
             <ConversationPane
               key={selectedId}
               conversationId={selectedId}
+              onBack={() => select(null)}
               headerActions={
                 <>
-                  <button type="button" className="btn btn-ghost team-chat-back" onClick={() => select(null)}>
-                    Back
-                  </button>
                   {selected.data?.kind === 'group' && (
-                    <button type="button" className="btn btn-ghost" onClick={() => setManageOpen(true)}>
-                      <Icon name="members" size={14} /> Members
+                    <button type="button" className="btn btn-ghost" onClick={() => setManageOpen(true)} aria-label="Members" title="Members">
+                      <Icon name="members" size={14} /><span className="tc-btn-label"> Members</span>
                     </button>
                   )}
                   {selected.data?.kind === 'matter' && selected.data.caseId && (
@@ -148,6 +146,23 @@ export function TeamChatView() {
           .team-chat-grid:not(.has-selection) .team-chat-thread { display: none !important; }
           .team-chat-back { display: inline-flex; }
         }
+        /* Phone (matches the shell's 767px breakpoint): the list scrolls with
+           the page, and an open conversation fills the space between the
+           topbar (56px) and the bottom tab bar (64px), WhatsApp-style, so the
+           composer and Send are always on screen. */
+        @media (max-width: 767px) {
+          /* .stagger's fadeUp (fill: both) keeps a transform animation in
+             effect, which turns this grid into the containing block for
+             position: fixed and collapses the full-screen thread. */
+          .team-chat-grid { height: auto; min-height: 0; animation: none !important; }
+          .team-chat-grid.has-selection .team-chat-thread {
+            position: fixed; left: 0; right: 0; z-index: 20;
+            top: calc(56px + env(safe-area-inset-top, 0px));
+            bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+            border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
+          }
+          .tc-btn-label, .tc-hint { display: none; }
+        }
       `}</style>
     </div>
   );
@@ -182,9 +197,14 @@ function ConversationRow({ c, active, onClick }: { c: ConversationSummary; activ
         </div>
         <span className="row" style={{ gap: 4, flexShrink: 0 }}>
           {c.muted && <span className="muted" title="Muted" style={{ fontSize: 11 }}>muted</span>}
-          {c.mentionedUnread && <span className="badge badge-amber" title="You were mentioned">@</span>}
+          {c.mentionedUnread && <span className="badge" title="You were mentioned" style={{ fontWeight: 700 }}>@</span>}
           {c.unreadCount > 0 && (
-            <span className={`badge ${c.muted ? '' : 'badge-vermillion'}`} aria-label={`${c.unreadCount} unread`}>
+            <span
+              className="badge"
+              aria-label={`${c.unreadCount} unread`}
+              // Monochrome: solid for unread, outline when muted.
+              style={c.muted ? undefined : { background: 'var(--text-primary)', color: 'var(--bg-base)', borderColor: 'var(--text-primary)', fontWeight: 600 }}
+            >
               {c.unreadCount > 99 ? '99+' : c.unreadCount}
             </span>
           )}
@@ -207,7 +227,7 @@ function MatterLink({ caseId }: { caseId: string }) {
   const navigate = useNavigate();
   return (
     <button type="button" className="btn btn-ghost" onClick={() => navigate(`/app/cases/${caseId}?tab=discussion`)}>
-      <Icon name="cases" size={14} /> Open matter
+      <Icon name="cases" size={14} /><span className="tc-btn-label"> Open matter</span>
     </button>
   );
 }

@@ -10,13 +10,8 @@
 // IS what they file. blocks[] are shown separately as editable display text only.
 // =============================================================================
 
-import { useEffect, useRef, useState } from 'react';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
-// Vite resolves this to a hashed asset URL; pdfjs needs its worker to parse a PDF.
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useDraftRender } from '@/hooks/useEngineDraft';
-
-GlobalWorkerOptions.workerSrc = workerUrl;
+import { PdfPages } from '@/components/PdfPages';
 
 interface Props {
   renderId: string | null;
@@ -72,51 +67,16 @@ export function DraftRenderView({ renderId, initialStatus }: Props) {
           </a>
         ) : null}
       </div>
-      {data?.pdfUrl ? <PdfCanvas url={data.pdfUrl} /> : null}
+      {data?.pdfUrl ? (
+        <PdfPages
+          url={data.pdfUrl}
+          className="engine-panel__pdf"
+          pageClassName="engine-panel__pdf-page"
+          aria-label="Filing copy preview"
+          fallback={<p className="engine-panel__render-note">Preview unavailable. Use “Open PDF”.</p>}
+        />
+      ) : null}
     </div>
   );
 }
 
-/** Render every page of a PDF to stacked canvases via pdfjs. Kept deliberately small:
- *  the document is a few pages, so we render all of them once and scroll. */
-function PdfCanvas({ url }: { url: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    const container = containerRef.current;
-    if (!container) return;
-    container.innerHTML = '';
-
-    (async () => {
-      try {
-        const pdf = await getDocument({ url }).promise;
-        for (let n = 1; n <= pdf.numPages; n += 1) {
-          if (cancelled) return;
-          const page = await pdf.getPage(n);
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement('canvas');
-          canvas.className = 'engine-panel__pdf-page';
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) continue;
-          container.appendChild(canvas);
-          await page.render({ canvasContext: ctx, viewport }).promise;
-        }
-      } catch (err) {
-        if (!cancelled) setError((err as Error)?.message ?? 'could not render PDF');
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [url]);
-
-  if (error) {
-    return <p className="engine-panel__render-note">Preview unavailable ({error}). Use “Open PDF”.</p>;
-  }
-  return <div ref={containerRef} className="engine-panel__pdf" aria-label="Filing copy preview" />;
-}

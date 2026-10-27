@@ -82,7 +82,7 @@ async function newSoloUser(): Promise<string> {
 /**
  * Creates a user via signUp with the requested role mapping:
  *   'solo'  -> 'Solo Advocate'
- *   'group' -> 'Practice Lead'      (resolver: Practice Group Lead set)
+ *   'group' -> 'Managing Partner'   (firm sign-ups trial the full Firm plan)
  *   'firm'  -> 'Managing Partner'   (resolver: Firm Admin set)
  */
 async function newUserWithRole(roleKind: 'solo' | 'group' | 'firm'): Promise<string> {
@@ -195,13 +195,12 @@ describe('requireFeature("admin.users")', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('403s a Practice Lead (admin.users is Firm-only)', async () => {
+  it('grants a group sign-up (firm trial covers admin.users)', async () => {
     const id = await newUserWithRole('group');
     const next = vi.fn() as unknown as NextFunction;
-    const { res, status } = mkRes();
+    const { res } = mkRes();
     await requireFeature('admin.users')(mkReq(id), res, next);
-    expect(status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('grants a Firm Admin', async () => {
@@ -281,13 +280,12 @@ describe('requireFeature("analytics.firm")', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('403s a Practice Lead (Practice plan excludes analytics.firm)', async () => {
+  it('grants a group sign-up (firm trial covers analytics.firm)', async () => {
     const id = await newUserWithRole('group');
     const next = vi.fn() as unknown as NextFunction;
-    const { res, status } = mkRes();
+    const { res } = mkRes();
     await requireFeature('analytics.firm')(mkReq(id), res, next);
-    expect(status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('grants a Firm Admin', async () => {

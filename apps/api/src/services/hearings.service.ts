@@ -1,5 +1,6 @@
 import type { CalendarHearing, CalendarMonth, CalendarWeek, Hearing } from '@lexdraft/types';
 import { db } from '../db/client';
+import { logger } from '../logger';
 import { SEED_HEARINGS } from '../data/seed';
 
 interface HearingRow {
@@ -14,6 +15,8 @@ interface HearingRow {
 
 interface HearingDateRow extends HearingRow {
   hearing_date: string | Date | null;
+  /** Present when the read selects it (Cause List), so rows can open the matter. */
+  case_id?: string | null;
 }
 
 const memory: Hearing[] = SEED_HEARINGS.map((h, i) => ({ ...h, id: `h${i + 1}` }));
@@ -57,6 +60,7 @@ function fromDateRow(r: HearingDateRow): CalendarHearing {
   return {
     ...fromRow(r),
     date: dateOnly(r.hearing_date),
+    ...(r.case_id ? { caseId: r.case_id } : {}),
   };
 }
 
@@ -106,6 +110,60 @@ async function syncCaseNextHearing(sql: NonNullable<ReturnType<typeof db>>, case
     )
     where id = ${caseId}::uuid
   `;
+}
+
+/**
+ * A matter's next hearing date (cases.next_hearing - typed when the matter
+ * is added or edited, or set by the eCourts sync) becomes a real hearing row,
+ * so it shows on Hearings / Calendar and in reminders. Only adds what is
+ * missing: an active matter with a today-or-later date and no hearing on
+ * that date. The eCourts sync replaces a case's hearings with its own full
+ * history, so a derived row never duplicates a synced one. Deleting the row
+ * recomputes next_hearing (syncCaseNextHearing), so it doesn't come back.
+ *
+ * Firm-wide runs (before each Hearings read) are throttled per firm.
+ */
+const lastMaterialized = new Map<string, number>();
+const MATERIALIZE_EVERY_MS = 60_000;
+
+export async function materializeCaseHearings(firmId: string | null, caseId?: string, opts: { force?: boolean } = {}): Promise<number> {
+  if (!firmId) return 0;
+  const sql = db();
+  if (!sql) return 0;
+  if (!caseId && !opts.force) {
+    const last = lastMaterialized.get(firmId) ?? 0;
+    if (Date.now() - last < MATERIALIZE_EVERY_MS) return 0;
+    lastMaterialized.set(firmId, Date.now());
+  }
+  if (!caseId) lastMaterialized.set(firmId, Date.now());
+  try {
+    const rows = await sql<Array<{ id: string }>>`
+      insert into hearings (case_id, firm_id, case_label, hearing_time, court, purpose, status, hearing_date)
+      select c.id, c.firm_id,
+             coalesce(nullif(trim(c.title), ''), c.cnr, 'Matter'),
+             '10:30',
+             coalesce(c.court, ''),
+             coalesce(nullif(trim(c.stage), ''), 'Hearing'),
+             (case when c.next_hearing = current_date then 'today' else 'upcoming' end)::hearing_status,
+             c.next_hearing
+      from cases c
+      where c.firm_id = ${firmId}::uuid
+        and c.deleted_at is null
+        and c.status in ('Active', 'Pending')
+        and c.next_hearing is not null
+        and c.next_hearing >= current_date
+        and (${caseId ?? null}::text is null or c.id::text = ${caseId ?? null}::text)
+        and not exists (
+          select 1 from hearings h where h.case_id = c.id and h.hearing_date = c.next_hearing
+        )
+      returning id
+    `;
+    return rows.length;
+  } catch (err) {
+    // Never break a Hearings read or a matter save over this.
+    logger.warn({ err, firmId, caseId }, 'hearings: could not add hearing rows from matter dates');
+    return 0;
+  }
 }
 
 async function ensureCaseId(
@@ -164,6 +222,7 @@ export const hearingsService = {
    */
   async listToday(firmId: string | null): Promise<Hearing[]> {
     if (!firmId) return [];
+    await materializeCaseHearings(firmId);
     const sql = db();
     if (sql) {
       const todayIso = isoOfLocal(new Date());
@@ -195,6 +254,7 @@ export const hearingsService = {
 
   async listUpcoming(firmId: string | null): Promise<Hearing[]> {
     if (!firmId) return [];
+    await materializeCaseHearings(firmId);
     const sql = db();
     if (sql) {
       const rows = await sql<HearingRow[]>`
@@ -232,6 +292,7 @@ export const hearingsService = {
     });
 
     if (!firmId) return { weekStart: startStr, days, hearings: [] };
+    await materializeCaseHearings(firmId);
     const sql = db();
     if (!sql) {
       return { weekStart: startStr, days, hearings: [] };
@@ -276,6 +337,7 @@ export const hearingsService = {
     }
 
     if (!firmId) return { year, month, monthStart: startStr, days, hearings: [] };
+    await materializeCaseHearings(firmId);
     const sql = db();
     if (!sql) return { year, month, monthStart: startStr, days, hearings: [] };
 
@@ -298,6 +360,7 @@ export const hearingsService = {
 
   async listForDay(firmId: string | null, iso: string): Promise<CalendarHearing[]> {
     if (!firmId) return [];
+    await materializeCaseHearings(firmId);
     const sql = db();
     if (!sql) return [];
     const rows = await sql<HearingDateRow[]>`
@@ -307,6 +370,26 @@ export const hearingsService = {
       join cases c on c.id = h.case_id
       where h.hearing_date = ${iso}::date and c.firm_id = ${firmId}::uuid
       order by h.hearing_time asc
+    `;
+    return rows.map(fromDateRow);
+  },
+
+  /** Every dated hearing between two days (inclusive) - the Cause List's
+   *  Today / Upcoming / Past views. Live matters only. */
+  async listRange(firmId: string | null, fromIso: string, toIso: string): Promise<CalendarHearing[]> {
+    if (!firmId) return [];
+    await materializeCaseHearings(firmId);
+    const sql = db();
+    if (!sql) return [];
+    const rows = await sql<HearingDateRow[]>`
+      select h.id, h.case_id, h.case_label, h.hearing_time, h.court, h.purpose, h.status,
+             h.hearing_date, h.judge
+      from hearings h
+      join cases c on c.id = h.case_id
+      where h.hearing_date between ${fromIso}::date and ${toIso}::date
+        and c.firm_id = ${firmId}::uuid
+        and c.deleted_at is null
+      order by h.hearing_date asc, h.hearing_time asc
     `;
     return rows.map(fromDateRow);
   },

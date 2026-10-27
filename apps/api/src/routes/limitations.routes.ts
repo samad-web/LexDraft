@@ -39,6 +39,10 @@ const ComputeRuleInput = z.object({
 
 export const limitationsRouter: Router = Router();
 
+// The whole limitation surface (tracker + calculator) can be switched off
+// for free accounts; see lib/free-plan.ts.
+limitationsRouter.use(requireFeature('limitation.use'));
+
 // Limitations list/create are scoped to the matter feature domain.
 
 limitationsRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {

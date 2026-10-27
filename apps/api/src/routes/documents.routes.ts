@@ -9,6 +9,7 @@ import { storage } from '../services/storage.service';
 import { validate, idParam } from '../middleware/validate';
 import { withAudit } from '../middleware/audit';
 import { requireFeature } from '../services/permissions.service';
+import { storageUsageService } from '../services/storage-usage.service';
 
 const DocInput = z.object({
   name: z.string(),
@@ -134,6 +135,7 @@ documentsRouter.post(
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
+      if (req.body.fileSize) await storageUsageService.assertRoom(firmId, req.body.fileSize);
       res.status(201).json(await documentsService.create(req.body, firmId));
     } catch (err) {
       next(err);
@@ -156,6 +158,7 @@ documentsRouter.post('/upload-url', requireFeature('drafting.basic'), validate({
       res.status(422).json({ error: 'No firm attached - cannot upload documents' });
       return;
     }
+    await storageUsageService.assertRoom(firmId, req.body.fileSize);
     const safeName = req.body.fileName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 200) || 'file';
     const random = crypto.randomBytes(8).toString('hex');
     const key = `documents/${firmId}/${random}_${safeName}`;

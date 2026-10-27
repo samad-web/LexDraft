@@ -394,3 +394,109 @@ async function sendRunSummaries(
     await notify.ecourtsSyncSummary(firmId, userId, { slot, runDate, tally, ...state });
   }
 }
+
+// ---------------------------------------------------------------------------
+// On-demand sync of ONE firm's matters ("Sync from eCourts" on Hearings).
+// Same per-case work as the scheduled run - hearings, next date, orders,
+// parties replaced from eCourts, change notifications - without touching the
+// slot bookkeeping. Skips matters synced in the last FRESH_MIN minutes so a
+// repeated click doesn't hammer eCourts; capped per click.
+// ---------------------------------------------------------------------------
+
+const FIRM_SYNC_FRESH_MIN = 30;
+const FIRM_SYNC_MAX = 60;
+
+export interface FirmSyncSummary {
+  scanned: number;
+  synced: number;
+  changed: number;
+  notFound: number;
+  failed: number;
+  upstreamDown: boolean;
+}
+
+/** due / total = open matters with a real CNR (the ones a sync refreshes);
+ *  closed = matters with a real CNR that are closed or disposed, which the
+ *  sync deliberately leaves alone - so the UI can say why nothing synced. */
+export async function countFirmSyncCandidates(firmId: string): Promise<{ due: number; total: number; closed: number }> {
+  const sql = db();
+  if (!sql) return { due: 0, total: 0, closed: 0 };
+  const [r] = await sql<Array<{ due: number; total: number; closed: number }>>`
+    select
+      count(*) filter (where status in ('Active', 'Pending')
+        and (ecourts_synced_at is null or ecourts_synced_at < now() - make_interval(mins => ${FIRM_SYNC_FRESH_MIN})))::int as due,
+      count(*) filter (where status in ('Active', 'Pending'))::int as total,
+      count(*) filter (where status not in ('Active', 'Pending'))::int as closed
+    from cases
+    where firm_id = ${firmId}::uuid
+      and deleted_at is null
+      and upper(trim(cnr)) ~ '^[A-Z]{4}[A-Z0-9]{12}$'
+  `;
+  return { due: Math.min(r?.due ?? 0, FIRM_SYNC_MAX), total: r?.total ?? 0, closed: r?.closed ?? 0 };
+}
+
+export async function syncFirmCases(firmId: string): Promise<FirmSyncSummary> {
+  const summary: FirmSyncSummary = { scanned: 0, synced: 0, changed: 0, notFound: 0, failed: 0, upstreamDown: false };
+  const sql = db();
+  if (!sql) return summary;
+  const rows = await sql<Array<{ id: string; cnr: string; title: string; created_by_user_id: string | null }>>`
+    select id, upper(trim(cnr)) as cnr, title, created_by_user_id
+    from cases
+    where firm_id = ${firmId}::uuid
+      and deleted_at is null
+      and status in ('Active', 'Pending')
+      and upper(trim(cnr)) ~ '^[A-Z]{4}[A-Z0-9]{12}$'
+      and (ecourts_synced_at is null or ecourts_synced_at < now() - make_interval(mins => ${FIRM_SYNC_FRESH_MIN}))
+    order by next_hearing asc nulls last, coalesce(ecourts_synced_at, 'epoch'::timestamptz) asc
+    limit ${FIRM_SYNC_MAX}
+  `;
+  summary.scanned = rows.length;
+  const { notify } = await import('./notifications.service');
+  const runDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+  let consecutiveUpstream = 0;
+
+  for (const row of rows) {
+    try {
+      const result = await syncCaseFromEcourts(row.id, firmId);
+      summary.synced += 1;
+      consecutiveUpstream = 0;
+      const notable = humanizeChanges(result.changes);
+      if (notable.length > 0) {
+        summary.changed += 1;
+        await notify.caseUpdatedFromEcourts(firmId, {
+          matterTitle: result.caseRow.title || row.title,
+          cnr: row.cnr,
+          changes: notable,
+          ownerUserId: row.created_by_user_id,
+          caseId: row.id,
+          runDate,
+        });
+      }
+    } catch (err) {
+      const kind = classifySyncError(err);
+      await recordSyncFailure(row.id, kind, err);
+      if (kind === 'not_found') {
+        summary.notFound += 1;
+        consecutiveUpstream = 0;
+      } else {
+        summary.failed += 1;
+        if (kind === 'upstream') {
+          consecutiveUpstream += 1;
+          if (consecutiveUpstream >= BREAKER_THRESHOLD) { summary.upstreamDown = true; break; }
+          await sleep(UPSTREAM_BACKOFF_MS);
+        } else {
+          consecutiveUpstream = 0;
+        }
+      }
+    }
+    await sleep(THROTTLE_MS);
+  }
+
+  // Dates eCourts set become hearing rows, and anything due soon reminds now.
+  const { materializeCaseHearings } = await import('./hearings.service');
+  await materializeCaseHearings(firmId, undefined, { force: true });
+  const { sendUpcomingHearingReminders } = await import('./case-sync.service');
+  await sendUpcomingHearingReminders({ firmId });
+  logger.info({ firmId, ...summary }, 'ecourts firm sync complete');
+  return summary;
+}

@@ -152,9 +152,8 @@ const Schema = z.object({
    *  e2e suites sign up with passwords). Existing users can always sign in
    *  with their password either way. */
   PASSWORD_SIGNUP: z.enum(['true', 'false']).optional(),
-  /** Email + password sign-in. LexDraft is Google-only, so this is off in
-   *  production unless set to 'true' (an emergency switch if Google sign-in
-   *  breaks); outside production it stays on unless 'false' (test suites). */
+  /** Email + password sign-in. On everywhere unless set to 'false'
+   *  (Google sign-in is offered alongside it). */
   PASSWORD_SIGNIN: z.enum(['true', 'false']).optional(),
 
   /** WhatsApp OTP delivery. 'console' logs the code to the API log (dev
@@ -267,9 +266,7 @@ export const env = {
   passwordSignupEnabled: parsed.data.NODE_ENV === 'production'
     ? parsed.data.PASSWORD_SIGNUP === 'true'
     : parsed.data.PASSWORD_SIGNUP !== 'false',
-  passwordSigninEnabled: parsed.data.NODE_ENV === 'production'
-    ? parsed.data.PASSWORD_SIGNIN === 'true'
-    : parsed.data.PASSWORD_SIGNIN !== 'false',
+  passwordSigninEnabled: parsed.data.PASSWORD_SIGNIN !== 'false',
   // Same double-gate pattern: unsigned webhooks only flow when NODE_ENV is
   // non-prod AND the operator opts in explicitly.
   webhookAllowUnverified:

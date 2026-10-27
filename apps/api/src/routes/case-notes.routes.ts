@@ -8,6 +8,7 @@ import { validate, uuidParam } from '../middleware/validate';
 import { withAudit } from '../middleware/audit';
 import { requireFeature } from '../services/permissions.service';
 import { SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
+import { storageUsageService } from '../services/storage-usage.service';
 
 // =============================================================================
 // /api/case-notes - matter-scoped advocate notes (typed or uploaded).
@@ -117,6 +118,7 @@ caseNotesRouter.post(
         res.status(422).json({ error: 'No firm attached - cannot upload notes' });
         return;
       }
+      await storageUsageService.assertRoom(firmId, req.body.fileSize);
       const safeName = req.body.fileName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 200) || 'file';
       const random = crypto.randomBytes(8).toString('hex');
       const key = `case-notes/${firmId}/${req.body.caseId}/${random}_${safeName}`;

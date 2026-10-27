@@ -392,7 +392,9 @@ export interface HearingReminderSummary {
   reminded: number;
 }
 
-export async function sendUpcomingHearingReminders(): Promise<HearingReminderSummary> {
+export async function sendUpcomingHearingReminders(
+  scope: { firmId?: string; caseId?: string } = {},
+): Promise<HearingReminderSummary> {
   const sql = db();
   if (!sql) {
     logger.warn('hearing reminder scan skipped: no DATABASE_URL');
@@ -400,9 +402,11 @@ export async function sendUpcomingHearingReminders(): Promise<HearingReminderSum
   }
 
   const rows = await sql<Array<{ id: string; firm_id: string; title: string; next_hearing: string; created_by_user_id: string | null }>>`
-    select id, firm_id, title, next_hearing::text, created_by_user_id
+    select id, firm_id, coalesce(nullif(trim(title), ''), cnr) as title, next_hearing::text, created_by_user_id
     from cases
-    where status = 'Active'
+    where status in ('Active', 'Pending')
+      and (${scope.firmId ?? null}::text is null or firm_id::text = ${scope.firmId ?? null}::text)
+      and (${scope.caseId ?? null}::text is null or id::text = ${scope.caseId ?? null}::text)
       and deleted_at is null
       and next_hearing is not null
       and next_hearing >= current_date

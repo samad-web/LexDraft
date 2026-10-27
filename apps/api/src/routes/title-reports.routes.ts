@@ -24,6 +24,7 @@ import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 import { jobs } from '../services/jobs.service';
 import { logger } from '../logger';
+import { storageUsageService, StorageFullError } from '../services/storage-usage.service';
 
 export const titleReportsRouter: Router = Router();
 
@@ -306,6 +307,10 @@ function respondError(res: Response, err: unknown): void {
     res.status(err.status).json({ error: err.message, code: err.code });
     return;
   }
+  if (err instanceof StorageFullError) {
+    res.status(err.status).json({ error: err.message, code: err.code, details: err.details });
+    return;
+  }
   logger.warn({ err }, 'title-reports route error');
   res.status(500).json({ error: 'Internal error' });
 }
@@ -422,6 +427,7 @@ titleReportsRouter.post('/:id/documents', async (req, res) => {
     const c = await ctx(req);
     if (!c) return res.status(401).json({ error: 'Unauthorized' });
     const body = DocumentBody.parse(req.body);
+    if (body.fileSize) await storageUsageService.assertRoom(c.firmId, body.fileSize);
     const out = await titleReportsService.addDocument(c.firmId, req.params.id, c.userId, c.email, c.roleName, body);
     // Kick off extraction asynchronously if a blob was attached.
     if (out.storageRef) {

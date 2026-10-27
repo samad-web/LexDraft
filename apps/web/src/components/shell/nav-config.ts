@@ -115,7 +115,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Work',
     items: [
       { id: 'tasks',      label: 'Tasks',      icon: 'tasks',      to: '/app/tasks',      requiresFeature: 'matter.view' },
-      { id: 'limitation', label: 'Limitation', icon: 'limitation', to: '/app/limitation', requiresFeature: 'matter.view' },
+      { id: 'limitation', label: 'Limitation', icon: 'limitation', to: '/app/limitation', requiresFeature: 'limitation.use' },
       {
         // Physical Docs (paper-originals register) and Archive (closed
         // matters) are separate routes; they sit under Documents as tabs.

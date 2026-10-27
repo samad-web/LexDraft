@@ -174,7 +174,7 @@ describe('resolveFeatures - role-aware via memUsers', () => {
     expect(r.features).toContain('analytics.firm');
   });
 
-  it('a signUp with role=group gets the Practice set (no admin.users, no analytics.firm)', async () => {
+  it('a signUp with role=group gets the full Firm set (14-day firm trial)', async () => {
     const email = `practice-${Date.now()}@example.com`;
     const auth = await authService.signUp({
       email, password: 'longenough', name: 'Test Lead', role: 'group',
@@ -182,8 +182,8 @@ describe('resolveFeatures - role-aware via memUsers', () => {
     const r = await resolveFeatures(auth.user.id);
     expect(r.features).toContain('drafting.ai');
     expect(r.features).toContain('firm.members.view');
-    expect(r.features).not.toContain('admin.users');
-    expect(r.features).not.toContain('analytics.firm');
+    expect(r.features).toContain('admin.users');
+    expect(r.features).toContain('analytics.firm');
   });
 });
 

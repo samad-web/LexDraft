@@ -6,12 +6,15 @@ import {
   useFirmEnquiry,
   useGoogleSignIn,
   useGoogleSignUp,
+  useSignIn,
   type FirmEnquirySize,
   type GoogleSignupRequired,
 } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable } from '@/lib/google';
+import { AuthArt } from '@/components/AuthArt';
+import { indiaStateOptions } from '@/lib/india-states';
 import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
 
 // =============================================================================
@@ -23,7 +26,7 @@ import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@
 // =============================================================================
 
 type AuthTab = 'signin' | 'signup';
-type Role = 'solo' | 'group' | 'firm';
+type Role = 'solo' | 'student' | 'group' | 'firm';
 
 interface RoleOption {
   id: Role;
@@ -31,11 +34,17 @@ interface RoleOption {
   sub: string;
 }
 
+// Launch pricing: solo advocates and law students are free until 1 June
+// 2027; a law firm trials every feature for 14 days (api: lib/free-plan.ts).
 const ROLE_OPTIONS: RoleOption[] = [
-  { id: 'solo', label: 'Solo Advocate', sub: 'Just me' },
-  { id: 'group', label: 'Practice Group', sub: '2-8 people' },
-  { id: 'firm', label: 'Firm', sub: '9+ people' },
+  { id: 'solo', label: 'Solo Advocate', sub: 'Free till 1 June 2027' },
+  { id: 'student', label: 'Law Student', sub: 'Free till 1 June 2027' },
+  { id: 'group', label: 'Law Firm', sub: '14-day full trial' },
+  { id: 'firm', label: 'Large Firm', sub: '9+ people · talk to us' },
 ];
+
+const STUDY_YEARS = ['1st year', '2nd year', '3rd year', '4th year', '5th year', 'LL.M.', 'Graduated'];
+const TEAM_SIZES = ['2-3', '4-8', '9-25', '26+'];
 
 // Shown above the new-account steps (step index 0..2).
 const STEP_LABELS: readonly string[] = ['Practice type', 'WhatsApp number', 'Profile'];
@@ -47,12 +56,13 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
   plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using LexDraft.',
   plan_past_due:  'Your firm subscription is past due. Update billing to continue using LexDraft.',
   plan_expired:   'Your firm subscription period has ended. Renew to continue using LexDraft.',
-  trial_expired:  'Your 14-day trial has ended. Pick a plan to keep your work.',
+  trial_expired:  'Your free access or trial has ended. Pick a plan to keep your work.',
 };
 
 export function AuthView() {
   const navigate = useNavigate();
   const googleSignIn = useGoogleSignIn();
+  const signIn = useSignIn();
   const signUp = useGoogleSignUp();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -94,6 +104,12 @@ export function AuthView() {
   const [firm, setFirm] = useState('');
   const [primaryCourt, setPrimaryCourt] = useState('');
   const [practiceAreas, setPracticeAreas] = useState('');
+  const [city, setCity] = useState('');
+  const [stateName, setStateName] = useState('');
+  const [college, setCollege] = useState('');
+  const [studyYear, setStudyYear] = useState('');
+  const [teamSize, setTeamSize] = useState('');
+  const stateOptions = useMemo(() => indiaStateOptions(), []);
 
   const [signupEmailTouched, setSignupEmailTouched] = useState(false);
   const signupEmailError = signupEmailTouched ? validators.email(email) : null;
@@ -108,6 +124,22 @@ export function AuthView() {
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
   const isSignup = tab === 'signup';
+  // Who is signing in (the left tabs): copy changes, and the "new here" link
+  // starts a trial (advocate) or a firm enquiry / demo (firm).
+  const [audience, setAudience] = useState<'advocate' | 'firm'>('advocate');
+  // Email + password sign-in; Google is offered underneath.
+  const [signinEmail, setSigninEmail] = useState('');
+  const [signinPassword, setSigninPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  // Password chosen while setting up a new account (step 3).
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const passwordProblem = newPassword && newPassword.length < 8
+    ? 'Use at least 8 characters.'
+    : confirmPassword && confirmPassword !== newPassword ? 'The passwords do not match.' : null;
+  const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
+  const startTrial = () => { setMfaChallenge(null); setGoogleSignup(null); setVerified(null); setRole(null); setStep(0); setTab('signup'); };
+  const bookDemo = () => { setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
   const onComplete = (resp?: { user?: { isSuperadmin?: boolean } }) =>
     navigate(resp?.user?.isSuperadmin ? '/admin' : '/app/dashboard');
@@ -153,18 +185,33 @@ export function AuthView() {
     onComplete({ user });
   };
 
+  const handleSignIn = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!signinEmail.trim() || !signinPassword) return;
+    signIn.mutate(
+      { email: signinEmail.trim(), password: signinPassword },
+      { onSuccess: handleSignedIn },
+    );
+  };
+
   const handleSignUp = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!role || !verified) return;
+    if (!role || !verified || newPassword.length < 8 || newPassword !== confirmPassword) return;
     signUp.mutate(
       {
         signupToken: verified.signupToken,
+        password: newPassword,
         name: name.trim() || undefined,
         role,
         firm: firm || undefined,
         enrolment: enrolment || undefined,
         primaryCourt: primaryCourt || undefined,
         practiceAreas: practiceAreas || undefined,
+        city: city.trim() || undefined,
+        state: stateName || undefined,
+        college: role === 'student' ? college.trim() || undefined : undefined,
+        studyYear: role === 'student' ? studyYear || undefined : undefined,
+        teamSize: role === 'group' ? teamSize || undefined : undefined,
       },
       { onSuccess: (resp) => onComplete(resp) },
     );
@@ -205,16 +252,6 @@ export function AuthView() {
     fontFamily: 'var(--font-sans)',
   };
 
-  const cardStyle: CSSProperties = {
-    width: '100%',
-    maxWidth: 480,
-    padding: 'clamp(28px, 5vw, 44px)',
-    background: 'var(--bg-surface)',
-    border: '1px solid var(--border-default)',
-    borderRadius: 'var(--radius-xl)',
-    boxShadow: 'var(--shadow-popover)',
-  };
-
   const backToStart = () => {
     setTab('signin');
     setStep(0);
@@ -236,7 +273,39 @@ export function AuthView() {
 
   return (
     <div style={pageStyle}>
-      <div style={cardStyle}>
+      <div className="auth-shell">
+        <aside className="auth-art">
+          <AuthArt />
+          <div className="auth-art-brand">
+            <span className="auth-art-mark" aria-hidden />
+            LexDraft
+          </div>
+          <nav className="auth-side-tabs" aria-label="Sign in options">
+            <button
+              type="button"
+              className={`auth-side-tab${firmSide ? '' : ' is-active'}`}
+              aria-current={firmSide ? undefined : 'page'}
+              onClick={() => { backToStart(); setAudience('advocate'); }}
+            >
+              Advocate
+            </button>
+            <button
+              type="button"
+              className={`auth-side-tab${firmSide ? ' is-active' : ''}`}
+              aria-current={firmSide ? 'page' : undefined}
+              onClick={() => { backToStart(); setAudience('firm'); }}
+            >
+              Firm
+            </button>
+          </nav>
+          <p className="auth-art-tagline">
+            {firmSide
+              ? 'Matters, team, hearings and billing for your whole firm.'
+              : 'Your hearings, drafts and matters in one app.'}
+          </p>
+        </aside>
+        <div className="auth-main">
+        <div className="auth-main-inner">
         {/* Brand */}
         <div
           style={{
@@ -247,17 +316,9 @@ export function AuthView() {
             marginBottom: 28,
           }}
         >
-          <span
-            aria-hidden
-            style={{
-              width: 32,
-              height: 32,
-              background: 'var(--text-primary)',
-              borderRadius: 'var(--radius-md)',
-              display: 'inline-block',
-            }}
-          />
+          <span aria-hidden className="auth-logo"><span /></span>
           <div
+            className="auth-brand-text"
             style={{
               fontFamily: 'var(--font-display)',
               fontSize: 24,
@@ -268,7 +329,7 @@ export function AuthView() {
             LexDraft
           </div>
           <div
-            className="mono"
+            className="mono auth-brand-text"
             style={{
               fontSize: 10,
               letterSpacing: '0.18em',
@@ -351,53 +412,80 @@ export function AuthView() {
               </div>
             )}
             <div style={{ textAlign: 'center' }}>
-              <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, margin: 0 }}>
-                Welcome
-              </h1>
+              <h1 className="auth-title">Sign in</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                Sign in or create your account with Google.
+                {audience === 'firm' ? 'Welcome back to your firm.' : 'Welcome back to your practice.'}
               </p>
             </div>
-            {googleSignInAvailable() ? (
-              <GoogleButton onCredential={handleGoogleCredential} text="continue_with" />
-            ) : (
-              <div role="status" style={noticeStyle}>Google sign-in is not configured.</div>
-            )}
+            <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label className="auth-field">
+                <Icon name="clients" size={16} />
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="username"
+                  placeholder={audience === 'firm' ? 'Work email' : 'Email'}
+                  aria-label="Email"
+                  required
+                  value={signinEmail}
+                  onChange={(e) => setSigninEmail(e.target.value)}
+                />
+              </label>
+              <label className="auth-field">
+                <Icon name="key" size={16} />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Password"
+                  aria-label="Password"
+                  required
+                  value={signinPassword}
+                  onChange={(e) => setSigninPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="auth-eye"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
+                </button>
+              </label>
+              {signIn.isError && (
+                <div role="alert" style={noticeStyle}>{signIn.error.message}</div>
+              )}
+              <div className="auth-actions">
+                <a className="auth-forgot" href="mailto:support@lexdraft.in?subject=Forgot%20password">Forgot password?</a>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-lg btn-pill auth-submit"
+                  disabled={signIn.isPending || !signinEmail.trim() || !signinPassword}
+                >
+                  {signIn.isPending ? 'Signing in…' : 'Sign in'}
+                </button>
+              </div>
+            </form>
             {googleSignIn.isPending && (
               <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
             )}
             {googleSignIn.isError && (
               <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
             )}
-            <ul
-              style={{
-                listStyle: 'none',
-                margin: 0,
-                padding: '14px 16px',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-                fontSize: 13,
-                color: 'var(--text-secondary)',
-                lineHeight: 1.5,
-              }}
-            >
-              <li><strong style={{ color: 'var(--text-primary)' }}>Already a member?</strong> Use the Google account with your LexDraft email.</li>
-              <li><strong style={{ color: 'var(--text-primary)' }}>New here?</strong> After Google, verify your WhatsApp number and set up your practice.</li>
-            </ul>
+            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+              {audience === 'firm' ? (
+                <>New firm on LexDraft?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Book a demo</button></>
+              ) : (
+                <>New to LexDraft?{' '}<button type="button" className="auth-link" onClick={startTrial}>Start a 14-day free trial</button></>
+              )}
+            </p>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm auth-firm-link"
               style={{ alignSelf: 'center' }}
-              onClick={() => { setTab('signup'); setRole('firm'); setStep(1); }}
+              onClick={bookDemo}
             >
-              Firm with 9+ lawyers? Talk to our team
+              Firm with 9+ lawyers? Book a demo
             </button>
-            <p className="body-xs muted" style={{ textAlign: 'center', lineHeight: 1.5 }}>
-              By continuing you agree to LexDraft&rsquo;s terms of service and privacy policy.
-            </p>
           </div>
         )}
 
@@ -416,7 +504,7 @@ export function AuthView() {
                 ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Let’s set up your account for ${googleSignup.profile.email}. How will you use LexDraft?`
                 : 'How will you use LexDraft?'}
             </p>
-            <div className="facts-grid-3" style={{ gap: 10 }}>
+            <div className="facts-grid-2" style={{ gap: 10 }}>
               {ROLE_OPTIONS.map((r) => {
                 const active = role === r.id;
                 return (
@@ -739,51 +827,135 @@ export function AuthView() {
                 autoComplete="name"
               />
             </div>
+            {role === 'student' ? (
+              <>
+                <div>
+                  <label className="label required" htmlFor="signup-college">College / university</label>
+                  <input
+                    id="signup-college"
+                    className="input"
+                    value={college}
+                    onChange={(e) => setCollege(e.target.value)}
+                    placeholder="Government Law College, Chennai"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="signup-year">Year of study</label>
+                  <select id="signup-year" className="input" value={studyYear} onChange={(e) => setStudyYear(e.target.value)}>
+                    <option value="">Select…</option>
+                    {STUDY_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="label" htmlFor="signup-enrolment">
+                    Bar Council Enrolment No.
+                    <span className="hint">Optional</span>
+                  </label>
+                  <input
+                    id="signup-enrolment"
+                    className="input mono"
+                    value={enrolment}
+                    onChange={(e) => setEnrolment(e.target.value)}
+                    placeholder="D/4419/2018"
+                  />
+                </div>
+                <div>
+                  <label className={`label${role === 'group' ? ' required' : ''}`} htmlFor="signup-firm">
+                    {role === 'solo' ? 'Chambers name' : 'Firm name'}
+                  </label>
+                  <input
+                    id="signup-firm"
+                    className="input"
+                    value={firm}
+                    onChange={(e) => setFirm(e.target.value)}
+                    placeholder="Sharma & Associates"
+                    autoComplete="organization"
+                    required={role === 'group'}
+                  />
+                </div>
+                {role === 'group' && (
+                  <div>
+                    <label className="label" htmlFor="signup-team">Team size</label>
+                    <select id="signup-team" className="input" value={teamSize} onChange={(e) => setTeamSize(e.target.value)}>
+                      <option value="">Select…</option>
+                      {TEAM_SIZES.map((t) => <option key={t} value={t}>{t} people</option>)}
+                    </select>
+                  </div>
+                )}
+                <div>
+                  <label className="label" htmlFor="signup-court">Primary court</label>
+                  <input
+                    id="signup-court"
+                    className="input"
+                    value={primaryCourt}
+                    onChange={(e) => setPrimaryCourt(e.target.value)}
+                    placeholder="Delhi High Court"
+                  />
+                </div>
+                <div>
+                  <label className="label" htmlFor="signup-areas">Practice areas</label>
+                  <input
+                    id="signup-areas"
+                    className="input"
+                    value={practiceAreas}
+                    onChange={(e) => setPracticeAreas(e.target.value)}
+                    placeholder="Civil, Commercial, Banking"
+                  />
+                </div>
+              </>
+            )}
+            <div className="facts-grid-2" style={{ gap: 14 }}>
+              <div>
+                <label className="label" htmlFor="signup-city">City</label>
+                <input
+                  id="signup-city"
+                  className="input"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Chennai"
+                  autoComplete="address-level2"
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="signup-state">State</label>
+                <select id="signup-state" className="input" value={stateName} onChange={(e) => setStateName(e.target.value)}>
+                  <option value="">Select…</option>
+                  {stateOptions.map((o) => <option key={o.value} value={o.label}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="label" htmlFor="signup-enrolment">
-                Bar Council Enrolment No.
-                <span className="hint">Optional</span>
+              <label className="label required" htmlFor="signup-password">
+                Password
+                <span className="hint">At least 8 characters</span>
               </label>
               <input
-                id="signup-enrolment"
-                className="input mono"
-                value={enrolment}
-                onChange={(e) => setEnrolment(e.target.value)}
-                placeholder="D/4419/2018"
+                id="signup-password"
+                className="input"
+                type="password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={8}
+                required
               />
             </div>
             <div>
-              <label className="label" htmlFor="signup-firm">
-                {role === 'solo' ? 'Chambers name' : 'Firm name'}
-              </label>
+              <label className="label required" htmlFor="signup-password2">Confirm password</label>
               <input
-                id="signup-firm"
+                id="signup-password2"
                 className="input"
-                value={firm}
-                onChange={(e) => setFirm(e.target.value)}
-                placeholder="Sharma & Associates"
-                autoComplete="organization"
+                type="password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
               />
-            </div>
-            <div>
-              <label className="label" htmlFor="signup-court">Primary court</label>
-              <input
-                id="signup-court"
-                className="input"
-                value={primaryCourt}
-                onChange={(e) => setPrimaryCourt(e.target.value)}
-                placeholder="Delhi High Court"
-              />
-            </div>
-            <div>
-              <label className="label" htmlFor="signup-areas">Practice areas</label>
-              <input
-                id="signup-areas"
-                className="input"
-                value={practiceAreas}
-                onChange={(e) => setPracticeAreas(e.target.value)}
-                placeholder="Civil, Commercial, Banking"
-              />
+              <FieldError error={passwordProblem} />
             </div>
             {signUp.isError && (
               <div
@@ -803,13 +975,34 @@ export function AuthView() {
             <button
               type="submit"
               className="btn btn-primary btn-block btn-lg"
-              disabled={signUp.isPending || !verified}
+              disabled={signUp.isPending || !verified || newPassword.length < 8 || newPassword !== confirmPassword}
             >
               {signUp.isPending ? 'Creating account…' : 'Finish setup'}
             </button>
           </form>
         )}
+        </div>
+        {tab === 'signin' && !mfaChallenge && (
+          <div className="auth-foot">
+            <span>Or sign in with</span>
+            {googleSignInAvailable() ? (
+              <GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" width={210} />
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
+          </div>
+        )}
+        {tab === 'signup' && (
+          <div className="auth-foot">
+            <span>New accounts: Google, a WhatsApp code, then a password</span>
+            <span className="auth-foot-g"><GoogleG /> Google</span>
+          </div>
+        )}
+        </div>
       </div>
+      <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>
+        By continuing you agree to LexDraft&rsquo;s terms of service and privacy policy.
+      </p>
 
       {/* Trust strip - sits below the card, reinforces the legal-tech
           positioning without competing for attention. */}
@@ -1032,5 +1225,17 @@ function MfaChallengeStep({
         </button>
       </div>
     </form>
+  );
+}
+
+/** Google "G" mark for the card's bottom strip (brand colours, as Google requires). */
+function GoogleG() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden>
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+    </svg>
   );
 }

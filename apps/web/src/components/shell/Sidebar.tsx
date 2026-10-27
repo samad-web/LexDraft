@@ -144,9 +144,10 @@ export function Sidebar() {
                       </span>
                       {item.id === 'team-chat' && chatUnread > 0 && (
                         <span
-                          className="badge badge-vermillion nav-label"
+                          className="badge nav-label"
                           aria-label={`${chatUnread} unread messages`}
-                          style={{ fontSize: 10, padding: '0 6px' }}
+                          // Monochrome solid pill (red is reserved for mandatory issues).
+                          style={{ fontSize: 10, padding: '0 6px', background: 'var(--text-primary)', color: 'var(--bg-base)', borderColor: 'var(--text-primary)', fontWeight: 600 }}
                         >
                           {chatUnread > 99 ? '99+' : chatUnread}
                         </span>

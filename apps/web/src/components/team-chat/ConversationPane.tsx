@@ -34,11 +34,13 @@ interface Props {
   conversationId: string;
   /** Extra header controls (e.g. group member management). */
   headerActions?: ReactNode;
+  /** Back-to-list arrow, shown on narrow screens only. */
+  onBack?: () => void;
   /** Hide the title row when the host already shows it (matter tab). */
   compactHeader?: boolean;
 }
 
-export function ConversationPane({ conversationId, headerActions, compactHeader }: Props) {
+export function ConversationPane({ conversationId, headerActions, compactHeader, onBack }: Props) {
   const myId = useAuthStore((s) => s.user?.id ?? null);
   const showToast = useUIStore((s) => s.showToast);
   const detail = useConversation(conversationId);
@@ -168,8 +170,20 @@ export function ConversationPane({ conversationId, headerActions, compactHeader 
     <div className="col" style={{ gap: 0, height: '100%', minHeight: 0 }}>
       <header
         className="row"
-        style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-default)', gap: 12, alignItems: 'center' }}
+        style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-default)', gap: 8, alignItems: 'center' }}
       >
+        {onBack && (
+          // Only shown on narrow screens (TeamChatView's .team-chat-back rule).
+          <button
+            type="button"
+            className="btn btn-ghost team-chat-back"
+            onClick={onBack}
+            aria-label="Back to conversations"
+            style={{ padding: '0 6px', marginLeft: -6 }}
+          >
+            <Icon name="chevron" size={18} style={{ transform: 'rotate(180deg)' }} />
+          </button>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           {!compactHeader && (
             <div style={{ fontWeight: 600, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -185,10 +199,12 @@ export function ConversationPane({ conversationId, headerActions, compactHeader 
             type="button"
             className="btn btn-ghost"
             title={d.muted ? 'Unmute: get notified again' : 'Mute: no notifications except @mentions'}
+            aria-label={d.muted ? 'Unmute' : 'Mute'}
             onClick={() => update.mutate({ muted: !d.muted })}
             disabled={update.isPending}
           >
-            <Icon name="bell" size={14} /> {d.muted ? 'Unmute' : 'Mute'}
+            <Icon name="bell" size={14} />
+            <span className="tc-btn-label"> {d.muted ? 'Unmute' : 'Mute'}</span>
           </button>
         )}
         {headerActions}
@@ -248,7 +264,7 @@ export function ConversationPane({ conversationId, headerActions, compactHeader 
             className="row"
             style={{
               gap: 8, alignItems: 'center', marginBottom: 8, padding: '6px 10px',
-              borderLeft: '3px solid var(--info)', background: 'var(--bg-surface-2)', borderRadius: 6,
+              borderLeft: '3px solid var(--text-primary)', background: 'var(--bg-surface-2)', borderRadius: 6,
             }}
           >
             <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
@@ -301,7 +317,7 @@ export function ConversationPane({ conversationId, headerActions, compactHeader 
                 <Icon name="file" size={14} /> Attach
               </button>
             )}
-            <span className="muted" style={{ fontSize: 12 }}>Enter to send · Shift+Enter for a new line</span>
+            <span className="muted tc-hint" style={{ fontSize: 12 }}>Enter to send · Shift+Enter for a new line</span>
           </div>
           <button
             type="button"
@@ -439,7 +455,7 @@ function Bubble({ message: m, mine, showAuthor, members, myId, onReply, onEdit, 
           }}
         >
           {m.replyTo && !m.deleted && (
-            <div style={{ borderLeft: '3px solid var(--info)', padding: '2px 8px', marginBottom: 6, opacity: 0.85, fontSize: 12 }}>
+            <div style={{ borderLeft: '3px solid currentColor', padding: '2px 8px', marginBottom: 6, opacity: 0.75, fontSize: 12 }}>
               <div style={{ fontWeight: 600 }}>{m.replyTo.authorName}</div>
               <div>{m.replyTo.body ?? 'This message was deleted'}</div>
             </div>
@@ -472,7 +488,8 @@ function Bubble({ message: m, mine, showAuthor, members, myId, onReply, onEdit, 
               <span
                 aria-label={readByAll ? 'Read' : 'Sent'}
                 title={readByAll ? 'Read by everyone' : 'Sent'}
-                style={{ marginLeft: 4, color: readByAll ? 'var(--info)' : 'inherit' }}
+                // Monochrome: read is a bold, fully opaque double tick.
+                style={{ marginLeft: 4, fontWeight: readByAll ? 800 : 400, opacity: readByAll ? 1 : 0.8 }}
               >
                 {readByAll ? '✓✓' : '✓'}
               </span>
@@ -536,7 +553,8 @@ function MessageBody({ body, members, mentionIds, myId }: { body: string; member
         const who = tagged.find((m) => part === `@${m.name}`);
         if (!who) return <span key={i}>{part}</span>;
         return (
-          <strong key={i} style={{ color: who.userId === myId ? 'var(--warning, #d97706)' : 'var(--info)' }}>{part}</strong>
+          // Monochrome: mentions are bold; a mention of me is also underlined.
+          <strong key={i} style={{ textDecoration: who.userId === myId ? 'underline' : 'none', textUnderlineOffset: 2 }}>{part}</strong>
         );
       })}
     </>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
 import { PillNav } from '../components/PillNav';
 import { LandingHeader } from '../components/LandingHeader';
+import { LandingArt } from '../components/LandingArt';
 
 // Header offset for scrollTo targeting — matches scrollMarginTop on each section.
 const SCROLL_OFFSET = -90;
@@ -599,7 +600,9 @@ export function LandingView() {
         id="home"
         style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
       >
-        <div className="reveal-stagger" style={{ maxWidth: 880 }}>
+        <div className="lx-hero">
+        <LandingArt />
+        <div className="reveal-stagger lx-hero-copy" style={{ maxWidth: 880 }}>
           <h1
             className="display"
             style={{
@@ -654,6 +657,7 @@ export function LandingView() {
               Already have an account? Sign in
             </button>
           </div>
+        </div>
         </div>
 
         {/* Trust strip */}

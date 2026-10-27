@@ -90,6 +90,7 @@ coCounselRouter.get('/requests', requireFeature('matter.view'), async (req, res,
 coCounselRouter.post(
   '/cases/:caseId/requests',
   requireFeature('matter.view'),
+  requireFeature('co_counsel.handover'),
   validate({ params: z.object({ caseId: z.string().uuid() }), body: CreateBody }),
   async (req, res, next) => {
     try {

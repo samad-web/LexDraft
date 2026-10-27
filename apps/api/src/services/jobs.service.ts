@@ -495,6 +495,12 @@ jobs.register<EcourtsCaseLinkPayload>('ecourts.case.link', async (data) => {
   await runLinkJob(data);
 });
 
+// "Sync from eCourts" on Hearings: one firm's matters, on demand.
+jobs.register<{ firmId: string }>('ecourts.sync.firm', async (data) => {
+  const { syncFirmCases } = await import('./ecourts-sync-runs.service');
+  await syncFirmCases(data.firmId);
+}, { expireInSeconds: 30 * 60 });
+
 // Upcoming-hearing reminders. Runs automatically right after the 09:00
 // eCourts sync (above) so a hearing date that moved is reflected the same
 // morning. Kept registered without a cron for manual triggering.

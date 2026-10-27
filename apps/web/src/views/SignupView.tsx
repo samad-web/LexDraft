@@ -305,15 +305,17 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
   const onSignedIn = useExistingAccountHandler();
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
+  const [password, setPassword] = useState({ value: '', ok: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || !verified) return;
+    if (isSubmitting || !verified || !password.ok) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         signupToken: verified.signupToken,
+        password: password.value,
         name: name.trim() || undefined,
         role: 'solo',
         intent: 'demo',
@@ -347,8 +349,9 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
           <Labelled label="Your name">
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
           </Labelled>
+          <NewPasswordFields onChange={setPassword} />
           <div style={{ marginTop: 8 }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok}>
               {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
             </button>
           </div>
@@ -369,27 +372,29 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const onSignedIn = useExistingAccountHandler();
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'solo' | 'group' | 'firm'>('solo');
+  const [role, setRole] = useState<'solo' | 'student' | 'group'>('solo');
   const [firm, setFirm] = useState('');
+  const [password, setPassword] = useState({ value: '', ok: false });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTrial = props.intent === 'trial';
-  const eyebrow = isTrial ? 'Trial · 14 days, no card' : 'Create account';
+  const eyebrow = isTrial ? 'Free for advocates & students · 14-day trial for firms' : 'Create account';
   const headline = isTrial
-    ? 'Start your 14-day trial'
+    ? 'Start using LexDraft'
     : 'Create your LexDraft account';
   const subline = isTrial
-    ? 'Full access to the plan you pick. We do not ask for a card until day 14.'
+    ? 'Solo advocates and law students use LexDraft free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
     : 'Set up your account; billing kicks in on the next page.';
   const ctaLabel = isTrial ? 'Begin trial' : 'Create account';
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || !verified) return;
+    if (isSubmitting || !verified || !password.ok) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         signupToken: verified.signupToken,
+        password: password.value,
         name: name.trim() || undefined,
         role,
         firm: firm.trim() || undefined,
@@ -428,31 +433,32 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
           </Labelled>
           <Labelled label="Practice setup">
             <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
-              {(['solo', 'group', 'firm'] as const).map((r) => (
+              {(['solo', 'student', 'group'] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
                   className={`chip ${role === r ? 'active' : ''}`}
                   onClick={() => setRole(r)}
                 >
-                  {r === 'solo' ? 'Solo' : r === 'group' ? 'Practice group' : 'Firm'}
+                  {r === 'solo' ? 'Solo advocate · free' : r === 'student' ? 'Law student · free' : 'Law firm · 14-day trial'}
                 </button>
               ))}
             </div>
           </Labelled>
-          {role !== 'solo' && (
+          {role === 'group' && (
             <Labelled label="Practice or firm name">
               <input className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="e.g. Mehta & Co." autoComplete="organization" />
             </Labelled>
           )}
+          <NewPasswordFields onChange={setPassword} />
           <div style={{ marginTop: 8 }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok}>
               {isSubmitting || signUp.isPending ? 'Creating…' : ctaLabel}
             </button>
           </div>
           <div className="body-xs muted" style={{ marginTop: 4 }}>
             {isTrial
-              ? 'Your trial gives full access to the plan you select. After 14 days, pick a plan to keep going.'
+              ? (role === 'group' ? 'Your firm gets every feature for 14 days. After that, pick a plan to keep going.' : 'Free until 1 June 2027.')
               : 'You can switch plans any time from Settings → Billing.'}
           </div>
         </form>
@@ -472,6 +478,31 @@ function VerifiedLine(props: { verified: VerifiedGoogleSignup }): JSX.Element {
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------
+
+/** Password + confirm for a new account; reports { value, ok } upward. */
+function NewPasswordFields(props: { onChange: (p: { value: string; ok: boolean }) => void }): JSX.Element {
+  const [pw, setPw] = useState('');
+  const [again, setAgain] = useState('');
+  const problem = pw && pw.length < 8
+    ? 'Use at least 8 characters.'
+    : again && again !== pw ? 'The passwords do not match.' : null;
+  const update = (nextPw: string, nextAgain: string) => {
+    setPw(nextPw);
+    setAgain(nextAgain);
+    props.onChange({ value: nextPw, ok: nextPw.length >= 8 && nextPw === nextAgain });
+  };
+  return (
+    <>
+      <Labelled label="Password * (at least 8 characters)">
+        <input className="input" type="password" autoComplete="new-password" minLength={8} required value={pw} onChange={(e) => update(e.target.value, again)} />
+      </Labelled>
+      <Labelled label="Confirm password *">
+        <input className="input" type="password" autoComplete="new-password" required value={again} onChange={(e) => update(pw, e.target.value)} />
+      </Labelled>
+      {problem && <span className="body-xs" role="alert" style={{ color: 'var(--danger)' }}>{problem}</span>}
+    </>
+  );
+}
 
 function Labelled(props: { label: string; children: React.ReactNode }): JSX.Element {
   return (

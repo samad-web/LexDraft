@@ -46,11 +46,12 @@ export interface ComputeDeadlineResult {
   notes?: string;
 }
 
-export function useLimitations() {
+export function useLimitations(opts: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['limitations'],
     queryFn: () => api.get<{ items: LimitationRow[] }>('/limitations'),
     select: (r) => r.items,
+    enabled: opts.enabled ?? true,
   });
 }
 

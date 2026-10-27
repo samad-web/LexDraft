@@ -7,6 +7,7 @@ import { validate, uuidParam } from '../middleware/validate';
 import { requireFeature } from '../services/permissions.service';
 import { logger } from '../logger';
 import { SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
+import { storageUsageService } from '../services/storage-usage.service';
 
 // =============================================================================
 // /api/matter-intel — document ingestion + structured summary + matter brief.
@@ -140,6 +141,7 @@ matterIntelRouter.post(
       // takes ownership of the persistent blob.
       const random = Math.random().toString(36).slice(2, 14);
       const key = `matter-intel/_inbox/${firmId}/${caseId}/${random}_${safeName}`;
+      await storageUsageService.assertRoom(firmId, req.body.fileSize);
       const presigned = await storage().presignUpload({
         key,
         contentType: req.body.fileMime,

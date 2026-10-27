@@ -238,17 +238,22 @@ const NATIVE_LABEL = {
 
 /** Browser: Google's own rendered button (required by Google's branding
  *  rules). Android app: a native-picker button. */
-export function GoogleButton(props: {
+type GoogleButtonProps = {
   onCredential: (credential: string) => void;
   text?: 'continue_with' | 'signup_with' | 'signin_with';
-}) {
+  /** 'pill' = the sign-in page's round button. */
+  shape?: 'rectangular' | 'pill';
+  /** Pre-selects this account in Google's account chooser (web). */
+  loginHint?: string;
+  /** Fixed button width in px (web); default fills the container. */
+  width?: number;
+};
+
+export function GoogleButton(props: GoogleButtonProps) {
   return isNativeApp() ? <NativeGoogleButton {...props} /> : <WebGoogleButton {...props} />;
 }
 
-function NativeGoogleButton({ onCredential, text = 'continue_with' }: {
-  onCredential: (credential: string) => void;
-  text?: 'continue_with' | 'signup_with' | 'signin_with';
-}) {
+function NativeGoogleButton({ onCredential, text = 'continue_with', shape }: GoogleButtonProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const start = async () => {
@@ -266,7 +271,7 @@ function NativeGoogleButton({ onCredential, text = 'continue_with' }: {
   };
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <button type="button" className="btn btn-primary btn-lg btn-block" onClick={start} disabled={busy}>
+      <button type="button" className={`btn btn-primary btn-lg btn-block${shape === 'pill' ? ' btn-pill' : ''}`} onClick={start} disabled={busy}>
         <GoogleMark /> {busy ? 'Opening Google…' : NATIVE_LABEL[text]}
       </button>
       {error && <div role="alert" style={noticeStyle}>{error}</div>}
@@ -294,10 +299,7 @@ function GoogleMark() {
   );
 }
 
-function WebGoogleButton({ onCredential, text = 'continue_with' }: {
-  onCredential: (credential: string) => void;
-  text?: 'continue_with' | 'signup_with' | 'signin_with';
-}) {
+function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectangular', loginHint, width }: GoogleButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onCredential);
   cb.current = onCredential;
@@ -308,19 +310,25 @@ function WebGoogleButton({ onCredential, text = 'continue_with' }: {
     loadGoogleIdentity()
       .then((gsi) => {
         if (cancelled || !ref.current) return;
-        gsi.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => cb.current(r.credential), ux_mode: 'popup' });
+        gsi.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (r) => cb.current(r.credential),
+          ux_mode: 'popup',
+          ...(loginHint ? { login_hint: loginHint } : {}),
+        });
+        ref.current.replaceChildren();
         gsi.renderButton(ref.current, {
           type: 'standard',
           theme: 'filled_black',
           size: 'large',
-          shape: 'rectangular',
+          shape,
           text,
-          width: Math.min(400, Math.max(200, ref.current.offsetWidth)),
+          width: width ?? Math.min(400, Math.max(200, ref.current.offsetWidth)),
         });
       })
       .catch((err: Error) => !cancelled && setLoadError(err.message));
     return () => { cancelled = true; };
-  }, [text]);
+  }, [text, shape, loginHint, width]);
 
   if (loadError) return <div role="alert" style={noticeStyle}>{loadError}</div>;
   // colorScheme: Google's button iframe is a light document; on a dark page a

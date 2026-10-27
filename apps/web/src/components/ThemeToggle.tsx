@@ -46,7 +46,9 @@ export function ThemeToggle({ variant = 'icon' }: ThemeToggleProps) {
                 transition: 'background 180ms ease, color 180ms ease',
               }}
             >
-              <Icon name={t === 'light' ? 'sun' : 'moon'} size={14} />
+              <span key={`${t}-${active}`} className={active ? 'theme-icon' : undefined} aria-hidden style={{ display: 'inline-flex' }}>
+                <Icon name={t === 'light' ? 'sun' : 'moon'} size={14} />
+              </span>
             </button>
           );
         })}
@@ -63,7 +65,10 @@ export function ThemeToggle({ variant = 'icon' }: ThemeToggleProps) {
       title={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}
       style={{ padding: '0 8px' }}
     >
-      <Icon name={theme === 'light' ? 'moon' : 'sun'} />
+      {/* Keyed so the icon re-mounts and plays its spin-in on every switch. */}
+      <span key={theme} className="theme-icon" aria-hidden>
+        <Icon name={theme === 'light' ? 'moon' : 'sun'} />
+      </span>
     </button>
   );
 }

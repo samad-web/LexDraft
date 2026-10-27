@@ -10,6 +10,7 @@ import type {
   AdminUpdateTemplateRequest,
   AdminUpdateUserRequest,
   AuditLogQuery,
+  FreePlanSwitchState,
   TemplateScope,
   UserStatus,
 } from '@lexdraft/types';
@@ -22,6 +23,7 @@ export const adminKeys = {
   users: (q: object) => ['admin', 'users', q] as const,
   audit: (q: object) => ['admin', 'audit', q] as const,
   templates: (scope?: TemplateScope, firmId?: string) => ['admin', 'templates', scope, firmId] as const,
+  freePlanSwitches: ['admin', 'free-plan-switches'] as const,
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -40,6 +42,9 @@ export const useFirm = (id: string | undefined) =>
 
 export const useAdminUsers = (filter: { firmId?: string; status?: UserStatus; q?: string } = {}) =>
   useQuery({ queryKey: adminKeys.users(filter), queryFn: () => adminApi.listUsers(filter) });
+
+export const useFreePlanSwitches = () =>
+  useQuery({ queryKey: adminKeys.freePlanSwitches, queryFn: adminApi.freePlanSwitches });
 
 export const useAuditLog = (query: AuditLogQuery = {}) =>
   useQuery({ queryKey: adminKeys.audit(query), queryFn: () => adminApi.auditLog(query) });
@@ -110,6 +115,24 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => adminApi.deleteUser(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); qc.invalidateQueries({ queryKey: adminKeys.stats }); },
+  });
+}
+
+export function useSetFreePlanSwitch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ key, enabled }: { key: FreePlanSwitchState['key']; enabled: boolean }) => adminApi.setFreePlanSwitch(key, enabled),
+    onSuccess: (items) => { qc.setQueryData(adminKeys.freePlanSwitches, items); },
+  });
+}
+
+/** Free plan on/off for one account's firm, from the users directory. */
+export function useSetFirmFreePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ firmId, freePlan }: { firmId: string; freePlan: boolean }) =>
+      adminApi.updatePlan(firmId, freePlan ? { freePlan } : { freePlan, status: 'active' }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); qc.invalidateQueries({ queryKey: ['admin', 'firm'] }); },
   });
 }
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { permissionsService } from '../services/permissions.service';
 import { aiQuotaService } from '../services/ai-quota.service';
+import { storageUsageService } from '../services/storage-usage.service';
 import { firmIdForUser } from '../services/tenant';
 import { isKnownLanguageCode } from '../lib/languages';
 import { validate } from '../middleware/validate';
@@ -102,6 +103,21 @@ meRouter.get('/ai-quota', async (req, res, next) => {
     }
     const firmId = await firmIdForUser(userId);
     res.json(await aiQuotaService.status(firmId, userId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Uploaded-file storage held by the caller's account, and its limit
+// (null = unlimited). Free launch accounts are capped at 1 GB.
+meRouter.get('/storage', async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    if (!firmId) {
+      res.json({ usedBytes: 0, limitBytes: null });
+      return;
+    }
+    res.json(await storageUsageService.status(firmId));
   } catch (err) {
     next(err);
   }

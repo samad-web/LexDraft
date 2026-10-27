@@ -22,6 +22,12 @@ allprojects {
         google()
         mavenCentral()
     }
+    // The repo lives in OneDrive, which locks files Gradle is rewriting and
+    // fails the build. On Windows, keep build output in %LOCALAPPDATA%.
+    def localAppData = System.getenv('LOCALAPPDATA')
+    if (localAppData) {
+        layout.buildDirectory = new File(localAppData, "lexdraft-android-build/${project.name}")
+    }
 }
 
 task clean(type: Delete) {

@@ -4,6 +4,7 @@ import { diaryService } from '../services/diary.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 import { validate, uuidParam } from '../middleware/validate';
+import { storageUsageService } from '../services/storage-usage.service';
 
 const InputShape = z.object({
   date: z.string(),
@@ -73,7 +74,9 @@ diaryRouter.get(
 diaryRouter.post('/', requireFeature('matter.create'), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
-    res.status(201).json(await diaryService.create(Input.parse(req.body), firmId));
+    const input = Input.parse(req.body);
+    if (input.attachmentSize) await storageUsageService.assertRoom(firmId, input.attachmentSize);
+    res.status(201).json(await diaryService.create(input, firmId));
   } catch (err) {
     next(err);
   }

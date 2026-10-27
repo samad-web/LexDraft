@@ -5,6 +5,7 @@ import {
 } from '@/hooks/useAssignments';
 import { useUIStore } from '@/store/ui';
 import { HandOffCaseModal } from './HandOffCaseModal';
+import { useCan } from '@/hooks/useFirmAdmin';
 
 // =============================================================================
 // CaseLeadHandover — shows the matter's lead advocate and lets an authorised
@@ -25,6 +26,8 @@ export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTi
   const meId = useCurrentUserId();
   const showToast = useUIStore((s) => s.showToast);
   const [handoffOpen, setHandoffOpen] = useState(false);
+  // Outgoing co-counsel handovers can be switched off for free accounts.
+  const canHandOff = useCan('co_counsel.handover');
 
   const currentLeadId = lead.data?.id ?? null;
   const canEdit = isHead || (!!currentLeadId && currentLeadId === meId);
@@ -68,14 +71,16 @@ export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTi
               ? 'As a firm head you can hand this matter to anyone.'
               : 'You can hand off your own matter to a colleague.'}
           </p>
-          <button
-            type="button"
-            className="btn"
-            style={{ marginTop: 12 }}
-            onClick={() => setHandoffOpen(true)}
-          >
-            Hand off entire case…
-          </button>
+          {canHandOff && (
+            <button
+              type="button"
+              className="btn"
+              style={{ marginTop: 12 }}
+              onClick={() => setHandoffOpen(true)}
+            >
+              Hand off entire case…
+            </button>
+          )}
           <HandOffCaseModal
             open={handoffOpen}
             onClose={() => setHandoffOpen(false)}

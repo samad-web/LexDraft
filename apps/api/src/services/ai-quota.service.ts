@@ -15,6 +15,7 @@
  */
 
 import { db } from '../db/client';
+import { FREE_AI_MONTHLY_CAP } from '../lib/free-plan';
 
 export type PlanTier = 'Solo' | 'Practice' | 'Firm';
 
@@ -59,6 +60,7 @@ interface UsageRow {
   cycle_start: Date;
   cycle_end: Date;
   plan_tier: PlanTier | null;
+  free_plan: boolean | null;
   cap: number | null;
   used: number;
 }
@@ -101,7 +103,7 @@ export const aiQuotaService = {
 
     const [row] = await sql<UsageRow[]>`
       with firm as (
-        select plan_tier, renews_at from firms where id = ${firmId}::uuid limit 1
+        select plan_tier, renews_at, free_plan from firms where id = ${firmId}::uuid limit 1
       ),
       bounds as (
         select
@@ -121,6 +123,7 @@ export const aiQuotaService = {
         b.cycle_start,
         b.cycle_end,
         b.plan_tier,
+        (select free_plan from firm) as free_plan,
         (select monthly_cap from plan_ai_caps where plan_tier = b.plan_tier) as cap,
         (select count(*)::int from ai_generations
          where user_id = ${userId}::uuid
@@ -129,7 +132,8 @@ export const aiQuotaService = {
       from bounds b
     `;
 
-    const cap = row?.cap ?? 0;
+    // Free launch accounts draft without a monthly cap (lib/free-plan.ts).
+    const cap = row?.free_plan ? FREE_AI_MONTHLY_CAP : (row?.cap ?? 0);
     const used = Number(row?.used ?? 0);
     const cycleStart = row?.cycle_start ?? new Date();
     const cycleEnd = row?.cycle_end ?? new Date();

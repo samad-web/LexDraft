@@ -1,12 +1,15 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Capacitor } from '@capacitor/core';
 import type { User } from '@lexdraft/types';
 import { EmptyState } from '@lexdraft/ui';
 import { api } from '@/lib/api';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Topbar } from '@/components/shell/Topbar';
 import { MobileNav } from '@/components/shell/MobileNav';
+import { Gate } from '@/components/Gate';
+import { FreePlanLocked } from '@/components/FreePlanLocked';
 import { Toast } from '@/components/shell/Toast';
 import { CmdK } from '@/components/shell/CmdK';
 import { SectionTabs } from '@/components/shell/SectionTabs';
@@ -96,6 +99,7 @@ const AdminFirmDetailView = lazy(() => import('@/admin/views/FirmDetailView').th
 const AdminUsersView = lazy(() => import('@/admin/views/UsersView').then((m) => ({ default: m.UsersView })));
 const AuditLogView = lazy(() => import('@/admin/views/AuditLogView').then((m) => ({ default: m.AuditLogView })));
 const TemplatesView = lazy(() => import('@/admin/views/TemplatesView').then((m) => ({ default: m.TemplatesView })));
+const FreePlanView = lazy(() => import('@/admin/views/FreePlanView').then((m) => ({ default: m.FreePlanView })));
 const ErrorLogView = lazy(() => import('@/admin/views/ErrorLogView').then((m) => ({ default: m.ErrorLogView })));
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
 
@@ -202,7 +206,14 @@ export function App() {
       <>
         <Suspense fallback={pageFallback}>
           <Routes>
-            <Route path="/" element={<LandingView />} />
+            {/* The marketing page is for the website; the Android app opens
+                straight into sign-in (or the dashboard when signed in). */}
+            <Route
+              path="/"
+              element={Capacitor.isNativePlatform()
+                ? <Navigate to={user ? '/app/dashboard' : '/auth'} replace />
+                : <LandingView />}
+            />
             <Route path="/auth/*" element={<AuthView />} />
             <Route path="/signup" element={<SignupView />} />
             <Route path="/invite/:token" element={<InviteAcceptView />} />
@@ -236,6 +247,7 @@ export function App() {
               <Route path="firms" element={<AdminFirmsView />} />
               <Route path="firms/:id" element={<AdminFirmDetailView />} />
               <Route path="users" element={<AdminUsersView />} />
+              <Route path="free-plan" element={<FreePlanView />} />
               <Route path="ai-usage" element={<AiUsageView />} />
               <Route path="audit" element={<AuditLogView />} />
               <Route path="templates" element={<TemplatesView />} />
@@ -290,7 +302,7 @@ export function App() {
               <Route path="/app/clauses"    element={<ClausesView />} />
               <Route path="/app/invoices"   element={<InvoicesView />} />
               <Route path="/app/expenses"   element={<ExpensesView />} />
-              <Route path="/app/limitation" element={<LimitationView />} />
+              <Route path="/app/limitation" element={<Gate feature="limitation.use" fallback={<FreePlanLocked feature="The limitation tracker" />}><LimitationView /></Gate>} />
               <Route path="/app/diary"      element={<DiaryView />} />
               <Route path="/app/causelist"  element={<CauseListView />} />
               <Route path="/app/ecourts"    element={<EcourtsView />} />

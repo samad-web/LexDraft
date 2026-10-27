@@ -17,6 +17,23 @@ export function useCalendarMonth(year: number, month: number, enabled = true) {
   });
 }
 
+/** Hearings between two days (YYYY-MM-DD, inclusive) - the Cause List. */
+export function useHearingsRange(from: string, to: string) {
+  return useQuery({
+    queryKey: ['calendar', 'range', from, to],
+    queryFn: () => api.get<{ items: CalendarHearing[] }>('/hearings/range', { from, to }),
+    select: (r) => r.items,
+  });
+}
+
+/** "Sync from eCourts": refresh the firm's matters (hearings, next dates,
+ *  orders) in the background. */
+export function useSyncFirmFromEcourts() {
+  return useMutation({
+    mutationFn: () => api.post<{ queued: number; total: number; closed?: number }>('/ecourts/sync/firm'),
+  });
+}
+
 export function useCalendarDay(iso: string | undefined) {
   return useQuery({
     queryKey: ['calendar', 'day', iso],

@@ -1,22 +1,68 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Select, Skeleton } from '@lexdraft/ui';
 import type { AdminUserSummary, UserStatus } from '@lexdraft/types';
 import { adminApi } from '../api';
-import { useAdminUsers, useDeleteUser, useResetPassword, useUpdateUser } from '../queries';
+import { useAdminUsers, useDeleteUser, useResetPassword, useSetFirmFreePlan, useUpdateUser } from '../queries';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
+type TypeFilter = '' | 'advocate' | 'student' | 'firm' | 'free';
+type SortKey = 'newest' | 'storage' | 'active';
+
+function formatBytes(n: number): string {
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  if (n < 1024 * 1024 * 1024) return `${(n / (1024 * 1024)).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function formatDate(iso: string | null | undefined): string {
+  if (!iso) return '-';
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const ACCOUNT_TYPE_LABEL: Record<NonNullable<AdminUserSummary['accountType']>, string> = {
+  advocate: 'ADVOCATE',
+  student: 'STUDENT',
+  firm: 'FIRM',
+};
+
+function planLabel(u: AdminUserSummary): string {
+  if (u.freePlan) return `Free · till ${formatDate(u.trialEndsAt)}`;
+  if (u.planStatus === 'trial') return `${u.planTier ?? ''} trial · ends ${formatDate(u.trialEndsAt)}`;
+  if (!u.planTier) return '-';
+  return u.planStatus && u.planStatus !== 'active' ? `${u.planTier} · ${u.planStatus.replace('_', ' ')}` : u.planTier;
+}
+
+/** Second line under the name: who they are, from the sign-up profile. */
+function profileLine(u: AdminUserSummary): string {
+  const parts = u.accountType === 'student'
+    ? [u.college, u.studyYear]
+    : [u.enrolment, u.primaryCourt, u.practiceAreas, u.teamSize ? `${u.teamSize} people` : null];
+  const place = [u.city, u.state].filter(Boolean).join(', ');
+  return [...parts, place].filter(Boolean).join(' · ');
+}
+
 export function UsersView() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<UserStatus | ''>('');
-  const { data: users = [], isLoading } = useAdminUsers({ q: q || undefined, status: status || undefined });
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('');
+  const [sort, setSort] = useState<SortKey>('newest');
+  const { data: allUsers = [], isLoading } = useAdminUsers({ q: q || undefined, status: status || undefined });
+  const users = useMemo(() => {
+    const filtered = allUsers.filter((u) =>
+      !typeFilter ? true : typeFilter === 'free' ? u.freePlan : u.accountType === typeFilter);
+    if (sort === 'storage') return [...filtered].sort((a, b) => (b.storageBytes ?? 0) - (a.storageBytes ?? 0));
+    if (sort === 'active') return [...filtered].sort((a, b) => (b.lastSeenAt ?? '').localeCompare(a.lastSeenAt ?? ''));
+    return filtered;
+  }, [allUsers, typeFilter, sort]);
   const pager = usePagination(users);
+  const setFirmFreePlan = useSetFirmFreePlan();
   const startImpersonation = useAuthStore((s) => s.startImpersonation);
   const qc = useQueryClient();
   const update = useUpdateUser();
@@ -63,6 +109,23 @@ export function UsersView() {
     }
   };
 
+  const toggleFreePlan = async (u: AdminUserSummary) => {
+    if (!u.firmId) return;
+    const ending = !!u.freePlan;
+    const ok = await confirm({
+      title: ending ? `Move ${u.name} off the free plan?` : `Put ${u.name} back on the free plan?`,
+      message: ending
+        ? 'Their account becomes a paid, active account on its current plan tier: the locked features follow that tier and the 1 GB storage limit is lifted. Set the plan and renewal on the firm page.'
+        : 'Their account goes back to the free launch plan: the superadmin switches decide the locked features and storage is capped at 1 GB.',
+      confirmLabel: ending ? 'End free plan' : 'Make free',
+    });
+    if (!ok) return;
+    setFirmFreePlan.mutate(
+      { firmId: u.firmId, freePlan: !ending },
+      { onError: (err) => showToast({ type: 'vermillion', text: (err as Error)?.message || 'Couldn’t change the plan' }) },
+    );
+  };
+
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <header>
@@ -78,7 +141,31 @@ export function UsersView() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div style={{ width: 200 }}>
+        <div style={{ width: 170 }}>
+          <Select
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(v as TypeFilter)}
+            options={[
+              { value: '', label: 'All accounts' },
+              { value: 'advocate', label: 'Advocates' },
+              { value: 'student', label: 'Law students' },
+              { value: 'firm', label: 'Firms' },
+              { value: 'free', label: 'On free plan' },
+            ]}
+          />
+        </div>
+        <div style={{ width: 170 }}>
+          <Select
+            value={sort}
+            onChange={(v) => setSort(v as SortKey)}
+            options={[
+              { value: 'newest', label: 'Newest first' },
+              { value: 'storage', label: 'Most storage' },
+              { value: 'active', label: 'Recently active' },
+            ]}
+          />
+        </div>
+        <div style={{ width: 170 }}>
           <Select
             value={status}
             onChange={(v) => setStatus(v as UserStatus | '')}
@@ -99,8 +186,10 @@ export function UsersView() {
               <th>Name</th>
               <th>Email</th>
               <th>WhatsApp</th>
-              <th>Firm</th>
-              <th>Role</th>
+              <th>Plan</th>
+              <th>Storage</th>
+              <th>Joined</th>
+              <th>Last active</th>
               <th>Status</th>
               <th style={{ width: 240, textAlign: 'right' }}>Actions</th>
             </tr>
@@ -111,8 +200,10 @@ export function UsersView() {
                 <td><Skeleton width={120} height={14} /></td>
                 <td><Skeleton width={180} height={12} /></td>
                 <td><Skeleton width={110} height={12} /></td>
-                <td><Skeleton width={130} height={13} /></td>
-                <td><Skeleton width={100} height={13} /></td>
+                <td><Skeleton width={110} height={13} /></td>
+                <td><Skeleton width={70} height={13} /></td>
+                <td><Skeleton width={80} height={13} /></td>
+                <td><Skeleton width={80} height={13} /></td>
                 <td><Skeleton width={62} height={20} radius="pill" /></td>
                 <td style={{ textAlign: 'right' }}><Skeleton width={140} height={24} /></td>
               </tr>
@@ -126,8 +217,10 @@ export function UsersView() {
               <th>Name</th>
               <th>Email</th>
               <th>WhatsApp</th>
-              <th>Firm</th>
-              <th>Role</th>
+              <th>Plan</th>
+              <th>Storage</th>
+              <th>Joined</th>
+              <th>Last active</th>
               <th>Status</th>
               <th style={{ width: 240, textAlign: 'right' }}>Actions</th>
             </tr>
@@ -138,6 +231,13 @@ export function UsersView() {
                 <td>
                   {u.name}
                   {u.isSuperadmin && <span className="badge badge-vermillion mono" style={{ marginLeft: 8, fontSize: 9 }}>SUPER</span>}
+                  {u.accountType && <span className="badge mono" style={{ marginLeft: 8, fontSize: 9 }}>{ACCOUNT_TYPE_LABEL[u.accountType]}</span>}
+                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
+                    {[u.role, u.firmName].filter(Boolean).join(' · ')}
+                  </div>
+                  {profileLine(u) && (
+                    <div className="muted" style={{ fontSize: 11 }}>{profileLine(u)}</div>
+                  )}
                 </td>
                 <td className="mono" style={{ fontSize: 12 }}>
                   {u.email}
@@ -148,8 +248,17 @@ export function UsersView() {
                     <a href={`https://wa.me/${u.phone.replace(/^\+/, '')}`} target="_blank" rel="noreferrer">{u.phone}</a>
                   ) : '-'}
                 </td>
-                <td>{u.firmName ?? '-'}</td>
-                <td>{u.role}</td>
+                <td style={{ fontSize: 12 }}>{planLabel(u)}</td>
+                <td className="mono" style={{ fontSize: 12 }}>
+                  {formatBytes(u.storageBytes ?? 0)}
+                  {u.storageLimitBytes ? (
+                    <div className="muted" style={{ fontSize: 10 }}>
+                      {Math.min(100, Math.round(((u.storageBytes ?? 0) / u.storageLimitBytes) * 100))}% of {formatBytes(u.storageLimitBytes)}
+                    </div>
+                  ) : null}
+                </td>
+                <td style={{ fontSize: 12 }}>{formatDate(u.createdAt)}</td>
+                <td style={{ fontSize: 12 }}>{formatDate(u.lastSeenAt)}</td>
                 <td>
                   <span className={`badge ${u.status === 'active' ? 'badge-sage' : 'badge-vermillion'}`}>{u.status}</span>
                 </td>
@@ -158,6 +267,11 @@ export function UsersView() {
                     {!u.isSuperadmin && (
                       <button type="button" className="btn btn-sm" onClick={() => handleImpersonate(u)}>
                         Impersonate
+                      </button>
+                    )}
+                    {u.firmId && !u.isSuperadmin && (u.freePlan || u.accountType === 'advocate' || u.accountType === 'student') && (
+                      <button type="button" className="btn btn-sm" onClick={() => { void toggleFreePlan(u); }}>
+                        {u.freePlan ? 'End free plan' : 'Make free'}
                       </button>
                     )}
                     <button
@@ -213,7 +327,7 @@ export function UsersView() {
               </tr>
             ))}
             {users.length === 0 && (
-              <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
+              <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 32 }}>No users match.</td></tr>
             )}
           </tbody>
         </table>

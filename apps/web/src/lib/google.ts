@@ -43,7 +43,7 @@ interface GsiButtonOptions {
 }
 
 interface GsiApi {
-  initialize(opts: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: 'popup' }): void;
+  initialize(opts: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: 'popup'; login_hint?: string }): void;
   renderButton(el: HTMLElement, opts: GsiButtonOptions): void;
 }
 

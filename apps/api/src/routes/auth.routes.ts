@@ -19,7 +19,7 @@ const SignUp = z.object({
   // via gigabyte-long passwords.
   password: z.string().min(8).max(128),
   name: z.string().min(1).max(200),
-  role: z.enum(['solo', 'group', 'firm']),
+  role: z.enum(['solo', 'student', 'group', 'firm']),
   firm: z.string().max(200).optional(),
   enrolment: z.string().max(80).optional(),
   primaryCourt: z.string().max(160).optional(),
@@ -49,12 +49,19 @@ const SignupOtpVerify = z.object({
 }).strict();
 const GoogleSignUp = z.object({
   signupToken: z.string().min(20).max(4096),
+  /** Every account has a password (sign in with email + password). */
+  password: z.string().min(8, 'Use at least 8 characters').max(128),
   name: z.string().min(1).max(200).optional(),
-  role: z.enum(['solo', 'group', 'firm']),
+  role: z.enum(['solo', 'student', 'group', 'firm']),
   firm: z.string().max(200).optional(),
   enrolment: z.string().max(80).optional(),
   primaryCourt: z.string().max(160).optional(),
   practiceAreas: z.string().max(280).optional(),
+  city: z.string().max(120).optional(),
+  state: z.string().max(80).optional(),
+  college: z.string().max(200).optional(),
+  studyYear: z.string().max(40).optional(),
+  teamSize: z.string().max(40).optional(),
   intent: z.enum(['trial', 'paid', 'demo']).optional(),
 }).strict();
 
@@ -83,8 +90,8 @@ export const authRouter: Router = Router();
 
 authRouter.post('/sign-in', signInLimiter, async (req, res, next) => {
   try {
-    // Google is the only way in (POST /google). Kept behind a switch so
-    // test suites and an emergency fallback can still use passwords.
+    // Email + password is the main way in; Google (POST /google) sits
+    // alongside it. PASSWORD_SIGNIN=false turns this off.
     if (!env.passwordSigninEnabled) {
       throw new ForbiddenError('Sign in with Google.', { code: 'password_signin_disabled' });
     }

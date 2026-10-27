@@ -5,6 +5,7 @@ import type { MatterTimelineEvent, Task } from '@lexdraft/types';
 import { FilingsList } from '@/components/efiling/FilingsList';
 import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { useLimitations } from '@/hooks/useLimitations';
+import { useCan } from '@/hooks/useFirmAdmin';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useExpenses } from '@/hooks/useExpenses';
 
@@ -137,7 +138,9 @@ export function CaseWorkTab({
   onAddTask: () => void;
 }) {
   const navigate = useNavigate();
-  const limitations = useLimitations();
+  // Free accounts can have the limitation tracker switched off.
+  const canLimitation = useCan('limitation.use');
+  const limitations = useLimitations({ enabled: canLimitation });
   const mine = (limitations.data ?? [])
     .filter((l) => belongsToMatter({ caseId: l.caseId, label: l.caseLabel, cnr: l.cnr }, { id: caseId, title, cnr }))
     .sort((a, b) => a.deadline.localeCompare(b.deadline));
@@ -180,7 +183,7 @@ export function CaseWorkTab({
         )}
       </section>
 
-      <section className="card">
+      {canLimitation && <section className="card">
         <SectionHead
           title="Limitation deadlines"
           count={mine.length}
@@ -210,7 +213,7 @@ export function CaseWorkTab({
             ))}
           </ul>
         )}
-      </section>
+      </section>}
     </div>
   );
 }

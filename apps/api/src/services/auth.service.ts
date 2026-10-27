@@ -7,6 +7,7 @@ import { db } from '../db/client';
 import { mfaService } from './mfa.service';
 import { getPlanState, evaluatePlanState } from './plan-status.service';
 import { ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
+import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
 
@@ -40,6 +41,18 @@ interface StoredUser extends User {
   /** Google + WhatsApp sign-up only (migration 0094). */
   googleSub?: string;
   phone?: string;
+  /** Sign-up profile (migration 0095). */
+  profile?: SignupProfile;
+}
+
+/** Extra details the sign-up form collects (migration 0095). */
+export interface SignupProfile {
+  accountType?: 'advocate' | 'student' | 'firm';
+  city?: string;
+  state?: string;
+  college?: string;
+  studyYear?: string;
+  teamSize?: string;
 }
 
 interface UserRow {
@@ -127,10 +140,30 @@ function normalizePlan(raw: string | null | undefined): UserPlan | undefined {
  */
 function planTierForSignUpRole(role: SignUpRequest['role']): UserPlan {
   switch (role) {
-    case 'solo':  return 'Solo';
-    case 'group': return 'Practice';
-    case 'firm':  return 'Firm';
+    case 'solo':    return 'Solo';
+    case 'student': return 'Solo';
+    // Firms of any size trial the full Firm plan for 14 days.
+    case 'group':   return 'Firm';
+    case 'firm':    return 'Firm';
   }
+}
+
+/** Text role a self-serve sign-up starts with. Firm sign-ups get Managing
+ *  Partner so their trial covers every Firm-plan feature. */
+function signUpRoleText(role: SignUpRequest['role']): User['role'] {
+  return role === 'solo' || role === 'student' ? 'Solo Advocate' : 'Managing Partner';
+}
+
+function signupProfile(input: Pick<SignUpRequest, 'role' | 'city' | 'state' | 'college' | 'studyYear' | 'teamSize'>): SignupProfile {
+  const clean = (v?: string) => v?.trim() || undefined;
+  return {
+    accountType: input.role === 'solo' ? 'advocate' : input.role === 'student' ? 'student' : 'firm',
+    city: clean(input.city),
+    state: clean(input.state),
+    college: clean(input.college),
+    studyYear: clean(input.studyYear),
+    teamSize: clean(input.teamSize),
+  };
 }
 
 /**
@@ -143,6 +176,7 @@ function deriveFirmName(input: SignUpRequest): string {
   if (provided) return provided;
   switch (input.role) {
     case 'solo':  return `${input.name} (Solo)`;
+    case 'student': return `${input.name} (Student)`;
     case 'group': return `${input.name}'s Practice`;
     case 'firm':  return `${input.name}'s Firm`;
   }
@@ -328,21 +362,27 @@ async function insertUserWithNewFirm(
   const roleId = await resolveSystemRoleId(record.role);
   // Trial bookkeeping. 'paid' starts active with no trial clock; 'trial'
   // and 'demo' both get a 14-day window. `is_demo` is set only for the
-  // dedicated interactive-demo funnel.
+  // dedicated interactive-demo funnel. A Solo trial is the free launch
+  // plan instead (lib/free-plan.ts): free until FREE_PLAN_ENDS_AT.
   const planStatus = intent === 'paid' ? 'active' : 'trial';
+  const isDemo = intent === 'demo';
+  const freePlan = planTier === 'Solo' && intent === 'trial';
   const trialEndsAt = intent === 'paid'
     ? null
-    : new Date(Date.now() + TRIAL_LENGTH_DAYS * 24 * 60 * 60 * 1000);
-  const isDemo = intent === 'demo';
+    : freePlan
+      ? FREE_PLAN_ENDS_AT
+      : new Date(Date.now() + TRIAL_LENGTH_DAYS * 24 * 60 * 60 * 1000);
+  const profile = record.profile ?? {};
   const rows = await sql.begin(async (tx) => {
     const [firmRow] = await tx<{ id: string }[]>`
-      insert into firms (name, plan_tier, plan_status, trial_ends_at, is_demo)
+      insert into firms (name, plan_tier, plan_status, trial_ends_at, is_demo, free_plan)
       values (
         ${firmName},
         ${planTier}::firm_plan_tier,
         ${planStatus},
         ${trialEndsAt},
-        ${isDemo}
+        ${isDemo},
+        ${freePlan}
       )
       returning id
     `;
@@ -352,13 +392,16 @@ async function insertUserWithNewFirm(
         insert into users (
           firm_id, name, email, role, role_id, is_superadmin, password_hash,
           enrolment, primary_court, practice_areas,
-          google_sub, phone, phone_verified_at
+          google_sub, phone, phone_verified_at,
+          account_type, city, state, college, study_year, team_size
         )
         values (
           ${newFirmId}::uuid, ${record.name}, ${record.email.toLowerCase()},
           ${record.role}, ${roleId}::uuid, ${!!record.isSuperadmin}, ${record.passwordHash},
           ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null},
-          ${record.googleSub ?? null}, ${record.phone ?? null}, ${record.phone ? new Date() : null}
+          ${record.googleSub ?? null}, ${record.phone ?? null}, ${record.phone ? new Date() : null},
+          ${profile.accountType ?? null}, ${profile.city ?? null}, ${profile.state ?? null},
+          ${profile.college ?? null}, ${profile.studyYear ?? null}, ${profile.teamSize ?? null}
         )
         returning id, name, email, role, is_superadmin, password_hash, firm_id,
                   enrolment, primary_court, practice_areas
@@ -421,12 +464,19 @@ export interface GoogleSignupRequired {
 
 export interface GoogleSignUpInput {
   signupToken: string;
+  /** The account's password - email + password sign-in from then on. */
+  password: string;
   name?: string;
   role: SignUpRequest['role'];
   firm?: string;
   enrolment?: string;
   primaryCourt?: string;
   practiceAreas?: string;
+  city?: string;
+  state?: string;
+  college?: string;
+  studyYear?: string;
+  teamSize?: string;
   intent?: SignUpIntent;
 }
 
@@ -608,8 +658,8 @@ export const authService = {
 
     const name = input.name?.trim() || google.name;
     const role: User['role'] =
-      input.role === 'solo' ? 'Solo Advocate' : input.role === 'group' ? 'Practice Lead' : 'Managing Partner';
-    const signUpShape: SignUpRequest = { ...input, name, email: google.email, password: '' };
+      signUpRoleText(input.role);
+    const signUpShape: SignUpRequest = { ...input, name, email: google.email };
     const user = await insertUserWithNewFirm(
       {
         id: '',
@@ -618,12 +668,13 @@ export const authService = {
         role,
         firm: input.firm ?? '',
         isSuperadmin: false,
-        passwordHash: await unusablePasswordHash(),
+        passwordHash: await bcrypt.hash(input.password, 10),
         enrolment: input.enrolment,
         primaryCourt: input.primaryCourt,
         practiceAreas: input.practiceAreas,
         googleSub: google.sub,
         phone,
+        profile: signupProfile(input),
       },
       deriveFirmName(signUpShape),
       planTierForSignUpRole(input.role),
@@ -652,7 +703,7 @@ export const authService = {
     if (existing) throw new ConflictError('Email already registered');
 
     const role: User['role'] =
-      input.role === 'solo' ? 'Solo Advocate' : input.role === 'group' ? 'Practice Lead' : 'Managing Partner';
+      signUpRoleText(input.role);
 
     // Each self-serve sign-up provisions its own firm (one firm per paying
     // customer). The user becomes the owner of that fresh tenant; invitees
@@ -671,6 +722,7 @@ export const authService = {
         enrolment: input.enrolment,
         primaryCourt: input.primaryCourt,
         practiceAreas: input.practiceAreas,
+        profile: signupProfile(input),
       },
       deriveFirmName(input),
       planTierForSignUpRole(input.role),

@@ -11,6 +11,7 @@ import { NewCaseModal } from '@/components/NewCaseModal';
 import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewLeadModal } from '@/components/NewLeadModal';
 import { DashboardEmptyState } from '@/components/DashboardEmptyState';
+import { DashboardKpis } from '@/components/dashboard/DashboardKpis';
 
 /**
  * Dashboard ("Overview") - built to dashboard-design.md, translated for
@@ -70,6 +71,7 @@ export function AdvocateDashboardView() {
   const canDraft = useCan('drafting.ai');
   const canLead = useCan('leads.create');
   const canCreateMatter = useCan('matter.create');
+  const canLimitation = useCan('limitation.use');
   // The view follows plan + role - no switch. Leaders (firm.dashboard.view:
   // Firm-plan partners / firm admins, Practice-plan group lead) see the whole
   // firm or chambers, with their own items marked "You". Solo advocates and
@@ -149,7 +151,9 @@ export function AdvocateDashboardView() {
             { label: 'Add your first client', hint: 'Matters and invoices hang off the client.', link: '/app/clients', linkLabel: 'Add client', completed: false },
             { label: 'Open your first matter', hint: 'Hearings, documents and deadlines belong to a matter.', link: '/app/cases', linkLabel: 'Open matter', completed: false },
             { label: 'Connect it to eCourts', hint: 'Add the CNR and next dates update automatically.', link: '/app/ecourts', linkLabel: 'Open eCourts', completed: false },
-            { label: 'Set a limitation deadline', hint: 'Track filing deadlines from day one.', link: '/app/limitation', linkLabel: 'Add deadline', completed: false },
+            ...(canLimitation
+              ? [{ label: 'Set a limitation deadline', hint: 'Track filing deadlines from day one.', link: '/app/limitation', linkLabel: 'Add deadline', completed: false }]
+              : []),
           ]}
         />
       )}
@@ -166,9 +170,16 @@ export function AdvocateDashboardView() {
       {data && (
         <>
           {/* ---- KPI cards: 2 rows × 3, each = "what to act on" ------------- */}
-          {scope === 'firm'
-            ? <FirmKpis practice={data.practice} today={today} week={week} groups={groups} />
-            : <ActionKpis practice={data.practice} today={today} week={week} groups={groups} />}
+          <DashboardKpis
+            data={data}
+            today={today}
+            week={week}
+            groups={groups}
+            scope={scope}
+            org={org}
+            plan={user?.plan ?? 'Solo'}
+            userId={user?.id ?? 'me'}
+          />
           {/* Plan / AI quota / eCourts coverage are deliberately NOT here: the
               trial banner, sidebar meter and eCourts page already carry them. */}
 
@@ -192,120 +203,6 @@ export function AdvocateDashboardView() {
         <span>© {new Date().getFullYear()} {firm}. All rights reserved.</span>
         <span>Powered by <strong>Sirah Digital</strong></span>
       </footer>
-    </div>
-  );
-}
-
-// ---- KPI cards --------------------------------------------------------------------
-
-/** Action KPI card: big number, one specific clue, and the place you act on
- *  it. Monochrome (design-system.md); urgency shows only as the corner dot
- *  plus the "Act" pill. Zero reads as good news, not as a dead "0". */
-function Kpi({ icon, label, value, unit, clue, cta, to, tone, alert }: {
-  icon: IconName; label: string; value: string; unit?: string; clue: ReactNode;
-  cta: string; to: string; tone?: 'rose' | 'amber';
-  /** Red-button text naming the issue, e.g. "2 limitations due". */
-  alert?: string;
-}) {
-  // Black & white only. The ONE colour: a red button naming the issue, and
-  // only for mandatory items (tone 'rose'). 'amber' is informational and
-  // renders exactly like a normal card.
-  const mandatory = tone === 'rose';
-  return (
-    <Link to={to} className="adv-kpi">
-      <span className="adv-kpi-label">
-        <span className="adv-kpi-icon"><Icon name={icon} size={16} /></span>
-        <span className="adv-kpi-text">{label}</span>
-      </span>
-      <span className="adv-kpi-value">{value}{unit && <small>{unit}</small>}</span>
-      <span className="adv-kpi-note">{clue}</span>
-      {mandatory
-        ? <span className="adv-kpi-cta"><span className="adv-alert-btn">{alert ?? cta} <Icon name="arrow" size={13} /></span></span>
-        : <span className="adv-kpi-cta">{cta} <Icon name="arrow" size={13} /></span>}
-    </Link>
-  );
-}
-
-const shortDate = (iso: string) =>
-  new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
-
-function ActionKpis({ practice, today, week, groups }: {
-  practice: { overdueInvoices: { count: number; amount: string } | null; activeMatters: number };
-  today: DayHearing[];
-  week: DayHearing[];
-  groups: AttentionGroup[];
-}) {
-  const group = (k: AttentionGroup['key']) => groups.find((g) => g.key === k);
-  const lim = group('limitations');
-  const obj = group('objections');
-  const noDate = group('noNextDate');
-  const tasks = group('overdueTasks');
-
-  // Busiest day in the next 7, e.g. "Thu, 23 Oct · 2 hearings".
-  const busiest = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const h of week) m.set(h.date, (m.get(h.date) ?? 0) + 1);
-    let best: [string, number] | null = null;
-    for (const e of m) if (!best || e[1] > best[1]) best = e;
-    return best;
-  }, [week]);
-
-  const first = today[0];
-  const firstItem = (g?: AttentionGroup) => g?.items[0];
-
-  return (
-    <div className="adv-kpis">
-      <Kpi
-        icon="causelist" label="Hearings today" value={String(today.length)} to="/app/causelist" cta="Open cause list"
-        clue={first ? <>First: <strong>{first.time || 'time n/a'}</strong> · {first.court}</> : 'No hearings today. A good day for drafting.'}
-      />
-      <Kpi
-        icon="calendar" label="Next 7 days" value={String(week.length)} to="/app/calendar" cta="Open calendar"
-        clue={busiest
-          ? <>Busiest: <strong>{shortDate(busiest[0])}</strong> · {busiest[1]} {busiest[1] === 1 ? 'hearing' : 'hearings'}</>
-          : 'Nothing listed yet this week.'}
-      />
-      <Kpi
-        icon="limitation" label="Limitation due" value={String(lim?.count ?? 0)} unit=" in 7 days" to="/app/limitation" cta="Limitation tracker"
-        tone={lim?.count ? 'rose' : undefined}
-        alert={lim?.count ? `${lim.count} limitation${lim.count === 1 ? '' : 's'} due` : undefined}
-        clue={firstItem(lim)
-          ? <>Earliest: <strong>{firstItem(lim)!.label}</strong>{firstItem(lim)!.detail ? ` · ${firstItem(lim)!.detail}` : ''}</>
-          : 'No limitation period runs out this week.'}
-      />
-      <Kpi
-        icon="efiling" label="Objections to cure" value={String(obj?.count ?? 0)} to="/app/efiling?m=objections" cta="Cure in eFiling"
-        tone={obj?.count ? 'rose' : undefined}
-        alert={obj?.count ? `Cure ${obj.count} objection${obj.count === 1 ? '' : 's'}` : undefined}
-        clue={firstItem(obj)
-          ? <><strong>{firstItem(obj)!.label}</strong>{firstItem(obj)!.detail ? ` · ${firstItem(obj)!.detail}` : ''}</>
-          : 'No eFiling objections pending.'}
-      />
-      <Kpi
-        icon="cases" label="No next date" value={String(noDate?.count ?? 0)} unit={` of ${practice.activeMatters} active`} to="/app/cases" cta="Post next dates"
-        tone={noDate?.count ? 'amber' : undefined}
-        clue={firstItem(noDate)
-          ? <><strong>{firstItem(noDate)!.label}</strong>{firstItem(noDate)!.detail ? ` · ${firstItem(noDate)!.detail}` : ''}</>
-          : 'Every active matter has a next date.'}
-      />
-      {practice.overdueInvoices ? (
-        <Kpi
-          icon="invoices" label="Fees overdue" value={practice.overdueInvoices.count ? practice.overdueInvoices.amount : '₹0'}
-          to="/app/invoices" cta="Follow up invoices"
-          tone={practice.overdueInvoices.count ? 'amber' : undefined}
-          clue={practice.overdueInvoices.count
-            ? <><strong>{practice.overdueInvoices.count}</strong> {practice.overdueInvoices.count === 1 ? 'invoice' : 'invoices'} past due</>
-            : 'Every invoice is current.'}
-        />
-      ) : (
-        <Kpi
-          icon="tasks" label="Overdue pendings" value={String(tasks?.count ?? 0)} to="/app/tasks" cta="Open tasks"
-          tone={tasks?.count ? 'amber' : undefined}
-          clue={firstItem(tasks)
-            ? <><strong>{firstItem(tasks)!.label}</strong>{firstItem(tasks)!.detail ? ` · ${firstItem(tasks)!.detail}` : ''}</>
-            : 'No pending work is overdue.'}
-        />
-      )}
     </div>
   );
 }
@@ -451,84 +348,7 @@ function UpcomingHearings({ today, week, scope, onAddHearing }: {
   );
 }
 
-// ---- FIRM view: KPIs + team workload (partners / firm admins / PG leads) -------------------
-
-function FirmKpis({ practice, today, week, groups }: {
-  practice: { overdueInvoices: { count: number; amount: string } | null; activeMatters: number };
-  today: DayHearing[];
-  week: DayHearing[];
-  groups: AttentionGroup[];
-}) {
-  const firm = useFirmDashboard();
-  const canAnalytics = useCan('analytics.firm');
-  const org = useOrgWord();
-  const group = (k: AttentionGroup['key']) => groups.find((g) => g.key === k);
-  const lim = group('limitations');
-  const obj = group('objections');
-
-  const courts = new Set(today.map((h) => h.court)).size;
-  const advocatesToday = new Set(today.filter((h) => !h.unassigned).map((h) => h.advocate ?? h.id)).size;
-  const unassignedToday = today.filter((h) => h.unassigned);
-  const unassignedWeek = week.filter((h) => h.unassigned);
-  const firstGap = unassignedToday[0] ?? unassignedWeek[0];
-
-  const members = firm.data?.members ?? [];
-  const busiest = [...members].sort((a, b) => b.activeMatters - a.activeMatters)[0];
-  const avg = members.length ? Math.round(members.reduce((s, m) => s + m.activeMatters, 0) / members.length) : 0;
-  const stats = firm.data?.stats;
-  const delta = stats?.revenueDeltaPct ?? 0;
-  const od = practice.overdueInvoices;
-
-  return (
-    <div className="adv-kpis">
-      <Kpi
-        icon="causelist" label="Hearings today" value={String(today.length)} unit={` ${org}-wide`} to="/app/causelist" cta="Open cause list"
-        clue={today.length
-          ? <><strong>{courts}</strong> {courts === 1 ? 'court' : 'courts'} · <strong>{advocatesToday}</strong> {advocatesToday === 1 ? 'advocate' : 'advocates'} appearing</>
-          : `No hearings listed for the ${org} today.`}
-      />
-      <Kpi
-        icon="members" label="Unassigned" value={String(unassignedToday.length + unassignedWeek.length)} unit={unassignedToday.length + unassignedWeek.length === 1 ? ' hearing' : ' hearings'} to="/app/causelist" cta="Assign advocates"
-        tone={unassignedToday.length ? 'rose' : unassignedWeek.length ? 'amber' : undefined}
-        alert={unassignedToday.length ? `Assign advocate · ${unassignedToday.length} today` : undefined}
-        clue={firstGap
-          ? <>First: <strong>{firstGap.case}</strong> · {unassignedToday.length ? `today ${firstGap.time}` : shortDate(firstGap.date)}</>
-          : 'Every hearing this week has an advocate.'}
-      />
-      <Kpi
-        icon="limitation" label="Limitation due" value={String(lim?.count ?? 0)} unit=" in 7 days" to="/app/limitation" cta="Limitation tracker"
-        tone={lim?.count ? 'rose' : undefined}
-        alert={lim?.count ? `${lim.count} limitation${lim.count === 1 ? '' : 's'} due` : undefined}
-        clue={lim?.items[0]
-          ? <>Earliest: <strong>{lim.items[0].label}</strong>{lim.items[0].detail ? ` · ${lim.items[0].detail}` : ''}</>
-          : 'No limitation period runs out this week.'}
-      />
-      <Kpi
-        icon="efiling" label="Objections to cure" value={String(obj?.count ?? 0)} to="/app/efiling?m=objections" cta="Cure in eFiling"
-        tone={obj?.count ? 'rose' : undefined}
-        alert={obj?.count ? `Cure ${obj.count} objection${obj.count === 1 ? '' : 's'}` : undefined}
-        clue={obj?.items[0]
-          ? <><strong>{obj.items[0].label}</strong>{obj.items[0].detail ? ` · ${obj.items[0].detail}` : ''}</>
-          : 'No eFiling objections pending.'}
-      />
-      <Kpi
-        icon="members" label="Team load" value={String(stats?.advocatesActive ?? members.length)} unit=" advocates" to="/app/firm" cta="People & workload"
-        tone={busiest && avg > 0 && busiest.activeMatters >= avg * 1.75 ? 'amber' : undefined}
-        clue={busiest
-          ? <>Busiest: <strong>{busiest.name}</strong> · {busiest.activeMatters} matters (avg {avg})</>
-          : firm.isLoading ? 'Loading the team…' : 'No members yet.'}
-      />
-      <Kpi
-        icon="analytics" label="Revenue this FY" value={stats?.revenueFY ?? '—'} unit={delta ? ` ${delta > 0 ? '+' : ''}${delta}%` : undefined}
-        to={canAnalytics ? '/app/analytics' : '/app/invoices'} cta={canAnalytics ? 'Firm analytics' : 'Invoices'}
-        tone={od?.count ? 'amber' : undefined}
-        clue={od
-          ? od.count ? <><strong>{od.amount}</strong> overdue · {od.count} {od.count === 1 ? 'invoice' : 'invoices'}</> : 'Every invoice is current.'
-          : `${practice.activeMatters} active matters on the books.`}
-      />
-    </div>
-  );
-}
+// ---- FIRM view: team workload (partners / firm admins / PG leads) -------------------
 
 /** Who carries the firm's work: active matters per advocate, plus who is in
  *  court today/this week, so a partner can rebalance at a glance. */

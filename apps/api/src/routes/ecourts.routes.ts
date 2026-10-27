@@ -36,6 +36,31 @@ const CourtParam = z.enum(['DC', 'HC']).default('DC');
 // on the eCourts and Matters screens.
 // ---------------------------------------------------------------------------
 
+// POST /ecourts/sync/firm - "Sync from eCourts" on Hearings: refresh this
+// firm's matters now (hearings, next dates, orders) in the background. One
+// queued run per firm at a time; recently synced matters are skipped.
+ecourtsRouter.post('/sync/firm', async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    if (!firmId) {
+      res.status(422).json({ error: 'No firm attached' });
+      return;
+    }
+    const { countFirmSyncCandidates } = await import('../services/ecourts-sync-runs.service');
+    const { due, total, closed } = await countFirmSyncCandidates(firmId);
+    if (due > 0) {
+      const { jobs } = await import('../services/jobs.service');
+      // Not awaited: without a queue (memory mode) enqueue runs the job
+      // inline, which would hold this request for minutes.
+      void jobs.enqueue('ecourts.sync.firm', { firmId }, { singletonKey: `ecourts-sync-firm:${firmId}` })
+        .catch((err: unknown) => logger.warn({ err, firmId }, 'ecourts firm sync: enqueue failed'));
+    }
+    res.status(202).json({ queued: due, total, closed });
+  } catch (err) {
+    next(err);
+  }
+});
+
 ecourtsRouter.get('/sync/status', async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);

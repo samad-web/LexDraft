@@ -15,6 +15,9 @@ import type {
   FirmPlan,
   FirmStatus,
   FirmSummary,
+  BillingStatus,
+  FirmPlanTier,
+  FreePlanSwitchState,
   PlatformStats,
   UserStatus,
 } from '@lexdraft/types';
@@ -24,6 +27,9 @@ import { aiUsageReportService } from './ai-usage-report.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidateTenantCache } from './tenant';
+import { loadFreePlanSwitches } from './permissions.service';
+import { storageUsageService } from './storage-usage.service';
+import { FREE_PLAN_SWITCHES, FREE_STORAGE_LIMIT_BYTES, type FreePlanSwitch } from '../lib/free-plan';
 
 /** HTTP-aware error for guard-rail failures. The Express error middleware
  *  reads `.status` and forwards it to the client. */
@@ -126,6 +132,20 @@ interface UserRow {
   phone: string | null;
   phone_verified_at: Date | null;
   google_sub: string | null;
+  /** Migration 0095. */
+  account_type?: 'advocate' | 'student' | 'firm' | null;
+  enrolment?: string | null;
+  primary_court?: string | null;
+  practice_areas?: string | null;
+  city?: string | null;
+  state?: string | null;
+  college?: string | null;
+  study_year?: string | null;
+  team_size?: string | null;
+  plan_tier?: FirmPlanTier | null;
+  plan_status?: BillingStatus | null;
+  free_plan?: boolean;
+  trial_ends_at?: Date | null;
 }
 
 const ALL_MODULES: FeatureModule[] = [
@@ -174,6 +194,19 @@ function rowToUserSummary(r: UserRow): AdminUserSummary {
     phone: r.phone ?? null,
     phoneVerifiedAt: r.phone_verified_at ? r.phone_verified_at.toISOString() : null,
     signInMethod: r.google_sub ? 'google' : 'password',
+    accountType: r.account_type ?? null,
+    enrolment: r.enrolment ?? null,
+    primaryCourt: r.primary_court ?? null,
+    practiceAreas: r.practice_areas ?? null,
+    city: r.city ?? null,
+    state: r.state ?? null,
+    college: r.college ?? null,
+    studyYear: r.study_year ?? null,
+    teamSize: r.team_size ?? null,
+    planTier: r.plan_tier ?? null,
+    planStatus: r.plan_status ?? null,
+    freePlan: !!r.free_plan,
+    trialEndsAt: r.trial_ends_at ? r.trial_ends_at.toISOString() : null,
   };
 }
 
@@ -227,7 +260,10 @@ export const adminService = {
       sql<UserRow[]>`
         select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
                f.name as firm_name, u.status, u.created_at, u.last_seen_at,
-             u.phone, u.phone_verified_at, u.google_sub
+             u.phone, u.phone_verified_at, u.google_sub,
+             u.account_type, u.enrolment, u.primary_court, u.practice_areas,
+             u.city, u.state, u.college, u.study_year, u.team_size,
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
         from users u left join firms f on f.id = u.firm_id
         where u.firm_id = ${id}::uuid
         order by u.created_at asc
@@ -419,6 +455,7 @@ export const adminService = {
         plan_tier   = coalesce(${patch.tier ?? null}::firm_plan_tier, plan_tier),
         plan_status = coalesce(${patch.status ?? null}::billing_status, plan_status),
         mrr_inr     = coalesce(${patch.mrrInr ?? null}, mrr_inr),
+        free_plan   = coalesce(${patch.freePlan ?? null}::boolean, free_plan),
         renews_at   = case when ${patch.renewsAt === undefined ? 1 : 0}::int = 1
                            then renews_at
                            else ${patch.renewsAt ?? null}::date end
@@ -427,7 +464,7 @@ export const adminService = {
     // Plan tier change → every user in the firm has a different feature set.
     // The cache is process-local and doesn't support per-firm keys yet, so
     // the safe move is a full clear.
-    if (patch.tier !== undefined) {
+    if (patch.tier !== undefined || patch.freePlan !== undefined) {
       invalidatePermissionsCache();
     }
     // Any plan-state change (status / renews_at / tier) invalidates the
@@ -437,7 +474,8 @@ export const adminService = {
     if (
       patch.status !== undefined ||
       patch.renewsAt !== undefined ||
-      patch.tier !== undefined
+      patch.tier !== undefined ||
+      patch.freePlan !== undefined
     ) {
       invalidatePlanStatusCache();
     }
@@ -518,7 +556,10 @@ export const adminService = {
     const rows = await sql<UserRow[]>`
       select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
              f.name as firm_name, u.status, u.created_at, u.last_seen_at,
-             u.phone, u.phone_verified_at, u.google_sub
+             u.phone, u.phone_verified_at, u.google_sub,
+             u.account_type, u.enrolment, u.primary_court, u.practice_areas,
+             u.city, u.state, u.college, u.study_year, u.team_size,
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
       from users u
       left join firms f on f.id = u.firm_id
       where (${filter.firmId ?? null}::uuid is null or u.firm_id = ${filter.firmId ?? null}::uuid)
@@ -532,7 +573,47 @@ export const adminService = {
       order by u.created_at desc
       limit 500
     `;
-    return rows.map(rowToUserSummary);
+    const storage = await storageUsageService.bytesByFirm();
+    return rows.map((r) => ({
+      ...rowToUserSummary(r),
+      storageBytes: r.firm_id ? storage.get(r.firm_id) ?? 0 : 0,
+      storageLimitBytes: r.free_plan ? FREE_STORAGE_LIMIT_BYTES : null,
+    }));
+  },
+
+  // ---- free launch plan switches -------------------------------------------
+
+  async freePlanSwitches(): Promise<FreePlanSwitchState[]> {
+    const sql = db();
+    const enabled = await loadFreePlanSwitches();
+    const updated = new Map<string, Date>();
+    if (sql) {
+      const rows = await sql<{ switch_key: string; updated_at: Date }[]>`select switch_key, updated_at from free_plan_switches`;
+      for (const r of rows) updated.set(r.switch_key, r.updated_at);
+    }
+    return FREE_PLAN_SWITCHES.map((s) => ({
+      ...s,
+      enabled: enabled[s.key],
+      updatedAt: updated.get(s.key)?.toISOString() ?? null,
+    }));
+  },
+
+  async setFreePlanSwitch(key: FreePlanSwitch, enabled: boolean, actor: { id: string; email: string }): Promise<FreePlanSwitchState[]> {
+    const sql = db();
+    if (!sql) throw new Error('Database not configured');
+    await sql`
+      insert into free_plan_switches (switch_key, enabled, updated_at, updated_by)
+      values (${key}, ${enabled}, now(), ${actor.id}::uuid)
+      on conflict (switch_key) do update
+        set enabled = excluded.enabled, updated_at = now(), updated_by = excluded.updated_by
+    `;
+    // Every free account's feature set changes at once.
+    invalidatePermissionsCache();
+    await auditService.write({
+      actorUserId: actor.id, actorEmail: actor.email,
+      action: 'free_plan.switch.update', targetType: 'platform', targetId: null, payload: { key, enabled },
+    });
+    return this.freePlanSwitches();
   },
 
   async updateUser(id: string, patch: AdminUpdateUserRequest, actor: { id: string; email: string }): Promise<AdminUserSummary> {
@@ -579,7 +660,10 @@ export const adminService = {
     const rows = await sql<UserRow[]>`
       select u.id, u.name, u.email, u.role, u.is_superadmin, u.firm_id,
              f.name as firm_name, u.status, u.created_at, u.last_seen_at,
-             u.phone, u.phone_verified_at, u.google_sub
+             u.phone, u.phone_verified_at, u.google_sub,
+             u.account_type, u.enrolment, u.primary_court, u.practice_areas,
+             u.city, u.state, u.college, u.study_year, u.team_size,
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
       from users u left join firms f on f.id = u.firm_id
       where u.id = ${id}::uuid limit 1
     `;

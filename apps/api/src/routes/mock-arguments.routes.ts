@@ -29,6 +29,7 @@ import { llmGenerationLimiter } from '../middleware/rateLimit';
 import { validate, uuidParam } from '../middleware/validate';
 import { UnauthorizedError, UnprocessableEntityError } from '../lib/errors';
 import { logger } from '../logger';
+import { storageUsageService } from '../services/storage-usage.service';
 
 const Role = z.enum([
   'petitioner', 'respondent', 'prosecution', 'defense', 'appellant', 'appellee',
@@ -126,6 +127,7 @@ mockArgumentsRouter.post(
       if (buffer.length === 0) {
         throw new UnprocessableEntityError('Decoded upload was empty');
       }
+      await storageUsageService.assertRoom(ctx.firmId, buffer.length);
       if (buffer.length > MAX_UPLOAD_BYTES) {
         throw new UnprocessableEntityError(
           `Upload exceeds ${(MAX_UPLOAD_BYTES / 1024 / 1024).toFixed(0)} MB limit`,

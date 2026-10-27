@@ -106,11 +106,29 @@ const UpdatePlan = z.object({
   status: BillingStatus.optional(),
   mrrInr: z.number().int().min(0).optional(),
   renewsAt: z.string().nullable().optional(),
+  freePlan: z.boolean().optional(),
 });
 adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
   try {
     const body = UpdatePlan.parse(req.body);
     res.json(await adminService.updatePlan(req.params.id!, body, actor(req)));
+  } catch (err) { next(err); }
+});
+
+// ---- free launch plan switches ---------------------------------------------
+
+adminRouter.get('/free-plan/switches', async (_req, res, next) => {
+  try {
+    res.json({ items: await adminService.freePlanSwitches() });
+  } catch (err) { next(err); }
+});
+
+const UpdateFreePlanSwitch = z.object({ enabled: z.boolean() });
+adminRouter.patch('/free-plan/switches/:key', async (req, res, next) => {
+  try {
+    const key = z.enum(['team_chat', 'analytics', 'limitation', 'co_counsel']).parse(req.params.key);
+    const body = UpdateFreePlanSwitch.parse(req.body);
+    res.json({ items: await adminService.setFreePlanSwitch(key, body.enabled, actor(req)) });
   } catch (err) { next(err); }
 });
 

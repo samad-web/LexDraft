@@ -102,7 +102,7 @@ export function useVerifySignupOtp() {
   });
 }
 
-export interface GoogleSignUpRequest extends Omit<SignUpRequest, 'email' | 'password' | 'name'> {
+export interface GoogleSignUpRequest extends Omit<SignUpRequest, 'email' | 'name'> {
   /** Must be the token returned by useVerifySignupOtp. */
   signupToken: string;
   name?: string;

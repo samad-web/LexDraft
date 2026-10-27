@@ -175,6 +175,23 @@ hearingsRouter.get('/day/:iso', requireFeature('matter.view'), validate({ params
   }
 });
 
+// GET /hearings/range?from=YYYY-MM-DD&to=YYYY-MM-DD - the Cause List's
+// Today / Upcoming / Past views (max one year).
+const RangeQuery = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).refine((q) => q.from <= q.to && (Date.parse(q.to) - Date.parse(q.from)) <= 366 * 86_400_000, { message: 'Range must be at most a year' });
+
+hearingsRouter.get('/range', requireFeature('matter.view'), validate({ query: RangeQuery }), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    const { from, to } = req.query as { from: string; to: string };
+    res.json({ items: await hearingsService.listRange(firmId, from, to) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 hearingsRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
