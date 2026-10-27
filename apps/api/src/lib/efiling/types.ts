@@ -187,7 +187,7 @@ export type FilingKind = 'new_case' | 'ia' | 'caveat' | 'misc_document' | 'defic
 
 // The lifecycle follows the eFiling 3.0 portal (user manual §4.2, §6.2-6.6):
 //
-//   draft / ready  prepared in LexDraft (particulars, bundle)
+//   draft / ready  prepared in DifAI (particulars, bundle)
 //   efiled         entered on the portal - "eFile Case" (tab 7) issued the
 //                  eFiling number; vakalat, pleadings, eSign, oath and fees are
 //                  still being done on the portal ("Draft Pleadings")
@@ -218,13 +218,13 @@ export interface PortalStep {
 }
 
 const STEP: Record<PortalStepKey, PortalStep> = {
-  efile_case: { key: 'efile_case', label: 'Enter the case on the portal', required: true, hint: 'Case Filing > New Case Filing: fill tabs 1-6 from LexDraft\'s particulars, then e-File > "eFile Case". Note the eFiling number it gives.' },
+  efile_case: { key: 'efile_case', label: 'Enter the case on the portal', required: true, hint: 'Case Filing > New Case Filing: fill tabs 1-6 from DifAI\'s particulars, then e-File > "eFile Case". Note the eFiling number it gives.' },
   vakalat: { key: 'vakalat', label: 'Vakalat', hint: 'Vakalat > Assign Partners to Case. The client then sends the offer by OTP (Offer to Advocate) and you accept by OTP (Accept Offer).' },
-  upload: { key: 'upload', label: 'Upload pleadings', required: true, hint: 'Pleadings > Pleadings > Pleading Upload: choose the eFiling number, upload the LexDraft bundle PDF.' },
-  indexing: { key: 'indexing', label: 'Index the documents', hint: 'Pleadings > Indexing: add each document\'s page range. Copy them from the bundle index in LexDraft.' },
+  upload: { key: 'upload', label: 'Upload pleadings', required: true, hint: 'Pleadings > Pleadings > Pleading Upload: choose the eFiling number, upload the DifAI bundle PDF.' },
+  indexing: { key: 'indexing', label: 'Index the documents', hint: 'Pleadings > Indexing: add each document\'s page range. Copy them from the bundle index in DifAI.' },
   esign: { key: 'esign', label: 'eSign', hint: 'Pleadings > Pleading eSign: authorise signatories, then Aadhaar eSign (C-DAC) or OTP for each.' },
   oath: { key: 'oath', label: 'Record oath', hint: 'Pleadings > Record Your Oath: webcam video, where your court requires it.' },
-  court_fee: { key: 'court_fee', label: 'Pay court fee', hint: 'e-Payments > Payments (or Court Fee Wallet): pay, then record the GRN in LexDraft.' },
+  court_fee: { key: 'court_fee', label: 'Pay court fee', hint: 'e-Payments > Payments (or Court Fee Wallet): pay, then record the GRN in DifAI.' },
   final_submit: { key: 'final_submit', label: 'Final submit', required: true, hint: 'Dashboard > Draft Pleadings: select the GRN against the documents and press Submit.' },
   ia_application: { key: 'ia_application', label: 'Add the application', required: true, hint: 'Applications > Interlocutory Applications Filing: pick the case and application type, check preamble, prayer and fee, add the paragraphs, Submit.' },
   ia_fee: { key: 'ia_fee', label: 'Pay the IA fee', hint: 'Interlocutory Applications Filing > Pay Fees: pays from the court-fee wallet of that establishment.' },

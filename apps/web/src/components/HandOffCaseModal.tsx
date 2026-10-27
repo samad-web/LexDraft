@@ -2,14 +2,14 @@
  * Hand-off-case modal - the cross-firm counterpart to CaseLeadHandover's
  * in-firm teammate dropdown. Opened from the case detail view when the
  * advocate can't attend and needs to pass the whole matter to someone
- * outside the firm, who may not have a LexDraft account yet.
+ * outside the firm, who may not have a DifAI account yet.
  *
  * Two target modes:
  *   - Teammate: same dropdown/flow as CaseLeadHandover (existingUserId).
  *   - Outside advocate: generates a shareable link + QR code (`open_link`
  *     target kind) with no recipient known up front - A shares it however
  *     they like (WhatsApp, in person, etc). No email is collected or sent
- *     by LexDraft; B supplies their own identity when they open the link.
+ *     by DifAI; B supplies their own identity when they open the link.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -117,8 +117,8 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
     if (!link?.shareToken) return;
     try {
       await navigator.share({
-        title: caseTitle ? `Take over "${caseTitle}" on LexDraft` : 'Case handover on LexDraft',
-        text: reason.trim() || 'You’ve been asked to take over a matter on LexDraft.',
+        title: caseTitle ? `Take over "${caseTitle}" on DifAI` : 'Case handover on DifAI',
+        text: reason.trim() || 'You’ve been asked to take over a matter on DifAI.',
         url: acceptUrl(link.shareToken),
       });
     } catch (err) {
@@ -140,7 +140,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
         onClose={handleClose}
         eyebrow="Handover"
         title="Share this link"
-        description="Send it to the advocate however you like - WhatsApp, SMS, in person. Opening it lets them set up their own free LexDraft account and take over this case."
+        description="Send it to the advocate however you like - WhatsApp, SMS, in person. Opening it lets them set up their own free DifAI account and take over this case."
         footer={<button type="button" className="btn btn-primary" onClick={handleClose}>Done</button>}
       >
         <div className="col" style={{ gap: 16, alignItems: 'center' }}>
@@ -231,7 +231,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
       ) : (
         <p className="body-xs muted" style={{ marginTop: -4 }}>
           You&rsquo;ll get a link and QR code to share with the advocate however you like. Opening it
-          lets them set up their own free LexDraft account and get read access to this case - no
+          lets them set up their own free DifAI account and get read access to this case - no
           email needed from you.
         </p>
       )}

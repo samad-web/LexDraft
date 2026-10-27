@@ -37,7 +37,7 @@ import {
 // ParticularsEditor — the data behind the eFiling portal's New Case Filing
 // wizard, laid out tab by tab exactly as the portal shows it (eFiling 3.0
 // user manual §6.2): Initial Inputs, Litigant, Legal Heir, Fact Details,
-// Case Details, MVC. Stored per matter in LexDraft so it is prepared once,
+// Case Details, MVC. Stored per matter in DifAI so it is prepared once,
 // checked by the readiness report, and reused for every filing on the matter.
 // =============================================================================
 
@@ -380,7 +380,7 @@ function CaseParticularsForm({ caseId, particulars, parties, part, nav }: {
         </PortalGrid>
       </LocalLanguageBlock>
 
-      <PortalSection title="Additional (LexDraft)">
+      <PortalSection title="Additional (DifAI)">
         <PortalGrid>
           <PField label="Claim amount (₹)">
             <input className="input" inputMode="decimal" value={p.claimAmountInr ?? ''} onChange={(e) => set({ claimAmountInr: numOrNull(e.target.value) })} />

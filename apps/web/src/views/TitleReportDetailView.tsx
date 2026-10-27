@@ -2111,7 +2111,7 @@ function PreviewBody({ report }: { report: TitleReportFull }) {
       </section>
 
       <footer className="tr-preview__foot">
-        <div>For LexDraft drafted by the undersigned advocate.</div>
+        <div>For DifAI drafted by the undersigned advocate.</div>
         <div style={{ marginTop: 'var(--space-4)' }}>
           ____________________<br/>
           <em>Advocate</em><br/>

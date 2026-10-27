@@ -26,7 +26,7 @@ export function FilingsList({ caseId, onOpen, initialNewCaseId }: {
     <div className="col" style={{ gap: 16 }}>
       <div className="row" style={{ gap: 8, justifyContent: 'space-between', flexWrap: 'wrap', alignItems: 'center' }}>
         <p className="body-sm muted" style={{ maxWidth: 620 }}>
-          Prepare each filing here, file it on the portal, then record the eFiling number. LexDraft checks eCourts at 9 AM and 7 PM
+          Prepare each filing here, file it on the portal, then record the eFiling number. DifAI checks eCourts at 9 AM and 7 PM
           and connects the matter as soon as the court registers it. You get a notification after every check.
         </p>
         <div className="row" style={{ gap: 8 }}>

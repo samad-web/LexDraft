@@ -1126,7 +1126,7 @@ export async function fetchPreTrialOrderPdf(input: PreTrialOrderInput): Promise<
 
 // ---------------------------------------------------------------------------
 // UI labels in the eCourts app's languages (getAllLabelsWebService.php).
-// The app's own translations, keyed by numeric label id - LexDraft's eCourts
+// The app's own translations, keyed by numeric label id - DifAI's eCourts
 // screen uses them so it reads exactly like the app in every language.
 // Verified live 2026-10-22: a non-English set needs bilingual_flag 1 together
 // with language_flag; with bilingual_flag 0 every language comes back English.

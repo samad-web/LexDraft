@@ -120,7 +120,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   // eCourts upstream failures (timeout, non-2xx, malformed response) carry a
   // safe, specific message - "eCourts didn't respond in time" isn't a leak,
   // and hiding it behind the generic 500 text is what made a slow upstream
-  // call look like a LexDraft bug to the advocate. Surface it as-is.
+  // call look like a DifAI bug to the advocate. Surface it as-is.
   if (err instanceof EcourtsHttpError) {
     (req.log ?? logger).warn({ err, path: req.path, method: req.method }, 'eCourts upstream error');
     if (shouldCapture(err.status)) captureAsync(req, err.status, err);

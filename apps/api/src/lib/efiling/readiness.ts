@@ -11,7 +11,7 @@ import {
 // =============================================================================
 // Filing readiness: what the portal's New Case wizard (tabs 1-6, see
 // docs/efiling-selector-capture-todo.md §3.1) would reject or leave blank,
-// checked against what LexDraft holds for the matter. Pure - no DB - so the
+// checked against what DifAI holds for the matter. Pure - no DB - so the
 // same rules drive the UI checklist, the draft -> ready transition and tests.
 //
 // 'error'   the portal marks the field mandatory (red star) or the step

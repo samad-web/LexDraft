@@ -11,9 +11,14 @@ export function FreePlanLocked({ feature }: { feature: string }) {
       title="Not included in the free plan"
       description={`${feature} is part of the paid plans. Your drafting, matters and AI tools stay free until 1 June 2027.`}
       action={
-        <button type="button" className="btn btn-sm" onClick={() => navigate('/app/dashboard')}>
-          Back to Dashboard
-        </button>
+        <span style={{ display: 'inline-flex', gap: 8 }}>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => navigate('/app/billing')}>
+            See plans
+          </button>
+          <button type="button" className="btn btn-sm" onClick={() => navigate('/app/dashboard')}>
+            Back to Dashboard
+          </button>
+        </span>
       }
     />
   );

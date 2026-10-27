@@ -32,7 +32,7 @@ import type {
 // 30-second TOTP step, ±1 step tolerance for clock skew.
 authenticator.options = { window: 1, step: 30 };
 
-const ISSUER = 'LexDraft';
+const ISSUER = 'DifAI';
 
 // 5 minutes - long enough for a sluggish QR-scan + code-entry roundtrip,
 // short enough that a stolen challengeId can't be replayed an hour later.

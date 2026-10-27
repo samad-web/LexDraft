@@ -23,7 +23,7 @@ import { WebSearchResults } from './WebSearchResults';
 const NO_CAPTCHA_KINDS: ReadonlySet<string> = new Set(['orders-party']);
 
 // Searches that only the eCourts WEBSITE offers. Each needs the advocate to
-// read a CAPTCHA once; LexDraft runs the rest of the site's flow.
+// read a CAPTCHA once; DifAI runs the rest of the site's flow.
 
 type Kind = EcourtsWebSearchFields['kind'];
 type Section = Kind | 'process';
@@ -278,7 +278,7 @@ export function EcourtsWebSearchPanel({ onOpenCnr, sections, initialSection, tit
             <p className="body-sm muted" style={{ maxWidth: 680 }}>
               {intro ?? (offered.length > 1 ? '' : copy.blurb)}
               {needsCaptcha && section !== 'process'
-                ? ' This one runs on the eCourts website, which shows a captcha: type the characters once and LexDraft does the rest. District courts only.'
+                ? ' This one runs on the eCourts website, which shows a captcha: type the characters once and DifAI does the rest. District courts only.'
                 : ''}
             </p>
           </div>

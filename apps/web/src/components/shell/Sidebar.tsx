@@ -8,6 +8,7 @@ import { useNavHighlighter } from '@/hooks/useNavHighlighter';
 import { useMyUsage } from '@/hooks/useMyUsage';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { useTeamChatStream, useTeamChatUnreadTotal } from '@/hooks/useTeamChat';
+import { LogoMark, Wordmark } from '@/components/brand/Logo';
 
 export function Sidebar() {
   const user = useAuthStore((s) => s.user);
@@ -55,8 +56,8 @@ export function Sidebar() {
       )}
       <aside className={`sidebar${sidebarOpen ? ' is-open' : ''}`}>
         <div className="wordmark">
-          <span className="wordmark-mark" aria-hidden />
-          <span className="wordmark-full">LexDraft</span>
+          <LogoMark size={26} className="wordmark-mark" />
+          <Wordmark className="wordmark-full" />
           <button
             type="button"
             className="btn btn-ghost sidebar-close"

@@ -77,7 +77,7 @@ export function DraftRevisePanel({
             className="input"
             rows={3}
             value={instruction}
-            placeholder="Tell LexDraft what to change, e.g. add interest at 18% p.a. from the date of notice"
+            placeholder="Tell DifAI what to change, e.g. add interest at 18% p.a. from the date of notice"
             onChange={(e) => setInstruction(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) void submit(instruction);

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- DifAI mark (small-size cut): a "D" whose stem is a court column, the
+       scales of justice in its counter, balanced on an AI spark. -->
+  <style>
+    .ink { fill: #0a0a0a } .paper { fill: #fafafa }
+    @media (prefers-color-scheme: dark) { .ink { fill: #fafafa } .paper { fill: #0a0a0a } }
+  </style>
+  <rect class="ink" width="32" height="32" rx="8"/>
+  <g class="paper" transform="translate(16 16) scale(0.88) translate(-16.2 -16)">
+    <rect x="6.6" y="6.4" width="8" height="2.2" rx="0.5"/>
+    <rect x="7.8" y="8.6" width="5.6" height="14.8"/>
+    <rect x="6.6" y="23.4" width="8" height="2.2" rx="0.5"/>
+    <path d="M14.6 6.4H17.4C22.5 6.4 25.8 10.5 25.8 16C25.8 21.5 22.5 25.6 17.4 25.6H14.6V22H17.2C20.1 22 22 19.6 22 16C22 12.4 20.1 10 17.2 10H14.6Z"/>
+    <rect x="17.85" y="13.3" width="0.9" height="6.1" rx="0.3"/>
+    <rect x="16.4" y="19.1" width="3.8" height="1" rx="0.4"/>
+    <rect x="15.7" y="13.6" width="5.2" height="0.8" rx="0.4"/>
+    <path d="M18.3 10.5C18.46 11.85 18.78 12.17 20.1 12.32C18.78 12.47 18.46 12.79 18.3 14.15C18.14 12.79 17.82 12.47 16.5 12.32C17.82 12.17 18.14 11.85 18.3 10.5Z"/>
+  </g>
+</svg>

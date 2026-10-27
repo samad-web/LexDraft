@@ -41,6 +41,7 @@ import { archiveRouter } from './archive.routes';
 import { physicalDocumentsRouter } from './physical-documents.routes';
 import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
+import { billingRouter } from './billing.routes';
 import { notificationsRouter } from './notifications.routes';
 import { teamChatRouter } from './team-chat.routes';
 import { meMfaRouter } from './me-mfa.routes';
@@ -137,7 +138,7 @@ apiRouter.use('/co-counsel', coCounselRouter);
 
 // Mixed, same reasoning as /co-counsel: the signer-facing by-token/*
 // endpoints are public (a client or opposing counsel usually has no
-// LexDraft account); everything else under /esign applies requireAuth via
+// DifAI account); everything else under /esign applies requireAuth via
 // the router itself. No requireActivePlan at the mount level for the same
 // reason as co-counsel's guest path - a signer isn't on any firm's plan.
 apiRouter.use('/esign', esignRouter);
@@ -187,6 +188,9 @@ apiRouter.use('/archive',     requireAuth, requireActivePlan, archiveRouter);
 apiRouter.use('/physical-documents', requireAuth, requireActivePlan, physicalDocumentsRouter);
 apiRouter.use('/analytics',   requireAuth, requireActivePlan, analyticsRouter);
 apiRouter.use('/me',          requireAuth, meRouter);
+// Plan & billing (Dodo Payments). Mixed: the webhook and renew-checkout are
+// public, the rest require auth. No requireActivePlan so lapsed firms can pay.
+apiRouter.use('/billing', billingRouter);
 // In-app notification feed. requireAuth but NOT requireActivePlan — a user
 // with a lapsed plan should still be able to read and clear their bell.
 apiRouter.use('/notifications', requireAuth, notificationsRouter);

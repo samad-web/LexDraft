@@ -7,7 +7,7 @@ import { jobs } from './jobs.service';
 // ecourts-case-store.service
 //
 // Case records from eCourts, served the way the 09:00 / 19:00 sync serves
-// matters: from LexDraft's own store first, eCourts second.
+// matters: from DifAI's own store first, eCourts second.
 //
 //   stored + fresh   -> returned instantly
 //   stored + stale   -> returned instantly, refreshed in the background
@@ -231,7 +231,7 @@ export async function getCase<K extends StoreKind>(kind: K, rawCnr: string, cour
     await queueFetch(kind, cnr, court, opts.queueFor);
     return {
       status: 'queued',
-      message: 'eCourts is busy right now. LexDraft will keep trying in the background and notify you as soon as this case is ready.',
+      message: 'eCourts is busy right now. DifAI will keep trying in the background and notify you as soon as this case is ready.',
     };
   }
 }

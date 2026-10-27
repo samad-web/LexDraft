@@ -35,13 +35,13 @@ declare const window: any;
 // page and follows the site's own menu link (each link carries a one-time
 // token the site issues per visit), the site's own JavaScript loads every
 // dropdown, and the advocate supplies the gate - the OTP the site texts to
-// the mobile number the advocate enters, or the CAPTCHA they read. LexDraft
+// the mobile number the advocate enters, or the CAPTCHA they read. DifAI
 // never reads, guesses or replays either, and does not regenerate the
 // site's tokens outside its own pages.
 //
 // Results come back as plain text (key/value pairs and table rows read off
 // the rendered page) plus a PDF print of that page, so nothing from the
-// third-party page is injected into LexDraft's UI. The PDF can be filed into
+// third-party page is injected into DifAI's UI. The PDF can be filed into
 // a matter's documents or a title report's search trail.
 //
 // Field ids and functions come from the site's land/*.html, js/common.js,

@@ -27,6 +27,9 @@ export function TrialBanner(): JSX.Element | null {
   const expired = msLeft <= 0;
 
   const isDemo = !!user.isDemo;
+  // The free launch plan rides the trial clock (till 1 June 2027); a 14-day
+  // trial never runs this long.
+  const freePlan = !isDemo && daysLeft > 30;
   const urgency = expired ? 'critical' : daysLeft <= 3 ? 'warn' : 'soft';
 
   const palette =
@@ -40,6 +43,8 @@ export function TrialBanner(): JSX.Element | null {
       : daysLeft === 1
         ? 'Your demo session ends today.'
         : `Demo session: ${daysLeft} days remaining.`
+    : freePlan
+      ? `Free plan · free till ${endsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`
     : expired
       ? 'Your 14-day trial has ended.'
       : daysLeft === 1
@@ -62,20 +67,20 @@ export function TrialBanner(): JSX.Element | null {
     >
       <span style={{ fontWeight: 500 }}>{label}</span>
       <span className="muted" style={{ color: palette.fg, opacity: 0.85 }}>
-        {isDemo ? 'Convert to a real account to keep your work.' : 'Pick a plan any time to keep your work.'}
+        {isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
       </span>
       <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
         <button
           type="button"
           className="btn btn-sm"
-          onClick={() => navigate('/app/settings')}
+          onClick={() => navigate('/app/billing')}
           style={{
             background: 'transparent',
             borderColor: palette.fg,
             color: palette.fg,
           }}
         >
-          {isDemo ? 'Convert' : 'See plans'}
+          {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
         </button>
       </span>
     </div>

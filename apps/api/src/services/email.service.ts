@@ -26,7 +26,7 @@ export interface EmailMessage {
   /** Override the From address. Defaults to env.EMAIL_FROM. */
   from?: string;
   /** Sender display name on the EMAIL_FROM address ("Asha Rao (via
-   *  LexDraft)"). We never send *as* a user's own mailbox: without that
+   *  DifAI)"). We never send *as* a user's own mailbox: without that
    *  mailbox's credentials the message fails SPF/DKIM and lands in spam. */
   fromName?: string;
   /** Reply-To header. Useful for notifications that should route replies
@@ -60,10 +60,10 @@ function getTransporter(): Transporter | null {
 
 function defaultFrom(): string {
   if (env.EMAIL_FROM) return env.EMAIL_FROM;
-  return 'LexDraft <no-reply@lexdraft.local>';
+  return 'DifAI <no-reply@lexdraft.local>';
 }
 
-/** "LexDraft <no-reply@x.com>" -> "no-reply@x.com"; a bare address passes through. */
+/** "DifAI <no-reply@x.com>" -> "no-reply@x.com"; a bare address passes through. */
 function fromAddress(from: string): string {
   const m = /<([^>]+)>/.exec(from);
   return (m ? m[1]! : from).trim();

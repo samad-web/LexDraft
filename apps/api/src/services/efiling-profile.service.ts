@@ -8,7 +8,7 @@ import { EFILING_PORTAL_STATE_CODES } from '../lib/efiling/types';
 // The advocate-side details the eFiling portal registers people by: Bar
 // Council enrolment number + state, the portal's unique advocate code, and
 // the practice locations (HC benches / districts) the advocate may file in.
-// Stored on the LexDraft user (migration 0086) so filings can be checked
+// Stored on the DifAI user (migration 0086) so filings can be checked
 // against them and vakalatnamas pre-filled.
 // =============================================================================
 

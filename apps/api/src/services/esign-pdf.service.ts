@@ -7,7 +7,7 @@ import type { EsignAuditEvent } from './esign-audit.service';
 // structure (that would need a PKI certificate this system doesn't have —
 // see 0079_esign.sql's header). It's a human-readable record, printed INTO
 // the document itself, of who signed, when, and the evidence captured —
-// so the summary travels with the file even outside LexDraft, and so
+// so the summary travels with the file even outside DifAI, and so
 // opening the PDF doesn't require trusting a separate system to see what
 // happened.
 // =============================================================================
@@ -28,7 +28,7 @@ export interface AppendAuditPageInput {
   signers: SignerSummary[];
   auditEvents: EsignAuditEvent[];
   /** Hash of the final chain's last event — printed so a reader can
-   *  independently ask LexDraft to verify the chain against this value. */
+   *  independently ask DifAI to verify the chain against this value. */
   finalChainHash: string | null;
 }
 
@@ -76,7 +76,7 @@ export async function appendAuditSummaryPage(input: AppendAuditPageInput): Promi
 
   draw('ELECTRONIC SIGNATURE RECORD', { font: bold, size: 14, gap: 20 });
   draw(
-    'This page is a human-readable record appended by LexDraft at the time every signer completed',
+    'This page is a human-readable record appended by DifAI at the time every signer completed',
     { size: 8.5, gap: 11 },
   );
   draw(
@@ -84,7 +84,7 @@ export async function appendAuditSummaryPage(input: AppendAuditPageInput): Promi
     { size: 8.5, gap: 11 },
   );
   draw(
-    'electronic signature. Its legal weight if challenged depends on this record and LexDraft\'s audit',
+    'electronic signature. Its legal weight if challenged depends on this record and DifAI\'s audit',
     { size: 8.5, gap: 11 },
   );
   draw('log, not a Certifying Authority certificate.', { size: 8.5, gap: 18 });

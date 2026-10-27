@@ -38,6 +38,9 @@ interface Props {
   /** Invitations addressed to one email: refuse any other Google account
    *  before the WhatsApp step, rather than failing at the very end. */
   expectedEmail?: string | null;
+  /** Ask for the WhatsApp number before the Google button, and send the
+   *  code as soon as Google confirms a new account (sign-up page). */
+  phoneFirst?: boolean;
 }
 
 const noticeStyle: CSSProperties = {
@@ -49,7 +52,7 @@ const noticeStyle: CSSProperties = {
   padding: '10px 12px',
 };
 
-export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with', expectedEmail }: Props) {
+export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, buttonText = 'continue_with', expectedEmail, phoneFirst }: Props) {
   const googleSignIn = useGoogleSignIn();
   const sendOtp = useSendSignupOtp();
   const verifyOtp = useVerifySignupOtp();
@@ -86,16 +89,17 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
           }
           setWrongAccount(null);
           setPending(r);
+          if (phoneFirst && phoneLooksValid) sendCode(r.signupToken);
         },
       },
     );
   };
 
-  const handleSend = (e?: FormEvent) => {
-    e?.preventDefault();
-    if (!pending) return;
+  const phoneLooksValid = phone.replace(/\D/g, '').length >= 10;
+
+  const sendCode = (signupToken: string) => {
     sendOtp.mutate(
-      { signupToken: pending.signupToken, phone },
+      { signupToken, phone },
       {
         onSuccess: (r) => {
           setChallenge({ id: r.challengeId, phone: r.phone });
@@ -104,6 +108,11 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
         },
       },
     );
+  };
+
+  const handleSend = (e?: FormEvent) => {
+    e?.preventDefault();
+    if (pending) sendCode(pending.signupToken);
   };
 
   const handleVerify = (e: FormEvent) => {
@@ -126,7 +135,35 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
     }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <GoogleButton onCredential={handleCredential} text={buttonText} />
+        {phoneFirst && (
+          <div>
+            <label className="label required" htmlFor="wa-phone-first">
+              WhatsApp number
+              <span className="hint">We&rsquo;ll send a 6-digit code</span>
+            </label>
+            <input
+              id="wa-phone-first"
+              className="input mono"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+91 98765 43210"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoFocus
+            />
+          </div>
+        )}
+        {phoneFirst && !phoneLooksValid ? (
+          <button type="button" className="btn btn-primary btn-block btn-lg" disabled style={{ opacity: 0.4 }}>
+            Enter your WhatsApp number to continue
+          </button>
+        ) : (
+          <GoogleButton onCredential={handleCredential} text={buttonText} />
+        )}
+        {sendOtp.isPending && (
+          <p className="body-sm muted" style={{ textAlign: 'center' }}>Sending your code on WhatsApp…</p>
+        )}
         {googleSignIn.isPending && (
           <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
         )}

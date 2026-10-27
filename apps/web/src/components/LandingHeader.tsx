@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { PillNav } from './PillNav';
 import { ThemeToggle } from './ThemeToggle';
+import { LogoMark, Wordmark } from './brand/Logo';
 
 export type LandingTabId = 'home' | 'features' | 'pricing' | 'faq' | 'trial';
 
@@ -78,15 +79,7 @@ interface BrandMarkProps {
 export function BrandMark({ size = 24, fontSize = 19 }: BrandMarkProps) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span
-        style={{
-          width: size,
-          height: size,
-          background: 'var(--text-primary)',
-          borderRadius: 'var(--radius-sm)',
-          display: 'inline-block',
-        }}
-      />
+      <LogoMark size={size + 4} />
       <span
         style={{
           fontFamily: 'var(--font-display)',
@@ -95,7 +88,7 @@ export function BrandMark({ size = 24, fontSize = 19 }: BrandMarkProps) {
           letterSpacing: '-0.015em',
         }}
       >
-        LexDraft
+        <Wordmark />
       </span>
     </div>
   );

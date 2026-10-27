@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
+import { billingService } from '../services/billing.service';
 import { aiUsageReportService } from '../services/ai-usage-report.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
@@ -116,6 +117,16 @@ adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
 });
 
 // ---- free launch plan switches ---------------------------------------------
+
+// Self-serve billing: who picked which plan, who stopped at checkout, who pays.
+adminRouter.get('/billing', async (_req, res, next) => {
+  try {
+    const [summary, events] = await Promise.all([billingService.adminSummary(), billingService.adminEvents()]);
+    res.json({ summary, events });
+  } catch (err) {
+    next(err);
+  }
+});
 
 adminRouter.get('/free-plan/switches', async (_req, res, next) => {
   try {

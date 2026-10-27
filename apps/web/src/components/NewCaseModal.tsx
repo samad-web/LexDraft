@@ -385,7 +385,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             hint={
               cnrValid && cnrLookup.isFetching ? 'Fetching from eCourts…'
               : cnrValid && cnrLookup.data ? 'Fetched from eCourts ✓'
-              : cnrValid && cnrLookup.isError && cnrLookup.isNotFound ? 'No eCourts record yet. Save anyway; LexDraft keeps checking at 9 AM and 7 PM'
+              : cnrValid && cnrLookup.isError && cnrLookup.isNotFound ? 'No eCourts record yet. Save anyway; DifAI keeps checking at 9 AM and 7 PM'
               : cnrValid && cnrLookup.isError ? 'eCourts is not responding. Save anyway; it will connect automatically when eCourts is back'
               : 'Optional: enter a 16-char CNR to auto-fetch from eCourts'
             }

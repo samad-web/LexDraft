@@ -59,7 +59,7 @@ export function SignupView(): JSX.Element {
             fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em',
           }}
         >
-          LexDraft
+          DifAI
         </button>
         <button
           type="button"
@@ -100,7 +100,7 @@ function DemoChoiceScreen(): JSX.Element {
   if (choice === 'interactive') return <InteractiveDemoSignup onBack={() => setChoice(null)} />;
   return (
     <div>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>See LexDraft</div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>See DifAI</div>
       <h1 className="heading-xl" style={{ marginBottom: 8 }}>How would you like the demo?</h1>
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
         Three ways: pick the one that suits your week.
@@ -280,7 +280,7 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
   );
 }
 
-/** The Google account already has a LexDraft account: useGoogleSignIn has
+/** The Google account already has a DifAI account: useGoogleSignIn has
  *  set the session, so go straight in. MFA-enrolled users finish on /auth. */
 function useExistingAccountHandler(): (resp: SignInResult) => void {
   const navigate = useNavigate();
@@ -380,10 +380,10 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const isTrial = props.intent === 'trial';
   const eyebrow = isTrial ? 'Free for advocates & students · 14-day trial for firms' : 'Create account';
   const headline = isTrial
-    ? 'Start using LexDraft'
-    : 'Create your LexDraft account';
+    ? 'Start using DifAI'
+    : 'Create your DifAI account';
   const subline = isTrial
-    ? 'Solo advocates and law students use LexDraft free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
+    ? 'Solo advocates and law students use DifAI free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
     : 'Set up your account; billing kicks in on the next page.';
   const ctaLabel = isTrial ? 'Begin trial' : 'Create account';
 

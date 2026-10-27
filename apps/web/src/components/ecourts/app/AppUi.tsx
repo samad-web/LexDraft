@@ -12,7 +12,7 @@ import { EMPTY_SCOPE, useEcourtsCourtStore } from '@/store/ecourtsCourt';
 import { L, useEcourtsT } from '@/hooks/useEcourtsLabels';
 
 // =============================================================================
-// The eCourts app's inner-screen building blocks, in LexDraft's monochrome
+// The eCourts app's inner-screen building blocks, in DifAI's monochrome
 // design system. Advocates know the app's screens, so every search follows
 // its exact shape:
 //
@@ -27,7 +27,7 @@ import { L, useEcourtsT } from '@/hooks/useEcourtsLabels';
 //   Sr No | Case Number (link) | Party Name
 //
 // The app's dark section bars become inverse bars (black in light mode,
-// white in dark mode) - structure from the app, colour from LexDraft.
+// white in dark mode) - structure from the app, colour from DifAI.
 // =============================================================================
 
 /** "Case Status : Search by Case Number" - the app's centred screen title. */
@@ -235,7 +235,7 @@ export interface ComplexScope {
 
 /**
  * The picked Court Complex, resolved to the court codes eCourts searches.
- * Districts whose complexes LexDraft hasn't captured fall back to a typed
+ * Districts whose complexes DifAI hasn't captured fall back to a typed
  * court code (kept in the same store).
  */
 export function useComplexScope(): {

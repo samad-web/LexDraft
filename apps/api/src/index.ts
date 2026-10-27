@@ -9,7 +9,7 @@ import { teamChatRealtime } from './services/team-chat-realtime';
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
-  logger.info(`LexDraft API listening on http://localhost:${env.PORT}`);
+  logger.info(`DifAI API listening on http://localhost:${env.PORT}`);
 });
 
 // Email is the ONLY delivery channel for hearing reminders, invoice-issued

@@ -10,7 +10,7 @@ import {
 import { LField, LRow, Spinner, errorText } from './LandUi';
 
 // Patta transfer / F-Line applications the firm follows. Land Records'
-// Application Status page needs a captcha, so LexDraft can't check them on
+// Application Status page needs a captcha, so DifAI can't check them on
 // its own: "Check status"
 // opens Application Status with the Id filled in (the status is recorded).
 

@@ -20,6 +20,8 @@ import type {
   FirmPlan,
   FirmSummary,
   FreePlanSwitchState,
+  AdminBillingEvent,
+  AdminBillingSummary,
   ImpersonationGrant,
   PlatformStats,
   TemplateScope,
@@ -48,6 +50,8 @@ export const adminApi = {
   updateBranding: (id: string, patch: AdminUpdateBrandingRequest) => api.patch<FirmBranding>(`/admin/firms/${id}/branding`, patch),
 
   // ---- free launch plan switches --------------------------------------
+  billing: () =>
+    api.get<{ summary: AdminBillingSummary; events: AdminBillingEvent[] }>('/admin/billing'),
   freePlanSwitches: () =>
     api.get<{ items: FreePlanSwitchState[] }>('/admin/free-plan/switches').then((r) => r.items),
   setFreePlanSwitch: (key: FreePlanSwitchState['key'], enabled: boolean) =>

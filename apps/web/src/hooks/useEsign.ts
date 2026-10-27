@@ -4,7 +4,7 @@
  * Backend: apps/api/src/routes/esign.routes.ts. Self-built Section 3A
  * "electronic signature" (see 0079_esign.sql's header) - mirrors
  * useCoCounsel.ts's shape (list + mutations, invalidate-on-write) with the
- * public by-token/* endpoints a signer uses without a LexDraft account.
+ * public by-token/* endpoints a signer uses without a DifAI account.
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

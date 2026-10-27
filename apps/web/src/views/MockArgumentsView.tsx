@@ -44,7 +44,7 @@ import { useAuthStore } from '@/store/auth';
 //
 // Visual polish lives in the .ma-* CSS classes appended to globals.css. The
 // view stays monochrome (black-on-white surfaces, status only in tiny dots)
-// to match the rest of the LexDraft surface; the one exception is the mic
+// to match the rest of the DifAI surface; the one exception is the mic
 // "hot" state, which uses --danger because users expect a red signal when a
 // microphone is actively recording.
 // =============================================================================

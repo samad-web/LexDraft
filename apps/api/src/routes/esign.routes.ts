@@ -9,7 +9,7 @@
  *
  * Split like co-counsel.routes.ts: the signer-facing accept/consent/OTP/
  * sign endpoints are public (token-scoped, rate-limited) because a signer
- * usually has no LexDraft account; everything else requires an
+ * usually has no DifAI account; everything else requires an
  * authenticated firm member who sent the request.
  */
 

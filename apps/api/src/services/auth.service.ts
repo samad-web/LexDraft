@@ -10,6 +10,7 @@ import { ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/e
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
+import { billingService } from './billing.service';
 
 /**
  * Transitional response returned by signIn when the user is MFA-enrolled
@@ -440,6 +441,24 @@ function verifySignupToken(token: string): SignupTokenClaims {
   }
 }
 
+const RENEW_TOKEN_SECRET = `${env.JWT_SECRET}:plan-renew`;
+
+/** Handed to an account owner whose trial / plan has ended, so they can pay
+ *  from the sign-in page (POST /billing/renew-checkout). Never a session. */
+function issueRenewToken(userId: string): string {
+  return jwt.sign({ purpose: 'plan-renew', sub: userId }, RENEW_TOKEN_SECRET, { expiresIn: '30m' });
+}
+
+export function verifyRenewToken(token: string): string {
+  try {
+    const c = jwt.verify(token, RENEW_TOKEN_SECRET) as { purpose?: string; sub?: string };
+    if (c.purpose !== 'plan-renew' || !c.sub) throw new Error('wrong purpose');
+    return c.sub;
+  } catch {
+    throw new UnauthorizedError('Your session expired. Sign in again to choose a plan.');
+  }
+}
+
 /** password_hash is NOT NULL. Google accounts get a random, never-disclosed
  *  secret, so the account has no usable password. */
 export function unusablePasswordHash(): Promise<string> {
@@ -452,7 +471,7 @@ async function assertPhoneUnused(phone: string): Promise<void> {
   if (!sql) return;
   const rows = await sql<{ id: string }[]>`select id from users where phone = ${phone} limit 1`;
   if (rows[0]) {
-    throw new ConflictError('This WhatsApp number is already linked to a LexDraft account. Sign in with that account instead.');
+    throw new ConflictError('This WhatsApp number is already linked to a DifAI account. Sign in with that account instead.');
   }
 }
 
@@ -478,6 +497,8 @@ export interface GoogleSignUpInput {
   studyYear?: string;
   teamSize?: string;
   intent?: SignUpIntent;
+  plan?: SignUpRequest['plan'];
+  billingCycle?: SignUpRequest['billingCycle'];
 }
 
 /** Post-authentication gate shared by password and Google sign-in: plan
@@ -492,9 +513,14 @@ async function completeSignIn(publicUser: User): Promise<SignInResult> {
     const planState = await getPlanState(publicUser.id);
     const planCheck = evaluatePlanState(planState);
     if (!planCheck.ok) {
+      // The owner can pick a plan and pay right from the sign-in page.
+      const owner = publicUser.role === 'Solo Advocate' || publicUser.role === 'Managing Partner';
       throw new PaymentRequiredError('Your firm plan is no longer active. Please renew to continue.', {
         code: planCheck.reason,
-        details: planCheck.renewsAt ? { renewsAt: planCheck.renewsAt.toISOString() } : undefined,
+        details: {
+          ...(planCheck.renewsAt ? { renewsAt: planCheck.renewsAt.toISOString() } : {}),
+          ...(owner ? { renewToken: issueRenewToken(publicUser.id) } : {}),
+        },
       });
     }
   }
@@ -571,7 +597,7 @@ export const authService = {
       // ever materialize via the email-contains-'admin' shortcut.
       if (!env.devAuthAutoProvision) {
         // Sign in never creates an account: point them at sign-up instead.
-        throw new UnauthorizedError('No LexDraft account uses this email. Create your free account first.', { code: 'account_not_found' });
+        throw new UnauthorizedError('No DifAI account uses this email. Create your free account first.', { code: 'account_not_found' });
       }
       const isAdminish = email.toLowerCase().includes('admin');
       const localPart = email.split('@')[0] ?? '';
@@ -694,6 +720,9 @@ export const authService = {
       planTierForSignUpRole(input.role),
       input.intent ?? 'trial',
     );
+    const plan = input.plan ?? (input.role === 'group' ? 'practice' : 'free');
+    await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
+      .catch(() => undefined);
     return { user, token: issueToken(user) };
   },
 
@@ -742,6 +771,9 @@ export const authService = {
       planTierForSignUpRole(input.role),
       input.intent ?? 'trial',
     );
+    const plan = input.plan ?? (input.role === 'group' ? 'practice' : 'free');
+    await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
+      .catch(() => undefined);
     return { user, token: issueToken(user) };
   },
 
@@ -840,7 +872,7 @@ export const authService = {
 
   /**
    * Used by the co-counsel handover accept flow when the receiving advocate
-   * has no LexDraft account yet. Unlike `registerExternalUser` (which joins
+   * has no DifAI account yet. Unlike `registerExternalUser` (which joins
    * the inviter's firm), this provisions the new advocate their OWN trial
    * Solo firm via `insertUserWithNewFirm` - they must NOT gain membership in
    * the referring firm just by accepting a single-case handover. Their only

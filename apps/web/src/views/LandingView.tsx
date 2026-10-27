@@ -91,7 +91,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'How does e-filing actually work?',
-    a: 'LexDraft generates the court-ready PDF with the right margins, fonts, and pagination, then hands off to the relevant portal’s submission flow. Where APIs exist, we file directly; where they don’t, the file is opened with a one-click upload helper.',
+    a: 'DifAI generates the court-ready PDF with the right margins, fonts, and pagination, then hands off to the relevant portal’s submission flow. Where APIs exist, we file directly; where they don’t, the file is opened with a one-click upload helper.',
   },
   {
     q: 'Do you support regional languages?',
@@ -102,7 +102,7 @@ const FAQ_ITEMS: FaqItem[] = [
     a: 'Yes - at any time. One-click export of every matter, draft, contract, invoice, and document as a portable archive. No lock-in, no waiting period.',
   },
   {
-    q: 'How is LexDraft priced for partnerships?',
+    q: 'How is DifAI priced for partnerships?',
     a: 'Per-seat pricing with volume discounts on Practice, and bespoke contracts on Firm. We do not charge per matter, per filing, or per AI generation.',
   },
 ];
@@ -178,7 +178,7 @@ const FOOTER_GROUPS: FooterGroup[] = [
       { label: 'About', href: '#trial' },
       { label: 'Careers', href: 'mailto:careers@lexdraft.in' },
       { label: 'Press', href: 'mailto:press@lexdraft.in' },
-      { label: 'Contact', href: 'mailto:partners@lexdraft.in?subject=LexDraft' },
+      { label: 'Contact', href: 'mailto:partners@lexdraft.in?subject=DifAI' },
     ],
   },
   {
@@ -1078,7 +1078,7 @@ export function LandingView() {
         {/* Bottom strip - CIN + compliance */}
         <div className="lex-footer-base">
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-            © 2026 LexDraft Technologies Pvt Ltd · CIN U72900KA2024PTC987654
+            © 2026 DifAI Technologies Pvt Ltd · CIN U72900KA2024PTC987654
           </span>
           <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
             SOC 2 Type II · ISO 27001 · DPDP Act 2023

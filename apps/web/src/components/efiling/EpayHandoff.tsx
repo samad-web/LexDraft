@@ -13,7 +13,7 @@ function readMobile(): string {
 
 /**
  * Opens ePay with this filing's court, case and amount, ready for the
- * "LexDraft Fill" bookmark to fill the Court Fee form. See lib/epayFill.ts.
+ * "DifAI Fill" bookmark to fill the Court Fee form. See lib/epayFill.ts.
  */
 export function EpayHandoff({ f, amount }: { f: FilingDetailDto; amount: string }) {
   const { data } = useFilingParticulars(f.caseId);
@@ -82,7 +82,7 @@ export function EpayHandoff({ f, amount }: { f: FilingDetailDto; amount: string 
         {cnr
           ? <>Existing case: ePay will get CNR <strong>{cnr}</strong>{handoff.amount != null ? <>, ₹{handoff.amount}</> : null}.</>
           : <>New case: ePay will get {p?.establishmentName ?? 'the establishment'}{handoff.party ? <>, party {handoff.party}</> : null}{handoff.amount != null ? <>, ₹{handoff.amount}</> : null}.</>}
-        {' '}On the ePay page click <strong>LexDraft Fill</strong> in your bookmarks bar. Then tick “I agree”, get the OTP and pay there.
+        {' '}On the ePay page click <strong>DifAI Fill</strong> in your bookmarks bar. Then tick “I agree”, get the OTP and pay there.
       </p>
       {missing.length ? <p className="body-sm" style={{ color: 'var(--warning, #b45309)' }}>Not filled yet: {missing.join(', ')}.</p> : null}
       {showSetup ? (
@@ -91,10 +91,10 @@ export function EpayHandoff({ f, amount }: { f: FilingDetailDto; amount: string 
           <li>
             Drag this button onto the bookmarks bar:{' '}
             <a ref={bookmarkRef} className="btn btn-ghost btn-sm" onClick={(e) => e.preventDefault()} title="Drag me to the bookmarks bar">
-              LexDraft Fill
+              DifAI Fill
             </a>
           </li>
-          <li>That’s all. It only reads the case LexDraft put in the ePay page address and never pays or sends an OTP.</li>
+          <li>That’s all. It only reads the case DifAI put in the ePay page address and never pays or sends an OTP.</li>
         </ol>
       ) : null}
     </div>

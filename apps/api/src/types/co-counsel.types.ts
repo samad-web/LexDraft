@@ -40,7 +40,7 @@ export interface HandoverRequest {
   shareToken?: string;
 }
 
-/** Target is either an existing LexDraft user (in-firm or cross-firm,
+/** Target is either an existing DifAI user (in-firm or cross-firm,
  *  resolved by id), a not-yet-onboarded external advocate identified by
  *  contact details (legacy email-first path, still supported), or `open`
  *  for a shareable link/QR with no recipient known until they accept. */

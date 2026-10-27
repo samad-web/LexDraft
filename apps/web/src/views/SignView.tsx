@@ -1,6 +1,6 @@
 /**
  * Public signer-facing page for an electronic-signature request. The signer
- * usually has no LexDraft account — this is a token-scoped landing page, the
+ * usually has no DifAI account — this is a token-scoped landing page, the
  * signing counterpart to CoCounselAcceptView/InviteAcceptView.
  *
  * Flow: load request by token -> explicit consent -> email OTP -> sign.

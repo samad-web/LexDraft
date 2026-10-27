@@ -146,6 +146,9 @@ interface UserRow {
   plan_status?: BillingStatus | null;
   free_plan?: boolean;
   trial_ends_at?: Date | null;
+  renews_at?: Date | null;
+  billing_cycle?: 'monthly' | 'annual' | null;
+  selected_plan?: 'free' | 'solo' | 'practice' | 'firm' | null;
 }
 
 const ALL_MODULES: FeatureModule[] = [
@@ -207,6 +210,9 @@ function rowToUserSummary(r: UserRow): AdminUserSummary {
     planStatus: r.plan_status ?? null,
     freePlan: !!r.free_plan,
     trialEndsAt: r.trial_ends_at ? r.trial_ends_at.toISOString() : null,
+    renewsAt: r.renews_at ? new Date(r.renews_at).toISOString() : null,
+    billingCycle: r.billing_cycle ?? null,
+    selectedPlan: r.selected_plan ?? null,
   };
 }
 
@@ -263,7 +269,8 @@ export const adminService = {
              u.phone, u.phone_verified_at, u.google_sub,
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
-             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
+             f.renews_at, f.billing_cycle, f.selected_plan
         from users u left join firms f on f.id = u.firm_id
         where u.firm_id = ${id}::uuid
         order by u.created_at asc
@@ -559,7 +566,8 @@ export const adminService = {
              u.phone, u.phone_verified_at, u.google_sub,
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
-             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
+             f.renews_at, f.billing_cycle, f.selected_plan
       from users u
       left join firms f on f.id = u.firm_id
       where (${filter.firmId ?? null}::uuid is null or u.firm_id = ${filter.firmId ?? null}::uuid)
@@ -663,7 +671,8 @@ export const adminService = {
              u.phone, u.phone_verified_at, u.google_sub,
              u.account_type, u.enrolment, u.primary_court, u.practice_areas,
              u.city, u.state, u.college, u.study_year, u.team_size,
-             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at
+             f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
+             f.renews_at, f.billing_cycle, f.selected_plan
       from users u left join firms f on f.id = u.firm_id
       where u.id = ${id}::uuid limit 1
     `;

@@ -350,7 +350,7 @@ export function CaseDetailView() {
             <div className="card row" style={{ gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
               <div className="col" style={{ gap: 2 }}>
                 <span className="heading-sm">Not connected to eCourts</span>
-                <span className="body-sm muted">Add the real CNR (or case number) and LexDraft brings in its status, hearings, orders and parties.</span>
+                <span className="body-sm muted">Add the real CNR (or case number) and DifAI brings in its status, hearings, orders and parties.</span>
               </div>
               <button
                 type="button"
@@ -794,7 +794,7 @@ function EcourtsSyncResultModal({
               ADDITIONAL DATA (NOT YET STORED)
             </div>
             <p className="body-sm muted">
-              eCourts returned these too; LexDraft doesn't have columns for them yet. They'll appear in the eCourts gateway view in full.
+              eCourts returned these too; DifAI doesn't have columns for them yet. They'll appear in the eCourts gateway view in full.
             </p>
             <ul className="col" style={{ gap: 6, paddingLeft: 18, fontSize: 13 }}>
               {sync.surfaceOnly.transfers.length > 0

@@ -1,5 +1,5 @@
 /* =================================================================
-   LexDraft - Monochrome Legal globals.
+   DifAI - Monochrome Legal globals.
    Implements design-system.md sections 3 (typography), 6 (borders),
    7 (components), 8 (layout patterns).
    ================================================================= */
@@ -789,13 +789,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   color: var(--text-primary);
   letter-spacing: -0.015em;
 }
-.wordmark-mark {
-  width: 24px; height: 24px;
-  background: var(--text-primary);
-  display: inline-block;
-  flex-shrink: 0;
-  border-radius: var(--radius-sm);
-}
+.wordmark-mark { flex-shrink: 0; }
 .nav-section { padding: var(--space-3) 0; }
 .nav-group-title {
   font-family: var(--font-sans);
@@ -4583,7 +4577,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   width: 84px; height: 84px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
   background: var(--text-primary); box-shadow: 0 10px 28px color-mix(in srgb, var(--text-primary) 22%, transparent);
 }
-.auth-logo > span { width: 34px; height: 34px; border-radius: 9px; background: var(--bg-surface); }
+.auth-logo > svg { width: 46px; height: 46px; }
 .auth-title { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .auth-shell .auth-brand-text, .auth-shell .auth-firm-link { display: none; }
 @media (max-width: 860px) {
@@ -4592,7 +4586,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-shell .auth-brand-text { display: block; }
   .auth-shell .auth-firm-link { display: inline-flex; }
   .auth-logo { width: 56px; height: 56px; }
-  .auth-logo > span { width: 22px; height: 22px; border-radius: 6px; }
+  .auth-logo > svg { width: 30px; height: 30px; }
   .auth-title { font-size: 24px; }
 }
 

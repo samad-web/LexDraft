@@ -20,7 +20,7 @@ import { errMsg } from './format';
 // todo.md), so once signed in the advocate files on the portal and records
 // the result in the Filings tab.
 //
-// The portal allows ONE active session per account: a LexDraft session left
+// The portal allows ONE active session per account: a DifAI session left
 // open would lock the advocate out of their own browser, so it is closed on
 // "Sign out" and whenever this panel unmounts.
 // =============================================================================
@@ -188,7 +188,7 @@ export function PortalLoginPanel() {
             <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
           </label>
 
-          <p className="body-sm muted">Your credentials are sent straight to filing.ecourts.gov.in to open your own session. LexDraft doesn't store them.</p>
+          <p className="body-sm muted">Your credentials are sent straight to filing.ecourts.gov.in to open your own session. DifAI doesn't store them.</p>
 
           {error ? <p className="body-sm" style={{ color: 'var(--danger)' }}>{error}</p> : null}
 
@@ -258,7 +258,7 @@ export function PortalLoginPanel() {
           <p className="body-sm">You're signed in to eFiling.</p>
           <p className="body-sm muted">
             Complete the filing on the portal (Case Filing → New Case Filing), using the particulars and bundle prepared in the
-            Filings tab. Then record the eFiling number there. LexDraft tracks it and connects the case to eCourts once it is registered.
+            Filings tab. Then record the eFiling number there. DifAI tracks it and connects the case to eCourts once it is registered.
           </p>
           <div className="row" style={{ gap: 8 }}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={reset} disabled={endSession.isPending}>

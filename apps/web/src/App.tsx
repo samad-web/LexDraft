@@ -42,6 +42,7 @@ const TasksView = lazy(() => import('@/views/TasksView').then((m) => ({ default:
 const DocumentsView = lazy(() => import('@/views/DocumentsView').then((m) => ({ default: m.DocumentsView })));
 const ResearchView = lazy(() => import('@/views/ResearchView').then((m) => ({ default: m.ResearchView })));
 const SettingsView = lazy(() => import('@/views/SettingsView').then((m) => ({ default: m.SettingsView })));
+const BillingView = lazy(() => import('@/views/BillingView').then((m) => ({ default: m.BillingView })));
 const CalendarView = lazy(() => import('@/views/CalendarView').then((m) => ({ default: m.CalendarView })));
 const ClientsView = lazy(() => import('@/views/ClientsView').then((m) => ({ default: m.ClientsView })));
 const ClientDetailView = lazy(() => import('@/views/ClientDetailView').then((m) => ({ default: m.ClientDetailView })));
@@ -101,6 +102,7 @@ const AdminUsersView = lazy(() => import('@/admin/views/UsersView').then((m) => 
 const AuditLogView = lazy(() => import('@/admin/views/AuditLogView').then((m) => ({ default: m.AuditLogView })));
 const TemplatesView = lazy(() => import('@/admin/views/TemplatesView').then((m) => ({ default: m.TemplatesView })));
 const FreePlanView = lazy(() => import('@/admin/views/FreePlanView').then((m) => ({ default: m.FreePlanView })));
+const AdminBillingView = lazy(() => import('@/admin/views/BillingView').then((m) => ({ default: m.BillingView })));
 const ErrorLogView = lazy(() => import('@/admin/views/ErrorLogView').then((m) => ({ default: m.ErrorLogView })));
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
 
@@ -251,6 +253,7 @@ export function App() {
               <Route path="firms/:id" element={<AdminFirmDetailView />} />
               <Route path="users" element={<AdminUsersView />} />
               <Route path="free-plan" element={<FreePlanView />} />
+              <Route path="billing" element={<AdminBillingView />} />
               <Route path="ai-usage" element={<AiUsageView />} />
               <Route path="audit" element={<AuditLogView />} />
               <Route path="templates" element={<TemplatesView />} />
@@ -298,6 +301,7 @@ export function App() {
               <Route path="/app/documents" element={<DocumentsView />} />
               <Route path="/app/research" element={<ResearchView />} />
               <Route path="/app/settings" element={<SettingsView />} />
+              <Route path="/app/billing" element={<BillingView />} />
               <Route path="/app/calendar"   element={<CalendarView />} />
               <Route path="/app/clients"     element={<ClientsView />} />
               <Route path="/app/clients/:id" element={<ClientDetailView />} />

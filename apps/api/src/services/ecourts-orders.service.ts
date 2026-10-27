@@ -9,7 +9,7 @@ import { extractCnrCandidates } from './ecourts-link.service';
 // "Court orders by party name" WITHOUT the eCourts website's captcha.
 //
 // The website's Court Orders page is captcha-gated, but the same information
-// is reachable through the eCourts mobile API LexDraft already uses for the
+// is reachable through the eCourts mobile API DifAI already uses for the
 // 09:00 / 19:00 sync (no captcha):
 //   1. searchByPartyName  -> every case in the court with that party, + CNRs
 //   2. lookupByCnr        -> each case's interimOrder[] / finalOrder[], whose

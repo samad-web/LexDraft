@@ -10,7 +10,7 @@ import type { LandResult } from './tn-land-records.service';
 // transfer, F-Line) - migration 0093, table tn_land_applications.
 //
 // Each application stays connected to its matter. The site's Application
-// Status page is CAPTCHA-gated, so LexDraft never checks it on its own: the
+// Status page is CAPTCHA-gated, so DifAI never checks it on its own: the
 // advocate checks it on the Land Records screen (one captcha) and that
 // result is recorded here (recordStatus). No scheduled reminders.
 // =============================================================================

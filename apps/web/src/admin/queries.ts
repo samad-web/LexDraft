@@ -24,6 +24,7 @@ export const adminKeys = {
   audit: (q: object) => ['admin', 'audit', q] as const,
   templates: (scope?: TemplateScope, firmId?: string) => ['admin', 'templates', scope, firmId] as const,
   freePlanSwitches: ['admin', 'free-plan-switches'] as const,
+  billing: ['admin', 'billing'] as const,
 };
 
 // ---- queries ---------------------------------------------------------------
@@ -42,6 +43,9 @@ export const useFirm = (id: string | undefined) =>
 
 export const useAdminUsers = (filter: { firmId?: string; status?: UserStatus; q?: string } = {}) =>
   useQuery({ queryKey: adminKeys.users(filter), queryFn: () => adminApi.listUsers(filter) });
+
+export const useAdminBilling = () =>
+  useQuery({ queryKey: adminKeys.billing, queryFn: adminApi.billing, refetchInterval: 60_000 });
 
 export const useFreePlanSwitches = () =>
   useQuery({ queryKey: adminKeys.freePlanSwitches, queryFn: adminApi.freePlanSwitches });

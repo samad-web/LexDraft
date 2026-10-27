@@ -1,4 +1,4 @@
-// LexDraft document schemas - per-type field collection for drafting.
+// DifAI document schemas - per-type field collection for drafting.
 // Ported from _design/lexdraft/project/doc-schemas.jsx.
 // Each schema lists the structured data the AI needs to compose that document.
 // Fields ship with realistic defaults so the brief is usable immediately.

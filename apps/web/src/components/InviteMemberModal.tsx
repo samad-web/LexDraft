@@ -77,13 +77,13 @@ export function InviteMemberModal({ open, onClose }: Props) {
 
   // "Send from my email": the invite is composed in the inviter's own mail
   // app, so it goes out from their sign-in address (and sits in their Sent
-  // folder) without LexDraft ever holding their mailbox password.
-  const subject = created ? `Invitation to join ${created.firm} on LexDraft` : '';
+  // folder) without DifAI ever holding their mailbox password.
+  const subject = created ? `Invitation to join ${created.firm} on DifAI` : '';
   const body = created
     ? [
         'Hello,',
         '',
-        `I'd like you to join ${created.firm} on LexDraft as ${created.role}.`,
+        `I'd like you to join ${created.firm} on DifAI as ${created.role}.`,
         ...(created.message ? ['', created.message] : []),
         '',
         'Open this link and continue with Google to join:',
@@ -218,7 +218,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
               <span className="spacer" />
               <a
                 className="btn"
-                href={`https://wa.me/?text=${encodeURIComponent(`You're invited to join ${created.firm} on LexDraft: ${link}`)}`}
+                href={`https://wa.me/?text=${encodeURIComponent(`You're invited to join ${created.firm} on DifAI: ${link}`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
               >

@@ -12,7 +12,7 @@ import { db } from '../db/client';
 // edited or deleted out of order after the fact - this is the closest a
 // self-built, non-CA-backed system can get to tamper-evidence. It is NOT a
 // cryptographic timestamp authority and does not substitute for one; it only
-// proves internal consistency of LexDraft's own records.
+// proves internal consistency of DifAI's own records.
 //
 // detail and occurred_at are hashed from their EXACT stored string form
 // (detail_json text, occurred_at_iso text) — NOT from Postgres's jsonb/

@@ -5,6 +5,7 @@ import type { IconName } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useNavHighlighter } from '@/hooks/useNavHighlighter';
+import { LogoMark, Wordmark } from '@/components/brand/Logo';
 
 interface AdminNavItem {
   id: string;
@@ -17,6 +18,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { id: 'overview',  label: 'Overview',     icon: 'dashboard', to: '/admin' },
   { id: 'firms',     label: 'Firms',        icon: 'cases',     to: '/admin/firms' },
   { id: 'users',     label: 'Users',        icon: 'clients',   to: '/admin/users' },
+  { id: 'billing',   label: 'Billing',      icon: 'invoices',  to: '/admin/billing' },
   { id: 'free-plan', label: 'Free plan',    icon: 'settings',  to: '/admin/free-plan' },
   { id: 'ai-usage',  label: 'AI usage',     icon: 'analytics', to: '/admin/ai-usage' },
   { id: 'templates', label: 'Templates',    icon: 'documents', to: '/admin/templates' },
@@ -45,8 +47,8 @@ export function AdminSidebar() {
       )}
       <aside className={`sidebar${sidebarOpen ? ' is-open' : ''}`}>
       <div className="wordmark">
-        <span className="wordmark-mark" aria-hidden />
-        <span className="wordmark-full">LexDraft</span>
+        <LogoMark size={26} className="wordmark-mark" />
+        <Wordmark className="wordmark-full" />
         <button
           type="button"
           className="btn btn-ghost sidebar-close"

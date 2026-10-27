@@ -107,7 +107,7 @@ export function MyCasesImportExport({ cases }: { cases: CaseListItem[] }) {
   };
 
   const apiError = (err: unknown) =>
-    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not reach LexDraft. Try again.';
+    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not reach DifAI. Try again.';
 
   return (
     <>
@@ -227,7 +227,7 @@ export function MyCasesImportExport({ cases }: { cases: CaseListItem[] }) {
                 {done.existing.length > 0 ? ` ${done.existing.length} were already in your matters.` : ''}
               </p>
               <p className="body-sm muted">
-                LexDraft is fetching their details from eCourts now. If eCourts is down, they are filled in at the next 9 AM / 7 PM update.
+                DifAI is fetching their details from eCourts now. If eCourts is down, they are filled in at the next 9 AM / 7 PM update.
               </p>
             </div>
           ) : null}

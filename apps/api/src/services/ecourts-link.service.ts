@@ -297,7 +297,7 @@ async function linkNowOrQueue(caseId: string, firmId: string, cnr: string, court
     return {
       status: 'pending',
       cnr,
-      reason: 'eCourts is not responding right now. The CNR is saved and LexDraft will connect this matter automatically as soon as eCourts is back.',
+      reason: 'eCourts is not responding right now. The CNR is saved and DifAI will connect this matter automatically as soon as eCourts is back.',
     };
   }
 }

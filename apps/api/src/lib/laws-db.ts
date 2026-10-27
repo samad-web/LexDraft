@@ -3,7 +3,7 @@ import { env } from '../env';
 import { logger } from '../logger';
 
 // Separate Postgres client for the indiacode-rag corpus. Lives alongside
-// db/client.ts (the LexDraft tenancy DB) so we don't accidentally cross
+// db/client.ts (the DifAI tenancy DB) so we don't accidentally cross
 // the two — laws are public reference data, tenancy is firm-scoped.
 
 let client: ReturnType<typeof postgres> | null = null;

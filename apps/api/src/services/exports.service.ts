@@ -112,7 +112,7 @@ export const exportsService = {
   async invoicesCsv(filter: InvoicesExportFilter): Promise<string> {
     if (!filter.firmId) {
       return [
-        commentLine('LexDraft invoices export - no firm attached, file intentionally empty.'),
+        commentLine('DifAI invoices export - no firm attached, file intentionally empty.'),
         csvRow(['invoice_no', 'issued_date', 'due_date', 'client_name', 'gst_no',
                 'sac_code', 'amount_inr', 'gst_pct', 'gst_inr', 'total_inr',
                 'status', 'paid_date']),
@@ -123,7 +123,7 @@ export const exportsService = {
 
     const out: string[] = [];
     out.push(commentLine(
-      `LexDraft invoices export - generated ${new Date().toISOString().slice(0, 10)}. ` +
+      `DifAI invoices export - generated ${new Date().toISOString().slice(0, 10)}. ` +
       `GST defaults used where source data is absent: gst_pct=${DEFAULT_GST_PCT}, sac_code=${DEFAULT_SAC_CODE} (legal services). ` +
       `These cells are ESTIMATED - verify before filing.`,
     ));
@@ -158,7 +158,7 @@ export const exportsService = {
   async expensesCsv(filter: ExpensesExportFilter): Promise<string> {
     if (!filter.firmId) {
       return [
-        commentLine('LexDraft expenses export - no firm attached, file intentionally empty.'),
+        commentLine('DifAI expenses export - no firm attached, file intentionally empty.'),
         csvRow(['expense_no', 'incurred_date', 'category', 'vendor', 'gst_no',
                 'amount_inr', 'gst_inr', 'total_inr', 'payment_method', 'case_label']),
       ].join('');
@@ -168,7 +168,7 @@ export const exportsService = {
 
     const out: string[] = [];
     out.push(commentLine(
-      `LexDraft expenses export - generated ${new Date().toISOString().slice(0, 10)}. ` +
+      `DifAI expenses export - generated ${new Date().toISOString().slice(0, 10)}. ` +
       `gst_inr is estimated as ${DEFAULT_GST_PCT}% of net where source data is absent. ` +
       `vendor / gst_no / payment_method default to blank when unknown - verify before filing.`,
     ));

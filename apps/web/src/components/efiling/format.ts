@@ -45,7 +45,7 @@ export const TRACKING_LABEL: Record<TrackingStatus, string> = {
   matched: 'Connected to eCourts',
   ambiguous: 'Several matches on eCourts. Pick the right one.',
   not_found: 'Not registered on eCourts yet',
-  error: 'Needs details before LexDraft can look it up',
+  error: 'Needs details before DifAI can look it up',
 };
 
 export function formatBytes(n: number | null | undefined): string {

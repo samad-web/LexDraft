@@ -568,7 +568,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
       </div>
       )}
       <p className="body-sm muted" style={{ margin: 0 }}>
-        {meta.blurb} Fetched live from Tamil Nadu Land Records eServices (eservices.tn.gov.in). The {gate === 'captcha' ? 'captcha is' : 'OTP goes to the mobile number you enter and is'} only passed through - LexDraft never stores it.
+        {meta.blurb} Fetched live from Tamil Nadu Land Records eServices (eservices.tn.gov.in). The {gate === 'captcha' ? 'captcha is' : 'OTP goes to the mobile number you enter and is'} only passed through - DifAI never stores it.
       </p>
     </div>
   );

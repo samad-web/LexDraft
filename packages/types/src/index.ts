@@ -256,6 +256,9 @@ export interface SignUpRequest {
   college?: string;
   studyYear?: string;
   teamSize?: string;
+  /** Plan picked on the first sign-up step (migration 0096). */
+  plan?: BillingPlanId;
+  billingCycle?: BillingCycle;
   /** What landed the user here. Drives the firm's initial plan_status:
    *  trial gets a 14-day clock; paid lands directly active; demo is a
    *  trial with the is_demo flag set so the UI can badge / convert it. */
@@ -1061,10 +1064,96 @@ export interface AdminUserSummary {
   planStatus?: BillingStatus | null;
   freePlan?: boolean;
   trialEndsAt?: string | null;
+  /** Paid plans: next renewal, cycle, and the plan picked at sign-up. */
+  renewsAt?: string | null;
+  billingCycle?: BillingCycle | null;
+  selectedPlan?: BillingPlanId | null;
   /** Bytes of uploaded files held by the user's firm (the user's own for a
    *  solo / free account), and its limit (null = unlimited). */
   storageBytes?: number;
   storageLimitBytes?: number | null;
+}
+
+// ---- Self-serve billing (Dodo Payments, migration 0096) --------------------
+
+/** Plans offered at sign-up and on the in-app plan page. */
+export type BillingPlanId = 'free' | 'solo' | 'practice' | 'firm';
+export type BillingCycle = 'monthly' | 'annual';
+/** Plans that can be bought online. */
+export type PaidPlanId = 'solo' | 'practice';
+
+export interface BillingPlan {
+  id: BillingPlanId;
+  name: string;
+  for: string;
+  /** Rupees per month; null = free (0) or custom (firm). */
+  monthlyInr: number | null;
+  /** Rupees per month when billed yearly. */
+  annualMonthlyInr: number | null;
+  /** Shown under the price, e.g. "Free till 1 June 2027". */
+  note: string;
+  features: string[];
+  /** Can be bought online right now (product configured). */
+  purchasable: boolean;
+}
+
+export interface BillingStateResponse {
+  plans: BillingPlan[];
+  current: {
+    planTier: FirmPlanTier | null;
+    planStatus: BillingStatus | null;
+    freePlan: boolean;
+    trialEndsAt: string | null;
+    renewsAt: string | null;
+    billingCycle: BillingCycle | null;
+    selectedPlan: BillingPlanId | null;
+    /** True once a Dodo subscription is attached. */
+    subscribed: boolean;
+  };
+  /** Online payment set up on the server. */
+  paymentsEnabled: boolean;
+  /** Only the firm owner can buy or change the plan. */
+  canManage: boolean;
+}
+
+export interface BillingCheckoutRequest {
+  plan: PaidPlanId;
+  cycle: BillingCycle;
+}
+
+export type BillingEventKind =
+  | 'signup' | 'checkout_started' | 'subscription_active' | 'renewed'
+  | 'plan_changed' | 'payment_failed' | 'on_hold' | 'cancelled' | 'expired';
+
+/** One row of the superadmin Billing page. */
+export interface AdminBillingEvent {
+  id: ID;
+  kind: BillingEventKind;
+  plan: string | null;
+  cycle: string | null;
+  amountInr: number | null;
+  createdAt: string;
+  firmId: ID;
+  firmName: string | null;
+  userId: ID | null;
+  userName: string | null;
+  email: string | null;
+  phone: string | null;
+  /** The firm's plan right now, to see whether a checkout turned into a sale. */
+  planTier: FirmPlanTier | null;
+  planStatus: BillingStatus | null;
+  freePlan: boolean;
+}
+
+export interface AdminBillingSummary {
+  payingFirms: number;
+  mrrInr: number;
+  /** Firms on a 14-day trial that ends within 7 days. */
+  trialsEndingSoon: number;
+  /** Started checkout in the last 30 days but are not paying. */
+  abandonedCheckouts: number;
+  /** Sign-ups by chosen plan, last 30 days. */
+  signupsByPlan: Record<string, number>;
 }
 
 /** One superadmin switch for the free launch plan. */

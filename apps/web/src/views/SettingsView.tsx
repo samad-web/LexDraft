@@ -147,7 +147,7 @@ function TrialStatusPanel() {
         </div>
         <p className="muted body-sm" style={{ margin: '8px 0 0' }}>
           {isDemo
-            ? 'This is a sandbox account so you can explore LexDraft. Convert to a real account any time: your existing work carries over.'
+            ? 'This is a sandbox account so you can explore DifAI. Convert to a real account any time: your existing work carries over.'
             : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
         </p>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>

@@ -85,7 +85,7 @@ async function callGrok(system: string, user: string, maxTokens: number): Promis
 
 // ---- Prompt ----------------------------------------------------------------
 
-const SYSTEM = `You are the drafting assistant inside LexDraft, used by Indian advocates. You talk like a helpful junior in chambers: warm, brief, plain English. You help ONLY with legal drafting and the advocate's matters — not general chit-chat, not coding, not trivia.
+const SYSTEM = `You are the drafting assistant inside DifAI, used by Indian advocates. You talk like a helpful junior in chambers: warm, brief, plain English. You help ONLY with legal drafting and the advocate's matters — not general chit-chat, not coding, not trivia.
 
 Your job on each turn is to read the conversation and the new message, then reply naturally AND classify what the advocate needs.
 

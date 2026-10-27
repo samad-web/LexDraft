@@ -414,7 +414,7 @@ jobs.register<UnreadEmailPayload>('team-chat.unread-email', async (data) => {
   const author = row.author_name ?? 'A colleague';
   await jobs.enqueue('email.send', {
     to: row.email,
-    subject: `${author} sent you a message on LexDraft`,
+    subject: `${author} sent you a message on DifAI`,
     body: [
       `Hi ${row.name},`,
       ``,
@@ -422,7 +422,7 @@ jobs.register<UnreadEmailPayload>('team-chat.unread-email', async (data) => {
       ``,
       `  "${preview(row.body, 300)}"`,
       ``,
-      `Open Team Chat in LexDraft to read and reply.`,
+      `Open Team Chat in DifAI to read and reply.`,
     ].join('\n'),
   });
 });

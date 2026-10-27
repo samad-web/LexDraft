@@ -16,6 +16,10 @@ import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { indiaStateOptions } from '@/lib/india-states';
 import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { LogoMark } from '@/components/brand/Logo';
+import { CycleToggle, PlanCards, SIGNUP_PLANS } from '@/components/PlanCards';
+import { useRenewCheckout, useStartCheckout } from '@/hooks/useBilling';
+import type { BillingCycle, BillingPlanId, PaidPlanId } from '@lexdraft/types';
 
 // =============================================================================
 // AuthView - Sign in / Sign up + 3-step onboarding
@@ -28,34 +32,38 @@ import { GoogleButton, GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@
 type AuthTab = 'signin' | 'signup';
 type Role = 'solo' | 'student' | 'group' | 'firm';
 
-interface RoleOption {
-  id: Role;
-  label: string;
-  sub: string;
+// Launch pricing (api: lib/free-plan.ts, services/billing.service.ts):
+//   free     -> solo advocate or law student, free till 1 June 2027
+//   solo     -> paid on Dodo right after the account is created
+//   practice -> law firm, 14-day trial of every feature, pay in-app
+//   firm     -> 9+ people, enquiry form (no self-serve account)
+function roleForPlan(plan: BillingPlanId, freeKind: 'solo' | 'student'): Role {
+  if (plan === 'free') return freeKind;
+  if (plan === 'solo') return 'solo';
+  if (plan === 'practice') return 'group';
+  return 'firm';
 }
 
-// Launch pricing: solo advocates and law students are free until 1 June
-// 2027; a law firm trials every feature for 14 days (api: lib/free-plan.ts).
-const ROLE_OPTIONS: RoleOption[] = [
-  { id: 'solo', label: 'Solo Advocate', sub: 'Free till 1 June 2027' },
-  { id: 'student', label: 'Law Student', sub: 'Free till 1 June 2027' },
-  { id: 'group', label: 'Law Firm', sub: '14-day full trial' },
-  { id: 'firm', label: 'Large Firm', sub: '9+ people · talk to us' },
-];
+/** Sign-in refused because the trial / plan ended: the owner gets a token to
+ *  pay from here (api: completeSignIn + POST /billing/renew-checkout). */
+function renewTokenFrom(err: unknown): string | null {
+  const data = (err as { response?: { status?: number; data?: { details?: { renewToken?: string } } } } | null)?.response;
+  return data?.status === 402 ? data.data?.details?.renewToken ?? null : null;
+}
 
 const STUDY_YEARS = ['1st year', '2nd year', '3rd year', '4th year', '5th year', 'LL.M.', 'Graduated'];
 const TEAM_SIZES = ['2-3', '4-8', '9-25', '26+'];
 
 // Shown above the new-account steps (step index 0..2).
-const STEP_LABELS: readonly string[] = ['Practice type', 'WhatsApp number', 'Profile'];
+const STEP_LABELS: readonly string[] = ['Choose a plan', 'WhatsApp & Google', 'Your details'];
 
 // Maps the `?reason=` value the api.ts interceptor appends on a 402 to a
 // human-friendly banner copy. Anything we don't recognise falls through to
 // the generic phrase, so future server-side codes degrade gracefully.
 const PLAN_REASON_MESSAGES: Record<string, string> = {
-  plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using LexDraft.',
-  plan_past_due:  'Your firm subscription is past due. Update billing to continue using LexDraft.',
-  plan_expired:   'Your firm subscription period has ended. Renew to continue using LexDraft.',
+  plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using DifAI.',
+  plan_past_due:  'Your firm subscription is past due. Update billing to continue using DifAI.',
+  plan_expired:   'Your firm subscription period has ended. Renew to continue using DifAI.',
   trial_expired:  'Your free access or trial has ended. Pick a plan to keep your work.',
 };
 
@@ -84,6 +92,14 @@ export function AuthView() {
   const [tab, setTab] = useState<AuthTab>('signin');
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [role, setRole] = useState<Role | null>(null);
+  // Step 1 of sign-up: the plan, and (Free) whether advocate or student.
+  const [plan, setPlan] = useState<BillingPlanId | null>(null);
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const [freeKind, setFreeKind] = useState<'solo' | 'student'>('solo');
+  const startCheckout = useStartCheckout();
+  const renewCheckout = useRenewCheckout();
+  const [renewPlan, setRenewPlan] = useState<PaidPlanId>('solo');
+  const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
 
   // MFA challenge sub-step. Populated when the sign-in POST returns
   // { mfaRequired: true, challengeId, expiresAt } instead of a session.
@@ -141,7 +157,8 @@ export function AuthView() {
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     setMfaChallenge(null); setGoogleSignup(null); setVerified(null);
-    setRole(preset); setStep(preset ? 1 : 0); setTab('signup');
+    setRole(preset); setPlan(preset === 'group' ? 'practice' : null);
+    setStep(preset ? 1 : 0); setTab('signup');
   };
   const bookDemo = () => { setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
@@ -151,7 +168,7 @@ export function AuthView() {
   // ---- Submitters ---------------------------------------------------------
 
   // Shared by the Sign-in Google button and the sign-up Google step (when
-  // the Google account already has a LexDraft account).
+  // the Google account already has a DifAI account).
   const handleSignedIn = (resp: SignInResult) => {
     if (isMfaChallenge(resp)) {
       setTab('signin');
@@ -173,6 +190,7 @@ export function AuthView() {
             setTab('signup');
             setStep(0);
             setRole(null);
+            setPlan(null);
             return;
           }
           handleSignedIn(r);
@@ -216,8 +234,20 @@ export function AuthView() {
         college: role === 'student' ? college.trim() || undefined : undefined,
         studyYear: role === 'student' ? studyYear || undefined : undefined,
         teamSize: role === 'group' ? teamSize || undefined : undefined,
+        plan: plan === 'solo' || plan === 'practice' ? plan : 'free',
+        billingCycle: plan === 'solo' || plan === 'practice' ? cycle : undefined,
       },
-      { onSuccess: (resp) => onComplete(resp) },
+      {
+        onSuccess: (resp) => {
+          // Solo is paid up front: straight to Dodo's checkout. If that can't
+          // open, the account still works on the free plan.
+          if (plan === 'solo') {
+            startCheckout.mutate({ plan: 'solo', cycle }, { onError: () => onComplete(resp) });
+            return;
+          }
+          onComplete(resp);
+        },
+      },
     );
   };
 
@@ -260,6 +290,7 @@ export function AuthView() {
     setTab('signin');
     setStep(0);
     setRole(null);
+    setPlan(null);
     setGoogleSignup(null);
     setVerified(null);
   };
@@ -281,8 +312,8 @@ export function AuthView() {
         <aside className="auth-art">
           <AuthArt />
           <div className="auth-art-brand">
-            <span className="auth-art-mark" aria-hidden />
-            LexDraft
+            <LogoMark size={32} ink="var(--art-ink)" paper="var(--art-0)" />
+            DifAI
           </div>
           <nav className="auth-side-tabs" aria-label="Sign in options">
             <button
@@ -320,7 +351,7 @@ export function AuthView() {
             marginBottom: 28,
           }}
         >
-          <span aria-hidden className="auth-logo"><span /></span>
+          <span aria-hidden className="auth-logo"><LogoMark size={46} ink="var(--bg-surface)" paper="var(--text-primary)" /></span>
           <div
             className="auth-brand-text"
             style={{
@@ -330,7 +361,7 @@ export function AuthView() {
               letterSpacing: '-0.018em',
             }}
           >
-            LexDraft
+            DifAI
           </div>
           <div
             className="mono auth-brand-text"
@@ -455,10 +486,33 @@ export function AuthView() {
                   <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </label>
-              {signIn.isError && (
+              {renewToken && (
+                <div style={{ ...noticeStyle, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <strong style={{ fontSize: 14 }}>Pick a plan to continue</strong>
+                  <span>{signIn.error?.message ?? googleSignIn.error?.message} Your cases and documents are safe.</span>
+                  <CycleToggle cycle={cycle} onChange={setCycle} />
+                  <PlanCards
+                    plans={SIGNUP_PLANS.filter((p) => p.id === 'solo' || p.id === 'practice')}
+                    cycle={cycle}
+                    selected={renewPlan}
+                    onSelect={(id) => setRenewPlan(id as PaidPlanId)}
+                    compact
+                  />
+                  {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-block"
+                    disabled={renewCheckout.isPending}
+                    onClick={() => renewCheckout.mutate({ renewToken, plan: renewPlan, cycle })}
+                  >
+                    {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}
+                  </button>
+                </div>
+              )}
+              {signIn.isError && !renewToken && (
                 (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
-                    No LexDraft account uses this email.{' '}
+                    No DifAI account uses this email.{' '}
                     <button type="button" className="auth-link" onClick={() => startTrial(audience === 'firm' ? 'group' : null)}>
                       {audience === 'firm' ? 'Start your firm’s 14-day trial' : 'Create your free account'}
                     </button>
@@ -481,14 +535,14 @@ export function AuthView() {
             {googleSignIn.isPending && (
               <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
             )}
-            {googleSignIn.isError && (
+            {googleSignIn.isError && !renewToken && (
               <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>New firm on LexDraft?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
+                <>New firm on DifAI?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
               ) : (
-                <>New to LexDraft?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
+                <>New to DifAI?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
               )}
             </p>
             <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
@@ -507,71 +561,47 @@ export function AuthView() {
           </div>
         )}
 
-        {/* SIGN UP - STEP 0 (role) */}
+        {/* SIGN UP - STEP 0 (choose a plan) */}
         {tab === 'signup' && step === 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p
-              style={{
-                fontSize: 14,
-                color: 'var(--text-secondary)',
-                textAlign: 'center',
-                marginBottom: 4,
-              }}
-            >
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', textAlign: 'center', margin: 0 }}>
               {googleSignup
-                ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Let’s set up your account for ${googleSignup.profile.email}. How will you use LexDraft?`
-                : 'How will you use LexDraft?'}
+                ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Choose a plan for ${googleSignup.profile.email}.`
+                : 'Choose your plan. You can upgrade any time from inside the app.'}
             </p>
-            <div className="facts-grid-2" style={{ gap: 10 }}>
-              {ROLE_OPTIONS.map((r) => {
-                const active = role === r.id;
-                return (
+            <CycleToggle cycle={cycle} onChange={setCycle} />
+            <PlanCards plans={SIGNUP_PLANS} cycle={cycle} selected={plan} onSelect={setPlan} />
+            {plan === 'free' && (
+              <div role="group" aria-label="I am" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center' }}>
+                <span className="body-sm" style={{ color: 'var(--text-secondary)' }}>I am</span>
+                {(['solo', 'student'] as const).map((k) => (
                   <button
-                    key={r.id}
+                    key={k}
                     type="button"
-                    onClick={() => setRole(r.id)}
-                    style={{
-                      padding: 18,
-                      textAlign: 'left',
-                      background: active ? 'var(--text-primary)' : 'var(--bg-surface)',
-                      color: active ? 'var(--bg-base)' : 'var(--text-primary)',
-                      border: `1px solid ${active ? 'var(--text-primary)' : 'var(--border-default)'}`,
-                      borderRadius: 'var(--radius-lg)',
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms, background 150ms, color 150ms',
-                    }}
+                    aria-pressed={freeKind === k}
+                    className={`btn btn-sm${freeKind === k ? ' btn-primary' : ''}`}
+                    onClick={() => setFreeKind(k)}
                   >
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: 16,
-                        marginBottom: 4,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {r.label}
-                    </div>
-                    <div
-                      className="mono"
-                      style={{ fontSize: 10, opacity: 0.7 }}
-                    >
-                      {r.sub}
-                    </div>
+                    {k === 'solo' ? 'an advocate' : 'a law student'}
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
             <button
               type="button"
               className="btn btn-primary btn-block btn-lg"
-              disabled={!role}
-              style={{ opacity: role ? 1 : 0.4 }}
-              onClick={() => setStep(1)}
+              disabled={!plan}
+              style={{ opacity: plan ? 1 : 0.4 }}
+              onClick={() => {
+                if (!plan) return;
+                setRole(roleForPlan(plan, freeKind));
+                setStep(1);
+              }}
             >
-              Continue <Icon name="arrow" size={14} />
+              {plan === 'firm' ? 'Book a demo' : 'Continue'} <Icon name="arrow" size={14} />
             </button>
             <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }} onClick={backToStart}>
-              {googleSignup ? 'Use a different Google account' : 'Back'}
+              {googleSignup ? 'Use a different Google account' : 'Back to sign in'}
             </button>
           </div>
         )}
@@ -598,7 +628,7 @@ export function AuthView() {
               Thanks, we&rsquo;re on it.
             </div>
             <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 380, lineHeight: 1.55 }}>
-              A LexDraft partner will reach out to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>{' '}
+              A DifAI partner will reach out to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>{' '}
               within one business day to walk through the Firm plan, custom onboarding,
               and a tailored quote for your team.
             </p>
@@ -741,7 +771,7 @@ export function AuthView() {
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="label" htmlFor="enq-message">
-                  What brings you to LexDraft? <span className="hint">Optional</span>
+                  What brings you to DifAI? <span className="hint">Optional</span>
                 </label>
                 <textarea
                   id="enq-message"
@@ -804,9 +834,10 @@ export function AuthView() {
         {tab === 'signup' && step === 1 && role !== 'firm' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-              Continue with your Google account, then verify your WhatsApp number.
+              Enter your WhatsApp number, then continue with your Google account. We send a code on WhatsApp to verify the number.
             </p>
             <GoogleWhatsAppVerify
+              phoneFirst
               startWith={googleSignup}
               buttonText="signup_with"
               onSignedIn={handleSignedIn}
@@ -1019,7 +1050,7 @@ export function AuthView() {
         </div>
       </div>
       <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>
-        By continuing you agree to LexDraft&rsquo;s terms of service and privacy policy.
+        By continuing you agree to DifAI&rsquo;s terms of service and privacy policy.
       </p>
 
       {/* Trust strip - sits below the card, reinforces the legal-tech

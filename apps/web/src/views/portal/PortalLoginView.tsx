@@ -157,7 +157,7 @@ function Shell({ eyebrow, title, children }: ShellProps) {
               letterSpacing: '-0.018em',
             }}
           >
-            LexDraft
+            DifAI
           </div>
           <div
             className="mono"

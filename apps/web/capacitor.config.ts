@@ -6,7 +6,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // which therefore has to be in the API's CORS_ORIGINS.
 const config: CapacitorConfig = {
   appId: 'in.sirahdigital.lexdraft',
-  appName: 'LexDraft',
+  appName: 'DifAI',
   webDir: 'dist',
   backgroundColor: '#ffffff',
   plugins: {

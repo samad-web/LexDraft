@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /admin
+Disallow: /portal/
+Disallow: /api/
+Disallow: /invite/
+Disallow: /sign/
+Disallow: /co-counsel/
+Disallow: /survey
+
+Sitemap: https://difai.sirahdigital.com/sitemap.xml

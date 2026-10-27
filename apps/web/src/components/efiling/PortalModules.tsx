@@ -40,7 +40,7 @@ import {
 
 // =============================================================================
 // The eFiling 3.0 portal's own screens (official user manual), rebuilt in
-// LexDraft so an advocate finds everything where the portal keeps it:
+// DifAI so an advocate finds everything where the portal keeps it:
 //
 //   Dashboard      Draft / Completed Pleadings · Draft / Completed IAs ·
 //                  Objections · My Cases, then Calendar | Cases Listed Today
@@ -53,7 +53,7 @@ import {
 //   Applications   Applications | Pay Fees | Authentication · Submitted
 //
 // Every module works on a filing picked the way the portal's "Search Case"
-// block does it. Colours stay LexDraft monochrome.
+// block does it. Colours stay DifAI monochrome.
 // =============================================================================
 
 export type PortalModule =
@@ -556,7 +556,7 @@ function InitialInputs({ filing, initialCaseId = '', onCreated, onNext }: {
       <section className="card col" style={{ gap: 14 }}>
         <PortalTitle>Initial Inputs</PortalTitle>
         <PortalSection title="Matter" note="Note: Following fields are Compulsar">
-          <p className="body-sm muted">Pick the matter you are filing. LexDraft copies in its court, parties and acts, the way the portal starts a new case from Initial Inputs.</p>
+          <p className="body-sm muted">Pick the matter you are filing. DifAI copies in its court, parties and acts, the way the portal starts a new case from Initial Inputs.</p>
           <label className="col" style={{ gap: 4, maxWidth: 520 }}>
             <span className="body-sm" style={{ fontWeight: 600 }}>Matter</span>
             <select className="input" value={caseId} onChange={(e) => setCaseId(e.target.value)} disabled={isLoading}>
@@ -1128,7 +1128,7 @@ function IaApplicationTab({ filing }: { filing: FilingDetailDto }) {
       <Card>
         <p className="body-sm muted">
           On the portal: pick the case and the Application Type. The Preamble, Prayer and Court Fee (₹) fill in; you add Paragraph1, Paragraph2…
-          and Submit (“Application added successfully”). Draft the application in LexDraft and attach it below.
+          and Submit (“Application added successfully”). Draft the application in DifAI and attach it below.
         </p>
         <StepControl filing={filing} stepKey="ia_application" />
         {['draft', 'ready'].includes(filing.status) ? (

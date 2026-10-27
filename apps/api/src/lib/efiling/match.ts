@@ -4,7 +4,7 @@ import type { CnrCandidateDto } from './types';
 // Matching an e-filed case to its registered eCourts record.
 //
 // A party-name search on eCourts returns every case in the establishment
-// whose petitioner matches, so the result has to be narrowed before LexDraft
+// whose petitioner matches, so the result has to be narrowed before DifAI
 // links anything: a wrong CNR would import someone else's hearings into the
 // advocate's diary. Rules:
 //   - names are compared as normalised token sets (honorifics, "S/o …" tails,

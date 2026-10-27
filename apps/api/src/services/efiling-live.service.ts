@@ -12,7 +12,7 @@ declare const document: any;
 //
 // Drives a real, logged-in-as-the-advocate browser session against the
 // National e-Filing portal (filing.ecourts.gov.in) - the system behind the
-// "File on eCourts" action in LexDraft. Unlike ecourts.service.ts/
+// "File on eCourts" action in DifAI. Unlike ecourts.service.ts/
 // ecourts-live.service.ts (which reach services.ecourts.gov.in for case
 // data), this portal has no mobile-app API to mirror: filing is web-portal
 // only, gated by advocate login + image CAPTCHA (or JanParichay SSO, not

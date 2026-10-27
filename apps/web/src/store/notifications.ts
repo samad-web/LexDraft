@@ -50,7 +50,7 @@ const SEED: Notification[] = [
     id: 'seed-1',
     icon: 'calendar',
     tone: 'cobalt',
-    title: 'Welcome to LexDraft',
+    title: 'Welcome to DifAI',
     body: 'Notifications about hearings, deadlines, and payments will land here.',
     createdAt: new Date().toISOString(),
     unread: true,

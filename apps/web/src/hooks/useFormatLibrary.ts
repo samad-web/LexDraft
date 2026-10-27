@@ -8,7 +8,7 @@ export interface LaweForm {
   title: string;
   /** LAWE's section (e.g. "High Court", "In the Court of"). */
   group: string;
-  /** Where LAWE publishes the form (reference only — the app previews LexDraft's
+  /** Where LAWE publishes the form (reference only — the app previews DifAI's
    *  own rendering instead, never LAWE's file). */
   url: string;
   /** The Draft-page format label that drafts this form. */

@@ -24,7 +24,7 @@ import {
 // =============================================================================
 // SurveyView - public market-research questionnaire at /survey.
 //
-// Renders the LexDraft practitioner study defined in
+// Renders the DifAI practitioner study defined in
 // apps/web/src/lib/survey-questions.ts. Multi-step wizard with a segmented
 // progress indicator (same idiom as AuthView), cohort-aware branching, and
 // inline-revealing "Other" text fields. Hidden fields are never submitted -
@@ -90,7 +90,7 @@ function clearLocalDraft(): void {
 function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>LexDraft practitioner study</div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>DifAI practitioner study</div>
       <h1 className="heading-xl" style={{ marginBottom: 12 }}>
         Help shape an AI tool built for Indian advocates
       </h1>
@@ -494,7 +494,7 @@ export function SurveyView() {
                 letterSpacing: '-0.015em',
               }}
             >
-              LexDraft
+              DifAI
             </span>
           </div>
 
@@ -732,7 +732,7 @@ function ThankYouPanel({
   return (
     <div>
       <header style={{ marginBottom: 20 }}>
-        <div className="eyebrow">LexDraft practitioner study</div>
+        <div className="eyebrow">DifAI practitioner study</div>
         <h2 className="heading-lg" style={{ marginTop: 4 }}>Thank you for your time</h2>
       </header>
 
@@ -770,7 +770,7 @@ function ThankYouPanel({
           onClick={onHome}
           style={{ flex: 1, minWidth: 200 }}
         >
-          Back to LexDraft
+          Back to DifAI
         </button>
       </div>
     </div>
