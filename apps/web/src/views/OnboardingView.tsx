@@ -195,7 +195,8 @@ export function OnboardingView() {
   const [step, setStep] = useState<Step>(0);
   const [plan, setPlan] = useState<BillingPlanId>(intro.size === 'team' || intro.size === 'firm' ? 'practice' : 'free');
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
-  const [kind, setKind] = useState<Kind>('advocate');
+  // Pre-picked from the sign-in page's left tab (Advocate / Law student).
+  const [kind, setKind] = useState<Kind>(intro.kind === 'student' ? 'student' : 'advocate');
   // Step 2
   const [firm, setFirm] = useState('');
   const [primaryCourt, setPrimaryCourt] = useState('');
@@ -282,7 +283,7 @@ export function OnboardingView() {
       <aside className="onb-side">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <LogoMark size={40} ink="var(--bg-base)" paper="var(--text-primary)" />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600 }}>DifAI</span>
+          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600 }}>DifAi</span>
         </div>
         <div className="onb-side-extra" style={{ marginTop: 28 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, margin: 0, lineHeight: 1.15 }}>Set up your practice</h2>
@@ -463,7 +464,7 @@ export function OnboardingView() {
             <>
               <h1 className="display-md" style={{ margin: 0 }}>Verification{student ? '' : ' & tax details'}</h1>
               <p className="body" style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: 680, lineHeight: 1.55 }}>
-                We verify every {student ? 'student' : 'advocate'} to keep DifAI trusted{student ? '.' : ', and use your address and GSTIN for GST-compliant invoices.'}
+                We verify every {student ? 'student' : 'advocate'} to keep DifAi trusted{student ? '.' : ', and use your address and GSTIN for GST-compliant invoices.'}
               </p>
               <div className="card" style={{ padding: 28, marginTop: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div className="onb-grid-2">
@@ -498,8 +499,8 @@ export function OnboardingView() {
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 20 }}>
                   <div className="eyebrow" style={{ marginBottom: 14 }}>{student ? 'Address' : 'Business address'}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                    <Field label="Address" htmlFor="onb-address">
-                      <input id="onb-address" className="input" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} placeholder="Chamber No. 12, High Court Buildings" autoComplete="street-address" />
+                    <Field label="Street address" htmlFor="onb-address">
+                      <input id="onb-address" className="input" value={addressLine} onChange={(e) => setAddressLine(e.target.value)} placeholder={student ? 'House / flat no., street, area' : 'Chamber No. 12, High Court Buildings'} autoComplete="street-address" />
                     </Field>
                     <div className="onb-grid-3">
                       <Field label="City" htmlFor="onb-city">

@@ -28,7 +28,7 @@ export function AdminLoginView() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'var(--bg-base)' }}>
       <form onSubmit={onSubmit} className="card" style={{ width: 380, maxWidth: '100%', padding: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>DifAI</div>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>DifAi</div>
           <h1 className="display" style={{ fontSize: 22, fontWeight: 600 }}>Admin sign in</h1>
         </div>
         <div>

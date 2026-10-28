@@ -317,7 +317,7 @@ function BackupStep({
   const handleDownload = () => {
     const blob = new Blob(
       [
-        'DifAI - Two-factor backup codes\n',
+        'DifAi - Two-factor backup codes\n',
         'Each code can be used ONCE. Keep this file somewhere safe.\n',
         `Generated: ${new Date().toISOString()}\n\n`,
         allText,

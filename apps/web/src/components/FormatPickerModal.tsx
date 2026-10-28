@@ -37,7 +37,7 @@ interface Row {
   /** The Draft-page label that drafts / renders it. */
   docLabel: string;
   preset?: Record<string, string>;
-  /** Offer a Preview (DifAI's own PDF of the form, in a new tab). */
+  /** Offer a Preview (DifAi's own PDF of the form, in a new tab). */
   previewable?: boolean;
   /** Extra trailing actions (firm: remove). */
   extra?: ReactNode;
@@ -87,7 +87,7 @@ const ACTION: CSSProperties = { minWidth: 46, justifyContent: 'center' };
  *   - your firm's own formats (uploaded here, private to the firm);
  *   - every format, grouped by category — the engine formats together with the
  *     court-forms library (each a named variant of a format); previews show
- *     DifAI's own rendering (the library's source files are never served).
+ *     DifAi's own rendering (the library's source files are never served).
  * Click a format's name to DRAFT it from the case; PDF downloads the blank form;
  * Word opens the blank form in the editor to fill in, then download.
  */
@@ -279,7 +279,7 @@ export function FormatPickerModal({ open, onClose, current, onPick, onOpenBlank 
         {firmRows.length === 0 ? (
           <p className="body-xs muted" style={{ margin: 0 }}>
             Have a format your office uses that isn’t listed? Upload it (PDF, scan or photo, Word) and
-            DifAI will draft it from the case.
+            DifAi will draft it from the case.
           </p>
         ) : (
           <div style={GRID}>{shownFirm.map(renderRow)}</div>

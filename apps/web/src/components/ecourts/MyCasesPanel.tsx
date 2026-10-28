@@ -17,7 +17,7 @@ import { AnchoredMenu, SectionBar, TextSearchBox } from './app/AppUi';
 //   District wise: one bar per district (cases grouped by the CNR's
 //                  state+district code)
 //   Calendar:      the month with a count on each listed date.
-// In DifAI the saved cases ARE the matters, so a case opens its matter.
+// In DifAi the saved cases ARE the matters, so a case opens its matter.
 
 /** Today's date in the advocate's local time, yyyy-mm-dd. */
 export function localToday(): string {

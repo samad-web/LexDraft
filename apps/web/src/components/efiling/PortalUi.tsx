@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 
 // =============================================================================
-// eFiling 3.0 portal (filing.ecourts.gov.in) building blocks, in DifAI's
+// eFiling 3.0 portal (filing.ecourts.gov.in) building blocks, in DifAi's
 // monochrome design system. Advocates know the portal's screens, so every
 // eFiling screen follows its exact shape (official user manual, eFiling 3.0):
 //
@@ -14,7 +14,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 //          [Save] [Prev] [Next]                     centred button row
 //
 // The portal's cyan bars become inverse bars (black in light mode, white in
-// dark mode) - structure from the portal, colour from DifAI.
+// dark mode) - structure from the portal, colour from DifAi.
 // =============================================================================
 
 /** Centred tab / page title ("Litigant", "Case Details", "Vakalat"). */

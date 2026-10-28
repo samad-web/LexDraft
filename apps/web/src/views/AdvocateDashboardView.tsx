@@ -12,6 +12,7 @@ import { NewHearingModal } from '@/components/NewHearingModal';
 import { NewLeadModal } from '@/components/NewLeadModal';
 import { DashboardEmptyState } from '@/components/DashboardEmptyState';
 import { DashboardKpis } from '@/components/dashboard/DashboardKpis';
+import { startProductTour } from '@/components/tour/ProductTour';
 
 /**
  * Dashboard ("Overview") - built to dashboard-design.md, translated for
@@ -108,6 +109,7 @@ export function AdvocateDashboardView() {
     ...(canDraft ? [{ label: 'New draft', icon: 'draft' as const, onSelect: () => navigate('/app/draft') }] : []),
     ...(canLead ? [{ label: 'Capture lead', icon: 'leads' as const, onSelect: () => setNewLeadOpen(true) }] : []),
     { label: 'Open cause list', icon: 'causelist', onSelect: () => navigate('/app/causelist') },
+    { label: 'Take the tour', icon: 'sparkle', onSelect: () => startProductTour() },
   ];
 
   const isFresh = data && data.practice.totalMatters === 0 && data.hearingsToday.length === 0 && data.hearingsWeek.length === 0;
@@ -132,7 +134,7 @@ export function AdvocateDashboardView() {
           <Link to="/app/cases" className="btn">All matters</Link>
           <MoreMenu items={moreItems} />
           {canCreateMatter && (
-            <button type="button" className="btn btn-primary" onClick={() => setNewCaseOpen(true)}>
+            <button type="button" className="btn btn-primary" data-tour="new-matter" onClick={() => setNewCaseOpen(true)}>
               <Icon name="plus" size={14} /> New matter
             </button>
           )}

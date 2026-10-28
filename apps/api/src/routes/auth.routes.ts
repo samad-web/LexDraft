@@ -7,6 +7,18 @@ import { requireAuth } from '../middleware/auth';
 import { otpSendLimiter, signInLimiter, signUpLimiter } from '../middleware/rateLimit';
 import { env } from '../env';
 import { ForbiddenError } from '../lib/errors';
+import { normalizePhone } from '../services/phone-otp.service';
+
+/** Optional contact phone: blank, or an Indian (+91) mobile number. */
+const optionalIndianPhone = z.string().max(40).optional().transform((v, ctx) => {
+  if (!v || !v.trim()) return undefined;
+  try {
+    return normalizePhone(v);
+  } catch {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Only Indian (+91) mobile numbers are supported.' });
+    return z.NEVER;
+  }
+});
 
 const SignIn = z.object({
   email: z.string().email().max(254),
@@ -39,6 +51,9 @@ const SignUp = z.object({
 
 const GoogleSignIn = z.object({
   credential: z.string().min(20).max(4096),
+  /** 'signup' (the sign-up page's Google button): an existing account is
+   *  refused with 409 instead of being signed in or linked. */
+  intent: z.enum(['signin', 'signup']).optional(),
 }).strict();
 const SignupOtpStart = z.object({
   signupToken: z.string().min(20).max(4096),
@@ -72,7 +87,7 @@ const GoogleSignUp = z.object({
 const FirmEnquiry = z.object({
   name:          z.string().min(1).max(120),
   email:         z.string().email().max(254),
-  phone:         z.string().max(40).optional(),
+  phone:         optionalIndianPhone,
   firmName:      z.string().min(1).max(160),
   firmSize:      z.enum(['9-25', '26-50', '51-100', '100+']),
   primaryCourt:  z.string().max(160).optional(),
@@ -84,7 +99,7 @@ const DemoRequest = z.object({
   name:          z.string().min(1).max(120),
   email:         z.string().email().max(254),
   firmName:      z.string().max(160).optional(),
-  phone:         z.string().max(40).optional(),
+  phone:         optionalIndianPhone,
   preferredTime: z.string().max(120).optional(),
   message:       z.string().max(2000).optional(),
   demoType:      z.enum(['contact', 'schedule']),
@@ -141,7 +156,7 @@ authRouter.post('/admin/sign-in', signInLimiter, async (req, res, next) => {
 authRouter.post('/google', signInLimiter, async (req, res, next) => {
   try {
     const body = GoogleSignIn.parse(req.body);
-    res.json(await authService.googleSignIn(body.credential));
+    res.json(await authService.googleSignIn(body.credential, body.intent ?? 'signin'));
   } catch (err) {
     next(err);
   }

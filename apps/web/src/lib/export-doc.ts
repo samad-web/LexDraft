@@ -375,7 +375,7 @@ export function downloadIcs(filename: string, events: ReadonlyArray<IcsEvent>): 
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//DifAI//EN',
+    'PRODID:-//DifAi//EN',
     'CALSCALE:GREGORIAN',
   ];
   for (const e of events) {

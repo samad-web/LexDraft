@@ -26,6 +26,7 @@ import { useUIStore } from '@/store/ui';
 const LandingView = lazy(() => import('@/views/LandingView').then((m) => ({ default: m.LandingView })));
 const AuthView = lazy(() => import('@/views/AuthView').then((m) => ({ default: m.AuthView })));
 const SignupView = lazy(() => import('@/views/SignupView').then((m) => ({ default: m.SignupView })));
+const AppWelcomeView = lazy(() => import('@/views/AppWelcomeView').then((m) => ({ default: m.AppWelcomeView })));
 const SurveyView = lazy(() => import('@/views/SurveyView').then((m) => ({ default: m.SurveyView })));
 const SurveyThanksView = lazy(() => import('@/views/SurveyThanksView').then((m) => ({ default: m.SurveyThanksView })));
 const DashboardView = lazy(() => import('@/views/DashboardView').then((m) => ({ default: m.DashboardView })));
@@ -106,6 +107,7 @@ const FreePlanView = lazy(() => import('@/admin/views/FreePlanView').then((m) =>
 const AdminBillingView = lazy(() => import('@/admin/views/BillingView').then((m) => ({ default: m.BillingView })));
 const ErrorLogView = lazy(() => import('@/admin/views/ErrorLogView').then((m) => ({ default: m.ErrorLogView })));
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
+import { ProductTour } from '@/components/tour/ProductTour';
 
 // Catch-all for any /app/* URL that doesn't match a known route. Shows the
 // unmatched path and a way back, instead of silently pretending the user
@@ -211,11 +213,12 @@ export function App() {
         <Suspense fallback={pageFallback}>
           <Routes>
             {/* The marketing page is for the website; the Android app opens
-                straight into sign-in (or the dashboard when signed in). */}
+                on its welcome screen (brand, then Sign in / Create account),
+                or the dashboard when signed in. */}
             <Route
               path="/"
               element={Capacitor.isNativePlatform()
-                ? <Navigate to={user ? '/app/dashboard' : '/auth'} replace />
+                ? (user ? <Navigate to="/app/dashboard" replace /> : <AppWelcomeView />)
                 : <LandingView />}
             />
             <Route path="/auth/*" element={<AuthView />} />
@@ -354,6 +357,7 @@ export function App() {
       <CapExceededModal />
       {cmdK && <CmdK />}
       <KeyboardShortcuts />
+      <ProductTour />
     </>
   );
 }

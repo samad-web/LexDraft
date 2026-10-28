@@ -1,4 +1,4 @@
-package in.sirahdigital.lexdraft;
+package in.sirahdigital.difai;
 
 import com.getcapacitor.BridgeActivity;
 

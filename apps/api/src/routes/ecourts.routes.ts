@@ -760,7 +760,7 @@ ecourtsRouter.get(
 );
 
 /**
- * Full case by CNR from DifAI's case store (ecourts-case-store.service):
+ * Full case by CNR from DifAi's case store (ecourts-case-store.service):
  * instant when stored, refreshed in the background when stale, and - when
  * eCourts is down and nothing is stored - queued with retries plus an in-app
  * notification, instead of a 15 s wait that ends in an error.

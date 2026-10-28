@@ -183,7 +183,7 @@ interface EmailSendPayload {
   to: string;
   subject: string;
   body: string;
-  /** Display name shown as the sender, e.g. "Asha Rao (via DifAI)". The
+  /** Display name shown as the sender, e.g. "Asha Rao (via DifAi)". The
    *  address stays EMAIL_FROM so SPF/DKIM pass. */
   fromName?: string;
   /** Where replies go - typically the acting user's sign-in email. */

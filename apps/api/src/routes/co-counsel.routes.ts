@@ -3,7 +3,7 @@
  *
  * Split like invitations.routes.ts: the request/list/cancel endpoints require
  * an authenticated firm member; the accept-by-token endpoints are public
- * (rate-limited) because the person accepting may not have a DifAI account
+ * (rate-limited) because the person accepting may not have a DifAi account
  * yet. `POST /accept/:requestId` sits in between - authenticated, but the
  * caller may belong to a different firm than the one that raised the request.
  *

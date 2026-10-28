@@ -141,7 +141,7 @@ export function PortalProfileView() {
             {save.isPending ? t.profileSaving : t.profileSave}
           </button>
           {savedFlash && (
-            <span role="status" aria-live="polite" style={{ color: '#15803d', fontSize: 13 }}>
+            <span role="status" aria-live="polite" style={{ color: 'var(--text-primary)', fontSize: 13 }}>
               {t.profileSaved}
             </span>
           )}
@@ -150,7 +150,7 @@ export function PortalProfileView() {
 
       <Card title={t.profileForgetTitle} hint={t.profileForgetBody}>
         {forgetSubmitted ? (
-          <p role="status" aria-live="polite" style={{ color: '#15803d', fontSize: 14, margin: 0 }}>
+          <p role="status" aria-live="polite" style={{ color: 'var(--text-primary)', fontSize: 14, margin: 0 }}>
             {t.profileForgetSubmitted}
           </p>
         ) : (

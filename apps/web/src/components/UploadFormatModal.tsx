@@ -92,8 +92,8 @@ export function UploadFormatModal({ open, onClose, onSaved, onUseExisting }: Pro
       eyebrow="Your firm's formats"
       title={result ? 'Check the format before saving' : 'Upload a format'}
       description={result
-        ? 'This is how DifAI read your format. Compare it with your original; anything in brackets or blank lines is filled from the case when you draft.'
-        : 'Upload a format your office uses — a PDF, a scan or photo, a Word file, or text. DifAI reads it into a template, shows you a preview to check, and then drafts it from the case like any other format.'}
+        ? 'This is how DifAi read your format. Compare it with your original; anything in brackets or blank lines is filled from the case when you draft.'
+        : 'Upload a format your office uses — a PDF, a scan or photo, a Word file, or text. DifAi reads it into a template, shows you a preview to check, and then drafts it from the case like any other format.'}
       footer={
         <div className="row" style={{ gap: 8, width: '100%' }}>
           {result && <button type="button" className="btn btn-ghost" onClick={reset}>Upload a different file</button>}
@@ -147,7 +147,7 @@ export function UploadFormatModal({ open, onClose, onSaved, onUseExisting }: Pro
           {result.equivalent?.label && (
             <div className="card" style={{ padding: 12 }}>
               <span className="body-sm">
-                DifAI already has <strong>{result.equivalent.label}</strong>, which looks like the same document.
+                DifAi already has <strong>{result.equivalent.label}</strong>, which looks like the same document.
               </span>
               <div className="row" style={{ gap: 8, marginTop: 8 }}>
                 <button type="button" className="btn btn-sm" onClick={() => { const l = result.equivalent!.label!; reset(); onUseExisting(l); }}>

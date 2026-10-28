@@ -3,9 +3,9 @@
  *
  * ePay can't be prefilled by URL and its CSP blocks outside scripts, so the
  * hand-off is two parts:
- *  1. DifAI opens ePay with the case in the URL fragment (`#lexdraft=…`).
+ *  1. DifAi opens ePay with the case in the URL fragment (`#lexdraft=…`).
  *     A fragment is never sent to the ePay server.
- *  2. The advocate clicks the "DifAI Fill" bookmarklet once on that page.
+ *  2. The advocate clicks the "DifAi Fill" bookmarklet once on that page.
  *     It selects Court Fee and fills the form from the fragment.
  *
  * The fill never ticks "I agree", generates or verifies an OTP, or pays. Those
@@ -44,12 +44,12 @@ export function epayUrl(h: EpayHandoff): string {
 // Kept as a plain string, not a compiled function: the bundler may rewrite a
 // function body with helpers (e.g. __name) that don't exist on ePay's page.
 const FILL_SOURCE = `(function () {
-  function done(msg) { alert('DifAI: ' + msg); }
-  if (location.hostname !== 'pay.ecourts.gov.in') { done('Click this on the ePay page (pay.ecourts.gov.in) that DifAI opened.'); return; }
+  function done(msg) { alert('DifAi: ' + msg); }
+  if (location.hostname !== 'pay.ecourts.gov.in') { done('Click this on the ePay page (pay.ecourts.gov.in) that DifAi opened.'); return; }
   var m = /[#&]lexdraft=([^&]*)/.exec(location.hash);
-  if (!m) { done('No case details on this page. In DifAI click "Open ePay with this case", then click this again.'); return; }
+  if (!m) { done('No case details on this page. In DifAi click "Open ePay with this case", then click this again.'); return; }
   var d;
-  try { d = JSON.parse(decodeURIComponent(m[1])); } catch (e) { done('The case details in the address are damaged. Open ePay from DifAI again.'); return; }
+  try { d = JSON.parse(decodeURIComponent(m[1])); } catch (e) { done('The case details in the address are damaged. Open ePay from DifAi again.'); return; }
   var filled = [], missed = [];
   function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   async function until(fn, ms) {
@@ -60,7 +60,7 @@ const FILL_SOURCE = `(function () {
   (async function () {
     var label = document.getElementById('courtFeeLabel');
     var radio = document.getElementById('courtFee_radio');
-    if (!label || !radio) { done('This ePay page has changed, so DifAI cannot fill it. Please fill it by hand.'); return; }
+    if (!label || !radio) { done('This ePay page has changed, so DifAi cannot fill it. Please fill it by hand.'); return; }
     if (!radio.checked) label.click();
     var doc = await until(function () {
       var f = document.getElementById('fine_div');
@@ -114,7 +114,7 @@ const FILL_SOURCE = `(function () {
     text('mobile', d.mobile, 'mobile');
     done('Filled: ' + (filled.join(', ') || 'nothing') + '.' +
       (missed.length ? '\\nPlease fill by hand: ' + missed.join(', ') + '.' : '') +
-      '\\n\\nCheck the details, tick "I agree", generate the OTP and pay. DifAI never pays for you.');
+      '\\n\\nCheck the details, tick "I agree", generate the OTP and pay. DifAi never pays for you.');
   })();
 })();`;
 

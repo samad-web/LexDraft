@@ -17,7 +17,7 @@ interface Props {
  * Create-and-assign-login flow for a Firm Admin (spec §3.3 alt path).
  *
  * Distinct from the link-based invite (Manage → Invitations tab): this creates
- * an active user immediately. DifAI is Google-only, so the member signs in
+ * an active user immediately. DifAi is Google-only, so the member signs in
  * with the Google account for this email - there is no password to share.
  */
 export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCreated }: Props) {

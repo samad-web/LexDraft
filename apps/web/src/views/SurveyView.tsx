@@ -24,7 +24,7 @@ import {
 // =============================================================================
 // SurveyView - public market-research questionnaire at /survey.
 //
-// Renders the DifAI practitioner study defined in
+// Renders the DifAi practitioner study defined in
 // apps/web/src/lib/survey-questions.ts. Multi-step wizard with a segmented
 // progress indicator (same idiom as AuthView), cohort-aware branching, and
 // inline-revealing "Other" text fields. Hidden fields are never submitted -
@@ -90,7 +90,7 @@ function clearLocalDraft(): void {
 function Welcome({ onStart }: { onStart: () => void }) {
   return (
     <>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>DifAI practitioner study</div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>DifAi practitioner study</div>
       <h1 className="heading-xl" style={{ marginBottom: 12 }}>
         Help shape an AI tool built for Indian advocates
       </h1>
@@ -494,7 +494,7 @@ export function SurveyView() {
                 letterSpacing: '-0.015em',
               }}
             >
-              DifAI
+              DifAi
             </span>
           </div>
 
@@ -732,7 +732,7 @@ function ThankYouPanel({
   return (
     <div>
       <header style={{ marginBottom: 20 }}>
-        <div className="eyebrow">DifAI practitioner study</div>
+        <div className="eyebrow">DifAi practitioner study</div>
         <h2 className="heading-lg" style={{ marginTop: 4 }}>Thank you for your time</h2>
       </header>
 
@@ -770,7 +770,7 @@ function ThankYouPanel({
           onClick={onHome}
           style={{ flex: 1, minWidth: 200 }}
         >
-          Back to DifAI
+          Back to DifAi
         </button>
       </div>
     </div>
@@ -1075,26 +1075,9 @@ interface CountryCode {
   digits: [number, number];
 }
 
-// Curated: primary audience (India + neighbouring states), common
-// destinations for diaspora respondents, and a few business hubs. The
-// dropdown shows just the dial code; country name lives in the option's
-// title attribute (browser tooltip on hover).
+// DifAi accepts Indian (+91) mobile numbers only, so India is the one option.
 const COUNTRY_CODES: CountryCode[] = [
   { code: '+91',  country: 'India',         digits: [10, 10] },
-  { code: '+977', country: 'Nepal',         digits: [10, 10] },
-  { code: '+880', country: 'Bangladesh',    digits: [10, 10] },
-  { code: '+94',  country: 'Sri Lanka',     digits: [9, 9] },
-  { code: '+975', country: 'Bhutan',        digits: [8, 8] },
-  { code: '+960', country: 'Maldives',      digits: [7, 7] },
-  { code: '+92',  country: 'Pakistan',      digits: [10, 10] },
-  { code: '+971', country: 'UAE',           digits: [9, 9] },
-  { code: '+966', country: 'Saudi Arabia',  digits: [9, 9] },
-  { code: '+974', country: 'Qatar',         digits: [8, 8] },
-  { code: '+65',  country: 'Singapore',     digits: [8, 8] },
-  { code: '+60',  country: 'Malaysia',      digits: [9, 10] },
-  { code: '+1',   country: 'US / Canada',   digits: [10, 10] },
-  { code: '+44',  country: 'UK',            digits: [10, 10] },
-  { code: '+61',  country: 'Australia',     digits: [9, 9] },
 ];
 
 function findCountryCode(code: string): CountryCode {

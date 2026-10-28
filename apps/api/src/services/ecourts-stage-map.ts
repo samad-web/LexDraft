@@ -1,7 +1,7 @@
 import type { PipelineKind } from './case-pipeline.service';
 
 // =============================================================================
-// eCourts "purpose" -> DifAI pipeline stage
+// eCourts "purpose" -> DifAi pipeline stage
 //
 // eCourts describes where a case is with free text per hearing - "FOR
 // EVIDENCE", "Cross Examination of PW1", "Framing of Charges", "For Orders",

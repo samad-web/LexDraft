@@ -189,11 +189,11 @@ export function PortalDashboardView() {
                   <span style={{
                     ...statusPill,
                     background:
-                      inv.status === 'paid'    ? '#dcfce7'
+                      inv.status === 'paid'    ? 'var(--bg-surface-2)'
                     : inv.status === 'overdue' ? '#fee2e2'
-                    :                            '#fef9c3',
+                    :                            'var(--bg-surface-2)',
                     color:
-                      inv.status === 'paid'    ? '#15803d'
+                      inv.status === 'paid'    ? 'var(--text-primary)'
                     : inv.status === 'overdue' ? '#b91c1c'
                     :                            '#a16207',
                   }}>
@@ -242,8 +242,8 @@ function Section(props: { title: string; children: React.ReactNode }) {
 
 function Pill(props: { kind: 'ok' | 'warning'; children: React.ReactNode }) {
   const palette = props.kind === 'ok'
-    ? { bg: '#dcfce7', fg: '#15803d' }
-    : { bg: '#fef3c7', fg: '#92400e' };
+    ? { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)' }
+    : { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)' };
   return (
     <span style={{
       ...statusPill, background: palette.bg, color: palette.fg, marginLeft: 8,

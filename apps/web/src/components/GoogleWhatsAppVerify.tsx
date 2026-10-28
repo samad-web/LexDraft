@@ -11,6 +11,43 @@ import {
 } from '@/hooks/useAuth';
 import type { SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable, GOOGLE_CLIENT_ID, isNativeApp, loadGoogleIdentity, nativeGoogleCredential } from '@/lib/google';
+import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
+
+/** WhatsApp number field: fixed +91 prefix, 10 national digits only. */
+function IndianMobileField({ id, value, foreign, onChange, autoFocus, required }: {
+  id: string;
+  value: string;
+  foreign: boolean;
+  onChange: (r: { digits: string; foreign: boolean }) => void;
+  autoFocus?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className="mono" aria-hidden="true">+91</span>
+        <input
+          id={id}
+          className="input mono"
+          type="tel"
+          inputMode="numeric"
+          autoComplete="tel"
+          placeholder="98765 43210"
+          value={value}
+          onChange={(e) => onChange(readIndianMobile(e.target.value))}
+          aria-invalid={foreign}
+          autoFocus={autoFocus}
+          required={required}
+        />
+      </div>
+      {foreign && (
+        <span role="alert" className="auth-field-error" style={{ marginTop: 6 }}>
+          {FOREIGN_NUMBER_MESSAGE} Enter your 10-digit WhatsApp number.
+        </span>
+      )}
+    </>
+  );
+}
 
 // =============================================================================
 // Google sign-in + WhatsApp number verification.
@@ -72,7 +109,10 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
   const verifyOtp = useVerifySignupOtp();
 
   const [pending, setPending] = useState<GoogleSignupRequired | null>(startWith ?? null);
+  // 10 national digits; the field shows a fixed +91 prefix.
   const [phone, setPhone] = useState('');
+  const [phoneForeign, setPhoneForeign] = useState(false);
+  const onPhone = (r: { digits: string; foreign: boolean }) => { setPhone(r.digits); setPhoneForeign(r.foreign); };
   const [challenge, setChallenge] = useState<{ id: string; phone: string } | null>(null);
   const [code, setCode] = useState('');
   const [resendIn, setResendIn] = useState(0);
@@ -114,11 +154,12 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
     );
   };
 
-  const phoneLooksValid = phone.replace(/\D/g, '').length >= 10;
+  const phoneLooksValid = isIndianMobile(phone);
 
   const sendCode = (signupToken: string) => {
+    if (!isIndianMobile(phone)) return;
     sendOtp.mutate(
-      { signupToken, phone },
+      { signupToken, phone: toE164India(phone) },
       {
         onSuccess: (r) => {
           setChallenge({ id: r.challengeId, phone: r.phone });
@@ -148,7 +189,7 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div role="alert" style={noticeStyle}>
-          {existing.email ? <strong className="mono">{existing.email}</strong> : 'This Google account'} already has a DifAI
+          {existing.email ? <strong className="mono">{existing.email}</strong> : 'This Google account'} already has a DifAi
           account, so no new account was created. Sign in to it, or choose a different Google account to create a new one.
         </div>
         <button
@@ -182,17 +223,7 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
               WhatsApp number
               <span className="hint">We&rsquo;ll send a 6-digit code</span>
             </label>
-            <input
-              id="wa-phone-first"
-              className="input mono"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="+91 98765 43210"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              autoFocus
-            />
+            <IndianMobileField id="wa-phone-first" value={phone} foreign={phoneForeign} onChange={onPhone} autoFocus />
           </div>
         )}
         {phoneFirst && afterPhone}
@@ -248,22 +279,11 @@ export function GoogleWhatsAppVerify({ onSignedIn, onVerified, startWith, button
             WhatsApp number
             <span className="hint">We&rsquo;ll send a 6-digit code</span>
           </label>
-          <input
-            id="wa-phone"
-            className="input mono"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            placeholder="+91 98765 43210"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            required
-            autoFocus
-          />
+          <IndianMobileField id="wa-phone" value={phone} foreign={phoneForeign} onChange={onPhone} required autoFocus />
         </div>
         {afterPhone}
         {sendOtp.isError && <div role="alert" style={noticeStyle}>{sendOtp.error.message}</div>}
-        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sendOtp.isPending || phone.trim().length < 10 || !ready}>
+        <button type="submit" className="btn btn-primary btn-block btn-lg" disabled={sendOtp.isPending || !isIndianMobile(phone) || !ready}>
           {sendOtp.isPending ? 'Sending…' : 'Send code on WhatsApp'}
         </button>
       </form>

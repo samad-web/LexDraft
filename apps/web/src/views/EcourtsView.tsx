@@ -68,7 +68,7 @@ const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 //   Causelist -> Cause List, Advocate's Cause List (as on the website)
 //   Case History (CaseCard) -> the app's sections, order and labels
 //
-// Colours stay DifAI's monochrome design system; only structure, order
+// Colours stay DifAi's monochrome design system; only structure, order
 // and labels follow the app.
 // ---------------------------------------------------------------------------
 
@@ -358,14 +358,14 @@ function SearchBody({ search, goSearch, viewCnr }: { search: SearchKey; goSearch
 /** The app's "How to" panel under the CNR box, plus the CNR format. */
 function CnrHowTo({ onCaseStatus }: { onCaseStatus: () => void }) {
   // Steps b-d and g are the eCourts app's own "How to" text (in the chosen
-  // language); step a is DifAI's, since here the court switch is on top.
+  // language); step a is DifAi's, since here the court switch is on top.
   const { t, language } = useEcourtsT();
   return (
     <div className="card col" style={{ gap: 12 }}>
       <div className="heading-sm">{t(L.howTo, 'How to')}</div>
       <div className="body-sm col" style={{ gap: 6 }}>
         {/* The app numbers its steps in the chosen script (b. / ஆ. / ...);
-            this first, DifAI-only step stays unnumbered outside English. */}
+            this first, DifAi-only step stays unnumbered outside English. */}
         <div>{language === 'english' ? 'a. Choose District Court or High Court above.' : `${t(L.districtCourt, 'District Court')} / ${t(L.highCourt, 'High Court')} ↑`}</div>
         <div>{t(L.howToB, 'b. If you know the CNR Number of the case, enter the 16-character CNR without any hyphen or space.')}</div>
         <div>{t(L.howToC, 'c. On clicking Search, the current status and the entire history of the case will be shown.')}</div>
@@ -534,7 +534,7 @@ function LoadingCard({ cnr }: { cnr: string }) {
           <div className="heading-sm" style={{ marginBottom: 4 }}>Getting {cnr} from eCourts…</div>
           <p className="body-sm muted">
             First time opening this case, so it comes straight from eCourts (usually 5 to 15 seconds).
-            DifAI keeps a copy, so next time it opens instantly.
+            DifAi keeps a copy, so next time it opens instantly.
           </p>
         </div>
       </div>
@@ -1034,7 +1034,7 @@ function HearingsTable({ hearings, orders, cino, court, onPurposeClick, caseRef 
 // (see ecourts.service.ts's listBusinessNotes doc comment for why this can't
 // be fetched automatically). The advocate reads the real Daily Status page
 // via "Live Business (eCourts)" above, then pastes what they read here so it
-// persists in DifAI per hearing date instead of needing the captcha again
+// persists in DifAi per hearing date instead of needing the captcha again
 // every time they revisit this case.
 function BusinessNoteEditor({ cino, hearingDate }: { cino: string; hearingDate: string }) {
   const { data: notes } = useEcourtsBusinessNotes(cino);

@@ -110,7 +110,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        <nav ref={navRef} style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
+        <nav ref={navRef} data-tour="nav" style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
           <div
             className="nav-highlighter"
             aria-hidden

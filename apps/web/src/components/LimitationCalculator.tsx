@@ -307,9 +307,7 @@ function Stat(props: {
 function Notice(props: { tone: 'info' | 'warning' | 'danger'; children: React.ReactNode }) {
   const bg = props.tone === 'danger'
     ? 'rgba(220, 38, 38, 0.06)'
-    : props.tone === 'warning'
-      ? 'rgba(180, 83, 9, 0.06)'
-      : 'rgba(37, 99, 235, 0.06)';
+    : 'var(--bg-surface-2)';
   const fg = props.tone === 'danger'
     ? 'var(--danger)'
     : props.tone === 'warning'

@@ -4,7 +4,7 @@ import { useFreePlanSwitches, useSetFreePlanSwitch } from '../queries';
 import { useUIStore } from '@/store/ui';
 
 // =============================================================================
-// Free launch plan - solo advocates and law students use DifAI free until
+// Free launch plan - solo advocates and law students use DifAi free until
 // 1 June 2027. Each switch opens or locks a feature group for every free
 // account at once (api: lib/free-plan.ts, permissions.service). Paid and
 // trialling firms are unaffected.

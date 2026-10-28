@@ -1,7 +1,7 @@
 import type { EcourtsWebSearchResult } from '@/hooks/useEcourts';
 
 /** Plain-text result rows from an eCourts website search. Rows that carry a
- *  CNR open in DifAI's own case view (hearings, orders, business text). */
+ *  CNR open in DifAi's own case view (hearings, orders, business text). */
 export function WebSearchResults({
   result,
   onOpenCnr,

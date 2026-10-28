@@ -6,7 +6,7 @@ import { L, useEcourtsT } from '@/hooks/useEcourtsLabels';
 import { AnchoredMenu } from './AppUi';
 
 // The eCourts app's side menu (☰): Import, Export, Court Complex Locator,
-// ePay, NJDG, e-Filing, India Code, Virtual Courts. Items that DifAI has
+// ePay, NJDG, e-Filing, India Code, Virtual Courts. Items that DifAi has
 // itself stay in the app (My Cases import/export, eFiling); the national
 // portals open in a new tab, as the app opens them in the browser.
 

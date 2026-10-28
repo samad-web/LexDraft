@@ -1,6 +1,6 @@
 /**
  * Landing page for a co-counsel handover invite - the cross-firm counterpart
- * to InviteAcceptView. The recipient may have no DifAI account at all, so
+ * to InviteAcceptView. The recipient may have no DifAi account at all, so
  * accepting doubles as sign-up: it provisions them their OWN trial Solo firm
  * (never the referring firm - see co-counsel.service.ts::acceptByToken) and
  * grants read-only guest access to exactly the one referred case.
@@ -27,10 +27,10 @@ export function CoCounselAcceptView() {
   const [name, setName] = useState('');
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
 
-  // Already a DifAI user: this link is for new advocates, so sign them in;
+  // Already a DifAi user: this link is for new advocates, so sign them in;
   // the handover itself is accepted from inside the app.
   const handleExisting = (_resp: SignInResult) => {
-    showToast({ type: 'cobalt', text: 'You already have a DifAI account - accept the handover from inside the app.' });
+    showToast({ type: 'cobalt', text: 'You already have a DifAi account - accept the handover from inside the app.' });
     navigate('/app/dashboard', { replace: true });
   };
 
@@ -44,7 +44,7 @@ export function CoCounselAcceptView() {
           if (result.auth) {
             setSession(result.auth.user, result.auth.token);
           }
-          showToast({ type: 'sage', text: `You're in - welcome to DifAI, ${name.trim().split(' ')[0]}` });
+          showToast({ type: 'sage', text: `You're in - welcome to DifAi, ${name.trim().split(' ')[0]}` });
           navigate(`/app/co-counsel/${result.grant.caseId}`, { replace: true });
         },
         onError: (err) => {
@@ -91,7 +91,7 @@ export function CoCounselAcceptView() {
             }}
           />
           <div>
-            <div className="eyebrow">DifAI</div>
+            <div className="eyebrow">DifAi</div>
             <div className="heading-md" style={{ marginTop: 2 }}>You&rsquo;ve been asked to co-counsel</div>
           </div>
         </div>
@@ -154,7 +154,7 @@ export function CoCounselAcceptView() {
                 </p>
               )}
               <p className="body-xs muted" style={{ marginTop: 12 }}>
-                Accepting creates your own free DifAI account and gives you read access to this
+                Accepting creates your own free DifAi account and gives you read access to this
                 one matter - its hearings, notes, and documents. You can upgrade to a full plan any time.
               </p>
             </div>
@@ -212,7 +212,7 @@ export function CoCounselAcceptView() {
             )}
 
             <div className="body-sm muted" style={{ textAlign: 'center', marginTop: 4 }}>
-              By accepting you agree to DifAI&rsquo;s terms of service and privacy policy.
+              By accepting you agree to DifAi&rsquo;s terms of service and privacy policy.
             </div>
           </>
         )}

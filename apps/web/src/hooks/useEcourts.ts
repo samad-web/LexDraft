@@ -195,7 +195,7 @@ const CNR_RE = /^[A-Za-z]{4}[A-Za-z0-9]{12}$/;
 /** Live CNR lookup. Returns the full case history. `enabled` gates on a valid
  *  CNR shape so users can type without firing requests on every keystroke. */
 export interface StoredCaseMeta {
-  /** When DifAI last got this case from eCourts. */
+  /** When DifAi last got this case from eCourts. */
   fetchedAt: string;
   /** Older than the server's freshness window - shown, but being refreshed. */
   stale: boolean;
@@ -206,7 +206,7 @@ type CnrResponse =
   | { history: EcourtsCaseHistory; meta?: StoredCaseMeta; queued?: undefined }
   | { queued: true; message: string; history?: undefined; meta?: undefined };
 
-/** Case by CNR, served from DifAI's case store (instant when stored),
+/** Case by CNR, served from DifAi's case store (instant when stored),
  *  refreshed in the background when stale. When eCourts is down and the case
  *  isn't stored yet, the server queues the fetch (202) and this hook keeps
  *  re-checking until it lands - the advocate also gets an in-app notification. */
@@ -755,7 +755,7 @@ export interface EcourtsBusinessNote {
 // gated on every path on the real eCourts site - there's no way to fetch it
 // programmatically. The advocate reads it there (via the "Open Daily Status"
 // link next to each hearing) and pastes it in once; these two hooks persist
-// it per (cino, hearing date) so it shows up in DifAI from then on.
+// it per (cino, hearing date) so it shows up in DifAi from then on.
 export function useEcourtsBusinessNotes(cino: string | null | undefined) {
   return useQuery({
     queryKey: ['ecourts', 'business-notes', cino],

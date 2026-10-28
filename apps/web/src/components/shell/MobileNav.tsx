@@ -42,7 +42,7 @@ export function MobileNav() {
   );
 
   return (
-    <nav className="mobile-nav" aria-label="Primary mobile">
+    <nav className="mobile-nav" data-tour="mobile-nav" aria-label="Primary mobile">
       {visible.map((it) => {
         const path = location.pathname;
         const active = [it.to, ...(it.alsoActiveOn ?? [])].some(

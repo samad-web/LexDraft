@@ -3,7 +3,7 @@ import { orderDateOf, useEcourtsCnr, type Court, type EcourtsOrder } from '@/hoo
 // =============================================================================
 // The eCourts essentials of a linked matter, at the top of its Overview: what
 // an advocate checks first in the eCourts app (status, next date, stage, court
-// and judge, latest order, last hearing). Read from DifAI's stored copy, so
+// and judge, latest order, last hearing). Read from DifAi's stored copy, so
 // it shows as soon as the matter opens; the full record is on the eCourts tab.
 // =============================================================================
 
@@ -65,7 +65,7 @@ export function EcourtsCaseSnapshot({ cnr, court, onOpenRecord }: { cnr: string;
         {header}
         <p className="body-sm muted">
           {isLoading ? `Getting ${cnr} from eCourts…`
-            : queued ? `eCourts is busy. DifAI will fetch ${cnr} as soon as it answers.`
+            : queued ? `eCourts is busy. DifAi will fetch ${cnr} as soon as it answers.`
             : isNotFound ? `eCourts has no record for ${cnr}${court === 'HC' ? ' in the High Court' : ' in the District Courts'}.`
             : 'eCourts did not answer. Use Sync eCourts to try again.'}
         </p>

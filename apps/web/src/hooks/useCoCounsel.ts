@@ -136,7 +136,7 @@ export function useHandoverRequests() {
 }
 
 /** Post a handover request for a case - target is an existing teammate,
- *  an existing DifAI user elsewhere, or a brand-new external advocate. */
+ *  an existing DifAi user elsewhere, or a brand-new external advocate. */
 export function useRequestHandover(caseId: string) {
   const qc = useQueryClient();
   return useMutation({

@@ -7,9 +7,9 @@ import { api } from '@/lib/api';
 // eCourts screen language - the eCourts app's own translations.
 //
 // The app ships six languages and loads its UI labels from eCourts
-// (getAllLabelsWebService.php, keyed by numeric id). DifAI's eCourts screen
+// (getAllLabelsWebService.php, keyed by numeric id). DifAi's eCourts screen
 // uses the same labels, so an advocate who reads the app in Hindi or Tamil
-// sees the same words here. English keeps DifAI's own wording; any label
+// sees the same words here. English keeps DifAi's own wording; any label
 // the app doesn't have falls back to English.
 // =============================================================================
 
@@ -25,7 +25,7 @@ export const ECOURTS_LANGUAGE_OPTIONS: ReadonlyArray<{ id: EcourtsLanguage; name
   { id: 'tamil', name: 'தமிழ்' },
 ];
 
-/** eCourts app label ids used on DifAI's eCourts screen. */
+/** eCourts app label ids used on DifAi's eCourts screen. */
 export const L = {
   districtCourt: 169, highCourt: 646, language: 607,
   cnrNumber: 144, caseStatus: 11, causeList: 190, myCases: 635,

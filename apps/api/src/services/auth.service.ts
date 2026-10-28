@@ -476,7 +476,7 @@ async function assertPhoneUnused(phone: string): Promise<void> {
   if (!sql) return;
   const rows = await sql<{ id: string }[]>`select id from users where phone = ${phone} limit 1`;
   if (rows[0]) {
-    throw new ConflictError('This WhatsApp number is already linked to a DifAI account. Sign in with that account instead.');
+    throw new ConflictError('This WhatsApp number is already linked to a DifAi account. Sign in with that account instead.');
   }
 }
 
@@ -602,7 +602,7 @@ export const authService = {
       // ever materialize via the email-contains-'admin' shortcut.
       if (!env.devAuthAutoProvision) {
         // Sign in never creates an account: point them at sign-up instead.
-        throw new UnauthorizedError('No DifAI account uses this email. Create your free account first.', { code: 'account_not_found' });
+        throw new UnauthorizedError('No DifAi account uses this email. Create your free account first.', { code: 'account_not_found' });
       }
       const isAdminish = email.toLowerCase().includes('admin');
       const localPart = email.split('@')[0] ?? '';
@@ -646,19 +646,27 @@ export const authService = {
    * verify a WhatsApp number (startSignupOtp / verifySignupOtp) and then call
    * googleSignUp to create the account.
    */
-  async googleSignIn(credential: string): Promise<SignInResult | GoogleSignupRequired> {
+  async googleSignIn(credential: string, intent: 'signin' | 'signup' = 'signin'): Promise<SignInResult | GoogleSignupRequired> {
     const google = await verifyGoogleIdToken(credential);
     const sql = db();
     if (!sql) throw new Error('DATABASE_URL not configured');
+    // From the sign-up page an existing account is never signed in or linked:
+    // the user is told to sign in instead.
+    const alreadyExists = () =>
+      new ConflictError('An account with this email already exists. Sign in instead.', { code: 'account_exists' });
 
     const bySub = await sql<UserRow[]>`
       ${sql.unsafe(USER_SELECT_WITH_FIRM)}
       where u.google_sub = ${google.sub} limit 1
     `;
-    if (bySub[0]) return completeSignIn(rowToPublic(bySub[0]));
+    if (bySub[0]) {
+      if (intent === 'signup') throw alreadyExists();
+      return completeSignIn(rowToPublic(bySub[0]));
+    }
 
     const byEmail = await findByEmail(google.email);
     if (byEmail) {
+      if (intent === 'signup') throw alreadyExists();
       if (byEmail.googleSub && byEmail.googleSub !== google.sub) {
         throw new UnauthorizedError('This email is linked to a different Google account.');
       }
@@ -947,7 +955,7 @@ export const authService = {
 
   /**
    * Used by the co-counsel handover accept flow when the receiving advocate
-   * has no DifAI account yet. Unlike `registerExternalUser` (which joins
+   * has no DifAi account yet. Unlike `registerExternalUser` (which joins
    * the inviter's firm), this provisions the new advocate their OWN trial
    * Solo firm via `insertUserWithNewFirm` - they must NOT gain membership in
    * the referring firm just by accepting a single-case handover. Their only

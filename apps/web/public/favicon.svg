@@ -1,19 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- DifAI mark (small-size cut): a "D" whose stem is a court column, the
-       scales of justice in its counter, balanced on an AI spark. -->
-  <style>
-    .ink { fill: #0a0a0a } .paper { fill: #fafafa }
-    @media (prefers-color-scheme: dark) { .ink { fill: #fafafa } .paper { fill: #0a0a0a } }
-  </style>
-  <rect class="ink" width="32" height="32" rx="8"/>
-  <g class="paper" transform="translate(16 16) scale(0.88) translate(-16.2 -16)">
-    <rect x="6.6" y="6.4" width="8" height="2.2" rx="0.5"/>
-    <rect x="7.8" y="8.6" width="5.6" height="14.8"/>
-    <rect x="6.6" y="23.4" width="8" height="2.2" rx="0.5"/>
-    <path d="M14.6 6.4H17.4C22.5 6.4 25.8 10.5 25.8 16C25.8 21.5 22.5 25.6 17.4 25.6H14.6V22H17.2C20.1 22 22 19.6 22 16C22 12.4 20.1 10 17.2 10H14.6Z"/>
-    <rect x="17.85" y="13.3" width="0.9" height="6.1" rx="0.3"/>
-    <rect x="16.4" y="19.1" width="3.8" height="1" rx="0.4"/>
-    <rect x="15.7" y="13.6" width="5.2" height="0.8" rx="0.4"/>
-    <path d="M18.3 10.5C18.46 11.85 18.78 12.17 20.1 12.32C18.78 12.47 18.46 12.79 18.3 14.15C18.14 12.79 17.82 12.47 16.5 12.32C17.82 12.17 18.14 11.85 18.3 10.5Z"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <!-- DifAi "Seal D" (small-size cut): a notary-style rosette seal with a bold D, on the graphite tile. -->
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a3a40"/><stop offset="0.55" stop-color="#18181b"/><stop offset="1" stop-color="#050507"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="11" fill="url(#t)"/>
+  <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="10.3" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/>
+  <path fill="#ffffff" d="M24.00 6.40L25.75 8.50L27.92 6.84L29.15 9.28L31.64 8.14L32.30 10.79L34.97 10.24L35.03 12.97L37.76 13.03L37.21 15.70L39.86 16.36L38.72 18.85L41.16 20.08L39.50 22.25L41.60 24.00L39.50 25.75L41.16 27.92L38.72 29.15L39.86 31.64L37.21 32.30L37.76 34.97L35.03 35.03L34.97 37.76L32.30 37.21L31.64 39.86L29.15 38.72L27.92 41.16L25.75 39.50L24.00 41.60L22.25 39.50L20.08 41.16L18.85 38.72L16.36 39.86L15.70 37.21L13.03 37.76L12.97 35.03L10.24 34.97L10.79 32.30L8.14 31.64L9.28 29.15L6.84 27.92L8.50 25.75L6.40 24.00L8.50 22.25L6.84 20.08L9.28 18.85L8.14 16.36L10.79 15.70L10.24 13.03L12.97 12.97L13.03 10.24L15.70 10.79L16.36 8.14L18.85 9.28L20.08 6.84L22.25 8.50Z"/>
+  <circle cx="24" cy="24" r="12.6" fill="none" stroke="#141417" stroke-width="1.4"/>
+  <path fill="#141417" fill-rule="evenodd" d="M18.46 17.52H23.06C27.02 17.52 29.54 20.33 29.54 24.00C29.54 27.67 27.02 30.48 23.06 30.48H18.46ZM21.05 20.11V27.89H22.92C25.44 27.89 26.88 26.38 26.88 24.00C26.88 21.62 25.44 20.11 22.92 20.11Z"/>
 </svg>

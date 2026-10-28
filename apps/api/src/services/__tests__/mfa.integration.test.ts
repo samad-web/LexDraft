@@ -35,7 +35,7 @@ describe('mfaService - enrol → confirm → verify roundtrip', () => {
   it('issues a secret + QR + challenge, and accepts a valid code', async () => {
     const start = await mfaService.enrollStart(user.id);
     expect(start.secret).toBeTruthy();
-    expect(start.otpauthUrl).toContain(encodeURIComponent('DifAI'));
+    expect(start.otpauthUrl).toContain(encodeURIComponent('DifAi'));
     expect(start.qrCodeDataUrl.startsWith('data:image/png;base64,')).toBe(true);
     expect(start.challengeId).toBeTruthy();
 

@@ -139,7 +139,7 @@ apiRouter.use('/co-counsel', coCounselRouter);
 
 // Mixed, same reasoning as /co-counsel: the signer-facing by-token/*
 // endpoints are public (a client or opposing counsel usually has no
-// DifAI account); everything else under /esign applies requireAuth via
+// DifAi account); everything else under /esign applies requireAuth via
 // the router itself. No requireActivePlan at the mount level for the same
 // reason as co-counsel's guest path - a signer isn't on any firm's plan.
 apiRouter.use('/esign', esignRouter);

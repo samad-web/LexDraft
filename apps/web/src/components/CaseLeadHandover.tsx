@@ -15,7 +15,7 @@ import { useCan } from '@/hooks/useFirmAdmin';
 //
 // "Hand off entire case" opens HandOffCaseModal, the cross-firm counterpart:
 // same authorisation (head or current lead), but can also target an advocate
-// outside the firm who may not have a DifAI account yet.
+// outside the firm who may not have a DifAi account yet.
 // =============================================================================
 
 export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTitle?: string }) {

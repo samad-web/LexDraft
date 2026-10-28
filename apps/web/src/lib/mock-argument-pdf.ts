@@ -94,7 +94,7 @@ function renderReview(review: MaReview): string {
     `<h3>Suggested study list</h3><ul>${review.studyList.map((s) => `<li><strong>${esc(s.title)}</strong>${s.citation ? `<div style="font-size:10pt;color:#666;">${esc(s.citation)}</div>` : ''}${s.why ? `<div style="font-size:10pt;">${esc(s.why)}</div>` : ''}</li>`).join('')}</ul>`;
 
   const demoNotice = !review.isDemo ? '' : `
-    <div style="background:#fef3c7;border:1px solid #d97706;border-radius:4px;padding:10px 12px;margin-bottom:12px;">
+    <div style="background:#f4f4f4;border:1px solid #a3a3a3;border-radius:4px;padding:10px 12px;margin-bottom:12px;">
       <strong style="color:#92400e;">Placeholder review — not real feedback.</strong>
       <span style="color:#92400e;font-size:10pt;"> No AI provider was configured when this was generated
       (or the run couldn't be scored). The score and comments below are canned demonstration content.</span>

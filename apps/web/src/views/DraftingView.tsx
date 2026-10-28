@@ -57,6 +57,7 @@ import {
   emphasizeLegalTerms,
   type OpenItems,
 } from '@/lib/draft-blocks';
+import { ZoomPane } from '@/components/ZoomPane';
 
 const DEFAULT_DOC = 'Notice u/s 138 NI Act';
 
@@ -2022,6 +2023,7 @@ export function DraftingView() {
               ) : (
                 // No built-in PDF viewer (Android app / mobile browsers): draw the pages.
                 <Suspense fallback={<div className="dw-pending">Preparing the formatted preview…</div>}>
+                  <ZoomPane label="Document">
                   <PdfPages
                     key={previewPdfUrl}
                     url={previewPdfUrl}
@@ -2037,6 +2039,7 @@ export function DraftingView() {
                       />
                     )}
                   />
+                  </ZoomPane>
                 </Suspense>
               )
             )}
@@ -2045,13 +2048,15 @@ export function DraftingView() {
                 the advocate never sees a differently laid-out copy flash first. */}
             {hasOutput && !isEditing && (!previewPdfUrl || hasLocalEdits || streaming)
               && !(previewPdfPending && !hasLocalEdits && !streaming) && (
-              <div
-                className="court-prose court-prose-paper"
-                lang={outputLangCode}
-                dir="ltr"
-                style={{ margin: '0 auto' }}
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
+              <ZoomPane label="Document">
+                <div
+                  className="court-prose court-prose-paper"
+                  lang={outputLangCode}
+                  dir="ltr"
+                  style={{ margin: '0 auto' }}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </ZoomPane>
             )}
             {hasOutput && !isEditing && !previewPdfUrl && !hasLocalEdits && previewPdfPending && !streaming && (
               <div className="dw-pending">Preparing the formatted preview…</div>

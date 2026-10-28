@@ -4,7 +4,7 @@ import type { LandService } from '@/hooks/useLandRecords';
 
 // =============================================================================
 // Tamil Nadu Land Records eServices (eservices.tn.gov.in) building blocks, in
-// DifAI's monochrome design system. Advocates know the site's screens, so
+// DifAi's monochrome design system. Advocates know the site's screens, so
 // every service follows its shape:
 //
 //   ▌Land Records - View A-Register Extract                  Home ▐   title bar
@@ -16,7 +16,7 @@ import type { LandService } from '@/hooks/useLandRecords';
 //                         [ Submit ]
 //
 // The site's blue gradient bars become inverse bars (black in light mode,
-// white in dark mode) - structure from the site, colour from DifAI.
+// white in dark mode) - structure from the site, colour from DifAi.
 // =============================================================================
 
 export interface LandServiceMeta {

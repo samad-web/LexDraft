@@ -14,7 +14,7 @@ declare const window: any;
 // ecourts-web-search.service
 //
 // Everything that exists ONLY on the eCourts website (services.ecourts.gov.in),
-// not in the mobile API DifAI uses everywhere else:
+// not in the mobile API DifAi uses everywhere else:
 //
 //   Case Status   case-type      all cases of a type + year
 //                 advocate-bar   advocate by Bar Council registration
@@ -27,7 +27,7 @@ declare const window: any;
 //   Process       process details (summons / warrants) - see the bottom
 //
 // Every one of these is gated by an image CAPTCHA (process details also by an
-// OTP sent to the process recipient). The advocate solves them - DifAI
+// OTP sent to the process recipient). The advocate solves them - DifAi
 // never reads or guesses them. A real browser runs the site's own pages and
 // JavaScript, so requests are exactly what the site itself sends; this
 // module does not imitate or regenerate the site's request headers/tokens and
@@ -36,7 +36,7 @@ declare const window: any;
 // Results are NOT passed through as eCourts HTML. The browser reads the
 // rendered result tables in place and returns plain-text rows plus the CNR
 // found in each row, so nothing from the third-party page is ever injected
-// into DifAI's UI, and every row can open in DifAI's own CNR view.
+// into DifAi's UI, and every row can open in DifAi's own CNR view.
 //
 // Field ids, tab ids, submit functions and AJAX endpoints come from the
 // site's own searchByCaseStatus.js / searchByCourtOrder.js /
@@ -685,7 +685,7 @@ export async function submitWebSearch(
 // processDetails.js flow: process ID + email + CAPTCHA -> showProcess lists
 // the process; authendicateData reveals the RECIPIENT's masked email/mobile;
 // sendOtp sends a code there; verify_otp returns the document path. The OTP
-// goes to whoever the process was issued to - DifAI only relays what the
+// goes to whoever the process was issued to - DifAi only relays what the
 // advocate types. The document is fetched inside the same browser session
 // and returned as PDF bytes.
 // ---------------------------------------------------------------------------

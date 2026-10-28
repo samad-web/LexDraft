@@ -31,7 +31,7 @@ import type {
 // co-counsel.service
 //
 // Cross-firm case handover: an advocate who cannot attend a matter hands the
-// whole case to an advocate OUTSIDE their firm, who may not have a DifAI
+// whole case to an advocate OUTSIDE their firm, who may not have a DifAi
 // account yet. Same-firm handover already exists (assignments.service.ts) and
 // is reused here unchanged when the target turns out to be a teammate.
 //
@@ -282,7 +282,7 @@ export const coCounselService = {
         body:
           `You've been asked to take over the matter "${matter.title}" (${matter.cnr}).\n\n` +
           (input.reason ? `Reason: ${input.reason}\n\n` : '') +
-          `Sign in to DifAI and open Co-Counsel requests to accept or decline.`,
+          `Sign in to DifAi and open Co-Counsel requests to accept or decline.`,
       });
       return created;
     }
@@ -335,9 +335,9 @@ export const coCounselService = {
 
     await emailService.send({
       to: normalizedEmail,
-      subject: `${actorName} needs you to take over a matter on DifAI`,
+      subject: `${actorName} needs you to take over a matter on DifAi`,
       body:
-        `You've been invited to take over the matter "${matter.title}" (${matter.cnr}) on DifAI.\n\n` +
+        `You've been invited to take over the matter "${matter.title}" (${matter.cnr}) on DifAi.\n\n` +
         (input.reason ? `Reason: ${input.reason}\n\n` : '') +
         `Accept here: /co-counsel/accept/${token}\n\n` +
         `This link expires in ${INVITATION_TTL_DAYS} days.`,

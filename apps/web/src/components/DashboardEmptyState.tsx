@@ -91,10 +91,10 @@ export function DashboardEmptyState({ plan, firstName, firmName, steps }: Props)
 
   const headline =
     plan === 'Solo'
-      ? `Welcome to DifAI${firstName ? `, ${firstName}` : ''}.`
+      ? `Welcome to DifAi${firstName ? `, ${firstName}` : ''}.`
       : plan === 'Practice'
-        ? `Welcome to DifAI Practice tier${firmName ? `, ${firmName}` : ''}.`
-        : `Welcome to DifAI Firm tier${firmName ? `, ${firmName}` : ''}.`;
+        ? `Welcome to DifAi Practice tier${firmName ? `, ${firmName}` : ''}.`
+        : `Welcome to DifAi Firm tier${firmName ? `, ${firmName}` : ''}.`;
 
   const subhead =
     plan === 'Solo'

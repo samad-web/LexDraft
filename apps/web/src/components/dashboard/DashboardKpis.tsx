@@ -352,7 +352,7 @@ export function DashboardKpis({ data, today, week, groups, scope, org, plan, use
   const save = (ids: KpiId[] | null) => { setSaved(ids); writeSaved(key, ids); };
 
   return (
-    <section className="adv-kpi-wrap" aria-label="Key figures">
+    <section className="adv-kpi-wrap" data-tour="kpis" aria-label="Key figures">
       <div className="adv-kpi-bar">
         <span className="adv-kpi-bar-label">
           {saved ? 'Your KPIs' : `${PLAN_LABEL[planKey]} KPIs`}

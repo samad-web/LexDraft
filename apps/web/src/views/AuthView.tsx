@@ -21,7 +21,8 @@ import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppV
 import { LogoMark } from '@/components/brand/Logo';
 import { CycleToggle, PlanCards, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
-import { readIntro } from '@/lib/intro';
+import { readIntro, saveIntro } from '@/lib/intro';
+import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
 import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
 // =============================================================================
@@ -34,6 +35,14 @@ import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
 type AuthTab = 'signin' | 'signup';
 type Role = 'solo' | 'student' | 'group' | 'firm';
+type Audience = 'advocate' | 'student' | 'firm';
+
+/** Left-panel tabs: who DifAi is for, with the line shown under them. */
+const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
+  { id: 'advocate', label: 'Advocate', tagline: 'Your hearings, drafts and matters in one app.' },
+  { id: 'student', label: 'Law student', tagline: 'Draft on real court formats. Free for law students till 1 June 2027.' },
+  { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for your whole firm.' },
+];
 
 
 const EMAIL_TYPOS: Record<string, string> = {
@@ -44,16 +53,17 @@ const EMAIL_TYPOS: Record<string, string> = {
 
 /** Field problems on the sign-up form; the server re-checks every one
  *  (and also that the email's domain receives mail). */
-function signupProblems(f: { name: string; email: string; phone: string; password: string }) {
+function signupProblems(f: { name: string; email: string; phone: string; phoneForeign: boolean; password: string }) {
   const email = f.email.trim().toLowerCase();
   const [local, domain] = email.split('@');
   const typo = domain && EMAIL_TYPOS[domain] ? `${local}@${EMAIL_TYPOS[domain]}` : null;
-  const digits = f.phone.replace(/\D/g, '').replace(/^(91|0)(?=[6-9]\d{9}$)/, '');
   return {
     name: f.name.trim().length < 2 ? 'Enter your full name' : null,
     email: !email ? 'Enter your email' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email) ? 'Enter a valid email address' : null,
     emailTypo: typo,
-    phone: !digits ? 'Enter your WhatsApp number' : !/^[6-9]\d{9}$/.test(digits) ? 'Enter a 10-digit mobile number that uses WhatsApp' : null,
+    phone: f.phoneForeign
+      ? `${FOREIGN_NUMBER_MESSAGE} Enter your 10-digit WhatsApp number.`
+      : !f.phone ? 'Enter your WhatsApp number' : !isIndianMobile(f.phone) ? 'Enter a 10-digit Indian mobile number that uses WhatsApp' : null,
     password: f.password.length < 8 ? 'Use at least 8 characters' : null,
   };
 }
@@ -72,9 +82,9 @@ function renewTokenFrom(err: unknown): string | null {
 // human-friendly banner copy. Anything we don't recognise falls through to
 // the generic phrase, so future server-side codes degrade gracefully.
 const PLAN_REASON_MESSAGES: Record<string, string> = {
-  plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using DifAI.',
-  plan_past_due:  'Your firm subscription is past due. Update billing to continue using DifAI.',
-  plan_expired:   'Your firm subscription period has ended. Renew to continue using DifAI.',
+  plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using DifAi.',
+  plan_past_due:  'Your firm subscription is past due. Update billing to continue using DifAi.',
+  plan_expired:   'Your firm subscription period has ended. Renew to continue using DifAi.',
   trial_expired:  'Your free access or trial has ended. Pick a plan to keep your work.',
 };
 
@@ -114,7 +124,9 @@ export function AuthView() {
   const signupComplete = useEmailSignupComplete();
   const [suName, setSuName] = useState(() => readIntro().name ?? '');
   const [suEmail, setSuEmail] = useState('');
+  // 10 national digits; the field shows a fixed +91 prefix.
   const [suPhone, setSuPhone] = useState('');
+  const [suPhoneForeign, setSuPhoneForeign] = useState(false);
   const [suCode, setSuCode] = useState('');
   const [suChallenge, setSuChallenge] = useState<EmailSignupChallenge | null>(null);
 
@@ -143,14 +155,28 @@ export function AuthView() {
   // `name` + `email` from sign-up so the prospect doesn't retype if they
   // hop between role options.
   const firmEnquiry = useFirmEnquiry();
+  // Optional enquiry phone: 10 national digits behind a fixed +91.
   const [phone, setPhone] = useState('');
+  const [phoneForeign, setPhoneForeign] = useState(false);
+  const enquiryPhoneProblem = phoneForeign
+    ? FOREIGN_NUMBER_MESSAGE
+    : phone && !isIndianMobile(phone) ? 'Enter a 10-digit Indian mobile number, or leave it blank' : null;
   const [firmSize, setFirmSize] = useState<FirmEnquirySize | ''>('');
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
-  // Who is signing in (the left tabs): copy changes, and the "new here" link
-  // starts a trial (advocate) or a firm enquiry / demo (firm).
-  const [audience, setAudience] = useState<'advocate' | 'firm'>(() => (readIntro().size === 'team' ? 'firm' : 'advocate'));
+  // Who is signing in (the left tabs: advocate, law student, firm): copy
+  // changes, and the "new here" link starts a free account (advocate /
+  // student) or a firm trial / demo (firm). The student pick is remembered so
+  // onboarding opens on the student path.
+  const [audience, setAudience] = useState<Audience>(() => {
+    const intro = readIntro();
+    return intro.size === 'team' ? 'firm' : intro.kind === 'student' ? 'student' : 'advocate';
+  });
+  const chooseAudience = (a: Audience) => {
+    setAudience(a);
+    if (a !== 'firm') saveIntro({ kind: a });
+  };
   // Email + password sign-in; Google is offered underneath.
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
@@ -159,10 +185,12 @@ export function AuthView() {
   const [newPassword, setNewPassword] = useState('');
   // Field errors show once a field is left, or for all fields on START.
   const [suTouched, setSuTouched] = useState<Record<string, boolean>>({});
-  const suProblems = signupProblems({ name: suName, email: suEmail, phone: suPhone, password: newPassword });
+  const suProblems = signupProblems({ name: suName, email: suEmail, phone: suPhone, phoneForeign: suPhoneForeign, password: newPassword });
   const suShow = (f: 'name' | 'email' | 'phone' | 'password') => (suTouched[f] ? suProblems[f] : null);
   const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
+  const shownAudience: Audience = firmSide ? 'firm' : audience;
+  const freeLine = audience === 'student' ? 'Free for law students till 1 June 2027' : 'Free for advocates & law students till 1 June 2027';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     setMfaChallenge(null); setGoogleSignup(null); 
@@ -176,7 +204,7 @@ export function AuthView() {
   // ---- Submitters ---------------------------------------------------------
 
   // Shared by the Sign-in Google button and the sign-up Google step (when
-  // the Google account already has a DifAI account).
+  // the Google account already has a DifAi account).
   const handleSignedIn = (resp: SignInResult) => {
     if (isMfaChallenge(resp)) {
       setTab('signin');
@@ -187,9 +215,21 @@ export function AuthView() {
   };
 
   const handleGoogleCredential = (credential: string) => {
+    const fromSignup = tab === 'signup';
     googleSignIn.mutate(
-      { credential },
+      { credential, intent: fromSignup ? 'signup' : 'signin' },
       {
+        // Sign-up page + an email that already has an account: the API refuses
+        // (409 account_exists). Move to Sign in, where the error message
+        // ("An account with this email already exists. Sign in instead.") shows.
+        onError: (err) => {
+          const code = (err as { response?: { data?: { code?: string } } }).response?.data?.code;
+          if (fromSignup && code === 'account_exists') {
+            setTab('signin');
+            setStep(0);
+            setRole(null);
+          }
+        },
         onSuccess: (r) => {
           if (isGoogleSignupRequired(r)) {
             // New Google account - set up the practice next.
@@ -229,7 +269,7 @@ export function AuthView() {
     setSuTouched({ name: true, email: true, phone: true, password: true });
     if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password) return;
     signupStart.mutate(
-      { name: suName.trim(), email: suEmail.trim(), phone: suPhone.trim() },
+      { name: suName.trim(), email: suEmail.trim(), phone: toE164India(suPhone) },
       { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
     );
   };
@@ -245,12 +285,12 @@ export function AuthView() {
 
   const handleFirmEnquiry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!firmSize) return;
+    if (!firmSize || enquiryPhoneProblem) return;
     firmEnquiry.mutate(
       {
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim() || undefined,
+        phone: phone ? toE164India(phone) : undefined,
         firmName: firm.trim(),
         firmSize,
         primaryCourt: primaryCourt.trim() || undefined,
@@ -269,8 +309,7 @@ export function AuthView() {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 'clamp(20px, 4vw, 32px)',
-    gap: 24,
+    // padding + gap live in .auth-page (globals.css) so short screens can tighten them.
     // Very subtle vertical wash to give the surface depth without competing
     // with the card. Bg-base at the edges, bg-surface near center.
     background:
@@ -298,51 +337,40 @@ export function AuthView() {
   // ---- Render -------------------------------------------------------------
 
   return (
-    <div style={pageStyle}>
+    <div className="auth-page" style={pageStyle}>
       <div className="auth-shell">
         <aside className="auth-art">
           <AuthArt />
           <div className="auth-art-brand">
-            <LogoMark size={32} ink="var(--art-ink)" paper="var(--art-0)" />
-            DifAI
+            <LogoMark size={32} />
+            DifAi
           </div>
-          <nav className="auth-side-tabs" aria-label="Sign in options">
-            <button
-              type="button"
-              className={`auth-side-tab${firmSide ? '' : ' is-active'}`}
-              aria-current={firmSide ? undefined : 'page'}
-              onClick={() => { backToStart(); setAudience('advocate'); }}
-            >
-              Advocate
-            </button>
-            <button
-              type="button"
-              className={`auth-side-tab${firmSide ? ' is-active' : ''}`}
-              aria-current={firmSide ? 'page' : undefined}
-              onClick={() => { backToStart(); setAudience('firm'); }}
-            >
-              Firm
-            </button>
-          </nav>
+          {/* Hidden once someone is mid-way (WhatsApp code, Google sign-up,
+              two-step code): switching audience there would throw the step away. */}
+          {!suChallenge && !googleSignup && !mfaChallenge ? (
+            <nav className="auth-side-tabs" aria-label="Who is signing in">
+              {AUDIENCES.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`auth-side-tab${shownAudience === a.id ? ' is-active' : ''}`}
+                  aria-current={shownAudience === a.id ? 'page' : undefined}
+                  onClick={() => { backToStart(); chooseAudience(a.id); }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </nav>
+          ) : <span />}
           <p className="auth-art-tagline">
-            {firmSide
-              ? 'Matters, team, hearings and billing for your whole firm.'
-              : 'Your hearings, drafts and matters in one app.'}
+            {AUDIENCES.find((a) => a.id === shownAudience)!.tagline}
           </p>
         </aside>
         <div className="auth-main">
         <div className="auth-main-inner">
         {/* Brand */}
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: 14,
-            marginBottom: 28,
-          }}
-        >
-          <span aria-hidden className="auth-logo"><LogoMark size={46} ink="var(--bg-surface)" paper="var(--text-primary)" /></span>
+        <div className="auth-head">
+          <span aria-hidden className="auth-logo"><LogoMark size={76} /></span>
           <div
             className="auth-brand-text"
             style={{
@@ -352,7 +380,7 @@ export function AuthView() {
               letterSpacing: '-0.018em',
             }}
           >
-            DifAI
+            DifAi
           </div>
           <div
             className="mono auth-brand-text"
@@ -418,7 +446,7 @@ export function AuthView() {
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">Sign in</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {audience === 'firm' ? 'Welcome back to your firm.' : 'Welcome back to your practice.'}
+                {audience === 'firm' ? 'Welcome back to your firm.' : audience === 'student' ? 'Welcome back.' : 'Welcome back to your practice.'}
               </p>
             </div>
             <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -481,7 +509,7 @@ export function AuthView() {
               {signIn.isError && !renewToken && (
                 (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
-                    No DifAI account uses this email.{' '}
+                    No DifAi account uses this email.{' '}
                     <button type="button" className="auth-link" onClick={() => startTrial(audience === 'firm' ? 'group' : null)}>
                       {audience === 'firm' ? 'Start your firm’s 14-day trial' : 'Create your free account'}
                     </button>
@@ -509,15 +537,15 @@ export function AuthView() {
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>New firm on DifAI?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
+                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
               ) : (
-                <>New to DifAI?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
+                <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
               )}
             </p>
             <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
               {audience === 'firm'
                 ? 'Every feature for 14 days · no card needed'
-                : 'Free for advocates & law students till 1 June 2027'}
+                : freeLine}
             </p>
             <button
               type="button"
@@ -542,7 +570,7 @@ export function AuthView() {
                   ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
                   : audience === 'firm'
                     ? '14 days of every feature. No card needed.'
-                    : 'Free for advocates & law students till 1 June 2027.'}
+                    : `${freeLine}.`}
               </p>
             </div>
             {!suChallenge ? (
@@ -565,7 +593,24 @@ export function AuthView() {
                 )}
                 <label className="auth-field">
                   <Icon name="chat" size={16} />
-                  <input type="tel" inputMode="tel" autoComplete="tel" placeholder="WhatsApp number (10 digits)" aria-label="WhatsApp number" required value={suPhone} onChange={(e) => setSuPhone(e.target.value)} onBlur={() => touch('phone')} aria-invalid={!!suShow('phone')} />
+                  <span className="mono" aria-hidden="true" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>+91</span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="WhatsApp number (10 digits)"
+                    aria-label="WhatsApp number (India, +91)"
+                    required
+                    value={suPhone}
+                    onChange={(e) => {
+                      const r = readIndianMobile(e.target.value);
+                      setSuPhone(r.digits);
+                      setSuPhoneForeign(r.foreign);
+                      if (r.foreign) touch('phone');
+                    }}
+                    onBlur={() => touch('phone')}
+                    aria-invalid={!!suShow('phone')}
+                  />
                 </label>
                 {suShow('phone') && <span role="alert" className="auth-field-error">{suShow('phone')}</span>}
                 <label className="auth-field">
@@ -593,7 +638,7 @@ export function AuthView() {
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
                 <div className="auth-actions">
                   <span className="body-xs" style={{ color: 'var(--text-tertiary)', maxWidth: 240, lineHeight: 1.5 }}>
-                    By starting you agree to DifAI&rsquo;s Terms and Privacy Policy.
+                    By starting you agree to DifAi&rsquo;s Terms and Privacy Policy.
                   </span>
                   <button
                     type="submit"
@@ -650,7 +695,7 @@ export function AuthView() {
                   ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`
                   : audience === 'firm'
                     ? '14 days of every feature. No card needed.'
-                    : 'Free for advocates & law students till 1 June 2027.'}
+                    : `${freeLine}.`}
               </p>
             </div>
             <GoogleWhatsAppVerify
@@ -718,7 +763,7 @@ export function AuthView() {
               Thanks, we&rsquo;re on it.
             </div>
             <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 380, lineHeight: 1.55 }}>
-              A DifAI partner will reach out to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>{' '}
+              A DifAi partner will reach out to <strong style={{ color: 'var(--text-primary)' }}>{email}</strong>{' '}
               within one business day to walk through the Firm plan, custom onboarding,
               and a tailored quote for your team.
             </p>
@@ -797,15 +842,25 @@ export function AuthView() {
                 <label className="label" htmlFor="enq-phone">
                   Phone <span className="hint">Optional</span>
                 </label>
-                <input
-                  id="enq-phone"
-                  className="input"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98xxx xxxxx"
-                  autoComplete="tel"
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="mono" aria-hidden="true">+91</span>
+                  <input
+                    id="enq-phone"
+                    className="input"
+                    type="tel"
+                    inputMode="numeric"
+                    value={phone}
+                    onChange={(e) => {
+                      const r = readIndianMobile(e.target.value);
+                      setPhone(r.digits);
+                      setPhoneForeign(r.foreign);
+                    }}
+                    placeholder="98xxx xxxxx"
+                    autoComplete="tel"
+                    aria-invalid={!!enquiryPhoneProblem}
+                  />
+                </div>
+                {enquiryPhoneProblem && <span role="alert" className="auth-field-error" style={{ marginTop: 6 }}>{enquiryPhoneProblem}</span>}
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="label required" htmlFor="enq-firm">Firm name</label>
@@ -861,7 +916,7 @@ export function AuthView() {
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label className="label" htmlFor="enq-message">
-                  What brings you to DifAI? <span className="hint">Optional</span>
+                  What brings you to DifAi? <span className="hint">Optional</span>
                 </label>
                 <textarea
                   id="enq-message"
@@ -944,13 +999,13 @@ export function AuthView() {
         </div>
       </div>
       <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>
-        By continuing you agree to DifAI&rsquo;s terms of service and privacy policy.
+        By continuing you agree to DifAi&rsquo;s terms of service and privacy policy.
       </p>
 
       {/* Trust strip - sits below the card, reinforces the legal-tech
           positioning without competing for attention. */}
       <div
-        className="mono"
+        className="mono auth-trust"
         style={{
           fontSize: 10,
           letterSpacing: '0.16em',

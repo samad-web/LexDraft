@@ -107,7 +107,7 @@ export function MyCasesImportExport({ cases }: { cases: CaseListItem[] }) {
   };
 
   const apiError = (err: unknown) =>
-    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not reach DifAI. Try again.';
+    (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not reach DifAi. Try again.';
 
   return (
     <>
@@ -227,7 +227,7 @@ export function MyCasesImportExport({ cases }: { cases: CaseListItem[] }) {
                 {done.existing.length > 0 ? ` ${done.existing.length} were already in your matters.` : ''}
               </p>
               <p className="body-sm muted">
-                DifAI is fetching their details from eCourts now. If eCourts is down, they are filled in at the next 9 AM / 7 PM update.
+                DifAi is fetching their details from eCourts now. If eCourts is down, they are filled in at the next 9 AM / 7 PM update.
               </p>
             </div>
           ) : null}

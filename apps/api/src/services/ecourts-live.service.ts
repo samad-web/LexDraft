@@ -26,7 +26,7 @@ declare const window: any;
 // CAPTCHA image and typing what they see. Everything else - navigating
 // state/district/court-complex, filling the search form, reading the
 // results, and the Daily Status fetch itself - is automated here so it
-// happens inside DifAI, not on a separate eCourts tab.
+// happens inside DifAi, not on a separate eCourts tab.
 //
 // SCOPE: Case Number search only for now. This is the one search mode whose
 // field ids (case_type/search_case_no/rgyear/case_captcha_code) and submit

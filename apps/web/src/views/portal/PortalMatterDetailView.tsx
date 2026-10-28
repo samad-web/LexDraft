@@ -293,10 +293,10 @@ function PipelineStepper({ pipeline }: { pipeline: CasePipeline }) {
 function PortalTimelineRow({ event }: { event: MatterTimelineEvent }) {
   const date = event.at ? event.at.slice(0, 10) : '';
   const palette: Record<MatterTimelineEvent['kind'], string> = {
-    stage: '#15803d',
-    hearing: '#2563eb',
-    document: '#b45309',
-    application: '#7c3aed',
+    stage: 'var(--text-primary)',
+    hearing: 'var(--text-primary)',
+    document: 'var(--text-primary)',
+    application: 'var(--text-primary)',
     note: '#71717a',
   };
   return (
@@ -328,8 +328,8 @@ const APP_KIND_LABEL: Record<CaseApplication['kind'], string> = {
   review: 'Review', bail: 'Bail', other: 'Application',
 };
 const APP_STATUS_COLOR: Record<CaseApplication['status'], string> = {
-  pending: '#b45309', allowed: '#15803d', dismissed: '#b3261e',
-  withdrawn: '#71717a', disposed: '#2563eb',
+  pending: 'var(--text-primary)', allowed: 'var(--text-primary)', dismissed: 'var(--text-secondary)',
+  withdrawn: '#71717a', disposed: 'var(--text-primary)',
 };
 
 function PortalApplicationRow({ app }: { app: CaseApplication }) {
@@ -368,7 +368,7 @@ function PortalApplicationRow({ app }: { app: CaseApplication }) {
 }
 
 function Pill(props: { kind: 'ok' | 'warning'; children: React.ReactNode }) {
-  const palette = props.kind === 'ok' ? { bg: '#dcfce7', fg: '#15803d' } : { bg: '#fef3c7', fg: '#92400e' };
+  const palette = props.kind === 'ok' ? { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)' } : { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)' };
   return (
     <span style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 999,

@@ -204,7 +204,7 @@ const Schema = z.object({
   // ---- indiacode-rag integration ------------------------------------------
   // Separate Postgres DB hosting the Indian-law corpus (acts/sections/chunks
   // with pgvector embeddings). NOT the same as DATABASE_URL — that's
-  // DifAI's own tenancy / matter / billing DB.
+  // DifAi's own tenancy / matter / billing DB.
   LAWS_DATABASE_URL: z.string().optional().default(''),
   LAWS_DATABASE_SSL: z.enum(['true', 'false']).default('false'),
   /** Supabase REST/Storage gateway. Only needed for signed PDF URLs. */

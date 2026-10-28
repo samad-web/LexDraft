@@ -1,5 +1,5 @@
 /* =================================================================
-   DifAI - Monochrome Legal globals.
+   DifAi - Monochrome Legal globals.
    Implements design-system.md sections 3 (typography), 6 (borders),
    7 (components), 8 (layout patterns).
    ================================================================= */
@@ -228,9 +228,9 @@ a:hover { text-decoration-color: var(--text-primary); }
 .btn-success {
   background: var(--success);
   border-color: var(--success);
-  color: #fff;
+  color: var(--bg-base);
 }
-.btn-success:hover { background: #15803d; border-color: #15803d; color: #fff; }
+.btn-success:hover { opacity: 0.88; color: var(--bg-base); }
 .btn-lg { min-height: 48px; padding: 0 var(--space-7); font-size: 15px; border-radius: var(--radius-md); }
 .btn-sm { min-height: 32px; padding: 0 var(--space-4); font-size: 13px; border-radius: var(--radius-sm); }
 .btn-block { width: 100%; }
@@ -4573,20 +4573,44 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 }
 .auth-foot-g { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); }
 .auth-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.auth-logo {
-  width: 84px; height: 84px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-  background: var(--text-primary); box-shadow: 0 10px 28px color-mix(in srgb, var(--text-primary) 22%, transparent);
-}
-.auth-logo > svg { width: 46px; height: 46px; }
+/* The brand tile itself (graphite Nib D), lifted with a soft shadow. */
+.auth-logo { display: inline-flex; border-radius: 18px; filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.28)); }
+.auth-logo > svg { width: 76px; height: 76px; }
 .auth-title { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .auth-shell .auth-brand-text, .auth-shell .auth-firm-link { display: none; }
+.auth-page { padding: clamp(20px, 4vw, 32px); gap: 24px; }
+.auth-head { display: flex; flex-direction: column; align-items: center; gap: 14px; margin-bottom: 28px; }
+/* Short desktop windows (laptops, zoomed browsers): fit sign-in and create
+   account without scrolling. The art panel already carries the DifAi brand,
+   so the big logo tile shrinks; spacing tightens; the trust strip goes. */
+@media (min-width: 861px) and (max-height: 860px) {
+  .auth-page { padding: 12px 20px; gap: 10px; }
+  /* Keep the art panel tall enough for its illustration + tabs even when the
+     form is short (the WhatsApp-code step), but never taller than the window. */
+  .auth-shell { min-height: min(560px, calc(100vh - 60px)); }
+  .auth-side-tab { padding-top: 14px; padding-bottom: 14px; }
+  .auth-art { padding: 22px 0 22px 26px; }
+  .auth-main-inner { padding-top: 18px; padding-bottom: 18px; }
+  .auth-head { gap: 8px; margin-bottom: 12px; }
+  .auth-logo > svg { width: 44px; height: 44px; }
+  .auth-logo { border-radius: 12px; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.22)); }
+  .auth-title { font-size: 25px; }
+  .auth-main-inner form { gap: 10px !important; }
+  .auth-field { padding: 6px 2px 8px; margin-top: 2px; }
+  .auth-field-error { margin-top: -4px; }
+  .auth-foot { padding-top: 10px; padding-bottom: 10px; }
+  .auth-trust { display: none; }
+}
+@media (min-width: 861px) and (max-height: 700px) {
+  .auth-logo { display: none; }
+  .auth-art-tagline { font-size: 15px; }
+}
 @media (max-width: 860px) {
   .auth-shell { grid-template-columns: 1fr; max-width: 480px; min-height: 0; }
   .auth-art { display: none; }
   .auth-shell .auth-brand-text { display: block; }
   .auth-shell .auth-firm-link { display: inline-flex; }
-  .auth-logo { width: 56px; height: 56px; }
-  .auth-logo > svg { width: 30px; height: 30px; }
+  .auth-logo > svg { width: 60px; height: 60px; }
   .auth-title { font-size: 24px; }
 }
 
@@ -4709,3 +4733,67 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
 .tbl-row-link { cursor: pointer; }
 .tbl-row-link:hover td { background: var(--bg-surface-2); }
 .tbl-row-link:focus-visible { outline: 2px solid var(--text-primary); outline-offset: -2px; }
+
+/* ---------- APP WELCOME (Android first screen, views/AppWelcomeView.tsx) ---------- */
+.welcome {
+  min-height: 100dvh; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 18vh) 24px calc(env(safe-area-inset-bottom, 0px) + 32px);
+  background: radial-gradient(ellipse 90% 60% at 50% 30%, var(--bg-surface) 0%, var(--bg-base) 70%);
+  color: var(--text-primary); text-align: center;
+}
+.welcome-brand { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.welcome-mark { display: inline-flex; border-radius: 24px; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.28)); animation: welcome-mark 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.welcome-name { margin: 6px 0 0; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -0.03em; animation: welcome-up 700ms 450ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.welcome-line { margin: 0; font-size: 15px; color: var(--text-secondary); animation: welcome-up 700ms 650ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.welcome-actions { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; animation: welcome-up 700ms 1000ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.welcome-note { margin: 4px 0 0; font-size: 12px; color: var(--text-tertiary); }
+@keyframes welcome-mark { 0% { opacity: 0; transform: scale(0.6) rotate(-24deg); } 100% { opacity: 1; transform: none; } }
+@keyframes welcome-up { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .welcome-mark, .welcome-name, .welcome-line, .welcome-actions { animation: none; } }
+
+/* ---------- ZOOM PANE (components/ZoomPane.tsx) - drafted documents ---------- */
+.zoom-pane { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.zoom-bar {
+  position: sticky; top: 8px; z-index: 3; align-self: flex-end; display: inline-flex; align-items: center; gap: 2px; padding: 3px;
+  background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-full); box-shadow: var(--shadow-popover);
+}
+.zoom-btn, .zoom-level, .zoom-fit {
+  border: 0; background: transparent; color: var(--text-primary); font: inherit; cursor: pointer; border-radius: var(--radius-full);
+  height: 30px; display: inline-flex; align-items: center; justify-content: center;
+}
+.zoom-btn { width: 30px; font-size: 18px; font-weight: 600; line-height: 1; }
+.zoom-level { min-width: 52px; padding: 0 6px; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.zoom-fit { padding: 0 12px; font-size: 12.5px; font-weight: 600; border-left: 1px solid var(--border-subtle); border-radius: 0 var(--radius-full) var(--radius-full) 0; }
+.zoom-btn:hover:not(:disabled), .zoom-level:hover, .zoom-fit:hover:not(:disabled) { background: var(--bg-surface-2); }
+.zoom-btn:disabled, .zoom-fit:disabled { opacity: 0.35; cursor: default; }
+.zoom-scroll { overflow: auto; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; max-width: 100%; }
+.zoom-spacer { position: relative; }
+.zoom-content { transform-origin: 0 0; }
+.zoom-pane--modal .zoom-scroll { max-height: 70vh; background: var(--bg-surface-2); padding: 8px; border-radius: var(--radius-md); }
+
+/* ---------- PRODUCT TOUR (components/tour/ProductTour.tsx) ---------- */
+.tour { position: fixed; inset: 0; z-index: 2000; }
+.tour-block { position: fixed; inset: 0; }
+.tour-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); animation: tour-fade 200ms ease both; }
+.tour-spot {
+  position: fixed; border-radius: 14px; pointer-events: none;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--bg-surface), 0 0 0 5px rgba(255, 255, 255, 0.35);
+  transition: top 280ms cubic-bezier(0.22, 1, 0.36, 1), left 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              width 280ms cubic-bezier(0.22, 1, 0.36, 1), height 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tour-card {
+  position: fixed; z-index: 1; padding: 18px 18px 14px; border-radius: 16px;
+  background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-default);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); animation: tour-pop 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tour-mark { display: inline-flex; margin-bottom: 10px; }
+.tour-count { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+.tour-title { margin: 6px 0 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.tour-body { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+.tour-dots { display: flex; gap: 5px; margin: 14px 0 12px; }
+.tour-dots span { width: 6px; height: 6px; border-radius: 3px; background: var(--border-default); transition: width 200ms ease, background 200ms ease; }
+.tour-dots span.on { width: 18px; background: var(--text-primary); }
+.tour-actions { display: flex; align-items: center; gap: 8px; }
+@keyframes tour-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tour-pop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tour-card, .tour-dim { animation: none; } .tour-spot { transition: none; } }

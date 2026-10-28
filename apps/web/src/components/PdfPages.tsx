@@ -22,9 +22,10 @@ interface Props {
   'aria-label'?: string;
 }
 
-/** Pages are rendered once, sized to the container's width and the screen's
- *  pixel density so text stays sharp on phones. Drafts are a few pages, so all
- *  of them are drawn up front and the container scrolls. */
+/** Pages are rendered once, sized to the container's width at up to 3x the
+ *  screen's pixel density, so text stays sharp on phones and when the pages
+ *  are zoomed in (ZoomPane). Drafts are a few pages, so all of them are drawn
+ *  up front and the container scrolls. */
 export function PdfPages({ url, className, pageClassName, fallback, 'aria-label': ariaLabel }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +40,8 @@ export function PdfPages({ url, className, pageClassName, fallback, 'aria-label'
     (async () => {
       try {
         const pdf = await getDocument({ url }).promise;
-        const dpr = window.devicePixelRatio || 1;
+        // Extra resolution for zooming in, capped so long PDFs stay light on phones.
+        const dpr = Math.min(3, (window.devicePixelRatio || 1) * 2);
         for (let n = 1; n <= pdf.numPages; n += 1) {
           if (cancelled) return;
           const page = await pdf.getPage(n);

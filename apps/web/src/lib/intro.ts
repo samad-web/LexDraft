@@ -7,6 +7,8 @@ export type PracticeSize = 'solo' | 'team' | 'firm';
 export interface IntroAnswers {
   size?: PracticeSize;
   name?: string;
+  /** Picked on the sign-in page's left tabs; pre-selects onboarding. */
+  kind?: 'advocate' | 'student';
   /** Closed without answering: don't ask again. */
   dismissed?: boolean;
 }

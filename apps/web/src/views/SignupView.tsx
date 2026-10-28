@@ -5,6 +5,7 @@ import { useGoogleSignUp, useDemoRequest } from '@/hooks/useAuth';
 import { useUIStore } from '@/store/ui';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
 
 /**
  * SignupView — the new landing-funnel destination at `/signup?intent=…`.
@@ -59,7 +60,7 @@ export function SignupView(): JSX.Element {
             fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em',
           }}
         >
-          DifAI
+          DifAi
         </button>
         <button
           type="button"
@@ -100,7 +101,7 @@ function DemoChoiceScreen(): JSX.Element {
   if (choice === 'interactive') return <InteractiveDemoSignup onBack={() => setChoice(null)} />;
   return (
     <div>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>See DifAI</div>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>See DifAi</div>
       <h1 className="heading-xl" style={{ marginBottom: 8 }}>How would you like the demo?</h1>
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
         Three ways: pick the one that suits your week.
@@ -168,7 +169,12 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [firmName, setFirmName] = useState('');
+  // Optional phone: 10 national digits behind a fixed +91.
   const [phone, setPhone] = useState('');
+  const [phoneForeign, setPhoneForeign] = useState(false);
+  const phoneProblem = phoneForeign
+    ? FOREIGN_NUMBER_MESSAGE
+    : phone && !isIndianMobile(phone) ? 'Enter a 10-digit Indian mobile number, or leave it blank' : null;
   const [preferredTime, setPreferredTime] = useState('');
   const [message, setMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -202,14 +208,14 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || phoneProblem) return;
     setIsSubmitting(true);
     try {
       await demo.mutateAsync({
         name: name.trim(),
         email: email.trim(),
         firmName: firmName.trim() || undefined,
-        phone: phone.trim() || undefined,
+        phone: phone ? toE164India(phone) : undefined,
         preferredTime: preferredTime.trim() || undefined,
         message: message.trim() || undefined,
         demoType: props.demoType,
@@ -254,7 +260,24 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
           <input className="input" value={firmName} onChange={(e) => setFirmName(e.target.value)} autoComplete="organization" />
         </Labelled>
         <Labelled label="Phone (optional)">
-          <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="tel" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="mono" aria-hidden="true">+91</span>
+            <input
+              className="input"
+              type="tel"
+              inputMode="numeric"
+              placeholder="98765 43210"
+              value={phone}
+              onChange={(e) => {
+                const r = readIndianMobile(e.target.value);
+                setPhone(r.digits);
+                setPhoneForeign(r.foreign);
+              }}
+              autoComplete="tel"
+              aria-invalid={!!phoneProblem}
+            />
+          </div>
+          {phoneProblem && <span role="alert" className="auth-field-error" style={{ marginTop: 6 }}>{phoneProblem}</span>}
         </Labelled>
         {props.demoType === 'schedule' && (
           <Labelled label="Preferred time window">
@@ -280,7 +303,7 @@ function DemoContactForm(props: { demoType: 'contact' | 'schedule'; onBack: () =
   );
 }
 
-/** The Google account already has a DifAI account: useGoogleSignIn has
+/** The Google account already has a DifAi account: useGoogleSignIn has
  *  set the session, so go straight in. MFA-enrolled users finish on /auth. */
 function useExistingAccountHandler(): (resp: SignInResult) => void {
   const navigate = useNavigate();
@@ -380,10 +403,10 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const isTrial = props.intent === 'trial';
   const eyebrow = isTrial ? 'Free for advocates & students · 14-day trial for firms' : 'Create account';
   const headline = isTrial
-    ? 'Start using DifAI'
-    : 'Create your DifAI account';
+    ? 'Start using DifAi'
+    : 'Create your DifAi account';
   const subline = isTrial
-    ? 'Solo advocates and law students use DifAI free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
+    ? 'Solo advocates and law students use DifAi free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
     : 'Set up your account; billing kicks in on the next page.';
   const ctaLabel = isTrial ? 'Begin trial' : 'Create account';
 

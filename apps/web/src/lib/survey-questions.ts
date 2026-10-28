@@ -1,5 +1,5 @@
 // =============================================================================
-// DifAI practitioner study - single source of truth for the /survey page.
+// DifAi practitioner study - single source of truth for the /survey page.
 // Mirrors lexdraft-survey.md (which strictly subsumes Legal_AI_Survey.md -
 // every Legal_AI_Survey question maps to an equivalent or richer lexdraft
 // question, so the merged form has no duplicates).

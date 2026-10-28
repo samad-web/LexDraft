@@ -10,7 +10,7 @@ import { prepareLandRecords, useAddLandApplication, type LandService } from '@/h
 
 // =============================================================================
 // LandRecordsView - Tamil Nadu Land Records eServices (eservices.tn.gov.in)
-// inside DifAI. Home lists the site's services in its own order and
+// inside DifAi. Home lists the site's services in its own order and
 // wording; each opens the site's page for it, driven live (see
 // components/land-records). "My Applications" follows patta transfer /
 // F-Line applications (status checked on demand, one captcha).

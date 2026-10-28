@@ -776,7 +776,7 @@ draftingRouter.get('/engine/status', requireFeature('drafting.ai'), async (req, 
 
 // The FORMS LIBRARY (Draft page "Formats"): the LAWE forms, each mapped to the
 // Draft-page label that drafts it here (+ the variant preset) and a link to the
-// original on lawe.co.in. DifAI never re-hosts LAWE's own files. Cached
+// original on lawe.co.in. DifAi never re-hosts LAWE's own files. Cached
 // briefly — it only changes on an engine deploy.
 let laweCache: { at: number; value: unknown[] } | null = null;
 draftingRouter.get('/engine/library', requireFeature('drafting.ai'), async (_req, res, next) => {

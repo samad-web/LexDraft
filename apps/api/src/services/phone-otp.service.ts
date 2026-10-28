@@ -25,8 +25,12 @@ export function normalizePhone(raw: string): string {
   if (/^[6-9]\d{9}$/.test(compact)) e164 = `+91${compact}`;
   else if (/^0[6-9]\d{9}$/.test(compact)) e164 = `+91${compact.slice(1)}`;
   else if (/^91[6-9]\d{9}$/.test(compact)) e164 = `+${compact}`;
-  if (!/^\+[1-9]\d{7,14}$/.test(e164)) {
-    throw new BadRequestError('Enter a valid WhatsApp number, e.g. +91 98765 43210.');
+  // DifAi accepts Indian mobile numbers only (+91, 10 digits starting 6-9).
+  if (/^\+(?!91)/.test(e164)) {
+    throw new BadRequestError('Only Indian (+91) mobile numbers are supported. Enter your 10-digit WhatsApp number.');
+  }
+  if (!/^\+91[6-9]\d{9}$/.test(e164)) {
+    throw new BadRequestError('Enter a valid 10-digit Indian WhatsApp number, e.g. +91 98765 43210.');
   }
   return e164;
 }

@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "in.sirahdigital.lexdraft"
+    namespace = "in.sirahdigital.difai"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "in.sirahdigital.lexdraft"
+        applicationId "in.sirahdigital.difai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 6

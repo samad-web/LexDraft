@@ -1,5 +1,5 @@
 /* =================================================================
-   DifAI - Monochrome Legal design tokens.
+   DifAi - Monochrome Legal design tokens.
    Source of truth: /design-system.md (sections 2-6).
    The system is locked to light - black text on near-white surfaces.
    ================================================================= */
@@ -28,15 +28,17 @@
   --border-strong:  #A3A3A3;
   --border-focus:   #0A0A0A;
 
-  /* Status */
-  --success:    #16A34A;
-  --success-bg: #ECFDF3;
-  --warning:    #CA8A04;
-  --warning-bg: #FEF9C3;
+  /* Status. Strictly black & white: success / warning / info are ink on a
+     grey wash (no green, yellow or blue anywhere). Red is the ONE colour,
+     kept for mandatory issues only (the alert buttons). */
+  --success:    #0A0A0A;
+  --success-bg: #F4F4F4;
+  --warning:    #0A0A0A;
+  --warning-bg: #F4F4F4;
   --danger:     #DC2626;
   --danger-bg:  #FEE2E2;
-  --info:       #2563EB;
-  --info-bg:    #DBEAFE;
+  --info:       #0A0A0A;
+  --info-bg:    #F4F4F4;
 
   /* Radii */
   --radius-sm:   6px;
@@ -83,6 +85,8 @@
   --text-strong:   var(--text-primary);
   --muted:         var(--text-secondary);
   --action:        var(--text-primary);
+  --accent:        var(--text-primary);
+  --accent-soft:   var(--bg-surface-2);
   --action-ink:    var(--bg-base);
   --gold:          var(--border-default);
   --cobalt:        var(--info);
@@ -125,11 +129,14 @@
   --border-strong:  #525252;
   --border-focus:   #FAFAFA;
 
-  /* Status - muted bg variants for dark surfaces */
-  --success-bg: rgba(22,163,74,0.16);
-  --warning-bg: rgba(202,138,4,0.18);
+  /* Status - ink on a grey wash (red stays for mandatory issues) */
+  --success:    #FAFAFA;
+  --success-bg: #1C1C1C;
+  --warning:    #FAFAFA;
+  --warning-bg: #1C1C1C;
   --danger-bg:  rgba(220,38,38,0.18);
-  --info-bg:    rgba(37,99,235,0.18);
+  --info:       #FAFAFA;
+  --info-bg:    #1C1C1C;
 
   /* Shadows - softer, since surfaces are already dark */
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.40);

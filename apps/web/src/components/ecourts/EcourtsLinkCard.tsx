@@ -31,12 +31,12 @@ const STATUS_COPY: Record<LinkStatus, StatusCopy> = {
   pending: {
     badge: 'badge-amber',
     label: 'Waiting for eCourts',
-    text: 'The CNR is saved. eCourts has not answered yet, usually because its server is down. DifAI keeps retrying automatically, and you will get a notification once it connects.',
+    text: 'The CNR is saved. eCourts has not answered yet, usually because its server is down. DifAi keeps retrying automatically, and you will get a notification once it connects.',
   },
   not_found: {
     badge: 'badge-vermillion',
     label: 'CNR not found',
-    text: 'eCourts answered but has no case with this CNR on the District or High Court system. Check the CNR below. A newly registered case can take a day or two to appear; DifAI keeps checking at each scheduled update.',
+    text: 'eCourts answered but has no case with this CNR on the District or High Court system. Check the CNR below. A newly registered case can take a day or two to appear; DifAi keeps checking at each scheduled update.',
   },
   error: {
     badge: 'badge-vermillion',

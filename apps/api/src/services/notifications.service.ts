@@ -1,5 +1,5 @@
 /**
- * Transactional email notifications for the DifAI client portal.
+ * Transactional email notifications for the DifAi client portal.
  *
  * Wraps `jobs.enqueue('email.send', …)` with the templates and routing
  * rules from CLIENT_PORTAL.md §6.4. Each event has a single dispatch
@@ -491,7 +491,7 @@ export const notify = {
           `What changed:`,
           ...summary.changes.map((c) => `  • ${c}`),
           ``,
-          `Open the matter in DifAI for the full updated record.`,
+          `Open the matter in DifAi for the full updated record.`,
         ].join('\n'),
       });
     }
@@ -602,7 +602,7 @@ export const notify = {
         tone: 'amber',
         icon: 'ecourts',
         title: `CNR not found on eCourts: ${info.matterTitle}`,
-        body: `eCourts has no record for ${info.cnr}. Check the CNR on the matter. A newly registered case can take a day or two to appear, and DifAI will keep checking at each scheduled update.`,
+        body: `eCourts has no record for ${info.cnr}. Check the CNR on the matter. A newly registered case can take a day or two to appear, and DifAi will keep checking at each scheduled update.`,
         view: 'cases',
         dedupeKey: `ecourts-link:${info.caseId}`,
       });
@@ -622,7 +622,7 @@ export const notify = {
         tone: 'sage',
         icon: 'ecourts',
         title: `Registered by the court: ${info.matterTitle}`,
-        body: `Your e-filed case is on eCourts as CNR ${info.cnr}. DifAI has connected the matter; hearings and orders will now refresh at 9 AM and 7 PM daily.`,
+        body: `Your e-filed case is on eCourts as CNR ${info.cnr}. DifAi has connected the matter; hearings and orders will now refresh at 9 AM and 7 PM daily.`,
         view: `efiling?filing=${info.filingId}`,
         dedupeKey: `efiling-filing:${info.filingId}`,
       });
@@ -642,7 +642,7 @@ export const notify = {
         tone: 'amber',
         icon: 'ecourts',
         title: `Confirm the eCourts case for: ${info.matterTitle}`,
-        body: `${info.count} registered cases on eCourts match this e-filing. Open eFiling and pick the right one. DifAI won't guess.`,
+        body: `${info.count} registered cases on eCourts match this e-filing. Open eFiling and pick the right one. DifAi won't guess.`,
         view: `efiling?filing=${info.filingId}`,
         dedupeKey: `efiling-filing:${info.filingId}`,
       });
@@ -778,7 +778,7 @@ export const notify = {
         `${summary.assignerName} assigned you to review the contract:`,
         `  ${summary.reviewTitle}`,
         ``,
-        `Open the Review tab in DifAI to read the AI findings, leave comments, and approve or request changes.`,
+        `Open the Review tab in DifAi to read the AI findings, leave comments, and approve or request changes.`,
       ].join('\n'),
     });
   },
@@ -841,7 +841,7 @@ export const notify = {
           ``,
           `  "${summary.preview}"`,
           ``,
-          `Open the review in DifAI to read the full thread and respond.`,
+          `Open the review in DifAi to read the full thread and respond.`,
         ].join('\n'),
       });
     }

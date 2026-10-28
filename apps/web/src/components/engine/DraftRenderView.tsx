@@ -12,6 +12,7 @@
 
 import { useDraftRender } from '@/hooks/useEngineDraft';
 import { PdfPages } from '@/components/PdfPages';
+import { ZoomPane } from '@/components/ZoomPane';
 
 interface Props {
   renderId: string | null;
@@ -68,13 +69,15 @@ export function DraftRenderView({ renderId, initialStatus }: Props) {
         ) : null}
       </div>
       {data?.pdfUrl ? (
-        <PdfPages
-          url={data.pdfUrl}
-          className="engine-panel__pdf"
-          pageClassName="engine-panel__pdf-page"
-          aria-label="Filing copy preview"
-          fallback={<p className="engine-panel__render-note">Preview unavailable. Use “Open PDF”.</p>}
-        />
+        <ZoomPane label="Filing copy">
+          <PdfPages
+            url={data.pdfUrl}
+            className="engine-panel__pdf"
+            pageClassName="engine-panel__pdf-page"
+            aria-label="Filing copy preview"
+            fallback={<p className="engine-panel__render-note">Preview unavailable. Use “Open PDF”.</p>}
+          />
+        </ZoomPane>
       ) : null}
     </div>
   );

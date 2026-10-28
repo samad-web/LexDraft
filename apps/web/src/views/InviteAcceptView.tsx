@@ -19,10 +19,10 @@ export function InviteAcceptView() {
   const [name, setName] = useState('');
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
 
-  // The Google account already has a DifAI account - the invite is for
+  // The Google account already has a DifAi account - the invite is for
   // new members, so just sign them in.
   const handleExisting = (resp: SignInResult) => {
-    showToast({ type: 'cobalt', text: 'You already have a DifAI account - signed you in.' });
+    showToast({ type: 'cobalt', text: 'You already have a DifAi account - signed you in.' });
     navigate(isMfaChallenge(resp) ? '/auth' : '/app/dashboard', { replace: true });
   };
 
@@ -81,7 +81,7 @@ export function InviteAcceptView() {
             }}
           />
           <div>
-            <div className="eyebrow">DifAI</div>
+            <div className="eyebrow">DifAi</div>
             <div className="heading-md" style={{ marginTop: 2 }}>You’ve been invited</div>
           </div>
         </div>
@@ -199,7 +199,7 @@ export function InviteAcceptView() {
             )}
 
             <div className="body-sm muted" style={{ textAlign: 'center', marginTop: 4 }}>
-              By accepting you agree to DifAI’s terms of service and privacy policy.
+              By accepting you agree to DifAi’s terms of service and privacy policy.
             </div>
           </>
         )}

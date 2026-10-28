@@ -47,7 +47,7 @@ export function SurveyThanksView() {
             }}
           />
           <div>
-            <div className="eyebrow">DifAI practitioner study</div>
+            <div className="eyebrow">DifAi practitioner study</div>
             <div className="heading-md" style={{ marginTop: 2 }}>Thank you for your time</div>
           </div>
         </div>
@@ -87,7 +87,7 @@ export function SurveyThanksView() {
             onClick={() => navigate('/', { replace: true })}
             style={{ flex: 1, minWidth: 200 }}
           >
-            Back to DifAI
+            Back to DifAi
           </button>
         </div>
       </div>

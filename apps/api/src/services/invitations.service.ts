@@ -193,13 +193,13 @@ async function sendInvitationEmail(inv: Invitation, replyTo?: string | null): Pr
     await jobs.enqueue('email.send', {
       to: inv.email,
       // Reads as coming from the inviter; replies reach their sign-in email.
-      fromName: `${inv.invitedBy.name} (via DifAI)`,
+      fromName: `${inv.invitedBy.name} (via DifAi)`,
       ...(replyTo ? { replyTo } : {}),
-      subject: `${inv.invitedBy.name} invited you to join ${inv.firm} on DifAI`,
+      subject: `${inv.invitedBy.name} invited you to join ${inv.firm} on DifAi`,
       body: [
         `Hello,`,
         ``,
-        `${inv.invitedBy.name} has invited you to join ${inv.firm} on DifAI as ${inv.role}.`,
+        `${inv.invitedBy.name} has invited you to join ${inv.firm} on DifAi as ${inv.role}.`,
         ...(inv.message ? [``, `"${inv.message}"`] : []),
         ``,
         `Accept the invitation and set your password here:`,

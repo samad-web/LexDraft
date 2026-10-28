@@ -100,7 +100,7 @@ export async function assembleBundle(
 ): Promise<{ bytes: Uint8Array; pages: number; index: BundleIndexEntry[] }> {
   const out = await PDFDocument.create();
   out.setTitle(title);
-  out.setProducer('DifAI');
+  out.setProducer('DifAi');
   const font = await out.embedFont(StandardFonts.Helvetica);
   const bold = await out.embedFont(StandardFonts.HelveticaBold);
 

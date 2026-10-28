@@ -91,7 +91,7 @@ export function useGoogleSignIn() {
   const setSession = useAuthStore((s) => s.setSession);
   const setForceMfaEnrollment = useUIStore((s) => s.setForceMfaEnrollment);
   const qc = useQueryClient();
-  return useMutation<GoogleSignInResult, Error, { credential: string }>({
+  return useMutation<GoogleSignInResult, Error, { credential: string; intent?: 'signin' | 'signup' }>({
     mutationFn: (body) => api.post<GoogleSignInResult>('/auth/google', body),
     onSuccess: (r) => {
       if (isGoogleSignupRequired(r) || isMfaChallenge(r)) return;

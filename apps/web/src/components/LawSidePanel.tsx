@@ -152,13 +152,13 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
         </p>
       )}
 
-      {q.data && q.data.results.length === 0 && debounced && !q.isLoading && (
+      {q.data && (q.data.results?.length ?? 0) === 0 && debounced && !q.isLoading && (
         <p className="body-xs muted" style={{ padding: '8px 4px' }}>
           No matches for the current context. Try a manual query above.
         </p>
       )}
 
-      {q.data && q.data.results.length > 0 && (
+      {q.data && (q.data.results?.length ?? 0) > 0 && (
         <div className="col" style={{ gap: 8 }}>
           {q.data.results.map((hit) => (
             <article

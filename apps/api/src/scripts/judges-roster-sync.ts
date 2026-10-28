@@ -21,7 +21,7 @@ async function main() {
     // Parse-only path: re-fetch and parse without touching the DB.
     const res = await fetch(
       'https://en.wikipedia.org/w/api.php?action=parse&page=List_of_sitting_judges_of_the_high_courts_of_India&prop=text&format=json',
-      { headers: { 'User-Agent': 'DifAI/1.0 judges-roster dry-run' } },
+      { headers: { 'User-Agent': 'DifAi/1.0 judges-roster dry-run' } },
     );
     const json = (await res.json()) as { parse: { text: { '*': string } } };
     const judges = parseRoster(json.parse.text['*']);

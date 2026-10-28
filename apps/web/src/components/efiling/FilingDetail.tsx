@@ -93,7 +93,7 @@ export function StageTracker({ f }: { f: FilingDetailDto }) {
   };
   const at = order[f.status] ?? 0;
   const labels = isIa
-    ? [['Prepare', 'In DifAI'], ['Added on portal', 'Application + fee'], ['Authenticated', 'Advocate + litigant OTP'], ['Scrutiny', f.status === 'objected' ? 'Objections to cure' : 'With the court'], ['Numbered', 'IA registered']]
+    ? [['Prepare', 'In DifAi'], ['Added on portal', 'Application + fee'], ['Authenticated', 'Advocate + litigant OTP'], ['Scrutiny', f.status === 'objected' ? 'Objections to cure' : 'With the court'], ['Numbered', 'IA registered']]
     : [['Prepare', 'Particulars + bundle'], ['On the portal', f.efilingNo ? `eFiling ${f.efilingNo}` : 'eFile Case'], ['Final submit', 'GRN selected'], ['Scrutiny', f.status === 'objected' ? 'Objections to cure' : f.status === 'rejected' ? 'Rejected' : 'With the registry'], ['Registered', f.cnr ? `CNR ${f.cnr}` : 'Case number + CNR']];
   labels.forEach(([label, sub], i) => stages.push({ label: label!, sub: sub!, reached: at >= i, current: at === i }));
 
@@ -253,7 +253,7 @@ function Header({ f, onClose }: { f: FilingDetailDto; onClose: () => void }) {
           <p className="body-sm muted">
             {isIa
               ? 'Once both the advocate and the litigant have authenticated by OTP, the portal submits the IA to the court.'
-              : 'Dashboard > Draft Pleadings on the portal: select the GRN against the documents and press Submit. DifAI checks the steps below are done first.'}
+              : 'Dashboard > Draft Pleadings on the portal: select the GRN against the documents and press Submit. DifAi checks the steps below are done first.'}
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <label className="col" style={{ gap: 4 }}>
@@ -325,7 +325,7 @@ export function TrackingCard({ f }: { f: FilingDetailDto }) {
       }
     >
       <p className="body-sm muted">
-        DifAI looks for this case on eCourts every day at 9 AM and 7 PM, and links the matter as soon as the court registers it.
+        DifAi looks for this case on eCourts every day at 9 AM and 7 PM, and links the matter as soon as the court registers it.
         If eCourts is down, it retries every 30 minutes.
       </p>
       <div className="col" style={{ gap: 2 }}>
@@ -463,7 +463,7 @@ export function DocumentsCard({ f, editable }: { f: FilingDetailDto; editable: b
       ) : null}
     >
       <p className="body-sm muted">
-        In filing order. DifAI merges them into one PDF behind an index page, with page numbers and a bookmark per document,
+        In filing order. DifAi merges them into one PDF behind an index page, with page numbers and a bookmark per document,
         ready for the portal's Pleading Upload. Use the index page ranges in the portal's Indexing tab.
       </p>
       {list.length === 0 ? <p className="body-sm muted">No documents yet.</p> : null}

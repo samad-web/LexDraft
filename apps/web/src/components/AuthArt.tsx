@@ -32,7 +32,8 @@ export function AuthArt() {
       <rect width="440" height="600" fill="url(#auth-dots)" className="aa-texture" />
 
       {/* Courthouse in the distance (top right). */}
-      <g className="aa-faint" transform="translate(214 74)">
+      {/* Raised and scaled so its base clears the three side tabs. */}
+      <g className="aa-faint" transform="translate(226 50) scale(0.86)">
         <path d="M0 62 L102 10 L204 62 Z" />
         <path d="M14 62 H190" />
         <circle cx="102" cy="42" r="8" />

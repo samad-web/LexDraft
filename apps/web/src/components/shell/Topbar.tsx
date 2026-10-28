@@ -107,6 +107,7 @@ export function Topbar() {
 
       <button
         className="btn btn-ghost topbar-search"
+        data-tour="search"
         onClick={() => toggleCmdK(true)}
         aria-label="Open search and command palette"
       >
@@ -117,6 +118,7 @@ export function Topbar() {
 
       <button
         className="btn btn-ghost topbar-search-mobile"
+        data-tour="search"
         onClick={() => toggleCmdK(true)}
         aria-label="Search"
       >

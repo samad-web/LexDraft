@@ -16,7 +16,7 @@ import type {
 // matter in tables the eCourts sync never touches (migration 0086): eCourts
 // rows describe the case as REGISTERED, these describe it as FILED.
 //
-// prefill() seeds an empty particulars set from what DifAI already knows:
+// prefill() seeds an empty particulars set from what DifAi already knows:
 // the court codes and tier on the case row, the eCourts parties and acts.
 // It never overwrites anything the advocate has entered.
 // =============================================================================

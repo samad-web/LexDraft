@@ -24,7 +24,7 @@ import { efilingParticularsService } from './efiling-particulars.service';
 //
 // One row per submission to the eFiling portal. The portal itself is driven
 // by the advocate (Aadhaar eSign, oath video, ePay and final submit cannot be
-// automated - see docs/efiling-selector-capture-todo.md §4), so DifAI's job
+// automated - see docs/efiling-selector-capture-todo.md §4), so DifAi's job
 // is to (a) get the data and bundle ready, (b) record what happened on the
 // portal - eFiling number, GRNs, objections - and (c) connect the case to
 // eCourts once the court registers it (efiling-tracker.service.ts).

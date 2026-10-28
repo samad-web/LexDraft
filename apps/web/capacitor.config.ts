@@ -5,8 +5,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // by absolute URL; the WebView itself serves the assets from https://localhost,
 // which therefore has to be in the API's CORS_ORIGINS.
 const config: CapacitorConfig = {
-  appId: 'in.sirahdigital.lexdraft',
-  appName: 'DifAI',
+  appId: 'in.sirahdigital.difai',
+  appName: 'DifAi',
   webDir: 'dist',
   backgroundColor: '#ffffff',
   plugins: {
