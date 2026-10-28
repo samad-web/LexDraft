@@ -18,7 +18,7 @@ import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
-import { LogoMark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, PlanCards, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
@@ -342,8 +342,7 @@ export function AuthView() {
         <aside className="auth-art">
           <AuthArt />
           <div className="auth-art-brand">
-            <LogoMark size={32} />
-            DifAi
+            <Wordmark height={26} />
           </div>
           {/* Hidden once someone is mid-way (WhatsApp code, Google sign-up,
               two-step code): switching audience there would throw the step away. */}
@@ -370,18 +369,7 @@ export function AuthView() {
         <div className="auth-main-inner">
         {/* Brand */}
         <div className="auth-head">
-          <span aria-hidden className="auth-logo"><LogoMark size={76} /></span>
-          <div
-            className="auth-brand-text"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 24,
-              fontWeight: 600,
-              letterSpacing: '-0.018em',
-            }}
-          >
-            DifAi
-          </div>
+          <span className="auth-logo"><Wordmark height={44} /></span>
           <div
             className="mono auth-brand-text"
             style={{

@@ -57,7 +57,7 @@ export function Sidebar() {
       <aside className={`sidebar${sidebarOpen ? ' is-open' : ''}`}>
         <div className="wordmark">
           <LogoMark size={26} className="wordmark-mark" />
-          <Wordmark className="wordmark-full" />
+          <Wordmark className="wordmark-full" height={22} />
           <button
             type="button"
             className="btn btn-ghost sidebar-close"

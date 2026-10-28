@@ -1,16 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- DifAI "Seal D": a notary-style rosette seal with a bold D, from
-     components/brand/Logo.tsx (48-unit grid), scaled into the 66dp
-     adaptive-icon safe zone of a 108dp canvas. White on the graphite
-     background (ic_launcher_background). -->
+<!-- DifAi wordmark (traced from the brand artwork; see components/brand/Logo.tsx). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <group android:translateX="12.00" android:translateY="12.00" android:scaleX="1.75" android:scaleY="1.75">
-        <path android:fillColor="#FFFFFF" android:pathData="M24.00 6.40L25.75 8.50L27.92 6.84L29.15 9.28L31.64 8.14L32.30 10.79L34.97 10.24L35.03 12.97L37.76 13.03L37.21 15.70L39.86 16.36L38.72 18.85L41.16 20.08L39.50 22.25L41.60 24.00L39.50 25.75L41.16 27.92L38.72 29.15L39.86 31.64L37.21 32.30L37.76 34.97L35.03 35.03L34.97 37.76L32.30 37.21L31.64 39.86L29.15 38.72L27.92 41.16L25.75 39.50L24.00 41.60L22.25 39.50L20.08 41.16L18.85 38.72L16.36 39.86L15.70 37.21L13.03 37.76L12.97 35.03L10.24 34.97L10.79 32.30L8.14 31.64L9.28 29.15L6.84 27.92L8.50 25.75L6.40 24.00L8.50 22.25L6.84 20.08L9.28 18.85L8.14 16.36L10.79 15.70L10.24 13.03L12.97 12.97L13.03 10.24L15.70 10.79L16.36 8.14L18.85 9.28L20.08 6.84L22.25 8.50Z" />
-        <path android:strokeColor="#141417" android:strokeWidth="1" android:pathData="M36.60 24a12.6 12.6 0 1 1 -25.20 0a12.6 12.6 0 1 1 25.20 0z" />
-        <path android:fillColor="#141417" android:fillType="evenOdd" android:pathData="M18.46 17.52H23.06C27.02 17.52 29.54 20.33 29.54 24.00C29.54 27.67 27.02 30.48 23.06 30.48H18.46ZM21.05 20.11V27.89H22.92C25.44 27.89 26.88 26.38 26.88 24.00C26.88 21.62 25.44 20.11 22.92 20.11Z" />
+    <group android:translateX="24.000" android:translateY="43.314" android:scaleX="0.07916" android:scaleY="0.07916">
+        <path android:fillColor="#FF0A0A0A" android:fillType="evenOdd" android:pathData="M0 4H129C208.5 4 261.5 56.4 261.5 135C261.5 213.6 208.5 266 129 266H0ZM88 72V196H122C151.3 196 172.5 170 172.5 134C172.5 98 151.3 72 122 72Z" />
+        <path android:fillColor="#FF0A0A0A" android:pathData="M291 77H329.5V266H291ZM334.5 23.5A24.5 24.5 0 1 1 285.5 23.5A24.5 24.5 0 1 1 334.5 23.5ZM385.5 266V110H352V78H385.5V71C385.5 26 412 0 452 0C465 0 477 2 488.5 5L479 37C470 33.5 462 32 453 32C433 32 423.5 43 423.5 66V78H473.5V110H423.5V266ZM720 77H757.5V266H720ZM763.0 23.5A24.5 24.5 0 1 1 714.0 23.5A24.5 24.5 0 1 1 763.0 23.5Z" />
+        <path android:fillColor="#FF0A0A0A" android:fillType="evenOdd" android:pathData="M560 4H600L697.5 266H656L633.5 201.5H525.5L503 266H463Z M579.5 48L536.5 170H622.5Z" />
     </group>
 </vector>

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlan, BillingPlanId, OnboardingCompleteRequest } from '@lexdraft/types';
-import { LogoMark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { SIGNUP_PLANS } from '@/components/PlanCards';
 import { useCompleteOnboarding } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
@@ -282,8 +282,7 @@ export function OnboardingView() {
       <style>{PAGE_CSS}</style>
       <aside className="onb-side">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <LogoMark size={40} ink="var(--bg-base)" paper="var(--text-primary)" />
-          <span style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 600 }}>DifAi</span>
+          <Wordmark height={30} />
         </div>
         <div className="onb-side-extra" style={{ marginTop: 28 }}>
           <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, margin: 0, lineHeight: 1.15 }}>Set up your practice</h2>

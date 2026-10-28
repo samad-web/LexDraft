@@ -655,6 +655,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   /* Tablet rail: center icons in the 64px column. Without this the
      nav-item's asymmetric paddings push the icon flush-left. */
   .sidebar .wordmark { padding: 18px 0; justify-content: center; gap: 0; }
+  .sidebar .wordmark-mark { display: block; }
+  .sidebar.is-open .wordmark-mark { display: none; }
   .sidebar .nav-item { margin: 2px 8px; padding: 8px 0; justify-content: center; gap: 0; }
   .sidebar .nav-highlighter { left: 8px; right: 8px; }
   /* Tab/plan badge wrapper inside the sidebar (the inline-styled <div>s
@@ -789,7 +791,8 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
   color: var(--text-primary);
   letter-spacing: -0.015em;
 }
-.wordmark-mark { flex-shrink: 0; }
+/* Full DifAi logo in the sidebar; the D alone only on the tablet icon rail. */
+.wordmark-mark { flex-shrink: 0; display: none; }
 .nav-section { padding: var(--space-3) 0; }
 .nav-group-title {
   font-family: var(--font-sans);
@@ -4573,9 +4576,9 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 }
 .auth-foot-g { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-primary); }
 .auth-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-/* The brand tile itself (graphite Nib D), lifted with a soft shadow. */
-.auth-logo { display: inline-flex; border-radius: 18px; filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.28)); }
-.auth-logo > svg { width: 76px; height: 76px; }
+/* The DifAi wordmark, flat ink. */
+.auth-logo { display: inline-flex; color: var(--text-primary); }
+.auth-logo > svg { height: 44px !important; }
 .auth-title { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .auth-shell .auth-brand-text, .auth-shell .auth-firm-link { display: none; }
 .auth-page { padding: clamp(20px, 4vw, 32px); gap: 24px; }
@@ -4592,8 +4595,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { padding: 22px 0 22px 26px; }
   .auth-main-inner { padding-top: 18px; padding-bottom: 18px; }
   .auth-head { gap: 8px; margin-bottom: 12px; }
-  .auth-logo > svg { width: 44px; height: 44px; }
-  .auth-logo { border-radius: 12px; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.22)); }
+  .auth-logo > svg { height: 30px !important; }
   .auth-title { font-size: 25px; }
   .auth-main-inner form { gap: 10px !important; }
   .auth-field { padding: 6px 2px 8px; margin-top: 2px; }
@@ -4610,7 +4612,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { display: none; }
   .auth-shell .auth-brand-text { display: block; }
   .auth-shell .auth-firm-link { display: inline-flex; }
-  .auth-logo > svg { width: 60px; height: 60px; }
+  .auth-logo > svg { height: 36px !important; }
   .auth-title { font-size: 24px; }
 }
 
@@ -4742,14 +4744,13 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   color: var(--text-primary); text-align: center;
 }
 .welcome-brand { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.welcome-mark { display: inline-flex; border-radius: 24px; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.28)); animation: welcome-mark 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-.welcome-name { margin: 6px 0 0; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -0.03em; animation: welcome-up 700ms 450ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.welcome-name { margin: 0 0 6px; display: flex; justify-content: center; animation: welcome-mark 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .welcome-line { margin: 0; font-size: 15px; color: var(--text-secondary); animation: welcome-up 700ms 650ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .welcome-actions { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; animation: welcome-up 700ms 1000ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 .welcome-note { margin: 4px 0 0; font-size: 12px; color: var(--text-tertiary); }
-@keyframes welcome-mark { 0% { opacity: 0; transform: scale(0.6) rotate(-24deg); } 100% { opacity: 1; transform: none; } }
+@keyframes welcome-mark { 0% { opacity: 0; transform: scale(0.85); } 100% { opacity: 1; transform: none; } }
 @keyframes welcome-up { 0% { opacity: 0; transform: translateY(18px); } 100% { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .welcome-mark, .welcome-name, .welcome-line, .welcome-actions { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .welcome-name, .welcome-line, .welcome-actions { animation: none; } }
 
 /* ---------- ZOOM PANE (components/ZoomPane.tsx) - drafted documents ---------- */
 .zoom-pane { position: relative; display: flex; flex-direction: column; gap: 8px; }

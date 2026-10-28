@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LogoMark, Wordmark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 
 // =============================================================================
 // AppWelcomeView - the Android app's first screen for a signed-out user.
@@ -16,8 +16,7 @@ export function AppWelcomeView() {
   return (
     <main className="welcome">
       <div className="welcome-brand">
-        <span className="welcome-mark"><LogoMark size={104} title="DifAi" /></span>
-        <h1 className="welcome-name"><Wordmark /></h1>
+        <h1 className="welcome-name"><Wordmark height={72} /></h1>
         <p className="welcome-line">Your legal practice, drafted with AI.</p>
       </div>
 

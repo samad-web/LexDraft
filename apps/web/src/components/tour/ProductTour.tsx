@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
-import { LogoMark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { useAuthStore } from '@/store/auth';
 
 // =============================================================================
@@ -200,7 +200,7 @@ export function ProductTour() {
       <div className="tour-block" />
       <div ref={cardRef} className="tour-card" style={cardStyle} key={index}>
         {!step.targets && (
-          <span className="tour-mark"><LogoMark size={44} /></span>
+          <span className="tour-mark"><Wordmark height={26} /></span>
         )}
         <div className="tour-count">Step {index + 1} of {STEPS.length}</div>
         <h2 id="tour-title" className="tour-title">{step.title}</h2>

@@ -1,13 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- DifAi "Seal D" (small-size cut): a notary-style rosette seal with a bold D, on the graphite tile. -->
-  <defs>
-    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3a3a40"/><stop offset="0.55" stop-color="#18181b"/><stop offset="1" stop-color="#050507"/>
-    </linearGradient>
-  </defs>
-  <rect width="48" height="48" rx="11" fill="url(#t)"/>
-  <rect x="0.75" y="0.75" width="46.5" height="46.5" rx="10.3" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1.5"/>
-  <path fill="#ffffff" d="M24.00 6.40L25.75 8.50L27.92 6.84L29.15 9.28L31.64 8.14L32.30 10.79L34.97 10.24L35.03 12.97L37.76 13.03L37.21 15.70L39.86 16.36L38.72 18.85L41.16 20.08L39.50 22.25L41.60 24.00L39.50 25.75L41.16 27.92L38.72 29.15L39.86 31.64L37.21 32.30L37.76 34.97L35.03 35.03L34.97 37.76L32.30 37.21L31.64 39.86L29.15 38.72L27.92 41.16L25.75 39.50L24.00 41.60L22.25 39.50L20.08 41.16L18.85 38.72L16.36 39.86L15.70 37.21L13.03 37.76L12.97 35.03L10.24 34.97L10.79 32.30L8.14 31.64L9.28 29.15L6.84 27.92L8.50 25.75L6.40 24.00L8.50 22.25L6.84 20.08L9.28 18.85L8.14 16.36L10.79 15.70L10.24 13.03L12.97 12.97L13.03 10.24L15.70 10.79L16.36 8.14L18.85 9.28L20.08 6.84L22.25 8.50Z"/>
-  <circle cx="24" cy="24" r="12.6" fill="none" stroke="#141417" stroke-width="1.4"/>
-  <path fill="#141417" fill-rule="evenodd" d="M18.46 17.52H23.06C27.02 17.52 29.54 20.33 29.54 24.00C29.54 27.67 27.02 30.48 23.06 30.48H18.46ZM21.05 20.11V27.89H22.92C25.44 27.89 26.88 26.38 26.88 24.00C26.88 21.62 25.44 20.11 22.92 20.11Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -14 310 310">
+  <!-- DifAi: the bold D of the wordmark (see components/brand/Logo.tsx). -->
+  <style>path{fill:#0a0a0a}@media (prefers-color-scheme:dark){path{fill:#fafafa}}</style>
+  <path d="M0 4H129C208.5 4 261.5 56.4 261.5 135C261.5 213.6 208.5 266 129 266H0ZM88 72V196H122C151.3 196 172.5 170 172.5 134C172.5 98 151.3 72 122 72Z" fill-rule="evenodd"/>
 </svg>

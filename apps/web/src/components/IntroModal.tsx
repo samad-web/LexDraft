@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Icon } from '@lexdraft/ui';
-import { LogoMark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { readIntro, saveIntro, type IntroAnswers, type PracticeSize } from '@/lib/intro';
 
 // First-visit questions on the landing page: "How do you run your practice?"
@@ -40,7 +40,7 @@ export function IntroModal({ onDone }: { onDone: (answers: IntroAnswers) => void
           <Icon name="close" size={18} />
         </button>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 18 }}>
-          <LogoMark size={52} />
+          <Wordmark height={34} />
         </div>
         {!size ? (
           <>
