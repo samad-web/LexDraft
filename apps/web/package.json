@@ -15,6 +15,7 @@
     "cap:sync": "pnpm build:mobile && cap sync android",
     "android:apk": "pnpm cap:sync && cd android && .\\gradlew.bat assembleDebug",
     "android:release": "pnpm cap:sync && cd android && .\\gradlew.bat assembleRelease",
+    "android:aab": "pnpm cap:sync && cd android && .\\gradlew.bat bundleRelease",
     "android:open": "cap open android"
   },
   "dependencies": {

@@ -28,6 +28,8 @@ const AuthView = lazy(() => import('@/views/AuthView').then((m) => ({ default: m
 const SignupView = lazy(() => import('@/views/SignupView').then((m) => ({ default: m.SignupView })));
 const AppWelcomeView = lazy(() => import('@/views/AppWelcomeView').then((m) => ({ default: m.AppWelcomeView })));
 const SurveyView = lazy(() => import('@/views/SurveyView').then((m) => ({ default: m.SurveyView })));
+const PrivacyPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.PrivacyPolicyView })));
+const DeleteAccountView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.DeleteAccountView })));
 const SurveyThanksView = lazy(() => import('@/views/SurveyThanksView').then((m) => ({ default: m.SurveyThanksView })));
 const DashboardView = lazy(() => import('@/views/DashboardView').then((m) => ({ default: m.DashboardView })));
 const CasesListView = lazy(() => import('@/views/CasesListView').then((m) => ({ default: m.CasesListView })));
@@ -175,7 +177,10 @@ export function App() {
     location.pathname.startsWith('/signup') ||
     location.pathname.startsWith('/invite') ||
     location.pathname.startsWith('/survey') ||
-    location.pathname.startsWith('/sign/');
+    location.pathname.startsWith('/sign/') ||
+    location.pathname === '/privacy' ||
+    location.pathname === '/delete-account' ||
+    location.pathname.startsWith('/legal');
 
   // Client portal lives in its own auth space (magic-link → portal JWT). It
   // does NOT depend on the advocate session in `useAuthStore`, so the rest of
@@ -228,6 +233,10 @@ export function App() {
             <Route path="/sign/:token" element={<SignView />} />
             <Route path="/survey" element={<SurveyView />} />
             <Route path="/survey/thanks" element={<SurveyThanksView />} />
+            {/* Linked from the Google Play listing; must load signed out. */}
+            <Route path="/privacy" element={<PrivacyPolicyView />} />
+            <Route path="/legal/privacy" element={<Navigate to="/privacy" replace />} />
+            <Route path="/delete-account" element={<DeleteAccountView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
