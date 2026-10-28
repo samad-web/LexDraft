@@ -36,14 +36,17 @@
             "@type": "Organization",
             "@id": "https://difai.sirahdigital.in/#org",
             "name": "DifAi",
+            "alternateName": ["Dif Ai", "DifAi Legal", "DifAi by Sirah Digital"],
             "url": "https://difai.sirahdigital.in/",
             "logo": "https://difai.sirahdigital.in/apple-touch-icon.png",
+            "email": "support@sirahdigital.in",
             "parentOrganization": { "@type": "Organization", "name": "Sirah Digital" }
           },
           {
             "@type": "WebSite",
             "@id": "https://difai.sirahdigital.in/#website",
             "name": "DifAi",
+            "alternateName": ["Dif Ai", "DifAi Legal"],
             "url": "https://difai.sirahdigital.in/",
             "publisher": { "@id": "https://difai.sirahdigital.in/#org" },
             "inLanguage": "en-IN"
@@ -95,7 +98,38 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Crawlable copy of the landing page for bots that don't run JS
+           (Bing, WhatsApp, AI search). React replaces it on mount; the
+           script below drops it on every other route and in the app. -->
+      <main id="seo-static" style="max-width:880px;margin:0 auto;padding:64px 16px;font-family:system-ui,sans-serif;color:var(--text-primary,#0a0a0a);line-height:1.6">
+        <h1>DifAi - AI legal drafting and practice management for Indian advocates</h1>
+        <p>Cases, drafting, billing, and research - unified under one calm, document-first interface. Indian-format templates with verified citations from central and state statutes.</p>
+        <p>Free for solo advocates and law students until 1 June 2027. Firms get a 14-day free trial. <a href="/auth?signup=1">Create your free DifAi account</a>.</p>
+        <h2>What DifAi does</h2>
+        <h3>Drafting</h3>
+        <p>Notices, plaints, written statements, vakalatnamas - every Indian-format document with statutory citations baked in.</p>
+        <h3>Cases</h3>
+        <p>CNR-linked matters from eCourts with a hearing diary, party tracking, and document tagging in a single timeline.</p>
+        <h3>Contracts</h3>
+        <p>Clause-level risk scoring with red-line suggestions. Compare against your firm's preferred-positions library.</p>
+        <h3>Billing</h3>
+        <p>Invoices, retainer reconciliation, and NEFT/UPI payment receipts.</p>
+        <h3>Research</h3>
+        <p>Hybrid search across central and state statutes. Every answer auditable to the source section.</p>
+        <h3>Limitation</h3>
+        <p>Statutory-period tracker that warns at 90, 30, 7, and 1 day. Never miss a filing window.</p>
+        <p>DifAi is built by Sirah Digital. Available on the web and Android.</p>
+      </main>
+    </div>
+    <script>
+      (function () {
+        if (location.pathname !== '/' || window.Capacitor) {
+          var s = document.getElementById('seo-static');
+          if (s) s.remove();
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
