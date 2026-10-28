@@ -27,7 +27,10 @@ export async function nativeGoogleCredential(): Promise<string> {
     nativeReady.catch(() => { nativeReady = null; });
   }
   const SocialLogin = await nativeReady;
-  const res = await SocialLogin.login({ provider: 'google', options: { scopes: ['email', 'profile'] } });
+  // No `scopes`: the plugin already asks for openid + email + profile (all the
+  // ID token needs), and passing scopes on Android makes it demand a modified
+  // MainActivity ("You CANNOT use scopes without modifying the main activity").
+  const res = await SocialLogin.login({ provider: 'google', options: {} });
   const result = res.result as { idToken?: string | null };
   if (!result.idToken) throw new Error('Google sign-in did not return an ID token.');
   return result.idToken;
