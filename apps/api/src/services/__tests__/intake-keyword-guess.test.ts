@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { keywordGuessLabel } from '../intake.service';
-import { LABEL_TO_ENGINE_DOC } from '../../lib/engine-field-map';
+import { explicitRequest, keywordGuessLabel } from '../intake.service';
+import { LABEL_TO_ENGINE_DOC, isRoutable } from '../../lib/engine-field-map';
 
 // The advocate's instruction is classified by these keyword cues FIRST and wins
 // outright, so a wrong cue drafts the wrong document with "high" confidence.
@@ -49,5 +49,27 @@ describe('keywordGuessLabel — court-issued instruments', () => {
 
   it('a bare mention of summons does not force Court Summons', () => {
     expect(guess('petition for substituted service of summons')).not.toBe('Court Summons');
+  });
+});
+
+describe('explicit request decides the format before fact words', () => {
+  // The advocate's own "draft an affidavit for this case" must win over a fact
+  // word earlier in the brief (here "gift", which alone routes to Gift Deed).
+  const brief = 'My client Ramesh gifted his house property to his son by a registered gift deed in 2019. '
+    + 'The son now denies it. Draft an affidavit for this case.';
+
+  it('finds the LAST explicit request phrase', () => {
+    expect(explicitRequest(brief)).toBe('affidavit for this case');
+    expect(explicitRequest('Prepare a vakalatnama for my client')).toBe('vakalatnama for my client');
+    expect(explicitRequest('The cheque bounced twice')).toBeNull();
+  });
+
+  it('routes the request phrase, not the facts', () => {
+    expect(guess(explicitRequest(brief)!)).toBe('Affidavit'); // …the request picks the right one
+  });
+
+  it('affidavit is routable for the drafting card', () => {
+    expect(LABEL_TO_ENGINE_DOC['Affidavit']).toBe('affidavit');
+    expect(isRoutable('affidavit')).toBe(true);
   });
 });

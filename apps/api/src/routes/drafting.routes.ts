@@ -33,8 +33,8 @@ import {
 import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
-import { intakeService, IntakeError } from '../services/intake.service';
-import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC } from '../lib/engine-field-map';
+import { intakeService, IntakeError, IntakeUnavailableError } from '../services/intake.service';
+import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
 import { llmGenerationLimiter } from '../middleware/rateLimit';
 import { env } from '../env';
 import { logger } from '../logger';
@@ -905,7 +905,7 @@ draftingRouter.post('/engine/draft', requireFeature('drafting.ai'), async (req, 
       return;
     }
     const docType = LABEL_TO_ENGINE_DOC[parsed.docLabel];
-    if (!docType || !isRoutable(docType)) {
+    if (!docType || !isRoutable(docType) || LEGACY_FORM_BLOCKED.has(docType)) {
       res.status(404).json({ error: 'doc_not_routable', docLabel: parsed.docLabel });
       return;
     }
@@ -1240,6 +1240,12 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+      // The advocate named a document that can't be drafted here: say so,
+      // rather than drafting something else.
+      if (err instanceof IntakeUnavailableError) {
+        res.status(422).json({ error: 'doc_unavailable', message: err.message });
+        return;
+      }
       // Couldn't classify -> ask the client to pick a format explicitly.
       if (err instanceof IntakeError) {
         res.status(422).json({ error: 'doc_type_unclear', message: err.message });

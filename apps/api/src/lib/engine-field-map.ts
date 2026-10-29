@@ -492,16 +492,13 @@ const CUSTOM_MAPPERS: Record<string, Mapper> = {
 const ROUTABLE_DOC_TYPES: readonly string[] = [
   // pilot (bespoke map)
   's138_notice',
-  // NOTE: standalone 'affidavit' is deliberately EXCLUDED. The GENERATED form
-  // now covers it (apps/web/src/lib/form-gen/presentation/affidavit.ts has
-  // matter_type/affidavit_kind + all 14 required engine fields), but the
-  // legacy static form in doc-schemas.ts — what's actually live today, since
-  // the affidavit form-gen flag is still off pending advocate sign-off (see
-  // form-gen/flags.ts) — uses completely different field keys (deponent_age,
-  // purpose, paragraphs, ...) that don't map to the engine contract at all.
-  // Routing it NOW would mis-map the legacy form's fields and still 422 or
-  // worse. Add 'affidavit' here ONLY after the form-gen flag is flipped on
-  // for it (ENABLED_IN_CODE or VITE_FORMGEN_DOCTYPES=affidavit) — not before.
+  // Standalone 'affidavit': routable for the DRAFTING CARD (conversational
+  // intake), whose fields come from the engine's own contract (matter_type,
+  // affidavit_kind, deponent …), so it maps 1:1. The legacy static form in
+  // doc-schemas.ts uses different keys (deponent_age, purpose, paragraphs …), so
+  // the direct form route POST /engine/draft still refuses it — see
+  // LEGACY_FORM_BLOCKED below.
+  'affidavit',
   // pleadings + notices (passthrough)
   's138_complaint', 'regular_bail', 'anticipatory_bail', 'default_bail',
   'general_notice', 'plaint', 'summary_suit', 'injunction', 'writ_petition',
@@ -539,6 +536,11 @@ const IMPORTED_DOC_TYPES: readonly string[] = Object.keys(ENGINE_CONTRACT).filte
 );
 
 const ROUTABLE_SET = new Set([...ROUTABLE_DOC_TYPES, ...IMPORTED_DOC_TYPES]);
+
+/** Doc types the legacy static-form route (POST /engine/draft) must not take:
+ *  their old web form's keys don't match the engine contract. The drafting card
+ *  (intake) drafts them fine. */
+export const LEGACY_FORM_BLOCKED: ReadonlySet<string> = new Set(['affidavit']);
 
 /** Whether an engine doc type has a form->engine mapping (i.e. is routable). */
 export function isRoutable(docType: string): boolean {

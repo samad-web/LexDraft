@@ -546,6 +546,22 @@ interface RunCtx extends Ctx {
 
 export class IntakeError extends Error {}
 
+/** The advocate explicitly named a document type that can't be drafted here. */
+export class IntakeUnavailableError extends IntakeError {}
+
+/**
+ * The document the advocate EXPLICITLY asked for ("… draft an affidavit for this
+ * case", "prepare a vakalatnama"), as the phrase after the verb. The LAST such
+ * phrase wins — the instruction usually ends the brief, after the facts. Null
+ * when there's no "draft / prepare / write …" request.
+ */
+export function explicitRequest(text: string): string | null {
+  const re = /\b(?:draft|prepare|write|create|generate|make)\s+(?:me\s+)?(?:an?\s+|the\s+)?([^.,;:!?\n]{3,90})/gi;
+  let last: string | null = null;
+  for (const m of text.matchAll(re)) last = m[1]!.trim();
+  return last;
+}
+
 export const intakeService = {
   /** Is a Draft-page label drivable by the conversational intake loop? */
   async routable(docLabel: string, firmId: string | null = null): Promise<boolean> {
@@ -618,7 +634,22 @@ export const intakeService = {
     // draft. keywordGuessLabel is deterministic and only returns a label present in
     // `labels`, so this can never route to something the engine can't draft. Only
     // when the instruction is absent/ambiguous do we fall through to the LLM.
-    const instructionLabel = instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null;
+    // The EXPLICIT request phrase ("draft an affidavit for this case") decides
+    // first — a fact word earlier in the brief ("gift", "notice", "warrant") must
+    // not pick the format. If it names a document that exists but can't be drafted
+    // here, say so instead of drafting something else.
+    const requested = explicitRequest(instruction?.trim() || message);
+    const requestedLabel = requested ? keywordGuessLabel(requested, labels) : null;
+    if (requested && !requestedLabel) {
+      const known = keywordGuessLabel(requested, Object.keys(LABEL_TO_ENGINE_DOC));
+      if (known) {
+        throw new IntakeUnavailableError(
+          `"${known}" can't be drafted here yet. Open Formats to pick a format, or describe the document differently.`,
+        );
+      }
+    }
+    const instructionLabel = requestedLabel
+      ?? (instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
     if (instructionLabel) {
       label = instructionLabel;
       confidence = 'high';
