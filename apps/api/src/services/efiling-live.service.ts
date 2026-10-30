@@ -374,6 +374,14 @@ async function submitEfilingLoginCaptchaStep(
     if (msg) msg.innerHTML = '';
     document.querySelectorAll('.alert-danger4').forEach((el: any) => { el.style.display = 'none'; });
   }).catch(() => {});
+  // The portal empties these on a failed attempt or a user-type change: make
+  // sure they hold exactly what the advocate gave before pressing Login.
+  if (session.pendingLogin) {
+    const typed = await page.inputValue('#user_password').catch(() => '');
+    if (typed !== session.pendingLogin.password) await page.fill('#user_password', session.pendingLogin.password).catch(() => {});
+    const user = await page.inputValue('#user_name').catch(() => '');
+    if (user !== session.pendingLogin.username) await page.fill('#user_name', session.pendingLogin.username).catch(() => {});
+  }
   // Did the portal's own form checks let the login go out at all?
   let sent = false;
   const onRequest = (r: { url: () => string }) => { if (r.url().includes('login/verify_login')) sent = true; };
@@ -390,7 +398,10 @@ async function submitEfilingLoginCaptchaStep(
       .filter((e: any) => e.offsetParent !== null && String(e.textContent ?? '').trim())
       .map((e: any) => String(e.textContent).trim())).catch(() => [])) as string[];
     const captchaImageBase64 = await freshLoginCaptcha(page).catch(() => '');
-    return { retry: true, captchaImageBase64, reason: fieldErrors.join(' · ') || 'The eFiling portal did not accept the form - check the username and password.' };
+    const hint = fieldErrors.some((e) => /password/i.test(e))
+      ? ' - the password DifAi was given does not fit the portal's rule. Press Cancel, re-type your eFiling password (use Show to check it) and log in again.'
+      : '';
+    return { retry: true, captchaImageBase64, reason: (fieldErrors.join(' · ') || 'The eFiling portal did not accept the form - check the username and password.') + hint };
   }
   const answer = await answered;
   page.off('request', onRequest);

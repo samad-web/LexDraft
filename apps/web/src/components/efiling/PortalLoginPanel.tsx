@@ -219,7 +219,8 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
 
           <label className="col" style={{ gap: 4 }}>
             <span className="body-sm muted">Bar Code / Email / Mobile / Unique Code</span>
-            <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
+            <input className="input" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="off"
+              name="efiling-portal-username" />
           </label>
 
           <label className="col" style={{ gap: 4 }}>
@@ -231,7 +232,10 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
                 autoFocus={Boolean(remembered?.username)}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
+                name="efiling-portal-password"
+                data-lpignore="true"
+                data-1p-ignore="true"
                 style={{ width: '100%', paddingRight: 72 }}
               />
               <button
