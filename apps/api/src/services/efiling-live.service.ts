@@ -374,12 +374,41 @@ async function submitEfilingLoginCaptchaStep(
     if (msg) msg.innerHTML = '';
     document.querySelectorAll('.alert-danger4').forEach((el: any) => { el.style.display = 'none'; });
   }).catch(() => {});
+  // Did the portal's own form checks let the login go out at all?
+  let sent = false;
+  const onRequest = (r: { url: () => string }) => { if (r.url().includes('login/verify_login')) sent = true; };
+  page.on('request', onRequest);
   const answered = page
-    .waitForResponse((r) => r.url().includes('login/verify_login'), { timeout: 30_000 })
+    .waitForResponse((r) => r.url().includes('login/verify_login'), { timeout: 60_000 })
     .catch(() => null);
   await page.click('#verify_button1');
+  await page.waitForTimeout(3000);
+  if (!sent) {
+    // Stopped in the page by jQuery-Validate: show the portal's own message.
+    page.off('request', onRequest);
+    const fieldErrors = (await page.$$eval('label.error', (els) => els
+      .filter((e: any) => e.offsetParent !== null && String(e.textContent ?? '').trim())
+      .map((e: any) => String(e.textContent).trim())).catch(() => [])) as string[];
+    const captchaImageBase64 = await freshLoginCaptcha(page).catch(() => '');
+    return { retry: true, captchaImageBase64, reason: fieldErrors.join(' · ') || 'The eFiling portal did not accept the form - check the username and password.' };
+  }
   const answer = await answered;
-  if (!answer) throw new EcourtsHttpError(504, 'The eFiling portal did not answer the login in time. Try again.');
+  page.off('request', onRequest);
+  if (!answer) {
+    // A slow portal can still log the advocate in after the wait: check.
+    await page.waitForURL((u) => !/\/pdedev\/?(\?.*)?$/.test(u.toString()), { timeout: 20_000 }).catch(() => {});
+    if (!(await page.locator('#frm_login').isVisible().catch(() => false))) {
+      session.authenticated = true;
+      session.pendingLogin = undefined;
+      return { status: 'authenticated' };
+    }
+    if (session.pendingLogin) {
+      await page.fill('#user_name', session.pendingLogin.username).catch(() => {});
+      await page.fill('#user_password', session.pendingLogin.password).catch(() => {});
+    }
+    const captchaImageBase64 = await freshLoginCaptcha(page).catch(() => '');
+    return { retry: true, captchaImageBase64, reason: 'The eFiling portal is slow right now and did not answer. Enter the new code and try again.' };
+  }
   // Success navigates to the dashboard; failure re-renders the alert.
   await Promise.race([
     page.waitForURL((u) => !/\/pdedev\/?(\?.*)?$/.test(u.toString()), { timeout: 15_000 }),
@@ -529,10 +558,19 @@ async function confirmDuplicateEfilingLoginStep(
     document.querySelectorAll('.alert-danger5').forEach((el: any) => { el.style.display = 'none'; });
   }).catch(() => {});
   const answered = page
-    .waitForResponse((r) => r.url().includes('login/verify_duplicate_login'), { timeout: 30_000 })
+    .waitForResponse((r) => r.url().includes('login/verify_duplicate_login'), { timeout: 60_000 })
     .catch(() => null);
   await page.click('#re_verify_button');
-  if (!(await answered)) throw new EcourtsHttpError(504, 'The eFiling portal did not answer in time. Try again.');
+  if (!(await answered)) {
+    await page.waitForURL((u) => u.toString() !== urlBeforeSubmit, { timeout: 20_000 }).catch(() => {});
+    if (page.url() !== urlBeforeSubmit) {
+      session.authenticated = true;
+      session.pendingLogin = undefined;
+      return { status: 'authenticated' };
+    }
+    const captchaImageBase64 = await screenshotDuplicateLoginCaptcha(page).catch(() => '');
+    return { retry: true, captchaImageBase64, reason: 'The eFiling portal is slow right now and did not answer. Enter the new code and try again.' };
+  }
   await Promise.race([
     page.waitForURL((u) => u.toString() !== urlBeforeSubmit, { timeout: 15_000 }),
     page.locator('#msg-danger5').filter({ hasText: /\S/ }).waitFor({ state: 'visible', timeout: 15_000 }),
