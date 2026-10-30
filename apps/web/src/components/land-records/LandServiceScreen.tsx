@@ -481,8 +481,9 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
         ) : null}
 
         {gate === 'otp' ? (
-          <div className="col" style={{ gap: 10 }}>
-            <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="lr-step">
+            <span className="lr-step-label"><i>{otpSent ? 2 : 1}</i>{otpSent ? 'Enter the OTP' : 'Verify with OTP'}</span>
+            <div className="row lr-otp-row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <input
                 className="input"
                 style={{ maxWidth: 220 }}
@@ -507,10 +508,10 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                     ? <span className="muted tabular">Valid for {Math.floor(otpLeft / 60)}:{String(otpLeft % 60).padStart(2, '0')}</span>
                     : <b>OTP expired - use Resend OTP.</b>}
                 </span>
-                <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+                <div className="row lr-otp-row" style={{ gap: 10, flexWrap: 'wrap' }}>
                   <input
                     className="input"
-                    style={{ maxWidth: 220 }}
+                    style={{ maxWidth: 220, letterSpacing: '0.18em', fontWeight: 600 }}
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     placeholder="OTP(6 digit)"
@@ -530,13 +531,14 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
         ) : null}
 
         {gate === 'captcha' || otpCaptcha ? (
-          <form className="col" style={{ gap: 10 }} onSubmit={onSubmitCaptcha}>
+          <form className="lr-step" onSubmit={onSubmitCaptcha}>
+            <span className="lr-step-label"><i>{otpCaptcha ? 3 : 1}</i>Captcha</span>
             <span className="body-sm" style={{ fontWeight: 600 }}>Enter authentication Value:</span>
             <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
               {captchaImg ? (
-                <img src={captchaImg} alt="Captcha from Land Records" style={{ height: 56, borderRadius: 4, border: '1px solid var(--border-default)', background: '#fff' }} />
+                <img src={captchaImg} alt="Captcha from Land Records" className="lr-captcha-img" />
               ) : (
-                <span className="body-sm muted" style={{ height: 56, minWidth: 150, display: 'inline-grid', placeItems: 'center', borderRadius: 4, border: '1px dashed var(--border-default)' }}>
+                <span className="body-sm muted" style={{ height: 56, minWidth: 150, display: 'inline-grid', placeItems: 'center', borderRadius: 8, border: '1px dashed var(--border-default)' }}>
                   {start.isPending || refreshCaptcha.isPending ? <Spinner size={16} /> : '—'}
                 </span>
               )}
@@ -553,21 +555,21 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                 aria-label="Authentication value"
               />
             </div>
-            <div className="row" style={{ justifyContent: 'center' }}>
-              <button type="submit" className="btn btn-primary" style={{ minWidth: 140 }} disabled={!ready || !captcha.trim() || submitCaptcha.isPending}>
+            <div className="row">
+              <button type="submit" className="btn btn-primary" style={{ minWidth: 160 }} disabled={!ready || !captcha.trim() || submitCaptcha.isPending}>
                 {submitCaptcha.isPending ? 'Fetching…' : service === 'app-status' ? 'Get Status' : 'Submit'}
               </button>
             </div>
           </form>
         ) : null}
 
-        {message ? <p className="body-sm" role="alert" style={{ margin: 0, fontWeight: 600 }}>{message}</p> : null}
+        {message ? <p className="ct-notice is-danger" role="alert" style={{ margin: 0 }}>{message}</p> : null}
         {expired || (start.isError && !session) ? (
           <div><button type="button" className="btn btn-sm" onClick={open}>Start again</button></div>
         ) : null}
       </div>
       )}
-      <p className="body-sm muted" style={{ margin: 0 }}>
+      <p className="lr-note">
         {meta.blurb} Fetched live from Tamil Nadu Land Records eServices (eservices.tn.gov.in). The {gate === 'captcha' ? 'captcha is' : 'OTP goes to the mobile number you enter and is'} only passed through - DifAi never stores it.
       </p>
     </div>

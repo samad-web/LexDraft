@@ -19,7 +19,13 @@ import {
   type ParticularsBundle,
   type PortalStepKey,
   type PortalStepState,
+  useEfileOnPortal,
+  useFillOnPortal,
+  useUploadPleadingOnPortal,
+  useSubmitOnPortal,
+  type PortalTabReport,
 } from '@/hooks/useEfiling';
+import { useEfilingPortalStore } from '@/store/efilingPortal';
 import { DocumentsCard, PaymentsCard, ReadinessCard, StageTracker } from './FilingDetail';
 import { ParticularsEditor, isMactCase, type ParticularsSection } from './ParticularsEditor';
 import { KIND_LABEL, STATUS_LABEL, STATUS_TONE, errMsg, formatDateTime } from './format';
@@ -754,6 +760,7 @@ function EFileTab({ filing, bundle, mact, onPrev }: { filing: FilingDetailDto; b
         ) : null}
 
         <SuccessNote lines={done ? [done] : []} />
+        {!onPortal ? <FileOnPortal filing={filing} /> : null}
         {onPortal ? (
           <p className="body-sm" style={{ textAlign: 'center' }}>
             Entered on the portal{filing.efilingNo ? ` as eFiling number ${filing.efilingNo}` : ''}{filing.efiledAt ? ` on ${formatDateTime(filing.efiledAt)}` : ''}. Next: Vakalat, then Pleadings.
@@ -761,7 +768,7 @@ function EFileTab({ filing, bundle, mact, onPrev }: { filing: FilingDetailDto; b
         ) : (
           <div className="col" style={{ gap: 10, alignItems: 'center' }}>
             <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 640 }}>
-              On the portal, check every tab and press “eFile Case”. It shows “Case registration successfully” with the eFiling number. Record that number here.
+              Filed on the portal yourself? Record the eFiling number it showed (“Case registration successfully …”) here.
             </p>
             <label className="col" style={{ gap: 4, width: 'min(100%, 340px)' }}>
               <span className="body-sm" style={{ fontWeight: 600 }}>eFiling number from the portal</span>
@@ -911,6 +918,7 @@ export function PleadingsModule({ initialFiling }: { initialFiling: string | nul
         <>
           {tab === 'upload' ? (
             <>
+              <UploadToPortal filing={filing} />
               <StepControl filing={filing} stepKey="upload" />
               <DocumentsCard f={filing} editable={['draft', 'ready', 'efiled', 'objected'].includes(filing.status)} />
             </>
@@ -1199,5 +1207,146 @@ function ObjectionActions({ f, onOpen }: { f: EfilingFiling; onOpen: (id: string
       <button type="button" className="btn btn-primary btn-sm" disabled={transition.isPending} onClick={() => transition.mutate({ to: 'refiled' })}>Re-filed after curing</button>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => onOpen(f.id)}>Open</button>
     </span>
+  );
+}
+
+// =============================================================================
+// File on the portal: DifAi fills New Case Filing on filing.ecourts.gov.in
+// over the advocate's own session, then eFiles it once they confirm.
+// =============================================================================
+
+const TAB_STATUS: Record<PortalTabReport['status'], string> = { done: 'Saved on the portal', partial: 'Saved - some fields need you', failed: 'Not saved', skipped: 'Nothing to fill' };
+
+function FileOnPortal({ filing }: { filing: FilingDetailDto }) {
+  const connection = useEfilingPortalStore((s) => s.connection);
+  const fill = useFillOnPortal(filing.id);
+  const efile = useEfileOnPortal(filing.id);
+  const [error, setError] = useState<string | null>(null);
+  const report = fill.data ?? null;
+  const filed = efile.data ?? null;
+
+  if (!connection) {
+    return (
+      <div className="card col" style={{ gap: 6, alignItems: 'center', textAlign: 'center' }}>
+        <strong>File this on the portal from DifAi</strong>
+        <span className="body-sm muted">Log in to eFiling (top of this page) and DifAi fills every tab on filing.ecourts.gov.in for you.</span>
+      </div>
+    );
+  }
+  const run = () => {
+    setError(null);
+    fill.mutate(connection.sessionId, { onError: (err) => setError(errMsg(err, 'Could not fill the portal')) });
+  };
+  const doEfile = () => {
+    if (!window.confirm('Do you want to submit the case?\n Once submitted, case details can not be modfied.\n\nDifAi will press "eFile Case" on filing.ecourts.gov.in now.')) return;
+    setError(null);
+    efile.mutate(connection.sessionId, { onError: (err) => setError(errMsg(err, 'Could not eFile on the portal')) });
+  };
+  const ready = Boolean(report?.pdeNo) && !report?.tabs.some((t) => t.status === 'failed');
+
+  return (
+    <section className="card col" style={{ gap: 12 }} aria-label="File on the portal">
+      <PortalTitle>File on the portal</PortalTitle>
+      <p className="body-sm muted" style={{ textAlign: 'center' }}>
+        DifAi opens Case Filing &gt; New Case Filing on your portal account, fills Initial Inputs, Litigant, Fact Details, Case Details{filing.kind === 'new_case' ? ' and MVC (if any)' : ''},
+        and saves each tab there. Nothing is filed until you press “eFile Case”.
+      </p>
+      <PortalButtons>
+        <PButton primary onClick={run} disabled={fill.isPending || efile.isPending}>
+          {fill.isPending ? 'Filling the portal… (about a minute)' : report ? 'Fill again' : 'Fill the tabs on the portal'}
+        </PButton>
+      </PortalButtons>
+      {report ? (
+        <div className="col" style={{ gap: 8 }}>
+          {report.pdeNo ? <p className="body-sm" style={{ textAlign: 'center' }}>Portal draft: <strong>{report.pdeNo}</strong></p> : null}
+          <table className="tbl" aria-label="What DifAi filled on the portal">
+            <thead><tr><th>Tab</th><th>Result</th><th>Filled</th><th>Needs you on the portal</th></tr></thead>
+            <tbody>
+              {report.tabs.map((t) => (
+                <tr key={t.tab}>
+                  <td>{t.label}</td>
+                  <td>{TAB_STATUS[t.status]}{t.portal.length ? <div className="body-sm muted">Portal: {t.portal.join(' · ')}</div> : null}</td>
+                  <td className="tabular">{t.filled.length}</td>
+                  <td className="body-sm">{t.missing.length ? t.missing.join('; ') : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {ready && !filed?.ok ? (
+            <PortalButtons>
+              <PButton primary onClick={doEfile} disabled={efile.isPending}>{efile.isPending ? 'eFiling…' : 'eFile Case on the portal'}</PButton>
+            </PortalButtons>
+          ) : null}
+          {!ready ? <p className="body-sm" style={{ textAlign: 'center' }}>Fix the tabs marked “Not saved”, then fill again.</p> : null}
+        </div>
+      ) : null}
+      {filed ? (
+        filed.ok
+          ? <SuccessNote lines={[`Case registration successfully ${filed.pdeNo ?? ''}`.trim(), ...filed.portal]} />
+          : <p className="body-sm" style={{ textAlign: 'center' }}>The portal did not accept it{filed.errorTabs.length ? ` - check: ${filed.errorTabs.join(', ')}` : ''}. {filed.portal.join(' · ')}</p>
+      ) : null}
+      {error ? <p className="body-sm" style={{ textAlign: 'center', color: 'var(--danger)' }}>{error}</p> : null}
+    </section>
+  );
+}
+
+/** Pleading Upload on the real portal: the bundle goes up against the e-filing number. */
+function UploadToPortal({ filing }: { filing: FilingDetailDto }) {
+  const connection = useEfilingPortalStore((s) => s.connection);
+  const upload = useUploadPleadingOnPortal(filing.id);
+  const [error, setError] = useState<string | null>(null);
+  if (!connection) return null;
+  const r = upload.data;
+  const blocked = !filing.efilingNo ? 'eFile the case on the portal first.' : !filing.bundle ? 'Build the bundle below first.' : null;
+  return (
+    <section className="card col" style={{ gap: 8 }} aria-label="Upload to the portal">
+      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong style={{ flex: 1 }}>Upload to the portal</strong>
+        <PButton
+          primary
+          disabled={Boolean(blocked) || upload.isPending}
+          onClick={() => { setError(null); upload.mutate(connection.sessionId, { onError: (err) => setError(errMsg(err, 'Could not upload')) }); }}
+        >
+          {upload.isPending ? 'Uploading…' : 'Upload bundle to the portal'}
+        </PButton>
+      </div>
+      <span className="body-sm muted">
+        {blocked ?? `DifAi opens Pleadings > Pleading Upload on your portal account, picks ${filing.efilingNo}, adds the bundle PDF and submits it.`}
+      </span>
+      {r ? (r.ok
+        ? <SuccessNote lines={[`Uploaded as “${r.title}”${r.pleadingNumber ? ` (${r.pleadingNumber})` : ''}.`, ...r.portal]} />
+        : <p className="body-sm">The portal did not take it. {r.portal.join(' · ')}</p>) : null}
+      {error ? <p className="body-sm" style={{ color: 'var(--danger)' }}>{error}</p> : null}
+      <SubmitToCourt filing={filing} sessionId={connection.sessionId} />
+    </section>
+  );
+}
+
+/** Dashboard > Draft Pleadings > GRN > Submit on the portal: sends the case to the court. */
+function SubmitToCourt({ filing, sessionId }: { filing: FilingDetailDto; sessionId: string }) {
+  const submit = useSubmitOnPortal(filing.id);
+  const [error, setError] = useState<string | null>(null);
+  const grn = filing.payments.find((x) => x.grn)?.grn ?? null;
+  const uploaded = filing.steps.upload === 'done';
+  const done = ['submitted', 'objected', 'refiled', 'accepted', 'registered'].includes(filing.status);
+  if (!filing.efilingNo || done) return null;
+  const blocked = !uploaded ? 'Upload the pleading first.' : !grn ? 'Record the court-fee GRN under ePayments first.' : null;
+  const go = () => {
+    if (!window.confirm(`Submit ${filing.efilingNo} to the court on the portal with GRN ${grn}?
+This is the final submission and cannot be undone.`)) return;
+    setError(null);
+    submit.mutate(sessionId, { onError: (err) => setError(errMsg(err, 'Could not submit on the portal')) });
+  };
+  const r = submit.data;
+  return (
+    <div className="col" style={{ gap: 6, borderTop: '1px solid var(--border-default)', paddingTop: 10 }}>
+      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <strong style={{ flex: 1 }}>Submit to the court</strong>
+        <PButton primary disabled={Boolean(blocked) || submit.isPending} onClick={go}>{submit.isPending ? 'Submitting…' : 'Final submit on the portal'}</PButton>
+      </div>
+      <span className="body-sm muted">{blocked ?? `On the portal: Dashboard > Draft Pleadings > GRN ${grn} > Submit.`}</span>
+      {r ? (r.ok ? <SuccessNote lines={[`Submitted to the court with GRN ${r.grn}.`, ...r.portal]} /> : <p className="body-sm">The portal did not take it. {r.portal.join(' · ')}</p>) : null}
+      {error ? <p className="body-sm" style={{ color: 'var(--danger)' }}>{error}</p> : null}
+    </div>
   );
 }

@@ -106,7 +106,7 @@ export function CreateMemberModal({ open, onClose, roles, practiceGroups, onCrea
           required
         />
         {email && !emailValid && (
-          <div className="body-xs" style={{ color: 'var(--danger)', marginTop: 6 }}>
+          <div className="fm-field-error">
             Enter a valid email address.
           </div>
         )}

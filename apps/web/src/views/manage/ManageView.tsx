@@ -31,7 +31,7 @@ export function ManageView() {
   const [tab, setTab] = useState<TabId>('users');
 
   if (features.isLoading) {
-    return <div className="muted">Checking access…</div>;
+    return <div className="fm-loading">Checking access…</div>;
   }
 
   const granted = features.data?.features ?? [];
@@ -43,7 +43,7 @@ export function ManageView() {
   const visibleTabs = TABS.filter((t) => t.id !== 'audit' || canSeeAudit);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-manage">
       <PageHeader
         title="Roles & Access"
         description="Control who is in your firm, what they can do, and their practice groups."

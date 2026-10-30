@@ -162,6 +162,25 @@ vi.mock('../intake-extract-rules.service', () => ({
 // ai-usage is fire-and-forget; stub it so no DB is touched.
 vi.mock('../ai-usage.service', () => ({ aiUsageService: { recordAsync: () => {} } }));
 
+// The draft-first fallback (aiFallbackDraft) calls Claude; tests script it.
+const claudeQueue: Array<string | Error> = [];
+vi.mock('../../lib/anthropic-client', () => ({
+  claudeComplete: async () => {
+    const next = claudeQueue.shift();
+    if (next === undefined || next instanceof Error) throw next ?? new Error('claude unavailable');
+    return { text: next, tokensIn: 1, tokensOut: 1 };
+  },
+}));
+// The fallback drafts through the OpenAI-compatible slot when the local .env
+// picks it (LLM_PROVIDER=xai); script it from the same queue.
+vi.mock('../../lib/grok-client', () => ({
+  grokComplete: async () => {
+    const next = claudeQueue.shift();
+    if (next === undefined || next instanceof Error) throw next ?? new Error('llm unavailable');
+    return { text: next, tokensIn: 1, tokensOut: 1 };
+  },
+}));
+
 import { intakeService, markSyntheticDates } from '../intake.service';
 import { factSheetService } from '../factsheet.service';
 import { env } from '../../env';
@@ -739,7 +758,10 @@ describe('intake DRAFT NOW — fill gaps with placeholders, never fabricate, hon
     expect(values).toContain('['); // at least one bracketed placeholder was sent
   });
 
-  it('a hard-stop refusal during draft-now still blocks (never bypassed)', async () => {
+  // DRAFT FIRST, ALWAYS (advocate's rule): a hard-stop no longer blocks "Draft
+  // now" — the same document is drafted from the facts on record and the
+  // engine's finding is surfaced as a Before-filing note (never hidden).
+  it('a hard-stop during draft-now still produces a draft, with the finding as a note', async () => {
     extractQueue.push(patch([{ key: 'cheque_date', value: '2020-01-01', confidence: 'stated', source: 'old' }]));
     engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
     const state = await intakeService.start(DOC, 'An old 2020 cheque.', CTX);
@@ -751,9 +773,29 @@ describe('intake DRAFT NOW — fill gaps with placeholders, never fabricate, hon
       reason: 'The cheque was presented after its validity.', computation: null,
       pipeline: 's138_notice', spec: '2.2', fields_implicated: ['cheque_date'], remedy_hint: 'none',
     } });
+    (env as { ANTHROPIC_API_KEY: string }).ANTHROPIC_API_KEY = 'test-key';
+    claudeQueue.push(['LEGAL NOTICE', 'To [drawer name to be provided]', '1. The cheque dated 01.01.2020 was dishonoured.', 'Yours faithfully'].join('\n\n'));
     const drafted = await intakeService.draftNow(state.matterId, DOC, CTX);
 
-    // The refusal wins — no draft, the hard-stop was NOT placeholdered away.
+    expect(drafted.status).toBe('generated');
+    expect(drafted.draftedBy).toBe('ai');
+    expect(drafted.draft?.blocks.length).toBeGreaterThan(2);
+    expect(drafted.draftNotes?.[0]).toContain('presented after its validity');
+  });
+
+  it('if the draft-first fallback is unavailable, the hard-stop is returned as before', async () => {
+    extractQueue.push(patch([{ key: 'cheque_date', value: '2020-01-01', confidence: 'stated', source: 'old' }]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    const state = await intakeService.start(DOC, 'An old 2020 cheque.', CTX);
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    engineQueue.push({ kind: 'refused', refusal: {
+      code: 's138_notice_cheque_presented_after_validity', severity: 'HARD',
+      reason: 'The cheque was presented after its validity.', computation: null,
+      pipeline: 's138_notice', spec: '2.2', fields_implicated: ['cheque_date'], remedy_hint: 'none',
+    } });
+    (env as { ANTHROPIC_API_KEY: string }).ANTHROPIC_API_KEY = 'test-key';
+    claudeQueue.push(new Error('model down'));
+    const drafted = await intakeService.draftNow(state.matterId, DOC, CTX);
     expect(drafted.status).toBe('refused');
     expect(drafted.draft).toBeNull();
   });

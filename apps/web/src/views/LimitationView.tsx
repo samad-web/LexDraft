@@ -66,7 +66,7 @@ export function LimitationView() {
   }, [sorted]);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ct ct-limitation" style={{ gap: 24 }}>
       <PageHeader
         title="Limitation"
         description="Track limitation deadlines across matters, most urgent first."
@@ -115,158 +115,122 @@ export function LimitationView() {
 
       <LimitationCalculator />
 
-      <div className="stat-row">
-        <div>
-          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
-            <span className="dot dot-vermillion" />
-            <span className="eyebrow">Critical</span>
-          </div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>
-            {summary.critical}
-          </div>
-          <div className="body-xs muted">Within 7 days</div>
-        </div>
-        <div>
-          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
-            <span className="dot dot-amber" />
-            <span className="eyebrow">Warning</span>
-          </div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>
-            {summary.warning}
-          </div>
-          <div className="body-xs muted">8-30 days out</div>
-        </div>
-        <div>
-          <div className="row" style={{ gap: 8, marginBottom: 6 }}>
-            <span className="dot dot-cobalt" />
-            <span className="eyebrow">Upcoming</span>
-          </div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>
-            {summary.safe}
-          </div>
-          <div className="body-xs muted">More than 30 days</div>
-        </div>
+      <div className="ct-kpis">
+        {([
+          { id: 'critical', label: 'Critical', value: summary.critical, note: 'Within 7 days' },
+          { id: 'warning', label: 'Warning', value: summary.warning, note: '8-30 days out' },
+          { id: 'safe', label: 'Upcoming', value: summary.safe, note: 'More than 30 days' },
+        ] as const).map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            className={`ct-kpi${filter === k.id ? ' is-active' : ''}`}
+            aria-pressed={filter === k.id}
+            onClick={() => setFilter(filter === k.id ? 'all' : k.id)}
+          >
+            <span className="ct-kpi-label">{k.label}</span>
+            <span className="ct-kpi-value">{isLoading ? '–' : k.value}</span>
+            <span className="ct-kpi-note">{k.note}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="ct-toolbar">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
             className={`chip ${filter === f.id ? 'active' : ''}`}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
           >
             {f.label}
+            {!isLoading && !isError && <span className="ct-chip-count">{f.id === 'all' ? sorted.length : summary[f.id]}</span>}
           </button>
         ))}
+        {!isLoading && !isError && summary.critical > 0 && filter !== 'critical' && (
+          <button type="button" className="adv-alert-btn" style={{ marginLeft: 'auto' }} onClick={() => setFilter('critical')}>
+            {summary.critical} {summary.critical === 1 ? 'limitation' : 'limitations'} due within 7 days
+          </button>
+        )}
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 110 }}>Urgency</th>
-              <th>Matter</th>
-              <th>Filing type</th>
-              <th>Basis</th>
-              <th>Forum</th>
-              <th style={{ width: 130 }}>Deadline</th>
-              <th style={{ width: 110, textAlign: 'right' }}>Days left</th>
-              <th style={{ width: 80 }}>Owner</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && Array.from({ length: 5 }, (_, i) => (
-              <tr key={`sk-${i}`}>
-                <td><Skeleton width={70} height={20} /></td>
-                <td><Skeleton width={160} height={14} /></td>
-                <td><Skeleton width={120} height={14} /></td>
-                <td><Skeleton width={120} height={14} /></td>
-                <td><Skeleton width={100} height={14} /></td>
-                <td><Skeleton width={100} height={14} /></td>
-                <td><Skeleton width={48} height={14} /></td>
-                <td><Skeleton width={28} height={28} /></td>
-              </tr>
+      <div className="ct-card" style={{ overflow: 'hidden' }}>
+        <div className="ct-lrow is-head" role="row">
+          <span>Days left</span>
+          <span>Matter</span>
+          <span>Filing type · Basis</span>
+          <span>Forum</span>
+          <span>Deadline</span>
+          <span>Owner</span>
+        </div>
+        {isLoading && (
+          <div className="ct-loading-row" aria-busy="true" aria-label="Loading limitations">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={`sk-${i}`} className="row" style={{ gap: 16 }}>
+                <Skeleton width={64} height={56} />
+                <div className="col" style={{ gap: 8, flex: 1 }}>
+                  <Skeleton width="40%" height={14} />
+                  <Skeleton width="25%" height={12} />
+                </div>
+              </div>
             ))}
-            {isError && !isLoading && (
-              <tr>
-                <td colSpan={8}>
-                  <ErrorState
-                    variant="inline"
-                    title="Couldn't load limitations"
-                    description="Check your connection and try again."
-                  />
-                </td>
-              </tr>
-            )}
-            {!isLoading && !isError && pager.slice.map((r) => {
-              const u = urgencyOf(r.daysRemaining);
-              return (
-                <tr key={r.id}>
-                  <td>
-                    <span className={`badge ${u.badgeClass}`}>{u.label}</span>
-                  </td>
-                  <td>
-                    <div className="col" style={{ gap: 2 }}>
-                      <em className="case-name" style={{ fontWeight: 500 }}>{r.caseLabel}</em>
-                      <span className="mono body-xs muted tabular">{r.cnr}</span>
-                    </div>
-                  </td>
-                  <td className="body-sm">{r.filingType}</td>
-                  <td className="body-sm">
-                    {r.basisStatute || r.basisSection ? (
-                      <div className="col" style={{ gap: 2 }}>
-                        <span className="body-xs">{r.basisStatute ?? '-'}</span>
-                        {r.basisSection && (
-                          <span className="mono body-xs muted tabular">{r.basisSection}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="muted">-</span>
-                    )}
-                  </td>
-                  <td className="body-sm muted">{r.forum}</td>
-                  <td className="mono tabular" style={{ fontWeight: 500 }}>{r.deadline}</td>
-                  <td
-                    className="mono tabular"
-                    style={{
-                      textAlign: 'right',
-                      fontWeight: 600,
-                      color:
-                        u.id === 'critical'
-                          ? 'var(--danger)'
-                          : u.id === 'warning'
-                            ? 'var(--warning)'
-                            : 'var(--text-primary)',
-                    }}
-                  >
-                    {r.daysRemaining}d
-                  </td>
-                  <td>
-                    <div className="avatar" style={{ width: 28, height: 28, fontSize: 11 }}>
-                      {r.filedBy}
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-            {!isLoading && !isError && filtered.length === 0 && (
-              <tr>
-                <td colSpan={8}>
-                  <EmptyState
-                    variant="inline"
-                    title={rows.length === 0 ? 'No deadlines yet' : 'No deadlines match'}
-                    description={
-                      rows.length === 0
-                        ? 'Add a deadline to start tracking statutory limitations across your matters.'
-                        : 'Try a different filter or clear it to see all deadlines.'
-                    }
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </div>
+        )}
+        {isError && !isLoading && (
+          <div className="ct-empty-row">
+            <ErrorState
+              variant="inline"
+              title="Couldn't load limitations"
+              description="Check your connection and try again."
+            />
+          </div>
+        )}
+        {!isLoading && !isError && pager.slice.map((r) => {
+          const u = urgencyOf(r.daysRemaining);
+          const overdue = r.daysRemaining < 0;
+          return (
+            <div key={r.id} className="ct-lrow">
+              <span className={`ct-days is-${u.id}`} title={u.label}>
+                <b>{overdue ? -r.daysRemaining : r.daysRemaining}</b>
+                <span>{overdue ? 'over' : r.daysRemaining === 1 ? 'day' : 'days'}</span>
+              </span>
+              <span className="ct-lrow-main">
+                <span className="ct-title">{r.caseLabel}</span>
+                {r.cnr && <span className="ct-code">{r.cnr}</span>}
+                <span className="ct-meta ct-lrow-forum-inline">{r.forum}</span>
+              </span>
+              <span className="ct-lrow-filing">
+                <span>{r.filingType}</span>
+                {r.basisStatute || r.basisSection ? (
+                  <span className="ct-lrow-basis">
+                    {r.basisStatute ?? '-'}{r.basisSection ? <><span className="ct-meta-dot" />{r.basisSection}</> : null}
+                  </span>
+                ) : null}
+              </span>
+              <span className="ct-lrow-forum">{r.forum}</span>
+              <span className="ct-lrow-deadline">
+                <b>{fmtDeadline(r.deadline)}</b>
+                <span className={`ct-pill${u.id === 'critical' ? ' is-ink' : u.id === 'warning' ? ' is-strong' : ''}`}>{u.label}</span>
+              </span>
+              <span className="avatar" title={`Filed by ${r.filedBy}`}>{r.filedBy}</span>
+            </div>
+          );
+        })}
+        {!isLoading && !isError && filtered.length === 0 && (
+          <div className="ct-empty-row">
+            <EmptyState
+              variant="inline"
+              icon="limitation"
+              title={rows.length === 0 ? 'No deadlines yet' : 'No deadlines match'}
+              description={
+                rows.length === 0
+                  ? 'Add a deadline to start tracking statutory limitations across your matters.'
+                  : 'Try a different filter or clear it to see all deadlines.'
+              }
+            />
+          </div>
+        )}
         {!isLoading && !isError && (
           <Pagination
             page={pager.page}
@@ -279,4 +243,10 @@ export function LimitationView() {
       </div>
     </div>
   );
+}
+
+function fmtDeadline(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }

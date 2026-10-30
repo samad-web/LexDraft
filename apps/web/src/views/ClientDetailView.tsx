@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import type { Case, Client, ClientStatus, DocumentRecord } from '@lexdraft/types';
 import { useClients } from '@/hooks/useClients';
 import { useCases } from '@/hooks/useCases';
@@ -24,17 +24,26 @@ import { PageHeader } from '@/components/PageHeader';
 // =============================================================================
 
 const STATUS_BADGE: Record<ClientStatus, { label: string; cls: string }> = {
-  active:   { label: 'ACTIVE',   cls: 'badge-sage'   },
-  prospect: { label: 'PROSPECT', cls: 'badge-cobalt' },
-  inactive: { label: 'INACTIVE', cls: 'badge-cream'  },
+  active:   { label: 'Active',   cls: 'cm-pill cm-pill--ink'  },
+  prospect: { label: 'Prospect', cls: 'cm-pill cm-pill--line' },
+  inactive: { label: 'Inactive', cls: 'cm-pill cm-pill--soft' },
 };
 
 const CASE_STATUS_BADGE: Record<string, string> = {
-  Active:   'badge-sage',
-  Pending:  'badge-cobalt',
-  Closed:   'badge-cream',
-  Archived: 'badge-cream',
+  Active:   'cm-pill cm-pill--ink',
+  Pending:  'cm-pill cm-pill--line',
+  Closed:   'cm-pill cm-pill--soft',
+  Archived: 'cm-pill cm-pill--soft',
 };
+
+/** "2026-10-28" -> "28 Oct 2026"; free text (e.g. "just now") is shown as-is. */
+function formatDay(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  if (!/^\d{4}-\d{2}-\d{2}/.test(iso)) return iso;
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 function initialsOf(name: string): string {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]!.toUpperCase()).join('');
@@ -109,7 +118,20 @@ export function ClientDetailView(): JSX.Element {
   const defaultCaseLabel = matters[0]?.title ?? '';
 
   if (isLoading) {
-    return <div className="muted" style={{ padding: 24 }}>Loading client…</div>;
+    return (
+      <div className="col cm-client" style={{ gap: 24 }} aria-busy="true">
+        <div className="cm-profile">
+          <div className="cm-hero">
+            <Skeleton width={64} height={64} radius="pill" />
+            <div className="col" style={{ gap: 10, flex: 1 }}>
+              <Skeleton width="45%" height={28} />
+              <Skeleton width="30%" height={14} />
+            </div>
+          </div>
+        </div>
+        <Skeleton width="100%" height={220} />
+      </div>
+    );
   }
   if (isError) {
     return (
@@ -128,63 +150,85 @@ export function ClientDetailView(): JSX.Element {
   }
 
   const badge = STATUS_BADGE[client.status];
+  const nextHearing = matters
+    .map((m) => m.next)
+    .filter((d): d is string => !!d && /^\d{4}-\d{2}-\d{2}/.test(d))
+    .sort()
+    .find((d) => d.slice(0, 10) >= new Date().toISOString().slice(0, 10));
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-client" style={{ gap: 24 }}>
       <PageHeader
-        title={
-          <span className="row" style={{ gap: 12, alignItems: 'center' }}>
-            <span className="avatar" aria-hidden="true" style={{ width: 40, height: 40, fontSize: 16, flexShrink: 0 }}>
-              {initialsOf(client.name)}
-            </span>
-            <span style={{ minWidth: 0 }}>{client.name}</span>
-          </span>
-        }
+        title={client.name}
         description="Client profile, linked cases and their documents."
         back={{ label: 'Clients', to: '/app/clients' }}
-      >
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <span className="badge badge-cobalt">{client.type.toUpperCase()}</span>
-          <span className={`badge ${badge.cls}`}>{badge.label}</span>
-          {client.portalEnabled && <span className="badge badge-sage">PORTAL ENABLED</span>}
-        </div>
-      </PageHeader>
+      />
 
-      {/* Contact facts */}
-      <div className="card">
-        <div className="grid-auto-sm" style={{ gap: 20 }}>
-          <Fact label="EMAIL" value={client.email || '—'} />
-          <Fact label="LAST CONTACT" value={client.lastContact || '—'} mono />
-          <Fact label="OPEN MATTERS" value={String(client.mattersOpen)} mono />
-          <Fact label="TOTAL MATTERS" value={String(matters.length)} mono />
+      {/* Profile: monogram, name, status, then the key facts as figures. */}
+      <section className="cm-profile" aria-label="Client profile">
+        <div className="cm-hero">
+          <span className="cm-avatar cm-avatar--lg" aria-hidden="true">{initialsOf(client.name)}</span>
+          <div style={{ minWidth: 0 }}>
+            <div className="cm-label">{client.type} client</div>
+            <div className="cm-hero-meta">
+              <span className={badge.cls}>{badge.label}</span>
+              {client.portalEnabled && (
+                <span className="cm-pill cm-pill--line"><Icon name="check" size={11} /> Portal enabled</span>
+              )}
+              {client.email ? (
+                <a className="cm-hero-mail" href={`mailto:${client.email}`}>
+                  <Icon name="mail" size={13} /> {client.email}
+                </a>
+              ) : (
+                <span className="cm-hero-mail">No contact email on file</span>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+        <div className="cm-kpis">
+          <Fact label="Open matters" value={String(client.mattersOpen)} note="Live for this client" />
+          <Fact label="Total matters" value={String(matters.length)} note="Linked by client name" />
+          <Fact label="Documents" value={String(clientDocs.length)} note="Across their cases" />
+          <Fact
+            label="Last contact"
+            value={formatDay(client.lastContact)}
+            note={nextHearing ? `Next hearing ${formatDay(nextHearing)}` : 'No hearing listed'}
+            text
+          />
+        </div>
+      </section>
 
       {/* Matters */}
-      <div className="card">
-        <div className="row" style={{ marginBottom: 12, alignItems: 'center' }}>
-          <h2 className="heading-md">Cases</h2>
-          <span className="spacer" />
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginRight: 12 }}>
-            {matters.length} {matters.length === 1 ? 'MATTER' : 'MATTERS'}
+      <section className="card cm-section">
+        <div className="cm-card-head">
+          <h2 className="cm-card-title">Cases</h2>
+          <span className="cm-label">
+            {matters.length} {matters.length === 1 ? 'matter' : 'matters'}
           </span>
-          <Gate feature="matter.create">
-            <button type="button" className="btn btn-sm btn-primary" onClick={() => setNewCaseOpen(true)}>
-              <Icon name="plus" size={12} /> New case
-            </button>
-          </Gate>
+          <div className="cm-card-head-actions">
+            <Gate feature="matter.create">
+              <button type="button" className="btn btn-sm btn-primary" onClick={() => setNewCaseOpen(true)}>
+                <Icon name="plus" size={12} /> New case
+              </button>
+            </Gate>
+          </div>
         </div>
 
         {cases.isLoading ? (
-          <p className="body-sm muted">Loading cases…</p>
+          <div className="cm-section-state col" style={{ gap: 10 }}>
+            <Skeleton width="100%" height={44} />
+            <Skeleton width="100%" height={44} />
+          </div>
         ) : cases.isError ? (
-          <p className="body-sm" style={{ color: 'var(--danger)' }}>Could not load cases. Reload to retry.</p>
+          <p className="cm-section-state body-sm">Could not load cases. Reload to retry.</p>
         ) : matters.length === 0 ? (
-          <EmptyState
-            variant="inline"
-            title="No cases on file for this client yet"
-            description="Use “New case” above to open a matter for this client. It'll be prefilled with their name, and you can add the case content and files right there."
-          />
+          <div className="cm-section-state">
+            <EmptyState
+              variant="inline"
+              title="No cases on file for this client yet"
+              description="Use “New case” above to open a matter for this client. It'll be prefilled with their name, and you can add the case content and files right there."
+            />
+          </div>
         ) : (
           <table className="tbl">
             <thead>
@@ -200,68 +244,71 @@ export function ClientDetailView(): JSX.Element {
               {matters.map((m) => (
                 <tr
                   key={m.id}
+                  className="cm-row-link"
                   onClick={() => navigate(`/app/cases/${m.id}`)}
-                  style={{ cursor: 'pointer' }}
                   title="Open case"
                   tabIndex={0}
                   role="button"
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/app/cases/${m.id}`); } }}
                 >
                   <td>
-                    <div style={{ fontWeight: 500 }}>{m.title}</div>
-                    <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{m.cnr}</div>
+                    <div className="cm-row-title">{m.title}</div>
+                    <div className="mono cm-row-cnr">{m.cnr}</div>
                   </td>
-                  <td className="muted col-hide-mobile">{m.court || '—'}</td>
-                  <td className="muted col-hide-tablet">{m.stage || '—'}</td>
+                  <td className="cm-muted-cell col-hide-mobile">{m.court || '—'}</td>
+                  <td className="cm-muted-cell col-hide-tablet">{m.stage || '—'}</td>
                   <td>
-                    <span className={`badge ${CASE_STATUS_BADGE[m.status] ?? 'badge-cream'}`}>
-                      {m.status.toUpperCase()}
-                    </span>
+                    <span className={CASE_STATUS_BADGE[m.status] ?? 'cm-pill cm-pill--soft'}>{m.status}</span>
                   </td>
-                  <td className="mono tabular muted col-hide-tablet">{m.next || '—'}</td>
+                  <td className="cm-date-cell col-hide-tablet">{formatDay(m.next)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
-      </div>
+      </section>
 
       {/* Documents - aggregated across the client's cases */}
-      <div className="card">
-        <div className="row" style={{ marginBottom: 12, alignItems: 'center' }}>
-          <h2 className="heading-md">Documents</h2>
-          <span className="spacer" />
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginRight: 12 }}>
-            {clientDocs.length} {clientDocs.length === 1 ? 'FILE' : 'FILES'}
+      <section className="card cm-section">
+        <div className="cm-card-head">
+          <h2 className="cm-card-title">Documents</h2>
+          <span className="cm-label">
+            {clientDocs.length} {clientDocs.length === 1 ? 'file' : 'files'}
           </span>
           {defaultCaseLabel && (
-            <button type="button" className="btn btn-sm" onClick={() => setUploadOpen(true)}>
-              <Icon name="upload" size={12} /> Upload
-            </button>
+            <div className="cm-card-head-actions">
+              <button type="button" className="btn btn-sm" onClick={() => setUploadOpen(true)}>
+                <Icon name="upload" size={12} /> Upload
+              </button>
+            </div>
           )}
         </div>
 
         {documents.isLoading ? (
-          <p className="body-sm muted">Loading documents…</p>
+          <div className="cm-section-state col" style={{ gap: 10 }}>
+            <Skeleton width="100%" height={44} />
+          </div>
         ) : matters.length === 0 ? (
-          <div className="col" style={{ gap: 12, alignItems: 'flex-start' }}>
+          <div className="cm-section-state col" style={{ gap: 12, alignItems: 'flex-start' }}>
             <EmptyState
               variant="inline"
               title="No documents yet"
               description="Documents attach to this client's cases. Open a case for this client first, then its files show up here."
             />
             <Gate feature="matter.create">
-              <button type="button" className="btn btn-sm btn-primary" onClick={() => setNewCaseOpen(true)}>
+              <button type="button" className="btn btn-sm" onClick={() => setNewCaseOpen(true)}>
                 <Icon name="plus" size={12} /> New case for this client
               </button>
             </Gate>
           </div>
         ) : clientDocs.length === 0 ? (
-          <EmptyState
-            variant="inline"
-            title="No documents on this client's cases yet"
-            description="Use Upload to file the client's papers against one of their cases."
-          />
+          <div className="cm-section-state">
+            <EmptyState
+              variant="inline"
+              title="No documents on this client's cases yet"
+              description="Use Upload to file the client's papers against one of their cases."
+            />
+          </div>
         ) : (
           <table className="tbl">
             <thead>
@@ -277,14 +324,16 @@ export function ClientDetailView(): JSX.Element {
               {clientDocs.map((d) => (
                 <tr key={d.id ?? `${d.name}-${d.case}`}>
                   <td>
-                    <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                      <Icon name={d.kind === 'draft' ? 'draft' : 'documents'} size={14} />
-                      <span style={{ fontWeight: 500 }}>{d.name}</span>
+                    <div className="cm-doc">
+                      <span className="cm-doc-icon" aria-hidden>
+                        <Icon name={d.kind === 'draft' ? 'draft' : 'documents'} size={14} />
+                      </span>
+                      <span className="cm-row-title">{d.name}</span>
                     </div>
                   </td>
-                  <td className="col-hide-tablet"><span className="badge">{d.type}</span></td>
-                  <td className="muted col-hide-mobile">{d.case}</td>
-                  <td className="mono tabular muted col-hide-tablet">{d.updated}</td>
+                  <td className="col-hide-tablet"><span className="cm-pill cm-pill--soft">{d.type}</span></td>
+                  <td className="cm-muted-cell col-hide-mobile"><em className="case-name">{d.case}</em></td>
+                  <td className="cm-date-cell col-hide-tablet">{formatDay(d.updated)}</td>
                   <td style={{ textAlign: 'right' }}>
                     {/* Drafts are deleted from the drafting surface, not here —
                         this row's delete only targets uploaded documents. */}
@@ -307,7 +356,7 @@ export function ClientDetailView(): JSX.Element {
             </tbody>
           </table>
         )}
-      </div>
+      </section>
 
       {defaultCaseLabel && (
         <NewDocumentModal
@@ -328,15 +377,12 @@ export function ClientDetailView(): JSX.Element {
   );
 }
 
-function Fact({ label, value, mono }: { label: string; value: string; mono?: boolean }): JSX.Element {
+function Fact({ label, value, note, text }: { label: string; value: string; note?: string; text?: boolean }): JSX.Element {
   return (
-    <div>
-      <div className="mono" style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginBottom: 6 }}>
-        {label}
-      </div>
-      <div className={mono ? 'mono tabular' : ''} style={{ fontSize: 14, color: 'var(--text-primary)' }}>
-        {value}
-      </div>
+    <div className="cm-kpi">
+      <div className="cm-kpi-label">{label}</div>
+      <div className={`cm-kpi-value${text ? ' is-text' : ''}`}>{value}</div>
+      {note && <div className="cm-kpi-note">{note}</div>}
     </div>
   );
 }

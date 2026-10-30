@@ -91,11 +91,13 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
   );
 
   return (
-    <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-        <div className="heading-md">Documents on file</div>
-        <span className="body-sm muted">{forMatter.length} on record</span>
-        <span className="spacer" style={{ flex: 1 }} />
+    <div className="cs-docs">
+      <div className="cs-docs-head">
+        <div className="cs-card-titles">
+          <h2 className="cs-card-title">Documents on file</h2>
+          <p className="cs-card-sub">Pleadings, orders, evidence and drafts filed against this matter.</p>
+        </div>
+        <span className="cs-count">{forMatter.length} on record</span>
         <Gate feature="shared.documents">
           <button type="button" className="btn btn-sm" onClick={() => setUploadOpen(true)}>
             <Icon name="upload" size={13} /> Upload
@@ -104,7 +106,7 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
       </div>
 
       {/* Type filters */}
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="cs-docs-chips" role="group" aria-label="Document type">
         {BUCKETS.filter((b) => b.id === 'all' || counts[b.id] > 0).map((b) => (
           <button
             key={b.id}
@@ -119,9 +121,9 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
       </div>
 
       {/* List */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card cs-docs-list">
         {isLoading && (
-          <div className="body-sm muted" style={{ padding: 20, textAlign: 'center' }}>Loading documents…</div>
+          <p className="cs-muted" style={{ padding: 20, textAlign: 'center' }}>Loading documents…</p>
         )}
         {!isLoading && visible.length === 0 && (
           <EmptyState
@@ -140,46 +142,29 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
           // advocate can tell at a glance which files need re-uploading.
           const fileMissing = doc.kind !== 'draft' && !doc.hasFile;
           return (
-          <div
-            key={doc.id ?? `${doc.name}-${i}`}
-            className="row-clickable"
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-              padding: '12px 16px', background: 'transparent',
-              borderBottom: i < visible.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setViewing(doc)}
-              style={{
-                flex: 1, minWidth: 0, textAlign: 'left', display: 'flex', alignItems: 'center',
-                gap: 12, background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
-                color: 'inherit', font: 'inherit',
-              }}
-            >
-              <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={16} />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {doc.name}
-                </div>
-                <div className="body-xs muted">
+          <div key={doc.id ?? `${doc.name}-${i}`} className="cs-doc">
+            <button type="button" className="cs-doc-open" onClick={() => setViewing(doc)}>
+              <span className="cs-line-icon" aria-hidden="true">
+                <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={15} />
+              </span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span className="cs-doc-name" style={{ display: 'block' }}>{doc.name}</span>
+                <span className="cs-doc-meta" style={{ display: 'block' }}>
                   {doc.type || (doc.kind === 'draft' ? 'Draft' : 'Document')}
                   {doc.fileName ? ` · ${doc.fileName}` : ''}
-                </div>
-              </div>
+                </span>
+              </span>
             </button>
-            {doc.hasFile && <span className="badge" style={{ fontSize: 9 }}>FILE</span>}
+            {doc.hasFile && <span className="cs-status is-quiet">File</span>}
             {fileMissing && (
               <span
-                className="badge"
+                className="cs-status is-strong is-dashed"
                 title="This document's file content isn't stored. Re-upload it so it can be read."
-                style={{ fontSize: 9, color: 'var(--warning)', borderColor: 'var(--warning)' }}
               >
-                FILE MISSING
+                File missing
               </span>
             )}
-            <span className="mono tabular body-xs muted" style={{ minWidth: 64, textAlign: 'right' }}>{doc.updated}</span>
+            <span className="cs-doc-date">{doc.updated}</span>
             {doc.id ? (
               <button
                 type="button"

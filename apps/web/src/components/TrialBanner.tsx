@@ -32,11 +32,6 @@ export function TrialBanner(): JSX.Element | null {
   const freePlan = !isDemo && daysLeft > 30;
   const urgency = expired ? 'critical' : daysLeft <= 3 ? 'warn' : 'soft';
 
-  const palette =
-    urgency === 'critical' ? { bg: 'var(--danger-bg, #fff1f1)', fg: 'var(--danger)' }
-    : urgency === 'warn'   ? { bg: 'var(--warning-bg, #fff7e6)', fg: 'var(--warning, #b8860b)' }
-    :                        { bg: 'var(--bg-surface-2)',        fg: 'var(--text-primary)' };
-
   const label = isDemo
     ? expired
       ? 'Your demo session has ended.'
@@ -51,38 +46,16 @@ export function TrialBanner(): JSX.Element | null {
         ? 'Your trial ends today.'
         : `${daysLeft} days left in your trial.`;
 
+  // Ink strip that joins the sidebar; red only once the trial has ended.
   return (
-    <div
-      role={urgency === 'critical' ? 'alert' : 'status'}
-      style={{
-        background: palette.bg,
-        color: palette.fg,
-        padding: '8px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        fontSize: 13,
-        borderBottom: `1px solid ${palette.fg}`,
-      }}
-    >
-      <span style={{ fontWeight: 500 }}>{label}</span>
-      <span className="muted" style={{ color: palette.fg, opacity: 0.85 }}>
+    <div role={urgency === 'critical' ? 'alert' : 'status'} className={`trial-banner trial-banner--${urgency}`}>
+      <span className="trial-banner-label">{label}</span>
+      <span className="trial-banner-note">
         {isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
       </span>
-      <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-        <button
-          type="button"
-          className="btn btn-sm"
-          onClick={() => navigate('/app/billing')}
-          style={{
-            background: 'transparent',
-            borderColor: palette.fg,
-            color: palette.fg,
-          }}
-        >
-          {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
-        </button>
-      </span>
+      <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>
+        {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
+      </button>
     </div>
   );
 }

@@ -151,30 +151,22 @@ export function NewExpenseModal({ open, onClose }: Props) {
             options={STATUSES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
           />
         </Field>
-        <div
-          style={{
-            gridColumn: '1 / -1',
-            display: 'flex',
-            gap: 16,
-            alignItems: 'center',
-            paddingTop: 4,
-          }}
-        >
-          <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+        <div className="cm-checks">
+          <label className="cm-check">
             <input
               type="checkbox"
               checked={reimbursable}
               onChange={(e) => setReimbursable(e.target.checked)}
             />
-            <span className="body-sm">Reimbursable</span>
+            <span>Reimbursable</span>
           </label>
-          <label className="row" style={{ gap: 8, cursor: 'pointer' }}>
+          <label className="cm-check">
             <input
               type="checkbox"
               checked={billable}
               onChange={(e) => setBillable(e.target.checked)}
             />
-            <span className="body-sm">Billable</span>
+            <span>Billable</span>
           </label>
         </div>
       </div>

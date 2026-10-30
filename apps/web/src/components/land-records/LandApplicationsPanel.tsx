@@ -56,8 +56,8 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
 
   if (pending) {
     return (
-      <div className="card col" style={{ gap: 8, padding: 18 }}>
-        <strong>My Applications</strong>
+      <div className="card col lr-card" style={{ gap: 8, padding: 18 }}>
+        <h2 className="lr-card-title">My Applications</h2>
         <p className="body-sm muted" style={{ margin: 0 }}>
           Following applications needs a one-time database update (0093) that hasn't been applied yet. All searches work in the meantime.
         </p>
@@ -69,8 +69,8 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
   const closed = (apps.data ?? []).filter((a) => a.closedAt);
   return (
     <div className="col" style={{ gap: 14 }}>
-      <form className="card col" style={{ gap: 12, padding: 18 }} onSubmit={onAdd}>
-        <strong>Follow an application</strong>
+      <form className="card col lr-card" style={{ gap: 14, padding: 18 }} onSubmit={onAdd}>
+        <h2 className="lr-card-title">Follow an application</h2>
         <LRow>
           <LField label="Application Id" required>
             <input className="input" placeholder="eg:-0000/0000/00/000000" maxLength={21} value={applicationId} onChange={(e) => setApplicationId(e.target.value.toUpperCase())} />
@@ -96,13 +96,16 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
           </button>
         </div>
         {message ? <p className="body-sm" role="status" style={{ margin: 0, fontWeight: 600 }}>{message}</p> : null}
-        <p className="body-sm muted" style={{ margin: 0 }}>
+        <p className="lr-note">
           Application Status on Land Records needs a captcha, so it can't be checked automatically. Use Check status whenever you need it; each check is one captcha and the status is saved here.
         </p>
       </form>
 
-      <div className="card col" style={{ gap: 10, padding: 18 }}>
-        <strong>My Applications{open.length ? ` (${open.length})` : ''}</strong>
+      <div className="card col lr-card" style={{ gap: 12, padding: 18 }}>
+        <div className="row" style={{ gap: 10, alignItems: 'baseline' }}>
+          <h2 className="lr-card-title">My Applications</h2>
+          {open.length ? <span className="ct-col-count" style={{ marginLeft: 0 }}>{open.length}</span> : null}
+        </div>
         {apps.isLoading ? <div className="col" role="status" aria-label="Loading applications" style={{ gap: 8 }}>{[0, 1, 2].map((i) => <span key={i} className="lr-skel" style={{ width: '100%', height: 52 }} />)}</div> : null}
         {apps.isError && !pending ? <p className="body-sm">{errorText(apps.error, 'Could not load applications.')}</p> : null}
         {!apps.isLoading && open.length === 0 ? <p className="body-sm muted" style={{ margin: 0 }}>No applications followed yet.</p> : null}
@@ -115,10 +118,10 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
               <tbody>
                 {open.map((a) => (
                   <tr key={a.id}>
-                    <td className="tabular" style={{ fontWeight: 600 }}>{a.applicationId}{a.note ? <div className="body-sm muted">{a.note}</div> : null}</td>
+                    <td className="tabular" style={{ fontWeight: 600 }}>{a.applicationId}{a.note ? <div className="body-sm muted" style={{ fontWeight: 400 }}>{a.note}</div> : null}</td>
                     <td>{KIND_LABEL[a.kind]}</td>
                     <td>{a.caseTitle ?? '—'}</td>
-                    <td style={{ whiteSpace: 'normal' }}>{a.lastStatus ?? '—'}</td>
+                    <td style={{ whiteSpace: 'normal' }}>{a.lastStatus ?? <span className="muted">Not checked yet</span>}</td>
                     <td>{when(a.lastCheckedAt)}</td>
                     <td>
                       <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
@@ -133,17 +136,18 @@ export function LandApplicationsPanel({ onCheck, prefill }: {
           </div>
         ) : null}
         {closed.length > 0 ? (
-          <details>
-            <summary className="body-sm" style={{ cursor: 'pointer' }}>Closed ({closed.length})</summary>
-            <ul className="body-sm" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+          <details className="lr-closed">
+            <summary>Closed ({closed.length})</summary>
+            <div style={{ marginTop: 8 }}>
               {closed.map((a) => (
-                <li key={a.id} style={{ marginBottom: 4 }}>
-                  {a.applicationId} · {a.lastStatus ?? 'no status recorded'}{' '}
+                <div key={a.id} className="lr-closed-row">
+                  <span className="tabular" style={{ fontWeight: 600 }}>{a.applicationId}</span>
+                  <span className="ct-meta">{a.lastStatus ?? 'no status recorded'}</span>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => update.mutate({ id: a.id, closed: false })}>Reopen</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => remove.mutate(a.id)}>Remove</button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           </details>
         ) : null}
       </div>

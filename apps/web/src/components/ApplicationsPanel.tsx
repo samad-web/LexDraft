@@ -5,15 +5,16 @@ import { useCaseApplications, useDeleteApplication } from '@/hooks/useCaseApplic
 import { useUIStore } from '@/store/ui';
 import { NewApplicationModal, APPLICATION_KIND_LABELS, APPLICATION_STATUS_LABELS } from './NewApplicationModal';
 
-/** Status → accent colour for the pill. */
-function statusColor(status: ApplicationStatus): string {
+/** Status -> ink treatment (strictly monochrome): filled once the court has
+ *  ruled in our favour, outlined while open, quiet once closed otherwise. */
+function statusClass(status: ApplicationStatus): string {
   switch (status) {
-    case 'allowed':   return 'var(--success, #2f7d32)';
-    case 'dismissed': return 'var(--danger, #b3261e)';
-    case 'disposed':  return 'var(--info, #2563eb)';
-    case 'withdrawn': return 'var(--text-tertiary)';
-    case 'pending':
-    default:          return 'var(--warning, #b45309)';
+    case 'allowed':   return 'is-ink';
+    case 'pending':   return 'is-strong is-dashed';
+    case 'dismissed': return 'is-strong';
+    case 'disposed':
+    case 'withdrawn':
+    default:          return 'is-quiet';
   }
 }
 
@@ -41,75 +42,54 @@ export function ApplicationsPanel({ caseId }: { caseId: string }) {
   }
 
   return (
-    <div>
-      <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-        <h2 className="heading-lg">Applications</h2>
-        <span className="spacer" />
-        {items.length > 0 && (
-          <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)', marginRight: 12 }}>
-            {items.length} ON RECORD
-          </span>
-        )}
+    <section>
+      <div className="cs-apps-head">
+        <div className="cs-card-titles">
+          <h2 className="cs-card-title">Applications</h2>
+          <p className="cs-card-sub">Interim applications, appeals, execution, review or bail, each with its own status.</p>
+        </div>
+        {items.length > 0 && <span className="cs-count">{items.length} on record</span>}
         <button type="button" className="btn btn-sm" onClick={openNew}>
           <Icon name="plus" size={12} /> Add application
         </button>
       </div>
 
       {apps.isLoading ? (
-        <p className="body-md muted">Loading applications…</p>
+        <p className="cs-muted">Loading applications…</p>
       ) : items.length === 0 ? (
-        <p className="body-md muted">
-          No applications on record. Track interim applications, appeals, execution, review or bail here, each with its own status.
-        </p>
+        <div className="card">
+          <p className="cs-muted">
+            No applications on record. Track interim applications, appeals, execution, review or bail here, each with its own status.
+          </p>
+        </div>
       ) : (
-        <div className="grid-2">
+        <div className="cs-apps">
           {items.map((a) => (
-            <div key={a.id} className="card" style={{ padding: 18 }}>
-              <div className="row" style={{ gap: 8, marginBottom: 8, alignItems: 'center' }}>
-                <span className="badge">{APPLICATION_KIND_LABELS[a.kind]}</span>
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 10, letterSpacing: '0.14em', fontWeight: 600,
-                    padding: '2px 8px', borderRadius: 'var(--radius-full)',
-                    color: statusColor(a.status),
-                    border: `1px solid ${statusColor(a.status)}`,
-                  }}
-                >
-                  {APPLICATION_STATUS_LABELS[a.status].toUpperCase()}
+            <article key={a.id} className="card cs-app">
+              <div className="cs-app-top">
+                <span className="cs-app-kind">{APPLICATION_KIND_LABELS[a.kind]}</span>
+                <span className={`cs-status ${statusClass(a.status)}`}>{APPLICATION_STATUS_LABELS[a.status]}</span>
+                <span className="cs-app-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(a)} aria-label="Edit application">
+                    Edit
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm"
+                          disabled={del.isPending} onClick={() => remove(a)} aria-label="Remove application">
+                    Remove
+                  </button>
                 </span>
-                <span className="spacer" />
-                <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px' }} onClick={() => openEdit(a)} aria-label="Edit application">
-                  Edit
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px', color: 'var(--danger)' }}
-                        disabled={del.isPending} onClick={() => remove(a)} aria-label="Remove application">
-                  Remove
-                </button>
               </div>
-              <div className="heading-md" style={{ marginBottom: 4 }}>
-                {a.label || APPLICATION_KIND_LABELS[a.kind]}
-              </div>
-              {a.appType && <div className="body-sm muted" style={{ marginBottom: 8 }}>{a.appType}</div>}
-              <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-                {a.filedOn && (
-                  <span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
-                    FILED {a.filedOn}
-                  </span>
-                )}
-                {a.orderOn && (
-                  <span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
-                    ORDER {a.orderOn}
-                  </span>
-                )}
-                {!a.visibleToPortal && (
-                  <span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>
-                    INTERNAL
-                  </span>
-                )}
-              </div>
-              {a.notes && <p className="body-sm" style={{ marginTop: 10, color: 'var(--text-secondary)' }}>{a.notes}</p>}
-            </div>
+              <h3 className="cs-app-title">{a.label || APPLICATION_KIND_LABELS[a.kind]}</h3>
+              {a.appType && <div className="cs-app-type">{a.appType}</div>}
+              {(a.filedOn || a.orderOn || !a.visibleToPortal) && (
+                <div className="cs-app-dates">
+                  {a.filedOn && <span>Filed <strong>{a.filedOn}</strong></span>}
+                  {a.orderOn && <span>Order <strong>{a.orderOn}</strong></span>}
+                  {!a.visibleToPortal && <span>Internal · not on client portal</span>}
+                </div>
+              )}
+              {a.notes && <p className="cs-app-notes">{a.notes}</p>}
+            </article>
           ))}
         </div>
       )}
@@ -122,6 +102,6 @@ export function ApplicationsPanel({ caseId }: { caseId: string }) {
           existing={editing}
         />
       )}
-    </div>
+    </section>
   );
 }

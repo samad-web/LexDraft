@@ -29,13 +29,13 @@ const FILTERS: ReadonlyArray<FilterOption> = [
 ];
 
 const STATUS_BADGE: Record<PhysicalDocStatus, { label: string; cls: string }> = {
-  in_chambers: { label: 'CHAMBERS',  cls: 'badge-sage' },
-  court_file:  { label: 'COURT',     cls: 'badge-cobalt' },
-  client:      { label: 'CLIENT',    cls: 'badge-amber' },
-  co_counsel:  { label: 'CO-COUNSEL', cls: 'badge-amber' },
-  archive_box: { label: 'ARCHIVED',  cls: 'badge-cream' },
-  returned:    { label: 'RETURNED',  cls: 'badge-cream' },
-  lost:        { label: 'LOST',      cls: 'badge-vermillion' },
+  in_chambers: { label: 'CHAMBERS',  cls: 'is-solid' },
+  court_file:  { label: 'COURT',     cls: 'is-strong' },
+  client:      { label: 'CLIENT',    cls: '' },
+  co_counsel:  { label: 'CO-COUNSEL', cls: '' },
+  archive_box: { label: 'ARCHIVED',  cls: 'is-muted' },
+  returned:    { label: 'RETURNED',  cls: 'is-muted' },
+  lost:        { label: 'LOST',      cls: 'is-dashed is-strong' },
 };
 
 /**
@@ -80,7 +80,7 @@ export function PhysicalDocsView() {
   }
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-phys">
       <PageHeader
         title="Physical Docs"
         description="Where each paper original is now, and who has custody of it."
@@ -102,7 +102,7 @@ export function PhysicalDocsView() {
       </PageHeader>
       <NewPhysicalDocModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="fm-chips" role="group" aria-label="Filter by where the original is">
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -112,16 +112,16 @@ export function PhysicalDocsView() {
             aria-pressed={filter === f.id}
           >
             {f.label}
-            <span className="mono tabular" style={{ marginLeft: 8, opacity: 0.7, fontSize: 11 }}>{counts[f.id]}</span>
+            <span className="fm-count">{counts[f.id]}</span>
           </button>
         ))}
       </div>
 
-      <div className="card">
-        <table className="tbl">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="tbl fm-tbl">
           <thead>
             <tr>
-              <th style={{ width: 130 }}>File no.</th>
+              <th style={{ width: 120 }}>File no.</th>
               <th>Title</th>
               <th>Matter</th>
               <th>Location</th>
@@ -143,7 +143,7 @@ export function PhysicalDocsView() {
               </tr>
             ))}
             {list.isError && (
-              <tr><td colSpan={7}>
+              <tr><td colSpan={7} data-span="all">
                 <ErrorState
                   variant="inline"
                   title="Couldn't load the register"
@@ -152,7 +152,7 @@ export function PhysicalDocsView() {
               </td></tr>
             )}
             {!list.isLoading && !list.isError && items.length === 0 && (
-              <tr><td colSpan={7}>
+              <tr><td colSpan={7} data-span="all">
                 <EmptyState
                   variant="inline"
                   title={q || filter !== 'all' ? 'No documents match' : 'No physical documents yet'}
@@ -168,26 +168,30 @@ export function PhysicalDocsView() {
               const badge = STATUS_BADGE[d.status];
               return (
                 <tr key={d.id}>
-                  <td className="mono tabular" style={{ fontSize: 12 }}>{d.fileNo}</td>
+                  <td><span className="fm-code">{d.fileNo}</span></td>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{d.title}</div>
-                    {d.docType && <div className="muted" style={{ fontSize: 12 }}>{d.docType}</div>}
+                    <div>
+                      <div className="fm-cell-title">{d.title}</div>
+                      {d.docType && <div className="fm-cell-sub">{d.docType}</div>}
+                    </div>
                   </td>
-                  <td className="muted" style={{ fontSize: 13 }}>
-                    {d.caseLabel ?? <span className="muted">-</span>}
-                  </td>
-                  <td className="body-sm">{d.location}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{d.custodian ?? '-'}</td>
-                  <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
                   <td>
+                    {d.caseLabel ? <span className="fm-matter" style={{ fontSize: 14.5 }}>{d.caseLabel}</span> : <span className="muted">-</span>}
+                  </td>
+                  <td>
+                    <div className="fm-loc"><Icon name="map" size={13} /><span>{d.location}</span></div>
+                  </td>
+                  <td><span className="fm-custodian">{d.custodian ?? '-'}</span></td>
+                  <td><span className={`fm-pill ${badge.cls}`}>{badge.label}</span></td>
+                  <td style={{ textAlign: 'right' }}>
                     <Gate feature="matter.create">
                       <button
                         type="button"
-                        className="btn btn-ghost"
+                        className="btn btn-sm"
                         onClick={() => void onDelete(d.id, d.title)}
                         disabled={remove.isPending}
                       >
-                        Archive
+                        <Icon name="archive" size={13} /> Archive
                       </button>
                     </Gate>
                   </td>

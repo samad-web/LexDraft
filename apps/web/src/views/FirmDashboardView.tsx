@@ -98,118 +98,60 @@ export function FirmDashboardView() {
   ];
 
   return (
-    <div className="col stagger" style={{ gap: 28 }}>
+    <div className="col stagger fm-view fm-firm">
       {/* Page header */}
-      <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 16 }}>
+      <div className="fm-firm-head">
         <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>Firm overview</div>
-          <h1 className="heading-xl">{data.firm.name}</h1>
-          <div className="body-sm muted" style={{ marginTop: 4 }}>
-            <span className="mono tabular">{data.firm.period.toUpperCase()}</span>
-            <span style={{ margin: '0 10px', color: 'var(--text-tertiary)' }}>·</span>
-            <span className="tabular">
-              {data.firm.seatsUsed} of {data.firm.seats} seats used ({seatPct}%)
+          <div className="fm-eyebrow">Firm overview · {data.firm.period}</div>
+          <h1 className="fm-firm-title">{data.firm.name}</h1>
+          <div className="fm-firm-meta">
+            <span className="fm-seats">
+              <span className="fm-bar" aria-hidden><span style={{ width: `${Math.min(100, seatPct)}%` }} /></span>
+              <span className="tabular">
+                {data.firm.seatsUsed} of {data.firm.seats} seats used ({seatPct}%)
+              </span>
             </span>
           </div>
         </div>
-        <span className="spacer" />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => {
-            const s = data.stats;
-            downloadCsv(
-              `firm-report-${new Date().toISOString().slice(0, 10)}.csv`,
-              ['Metric', 'Value'],
-              [
-                ['Firm', data.firm.name],
-                ['Period', data.firm.period],
-                ['Seats used', `${data.firm.seatsUsed} / ${data.firm.seats}`],
-                ['Total matters', s.totalMatters],
-                ['Active matters', s.activeMatters],
-                ['Revenue (FY)', s.revenueFY],
-                ['Revenue YoY (%)', s.revenueDeltaPct],
-                ['Billable hours (month)', s.billableHoursMonth],
-                ['Realisation (%)', s.realizationPct],
-                ['Active advocates', s.advocatesActive],
-                ['Active clients', s.clientsActive],
-              ],
-            );
-            showToast({ type: 'sage', text: 'Firm report exported' });
-          }}
-        >
-          <Icon name="download" size={14} /> Export report
-        </button>
-        <CaptureLeadCta />
-        <button
-          className="btn btn-primary"
-          type="button"
-          onClick={() => setInviteOpen(true)}
-        >
-          <Icon name="plus" size={14} /> Invite member
-        </button>
+        <div className="fm-firm-actions">
+          <button
+            className="btn"
+            type="button"
+            onClick={() => {
+              const s = data.stats;
+              downloadCsv(
+                `firm-report-${new Date().toISOString().slice(0, 10)}.csv`,
+                ['Metric', 'Value'],
+                [
+                  ['Firm', data.firm.name],
+                  ['Period', data.firm.period],
+                  ['Seats used', `${data.firm.seatsUsed} / ${data.firm.seats}`],
+                  ['Total matters', s.totalMatters],
+                  ['Active matters', s.activeMatters],
+                  ['Revenue (FY)', s.revenueFY],
+                  ['Revenue YoY (%)', s.revenueDeltaPct],
+                  ['Billable hours (month)', s.billableHoursMonth],
+                  ['Realisation (%)', s.realizationPct],
+                  ['Active advocates', s.advocatesActive],
+                  ['Active clients', s.clientsActive],
+                ],
+              );
+              showToast({ type: 'sage', text: 'Firm report exported' });
+            }}
+          >
+            <Icon name="download" size={14} /> Export report
+          </button>
+          <CaptureLeadCta variant="secondary" />
+          <button
+            className="btn btn-primary"
+            type="button"
+            onClick={() => setInviteOpen(true)}
+          >
+            <Icon name="plus" size={14} /> Invite member
+          </button>
+        </div>
       </div>
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
-
-      {/* Calendar CTA - dedicated card row. */}
-      <div
-        className="card"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-          padding: '18px 22px',
-          background: 'var(--bg-surface-2)',
-          borderColor: 'var(--border-default)',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Month at a glance</div>
-          <div className="heading-md" style={{ marginBottom: 2 }}>Full hearings calendar</div>
-          <p className="body-sm muted" style={{ margin: 0 }}>
-            Every hearing across the firm for the month. Step through months and drill into any day's list.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-lg"
-          onClick={() => setCalendarOpen(true)}
-          aria-label="Open full month calendar"
-        >
-          <Icon name="calendar" size={16} /> Open calendar
-        </button>
-      </div>
-
-      {/* Court fee / stamp duty - same quick-access row as the calendar CTA
-          above, since every advocate filing a suit needs this before Cases. */}
-      <div
-        className="card"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 20,
-          padding: '18px 22px',
-          background: 'var(--bg-surface-2)',
-          borderColor: 'var(--border-default)',
-          marginTop: 16,
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>All-India · 36 states &amp; UTs</div>
-          <div className="heading-md" style={{ marginBottom: 2 }}>Court fee &amp; stamp duty calculator</div>
-          <p className="body-sm muted" style={{ margin: 0 }}>
-            Estimate the court fee on a plaint or the stamp duty on an instrument before filing, plus a vakalatnama generator.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-lg"
-          onClick={() => navigate('/app/calculators')}
-          aria-label="Open court fee and stamp duty calculator"
-        >
-          <Icon name="calculator" size={16} /> Open
-        </button>
-      </div>
 
       {isEmptyChambers && (
         <DashboardEmptyState
@@ -219,20 +161,19 @@ export function FirmDashboardView() {
         />
       )}
 
-      {/* Headline KPI strip - each cell drills into the relevant view */}
-      <div className="stat-row">
+      {/* Headline KPI strip - each tile drills into the relevant view */}
+      <div className="fm-kpis">
         <Stat
           label="Total matters"
           value={String(data.stats.totalMatters)}
-          hint={`${data.stats.activeMatters} active`}
+          hint={<><strong>{data.stats.activeMatters}</strong> active</>}
           to="/app/cases"
           drillLabel={`Total matters: ${data.stats.totalMatters}. View all matters`}
         />
         <Stat
           label="Revenue · FY"
           value={data.stats.revenueFY}
-          hint={`${data.stats.revenueDeltaPct > 0 ? '+' : ''}${data.stats.revenueDeltaPct}% vs prior year`}
-          tone={data.stats.revenueDeltaPct >= 0 ? 'success' : 'danger'}
+          hint={<><strong>{`${data.stats.revenueDeltaPct > 0 ? '+' : ''}${data.stats.revenueDeltaPct}%`}</strong> vs prior year</>}
           to="/app/invoices"
           drillLabel={`Revenue this financial year: ${data.stats.revenueFY}. View invoices`}
         />
@@ -241,7 +182,7 @@ export function FirmDashboardView() {
           value={data.stats.billableHoursMonth > 0 ? String(data.stats.billableHoursMonth) : '-'}
           hint={
             data.stats.realizationPct > 0
-              ? `${data.stats.realizationPct}% realisation`
+              ? <><strong>{data.stats.realizationPct}%</strong> realisation</>
               : 'Time tracking not configured'
           }
           to="/app/analytics"
@@ -250,118 +191,164 @@ export function FirmDashboardView() {
         <Stat
           label="Active advocates"
           value={String(data.stats.advocatesActive)}
-          hint={`${data.stats.clientsActive} active clients`}
+          hint={<><strong>{data.stats.clientsActive}</strong> active clients</>}
           to="/app/manage"
           drillLabel={`${data.stats.advocatesActive} active advocates. Manage the firm roster`}
         />
       </div>
 
+      {/* Quick tools: month calendar + court fee calculator */}
+      <div className="fm-shortcuts">
+        <div className="fm-shortcut">
+          <span className="fm-shortcut-icon" aria-hidden><Icon name="calendar" size={18} /></span>
+          <div className="fm-shortcut-text">
+            <div className="fm-eyebrow">Month at a glance</div>
+            <div className="fm-shortcut-title">Full hearings calendar</div>
+            <p className="fm-shortcut-desc">
+              Every hearing across the firm for the month. Step through months and drill into any day's list.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setCalendarOpen(true)}
+            aria-label="Open full month calendar"
+          >
+            Open calendar
+          </button>
+        </div>
+        <div className="fm-shortcut">
+          <span className="fm-shortcut-icon" aria-hidden><Icon name="calculator" size={18} /></span>
+          <div className="fm-shortcut-text">
+            <div className="fm-eyebrow">All-India · 36 states &amp; UTs</div>
+            <div className="fm-shortcut-title">Court fee &amp; stamp duty calculator</div>
+            <p className="fm-shortcut-desc">
+              Estimate the court fee on a plaint or the stamp duty on an instrument before filing, plus a vakalatnama generator.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => navigate('/app/calculators')}
+            aria-label="Open court fee and stamp duty calculator"
+          >
+            Open
+          </button>
+        </div>
+      </div>
+
       {/* Revenue + matters split */}
-      <div className="grid-2" style={{ alignItems: 'stretch' }}>
-        <div className="card">
-          <div className="row" style={{ marginBottom: 16, alignItems: 'flex-end' }}>
+      <div className="fm-grid-2 is-stretch">
+        <div className="fm-panel">
+          <div className="fm-panel-head">
             <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Monthly revenue · ₹L</div>
-              <div className="heading-md">Trailing twelve months</div>
+              <div className="fm-eyebrow">Monthly revenue · ₹ lakh</div>
+              <h2 className="fm-panel-title">Trailing twelve months</h2>
             </div>
-            <span className="spacer" />
             {data.stats.revenueDeltaPct !== 0 && (
-              <span
-                className={`badge ${data.stats.revenueDeltaPct >= 0 ? 'badge-sage' : 'badge-vermillion'}`}
-              >
+              <span className={`fm-pill ${data.stats.revenueDeltaPct >= 0 ? 'is-solid' : 'is-strong'}`}>
                 {data.stats.revenueDeltaPct > 0 ? '+' : ''}
                 {data.stats.revenueDeltaPct}% YoY
               </span>
             )}
           </div>
-          <RevenueChart series={data.monthlyRevenue} />
+          {data.monthlyRevenue.length > 0
+            ? <RevenueChart series={data.monthlyRevenue} />
+            : <div className="fm-quiet">No invoices posted yet. Revenue appears here month by month.</div>}
         </div>
 
-        <div className="card">
-          <div className="row" style={{ marginBottom: 16 }}>
+        <div className="fm-panel">
+          <div className="fm-panel-head">
             <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Matters by stage</div>
-              <div className="heading-md">Across the firm</div>
+              <div className="fm-eyebrow">Matters by stage</div>
+              <h2 className="fm-panel-title">Across the firm</h2>
             </div>
+            <span className="fm-panel-aside">{data.stats.activeMatters} active</span>
           </div>
-          <StageBars stages={data.caseStages} />
+          {data.caseStages.length > 0
+            ? <StageBars stages={data.caseStages} />
+            : <div className="fm-quiet">No active matters with a stage yet.</div>}
         </div>
       </div>
 
       {/* Members + practice mix */}
-      <div className="grid-2" style={{ alignItems: 'flex-start' }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="row" style={{ padding: 24, alignItems: 'flex-end', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="fm-grid-2">
+        <div className="fm-panel is-flush">
+          <div className="fm-panel-head">
             <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Chambers performance</div>
-              <div className="heading-md">Members</div>
+              <div className="fm-eyebrow">Chambers performance</div>
+              <h2 className="fm-panel-title">Members</h2>
             </div>
-            <span className="spacer" />
-            <span className="body-sm muted tabular">{data.members.length} on roll</span>
+            <span className="fm-panel-aside">{data.members.length} on roll</span>
           </div>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Advocate</th>
-                <th style={{ textAlign: 'right' }}>Matters</th>
-                <th style={{ textAlign: 'right' }}>Hrs · mo</th>
-                <th style={{ textAlign: 'right' }}>Win %</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.members.length === 0 ? (
+          <div className="fm-scroll">
+            <table className="tbl fm-tbl">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="body-sm muted" style={{ padding: '20px 24px' }}>
-                    No advocates on roll yet. Invite teammates from Manage Members.
-                  </td>
+                  <th>Advocate</th>
+                  <th className="num">Matters</th>
+                  <th className="num">Hrs · mo</th>
+                  <th className="num">Win %</th>
+                  <th>Status</th>
                 </tr>
-              ) : (
-                data.members.map((m) => <MemberRow key={m.id} member={m} />)
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.members.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} data-span="all" className="body-sm muted" style={{ padding: '20px 24px' }}>
+                      No advocates on roll yet. Invite teammates from Manage Members.
+                    </td>
+                  </tr>
+                ) : (
+                  data.members.map((m) => <MemberRow key={m.id} member={m} />)
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className="card">
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Practice mix</div>
-          <div className="heading-md" style={{ marginBottom: 18 }}>Revenue by area</div>
-          <div className="col" style={{ gap: 14 }}>
+        <div className="fm-panel">
+          <div className="fm-panel-head">
+            <div>
+              <div className="fm-eyebrow">Practice mix</div>
+              <h2 className="fm-panel-title">Revenue by area</h2>
+            </div>
+          </div>
+          <div className="fm-area-list">
             {data.practiceAreas.length === 0 ? (
-              <div className="body-sm muted">
+              <div className="fm-quiet">
                 No practice areas tracked yet. Tag matters with an area when you open them and they'll surface here.
               </div>
             ) : (
-              data.practiceAreas.map((p) => <PracticeRow key={p.name} area={p} />)
+              data.practiceAreas.map((p, i) => <PracticeRow key={p.name} area={p} lead={i === 0} />)
             )}
           </div>
         </div>
       </div>
 
       {/* Top clients + today + alerts */}
-      <div className="grid-2" style={{ alignItems: 'flex-start' }}>
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="row" style={{ padding: 24, alignItems: 'flex-end', borderBottom: '1px solid var(--border-subtle)' }}>
+      <div className="fm-grid-2">
+        <div className="fm-panel is-flush">
+          <div className="fm-panel-head">
             <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Book of business</div>
-              <div className="heading-md">Top clients</div>
+              <div className="fm-eyebrow">Book of business</div>
+              <h2 className="fm-panel-title">Top clients</h2>
             </div>
-            <span className="spacer" />
-            <span className="body-sm muted">FY to date</span>
+            <span className="fm-panel-aside">FY to date</span>
           </div>
-          <table className="tbl">
+          <table className="tbl fm-tbl">
             <thead>
               <tr>
                 <th>Client</th>
-                <th style={{ textAlign: 'right' }}>Matters</th>
-                <th style={{ textAlign: 'right' }}>Billed</th>
-                <th style={{ textAlign: 'right' }}>Last activity</th>
+                <th className="num">Matters</th>
+                <th className="num">Billed</th>
+                <th className="num">Last activity</th>
               </tr>
             </thead>
             <tbody>
               {data.topClients.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="body-sm muted" style={{ padding: '20px 24px' }}>
+                  <td colSpan={4} data-span="all" className="body-sm muted" style={{ padding: '20px 24px' }}>
                     No client billing recorded this financial year yet.
                   </td>
                 </tr>
@@ -372,78 +359,72 @@ export function FirmDashboardView() {
           </table>
         </div>
 
-        <div className="col" style={{ gap: 16 }}>
-          <div className="card">
-            <div className="row" style={{ marginBottom: 14, alignItems: 'flex-end' }}>
+        <div className="col" style={{ gap: 20 }}>
+          <div className="fm-panel">
+            <div className="fm-panel-head" style={{ marginBottom: 10 }}>
               <div>
-                <div className="eyebrow" style={{ marginBottom: 6 }}>Today</div>
-                <div className="heading-md">Hearings across the firm</div>
+                <div className="fm-eyebrow">Today</div>
+                <h2 className="fm-panel-title">Hearings across the firm</h2>
               </div>
-              <span className="spacer" />
-              <span className="badge badge-cobalt">{data.hearingsToday.length} listed</span>
+              <span className="fm-pill is-plain">{data.hearingsToday.length} listed</span>
             </div>
             <MonthCalendarModal open={calendarOpen} onClose={() => setCalendarOpen(false)} />
             <div className="col" style={{ gap: 0 }}>
               {data.hearingsToday.length === 0 && (
-                <div className="body-sm muted" style={{ padding: '12px 0' }}>
+                <div className="fm-quiet">
                   No hearings listed for today.
                 </div>
               )}
-              {data.hearingsToday.map((h, i, arr) => (
+              {data.hearingsToday.map((h, i) => (
                 <div
                   key={h.id ?? `${h.case}-${i}`}
-                  className="row"
+                  className="fm-hearing"
                   role="button"
                   tabIndex={0}
                   onClick={() => navigate(h.caseId ? `/app/cases/${h.caseId}` : '/app/causelist')}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') navigate(h.caseId ? `/app/cases/${h.caseId}` : '/app/causelist');
                   }}
-                  style={{
-                    padding: '14px 0',
-                    borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-                    gap: 16,
-                    cursor: 'pointer',
-                  }}
                 >
-                  <div style={{ width: 56 }}>
-                    <div className="mono tabular heading-sm">{h.time}</div>
-                    <div className="body-xs muted">IST</div>
+                  <div className="fm-time">
+                    <div className="fm-time-h">{h.time}</div>
+                    <div className="fm-time-z">IST</div>
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="body-md" style={{ fontWeight: 500 }}>
-                      <em className="case-name">{h.case}</em>
-                    </div>
-                    <div className="body-sm muted">
-                      {h.purpose} · <span className="mono">{h.court}</span>
+                  <div className="fm-hearing-text">
+                    <div className="fm-hearing-case">{h.case}</div>
+                    <div className="fm-hearing-sub">
+                      {h.purpose} · {h.court}
                     </div>
                   </div>
+                  <Icon name="chevron" size={16} className="muted" />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="card">
-            <div className="row" style={{ marginBottom: 14, alignItems: 'flex-end' }}>
+          <div className="fm-panel">
+            <div className="fm-panel-head" style={{ marginBottom: 6 }}>
               <div>
-                <div className="eyebrow" style={{ marginBottom: 6 }}>Notices to the bench</div>
-                <div className="heading-md">Firm alerts</div>
+                <div className="fm-eyebrow">Notices to the bench</div>
+                <h2 className="fm-panel-title">Firm alerts</h2>
               </div>
-              <span className="spacer" />
-              <span className="body-sm muted">{data.alerts.length} active</span>
+              <span className="fm-panel-aside">{data.alerts.length} active</span>
             </div>
-            <div className="col" style={{ gap: 12 }}>
+            <div className="fm-alerts">
               {data.alerts.length === 0 && (
-                <div className="body-sm muted" style={{ padding: '12px 0' }}>
+                <div className="fm-quiet">
                   No active alerts.
                 </div>
               )}
               {data.alerts.map((a, i) => (
-                <div key={i} className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
-                  <span className={`dot dot-${a.type}`} style={{ marginTop: 8 }} />
+                <div key={i} className="fm-alert">
+                  <span
+                    className={`fm-alert-mark${a.type === 'vermillion' ? ' is-urgent' : a.type === 'cobalt' || a.type === 'sage' ? ' is-soft' : ''}`}
+                    aria-hidden
+                  />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="body-md" style={{ fontWeight: 500 }}>{a.text}</div>
-                    <div className="body-sm muted">{a.detail}</div>
+                    <div className="fm-alert-text">{a.text}</div>
+                    <div className="fm-alert-detail">{a.detail}</div>
                   </div>
                 </div>
               ))}
@@ -459,22 +440,22 @@ export function FirmDashboardView() {
 
 function Loading() {
   return (
-    <div className="col stagger" style={{ gap: 24 }} aria-busy="true" aria-label="Loading firm dashboard">
+    <div className="col stagger fm-view fm-firm" aria-busy="true" aria-label="Loading firm dashboard">
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Firm overview</div>
-        <Skeleton width="55%" height={36} />
+        <div className="fm-eyebrow" style={{ marginBottom: 12 }}>Firm overview</div>
+        <Skeleton width="55%" height={40} />
       </div>
-      <div className="grid-auto">
+      <div className="fm-kpis">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div key={i} className="fm-kpi" style={{ gap: 12 }}>
             <Skeleton width="50%" height={11} />
-            <Skeleton width="35%" height={28} />
+            <Skeleton width="40%" height={34} />
             <Skeleton width="70%" height={11} />
           </div>
         ))}
       </div>
-      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Skeleton width="30%" height={14} />
+      <div className="fm-panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Skeleton width="30%" height={16} />
         {Array.from({ length: 5 }, (_, i) => (
           <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <Skeleton width={32} height={32} circle />
@@ -492,16 +473,14 @@ function Loading() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-firm">
       <div>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Firm overview</div>
-        <h1 className="heading-xl">Couldn't load the dashboard</h1>
+        <div className="fm-eyebrow">Firm overview</div>
+        <h1 className="fm-firm-title">Couldn't load the dashboard</h1>
       </div>
-      <div className="card" style={{ borderColor: 'var(--danger)' }}>
-        <div className="row" style={{ gap: 12 }}>
-          <span className="badge badge-vermillion">Error</span>
-          <span className="body-sm">{message}</span>
-        </div>
+      <div className="fm-error" role="alert">
+        <span className="fm-error-mark" aria-hidden>!</span>
+        <span>{message}</span>
       </div>
     </div>
   );
@@ -511,15 +490,13 @@ function Stat({
   label,
   value,
   hint,
-  tone,
   to,
   drillLabel,
 }: {
   label: string;
   value: string;
-  hint?: string;
-  tone?: 'success' | 'danger';
-  /** When set, the cell becomes an interactive button that navigates here. */
+  hint?: React.ReactNode;
+  /** When set, the tile becomes an interactive button that navigates here. */
   to?: string;
   /** Accessible action description, e.g. "View all matters". */
   drillLabel?: string;
@@ -528,21 +505,11 @@ function Stat({
 
   const inner = (
     <>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
-      <div className="display-md tabular" style={{ fontSize: 36, lineHeight: 1.1 }}>{value}</div>
-      {hint && (
-        <div
-          className="body-sm"
-          style={{
-            marginTop: 6,
-            color: tone === 'success' ? 'var(--success)' : tone === 'danger' ? 'var(--danger)' : 'var(--text-secondary)',
-          }}
-        >
-          {hint}
-        </div>
-      )}
+      <span className="fm-kpi-label">{label}</span>
+      <span className="fm-kpi-value">{value}</span>
+      {hint && <span className="fm-kpi-hint">{hint}</span>}
       {to && (
-        <span className="stat-cell__chevron" aria-hidden>
+        <span className="fm-kpi-chev" aria-hidden>
           <Icon name="chevron" size={16} />
         </span>
       )}
@@ -553,7 +520,7 @@ function Stat({
     return (
       <button
         type="button"
-        className="stat-cell"
+        className="fm-kpi"
         onClick={() => navigate(to)}
         aria-label={drillLabel ?? `${label}: ${value}. View details`}
       >
@@ -562,28 +529,28 @@ function Stat({
     );
   }
 
-  return <div>{inner}</div>;
+  return <div className="fm-kpi">{inner}</div>;
 }
 
 function MemberRow({ member }: { member: FirmMember }) {
-  const statusBadge =
-    member.status === 'Active' ? 'badge-sage' : member.status === 'On leave' ? 'badge-amber' : 'badge-vermillion';
+  const statusCls =
+    member.status === 'Active' ? 'is-solid' : member.status === 'On leave' ? 'is-dashed' : 'is-muted';
   return (
     <tr>
       <td>
-        <div className="row" style={{ gap: 12 }}>
-          <div className="avatar" style={{ width: 32, height: 32, fontSize: 12 }}>{member.initials}</div>
+        <div className="fm-user">
+          <div className="fm-avatar is-sm" aria-hidden>{member.initials}</div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 500 }}>{member.name}</div>
-            <div className="body-xs muted">{member.role}</div>
+            <div className="fm-cell-title">{member.name}</div>
+            <div className="fm-cell-sub">{member.role}</div>
           </div>
         </div>
       </td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.activeMatters || '-'}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.billableHours || '-'}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{member.winRate ? `${member.winRate}%` : '-'}</td>
+      <td className="num">{member.activeMatters || '-'}</td>
+      <td className="num">{member.billableHours || '-'}</td>
+      <td className="num">{member.winRate ? `${member.winRate}%` : '-'}</td>
       <td>
-        <span className={`badge ${statusBadge}`}>{member.status}</span>
+        <span className={`fm-pill ${statusCls}`}>{member.status}</span>
       </td>
     </tr>
   );
@@ -592,41 +559,26 @@ function MemberRow({ member }: { member: FirmMember }) {
 function ClientRow({ client }: { client: TopClient }) {
   return (
     <tr>
-      <td style={{ fontWeight: 500 }}>{client.name}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{client.matters}</td>
-      <td className="tabular" style={{ textAlign: 'right' }}>{client.billed}</td>
-      <td className="mono body-sm muted" style={{ textAlign: 'right' }}>{client.lastActivity}</td>
+      <td><span className="fm-cell-title">{client.name}</span></td>
+      <td className="num">{client.matters}</td>
+      <td className="num" style={{ fontFamily: 'var(--font-title)', fontSize: 15.5, fontWeight: 600 }}>{client.billed}</td>
+      <td className="num"><span className="fm-date">{client.lastActivity}</span></td>
     </tr>
   );
 }
 
-function PracticeRow({ area }: { area: PracticeAreaSlice }) {
+function PracticeRow({ area, lead }: { area: PracticeAreaSlice; lead?: boolean }) {
   const pct = Math.round(area.share * 100);
   return (
     <div>
-      <div className="row" style={{ marginBottom: 6 }}>
-        <span className="body-md" style={{ fontWeight: 500 }}>{area.name}</span>
-        <span className="spacer" />
-        <span className="body-sm muted tabular">
-          {area.matters} matters · {area.revenue}
+      <div className="fm-area-row">
+        <span className="fm-area-name">{area.name}</span>
+        <span className="fm-area-figs">
+          {area.matters} matters · {pct}%<strong>{area.revenue}</strong>
         </span>
       </div>
-      <div
-        style={{
-          height: 6,
-          background: 'var(--bg-surface-2)',
-          borderRadius: 'var(--radius-full)',
-          overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            background: 'var(--text-primary)',
-            borderRadius: 'var(--radius-full)',
-          }}
-        />
+      <div className={`fm-bar${lead ? '' : ' is-soft'}`} aria-hidden>
+        <span style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -635,31 +587,16 @@ function PracticeRow({ area }: { area: PracticeAreaSlice }) {
 function StageBars({ stages }: { stages: CaseStageSlice[] }) {
   const max = Math.max(1, ...stages.map((s) => s.count));
   return (
-    <div className="col" style={{ gap: 10 }}>
+    <div className="fm-stage-list">
       {stages.map((s) => {
         const pct = (s.count / max) * 100;
         return (
-          <div key={s.stage} className="row" style={{ gap: 12 }}>
-            <span className="body-sm" style={{ width: 96, color: 'var(--text-secondary)' }}>{s.stage}</span>
-            <div
-              style={{
-                flex: 1,
-                height: 8,
-                background: 'var(--bg-surface-2)',
-                borderRadius: 'var(--radius-full)',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  width: `${pct}%`,
-                  height: '100%',
-                  background: 'var(--text-primary)',
-                  borderRadius: 'var(--radius-full)',
-                }}
-              />
+          <div key={s.stage} className="fm-stage">
+            <span className="fm-stage-label">{s.stage}</span>
+            <div className={`fm-bar${s.count === max ? '' : ' is-soft'}`} aria-hidden>
+              <span style={{ width: `${pct}%` }} />
             </div>
-            <span className="mono tabular body-sm" style={{ width: 28, textAlign: 'right' }}>{s.count}</span>
+            <span className="fm-stage-count">{s.count}</span>
           </div>
         );
       })}
@@ -669,8 +606,8 @@ function StageBars({ stages }: { stages: CaseStageSlice[] }) {
 
 function RevenueChart({ series }: { series: MonthlyRevenuePoint[] }) {
   const W = 600;
-  const H = 200;
-  const P = { l: 36, r: 12, t: 12, b: 28 };
+  const H = 220;
+  const P = { l: 34, r: 14, t: 24, b: 28 };
   const innerW = W - P.l - P.r;
   const innerH = H - P.t - P.b;
 
@@ -694,36 +631,46 @@ function RevenueChart({ series }: { series: MonthlyRevenuePoint[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [series]);
 
-  const peakIndex = values.indexOf(max);
+  const peakIndex = values.indexOf(Math.max(...values));
+  const peak = series[peakIndex];
+  const peakX = x(peakIndex);
+  const anchor = peakX > W - 70 ? 'end' : peakX < 70 ? 'start' : 'middle';
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Monthly revenue" style={{ width: '100%', height: 'auto', display: 'block' }}>
+    <svg className="fm-chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Monthly revenue">
       {/* Grid */}
       {[0, 0.5, 1].map((t) => {
         const yLine = P.t + t * innerH;
         return (
-          <line key={t} x1={P.l} x2={W - P.r} y1={yLine} y2={yLine} stroke="var(--border-subtle)" strokeWidth={1} />
+          <line key={t} x1={P.l} x2={W - P.r} y1={yLine} y2={yLine} stroke="var(--border-subtle)" strokeWidth={1} strokeDasharray={t === 1 ? undefined : '2 4'} />
         );
       })}
       {/* Area fill */}
       <path d={areaPath} fill="var(--bg-surface-2)" />
       {/* Line */}
-      <path d={path} fill="none" stroke="var(--text-primary)" strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
-      {/* Peak marker */}
-      <circle cx={x(peakIndex)} cy={y(values[peakIndex] ?? 0)} r={4} fill="var(--info)" stroke="var(--bg-surface)" strokeWidth={2} />
+      <path d={path} fill="none" stroke="var(--text-primary)" strokeWidth={1.75} strokeLinejoin="round" strokeLinecap="round" />
+      {/* Peak marker + label */}
+      {peak && (
+        <>
+          <line x1={peakX} x2={peakX} y1={y(peak.value)} y2={P.t + innerH} stroke="var(--border-strong)" strokeWidth={1} strokeDasharray="2 3" />
+          <circle cx={peakX} cy={y(peak.value)} r={4.5} fill="var(--text-primary)" stroke="var(--bg-surface)" strokeWidth={2} />
+          <text x={peakX} y={y(peak.value) - 10} textAnchor={anchor} fontSize={11} fontWeight={600} fill="var(--text-primary)">
+            Peak ₹{peak.value.toFixed(2)}L
+          </text>
+        </>
+      )}
       {/* X labels */}
       {series.map((p, i) => (
         <text
           key={p.month + i}
           x={x(i)}
-          y={H - 8}
+          y={H - 6}
           textAnchor="middle"
-          fontFamily="var(--font-mono)"
-          fontSize={10}
-          fill="var(--text-tertiary)"
-          style={{ letterSpacing: '0.06em' }}
+          fontSize={10.5}
+          fill={i === peakIndex ? 'var(--text-primary)' : 'var(--text-tertiary)'}
+          fontWeight={i === peakIndex ? 600 : 400}
         >
-          {p.month.toUpperCase()}
+          {p.month}
         </text>
       ))}
       {/* Y axis ticks */}
@@ -733,10 +680,8 @@ function RevenueChart({ series }: { series: MonthlyRevenuePoint[] }) {
           x={P.l - 8}
           y={y(v) + 3}
           textAnchor="end"
-          fontFamily="var(--font-mono)"
-          fontSize={9}
+          fontSize={10}
           fill="var(--text-tertiary)"
-          style={{ letterSpacing: '0.04em' }}
         >
           {v.toFixed(1)}
         </text>

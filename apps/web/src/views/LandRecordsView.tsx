@@ -57,7 +57,7 @@ export function LandRecordsView() {
   const home = (): void => go({});
 
   return (
-    <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
+    <div className="col ct ct-land" style={{ gap: 20, maxWidth: 1240 }}>
       <PageHeader
         title="Land Records"
         description="Patta, A-Register, FMB and TSLR records from Tamil Nadu eServices, fetched live and filed into your matters and title reports."
@@ -101,7 +101,7 @@ export function LandRecordsView() {
             {SERVICE_GROUPS.map((g) => (
               <div key={g.title} className="col" style={{ gap: 10 }}>
                 <div className="lr-group-head">
-                  <span className="eyebrow">{g.title}</span>
+                  <span className="lr-group-title">{g.title}</span>
                   <span className="lr-group-note">{g.note}</span>
                 </div>
                 <div className="lr-grid">
@@ -114,6 +114,7 @@ export function LandRecordsView() {
                         <span className="lr-tile-icon"><Icon name={tile.icon} size={17} /></span>
                         <span className="lr-tile-title">{tile.title}</span>
                         <span className="lr-tile-blurb">{m.blurb}</span>
+                        <span className="lr-tile-gate"><Icon name={m.gate === 'otp' ? 'key' : 'shield'} size={12} />{m.gate === 'otp' ? 'OTP to mobile' : 'Captcha'}</span>
                       </button>
                     );
                   })}

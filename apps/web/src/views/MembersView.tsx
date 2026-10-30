@@ -69,7 +69,7 @@ export function MembersView() {
   const pager = usePagination(MEMBERS);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-members">
       <PageHeader
         title="Members"
         description="Partners, associates and counsel in your firm, and the role each holds."
@@ -90,8 +90,8 @@ export function MembersView() {
       <PendingInvitations />
 
       {usersQ.isLoading ? (
-        <div className="grid-3" style={{ gap: 20 }}>
-          {[0, 1, 2].map((i) => <Skeleton key={i} height={180} />)}
+        <div className="fm-members-grid">
+          {[0, 1, 2].map((i) => <Skeleton key={i} height={220} radius="lg" />)}
         </div>
       ) : isPlanGated ? (
         <EmptyState
@@ -113,7 +113,7 @@ export function MembersView() {
         />
       ) : (
         <>
-          <div className="grid-3" style={{ gap: 20 }}>
+          <div className="fm-members-grid">
             {pager.slice.map((m) => <MemberCard key={m.id} member={m} />)}
           </div>
           <Pagination
@@ -145,16 +145,15 @@ function PendingInvitations() {
   if (isLoading || pending.length === 0) return null;
 
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <div className="row" style={{ padding: 24, alignItems: 'flex-end', borderBottom: '1px solid var(--border-subtle)' }}>
+    <div className="fm-panel is-flush">
+      <div className="fm-panel-head">
         <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Awaiting acceptance</div>
-          <div className="heading-md">Pending invitations</div>
+          <div className="fm-eyebrow">Awaiting acceptance</div>
+          <h2 className="fm-panel-title">Pending invitations</h2>
         </div>
-        <span className="spacer" />
-        <span className="badge badge-cobalt">{pending.length} open</span>
+        <span className="fm-pill is-solid">{pending.length} open</span>
       </div>
-      <table className="tbl">
+      <table className="tbl fm-tbl">
         <thead>
           <tr>
             <th>Email</th>
@@ -225,15 +224,15 @@ function PendingRow({
   const expiresIn = formatExpiry(invitation.expiresAt);
   return (
     <tr>
-      <td style={{ fontWeight: 500 }} className="mono">{invitation.email}</td>
+      <td className="fm-cell-title" style={{ overflowWrap: 'anywhere' }}>{invitation.email}</td>
       <td>{invitation.role}</td>
       <td>{invitation.invitedBy.name}</td>
-      <td className="body-sm muted tabular">{expiresIn}</td>
+      <td><span className="fm-date">{expiresIn}</span></td>
       <td style={{ textAlign: 'right' }}>
         <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
           <button type="button" className="btn btn-sm" onClick={onCopyLink}>Copy link</button>
           <button type="button" className="btn btn-sm" onClick={onResend} disabled={busy}>Resend</button>
-          <button type="button" className="btn btn-sm btn-oxblood" onClick={onCancel} disabled={busy}>Cancel</button>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={onCancel} disabled={busy}>Cancel</button>
         </div>
       </td>
     </tr>
@@ -274,45 +273,37 @@ function MemberCard({ member }: { member: Member }) {
   };
 
   return (
-    <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div className="row" style={{ alignItems: 'flex-start', gap: 14 }}>
-        <div className="avatar" style={{ width: 44, height: 44, fontSize: 14 }}>{member.initials}</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="heading-sm" style={{ marginBottom: 2 }}>{member.name}</div>
-          <div className="body-sm muted">{member.role}</div>
+    <div className="fm-member">
+      <div className="fm-member-head">
+        <div className="fm-avatar is-lg" aria-hidden>{member.initials}</div>
+        <div className="fm-member-who">
+          <div className="fm-member-name">{member.name}</div>
+          <div className="fm-member-role">{member.role}</div>
         </div>
         <StatusPill status={member.status} />
       </div>
 
-      <hr className="hairline" />
+      <dl className="fm-dl">
+        <Field label="Enrolment" value={member.enrolment} muted={member.enrolment === 'Not on record'} />
+        <Field label="Email" value={member.email} />
+        <Field
+          label="Practice"
+          value={member.practiceAreas.length > 0 ? member.practiceAreas.join(' · ') : 'None recorded'}
+          muted={member.practiceAreas.length === 0}
+        />
+      </dl>
 
-      <div className="col" style={{ gap: 10 }}>
-        <Field label="ENROLMENT"     value={member.enrolment} mono />
-        <Field label="EMAIL"         value={member.email}     mono />
-        <div>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', marginBottom: 6 }}>
-            PRACTICE AREAS
-          </div>
-          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-            {member.practiceAreas.map((p) => (
-              <span key={p} className="badge badge-cream">{p}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="row" style={{ gap: 8, marginTop: 4 }}>
+      <div className="fm-member-actions">
         <button
           type="button"
           className="btn btn-sm"
-          style={{ flex: 1 }}
           onClick={() => setProfileOpen(true)}
         >
           View profile
         </button>
         <button
           type="button"
-          className={`btn btn-sm${confirmDeactivate ? ' btn-oxblood' : ''}`}
+          className={`btn btn-sm${confirmDeactivate ? ' btn-oxblood' : ' btn-ghost'}`}
           aria-label={confirmDeactivate ? `Confirm deactivate ${member.name}` : `Deactivate ${member.name}`}
           onClick={requestDeactivate}
           onBlur={() => setConfirmDeactivate(false)}
@@ -332,30 +323,18 @@ function MemberCard({ member }: { member: Member }) {
   );
 }
 
-function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function Field({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
-    <div className="row" style={{ gap: 12 }}>
-      <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', minWidth: 88 }}>{label}</span>
-      <span style={{ fontSize: 13, fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)' }} className={mono ? 'tabular' : ''}>
-        {value}
-      </span>
-    </div>
+    <>
+      <dt>{label}</dt>
+      <dd className={muted ? 'is-muted' : undefined}>{value}</dd>
+    </>
   );
 }
 
 function StatusPill({ status }: { status: Status }) {
   if (status === 'active') {
-    return (
-      <span className="badge badge-sage" title="Active">
-        <span className="dot dot-sage" style={{ marginRight: 6 }} />
-        ACTIVE
-      </span>
-    );
+    return <span className="fm-pill is-solid" title="Active">Active</span>;
   }
-  return (
-    <span className="badge badge-amber" title="On leave">
-      <span className="dot dot-amber" style={{ marginRight: 6 }} />
-      ON LEAVE
-    </span>
-  );
+  return <span className="fm-pill is-dashed" title="On leave">On leave</span>;
 }

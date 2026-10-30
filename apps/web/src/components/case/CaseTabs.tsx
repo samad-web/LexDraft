@@ -15,6 +15,7 @@ import { useExpenses } from '@/hooks/useExpenses';
 // matter. Tasks, limitations and expenses carry `caseId` (migration 0089);
 // rows without one (unmatched, or DB not yet migrated) fall back to the old
 // title / CNR text match. Invoices are per client, and the tab says so.
+// Styles: .cs-* in styles/chambers/case.css.
 // =============================================================================
 
 const norm = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
@@ -34,12 +35,25 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function SectionHead({ title, count, action }: { title: string; count?: number; action?: ReactNode }) {
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2026-10-30" -> "30 Oct 2026"; anything else is shown as given. */
+function fmtDay(iso: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso ?? '');
+  if (!m) return iso ?? '';
+  return `${+m[3]!} ${MONTHS[+m[2]! - 1]} ${m[1]}`;
+}
+
+function SectionHead({ title, count, sub, action }: { title: string; count?: number; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="row" style={{ alignItems: 'center', gap: 10, marginBottom: 12 }}>
-      <h2 className="heading-md">{title}</h2>
-      {count !== undefined && <span className="badge">{count}</span>}
-      <span className="spacer" />
+    <div className="cs-card-head">
+      <div className="cs-card-titles">
+        <h2 className="cs-card-title">
+          {title}
+          {count !== undefined && <span className="cs-count" style={{ marginLeft: 10 }}>{count}</span>}
+        </h2>
+        {sub && <p className="cs-card-sub">{sub}</p>}
+      </div>
       {action}
     </div>
   );
@@ -61,7 +75,7 @@ export function CaseHearingsTab({
     </button>
   );
 
-  if (isLoading) return <p className="body-sm muted">Loading hearings…</p>;
+  if (isLoading) return <div className="card"><p className="cs-muted">Loading hearings…</p></div>;
   if (hearings.length === 0) {
     return (
       <EmptyState
@@ -73,37 +87,46 @@ export function CaseHearingsTab({
     );
   }
   return (
-    <div className="col" style={{ gap: 24 }}>
+    <div className="cs-tab-body">
       <section className="card">
-        <SectionHead title="Upcoming" count={upcoming.length} action={addBtn} />
+        <SectionHead title="Upcoming" count={upcoming.length} sub="Posted dates for this matter, soonest first." action={addBtn} />
         {upcoming.length === 0
-          ? <p className="body-sm muted">No upcoming hearing. Post the next date so it shows on the cause list.</p>
-          : <HearingList rows={upcoming} />}
+          ? <p className="cs-muted">No upcoming hearing. Post the next date so it shows on the cause list.</p>
+          : <HearingList rows={upcoming} today={today} />}
       </section>
       {past.length > 0 && (
         <section className="card">
-          <SectionHead title="History" count={past.length} />
-          <HearingList rows={past} />
+          <SectionHead title="History" count={past.length} sub="What happened at each earlier hearing." />
+          <HearingList rows={past} today={today} />
         </section>
       )}
     </div>
   );
 }
 
-function HearingList({ rows }: { rows: MatterTimelineEvent[] }) {
+function HearingList({ rows, today }: { rows: MatterTimelineEvent[]; today: string }) {
   return (
-    <ul className="dash-list">
-      {rows.map((h) => (
-        <li key={h.id} className="dash-row" style={{ cursor: 'default' }}>
-          <span className="mono tabular" style={{ width: 96, flexShrink: 0, fontSize: 13 }}>
-            {new Date(h.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </span>
-          <span className="dash-row-main">
-            <span className="dash-row-title">{h.title}</span>
-            {h.body && <span className="body-sm muted">{h.body}</span>}
-          </span>
-        </li>
-      ))}
+    <ul className="cs-lines">
+      {rows.map((h) => {
+        const d = new Date(h.at);
+        const isToday = h.at.slice(0, 10) === today;
+        return (
+          <li key={h.id} className="cs-line">
+            <span className={`adv-dateblock${isToday ? ' is-today' : ''}`} aria-hidden="true">
+              <span className="adv-dateblock-m">{MONTHS[d.getMonth()]}</span>
+              <span className="adv-dateblock-d">{d.getDate()}</span>
+            </span>
+            <span className="cs-line-main">
+              <span className="cs-line-title">{h.title}</span>
+              <span className="cs-line-sub">
+                {d.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
+                {isToday ? ' · Today' : ''}
+              </span>
+              {h.body && <span className="cs-line-sub">{h.body}</span>}
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -113,7 +136,7 @@ function HearingList({ rows }: { rows: MatterTimelineEvent[] }) {
 export function CaseFilingsTab({ caseId }: { caseId: string }) {
   const navigate = useNavigate();
   return (
-    <div className="col" style={{ gap: 24 }}>
+    <div className="cs-tab-body">
       <section className="card">
         <SectionHead title="eFiling" />
         <FilingsList caseId={caseId} onOpen={(id) => navigate(`/app/efiling?filing=${encodeURIComponent(id)}`)} />
@@ -151,8 +174,9 @@ export function CaseWorkTab({
     <div className="case-body split-2-wide" style={{ gap: 24 }}>
       <section className="card">
         <SectionHead
-          title="Pendings"
+          title="Tasks"
           count={open.length}
+          sub={done.length > 0 ? `${done.length} done` : 'Also on the firm Tasks board.'}
           action={
             <button type="button" className="btn btn-primary btn-sm" onClick={onAddTask}>
               <Icon name="plus" size={12} /> Add pending
@@ -160,22 +184,21 @@ export function CaseWorkTab({
           }
         />
         {tasksLoading ? (
-          <p className="body-sm muted">Loading pendings…</p>
+          <p className="cs-muted">Loading pendings…</p>
         ) : tasks.length === 0 ? (
-          <EmptyState variant="inline" title="No pendings" description="To-dos for this matter appear here and on the Tasks board." />
+          <EmptyState variant="inline" title="No tasks" description="Things to do on this case appear here and on the Tasks board." />
         ) : (
-          <ul className="dash-list">
+          <ul className="cs-lines">
             {[...open, ...done].map((t) => {
               const isDone = t.column === 'done';
               return (
-                <li key={t.id} className="dash-row" style={{ cursor: 'default' }}>
-                  <Icon name={isDone ? 'check' : 'tasks'} size={14} />
-                  <span className="dash-row-main">
-                    <span className="dash-row-title" style={isDone ? { textDecoration: 'line-through', color: 'var(--text-tertiary)' } : undefined}>
-                      {t.title}
-                    </span>
-                    <span className="body-xs muted">Due {t.due} · {t.assignee}</span>
+                <li key={t.id} className={`cs-line${isDone ? ' is-done' : ''}`}>
+                  <span className="cs-line-icon" aria-hidden="true"><Icon name={isDone ? 'check' : 'tasks'} size={14} /></span>
+                  <span className="cs-line-main">
+                    <span className="cs-line-title">{t.title}</span>
+                    <span className="cs-line-sub">Due {fmtDay(t.due)} · {t.assignee}</span>
                   </span>
+                  {isDone && <span className="cs-status is-quiet">Done</span>}
                 </li>
               );
             })}
@@ -190,7 +213,7 @@ export function CaseWorkTab({
           action={<button type="button" className="btn btn-sm" onClick={() => navigate('/app/limitation')}>Open tracker</button>}
         />
         {limitations.isLoading ? (
-          <p className="body-sm muted">Loading deadlines…</p>
+          <p className="cs-muted">Loading deadlines…</p>
         ) : mine.length === 0 ? (
           <EmptyState
             variant="inline"
@@ -198,16 +221,22 @@ export function CaseWorkTab({
             description="Add one in the Limitation tracker using this matter's title or CNR."
           />
         ) : (
-          <ul className="dash-list">
+          <ul className="cs-lines">
             {mine.map((l) => (
-              <li key={l.id} className="dash-row" style={{ cursor: 'default' }}>
-                <span className={`dot ${l.daysRemaining <= 7 ? 'dot-vermillion' : l.daysRemaining <= 30 ? 'dot-amber' : 'dot-cobalt'}`} />
-                <span className="dash-row-main">
-                  <span className="dash-row-title">{l.filingType}</span>
-                  <span className="body-xs muted">{l.forum ? `${l.forum} · ` : ''}due {l.deadline}</span>
+              <li key={l.id} className="cs-line">
+                <span
+                  className={`cs-urgency ${l.daysRemaining <= 7 ? 'is-near' : l.daysRemaining <= 30 ? '' : 'is-far'}`}
+                  aria-hidden="true"
+                />
+                <span className="cs-line-main">
+                  <span className="cs-line-title">{l.filingType}</span>
+                  <span className="cs-line-sub">{l.forum ? `${l.forum} · ` : ''}due {fmtDay(l.deadline)}</span>
                 </span>
-                <span className="mono tabular body-sm">
-                  {l.daysRemaining < 0 ? `${-l.daysRemaining}d overdue` : `${l.daysRemaining}d left`}
+                <span className="cs-line-end">
+                  <span className="cs-days">
+                    {l.daysRemaining < 0 ? -l.daysRemaining : l.daysRemaining}
+                    <small>{l.daysRemaining < 0 ? 'days overdue' : 'days left'}</small>
+                  </span>
                 </span>
               </li>
             ))}
@@ -231,65 +260,84 @@ export function CaseBillingTab({ caseId, title, client }: { caseId: string; titl
     belongsToMatter({ caseId: e.caseId, label: e.caseLabel }, { id: caseId, title }));
   const outstanding = clientInvoices.filter((i) => i.status !== 'paid').reduce((s, i) => s + i.amountInr, 0);
   const unbilled = matterExpenses.filter((e) => e.billable && e.status !== 'billed').reduce((s, e) => s + e.amountInr, 0);
+  const spent = matterExpenses.reduce((s, e) => s + e.amountInr, 0);
+  const loading = invoices.isLoading || expenses.isLoading;
 
   return (
-    <div className="case-body split-2-wide" style={{ gap: 24 }}>
-      <section className="card">
-        <SectionHead
-          title={`Invoices · ${client || 'client'}`}
-          count={clientInvoices.length}
-          action={<button type="button" className="btn btn-sm" onClick={() => navigate('/app/invoices')}>All invoices</button>}
-        />
-        <p className="body-xs muted" style={{ marginBottom: 10 }}>
-          Invoices are raised per client, so this shows every invoice for {client || 'this client'}.
-          {outstanding > 0 && <> Outstanding: <strong>{inr(outstanding)}</strong>.</>}
-        </p>
-        {invoices.isLoading ? <p className="body-sm muted">Loading invoices…</p> : clientInvoices.length === 0 ? (
-          <EmptyState variant="inline" title="No invoices for this client" />
-        ) : (
-          <ul className="dash-list">
-            {clientInvoices.map((i) => (
-              <li key={i.id} className="dash-row" style={{ cursor: 'default' }}>
-                <span className="mono body-sm" style={{ width: 96, flexShrink: 0 }}>{i.invoiceNo}</span>
-                <span className="dash-row-main">
-                  <span className="dash-row-title tabular">{inr(i.amountInr)}</span>
-                  <span className="body-xs muted">Issued {i.issuedDate} · due {i.dueDate}</span>
-                </span>
-                <span className={`badge ${i.status === 'paid' ? 'badge-sage' : i.status === 'overdue' ? 'badge-vermillion' : 'badge-amber'}`}>
-                  {i.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+    <div className="cs-tab-body">
+      <div className="cs-money" aria-label="Billing summary">
+        <div className="cs-money-tile">
+          <span className="cs-count">Outstanding</span>
+          <span className="cs-figure">{loading ? '…' : inr(outstanding)}</span>
+          <div className="cs-money-note">Unpaid invoices for {client || 'this client'}</div>
+        </div>
+        <div className="cs-money-tile">
+          <span className="cs-count">Not yet billed</span>
+          <span className="cs-figure">{loading ? '…' : inr(unbilled)}</span>
+          <div className="cs-money-note">Billable expenses on this matter</div>
+        </div>
+        <div className="cs-money-tile">
+          <span className="cs-count">Spent on matter</span>
+          <span className="cs-figure">{loading ? '…' : inr(spent)}</span>
+          <div className="cs-money-note">{matterExpenses.length} {matterExpenses.length === 1 ? 'expense' : 'expenses'} logged</div>
+        </div>
+      </div>
 
-      <section className="card">
-        <SectionHead
-          title="Expenses on this matter"
-          count={matterExpenses.length}
-          action={<button type="button" className="btn btn-sm" onClick={() => navigate('/app/expenses')}>All expenses</button>}
-        />
-        {unbilled > 0 && (
-          <p className="body-xs muted" style={{ marginBottom: 10 }}>Billable, not yet billed: <strong>{inr(unbilled)}</strong></p>
-        )}
-        {expenses.isLoading ? <p className="body-sm muted">Loading expenses…</p> : matterExpenses.length === 0 ? (
-          <EmptyState variant="inline" title="No expenses logged" description="Court fees, stamp paper, travel and clerkage logged against this matter appear here." />
-        ) : (
-          <ul className="dash-list">
-            {matterExpenses.map((e) => (
-              <li key={e.id} className="dash-row" style={{ cursor: 'default' }}>
-                <span className="mono body-sm" style={{ width: 96, flexShrink: 0 }}>{e.date}</span>
-                <span className="dash-row-main">
-                  <span className="dash-row-title">{e.description}</span>
-                  <span className="body-xs muted">{e.category}{e.billable ? ' · billable' : ''}</span>
-                </span>
-                <span className="tabular body-sm">{inr(e.amountInr)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <div className="case-body split-2-wide" style={{ gap: 24 }}>
+        <section className="card">
+          <SectionHead
+            title={`Invoices · ${client || 'client'}`}
+            count={clientInvoices.length}
+            sub={<>Invoices are raised per client, so this shows every invoice for {client || 'this client'}.</>}
+            action={<button type="button" className="btn btn-sm" onClick={() => navigate('/app/invoices')}>All invoices</button>}
+          />
+          {invoices.isLoading ? <p className="cs-muted">Loading invoices…</p> : clientInvoices.length === 0 ? (
+            <EmptyState variant="inline" title="No invoices for this client" />
+          ) : (
+            <ul className="cs-lines">
+              {clientInvoices.map((i) => (
+                <li key={i.id} className="cs-line">
+                  <span className="cs-line-main">
+                    <span className="cs-code">{i.invoiceNo}</span>
+                    <span className="cs-line-sub">Issued {fmtDay(i.issuedDate)} · due {fmtDay(i.dueDate)}</span>
+                  </span>
+                  <span className="cs-line-end">
+                    <span className="cs-figure" style={{ fontSize: 18 }}>{inr(i.amountInr)}</span>
+                    <span className={`cs-status ${i.status === 'paid' ? 'is-quiet' : i.status === 'overdue' ? 'is-ink' : 'is-strong'}`}>
+                      {i.status}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="card">
+          <SectionHead
+            title="Expenses on this matter"
+            count={matterExpenses.length}
+            action={<button type="button" className="btn btn-sm" onClick={() => navigate('/app/expenses')}>All expenses</button>}
+          />
+          {expenses.isLoading ? <p className="cs-muted">Loading expenses…</p> : matterExpenses.length === 0 ? (
+            <EmptyState variant="inline" title="No expenses logged" description="Court fees, stamp paper, travel and clerkage logged against this matter appear here." />
+          ) : (
+            <ul className="cs-lines">
+              {matterExpenses.map((e) => (
+                <li key={e.id} className="cs-line">
+                  <span className="cs-line-main">
+                    <span className="cs-line-title">{e.description}</span>
+                    <span className="cs-line-sub">{fmtDay(e.date)} · {e.category}{e.billable ? ' · billable' : ''}</span>
+                  </span>
+                  <span className="cs-line-end">
+                    <span className="cs-figure" style={{ fontSize: 16 }}>{inr(e.amountInr)}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

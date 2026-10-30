@@ -84,9 +84,9 @@ export function DraftRevisePanel({
             }}
             disabled={busy}
           />
-          <div className="dw-btn-row">
+          <div className="dw-btn-row dw-quick">
             {QUICK.map((q) => (
-              <button key={q} className="btn btn-sm btn-ghost" type="button" disabled={busy} onClick={() => void submit(q)}>
+              <button key={q} className="chip dw-quick-chip" type="button" disabled={busy} onClick={() => void submit(q)}>
                 {q}
               </button>
             ))}

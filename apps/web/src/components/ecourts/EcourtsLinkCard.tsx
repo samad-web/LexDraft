@@ -134,7 +134,7 @@ export function EcourtsLinkCard({
         <div>
           <div className="eyebrow" style={{ marginBottom: 8 }}>eCourts</div>
           <div className="row" style={{ gap: 8, alignItems: 'center', marginBottom: 8 }}>
-            <h2 className="heading-md">Connection</h2>
+            <h2 className="heading-md">Link to eCourts</h2>
             <span className={`badge ${copy.badge}`}>{copy.label.toUpperCase()}</span>
             {c.ecourtsCourtTier ? <span className="badge">{c.ecourtsCourtTier === 'HC' ? 'HIGH COURT' : 'DISTRICT'}</span> : null}
           </div>

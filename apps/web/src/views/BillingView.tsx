@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Skeleton } from '@lexdraft/ui';
+import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse } from '@lexdraft/types';
 import { CycleToggle, PlanCards } from '@/components/PlanCards';
 import { useBilling, useStartCheckout } from '@/hooks/useBilling';
@@ -70,16 +70,21 @@ export function BillingView() {
   const sameAsNow = !!chosen && chosen.id === current && paid && data?.current.billingCycle === cycle;
 
   return (
-    <div className="col stagger" style={{ gap: 24, maxWidth: 980 }}>
-      <header>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Plan &amp; billing</div>
-        <h1 className="display-md">Your plan</h1>
-        {data && <p className="body" style={{ marginTop: 8, color: 'var(--text-secondary)' }}>{statusLine(data.current)}</p>}
+    <div className="col stagger cm-billing" style={{ gap: 24 }}>
+      <header className="page-header">
+        <div className="page-header-row">
+          <div className="page-header-text">
+            <div className="cm-label" style={{ marginBottom: 10 }}>Plan &amp; billing</div>
+            <h1 className="heading-xl">Your plan</h1>
+            {data && <p className="body-sm muted page-header-desc">{statusLine(data.current)}</p>}
+          </div>
+        </div>
       </header>
 
       {returned === 'done' && (
-        <div role="status" className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ flex: 1 }}>
+        <div role="status" className="cm-notice">
+          <span className="cm-notice-icon" aria-hidden><Icon name="check" size={14} /></span>
+          <span>
             {paid
               ? 'Payment received. Your plan is active.'
               : waiting
@@ -90,25 +95,62 @@ export function BillingView() {
         </div>
       )}
       {returned === 'cancelled' && (
-        <div role="status" className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ flex: 1 }}>Payment cancelled. Nothing was charged.</span>
+        <div role="status" className="cm-notice">
+          <span className="cm-notice-icon" aria-hidden><Icon name="close" size={13} /></span>
+          <span>Payment cancelled. Nothing was charged.</span>
           <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
         </div>
       )}
 
       {isLoading || !data ? (
-        <Skeleton width="100%" height={320} />
+        <div className="col" style={{ gap: 16 }} aria-busy="true">
+          <Skeleton width="100%" height={120} />
+          <Skeleton width="100%" height={320} />
+        </div>
       ) : (
         <>
-          <CycleToggle cycle={cycle} onChange={setCycle} />
+          <section className="cm-current" aria-label="Current plan">
+            <div>
+              <div className="cm-label">Current plan</div>
+              <div className="cm-current-plan">
+                {data.current.freePlan ? 'Free' : data.current.planTier}
+                <span className={data.current.planStatus === 'active' ? 'cm-pill cm-pill--ink' : 'cm-pill cm-pill--line'}>
+                  {STATUS_WORD[data.current.planStatus ?? ''] ?? data.current.planStatus ?? 'Free'}
+                </span>
+              </div>
+              <div className="cm-current-note">{data.plans.find((p) => p.id === current)?.for ?? 'Plan & billing'}</div>
+            </div>
+            <div>
+              <div className="cm-label">
+                {data.current.planStatus === 'trial' || data.current.freePlan ? 'Free until' : 'Renews'}
+              </div>
+              <div className="cm-current-v">
+                {formatDate(data.current.planStatus === 'trial' || data.current.freePlan ? data.current.trialEndsAt : data.current.renewsAt)}
+              </div>
+              <div className="cm-current-note">{daysLeftNote(data.current)}</div>
+            </div>
+            <div>
+              <div className="cm-label">Billing</div>
+              <div className="cm-current-v">
+                {data.current.billingCycle === 'annual' ? 'Yearly' : data.current.billingCycle === 'monthly' ? 'Monthly' : 'Not set up'}
+              </div>
+              <div className="cm-current-note">UPI, cards and netbanking via Dodo Payments</div>
+            </div>
+          </section>
+
+          <div className="cm-plans-head">
+            <h2 className="cm-plans-title">Choose a plan</h2>
+            <CycleToggle cycle={cycle} onChange={setCycle} />
+          </div>
           <PlanCards plans={data.plans} cycle={cycle} selected={selected} onSelect={setSelected} currentId={current} columns={4} />
 
           {!data.canManage && (
             <p className="body-sm muted">Only the account owner can change the plan. Ask them to upgrade from this page.</p>
           )}
           {data.canManage && chosen && (
-            <div className="card" style={{ padding: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={{ flex: 1, minWidth: 220 }}>
+            <div className="cm-checkout">
+              <span className="cm-checkout-text">
+                <strong>{chosen.name}</strong>
                 {chosen.id === 'free' && 'The free plan is what you get when no paid plan is active.'}
                 {chosen.id === 'firm' && 'Firms with nine or more advocates get custom pricing. Book a demo and we will set it up.'}
                 {(chosen.id === 'solo' || chosen.id === 'practice') && (
@@ -133,9 +175,28 @@ export function BillingView() {
               )}
             </div>
           )}
-          {checkout.isError && <div role="alert" className="body-sm" style={{ color: 'var(--danger)' }}>{checkout.error.message}</div>}
+          {checkout.isError && (
+            <div role="alert" className="cm-error-line"><Icon name="flag" size={13} /> {checkout.error.message}</div>
+          )}
         </>
       )}
     </div>
   );
+}
+
+const STATUS_WORD: Record<string, string> = {
+  trial: 'Trial',
+  active: 'Active',
+  past_due: 'Payment due',
+  cancelled: 'Cancelled',
+};
+
+function daysLeftNote(c: BillingStateResponse['current']): string {
+  const iso = c.planStatus === 'trial' || c.freePlan ? c.trialEndsAt : c.renewsAt;
+  if (!iso) return c.planStatus === 'cancelled' ? 'Pick a plan to continue' : '—';
+  const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  if (Number.isNaN(days)) return '—';
+  if (days < 0) return 'Ended';
+  if (days === 0) return 'Today';
+  return `${days} day${days === 1 ? '' : 's'} left`;
 }

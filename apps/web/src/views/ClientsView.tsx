@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
 import { casesForClient } from '@/lib/client-case-link';
 import { useSavedFilter } from '@/hooks/useSavedFilter';
@@ -48,11 +48,20 @@ function initialsOf(name: string): string {
     .join('');
 }
 
+// Monochrome status pills: active = ink, prospect = outline, inactive = soft.
 const STATUS_BADGE: Record<ClientStatus, { label: string; cls: string }> = {
-  active:   { label: 'ACTIVE',   cls: 'badge-sage'    },
-  prospect: { label: 'PROSPECT', cls: 'badge-cobalt'  },
-  inactive: { label: 'INACTIVE', cls: 'badge-cream'   },
+  active:   { label: 'Active',   cls: 'cm-pill cm-pill--ink'  },
+  prospect: { label: 'Prospect', cls: 'cm-pill cm-pill--line' },
+  inactive: { label: 'Inactive', cls: 'cm-pill cm-pill--soft' },
 };
+
+/** "2026-10-28" -> "28 Oct 2026"; anything unparseable is shown as-is. */
+function formatDay(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 export function ClientsView() {
   const navigate = useNavigate();
@@ -225,8 +234,24 @@ export function ClientsView() {
 
   const pager = usePagination(visible);
 
+  // Register summary - display only, computed from the list already loaded.
+  const summary = useMemo(() => {
+    let active = 0;
+    let open = 0;
+    let portal = 0;
+    for (const c of rows) {
+      if (c.status === 'active') active += 1;
+      open += c.mattersOpen || 0;
+      if (c.portalEnabled) portal += 1;
+    }
+    return { total: rows.length, active, open, portal };
+  }, [rows]);
+
+  const countFor = (id: FilterId): number =>
+    id === 'all' ? rows.length : rows.filter((c) => c.type === id).length;
+
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-clients" style={{ gap: 24 }}>
       <PageHeader
         title="Clients"
         description="Your client register, with open matters and client portal access."
@@ -241,14 +266,7 @@ export function ClientsView() {
             </button>
           </Gate>
         }
-      >
-        <PageSearch
-          value={q}
-          onChange={setQ}
-          placeholder="Search by client name…"
-          label="Search clients"
-        />
-      </PageHeader>
+      />
       <NewClientModal open={modalOpen} onClose={closeModal} existing={editingClient} />
       <Gate feature="client.create">
         <FAB ariaLabel="Add client" onClick={() => setModalOpen(true)}>
@@ -256,27 +274,61 @@ export function ClientsView() {
         </FAB>
       </Gate>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={`chip ${filter === f.id ? 'active' : ''}`}
-            aria-pressed={filter === f.id}
-          >
-            {f.label}
-          </button>
-        ))}
+      {!isLoading && !isError && rows.length > 0 && (
+        <div className="cm-kpis" aria-label="Register summary">
+          <div className="cm-kpi">
+            <div className="cm-kpi-label">Clients</div>
+            <div className="cm-kpi-value">{summary.total}</div>
+            <div className="cm-kpi-note">On the register</div>
+          </div>
+          <div className="cm-kpi">
+            <div className="cm-kpi-label">Active</div>
+            <div className="cm-kpi-value">{summary.active}</div>
+            <div className="cm-kpi-note">Currently instructing</div>
+          </div>
+          <div className="cm-kpi">
+            <div className="cm-kpi-label">Open matters</div>
+            <div className="cm-kpi-value">{summary.open}</div>
+            <div className="cm-kpi-note">Across all clients</div>
+          </div>
+          <div className="cm-kpi">
+            <div className="cm-kpi-label">Portal access</div>
+            <div className="cm-kpi-value">{summary.portal}</div>
+            <div className="cm-kpi-note">Clients who can sign in</div>
+          </div>
+        </div>
+      )}
+
+      <div className="cm-toolbar">
+        <div className="cm-filters" role="group" aria-label="Filter by client type">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`chip ${filter === f.id ? 'active' : ''}`}
+              aria-pressed={filter === f.id}
+            >
+              {f.label}
+              {rows.length > 0 && <span className="cm-chip-count">{countFor(f.id)}</span>}
+            </button>
+          ))}
+        </div>
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by client name…"
+          label="Search clients"
+        />
       </div>
 
-      <div className="card">
-        <table className="tbl clients-tbl">
+      <div className="card cm-table-card">
+        <table className="tbl clients-tbl cm-clients-tbl">
           <thead>
             <tr>
               <th>Client</th>
               <th className="col-hide-tablet">Type</th>
-              <th className="col-hide-mobile">Matters open</th>
+              <th className="col-hide-mobile">Matters</th>
               <th className="col-hide-tablet">Last contact</th>
               <th>Status</th>
               <th className="col-hide-mobile">Portal</th>
@@ -284,18 +336,28 @@ export function ClientsView() {
             </tr>
           </thead>
           <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={7}>
-                  <div className="col" style={{ padding: '28px 8px', alignItems: 'center' }}>
-                    <span className="muted">Loading clients<span className="blink" /></span>
+            {isLoading && Array.from({ length: 5 }, (_, i) => (
+              <tr key={`sk-${i}`} aria-busy="true" className="cm-skel-row">
+                <td>
+                  <div className="row" style={{ gap: 12 }}>
+                    <Skeleton width={38} height={38} radius="pill" />
+                    <div className="col" style={{ gap: 6 }}>
+                      <Skeleton width={160} height={14} />
+                      <Skeleton width={120} height={11} />
+                    </div>
                   </div>
                 </td>
+                <td className="col-hide-tablet"><Skeleton width={70} height={12} /></td>
+                <td className="col-hide-mobile"><Skeleton width={30} height={12} /></td>
+                <td className="col-hide-tablet"><Skeleton width={80} height={12} /></td>
+                <td><Skeleton width={60} height={22} radius="pill" /></td>
+                <td className="col-hide-mobile"><Skeleton width={70} height={28} /></td>
+                <td />
               </tr>
-            )}
+            ))}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={7} data-span="all">
                   <ErrorState
                     variant="inline"
                     title="Couldn't load clients"
@@ -306,16 +368,18 @@ export function ClientsView() {
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    variant="inline"
-                    title={rows.length === 0 ? 'No clients yet' : 'No clients match'}
-                    description={
-                      rows.length === 0
-                        ? 'Add your first client to populate the register.'
-                        : 'Try a different search or filter.'
-                    }
-                  />
+                <td colSpan={7} data-span="all">
+                  <div className="cm-empty">
+                    <EmptyState
+                      variant="inline"
+                      title={rows.length === 0 ? 'No clients yet' : 'No clients match'}
+                      description={
+                        rows.length === 0
+                          ? 'Add your first client to populate the register.'
+                          : 'Try a different search or filter.'
+                      }
+                    />
+                  </div>
                 </td>
               </tr>
             )}
@@ -328,23 +392,15 @@ export function ClientsView() {
               const clientMatters = casesForClient(cases.data ?? [], c);
               return (
                 <Fragment key={c.id}>
-                  <tr>
+                  <tr className={isExpanded ? 'cm-row-open' : undefined}>
                     <td>
-                      <div className="row" style={{ gap: 12 }}>
-                        <span className="avatar" aria-hidden="true">{c.initials}</span>
+                      <div className="cm-who">
+                        <span className="cm-avatar" aria-hidden="true">{c.initials}</span>
                         <div style={{ minWidth: 0 }}>
                           <button
                             type="button"
+                            className="cm-name-btn"
                             onClick={() => navigate(`/app/clients/${c.id}`)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              padding: 0,
-                              font: 'inherit',
-                              cursor: 'pointer',
-                              fontWeight: 500,
-                              color: 'var(--text-primary)',
-                            }}
                             title={`Open ${c.name}`}
                           >
                             {c.name}
@@ -353,21 +409,13 @@ export function ClientsView() {
                               advocate actually needs at a glance. Never the
                               internal record id. Falls back to a neutral hint
                               when no email is on file. */}
-                          <div
-                            className="body-sm muted"
-                            style={{
-                              fontSize: 12,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
+                          <div className={`cm-sub${c.email ? '' : ' is-missing'}`}>
                             {c.email || 'No contact email on file'}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="col-hide-tablet"><span className="badge badge-cobalt">{c.type.toUpperCase()}</span></td>
+                    <td className="col-hide-tablet cm-muted-cell">{c.type}</td>
                     <td className="col-hide-mobile">
                       {/* Click-to-expand. Shows the count, plus a chevron
                           and (when expanded) the matter list inline. We
@@ -377,13 +425,12 @@ export function ClientsView() {
                       <button
                         type="button"
                         onClick={() => toggleExpand(c.id)}
-                        className="btn btn-ghost btn-sm"
+                        className="cm-count-btn"
                         aria-expanded={isExpanded}
                         aria-controls={`matters-${c.id}`}
                         title={isExpanded ? 'Hide matters' : 'Show matters'}
-                        style={{ padding: '0 var(--space-2)', gap: 6 }}
                       >
-                        <span className="mono tabular">
+                        <span className="tabular">
                           {cases.isLoading ? (
                             <span className="muted" aria-label="Loading matter count">···</span>
                           ) : (
@@ -393,49 +440,50 @@ export function ClientsView() {
                         <Icon name={isExpanded ? 'chevronD' : 'chevron'} size={12} />
                       </button>
                     </td>
-                    <td className="mono tabular muted col-hide-tablet">{c.lastContact || '—'}</td>
-                    <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
+                    <td className="col-hide-tablet cm-date-cell">{formatDay(c.lastContact)}</td>
+                    <td><span className={badge.cls}>{badge.label}</span></td>
                     <td className="col-hide-mobile">
                       {c.portalEnabled ? (
                         <Gate feature="client.create">
-                          <div className="row" style={{ gap: 6, alignItems: 'center' }}>
-                            <span className="badge badge-sage">ENABLED</span>
-                            <button
-                              type="button"
-                              className="btn btn-ghost"
-                              disabled={busyClientId === c.id}
-                              onClick={() => onRegeneratePassword(c)}
-                              title="Generate a fresh password"
-                            >
-                              Reset password
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-ghost"
-                              disabled={busyClientId === c.id}
-                              onClick={() => onDisable(c.id)}
-                              title="Revoke portal access"
-                            >
-                              Disable
-                            </button>
+                          <div className="cm-portal">
+                            <span className="cm-portal-on"><Icon name="check" size={12} /> Enabled</span>
+                            <span className="cm-portal-actions">
+                              <button
+                                type="button"
+                                className="cm-link-btn"
+                                disabled={busyClientId === c.id}
+                                onClick={() => onRegeneratePassword(c)}
+                                title="Generate a fresh password"
+                              >
+                                Reset password
+                              </button>
+                              <span aria-hidden className="cm-dot-sep">·</span>
+                              <button
+                                type="button"
+                                className="cm-link-btn"
+                                disabled={busyClientId === c.id}
+                                onClick={() => onDisable(c.id)}
+                                title="Revoke portal access"
+                              >
+                                Disable
+                              </button>
+                            </span>
                           </div>
                         </Gate>
                       ) : (
                         <Gate feature="client.create">
-                          <div className="col" style={{ gap: 4 }}>
+                          <div className="col" style={{ gap: 4, alignItems: 'flex-start' }}>
                             <button
                               type="button"
-                              className="btn btn-secondary"
+                              className="btn btn-sm"
                               disabled={busyClientId === c.id || !c.email}
                               onClick={() => onEnable(c)}
                               title={!c.email ? 'Add a contact email first' : 'Enable portal access'}
                             >
-                              Enable
+                              <Icon name="key" size={12} /> Enable
                             </button>
                             {!c.email && (
-                              <span className="body-sm muted" style={{ fontSize: 11 }}>
-                                Add a contact email first
-                              </span>
+                              <span className="cm-hint">Add a contact email first</span>
                             )}
                           </div>
                         </Gate>
@@ -443,7 +491,7 @@ export function ClientsView() {
                     </td>
                     <td>
                       <Gate feature="client.create">
-                        <div className="row" style={{ gap: 4, justifyContent: 'flex-end' }}>
+                        <div className="cm-row-actions">
                           <button
                             type="button"
                             className="btn btn-ghost btn-sm"
@@ -452,7 +500,7 @@ export function ClientsView() {
                             title="Edit client"
                             aria-label={`Edit ${c.name}`}
                           >
-                            Edit
+                            <Icon name="edit" size={13} /> <span className="cm-act-label">Edit</span>
                           </button>
                           <button
                             type="button"
@@ -461,17 +509,16 @@ export function ClientsView() {
                             onClick={() => void onDelete(c)}
                             title="Delete client"
                             aria-label={`Delete ${c.name}`}
-                            style={{ color: 'var(--danger)' }}
                           >
-                            Delete
+                            <Icon name="trash" size={13} /> <span className="cm-act-label">Delete</span>
                           </button>
                         </div>
                       </Gate>
                     </td>
                   </tr>
                   {isExpanded && (
-                    <tr id={`matters-${c.id}`}>
-                      <td colSpan={7} style={{ background: 'var(--bg-surface-2)', padding: 0 }}>
+                    <tr id={`matters-${c.id}`} className="cm-matters-row">
+                      <td colSpan={7} data-span="all">
                         <ClientMattersPanel
                           loading={cases.isLoading}
                           error={cases.isError}
@@ -508,10 +555,10 @@ export function ClientsView() {
 // ---------------------------------------------------------------------------
 
 const CASE_STATUS_BADGE: Record<string, string> = {
-  Active:   'badge-sage',
-  Pending:  'badge-cobalt',
-  Closed:   'badge-cream',
-  Archived: 'badge-cream',
+  Active:   'cm-pill cm-pill--ink',
+  Pending:  'cm-pill cm-pill--line',
+  Closed:   'cm-pill cm-pill--soft',
+  Archived: 'cm-pill cm-pill--soft',
 };
 
 function ClientMattersPanel(props: {
@@ -521,78 +568,45 @@ function ClientMattersPanel(props: {
   onOpenMatter: (m: Case) => void;
 }): JSX.Element {
   if (props.loading) {
-    return (
-      <div className="muted body-sm" style={{ padding: '16px 20px' }}>
-        Loading matters…
-      </div>
-    );
+    return <div className="cm-matters-note">Loading matters…</div>;
   }
   if (props.error) {
-    return (
-      <div className="body-sm" style={{ padding: '16px 20px', color: 'var(--danger)' }}>
-        Could not load matters. Reload to retry.
-      </div>
-    );
+    return <div className="cm-matters-note">Could not load matters. Reload to retry.</div>;
   }
   if (props.matters.length === 0) {
-    return (
-      <div className="muted body-sm" style={{ padding: '16px 20px' }}>
-        No matters on file for this client yet.
-      </div>
-    );
+    return <div className="cm-matters-note">No matters on file for this client yet.</div>;
   }
   return (
-    <div style={{ padding: '12px 16px 16px' }}>
-      <div
-        className="mono"
-        style={{
-          fontSize: 11,
-          letterSpacing: '0.12em',
-          color: 'var(--text-tertiary)',
-          marginBottom: 10,
-        }}
-      >
-        MATTERS · {props.matters.length}
-      </div>
-      <div className="stack-2" style={{ fontSize: 13 }}>
+    <div className="cm-matters">
+      <div className="cm-label">Matters · {props.matters.length}</div>
+      <div className="cm-matters-list">
         <div className="clients-row clients-row-head hide-mobile" aria-hidden>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>TITLE</div>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>COURT</div>
-          <div className="mono clients-cell-hide-tablet" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>STAGE</div>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>STATUS</div>
-          <div className="mono clients-cell-hide-tablet" style={{ fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-tertiary)' }}>NEXT HEARING</div>
+          <div>Title</div>
+          <div>Court</div>
+          <div className="clients-cell-hide-tablet">Stage</div>
+          <div>Status</div>
+          <div className="clients-cell-hide-tablet">Next hearing</div>
         </div>
         {props.matters.map((m) => (
           <div
             key={m.id}
-            className="clients-row"
+            className="clients-row cm-matter"
             onClick={() => props.onOpenMatter(m)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); props.onOpenMatter(m); } }}
-            style={{ cursor: 'pointer' }}
             title="Open case"
           >
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {m.title}
-              </div>
-              <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-                {m.cnr}
-              </div>
+              <div className="cm-matter-title">{m.title}</div>
+              <div className="mono cm-matter-cnr">{m.cnr}</div>
             </div>
-            <div className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {m.court || '—'}
-            </div>
-            <div className="muted clients-cell-hide-tablet" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {m.stage || '—'}
-            </div>
+            <div className="cm-ellipsis cm-muted-cell">{m.court || '—'}</div>
+            <div className="cm-ellipsis cm-muted-cell clients-cell-hide-tablet">{m.stage || '—'}</div>
             <div>
-              <span className={`badge ${CASE_STATUS_BADGE[m.status] ?? 'badge-cream'}`}>
-                {m.status.toUpperCase()}
-              </span>
+              <span className={CASE_STATUS_BADGE[m.status] ?? 'cm-pill cm-pill--soft'}>{m.status}</span>
             </div>
-            <div className="mono tabular muted clients-cell-hide-tablet">{m.next || '—'}</div>
+            <div className="tabular cm-muted-cell clients-cell-hide-tablet">{formatDay(m.next)}</div>
           </div>
         ))}
       </div>

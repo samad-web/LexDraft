@@ -67,27 +67,16 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
       }}
     >
       <form
+        className="ai-sheet"
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
-        style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 28,
-          width: 'min(640px, 100%)',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
       >
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>New clause</div>
-          <h3 id="new-clause-title" className="display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em' }}>
+        <div className="ai-sheet-head">
+          <div className="ai-eyebrow">New clause</div>
+          <h3 id="new-clause-title" className="ai-sheet-title">
             Add to clause bank
           </h3>
-          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          <p className="ai-sheet-desc">
             Categories are free-text. Pick an existing one or create a new section.
           </p>
         </div>
@@ -148,8 +137,8 @@ export function NewClauseModal({ open, onClose, categories, defaultCategory }: N
           />
         </Field>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        <div className="ai-sheet-foot">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary" disabled={create.isPending}>
             {create.isPending ? 'Adding…' : 'Add clause'}
           </button>

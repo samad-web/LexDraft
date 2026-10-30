@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useGoogleSignUp, useDemoRequest } from '@/hooks/useAuth';
+import { Wordmark } from '@/components/brand/Logo';
 import { useUIStore } from '@/store/ui';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
@@ -55,12 +56,10 @@ export function SignupView(): JSX.Element {
         <button
           type="button"
           onClick={() => navigate('/')}
-          style={{
-            all: 'unset', cursor: 'pointer',
-            fontWeight: 700, fontSize: 18, letterSpacing: '-0.01em',
-          }}
+          style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
+          aria-label="DifAi home"
         >
-          DifAi
+          <Wordmark height={22} />
         </button>
         <button
           type="button"
@@ -77,10 +76,11 @@ export function SignupView(): JSX.Element {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          padding: '48px 24px 96px',
+          justifyContent: 'center',
+          padding: '48px 20px 96px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 560 }}>
+        <div className="signup-shell" style={{ width: '100%', maxWidth: 520 }}>
           {intent === 'demo'  && <DemoChoiceScreen />}
           {intent === 'trial' && <SignupFormCard intent="trial" />}
           {intent === 'paid'  && <SignupFormCard intent="paid" />}

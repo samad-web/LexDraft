@@ -166,11 +166,11 @@ def test_advocate_added_documents_flow_into_both_docs():
     affidavit_text = " ".join(b["text"] for b in body["affidavit"]["blocks"])
     # The complaint's LIST OF DOCUMENTS carries the standard set + advocate items.
     assert "LIST OF DOCUMENTS FILED BY THE COMPLAINANT" in complaint_text
-    assert "The Agreement dated 01-12-2023" in complaint_text
-    assert "Invoice No. INV-2023-88 dated 01-12-2023" in complaint_text
+    assert "The Agreement dated 01.12.2023" in complaint_text
+    assert "Invoice No. INV-2023-88 dated 01.12.2023" in complaint_text
     # The affidavit recites the same documents.
-    assert "The Agreement dated 01-12-2023" in affidavit_text
-    assert "Invoice No. INV-2023-88 dated 01-12-2023" in affidavit_text
+    assert "The Agreement dated 01.12.2023" in affidavit_text
+    assert "Invoice No. INV-2023-88 dated 01.12.2023" in affidavit_text
 
 
 def test_render_false_omits_docx():

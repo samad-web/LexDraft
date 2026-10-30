@@ -11,6 +11,7 @@ import {
   type EfilingUserType,
 } from '@/hooks/useEfiling';
 import { errMsg } from './format';
+import { useEfilingPortalStore } from '@/store/efilingPortal';
 
 // =============================================================================
 // PortalLoginPanel — signs the advocate in to filing.ecourts.gov.in through a
@@ -20,12 +21,24 @@ import { errMsg } from './format';
 // todo.md), so once signed in the advocate files on the portal and records
 // the result in the Filings tab.
 //
-// The portal allows ONE active session per account: a DifAi session left
-// open would lock the advocate out of their own browser, so it is closed on
-// "Sign out" and whenever this panel unmounts.
+// eFiling starts here, as on the portal: once logged in, the session is kept
+// in useEfilingPortalStore and every eFiling screen works over it (kept alive
+// by EfilingView). The portal allows ONE active session per account, so
+// "Log out" logs out on the portal too (efiling-live closeSession).
 // =============================================================================
 
 type Step = 'form' | 'captcha' | 'duplicate-login' | 'authenticated';
+
+const LAST_LOGIN_KEY = 'difai.efiling.lastLogin';
+
+function readLastLogin(): { stateCode: string; userType: EfilingUserType; username: string } | null {
+  try {
+    const raw = localStorage.getItem(LAST_LOGIN_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 const USER_TYPES: { value: EfilingUserType; label: string }[] = [
   { value: 'advocate', label: 'Advocate' },
@@ -38,18 +51,25 @@ const USER_TYPES: { value: EfilingUserType; label: string }[] = [
   { value: 'insurance', label: 'Institutional Litigant' },
 ];
 
-export function PortalLoginPanel() {
+export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } = {}) {
+  const connection = useEfilingPortalStore((s) => s.connection);
+  const connect = useEfilingPortalStore((s) => s.connect);
+  const disconnect = useEfilingPortalStore((s) => s.disconnect);
   // The portal's own 30-state list, not eCourts' - a state eCourts has but
   // eFiling doesn't would fail inside the portal with a misleading error.
   const { data: states, isLoading: statesLoading } = useEfilingPortalStates();
 
-  const [stateCode, setStateCode] = useState('');
-  const [userType, setUserType] = useState<EfilingUserType>('advocate');
-  const [username, setUsername] = useState('');
+  // State, user type and username are remembered on this browser so the next
+  // login is just password + captcha. The password is never stored.
+  const remembered = readLastLogin();
+  const [stateCode, setStateCode] = useState(remembered?.stateCode ?? '');
+  const [userType, setUserType] = useState<EfilingUserType>(remembered?.userType ?? 'advocate');
+  const [username, setUsername] = useState(remembered?.username ?? '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [step, setStep] = useState<Step>('form');
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [step, setStep] = useState<Step>(connection ? 'authenticated' : 'form');
+  const [sessionId, setSessionId] = useState<string | null>(connection?.sessionId ?? null);
   const [captchaImage, setCaptchaImage] = useState<string | null>(null);
   const [captchaCode, setCaptchaCode] = useState('');
   const [captchaError, setCaptchaError] = useState<string | null>(null);
@@ -62,17 +82,36 @@ export function PortalLoginPanel() {
   const confirmDuplicateLogin = useConfirmDuplicateEfilingLogin();
   const endSession = useEndEfilingSession();
 
-  // Close the server-side session when the panel goes away.
-  const sessionRef = useRef<string | null>(null);
-  sessionRef.current = sessionId;
+  // A login abandoned half-way (captcha step) is closed when the panel goes
+  // away; a connected session lives on for the other eFiling screens.
+  const pendingRef = useRef<string | null>(null);
+  pendingRef.current = step === 'authenticated' || (sessionId && connection?.sessionId === sessionId) ? null : sessionId;
   const endRef = useRef(endSession.mutate);
   endRef.current = endSession.mutate;
   useEffect(() => () => {
-    if (sessionRef.current) endRef.current(sessionRef.current);
+    if (pendingRef.current) endRef.current(pendingRef.current);
   }, []);
+
+  const connected = (id: string) => {
+    // Hand the session over BEFORE the store update unmounts this panel:
+    // otherwise the unmount cleanup below still sees a half-finished login
+    // and ends the brand-new session (the advocate was bounced back to log in).
+    pendingRef.current = null;
+    try { localStorage.setItem(LAST_LOGIN_KEY, JSON.stringify({ stateCode, userType, username })); } catch { /* private window */ }
+    connect({
+      sessionId: id,
+      username,
+      stateName: states?.find((x) => String(x.code) === stateCode)?.name ?? '',
+      connectedAt: new Date().toISOString(),
+    });
+    setPassword('');
+    setStep('authenticated');
+    onConnected?.();
+  };
 
   const reset = () => {
     if (sessionId) endSession.mutate(sessionId);
+    if (connection) disconnect();
     setSessionId(null);
     setCaptchaImage(null);
     setCaptchaCode('');
@@ -127,7 +166,7 @@ export function PortalLoginPanel() {
         setCaptchaError(result.reason);
         return;
       }
-      setStep('authenticated');
+      connected(sessionId);
     } catch (err) {
       setError(errMsg(err, 'Could not submit the captcha'));
     }
@@ -144,7 +183,7 @@ export function PortalLoginPanel() {
         setCaptchaError(result.reason);
         return;
       }
-      setStep('authenticated');
+      connected(sessionId);
     } catch (err) {
       setError(errMsg(err, 'Could not confirm the logout'));
     }
@@ -153,8 +192,8 @@ export function PortalLoginPanel() {
   return (
     <div className="col" style={{ gap: 16, maxWidth: 560 }}>
       <p className="body-sm muted">
-        eCourts allows one active eFiling session per account. Signing in here signs you out of eFiling in your own browser,
-        and signing out here (or leaving this page) frees it again.
+        Log in with your own eFiling account, as on filing.ecourts.gov.in. eCourts allows one active session per account:
+        logging in here signs you out of eFiling in your own browser, and “Log out of eFiling” frees it again.
       </p>
 
       {step === 'form' ? (
@@ -185,7 +224,27 @@ export function PortalLoginPanel() {
 
           <label className="col" style={{ gap: 4 }}>
             <span className="body-sm muted">Password</span>
-            <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+            <span style={{ position: 'relative', display: 'block' }}>
+              <input
+                className="input"
+                type={showPassword ? 'text' : 'password'}
+                autoFocus={Boolean(remembered?.username)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                style={{ width: '100%', paddingRight: 72 }}
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <Icon name="eye" size={12} /> {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </span>
           </label>
 
           <p className="body-sm muted">Your credentials are sent straight to filing.ecourts.gov.in to open your own session. DifAi doesn't store them.</p>
@@ -255,14 +314,11 @@ export function PortalLoginPanel() {
 
       {step === 'authenticated' ? (
         <div className="col" style={{ gap: 8, padding: 16, background: 'var(--bg-subtle)', borderRadius: 8 }}>
-          <p className="body-sm">You're signed in to eFiling.</p>
-          <p className="body-sm muted">
-            Complete the filing on the portal (Case Filing → New Case Filing), using the particulars and bundle prepared in the
-            Filings tab. Then record the eFiling number there. DifAi tracks it and connects the case to eCourts once it is registered.
-          </p>
+          <p className="body-sm">Connected to eFiling{connection?.username ? ` as ${connection.username}` : ''}{connection?.stateName ? ` · ${connection.stateName}` : ''}.</p>
+          <p className="body-sm muted">Every eFiling screen in DifAi now works over this session. It stays connected while you work here.</p>
           <div className="row" style={{ gap: 8 }}>
             <button type="button" className="btn btn-ghost btn-sm" onClick={reset} disabled={endSession.isPending}>
-              Sign out of eFiling
+              Log out of eFiling
             </button>
           </div>
         </div>

@@ -9,7 +9,8 @@
 // shaping and the same xaiUsage token mapping the billing/quota code reads.
 //
 // Auth: one server-side org key (XAI_API_KEY). maxRetries:0 because callers
-// wrap us in their own withRetry.
+// wrap us in their own withRetry. With OPENAI_API_KEY set, the same client
+// talks to OpenAI instead (env.openaiCompat).
 // =============================================================================
 
 import OpenAI from 'openai';
@@ -22,18 +23,24 @@ export function grok(): OpenAI {
   if (!client) {
     client = new OpenAI({
       apiKey: env.XAI_API_KEY,
-      baseURL: 'https://api.x.ai/v1',
+      baseURL: env.openaiCompat.baseURL,
       maxRetries: 0,
     });
   }
   return client;
 }
 
+/** The output cap in the parameter this vendor accepts: OpenAI's current models
+ *  reject `max_tokens` and take `max_completion_tokens`; xAI takes `max_tokens`. */
+export function outputLimit(maxTokens: number): { max_tokens: number } | { max_completion_tokens: number } {
+  return env.openaiCompat.vendor === 'openai' ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens };
+}
+
 /** Re-shape an OpenAI-SDK error into the HttpRetryError our withRetry()
  *  understands, so 429/5xx keep retrying exactly as the raw-fetch path did. */
 export function asRetryError(err: unknown): unknown {
   if (err instanceof OpenAI.APIError && typeof err.status === 'number') {
-    return new HttpRetryError(err.status, `xAI API ${err.status}: ${err.message}`);
+    return new HttpRetryError(err.status, `${env.openaiCompat.vendor} API ${err.status}: ${err.message}`);
   }
   return err;
 }
@@ -65,7 +72,7 @@ export async function grokComplete(opts: GrokOptions): Promise<GrokResult> {
   try {
     res = await grok().chat.completions.create({
       model,
-      max_tokens: maxTokens,
+      ...outputLimit(maxTokens),
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user },
@@ -87,7 +94,7 @@ export async function* grokStream(
   try {
     stream = await grok().chat.completions.create({
       model,
-      max_tokens: maxTokens,
+      ...outputLimit(maxTokens),
       stream: true,
       stream_options: { include_usage: true },
       messages: [

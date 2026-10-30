@@ -32,16 +32,6 @@ const STAGES: ReadonlyArray<Stage> = [
   { id: 'lost',         label: 'Declined',        sub: 'Not engaged' },
 ];
 
-const STAGE_BADGE: Record<Stage['id'], string> = {
-  new:          'badge-cobalt',
-  conflict:     'badge-amber',
-  consultation: 'badge-cream',
-  qualified:    'badge-cream',
-  proposal:     'badge-cobalt',
-  won:          'badge-sage',
-  lost:         'badge-vermillion',
-};
-
 /** Map any stored stage (incl. legacy 'qualified') to a board column id. */
 function columnOf(stage: LeadStage): Stage['id'] {
   return stage === 'qualified' ? 'consultation' : stage;
@@ -63,8 +53,8 @@ function formatAge(iso: string): string {
 }
 
 const CONFLICT_LABEL: Record<ConflictStatus, string> = {
-  '': 'Conflict: not checked',
-  clear: 'Conflict: clear',
+  '': 'Conflict not checked',
+  clear: 'Conflict clear',
   conflict: 'Conflict: ADVERSE',
 };
 
@@ -253,8 +243,13 @@ export function LeadsView() {
       .reduce((sum, l) => sum + Math.round((l.valueInr * l.probability) / 100), 0);
   }, [leads]);
 
+  // Header figures - display only.
+  const liveCount = leads.filter((l) => l.stage !== 'won' && l.stage !== 'lost').length;
+  const retainedCount = PIPELINE.won.length;
+  const uncheckedCount = leads.filter((l) => l.stage !== 'won' && l.stage !== 'lost' && l.conflictStatus !== 'clear').length;
+
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-leads" style={{ gap: 24 }}>
       <PageHeader
         title="Leads"
         description="Prospective clients from enquiry to retainer. Drag a card to move its stage."
@@ -288,12 +283,26 @@ export function LeadsView() {
         </Gate>
         </>}
       >
-        <div className="col" style={{ gap: 4 }}>
-          <span className="eyebrow" style={{ color: 'var(--text-tertiary)' }}>
-            Weighted pipeline value
-          </span>
-          <span className="heading-lg mono tabular">₹{formatINR(weightedPipeline)}</span>
-          <span className="body-xs muted">Σ estimated fee × likelihood, live leads only</span>
+        <div className="cm-pipeline">
+          <div>
+            <div className="cm-label">Weighted pipeline value</div>
+            <div className="cm-pipeline-figure">₹{formatINR(weightedPipeline)}</div>
+            <div className="cm-pipeline-note">Σ estimated fee × likelihood, live leads only</div>
+          </div>
+          <div className="cm-pipeline-stats">
+            <div>
+              <div className="cm-label">Live</div>
+              <div className="cm-pipeline-stat-v">{liveCount}</div>
+            </div>
+            <div>
+              <div className="cm-label">Conflict unchecked</div>
+              <div className="cm-pipeline-stat-v">{uncheckedCount}</div>
+            </div>
+            <div>
+              <div className="cm-label">Retained</div>
+              <div className="cm-pipeline-stat-v">{retainedCount}</div>
+            </div>
+          </div>
         </div>
       </PageHeader>
       <NewLeadModal open={modalOpen} onClose={() => setModalOpen(false)} />
@@ -312,7 +321,7 @@ export function LeadsView() {
       )}
 
       <div
-        className="kanban"
+        className="kanban cm-kanban"
         style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${STAGES.length}, minmax(236px, 1fr))`,
@@ -324,6 +333,7 @@ export function LeadsView() {
         {STAGES.map((stage) => {
           const list = PIPELINE[stage.id];
           const isDropTarget = dragOverStage === stage.id;
+          const colValue = list.reduce((s, l) => s + (l.valueInr || 0), 0);
           return (
             <section
               key={stage.id}
@@ -331,51 +341,22 @@ export function LeadsView() {
               onDragOver={(e) => handleDragOver(e, stage.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, stage.id)}
-              style={{
-                background: isDropTarget ? 'var(--bg-elevated)' : 'var(--bg-surface-2)',
-                border: '1px solid',
-                borderColor: isDropTarget ? 'var(--text-primary)' : 'var(--border-default)',
-                borderRadius: 'var(--radius-lg)',
-                padding: 16,
-                minHeight: 360,
-                transition: 'background 120ms, border-color 120ms',
-              }}
+              className={`cm-col${isDropTarget ? ' is-drop' : ''}`}
             >
-              <div className="row" style={{ marginBottom: 6, alignItems: 'center', gap: 8 }}>
-                <span
-                  className={`badge ${STAGE_BADGE[stage.id]}`}
-                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  {stage.label.toUpperCase()}
-                </span>
-                <span className="spacer" />
-                <span className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)', flexShrink: 0 }}>
-                  {list.length}
-                </span>
+              <div className="cm-col-head">
+                <span className="cm-col-title">{stage.label}</span>
+                <span className="cm-col-count">{list.length}</span>
               </div>
-              <div
-                className="eyebrow"
-                style={{
-                  marginBottom: 14,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {stage.sub}
-              </div>
+              <div className="cm-col-sub">{stage.sub}</div>
+              <div className="cm-col-sum">{colValue > 0 ? `₹${formatINR(colValue)} in fees` : 'No fees yet'}</div>
 
-              <div className="col" style={{ gap: 10 }}>
+              <div className="cm-col-list">
                 {isLoading && list.length === 0 && Array.from({ length: 2 }, (_, i) => (
                   <article
                     key={`sk-${stage.id}-${i}`}
                     aria-busy="true"
-                    style={{
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
-                    }}
+                    className="cm-lead"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8, cursor: 'default' }}
                   >
                     <Skeleton height={14} width="70%" />
                     <Skeleton height={11} width="50%" />
@@ -383,9 +364,7 @@ export function LeadsView() {
                   </article>
                 ))}
                 {!isLoading && !isError && list.length === 0 && (
-                  <p className="body-xs muted" style={{ padding: '8px 4px', color: 'var(--text-tertiary)' }}>
-                    Drop a card here.
-                  </p>
+                  <p className="cm-col-empty">Drop a card here.</p>
                 )}
                 {list.map((lead) => (
                   <LeadCard
@@ -429,80 +408,54 @@ function LeadCard(props: {
 }) {
   const { lead, stageId } = props;
   const weighted = Math.round((lead.valueInr * lead.probability) / 100);
-  const conflictColor =
-    lead.conflictStatus === 'clear' ? 'var(--success)'
-    : lead.conflictStatus === 'conflict' ? 'var(--danger)'
-    : 'var(--text-tertiary)';
+  const conflictCls =
+    lead.conflictStatus === 'clear' ? ' is-clear'
+    : lead.conflictStatus === 'conflict' ? ' is-adverse'
+    : '';
 
   return (
     <article
       draggable
       onDragStart={(e) => props.onDragStart(e, lead)}
       onDragEnd={props.onDragEnd}
-      className="row-clickable"
-      style={{
-        position: 'relative',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-md)',
-        padding: 14,
-        cursor: 'grab',
-        opacity: props.dragging ? 0.5 : 1,
-      }}
+      className={`row-clickable cm-lead${props.dragging ? ' is-dragging' : ''}${lead.conflictStatus === 'conflict' ? ' is-adverse' : ''}`}
     >
       <button
         type="button"
         aria-label={`Delete ${lead.name}`}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); props.onDelete(lead); }}
-        className="lead-delete-btn"
-        style={{
-          position: 'absolute', top: 8, right: 8, width: 22, height: 22,
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          border: '1px solid transparent', borderRadius: 'var(--radius-sm)',
-          color: 'var(--text-tertiary)', background: 'transparent', cursor: 'pointer',
-          transition: 'background 120ms, border-color 120ms, color 120ms',
-        }}
+        className="lead-delete-btn cm-lead-del"
       >
         <Icon name="close" size={12} />
       </button>
 
-      <div style={{ fontWeight: 500, fontSize: 14, marginBottom: 2, paddingRight: 24 }}>{lead.name}</div>
-      {lead.matterSummary && (
-        <div className="body-xs muted" style={{ marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {lead.matterSummary}
-        </div>
-      )}
+      <div className="cm-lead-name">{lead.name}</div>
+      {lead.practiceArea && <div className="cm-lead-area">{lead.practiceArea}</div>}
+      {lead.matterSummary && <div className="cm-lead-summary">{lead.matterSummary}</div>}
 
-      <div className="row" style={{ marginBottom: 8, alignItems: 'baseline', gap: 6 }}>
-        <span className="mono tabular" style={{ fontWeight: 500 }}>₹{formatINR(lead.valueInr)}</span>
-        <span className="body-xs muted">× {lead.probability}% =</span>
-        <span className="mono tabular body-sm" style={{ color: 'var(--text-secondary)' }}>₹{formatINR(weighted)}</span>
-        <span className="spacer" />
-        <span className="mono tabular" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{formatAge(lead.capturedAt)}</span>
+      <div className="cm-lead-money">
+        <span className="cm-lead-weighted" title="Weighted fee">₹{formatINR(weighted)}</span>
+        <span className="cm-lead-calc">₹{formatINR(lead.valueInr)} × {lead.probability}%</span>
+        <span className="cm-lead-age" title="Since captured">{formatAge(lead.capturedAt)}</span>
       </div>
+      <div className="cm-lead-bar" aria-hidden><span style={{ width: `${Math.max(0, Math.min(100, lead.probability))}%` }} /></div>
 
       {/* Conflict-check line — the legal gate. */}
-      <div
-        className="mono"
-        style={{
-          fontSize: 11, letterSpacing: '0.02em', color: conflictColor,
-          borderTop: '1px solid var(--border-subtle)', paddingTop: 8, marginBottom: 8,
-        }}
-      >
+      <div className={`cm-lead-conflict${conflictCls}`}>
+        <Icon name={lead.conflictStatus === 'clear' ? 'check' : lead.conflictStatus === 'conflict' ? 'flag' : 'shield'} size={12} />
         {CONFLICT_LABEL[lead.conflictStatus]}
       </div>
 
       {/* Conflict controls appear until the check is resolved clear. */}
       {lead.conflictStatus !== 'clear' && (
-        <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+        <div className="cm-lead-btns">
           <button
             type="button"
             className="btn btn-sm"
             disabled={props.busy}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); props.onSetConflict(lead, 'clear'); }}
-            style={{ flex: 1, borderColor: 'var(--success)', color: 'var(--success)' }}
           >
             <Icon name="check" size={12} /> Clear
           </button>
@@ -512,7 +465,6 @@ function LeadCard(props: {
             disabled={props.busy}
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); props.onSetConflict(lead, 'conflict'); }}
-            style={{ flex: 1, borderColor: 'var(--danger)', color: 'var(--danger)' }}
           >
             Adverse
           </button>
@@ -523,32 +475,23 @@ function LeadCard(props: {
       {(stageId === 'consultation' || stageId === 'proposal') && (
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm cm-lead-retain"
           disabled={props.busy || lead.conflictStatus !== 'clear'}
           title={lead.conflictStatus !== 'clear' ? 'Clear the conflict check first' : 'Retain & open matter'}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); props.onRetain(lead); }}
-          style={{ width: '100%', borderColor: 'var(--success)', color: 'var(--success)', marginBottom: 8 }}
         >
           <Icon name="check" size={12} /> Retain & open matter
         </button>
       )}
 
       {stageId === 'lost' && lead.declineReason && (
-        <div className="body-xs muted" style={{ marginBottom: 8, fontStyle: 'italic' }}>
-          Reason: {lead.declineReason}
-        </div>
+        <div className="cm-lead-note">Reason: <em>{lead.declineReason}</em></div>
       )}
       {stageId === 'won' && lead.convertedClient && (
-        <div className="body-xs" style={{ marginBottom: 8, color: 'var(--success)' }}>
-          Client: {lead.convertedClient}
-        </div>
+        <div className="cm-lead-note">Client: <strong>{lead.convertedClient}</strong></div>
       )}
-      {lead.referrer && (
-        <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', letterSpacing: '0.04em' }}>
-          {lead.referrer.toUpperCase()}
-        </div>
-      )}
+      {lead.referrer && <div className="cm-lead-src">{lead.referrer}</div>}
 
       {/* Touch fallback: native select for stage move (drag doesn't fire on
           touch). Hidden via CSS on viewports where drag works (>=1024px). */}
@@ -563,7 +506,6 @@ function LeadCard(props: {
         }}
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
-        style={{ marginTop: 10, height: 36, fontSize: 13, padding: '0 12px' }}
       >
         {STAGES.map((s) => (
           <option key={s.id} value={s.id}>Move to {s.label}</option>

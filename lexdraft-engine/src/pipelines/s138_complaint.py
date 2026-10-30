@@ -17,6 +17,7 @@ paragraph 2, expanded. This layer calls no LLM.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Sequence
@@ -31,6 +32,17 @@ TEMPLATE = "s138_complaint.docx"
 SPEC = "3.1"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+
+# Para 3 closes with "The said goods were delivered …" only for a debt for goods
+# supplied; a hand-loan or other debt closes with the plain liability sentence.
+_GOODS_DEBT = re.compile(r"\b(goods|suppl(y|ied|ies)|deliver|invoice|bill|materials?|price|purchase|sold)\b",
+                         re.IGNORECASE)
+# The slot follows "… and that"; a sentence-opening word must not stay capitalised.
+_OPENING_WORD = re.compile(r"^(On|The|In|During|By|At|A|An|As|After|From|Towards|For|Under|With)\b")
+
+
+def _debt_clause(slot: str) -> str:
+    return _OPENING_WORD.sub(lambda m: m[1].lower(), slot.strip())
 _CONDONATION_SECTION = "proviso to s.142(b) NI Act"
 
 
@@ -558,7 +570,8 @@ def build(
         ],
         "demand_amount": demand_amount,
         "demand_words": rupees_in_words(demand_amount),
-        "debt_slot": debt_slot if debt_slot.strip() else _LLM_SLOT_PLACEHOLDER,
+        "debt_slot": _debt_clause(debt_slot) if debt_slot.strip() else _LLM_SLOT_PLACEHOLDER,
+        "debt_is_goods": not debt_slot.strip() or bool(_GOODS_DEBT.search(debt_slot)),
         "presentation_date": presentation_date,
         "memo_date": memo_date,
         "memo_received_date": memo_received_date,

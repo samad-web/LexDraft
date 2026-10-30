@@ -172,8 +172,11 @@ export function CauseListView() {
     }
   };
 
+  const chipCount = (id: CauseStatus | 'all') => (id === 'all' ? ROWS.length : stats[id]);
+  const openRow = (r: CauseRow) => { if (r.caseId) navigate(`/app/cases/${r.caseId}`); };
+
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ct ct-causelist" style={{ gap: 24 }}>
       <PageHeader
         title="Cause List"
         description="Hearings of every matter in Cases - from eCourts and from the next hearing date on each matter."
@@ -188,114 +191,129 @@ export function CauseListView() {
         </>}
       />
 
-      <div className="stat-row">
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Listed today</div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>{stats.today}</div>
-          <div className="body-xs muted">In today’s cause list</div>
-        </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Upcoming</div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>{stats.upcoming}</div>
-          <div className="body-xs muted">Next {AHEAD_DAYS} days</div>
-        </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Past</div>
-          <div className="mono tabular" style={{ fontSize: 28, fontWeight: 600 }}>{stats.past}</div>
-          <div className="body-xs muted">Last {PAST_DAYS} days</div>
-        </div>
+      <div className="ct-kpis">
+        {([
+          { id: 'today', label: 'Listed today', value: stats.today, note: 'In today’s cause list' },
+          { id: 'upcoming', label: 'Upcoming', value: stats.upcoming, note: `Next ${AHEAD_DAYS} days` },
+          { id: 'past', label: 'Past', value: stats.past, note: `Last ${PAST_DAYS} days` },
+        ] as const).map((k) => (
+          <button
+            key={k.id}
+            type="button"
+            className={`ct-kpi${filter === k.id ? ' is-active' : ''}`}
+            aria-pressed={filter === k.id}
+            onClick={() => setFilter(filter === k.id ? 'all' : k.id)}
+          >
+            <span className="ct-kpi-label">{k.label}</span>
+            <span className="ct-kpi-value">{isLoading ? '–' : k.value}</span>
+            <span className="ct-kpi-note">{k.note}</span>
+          </button>
+        ))}
       </div>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="ct-toolbar">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             type="button"
             className={`chip ${filter === f.id ? 'active' : ''}`}
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
           >
             {f.label}
+            {!isLoading && !isError && <span className="ct-chip-count">{chipCount(f.id)}</span>}
           </button>
         ))}
+        <span className="ct-toolbar-note">{syncing ? 'Refreshing as eCourts answers…' : 'Click a hearing to open its matter'}</span>
       </div>
 
-      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th style={{ width: 60, textAlign: 'right' }}>Sl.</th>
-              <th style={{ width: 110 }}>Date</th>
-              <th style={{ width: 80 }}>Time</th>
-              <th>Matter</th>
-              <th>Court room</th>
-              <th>Purpose</th>
-              <th style={{ width: 110 }}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
-                  <span className="muted">Loading cause list<span className="blink" /></span>
-                </td>
-              </tr>
-            )}
-            {isError && !isLoading && (
-              <tr>
-                <td colSpan={7}>
-                  <ErrorState
-                    variant="inline"
-                    title="Couldn't load cause list"
-                    description="Check your connection and try again."
-                    onRetry={() => { void refetch(); }}
-                  />
-                </td>
-              </tr>
-            )}
-            {!isLoading && !isError && pager.slice.map((r) => (
-              <tr
-                key={r.id}
-                className={r.caseId ? 'tbl-row-link' : undefined}
-                onClick={r.caseId ? () => navigate(`/app/cases/${r.caseId}`) : undefined}
-                onKeyDown={r.caseId ? (e) => { if (e.key === 'Enter') navigate(`/app/cases/${r.caseId}`); } : undefined}
-                tabIndex={r.caseId ? 0 : undefined}
-                title={r.caseId ? `Open ${r.caseName}` : undefined}
-              >
-                <td className="mono tabular muted" style={{ textAlign: 'right' }}>{r.serial}</td>
-                <td className="mono tabular">{dmy(r.date)}</td>
-                <td className="mono tabular" style={{ fontWeight: 500 }}>{r.time}</td>
-                <td>
-                  <em className="case-name" style={{ fontWeight: 500 }}>{r.caseName}</em>
-                </td>
-                <td>
-                  <span className="body-sm" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {r.courtRoom || '—'}
-                  </span>
-                </td>
-                <td className="body-sm">{r.purpose}</td>
-                <td>
-                  <span className="badge" style={r.status === 'today' ? { background: 'var(--bg-inverse)', color: 'var(--text-inverse)' } : undefined}>
-                    {r.status === 'today' ? 'Today' : r.status === 'past' ? 'Past' : 'Upcoming'}
-                  </span>
-                </td>
-              </tr>
+      <div className="ct-card ct-docket" role="table" aria-label="Cause list">
+        <div className="ct-docket-head" role="row">
+          <span className="ct-h-sl" role="columnheader">Sl.</span>
+          <span className="ct-h-date" role="columnheader">Date</span>
+          <span className="ct-h-time" role="columnheader">Time</span>
+          <span className="ct-h-main" role="columnheader">Matter · Court room</span>
+          <span className="ct-h-purpose" role="columnheader">Purpose</span>
+          <span className="ct-h-status" role="columnheader">Status</span>
+        </div>
+        {isLoading && (
+          <div className="ct-loading-row" aria-busy="true" aria-label="Loading cause list">
+            {Array.from({ length: 5 }, (_, i) => (
+              <div key={i} className="row" style={{ gap: 16 }}>
+                <span className="ct-skel" style={{ width: 52, height: 56 }} />
+                <div className="col" style={{ gap: 8, flex: 1 }}>
+                  <span className="ct-skel" style={{ width: '46%', height: 14 }} />
+                  <span className="ct-skel" style={{ width: '30%', height: 12 }} />
+                </div>
+              </div>
             ))}
-            {!isLoading && !isError && filtered.length === 0 && (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    variant="inline"
-                    icon="causelist"
-                    title={ROWS.length === 0 ? 'No hearings yet' : 'No hearings match this filter'}
-                    description={ROWS.length === 0
-                      ? 'Hearings appear here from eCourts (matters with a CNR) and from the next hearing date on a matter. Use “Sync from eCourts” to fetch them now.'
-                      : undefined}
-                  />
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+          </div>
+        )}
+        {isError && !isLoading && (
+          <div className="ct-empty-row">
+            <ErrorState
+              variant="inline"
+              title="Couldn't load cause list"
+              description="Check your connection and try again."
+              onRetry={() => { void refetch(); }}
+            />
+          </div>
+        )}
+        {!isLoading && !isError && pager.slice.map((r) => {
+          const d = r.date ? new Date(`${r.date}T00:00:00`) : null;
+          return (
+            <div
+              key={r.id}
+              role="row"
+              className={`ct-drow is-${r.status}${r.caseId ? ' is-link' : ''}`}
+              onClick={r.caseId ? () => openRow(r) : undefined}
+              onKeyDown={r.caseId ? (e) => { if (e.key === 'Enter') openRow(r); } : undefined}
+              tabIndex={r.caseId ? 0 : undefined}
+              title={r.caseId ? `Open ${r.caseName}` : undefined}
+            >
+              <span className="ct-drow-sl" role="cell">{r.serial}</span>
+              <span
+                role="cell"
+                className={`ct-date${r.status === 'today' ? ' is-today' : r.status === 'past' ? ' is-past' : ''}`}
+                aria-label={dmy(r.date)}
+              >
+                {d ? (
+                  <>
+                    <span className="ct-date-wd">{d.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                    <span className="ct-date-d">{d.getDate()}</span>
+                    <span className="ct-date-mo">{d.toLocaleDateString('en-IN', { month: 'short' })}</span>
+                  </>
+                ) : <span className="ct-date-d">—</span>}
+              </span>
+              <span className="ct-drow-time" role="cell">
+                <span className={`ct-time${r.time ? '' : ' is-empty'}`}>{r.time || '--:--'}</span>
+              </span>
+              <span className="ct-drow-main" role="cell">
+                <span className="ct-title">{r.caseName}</span>
+                <span className="ct-meta">{r.courtRoom || '—'}</span>
+                {r.purpose && <span className="ct-meta ct-drow-purpose-inline">{r.purpose}</span>}
+              </span>
+              <span className="ct-drow-purpose" role="cell">{r.purpose || '—'}</span>
+              <span className="ct-drow-status" role="cell">
+                <span className={`ct-pill${r.status === 'today' ? ' is-ink' : r.status === 'past' ? ' is-quiet' : ''}`}>
+                  {r.status === 'today' ? 'Today' : r.status === 'past' ? 'Past' : 'Upcoming'}
+                </span>
+              </span>
+            </div>
+          );
+        })}
+        {!isLoading && !isError && filtered.length === 0 && (
+          <div className="ct-empty-row">
+            <EmptyState
+              variant="inline"
+              icon="causelist"
+              title={ROWS.length === 0 ? 'No hearings yet' : 'No hearings match this filter'}
+              description={ROWS.length === 0
+                ? 'Hearings appear here from eCourts (matters with a CNR) and from the next hearing date on a matter. Use “Sync from eCourts” to fetch them now.'
+                : undefined}
+            />
+          </div>
+        )}
         {!isLoading && !isError && (
           <Pagination
             page={pager.page}

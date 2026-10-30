@@ -43,10 +43,17 @@ export function useNavHighlighter(containerRef: RefObject<HTMLElement | null>): 
 
     measure();
 
-    // Re-measure when fonts/icons load (heights can shift slightly).
+    // Re-measure when fonts/icons load (heights can shift slightly), and when
+    // the items change: the groups appear only once the user's features have
+    // loaded, which moves the active item without resizing the container.
     const ro = new ResizeObserver(measure);
     ro.observe(node);
-    return () => ro.disconnect();
+    const mo = new MutationObserver(measure);
+    mo.observe(node, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
   }, [containerRef, location.pathname]);
 
   // Window resize re-measure too (covers sidebar collapse/responsive shifts).

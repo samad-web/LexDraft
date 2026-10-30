@@ -122,7 +122,7 @@ export function EngagementTemplatesView() {
   };
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-engage" style={{ gap: 24 }}>
       <PageHeader
         title="Engagement Letters"
         description="Standard scope and fee wording per matter type, filled in when a matter opens."
@@ -146,11 +146,11 @@ export function EngagementTemplatesView() {
       )}
 
       {isLoading ? (
-        <div className="card" style={{ padding: 24 }}>
-          <Skeleton width={200} height={14} />
-          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <Skeleton width="100%" height={48} />
-            <Skeleton width="100%" height={48} />
+        <div className="col" style={{ gap: 12 }} aria-busy="true">
+          <Skeleton width={220} height={22} />
+          <div className="cm-tpl-grid">
+            <Skeleton width="100%" height={220} />
+            <Skeleton width="100%" height={220} />
           </div>
         </div>
       ) : total === 0 ? (
@@ -169,27 +169,16 @@ export function EngagementTemplatesView() {
           }
         />
       ) : (
-        <div className="col" style={{ gap: 28 }}>
+        <div className="col" style={{ gap: 36 }}>
           {groups.map((group) => (
-            <div key={group.matterType} className="col" style={{ gap: 12 }}>
-              <div
-                className="row rule-bottom"
-                style={{
-                  alignItems: 'flex-end',
-                  paddingBottom: 8,
-                  borderBottom: '1px solid var(--border-default)',
-                }}
-              >
-                <h2 className="heading-md">{group.matterType}</h2>
-                <span className="spacer" />
-                <span
-                  className="mono"
-                  style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}
-                >
-                  {group.templates.length} {group.templates.length === 1 ? 'TEMPLATE' : 'TEMPLATES'}
+            <section key={group.matterType} className="col" style={{ gap: 16 }}>
+              <div className="cm-group-head">
+                <h2 className="cm-group-title">{group.matterType}</h2>
+                <span className="cm-label">
+                  {group.templates.length} {group.templates.length === 1 ? 'template' : 'templates'}
                 </span>
               </div>
-              <div className="grid-2" style={{ gap: 16 }}>
+              <div className="cm-tpl-grid">
                 {group.templates.map((t) => (
                   <TemplateCard
                     key={t.id}
@@ -199,7 +188,7 @@ export function EngagementTemplatesView() {
                   />
                 ))}
               </div>
-            </div>
+            </section>
           ))}
         </div>
       )}
@@ -270,41 +259,36 @@ function TemplateCard({ template, onEdit, confirm }: TemplateCardProps) {
   };
 
   return (
-    <div className="card card-hover" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-        {template.isDefault && <span className="badge badge-sage">DEFAULT</span>}
-        <span className="spacer" />
-        <span
-          className="mono"
-          style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}
-        >
-          {formatInr(template.retainerInr)} RETAINER
-        </span>
+    <article className={`card card-hover cm-tpl${template.isDefault ? ' is-default' : ''}`}>
+      <div className="cm-tpl-top">
+        <div style={{ minWidth: 0 }}>
+          {template.isDefault && (
+            <span className="cm-pill cm-pill--ink" style={{ marginBottom: 10 }}>
+              <Icon name="check" size={11} /> Default
+            </span>
+          )}
+          <div className="cm-tpl-name">{template.matterType}</div>
+          {template.notes && <p className="cm-tpl-notes">{template.notes}</p>}
+        </div>
+        <div className="cm-tpl-fee">
+          <div className="cm-label">Retainer</div>
+          <div className="cm-tpl-fee-v">{formatInr(template.retainerInr)}</div>
+        </div>
       </div>
       <div>
-        <div className="heading-sm" style={{ marginBottom: 4 }}>{template.matterType}</div>
-        {template.notes && (
-          <p className="body-sm muted" style={{ marginBottom: 6 }}>{template.notes}</p>
-        )}
+        <div className="cm-label">Scope preview</div>
+        <p className="cm-tpl-quote">{template.scopeClauses}</p>
       </div>
-      <div className="col" style={{ gap: 6 }}>
-        <div className="eyebrow">Scope preview</div>
-        <p
-          className="body-sm"
-          style={{
-            color: 'var(--text-secondary)',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            whiteSpace: 'pre-wrap',
-          }}
-        >
-          {template.scopeClauses}
-        </p>
-      </div>
-      <div className="row rule-top" style={{ paddingTop: 12, gap: 8 }}>
-        {!template.isDefault && (
+      {template.feeClauses && (
+        <div>
+          <div className="cm-label">Fees</div>
+          <p className="cm-tpl-quote cm-tpl-quote--fee">{template.feeClauses}</p>
+        </div>
+      )}
+      <div className="cm-tpl-foot">
+        {template.isDefault ? (
+          <span className="cm-tpl-default-note"><Icon name="check" size={12} /> Used for new matters</span>
+        ) : (
           <button
             type="button"
             className="btn btn-sm"
@@ -318,23 +302,22 @@ function TemplateCard({ template, onEdit, confirm }: TemplateCardProps) {
         <span className="spacer" />
         <button
           type="button"
-          className="btn btn-sm"
+          className="btn btn-sm btn-ghost"
           onClick={() => { void handleDelete(); }}
           title="Delete template"
           aria-label="Delete template"
-          style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <Icon name="close" size={11} /> Delete
+          <Icon name="trash" size={12} /> Delete
         </button>
         <button
           type="button"
           className="btn btn-sm"
           onClick={onEdit}
         >
-          <Icon name="documents" size={12} /> Edit
+          <Icon name="edit" size={12} /> Edit
         </button>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -470,10 +453,7 @@ function TemplateModal({
         </Field>
       </div>
 
-      <label
-        className="row"
-        style={{ gap: 8, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
-      >
+      <label className="cm-tpl-form-check">
         <input
           type="checkbox"
           checked={form.isDefault}

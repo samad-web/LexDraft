@@ -277,8 +277,9 @@ export function NewClientModal({ open, onClose, existing }: Props) {
           />
         )}
         {duplicateClient && (
-          <p className="body-sm" style={{ color: 'var(--warning)', marginTop: 6 }}>
-            <Icon name="flag" size={12} /> A client named "{duplicateClient.name}" already exists. Continuing will create a second, separate record.
+          <p className="cm-form-note" role="status">
+            <Icon name="flag" size={12} />
+            <span>A client named "{duplicateClient.name}" already exists. Continuing will create a second, separate record.</span>
           </p>
         )}
       </Field>
@@ -320,21 +321,25 @@ export function NewClientModal({ open, onClose, existing }: Props) {
       {/* Optional: open the client's first case in the same flow. Create-mode
           only - editing a client is about the client record, not new matters. */}
       {!isEdit && (
-        <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 8, paddingTop: 16 }}>
+        <div className="cm-addcase">
           {!addCase ? (
             <button
               type="button"
-              className="btn btn-sm"
+              className="cm-addcase-btn"
               onClick={() => setAddCase(true)}
-              style={{ alignSelf: 'flex-start' }}
             >
-              <Icon name="plus" size={12} /> Also open a case for this client
+              <span className="cm-addcase-plus" aria-hidden><Icon name="plus" size={13} /></span>
+              <span>
+                <strong>Also open a case for this client</strong>
+                <span className="cm-hint">Optional: matter title, notes and files in the same step.</span>
+              </span>
             </button>
           ) : (
-            <div className="col" style={{ gap: 14 }}>
-              <div className="row" style={{ alignItems: 'center' }}>
-                <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                  NEW CASE (OPTIONAL)
+            <div className="cm-addcase-box">
+              <div className="cm-addcase-head">
+                <div>
+                  <div className="cm-addcase-title">New case</div>
+                  <div className="cm-hint">Optional. Linked to this client by name.</div>
                 </div>
                 <span className="spacer" style={{ flex: 1 }} />
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setAddCase(false); setCaseTitle(''); setCaseContent(''); setCaseDocs([]); }}>
@@ -485,19 +490,7 @@ function ClientNameAutocomplete({ value, onChange, wonLeads, onPickLead }: Autoc
             zIndex: 60,
           }}
         >
-          <div
-            className="mono"
-            style={{
-              padding: '6px 12px',
-              fontSize: 10,
-              letterSpacing: '0.12em',
-              color: 'var(--text-tertiary)',
-              borderBottom: '1px solid var(--border-subtle)',
-              textTransform: 'uppercase',
-            }}
-          >
-            From won leads
-          </div>
+          <div className="cm-suggest-head">From won leads</div>
           {matches.map((lead, i) => {
             const active = i === activeIndex;
             return (
@@ -513,9 +506,7 @@ function ClientNameAutocomplete({ value, onChange, wonLeads, onPickLead }: Autoc
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {lead.name}
                 </span>
-                <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', marginLeft: 8 }}>
-                  ₹{formatINR(lead.valueInr)}
-                </span>
+                <span className="cm-suggest-fee">₹{formatINR(lead.valueInr)}</span>
               </div>
             );
           })}

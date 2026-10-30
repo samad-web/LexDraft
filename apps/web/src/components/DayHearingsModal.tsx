@@ -74,59 +74,36 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
       }
     >
       {dayQuery.isLoading ? (
-        <div className="body-sm muted" style={{ padding: 16, textAlign: 'center' }}>
-          Loading hearings<span className="blink" />
+        <div className="col" style={{ gap: 8 }} aria-busy="true" aria-label="Loading hearings">
+          {[0, 1].map((i) => <span key={i} className="ct-skel" style={{ height: 66, borderRadius: 10 }} />)}
         </div>
       ) : hearings.length === 0 ? (
-        <div
-          className="body-sm muted"
-          style={{
-            border: '1px dashed var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-            padding: 20,
-            textAlign: 'center',
-          }}
-        >
-          No hearings scheduled for {iso}.
+        <div className="ct-day-empty">
+          <span className="ct-icon-tile" aria-hidden><Icon name="calendar" size={15} /></span>
+          <p>No hearings scheduled for {iso}.</p>
         </div>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ul className="ct-dayrows">
           {hearings.map((h) => {
             const hid = h.id ?? '';
             const isConfirming = !!hid && confirmId === hid;
             return (
               <li
                 key={hid || `${h.date}-${h.time}`}
-                className="day-hearing-row"
-                style={{
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '12px 14px',
-                  background: 'var(--bg-surface)',
-                }}
+                className={`ct-dayrow${isConfirming ? ' is-confirming' : ''}`}
               >
-                <span
-                  className="mono tabular"
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}
-                >
-                  {h.time || '--:--'}
-                </span>
-                <div style={{ minWidth: 0 }}>
-                  <div className="body-md" style={{ marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <em className="case-name" style={{ fontWeight: 500 }}>{h.case}</em>
-                  </div>
-                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                    <span className="body-sm muted">{h.purpose}</span>
-                    <span style={{ width: 3, height: 3, background: 'var(--text-tertiary)', borderRadius: '50%' }} />
-                    <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                      {h.court.toUpperCase()}
-                    </span>
-                  </div>
+                <span className={`ct-time${h.time ? '' : ' is-empty'}`}>{h.time || '--:--'}</span>
+                <div className="col" style={{ gap: 3, minWidth: 0 }}>
+                  <span className="ct-title">{h.case}</span>
+                  <span className="ct-meta">
+                    {h.purpose}{h.purpose && h.court ? <span className="ct-meta-dot" /> : null}{h.court}
+                    {h.judge ? <><span className="ct-meta-dot" />{h.judge}</> : null}
+                  </span>
                 </div>
-                <div className="row" style={{ gap: 6 }}>
+                <div className="ct-dayrow-actions">
                   {isConfirming ? (
                     <>
-                      <span className="body-xs muted" style={{ marginRight: 4 }}>Delete?</span>
+                      <span className="body-xs" style={{ fontWeight: 600, marginRight: 4 }}>Delete this hearing?</span>
                       <button
                         type="button"
                         className="btn btn-sm"
@@ -137,7 +114,7 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
                       </button>
                       <button
                         type="button"
-                        className="btn btn-sm btn-danger"
+                        className="btn btn-sm btn-oxblood"
                         onClick={() => hid && handleDelete(hid)}
                         disabled={del.isPending}
                       >
@@ -152,17 +129,16 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
                         onClick={() => onEdit(h)}
                         aria-label={`Edit hearing at ${h.time}`}
                       >
-                        Edit
+                        <Icon name="edit" size={12} /> Edit
                       </button>
                       <button
                         type="button"
-                        className="btn btn-sm"
+                        className="btn btn-sm btn-ghost"
                         onClick={() => hid && setConfirmId(hid)}
                         disabled={!hid}
                         aria-label={`Delete hearing at ${h.time}`}
-                        style={{ color: 'var(--danger)' }}
                       >
-                        Delete
+                        <Icon name="trash" size={12} /> Delete
                       </button>
                     </>
                   )}

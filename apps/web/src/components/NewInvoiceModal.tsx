@@ -16,6 +16,11 @@ const STATUSES: InvoiceStatus[] = ['pending', 'paid', 'overdue'];
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
+function previewDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 function inDays(d: number): string {
   const x = new Date();
   x.setDate(x.getDate() + d);
@@ -134,6 +139,14 @@ export function NewInvoiceModal({ open, onClose }: Props) {
         <Field label="DUE" required>
           <DatePicker value={dueDate} onChange={setDueDate} />
         </Field>
+        {amount && Number(amount) > 0 && (
+          <div className="cm-preview" aria-live="polite">
+            <span className="cm-preview-figure">₹{Number(amount).toLocaleString('en-IN')}</span>
+            <span className="cm-preview-note">
+              {client.trim() ? `Billed to ${client.trim()}` : 'Billed'} · due {previewDate(dueDate)}
+            </span>
+          </div>
+        )}
       </div>
     </Modal>
   );

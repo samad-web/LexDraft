@@ -3,19 +3,29 @@
  * a cross-firm handover (co-counsel.service.ts::case_guest_grants). Distinct
  * from CasesListView: these are read-only matters this user doesn't own,
  * shown separately so they're never confused with the advocate's own caseload.
+ * Styles: .cs-* (globals.css + styles/chambers/case.css).
  */
 
+import type { KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState, ErrorState, Icon, Skeleton } from '@lexdraft/ui';
 import { useGuestCases } from '@/hooks/useCoCounsel';
 import { PageHeader } from '@/components/PageHeader';
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function GuestCasesListView() {
   const navigate = useNavigate();
   const { data: cases = [], isLoading, isError } = useGuestCases();
+  const today = todayIso();
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cs">
       <PageHeader
         title="Co-Counsel"
         description="Matters other advocates have handed to you, with read-only access."
@@ -23,11 +33,11 @@ export function GuestCasesListView() {
       />
 
       {isLoading && (
-        <div className="col" style={{ gap: 12 }}>
+        <div className="cs-list-card" aria-busy="true">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="card" style={{ padding: 20 }}>
-              <Skeleton width={220} height={16} />
-              <Skeleton width={140} height={12} style={{ marginTop: 10 }} />
+            <div key={i} style={{ padding: '18px 8px' }}>
+              <Skeleton width={260} height={16} />
+              <Skeleton width={160} height={12} style={{ marginTop: 10 }} />
             </div>
           ))}
         </div>
@@ -49,26 +59,55 @@ export function GuestCasesListView() {
       )}
 
       {!isLoading && !isError && cases.length > 0 && (
-        <div className="col" style={{ gap: 12 }}>
-          {cases.map((c) => (
-            <div
-              key={c.caseId}
-              className="card card-hover"
-              style={{ padding: 20, cursor: 'pointer' }}
-              onClick={() => navigate(`/app/co-counsel/${c.caseId}`)}
-            >
-              <div className="row" style={{ gap: 10, marginBottom: 6 }}>
-                <span className="badge badge-cobalt">{c.cnr}</span>
-                <span className="spacer" />
-                <span className="body-xs muted">From {c.grantedBy}</span>
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{c.title}</div>
-              <div className="body-sm muted">
-                {c.court} · {c.stage}
-                {c.nextHearing ? ` · Next hearing ${c.nextHearing}` : ''}
-              </div>
-            </div>
-          ))}
+        <div className="cs-list-card">
+          <div className="cs-section-head">
+            <span>Handed to you</span>
+            <span className="cs-section-count">{cases.length}</span>
+          </div>
+          <ul className="cs-rows">
+            {cases.map((c) => {
+              const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(c.nextHearing ?? '');
+              const isToday = c.nextHearing?.slice(0, 10) === today;
+              const open = () => navigate(`/app/co-counsel/${c.caseId}`);
+              const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+              };
+              return (
+                <li key={c.caseId}>
+                  <div className="cs-row cs-grow" role="link" tabIndex={0} onClick={open} onKeyDown={onKey}>
+                    <span className={`adv-dateblock cs-dateblock${isToday ? ' is-today' : ''}`} aria-hidden="true">
+                      {m ? (
+                        <>
+                          <span className="adv-dateblock-m">{MONTHS[+m[2]! - 1]}</span>
+                          <span className="adv-dateblock-d">{+m[3]!}</span>
+                        </>
+                      ) : <span className="adv-dateblock-d">–</span>}
+                    </span>
+                    <span className="cs-row-main">
+                      <span className="cs-row-title"><em className="case-name">{c.title}</em></span>
+                      <span className="cs-row-sub">{[c.court, c.stage].filter(Boolean).join(' · ')}</span>
+                      <span className="cs-row-tags">
+                        {c.cnr && <span className="cs-tag mono">{c.cnr}</span>}
+                        <span className="cs-tag">Read-only</span>
+                      </span>
+                      <span className="cs-row-meta">
+                        <span className="cs-when-inline">From {c.grantedBy}</span>
+                      </span>
+                    </span>
+                    <span className="cs-col">
+                      <span className="cs-count" style={{ display: 'block' }}>Handed over by</span>
+                      <span className="cs-row-sub" style={{ display: 'block', marginTop: 3 }}>{c.grantedBy}</span>
+                    </span>
+                    <span className="cs-col cs-col-when">
+                      <span className="cs-when">{c.nextHearing ? (isToday ? 'Today' : 'Next hearing') : 'No date'}</span>
+                      {c.nextHearing && <span className="cs-when-date mono">{c.nextHearing}</span>}
+                    </span>
+                    <span className="cs-row-end"><Icon name="chevron" size={16} className="adv-chev" /></span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

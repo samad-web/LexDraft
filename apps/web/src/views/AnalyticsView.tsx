@@ -94,7 +94,7 @@ export function AnalyticsView() {
 
   if (isError) {
     return (
-      <div className="col stagger" style={{ gap: 24 }}>
+      <div className="col stagger fm-view fm-analytics">
         <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
         <ErrorState
           title="Couldn't load analytics"
@@ -105,26 +105,26 @@ export function AnalyticsView() {
   }
   if (isLoading) {
     return (
-      <div className="col stagger" style={{ gap: 24 }}>
+      <div className="col stagger fm-view fm-analytics">
         <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
-        <div className="stat-row">
+        <div className="fm-kpis">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i}>
+            <div key={i} className="fm-kpi" style={{ gap: 12 }}>
               <Skeleton width={120} height={12} />
-              <div style={{ marginTop: 12 }}><Skeleton width={88} height={28} /></div>
+              <Skeleton width={88} height={34} />
             </div>
           ))}
         </div>
-        <div className="grid-2" style={{ gap: 16 }}>
-          <div className="card"><Skeleton width="100%" height={220} /></div>
-          <div className="card"><Skeleton width="100%" height={220} /></div>
+        <div className="fm-grid-2">
+          <div className="fm-panel"><Skeleton width="100%" height={220} /></div>
+          <div className="fm-panel"><Skeleton width="100%" height={220} /></div>
         </div>
       </div>
     );
   }
   if (!data || (KPIS.every((k) => k.value === '-' || k.value === '0') && STAGES.length === 0 && REVENUE.length === 0)) {
     return (
-      <div className="col stagger" style={{ gap: 24 }}>
+      <div className="col stagger fm-view fm-analytics">
         <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
         <EmptyState
           icon="analytics"
@@ -136,7 +136,7 @@ export function AnalyticsView() {
   }
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-analytics">
       <PageHeader
         title="Firm Analytics"
         description={ANALYTICS_DESC}
@@ -184,63 +184,41 @@ export function AnalyticsView() {
         }
       />
 
-      <div className="stat-row">
+      <div className="fm-kpis">
         {KPIS.map((k) => (
-          <div key={k.label}>
-            <div className="eyebrow" style={{ marginBottom: 6 }}>{k.label}</div>
-            <div className="heading-xl tabular">{k.value}</div>
-            {k.delta && (
-              <div className="body-sm" style={{ color: k.positive ? 'var(--success)' : 'var(--danger)' }}>
-                {k.delta}
-              </div>
-            )}
+          <div key={k.label} className="fm-kpi">
+            <span className="fm-kpi-label">{k.label}</span>
+            <span className="fm-kpi-value">{k.value}</span>
+            {k.delta && <span className="fm-kpi-hint">{k.delta}</span>}
           </div>
         ))}
       </div>
 
-      <div className="grid-2" style={{ gap: 16 }}>
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="row">
+      <div className="fm-grid-2 is-stretch">
+        <div className="fm-panel">
+          <div className="fm-panel-head">
             <div>
-              <div className="heading-md">Matters by stage</div>
-              <div className="body-sm muted">{totalMatters} active matters across the pipeline</div>
+              <div className="fm-eyebrow">Pipeline</div>
+              <h2 className="fm-panel-title">Matters by stage</h2>
+              <p className="fm-panel-sub">{totalMatters} active matters across the pipeline</p>
             </div>
           </div>
           {STAGES.length === 0 ? (
-            <p className="body-sm muted">No stage data yet.</p>
+            <p className="fm-quiet">No stage data yet.</p>
           ) : (
-            <div className="col" style={{ gap: 12 }}>
+            <div className="fm-stage-list">
               {STAGES.map((stage) => {
                 const pct = (stage.count / stageMax) * 100;
                 const isPeak = stage.count === stageMax;
                 return (
-                  <div key={stage.label} className="col" style={{ gap: 6 }}>
-                    <div className="row">
-                      <span className="body-sm" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                        {stage.label}
-                      </span>
-                      <span className="spacer" />
-                      <span className="mono body-xs muted tabular">{stage.count}</span>
+                  <div key={stage.label} className="fm-stage">
+                    <span className="fm-stage-label" style={isPeak ? { color: 'var(--text-primary)', fontWeight: 600 } : undefined}>
+                      {stage.label}
+                    </span>
+                    <div className={`fm-bar${isPeak ? '' : ' is-soft'}`} aria-hidden>
+                      <span style={{ width: `${pct}%` }} />
                     </div>
-                    <div
-                      style={{
-                        position: 'relative',
-                        height: 8,
-                        background: 'var(--bg-surface-2)',
-                        borderRadius: 'var(--radius-full)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${pct}%`,
-                          height: '100%',
-                          background: isPeak ? 'var(--info)' : 'var(--text-primary)',
-                          borderRadius: 'var(--radius-full)',
-                          transition: 'width 240ms ease',
-                        }}
-                      />
-                    </div>
+                    <span className="fm-stage-count">{stage.count}</span>
                   </div>
                 );
               })}
@@ -248,46 +226,57 @@ export function AnalyticsView() {
           )}
         </div>
 
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="row">
+        <div className="fm-panel">
+          <div className="fm-panel-head">
             <div>
-              <div className="heading-md">Revenue by month</div>
-              <div className="body-sm muted">
+              <div className="fm-eyebrow">Revenue · ₹ lakh</div>
+              <h2 className="fm-panel-title">Revenue by month</h2>
+              <p className="fm-panel-sub">
                 {peak ? `Trailing 12 months · peak ₹${peak.value}L in ${peak.label}` : 'No revenue logged yet.'}
-              </div>
+              </p>
             </div>
           </div>
           {peak && (
             <div style={{ width: '100%', overflow: 'hidden' }}>
               <svg
+                className="fm-chart"
                 viewBox={`0 0 ${sparkW} ${sparkH}`}
                 width="100%"
                 height={sparkH}
                 role="img"
                 aria-label="Revenue by month sparkline"
               >
-                <defs>
-                  <linearGradient id="sparkArea" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--text-primary)" stopOpacity="0.12" />
-                    <stop offset="100%" stopColor="var(--text-primary)" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
+                {[0.33, 0.66].map((t) => (
+                  <line
+                    key={t}
+                    x1={0}
+                    x2={sparkW}
+                    y1={sparkH * t}
+                    y2={sparkH * t}
+                    stroke="var(--border-subtle)"
+                    strokeWidth={1}
+                    strokeDasharray="2 4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
                 <line
                   x1={0}
                   x2={sparkW}
                   y1={sparkH - 12}
                   y2={sparkH - 12}
-                  stroke="var(--border-subtle)"
+                  stroke="var(--border-default)"
                   strokeWidth={1}
+                  vectorEffect="non-scaling-stroke"
                 />
-                <path d={spark.area} fill="url(#sparkArea)" />
+                <path d={spark.area} fill="var(--bg-surface-2)" />
                 <path
                   d={spark.line}
                   fill="none"
                   stroke="var(--text-primary)"
-                  strokeWidth={1.5}
+                  strokeWidth={1.75}
                   strokeLinejoin="round"
                   strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
                 />
                 {spark.points.map((p) => {
                   const isPeak = p.value === peak.value;
@@ -296,21 +285,18 @@ export function AnalyticsView() {
                       key={p.label}
                       cx={p.x}
                       cy={p.y}
-                      r={isPeak ? 4 : 2}
-                      fill={isPeak ? 'var(--info)' : 'var(--text-primary)'}
-                      stroke="var(--bg-surface)"
-                      strokeWidth={1}
+                      r={isPeak ? 4.5 : 2.5}
+                      fill={isPeak ? 'var(--text-primary)' : 'var(--bg-surface)'}
+                      stroke="var(--text-primary)"
+                      strokeWidth={1.5}
+                      vectorEffect="non-scaling-stroke"
                     />
                   );
                 })}
               </svg>
-              <div className="row" style={{ marginTop: 8, gap: 0 }}>
+              <div className="fm-chart-cap">
                 {spark.points.map((p) => (
-                  <span
-                    key={p.label}
-                    className="mono body-xs muted"
-                    style={{ flex: 1, textAlign: 'center' }}
-                  >
+                  <span key={p.label} className={p.value === peak.value ? 'is-peak' : undefined}>
                     {p.label}
                   </span>
                 ))}

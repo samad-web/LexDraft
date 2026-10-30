@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ErrorState } from '@lexdraft/ui';
+import { ErrorState, Icon } from '@lexdraft/ui';
 import { api } from '@/lib/api';
 import { Pagination } from '@/components/Pagination';
 import { PageHeader } from '@/components/PageHeader';
@@ -58,21 +58,15 @@ export function SanhitaView() {
   const pagination = usePagination(filtered);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ai-sanhita" style={{ gap: 24 }}>
       <PageHeader
         title="Sanhita (IPC → BNS)"
         description="Map IPC, CrPC and Evidence Act sections to BNS, BNSS and BSA."
       />
 
-      <div
-        className="card"
-        style={{
-          padding: '10px 14px',
-          background: 'rgba(180, 83, 9, 0.06)',
-          borderLeft: '3px solid var(--warning)',
-        }}
-      >
-        <span className="body-sm">
+      <div className="ai-note" role="note">
+        <Icon name="flag" size={14} />
+        <span>
           <strong>Plausibility-grade data.</strong> These mappings are research-stand-in entries
           assembled from public commentary on the new Sanhitas. Several entries carry an
           <em> &ldquo;UNVERIFIED&rdquo;</em> marker - counsel review is required before relying on any
@@ -94,17 +88,19 @@ export function SanhitaView() {
           ))}
         </div>
         <span className="spacer" />
-        <input
-          type="text"
-          className="input"
-          placeholder="Search by section number or title…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          style={{ minWidth: 280 }}
-        />
+        <label className="ai-search ai-sanhita-search">
+          <Icon name="search" size={15} />
+          <input
+            type="text"
+            aria-label="Search mappings"
+            placeholder="Search by section number or title…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </label>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card ai-sanhita-card" style={{ padding: 0, overflow: 'hidden' }}>
         {/* Horizontal scroller — long "Old title" / "New title" entries push
             the table wider than narrow viewports. Scrolling lives inside the
             card so the page itself never grows a horizontal scrollbar. */}
@@ -148,25 +144,25 @@ export function SanhitaView() {
               const omitted = !r.toSection;
               return (
                 <tr key={`${r.fromAct}-${r.fromSection}-${i}`}>
-                  <td className="mono tabular">
-                    <span className="body-xs muted">{r.fromAct}</span>{' '}
-                    <strong>§{r.fromSection}</strong>
+                  <td className="ai-sec-cell">
+                    <span className="ai-sec-act">{r.fromAct}</span>
+                    <strong className="ai-sec-num">§{r.fromSection}</strong>
                   </td>
                   <td className="body-sm">{r.fromTitle}</td>
-                  <td className="mono tabular">
+                  <td className="ai-sec-cell">
                     {omitted ? (
-                      <span className="badge badge-vermillion">Omitted</span>
+                      <span className="ai-pill ai-pill--dashed">Omitted</span>
                     ) : (
                       <>
-                        <span className="body-xs muted">{r.toAct}</span>{' '}
-                        <strong>§{r.toSection}</strong>
+                        <span className="ai-sec-act">{r.toAct}</span>
+                        <strong className="ai-sec-num">§{r.toSection}</strong>
                       </>
                     )}
                   </td>
                   <td className="body-sm">{r.toTitle}</td>
                   <td className="body-xs">
                     {unverified && (
-                      <span className="badge badge-amber" style={{ marginRight: 6 }}>Unverified</span>
+                      <span className="ai-pill ai-pill--outline" style={{ marginRight: 6 }}>Unverified</span>
                     )}
                     {renumbered ? (
                       <span className="muted">Renumbered only</span>

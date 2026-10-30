@@ -43,7 +43,7 @@ export function RecentlyDeletedCasesModal({ open, onClose }: Props) {
       description="Deleted matters are recoverable for 30 days, then permanently removed."
       footer={<button type="button" className="btn" onClick={onClose}>Done</button>}
     >
-      {isLoading && <div className="body-sm muted" style={{ padding: 16 }}>Loading…</div>}
+      {isLoading && <p className="cs-muted" style={{ padding: 16 }}>Loading…</p>}
       {!isLoading && deleted.length === 0 && (
         <EmptyState
           variant="inline"
@@ -51,31 +51,20 @@ export function RecentlyDeletedCasesModal({ open, onClose }: Props) {
           description="Matters you delete appear here for 30 days so you can restore them."
         />
       )}
-      <div className="col" style={{ gap: 8 }}>
+      <div className="cs-trash">
         {deleted.map((c) => {
           const left = daysLeft(c.deletedAt);
           return (
-            <div
-              key={c.id}
-              className="row"
-              style={{
-                gap: 10, alignItems: 'center', padding: '10px 12px',
-                border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-surface)',
-              }}
-            >
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 500, fontSize: 13 }}>{c.title}</div>
-                <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                  {c.cnr} · {c.court || 'court not set'} · {c.client}
+            <div key={c.id} className="cs-trash-row">
+              <div className="cs-trash-main">
+                <div className="cs-trash-title">{c.title}</div>
+                <div className="cs-trash-meta">
+                  <span className="cs-code">{c.cnr}</span> · {c.court || 'court not set'} · {c.client}
                 </div>
               </div>
-              <span
-                className="badge"
-                style={{ fontSize: 10, color: left <= 5 ? 'var(--danger)' : 'var(--text-tertiary)' }}
-                title="Days until permanent deletion"
-              >
-                {left}d left
+              <span className="cs-trash-left" title="Days until permanent deletion">
+                <span className="cs-figure" style={left <= 5 ? { textDecoration: 'underline', textUnderlineOffset: 3 } : undefined}>{left}</span>
+                <small>{left === 1 ? 'day left' : 'days left'}</small>
               </span>
               <button
                 type="button"

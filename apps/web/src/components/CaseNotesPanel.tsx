@@ -5,6 +5,7 @@ import {
   useCaseNotes,
   useCreateTypedNote,
   useDeleteCaseNote,
+  useUpdateCaseNote,
   useUploadCaseNote,
 } from '@/hooks/useCaseNotes';
 import { useAuthStore } from '@/store/auth';
@@ -12,6 +13,7 @@ import { useUIStore } from '@/store/ui';
 import { useDictation } from '@/hooks/useDictation';
 import { Modal, Field } from './Modal';
 import { useConfirm } from './ConfirmDialog';
+import { DictateButton } from './DictateButton';
 
 // =============================================================================
 // CaseNotesPanel - inline section on CaseDetailView. Lists shared notes for
@@ -21,9 +23,9 @@ import { useConfirm } from './ConfirmDialog';
 // File uploads accept PDF/DOCX/TXT/MD; the server text-extracts on finalize
 // and stores the result in the note body so AI drafting can pull it in.
 //
-// Edit is intentionally not exposed in v1 - delete-and-re-add covers the
-// common case and keeps the UI simple. Update is wired on the server
-// (PATCH /case-notes/:id) for a later UX iteration.
+// The author can edit a note in place (title + body, typing or voice) via
+// PATCH /case-notes/:id - e.g. the "Case content" facts saved when the
+// matter was opened.
 // =============================================================================
 
 const ACCEPT_MIME = '.pdf,.docx,.txt,.md,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -42,30 +44,26 @@ export function CaseNotesPanel({ caseId, matterTitle }: CaseNotesPanelProps) {
   const privateCount = notes?.filter((n) => n.visibility === 'private').length ?? 0;
 
   return (
-    <div className="card">
-      <div className="row" style={{ marginBottom: 12, alignItems: 'flex-start' }}>
-        <div>
-          <div className="heading-md">Notes</div>
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 2 }}>
-            {sharedCount} SHARED · {privateCount} PRIVATE
-          </div>
+    <div className="card cs-notes">
+      <div className="cs-card-head">
+        <div className="cs-card-titles">
+          <h2 className="cs-card-title">Case facts &amp; notes</h2>
+          <p className="cs-card-sub">{sharedCount} shared with the team · {privateCount} only you · AI drafting reads these</p>
         </div>
-        <span className="spacer" />
         <button type="button" className="btn btn-sm" onClick={() => setOpen(true)}>
           <Icon name="plus" size={12} /> Add note
         </button>
       </div>
 
       {isLoading ? (
-        <p className="body-sm muted">Loading notes…</p>
+        <p className="cs-muted">Loading notes…</p>
       ) : !notes || notes.length === 0 ? (
-        <p className="body-sm muted">
-          No notes yet. Use notes to capture facts, working theories, witness summaries -
-          anything you might want to reference later. The AI drafting flow can fold these
-          in as context when generating documents for this matter.
+        <p className="cs-muted">
+          Nothing written yet. Add the facts of the case, the client's account or your
+          working notes - type or speak them. AI drafting uses these automatically.
         </p>
       ) : (
-        <div className="col" style={{ gap: 0 }}>
+        <div>
           {notes.map((n, i) => (
             <NoteRow
               key={n.id}
@@ -98,7 +96,32 @@ function NoteRow({ note, isLast, caseId }: NoteRowProps) {
   const showToast = useUIStore((s) => s.showToast);
   const confirm = useConfirm();
   const del = useDeleteCaseNote(caseId);
+  const update = useUpdateCaseNote(caseId);
   const canDelete = viewer?.id === note.authorId;
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftBody, setDraftBody] = useState('');
+
+  const startEdit = () => {
+    setDraftTitle(note.title ?? '');
+    setDraftBody(note.body ?? '');
+    setEditing(true);
+  };
+
+  const onSave = async () => {
+    if (!draftBody.trim() || update.isPending) return;
+    try {
+      await update.mutateAsync({
+        id: note.id,
+        patch: { title: draftTitle.trim(), body: draftBody.trim() },
+      });
+      showToast({ type: 'sage', text: 'Note updated' });
+      setEditing(false);
+    } catch (err) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Failed to update note';
+      showToast({ type: 'vermillion', text: msg });
+    }
+  };
 
   const isUploaded = note.source === 'uploaded';
   const extractionState = note.file?.extractionStatus;
@@ -122,17 +145,12 @@ function NoteRow({ note, isLast, caseId }: NoteRowProps) {
   };
 
   return (
-    <div
-      style={{
-        padding: '14px 0',
-        borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
-      }}
-    >
-      <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>
-        <Icon name={isUploaded ? 'file' : 'draft'} size={14} />
+    <div className="cs-note" data-last={isLast || undefined}>
+      <div className="cs-note-row">
+        <span className="cs-line-icon" aria-hidden="true"><Icon name={isUploaded ? 'file' : 'draft'} size={14} /></span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
-            <div style={{ fontSize: 14, fontWeight: 500 }}>
+          <div className="cs-note-head">
+            <div className="cs-note-title">
               {note.title || (isUploaded ? note.file?.name : 'Untitled note')}
             </div>
             <VisibilityChip visibility={note.visibility} />
@@ -140,42 +158,78 @@ function NoteRow({ note, isLast, caseId }: NoteRowProps) {
               <ExtractionChip state={extractionState} />
             )}
           </div>
-          {note.body && (
-            <p
-              className="body-sm muted"
-              style={{
-                margin: '4px 0 0',
-                whiteSpace: 'pre-wrap',
-                display: '-webkit-box',
-                WebkitLineClamp: 3,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {note.body}
-            </p>
+          {editing ? (
+            <div className="cs-note-edit">
+              <input
+                className="input"
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="Title (optional)"
+                maxLength={200}
+              />
+              <div className="row" style={{ justifyContent: 'flex-end' }}>
+                <DictateButton
+                  label="Voice note"
+                  onTranscript={(t) => setDraftBody((prev) => (prev.trim() ? `${prev.trimEnd()} ${t}` : t))}
+                />
+              </div>
+              <textarea
+                className="input"
+                value={draftBody}
+                onChange={(e) => setDraftBody(e.target.value)}
+                rows={8}
+                style={{ resize: 'vertical', minHeight: 140, fontFamily: 'inherit' }}
+                maxLength={50_000}
+                autoFocus
+              />
+              <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                <button type="button" className="btn btn-sm" onClick={() => setEditing(false)} disabled={update.isPending}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => { void onSave(); }}
+                  disabled={update.isPending || !draftBody.trim()}
+                >
+                  {update.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          ) : note.body && (
+            <p className="cs-note-body">{note.body}</p>
           )}
           {isUploaded && !note.body && extractionState === 'failed' && (
-            <p className="body-sm muted" style={{ margin: '4px 0 0', fontStyle: 'italic' }}>
+            <p className="cs-note-body" style={{ fontStyle: 'italic' }}>
               {note.file?.extractionError || 'Text could not be extracted; AI drafting won’t use this note.'}
             </p>
           )}
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 6 }}>
-            {note.authorName?.toUpperCase() || 'UNKNOWN'} · {formatTime(note.createdAt)}
+          <div className="cs-note-meta">
+            <strong>{note.authorName || 'Unknown'}</strong> · {formatTime(note.createdAt)}
           </div>
         </div>
-        {canDelete && (
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={onDelete}
-            disabled={del.isPending}
-            aria-label="Delete note"
-            style={{ flexShrink: 0 }}
-            title="Delete note"
-          >
-            <Icon name="close" size={12} />
-          </button>
+        {canDelete && !editing && (
+          <div className="cs-note-actions">
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={startEdit}
+              aria-label="Edit note"
+              title="Edit note"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={onDelete}
+              disabled={del.isPending}
+              aria-label="Delete note"
+              title="Delete note"
+            >
+              <Icon name="close" size={12} />
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -185,36 +239,16 @@ function NoteRow({ note, isLast, caseId }: NoteRowProps) {
 function VisibilityChip({ visibility }: { visibility: CaseNoteVisibility }) {
   const isPrivate = visibility === 'private';
   return (
-    <span
-      className="mono"
-      style={{
-        fontSize: 10,
-        letterSpacing: '0.14em',
-        padding: '2px 8px',
-        borderRadius: 'var(--radius-sm)',
-        background: isPrivate ? 'var(--warning-bg, #fef3c7)' : 'var(--success-bg, #ecfdf5)',
-        color: isPrivate ? 'var(--warning, #92400e)' : 'var(--success, #065f46)',
-      }}
-    >
-      {isPrivate ? 'PRIVATE' : 'SHARED'}
+    <span className={`cs-status ${isPrivate ? 'is-ink' : 'is-quiet'}`} style={{ height: 20, fontSize: 10.5 }}>
+      {isPrivate ? 'Private' : 'Shared'}
     </span>
   );
 }
 
 function ExtractionChip({ state }: { state: 'pending' | 'failed' }) {
   return (
-    <span
-      className="mono"
-      style={{
-        fontSize: 10,
-        letterSpacing: '0.14em',
-        padding: '2px 8px',
-        borderRadius: 'var(--radius-sm)',
-        background: 'var(--danger-bg, #fee2e2)',
-        color: 'var(--danger, #991b1b)',
-      }}
-    >
-      {state === 'pending' ? 'EXTRACTING…' : 'NO TEXT EXTRACTED'}
+    <span className="cs-status is-strong is-dashed" style={{ height: 20, fontSize: 10.5 }}>
+      {state === 'pending' ? 'Extracting text…' : 'No text extracted'}
     </span>
   );
 }
@@ -336,18 +370,7 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
         </>
       }
     >
-      <div
-        role="tablist"
-        aria-label="Note source"
-        style={{
-          display: 'flex',
-          gap: 4,
-          background: 'var(--bg-subtle, rgba(0,0,0,0.04))',
-          padding: 4,
-          borderRadius: 'var(--radius-md)',
-          marginBottom: 14,
-        }}
-      >
+      <div role="tablist" aria-label="Note source" className="cs-seg" style={{ marginBottom: 14 }}>
         <ModeButton active={mode === 'typed'} onClick={() => setMode('typed')}>
           <Icon name="draft" size={12} /> Typed
         </ModeButton>
@@ -381,9 +404,7 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
                 {dictation.listening ? 'Listening… tap to stop' : 'Voice note'}
               </button>
               {dictation.listening && (
-                <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--danger)' }}>
-                  ● REC
-                </span>
+                <span className="cs-rec">REC</span>
               )}
             </div>
           )}
@@ -397,8 +418,8 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
             style={{ resize: 'vertical', minHeight: 140, fontFamily: 'inherit' }}
             maxLength={50_000}
           />
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 4 }}>
-            {body.length.toLocaleString()} / 50,000 CHARS
+          <div className="cs-hint" style={{ textAlign: 'right' }}>
+            {body.length.toLocaleString()} / 50,000 characters
           </div>
         </Field>
       ) : (
@@ -411,11 +432,11 @@ function NewCaseNoteModal({ open, onClose, caseId, matterTitle }: NewCaseNoteMod
             required
             className="input"
           />
-          <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', marginTop: 4 }}>
-            PDF, DOCX, TXT, MD · MAX 25MB · TEXT EXTRACTED FOR AI CONTEXT
+          <div className="cs-hint">
+            PDF, DOCX, TXT or MD · up to 25 MB · the text is extracted for AI drafting
           </div>
           {!fileSizeOk && (
-            <div className="body-sm" style={{ color: 'var(--danger, #991b1b)', marginTop: 6 }}>
+            <div className="cs-hint is-error" role="alert">
               File too large - maximum is 25MB.
             </div>
           )}
@@ -451,22 +472,6 @@ function ModeButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      style={{
-        flex: 1,
-        padding: '8px 12px',
-        background: active ? 'var(--bg-surface, white)' : 'transparent',
-        border: active ? '1px solid var(--border-default)' : '1px solid transparent',
-        borderRadius: 'var(--radius-sm)',
-        fontSize: 13,
-        fontWeight: active ? 600 : 500,
-        color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        justifyContent: 'center',
-        cursor: 'pointer',
-        transition: 'background 0.12s ease',
-      }}
     >
       {children}
     </button>

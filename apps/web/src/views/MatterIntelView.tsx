@@ -67,7 +67,7 @@ function MatterPicker() {
   const quickStudies = quickStudiesQ.data ?? [];
 
   return (
-    <div className="col stack-5">
+    <div className="col stack-5 ai-mi">
       <PageHeader
         title="Matter Intelligence"
         description="Pick a matter, or start a quick study, to get a brief and cited answers."
@@ -75,15 +75,15 @@ function MatterPicker() {
 
       {/* Quick-study CTA */}
       <div className="card matter-intel-quickstudy-cta" style={{ padding: 20 }}>
-        <div className="row" style={{ gap: 16, alignItems: 'center' }}>
+        <div className="row" style={{ gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="matter-intel-quickstudy-icon" aria-hidden>
             <Icon name="upload" size={20} />
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="heading-sm" style={{ marginBottom: 4 }}>
+          <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+            <div className="ai-panel-title" style={{ marginBottom: 6 }}>
               Just want to ask questions about a PDF?
             </div>
-            <p className="body-sm muted" style={{ margin: 0 }}>
+            <p className="ai-mi-cta-body">
               Start a quick study: a private sandbox where you can drop a file,
               get a summary, and chat with cited answers. Won&apos;t appear in your
               Cases or Clients lists.
@@ -103,7 +103,7 @@ function MatterPicker() {
       {/* Recent quick studies */}
       {quickStudies.length > 0 && (
         <div className="col" style={{ gap: 12 }}>
-          <div className="eyebrow">Your recent quick studies</div>
+          <h2 className="ai-section-title ai-section-title--sm">Your recent quick studies</h2>
           <div className="grid-auto-lg">
             {quickStudies.map((s) => (
               <QuickStudyCard
@@ -118,19 +118,19 @@ function MatterPicker() {
 
       {/* Divider before the matters list */}
       <div className="row" style={{ alignItems: 'center', gap: 12, marginTop: 4 }}>
-        <div className="eyebrow">Or pick a matter</div>
-        <span style={{ flex: 1, height: 1, background: 'var(--border-default)' }} />
+        <h2 className="ai-section-title ai-section-title--sm">Or pick a matter</h2>
+        <span style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
       </div>
 
       <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-        <div className="row" style={{ flex: 1, gap: 8, alignItems: 'center', border: '1px solid var(--border-default)', borderRadius: 'var(--radius-md)', padding: '8px 12px', background: 'var(--bg-surface)' }}>
-          <Icon name="search" size={14} />
+        <div className="ai-search">
+          <Icon name="search" size={15} />
           <input
             type="text"
+            aria-label="Search matters"
             placeholder="Search by title, CNR, client, court…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            style={{ flex: 1, background: 'transparent', border: 0, outline: 0, fontSize: 14 }}
           />
         </div>
         <button
@@ -208,15 +208,15 @@ function MatterCard({ matter, onOpen }: { matter: Case; onOpen: () => void }) {
     >
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         {matter.status && (
-          <span className="badge badge-sage">{String(matter.status).toUpperCase()}</span>
+          <span className="ai-pill ai-pill--outline">{String(matter.status)}</span>
         )}
         {matter.type && (
-          <span className="badge badge-cobalt">{String(matter.type).toUpperCase()}</span>
+          <span className="ai-pill">{String(matter.type)}</span>
         )}
       </div>
       <div>
-        <div className="heading-sm" style={{ marginBottom: 4 }}>
-          <em className="case-name">{matter.title}</em>
+        <div className="ai-mi-card-title">
+          {matter.title}
         </div>
         <div className="row" style={{ gap: 8, flexWrap: 'wrap', color: 'var(--text-secondary)', fontSize: 12 }}>
           {matter.court && <span>{matter.court}</span>}
@@ -234,7 +234,7 @@ function MatterCard({ matter, onOpen }: { matter: Case; onOpen: () => void }) {
           )}
         </div>
       </div>
-      <span className="row" style={{ gap: 6, color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
+      <span className="ai-mi-card-cta">
         Open Intelligence <Icon name="arrow" size={12} />
       </span>
     </button>
@@ -250,20 +250,20 @@ function QuickStudyCard({ study, onOpen }: { study: QuickStudy; onOpen: () => vo
       style={{ textAlign: 'left', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 12 }}
     >
       <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className="badge badge-cream">QUICK STUDY</span>
-        <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+        <span className="ai-pill ai-pill--dashed">Quick study</span>
+        <span className="ai-field-meta">
           {study.documentCount} doc{study.documentCount === 1 ? '' : 's'}
         </span>
       </div>
       <div>
-        <div className="heading-sm" style={{ marginBottom: 4 }}>
+        <div className="ai-mi-card-title">
           {study.title}
         </div>
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          Started {new Date(study.createdAt).toLocaleString()}
+        <div className="ai-field-meta" style={{ marginTop: 4 }}>
+          Started {new Date(study.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </div>
       </div>
-      <span className="row" style={{ gap: 6, color: 'var(--text-secondary)', fontSize: 12, marginTop: 4 }}>
+      <span className="ai-mi-card-cta">
         Open study <Icon name="arrow" size={12} />
       </span>
     </button>
@@ -289,7 +289,7 @@ function MatterIntelForCase({ caseId }: { caseId: string }) {
   );
 
   return (
-    <div className="col" style={{ gap: 16 }}>
+    <div className="col ai-mi" style={{ gap: 16 }}>
       <PageHeader
         title={caseQ.data?.title ?? 'Matter Intelligence'}
         back={{ label: 'All matters', to: '/app/matter-intel' }}

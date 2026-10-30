@@ -13,18 +13,20 @@
 // which renders it in the preview/editor.
 // =============================================================================
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import type { IntakeState, IntakeAttachmentFile } from '@lexdraft/types';
 import {
   useIntakeStart,
   useIntakeStartAuto,
+  useIntakeStartFormat,
   useIntakeReply,
   useIntakeAttach,
   useIntakeDraftNow,
 } from '@/hooks/useIntake';
 import { contextToBriefPreamble, type DraftCaseContext } from '@/lib/draft-case-context';
 import { useCreateDocument } from '@/hooks/useDocuments';
+import { useUIStore } from '@/store/ui';
 import { DictateButton } from '../DictateButton';
 import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
@@ -83,6 +85,41 @@ interface Props {
    *  (never stored, or unextractable). Warn the advocate to re-upload them —
    *  otherwise the engine has no way to see those papers. */
   unreadableDocs?: string[];
+  /** The conversation the current draft came from (as returned by the API).
+   *  Its transcript carries the advocate's opening brief, which is put back in
+   *  the prompt box so "Back to brief" shows what was typed, not an empty box. */
+  restoreFrom?: IntakeState | null;
+}
+
+const BNS_NOTE = ' Draft using the BNS / BNSS (2023) provisions where applicable.';
+const FALLBACK_SELECTED = 'Draft the selected format from the details on record.';
+const FALLBACK_ATTACHING = 'I’m attaching documents for this matter.';
+const NOTES_HEADING = '[Matter notes on record]';
+
+function notesBlockFor(caseNotes: string[] | undefined): string {
+  const notes = (caseNotes ?? []).filter((n) => n.trim());
+  return notes.length ? `\n${NOTES_HEADING}\n${notes.join('\n\n')}` : '';
+}
+
+/** The advocate's own words from a conversation's opening message: the opening
+ *  is [case particulars] + [matter notes] + prompt (+ the BNS hint), so peel
+ *  those off again. Null when nothing was typed (a bare format or attachments). */
+function briefFromTranscript(
+  state: IntakeState,
+  caseContext: DraftCaseContext | null | undefined,
+  caseNotes: string[] | undefined,
+): { text: string; bns: boolean } | null {
+  let text = state.transcript?.find((t) => t.role === 'advocate')?.text?.trim() ?? '';
+  if (!text || text === FALLBACK_SELECTED || text === FALLBACK_ATTACHING) return null;
+  const preamble = caseContext ? contextToBriefPreamble(caseContext).trim() : '';
+  if (preamble && text.startsWith(preamble)) text = text.slice(preamble.length).trim();
+  const notes = notesBlockFor(caseNotes).trim();
+  if (notes && text.startsWith(notes)) text = text.slice(notes.length).trim();
+  // Case context changed since (notes added, say): the prompt is the last block.
+  if (text.includes(NOTES_HEADING)) text = text.slice(text.lastIndexOf('\n\n') + 2).trim();
+  const bns = text.endsWith(BNS_NOTE.trim());
+  if (bns) text = text.slice(0, -BNS_NOTE.trim().length).trim();
+  return text ? { text, bns } : null;
 }
 
 const LANGUAGES = ['English', 'हिंदी (Hindi)', 'தமிழ் (Tamil)'] as const;
@@ -125,6 +162,21 @@ function outstandingLabels(s: IntakeState): string[] {
   return asked.length ? [asked[asked.length - 1]!] : [];
 }
 
+/** "Draft in this format" and similar: the advocate wants an attached file used
+ *  as the FORMAT (layout + wording), not only read for facts. */
+const FORMAT_INTENT =
+  /\b(?:this|that|the|same|my|our|attached|given|above|enclosed)\s+(?:format|template|layout|model|specimen|proforma|pro-forma)\b|\b(?:format|template)\s+(?:attached|given|enclosed|provided|above)\b/i;
+const FORMAT_FILE_NAME = /format|template|model|specimen|sample|proforma/i;
+
+/** Which attached file to use as the format when the brief asks for one: a file
+ *  named like a format, else the only file. Null when it isn't clear. */
+function guessFormatIndex(prompt: string, files: File[]): number | null {
+  if (!files.length || !FORMAT_INTENT.test(prompt)) return null;
+  const named = files.findIndex((f) => FORMAT_FILE_NAME.test(f.name));
+  if (named !== -1) return named;
+  return files.length === 1 ? 0 : null;
+}
+
 /** Read a File into the {fileName, mime, dataBase64} shape the attach API wants. */
 function fileToAttachment(file: File): Promise<IntakeAttachmentFile> {
   return new Promise((resolve, reject) => {
@@ -143,9 +195,10 @@ function fileToAttachment(file: File): Promise<IntakeAttachmentFile> {
   });
 }
 
-export function DraftBotModal({ open, onClose, inline, docLabel, preset, selectedTitle, onChangeFormat, onClearFormat, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs }: Props) {
+export function DraftBotModal({ open, onClose, inline, docLabel, preset, selectedTitle, onChangeFormat, onClearFormat, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs, restoreFrom }: Props) {
   const start = useIntakeStart();
   const startAuto = useIntakeStartAuto();
+  const startFormat = useIntakeStartFormat();
   const reply = useIntakeReply();
   const attach = useIntakeAttach();
   const draftNow = useIntakeDraftNow();
@@ -153,6 +206,14 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
 
   const [prompt, setPrompt] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  // The attached file to draft IN (its layout + wording), or null: every file is
+  // then read for facts only. Guessed from the brief until the advocate toggles it.
+  const [formatIdx, setFormatIdx] = useState<number | null>(null);
+  const [formatTouched, setFormatTouched] = useState(false);
+  // Save the attached format to the firm's formats: it is then read once, ever,
+  // and later drafts pick it from Formats at no reading cost.
+  const [saveFormat, setSaveFormat] = useState(true);
+  const showToast = useUIStore((st) => st.showToast);
   const [language, setLanguage] = useState<string>(LANGUAGES[0]);
   const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,9 +227,26 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const [repaired, setRepaired] = useState<string[]>([]);
   const [repairBusy, setRepairBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const formatRef = useRef<HTMLInputElement>(null);
   const repairRef = useRef<HTMLInputElement>(null);
 
-  const busy = start.isPending || startAuto.isPending || reply.isPending || attach.isPending || draftNow.isPending;
+  const busy = start.isPending || startAuto.isPending || startFormat.isPending || reply.isPending || attach.isPending || draftNow.isPending;
+
+  useEffect(() => {
+    if (!formatTouched) setFormatIdx(guessFormatIndex(prompt, files));
+  }, [prompt, files, formatTouched]);
+
+  const toggleFormat = (i: number) => {
+    setFormatTouched(true);
+    setFormatIdx((cur) => (cur === i ? null : i));
+  };
+
+  const removeFile = (i: number) => {
+    setFiles((prev) => prev.filter((_, j) => j !== i));
+    setFormatIdx((cur) => (cur === null || cur === i ? null : cur > i ? cur - 1 : cur));
+  };
+
+  const formatFile = formatIdx !== null ? files[formatIdx] ?? null : null;
 
   // Prompt-strength hint, like DraftBot's "Weak Prompt: add more context".
   // When drafting FOR a case, the case's OWN papers + notes ARE the context the
@@ -208,6 +286,32 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     }
     setFiles((prev) => [...prev, ...picked].slice(0, 8));
   };
+
+  // "Attach format": add one file and draft IN it (replacing any earlier format
+  // file; reference documents stay attached for facts).
+  const pickFormat = (list: FileList | null) => {
+    const file = list?.[0];
+    if (!file) return;
+    setError(null);
+    if (file.size > 8 * 1024 * 1024) {
+      setError(`"${file.name}" is over 8 MB. Please attach a smaller file.`);
+      return;
+    }
+    const kept = files.filter((_, j) => j !== formatIdx).slice(0, 7);
+    setFiles([...kept, file]);
+    setFormatIdx(kept.length);
+    setFormatTouched(true);
+  };
+
+  const formatInput = (
+    <input
+      ref={formatRef}
+      type="file"
+      accept="image/*,.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      style={{ display: 'none' }}
+      onChange={(e) => { pickFormat(e.target.files); e.target.value = ''; }}
+    />
+  );
 
   // Drop-here-to-fix: the advocate re-supplies a document that couldn't be read.
   // The file is (1) staged so THIS draft reads it immediately, and (2) filed
@@ -257,9 +361,36 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const reset = () => {
     setPrompt('');
     setFiles([]);
+    setFormatIdx(null);
+    setFormatTouched(false);
     setUseBns(false);
     setError(null);
   };
+
+  // Put the brief of the current draft back in the box, read from the API's
+  // transcript (its first advocate turn is the opening message submit() sent).
+  // Runs once per conversation, and never over something already typed.
+  // When the draft is dropped (New draft), the restored text goes with it.
+  const restoredFor = useRef<string | null>(null);
+  const restoredText = useRef<string | null>(null);
+  useEffect(() => {
+    const id = restoreFrom?.matterId ?? null;
+    if (!id) {
+      const was = restoredText.current;
+      if (was) setPrompt((cur) => (cur === was ? '' : cur));
+      restoredFor.current = null;
+      restoredText.current = null;
+      return;
+    }
+    if (restoredFor.current === id) return;
+    restoredFor.current = id;
+    const brief = briefFromTranscript(restoreFrom!, caseContext, caseNotes);
+    if (!brief) return;
+    restoredText.current = brief.text;
+    setPrompt((cur) => (cur.trim() ? cur : brief.text));
+    if (brief.bns) setUseBns(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoreFrom?.matterId]);
 
   const submit = async () => {
     if (!canSubmit) return;
@@ -267,30 +398,33 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     setNeeds(null);
     const message = prompt.trim();
     // A hint the engine folds into the brief so the model phrasing honours it.
-    const bnsNote = useBns ? ' Draft using the BNS / BNSS (2023) provisions where applicable.' : '';
+    const bnsNote = useBns ? BNS_NOTE : '';
 
     // When drafting FOR a case, lead the opening message with the case's
     // authoritative particulars + any notes, so the engine already knows the
     // matter. The advocate's prompt ("draft a legal notice") then only has to
     // say WHAT to draft, not re-state the facts.
     const casePreamble = caseContext ? contextToBriefPreamble(caseContext) : '';
-    const notesBlock = (caseNotes ?? []).filter((n) => n.trim()).length
-      ? `\n[Matter notes on record]\n${(caseNotes ?? []).filter((n) => n.trim()).join('\n\n')}`
-      : '';
+    const notesBlock = notesBlockFor(caseNotes);
     const userPart = (message + bnsNote).trim();
     const opening = [casePreamble, notesBlock, userPart]
       .filter(Boolean)
       .join('\n\n')
       .trim()
-      || (files.length === 0 && docLabel ? 'Draft the selected format from the details on record.' : 'I’m attaching documents for this matter.');
+      || (files.length === 0 && docLabel ? FALLBACK_SELECTED : FALLBACK_ATTACHING);
 
+    let formatSaveResult: IntakeState['formatSave'];
     try {
       // 1) Open the conversation — auto-detect the format unless one was picked.
       //    Pass the advocate's OWN instruction (`userPart`) separately so the
       //    classifier weights "draft a complaint" over any attached reference
       //    document (e.g. a s.138 NOTICE on file, whose text would otherwise
       //    dominate `opening` and mis-route the complaint back to a notice).
-      let s: IntakeState = docLabel
+      // A file marked "Use as format" is drafted IN: it is read into a format for
+      // this conversation and replaces any picked or detected format.
+      let s: IntakeState = formatFile
+        ? await startFormat.mutateAsync({ message: opening, format: await fileToAttachment(formatFile), save: saveFormat })
+        : docLabel
         ? await start.mutateAsync({
             docLabel, message: opening,
             ...(preset && Object.keys(preset).length ? { preset } : {}),
@@ -300,9 +434,12 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             ...(userPart ? { instruction: userPart } : {}),
           });
 
+      formatSaveResult = s.formatSave;
+
       // 2) Attach any reference documents (OCR / text-extract → facts on record).
-      if (files.length > 0) {
-        const attachments = await Promise.all(files.map(fileToAttachment));
+      const factFiles = files.filter((f) => f !== formatFile);
+      if (factFiles.length > 0) {
+        const attachments = await Promise.all(factFiles.map(fileToAttachment));
         s = await attach.mutateAsync({ matterId: s.matterId, docLabel: s.docLabel, files: attachments });
       }
 
@@ -374,12 +511,20 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       }
 
       onDrafted(s);
+      if (formatSaveResult) {
+        showToast({ type: 'sage', text: formatSaveResult.message });
+      }
       reset();
       onClose();
     } catch (err) {
       const status = (err as { response?: { status?: number } })?.response?.status;
       const code = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      if (!docLabel && status === 422 && code === 'doc_type_unclear') {
+      if (code === 'format_unusable' || code === 'format_read_failed') {
+        setError(
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+            ?? 'I couldn’t read that file as a format. Try a clearer copy, or untick “Use as format”.',
+        );
+      } else if (!docLabel && status === 422 && code === 'doc_type_unclear') {
         setError('I couldn’t tell which document you need. Just name it in your words (e.g. “a s.138 notice”, “a plaint”), then Submit.');
       } else if (status === 503 || code === 'engine_unavailable') {
         setError('The drafting engine isn’t reachable right now. Make sure the engine service is running, then try again.');
@@ -440,6 +585,44 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       </div>
     </div>
   );
+
+  // Per-file "Use as format" switch, shared by both layouts.
+  const formatToggle = (f: File, i: number) => (
+    <button
+      type="button"
+      className="file-format-toggle"
+      aria-pressed={formatIdx === i}
+      title={formatIdx === i
+        ? 'The draft follows this file’s layout and wording. Click to read it for facts only.'
+        : 'Draft in this file’s layout and wording'}
+      onClick={() => toggleFormat(i)}
+      disabled={busy}
+    >
+      {formatIdx === i ? 'Format' : 'Use as format'}
+      <span className="sr-only"> for {f.name}</span>
+    </button>
+  );
+
+  const formatNote = formatFile ? (
+    <p className="body-xs muted" style={{ margin: '6px 0 0' }}>
+      The draft will follow the layout and wording of <strong>{formatFile.name}</strong>
+      {docLabel ? ' instead of the selected format' : ''}, filled with your facts
+      {files.length > 1 ? '; the other files are read for facts' : ''}. Scans and old formats are read too:
+      typing errors are fixed and repealed law (IPC, CrPC, Evidence Act) is updated, and each change is listed with the draft.
+    </p>
+  ) : null;
+  const formatPanel = formatFile ? (
+    <div>
+      {formatNote}
+      <label className="dc-switch" style={{ marginTop: 8 }}>
+        <input type="checkbox" checked={saveFormat} onChange={(e) => setSaveFormat(e.target.checked)} disabled={busy} />
+        <span className="dc-switch-track" aria-hidden><span /></span>
+        <span>
+          Save to my formats <span className="dc-switch-hint">(read once; next time pick it from Formats at no reading cost)</span>
+        </span>
+      </label>
+    </div>
+  ) : null;
 
   const body = (
       <div className="draftbot-modal">
@@ -539,13 +722,19 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
             <Icon name="upload" size={14} /> Attach reference document
           </button>
+          {formatInput}
+          <button type="button" className="btn btn-sm" onClick={() => formatRef.current?.click()} disabled={busy}
+            title="Attach your own format (PDF, scan, photo or Word). The draft follows its layout and wording.">
+            <Icon name="file" size={14} /> Attach format
+          </button>
           {files.map((f, i) => (
-            <span key={`${f.name}-${i}`} className="draftbot-modal__file">
+            <span key={`${f.name}-${i}`} className={`draftbot-modal__file${formatIdx === i ? ' is-format' : ''}`}>
               <Icon name="file" size={12} aria-hidden /> {f.name}
+              {formatToggle(f, i)}
               <button
                 type="button"
                 aria-label={`Remove ${f.name}`}
-                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+                onClick={() => removeFile(i)}
                 disabled={busy}
               >
                 <Icon name="close" size={12} aria-hidden />
@@ -553,6 +742,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             </span>
           ))}
         </div>
+        {formatPanel}
 
         {/* Options row: language + BNS/BNSS */}
         <div className="draftbot-modal__options">
@@ -614,6 +804,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </h2>
           <p className="dc-sub">
             Name the document and give the facts in your own words, or attach the cheque, notice or order.
+            Have your own format? Use <strong>Attach format</strong> and the draft follows it.
             The engine writes the complete document; anything genuinely missing is left as a marked
             <code>[placeholder]</code> for you to fill.
           </p>
@@ -693,6 +884,11 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             <button type="button" className="btn btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
               <Icon name="upload" size={14} /> Attach
             </button>
+            {formatInput}
+            <button type="button" className="btn btn-sm" onClick={() => formatRef.current?.click()} disabled={busy}
+              title="Attach your own format (PDF, scan, photo or Word). The draft follows its layout and wording.">
+              <Icon name="file" size={14} /> Attach format
+            </button>
             <DictateButton
               onTranscript={(text) => setPrompt((prev) => (prev.trim() ? `${prev.trimEnd()} ${text}` : text))}
               label="Dictate"
@@ -725,15 +921,17 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
               </span>
             )}
             {files.map((f, i) => (
-              <span key={`${f.name}-${i}`} className="dc-file">
+              <span key={`${f.name}-${i}`} className={`dc-file${formatIdx === i ? ' is-format' : ''}`}>
                 <Icon name="file" size={12} aria-hidden /> {f.name}
-                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))} disabled={busy}>
+                {formatToggle(f, i)}
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => removeFile(i)} disabled={busy}>
                   <Icon name="close" size={12} aria-hidden />
                 </button>
               </span>
             ))}
           </div>
         )}
+        {formatPanel}
 
         <div className="dc-footer">
           <div className="dc-option">
@@ -766,7 +964,11 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </button>
         </div>
 
-        {busy && <div className="dc-progress" aria-live="polite">Reading the facts and drafting the full document…</div>}
+        {busy && (
+          <div className="dc-progress" aria-live="polite">
+            {formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…'}
+          </div>
+        )}
         {error && <p className="dc-error" role="alert">{error}</p>}
         {needs && (
           <NeededFieldsPanel

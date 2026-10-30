@@ -34,7 +34,7 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, segmentBlocks } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks } from '../intake-compose.service';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
 // a numbered prayer, then the place line.
@@ -55,6 +55,29 @@ const BAIL_FACTS = { 'Accused name': 'Dinesh Kumar', 'Occupation': 'lorry driver
 describe('intake-compose — body-only composition', () => {
   it('segments head / body / prayer / tail', () => {
     expect(segmentBlocks(BAIL)).toEqual({ start: 2, bodyEnd: 7, end: 8, startNumber: 1 });
+  });
+
+  it('takes the WHOLE s.138 complaint body, un-numbered description lines included', () => {
+    // Only taking "1. Description of the Complainant" left the skeleton body
+    // printed again after the composed one.
+    const complaint = [
+      'IN THE COURT OF THE JUDICIAL MAGISTRATE, EGMORE',
+      'COMPLAINT FILED UNDER SECTION 223 BNSS FOR THE OFFENCE UNDER SECTION 138 NI ACT',
+      '1. Description of the Complainant',
+      'Abdul Rahman, having his office at No. 15, Anna Nagar, Chennai.',
+      '2. Description of the Accused',
+      'Mohammed Irfan, residing at No. 24, Perambur, Chennai.',
+      'The above-named Complainant humbly submits as follows:',
+      '3. The Complainant is the payee of the cheque.',
+      '(1) Cheque No. 456789 dated 10.03.2026 for Rs. 5,00,000/-.',
+      '15. The Complainant seeks leave to file an additional list of witnesses.',
+      'PRAYER',
+      "It is, therefore, humbly prayed that this Hon'ble Court may be pleased to summon the Accused.",
+      'Place: Chennai',
+      'LIST OF DOCUMENTS FILED BY THE COMPLAINANT',
+      '1. Dated 10.03.2026 — Cheque',
+    ].map((text, i) => ({ key: `c${i}`, text }));
+    expect(segmentBlocks(complaint)).toEqual({ start: 2, bodyEnd: 9, end: 9, startNumber: 1 });
   });
 
   it('keeps head, prayer and tail verbatim, renumbers the prayer, and returns the splice', async () => {
@@ -175,5 +198,41 @@ describe('intake-compose — compose only argues GIVEN facts', () => {
 
     expect(result.composed).toBe(false);
     expect(result.blocks).toEqual(ENGINE_BLOCKS);
+  });
+});
+
+describe('numberBody — every pleading paragraph keeps a number', () => {
+  it('re-numbers a paragraph whose numbered opening sentence was stripped', () => {
+    expect(numberBody([
+      '1. The Complainant is the payee.',
+      'The above-named Complainant submits as follows:',
+      '2. The cheque was dishonoured.',
+      'The said notice was served on 24.03.2026.', // "3. …" sentence stripped by the checks
+      '(a) Cheque No. 456789.',
+      'GROUNDS',
+      '5. The complaint is within time.',
+    ], 1)).toEqual([
+      '1. The Complainant is the payee.',
+      'The above-named Complainant submits as follows:',
+      '2. The cheque was dishonoured.',
+      '3. The said notice was served on 24.03.2026.',
+      '(a) Cheque No. 456789.',
+      'GROUNDS',
+      '4. The complaint is within time.',
+    ]);
+  });
+});
+
+describe('numberBody — a numbered list lead-in', () => {
+  it('counts a numbered paragraph ending in ":" (it introduces the cheque list)', () => {
+    expect(numberBody([
+      '3. The loan was advanced.',
+      '4. The Accused issued the following cheque:',
+      '(a) Cheque No. 456789.',
+      '4. The said cheque was issued towards the debt.',
+      '11. The Complainant relies on:',
+      '(a) The agreement.',
+      '11. The Complainant craves leave.',
+    ], 3).filter((p) => /^\d/.test(p)).map((p) => p.split('.')[0])).toEqual(['3', '4', '5', '6', '7']);
   });
 });

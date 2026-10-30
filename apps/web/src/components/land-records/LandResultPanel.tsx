@@ -54,13 +54,14 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
   const empty = result.fields.length === 0 && result.sections.length === 0;
   return (
     <div className="col" style={{ gap: 14 }}>
-      <div className="card col" style={{ gap: 14, padding: 18 }}>
-        <h2 className="heading-md" style={{ textAlign: 'center', margin: 0 }}>{result.title}</h2>
+      <div className="card col lr-card" style={{ gap: 16, padding: 18 }}>
+        <span className="ct-eyebrow" style={{ textAlign: 'center' }}>Land Records · fetched live</span>
+        <h2 className="lr-result-title">{result.title}</h2>
         {result.fields.length > 0 ? <KvTable rows={result.fields.map((f) => [f.label, f.value] as const)} /> : null}
         {result.sections.map((s, i) => (
           <div key={i} className="col" style={{ gap: 6 }}>
             {s.heading ? (
-              <div style={{ padding: '6px 12px', borderRadius: 6, background: 'var(--bg-inverse)', color: 'var(--text-inverse)', fontWeight: 700, fontSize: 14 }}>{s.heading}</div>
+              <div className="lr-section-bar">{s.heading}</div>
             ) : null}
             <div style={{ overflowX: 'auto' }}>
               <table className="tbl">
@@ -79,7 +80,7 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
         {empty ? <p className="body-md" style={{ margin: 0 }}>{result.text || 'Land Records returned no details.'}</p> : null}
       </div>
 
-      <div className="card col" style={{ gap: 12, padding: 18 }}>
+      <div className="card col lr-card" style={{ gap: 14, padding: 18 }}>
         <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
           {result.hasPdf ? (
             <button type="button" className="btn" onClick={() => void download()} disabled={downloading}>
@@ -94,7 +95,8 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
 
         {result.hasPdf ? (
           <div className="col" style={{ gap: 10 }}>
-            <span className="body-sm" style={{ fontWeight: 600 }}>File this record</span>
+            <h3 className="lr-card-title">File this record</h3>
+            <span className="lr-note">Save the PDF to a matter&apos;s documents, a title report&apos;s revenue search, or both.</span>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 10 }}>
               <select className="input" value={caseId} onChange={(e) => setCaseId(e.target.value)} aria-label="Matter">
                 <option value="">Matter (documents)…</option>

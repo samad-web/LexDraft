@@ -768,6 +768,9 @@ export interface IntakeState {
   detectedDocLabel?: string;
   /** How confident the auto-detection was (only set alongside detectedDocLabel). */
   detectionConfidence?: 'high' | 'medium' | 'low';
+  /** Outcome of "Save to my formats" for a format attached in the chat (only on
+   *  the start-format response, and only when saving was asked for). */
+  formatSave?: { saved: boolean; label?: string; message: string };
   /** The FULL text read off any attached reference document(s) (OCR / PDF / DOCX),
    *  accumulated across attachments. This is the whole content — not just the
    *  fields the extractor could parse — so a "Draft now" can draft from the entire
@@ -787,6 +790,12 @@ export interface IntakeState {
    *  Surfaced so the UI can show "this matter cites 420 IPC → 318 BNS". Absent when
    *  no legacy reference was found. */
   bnsConcordance?: Array<{ old: string; new: string; toAct: 'BNS' | 'BNSS' | 'BSA'; change: string }>;
+  /** Who produced `draft`: the engine (court template) or, when the engine's
+   *  checks would block a "Draft now", Claude from the facts on record. */
+  draftedBy?: 'engine' | 'ai';
+  /** Points to address before filing (the engine's findings that did not block
+   *  the draft). Shown in the "Before filing" checklist. */
+  draftNotes?: string[];
 }
 
 export interface IntakeRefusal {

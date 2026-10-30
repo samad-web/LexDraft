@@ -436,6 +436,13 @@ export const engineClient = {
     return json?.matched ? { docxBase64: json.docx_base64 as string, blocks: json.blocks ?? [] } : null;
   },
 
+  /** Lay plain drafted text out as a court-format .docx (house style). */
+  async composeDocx(paragraphs: string[]): Promise<{ docxBase64: string; blocks: EngineBlock[] }> {
+    const { status, json } = await call('POST', '/v1/compose-docx', { paragraphs });
+    if (status !== 200) throw new EngineError(`compose-docx failed: ${status}`);
+    return { docxBase64: json.docx_base64, blocks: json.blocks ?? [] };
+  },
+
   /** Doc types the LIVE engine serves right now (null if it can't be reached). */
   async servedDocTypes(): Promise<Set<string> | null> {
     try {

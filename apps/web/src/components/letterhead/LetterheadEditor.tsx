@@ -236,23 +236,12 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
         {/* Preview - hero block at the top, spans full modal width */}
         <div className="col" style={{ gap: 8 }}>
           <div className="label">Preview</div>
-          <div
-            className="letterhead-preview-wrap"
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-md)',
-              padding: 16,
-              overflow: 'auto',
-            }}
-          >
+          <div className="letterhead-preview-wrap fm-lh-stage">
             <LetterheadPreview
               templateKey={templateKey}
               fields={fields}
               logoUrl={previewLogoUrl}
-              scaleToWidth={860}
+              scaleToWidth={820}
             />
           </div>
         </div>
@@ -260,13 +249,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
         {/* Template chips - compact horizontal cards below the preview */}
         <div className="col" style={{ gap: 8 }}>
           <div className="label">Template</div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-              gap: 6,
-            }}
-          >
+          <div className="fm-lh-tpls">
             {LETTERHEAD_TEMPLATES.map((t) => {
               const active = t.key === templateKey;
               return (
@@ -275,16 +258,8 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
                   type="button"
                   onClick={() => handlePickTemplate(t.key)}
                   title={t.description}
-                  className="card card-hover"
-                  style={{
-                    padding: '8px 10px',
-                    textAlign: 'left',
-                    background: active ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
-                    borderColor: active ? 'var(--text-primary)' : 'var(--border-default)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: active ? 600 : 500,
-                  }}
+                  aria-pressed={active}
+                  className={`fm-lh-tpl-btn${active ? ' is-active' : ''}`}
                 >
                   {t.name}
                 </button>
@@ -310,7 +285,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
               we hide it entirely and let the caller's defaultScope stand. */}
           {!isSolo && (
             <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
-              <label className="row" style={{ gap: 6, fontSize: 13 }}>
+              <label className="fm-check">
                 <input
                   type="radio"
                   checked={scope === 'firm'}
@@ -318,7 +293,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
                 />
                 Shared with firm
               </label>
-              <label className="row" style={{ gap: 6, fontSize: 13 }}>
+              <label className="fm-check">
                 <input
                   type="radio"
                   checked={scope === 'personal'}
@@ -329,7 +304,7 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
             </div>
           )}
 
-          <label className="row" style={{ gap: 6, fontSize: 13 }}>
+          <label className="fm-check">
             <input
               type="checkbox"
               checked={isDefault}
@@ -348,29 +323,9 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={onDrop}
-              style={{
-                border: '1px dashed var(--border-strong)',
-                borderRadius: 'var(--radius-md)',
-                padding: 14,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                background: 'var(--bg-surface)',
-              }}
+              className="fm-lh-drop"
             >
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  background: 'var(--bg-surface-2)',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden',
-                  flex: '0 0 auto',
-                }}
-              >
+              <div className="fm-lh-drop-thumb">
                 {previewLogoUrl ? (
                   <img
                     src={previewLogoUrl}
@@ -381,12 +336,12 @@ export function LetterheadEditor({ open, mode, onClose }: LetterheadEditorProps)
                   <Icon name="upload" size={20} className="muted" />
                 )}
               </div>
-              <div style={{ flex: 1, fontSize: 12, color: 'var(--text-tertiary)' }}>
+              <div className="fm-lh-drop-text">
                 {previewLogoUrl
                   ? 'Drop a new image to replace, or remove below.'
                   : 'Drop a PNG, JPG, SVG, or WebP (max 2 MB).'}
               </div>
-              <div className="col" style={{ gap: 4 }}>
+              <div className="row" style={{ gap: 4 }}>
                 <label className="btn btn-sm">
                   {previewLogoUrl ? 'Replace' : 'Upload'}
                   <input

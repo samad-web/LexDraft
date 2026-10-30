@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { explicitRequest, keywordGuessLabel } from '../intake.service';
+import { explicitRequest, keywordGuessLabel, labelNamedIn } from '../intake.service';
 import { LABEL_TO_ENGINE_DOC, isRoutable } from '../../lib/engine-field-map';
 
 // The advocate's instruction is classified by these keyword cues FIRST and wins
@@ -71,5 +71,41 @@ describe('explicit request decides the format before fact words', () => {
   it('affidavit is routable for the drafting card', () => {
     expect(LABEL_TO_ENGINE_DOC['Affidavit']).toBe('affidavit');
     expect(isRoutable('affidavit')).toBe(true);
+  });
+});
+
+describe('the advocate names the document — writs and any library label', () => {
+  // The advocate's real brief: the facts talk about a GIFT DEED, the request is a writ.
+  const brief = 'complainant name :logarani , husband name : inba sagara kumar passed away on 26 june 2015, '
+    + 'on march 2021 she came to know that a property about five cents which belong to her husband by way of '
+    + 'gift deed from his mother has been ssold to a third party by cancelling the previous gift deed, '
+    + 'draft writ petition jurisdiction of honourable madras high court.';
+  const named = (s: string) => labelNamedIn(s, LABELS);
+
+  it('the writ request names Writ Petition (Civil), not Gift Deed', () => {
+    const requested = explicitRequest(brief)!;
+    expect(named(requested)).toBe('Writ Petition (Civil)');
+    expect(guess(requested)).toBe('Writ Petition (Civil)');
+  });
+
+  it.each([
+    ['criminal writ petition for habeas corpus', 'Writ Petition (Criminal)'],
+    ['writ petition (criminal) for the detenu', 'Writ Petition (Criminal)'],
+    ['special leave petition against the bail order', 'Special Leave Petition'],
+    ['contempt petition for wilful disobedience', 'Contempt Petition'],
+    ['affidavit of service for the returned notice', 'Affidavit of Service'],
+    ['divorce petition on the ground of cruelty', 'Divorce Petition (Contested)'],
+    ['mortgage deed for the house', 'Mortgage Deed'],
+  ])('%s -> %s', (phrase, label) => {
+    expect(named(phrase)).toBe(label);
+  });
+
+  it('a label word later in the phrase does not pick it', () => {
+    expect(named('petition which will be filed before the court')).toBeNull();
+  });
+
+  it('writ cues route a brief with no "draft" verb', () => {
+    expect(guess('writ of mandamus against the sub-registrar')).toBe('Writ Petition (Civil)');
+    expect(guess('habeas corpus for my son detained illegally')).toBe('Writ Petition (Criminal)');
   });
 });

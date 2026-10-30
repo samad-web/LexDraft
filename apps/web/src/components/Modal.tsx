@@ -231,17 +231,10 @@ export function Field({
         justifyContent: 'flex-end',
       }}
     >
-      <span
-        className="mono"
-        style={{ fontSize: 11, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
+      <span className="field-label">
         {label}
         {required && <span style={{ color: 'var(--danger)', marginLeft: 4 }}>*</span>}
-        {hint && (
-          <span style={{ marginLeft: 8, textTransform: 'none', color: 'var(--text-tertiary)' }}>
-            {hint}
-          </span>
-        )}
+        {hint && <span className="field-hint">{hint}</span>}
       </span>
       {children}
       {help && (

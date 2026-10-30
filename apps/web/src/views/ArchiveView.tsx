@@ -42,15 +42,15 @@ export function ArchiveView() {
   }, [archive]);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-archive">
       <PageHeader
         title="Closed Matters"
         description="Read-only register of disposed matters, kept with their final orders."
         meta={isLoading || isError ? undefined : `${archive.length} matters`}
       />
 
-      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="fm-toolbar">
+        <div className="fm-chips" role="group" aria-label="Filter by outcome">
           <FilterChip label="All"        active={filter === 'all'} count={counts.all}        onClick={() => setFilter('all')} />
           {OUTCOMES.map((o) => (
             <FilterChip key={o} label={o} active={filter === o} count={counts[o]} onClick={() => setFilter(o)} />
@@ -65,28 +65,28 @@ export function ArchiveView() {
         />
       </div>
 
-      <div className="card">
-        <table className="tbl">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <table className="tbl fm-tbl">
           <thead>
             <tr>
-              <th style={{ width: 160 }}>CNR</th>
               <th>Matter</th>
+              <th style={{ width: 180 }}>CNR</th>
               <th>Client</th>
               <th>Court</th>
-              <th style={{ width: 130 }}>Closed</th>
-              <th style={{ width: 130 }}>Outcome</th>
+              <th style={{ width: 120 }}>Closed</th>
+              <th style={{ width: 120 }}>Outcome</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 32 }}>
+                <td colSpan={6} data-span="all" style={{ textAlign: 'center', padding: 32 }}>
                   <span className="muted">Loading archive<span className="blink" /></span>
                 </td>
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={6} data-span="all">
                   <ErrorState
                     variant="inline"
                     title="Couldn't load archive"
@@ -96,7 +96,7 @@ export function ArchiveView() {
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={6} data-span="all">
                   <EmptyState
                     variant="inline"
                     title={archive.length === 0 ? 'No closed matters yet' : 'No archived matters match'}
@@ -112,14 +112,15 @@ export function ArchiveView() {
               pager.slice.map((m) => (
                 <tr
                   key={m.id}
-                  style={{ cursor: 'pointer' }}
+                  tabIndex={0}
                   onClick={() => navigate(`/app/cases/${m.id}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/app/cases/${m.id}`); }}
                 >
-                  <td className="mono tabular" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{m.cnr}</td>
-                  <td><em className="case-name" style={{ fontSize: 15 }}>{m.title}</em></td>
+                  <td><em className="case-name fm-matter">{m.title}</em></td>
+                  <td><span className="fm-code">{m.cnr}</span></td>
                   <td>{m.client}</td>
                   <td className="muted">{m.court}</td>
-                  <td className="mono tabular" style={{ fontSize: 12 }}>{m.closedDate}</td>
+                  <td><span className="fm-date">{formatClosed(m.closedDate)}</span></td>
                   <td><OutcomeBadge outcome={m.outcome} /></td>
                 </tr>
               ))
@@ -136,27 +137,32 @@ export function ArchiveView() {
         onChange={pager.setPage}
       />
 
-      <div className="row" style={{ gap: 8 }}>
-        <span className="mono tabular" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-          {filtered.length} OF {archive.length} MATTERS MATCH FILTERS
-        </span>
+      <div className="fm-reg-foot">
+        {filtered.length} of {archive.length} matters match filters
       </div>
     </div>
   );
 }
 
+function formatClosed(iso: string): string {
+  if (!iso) return '-';
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function FilterChip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
   return (
-    <button type="button" className={`chip ${active ? 'active' : ''}`} onClick={onClick}>
+    <button type="button" className={`chip ${active ? 'active' : ''}`} onClick={onClick} aria-pressed={active}>
       {label}
-      <span className="mono tabular" style={{ marginLeft: 8, opacity: 0.7, fontSize: 11 }}>{count}</span>
+      <span className="fm-count">{count}</span>
     </button>
   );
 }
 
 function OutcomeBadge({ outcome }: { outcome: Outcome }) {
-  if (outcome === 'Won')        return <span className="badge badge-sage">WON</span>;
-  if (outcome === 'Lost')       return <span className="badge badge-vermillion">LOST</span>;
-  if (outcome === 'Settled')    return <span className="badge badge-cobalt">SETTLED</span>;
-  return <span className="badge badge-amber">WITHDRAWN</span>;
+  if (outcome === 'Won')        return <span className="fm-pill is-solid">Won</span>;
+  if (outcome === 'Lost')       return <span className="fm-pill is-strong">Lost</span>;
+  if (outcome === 'Settled')    return <span className="fm-pill">Settled</span>;
+  return <span className="fm-pill is-dashed">Withdrawn</span>;
 }

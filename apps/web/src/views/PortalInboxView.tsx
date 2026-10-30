@@ -32,34 +32,33 @@ export function PortalInboxView() {
     [items, selectedKey],
   );
 
+  const unreadTotal = items.reduce((n, t) => n + (t.unreadFromClient || 0), 0);
+
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-inbox" style={{ gap: 24 }}>
       <PageHeader
         title="Client Messages"
         description="Read and reply to messages clients send through the client portal."
       />
 
       <div className="inbox-grid">
-        <aside className="card" style={{ padding: 0, overflow: 'auto' }}>
+        <aside className="card cm-threads" aria-label="Threads">
+          <div className="cm-threads-head">
+            <h2 className="cm-threads-title">Threads</h2>
+            {items.length > 0 && (
+              <span className="cm-label">{unreadTotal > 0 ? `${unreadTotal} unread` : `${items.length} ${items.length === 1 ? 'thread' : 'threads'}`}</span>
+            )}
+          </div>
           {inbox.isLoading && (
             <div aria-busy="true" aria-label="Loading inbox">
               {Array.from({ length: 5 }, (_, i) => (
-                <div
-                  key={`sk-${i}`}
-                  style={{
-                    padding: '12px 14px',
-                    borderBottom: '1px solid var(--border-default)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <div key={`sk-${i}`} className="cm-thread" style={{ cursor: 'default' }}>
+                  <Skeleton width={38} height={38} radius="pill" />
+                  <div className="cm-thread-body" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     <Skeleton width="55%" height={13} />
-                    <Skeleton width={20} height={14} radius="pill" />
+                    <Skeleton width="40%" height={10} />
+                    <Skeleton width="80%" height={11} />
                   </div>
-                  <Skeleton width="40%" height={10} />
-                  <Skeleton width="80%" height={11} />
                 </div>
               ))}
             </div>
@@ -74,7 +73,7 @@ export function PortalInboxView() {
             </div>
           )}
           {!inbox.isLoading && !inbox.isError && items.length === 0 && (
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: '28px 16px' }}>
               <EmptyState
                 variant="inline"
                 title="No portal messages yet"
@@ -85,40 +84,37 @@ export function PortalInboxView() {
           {items.map((t) => {
             const k = threadKey(t);
             const active = k === selectedKey;
+            const unread = t.unreadFromClient > 0;
             return (
               <button
                 key={k}
                 type="button"
                 onClick={() => setSelectedKey(k)}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  padding: '12px 14px', background: active ? 'var(--bg-surface-2)' : 'transparent',
-                  border: 'none', borderBottom: '1px solid var(--border-default)',
-                  cursor: 'pointer', color: 'inherit',
-                }}
+                aria-current={active ? 'true' : undefined}
+                className={`cm-thread${active ? ' is-active' : ''}${unread ? ' is-unread' : ''}`}
               >
-                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {t.clientName}
-                  </div>
-                  {t.unreadFromClient > 0 && (
-                    <span className="badge badge-vermillion" aria-label={`${t.unreadFromClient} unread`}>
-                      {t.unreadFromClient}
-                    </span>
-                  )}
-                </div>
-                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                  {t.matterTitle ?? 'General thread'}
-                </div>
-                <div style={{ fontSize: 13, marginTop: 6, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {t.lastMessagePreview}
-                </div>
+                <span className="cm-avatar" aria-hidden>{initialsOf(t.clientName)}</span>
+                <span className="cm-thread-body">
+                  <span className="cm-thread-top">
+                    <span className="cm-thread-name">{t.clientName}</span>
+                    {threadTime(t) && <span className="cm-thread-time">{threadTime(t)}</span>}
+                  </span>
+                  <span className="cm-thread-matter" style={{ display: 'block' }}>{t.matterTitle ?? 'General thread'}</span>
+                  <span className="cm-thread-row">
+                    <span className="cm-thread-preview">{t.lastMessagePreview}</span>
+                    {unread && (
+                      <span className="cm-unread" aria-label={`${t.unreadFromClient} unread`}>
+                        {t.unreadFromClient}
+                      </span>
+                    )}
+                  </span>
+                </span>
               </button>
             );
           })}
         </aside>
 
-        <section className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <section className="card cm-pane">
           {selected ? (
             <ThreadPane
               clientId={selected.clientId}
@@ -127,7 +123,7 @@ export function PortalInboxView() {
               matterTitle={selected.matterTitle}
             />
           ) : (
-            <div style={{ padding: 16 }}>
+            <div style={{ padding: '48px 16px' }}>
               <EmptyState
                 variant="inline"
                 title="Select a thread"
@@ -137,12 +133,24 @@ export function PortalInboxView() {
           )}
         </section>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) { .inbox-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
     </div>
   );
+}
+
+function initialsOf(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join('');
+}
+
+/** Short time for the thread list: "2:25 pm" today, else "29 Oct". */
+function threadTime(t: FirmPortalThreadSummary): string {
+  const raw = (t as unknown as { lastMessageAt?: string | null }).lastMessageAt;
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay
+    ? d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
 function threadKey(t: FirmPortalThreadSummary): string {
@@ -183,13 +191,16 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
   }
 
   return (
-    <div className="col" style={{ gap: 0, height: '100%' }}>
-      <header style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-default)' }}>
-        <div style={{ fontWeight: 600, fontSize: 15 }}>{clientName}</div>
-        <div className="muted" style={{ fontSize: 12 }}>{matterTitle ?? 'General thread'}</div>
+    <div className="col" style={{ gap: 0, height: '100%', minHeight: 0 }}>
+      <header className="cm-pane-head">
+        <span className="cm-avatar" aria-hidden>{initialsOf(clientName)}</span>
+        <div style={{ minWidth: 0 }}>
+          <div className="cm-pane-name">{clientName}</div>
+          <div className="cm-pane-matter">{matterTitle ?? 'General thread'}</div>
+        </div>
       </header>
 
-      <div style={{ padding: 16, overflowY: 'auto', flex: 1, minHeight: 0 }} role="log" aria-live="polite">
+      <div className="cm-log" role="log" aria-live="polite">
         {thread.isLoading && (
           <div aria-busy="true" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -214,36 +225,32 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
           />
         )}
         {thread.data && thread.data.items.length === 0 && (
-          <div className="muted">No messages yet - start the conversation.</div>
+          <div className="cm-log-empty">No messages yet - start the conversation.</div>
         )}
         {thread.data?.items.map((m) => <Bubble key={m.id} message={m} />)}
       </div>
 
-      <form onSubmit={onSubmit} style={{ padding: 12, borderTop: '1px solid var(--border-default)' }}>
-        <textarea
-          ref={composer}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          rows={3}
-          maxLength={4000}
-          placeholder="Reply to the client…"
-          aria-label="Reply"
-          style={{
-            width: '100%', padding: '8px 10px', fontSize: 14,
-            border: '1px solid var(--border-default)', borderRadius: 6,
-            background: 'var(--card)', color: 'inherit', resize: 'vertical',
-            fontFamily: 'inherit',
-          }}
-        />
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <span className="muted" style={{ fontSize: 12 }}>{draft.length}/4000</span>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            disabled={send.isPending || !draft.trim()}
-          >
-            {send.isPending ? 'Sending…' : 'Send'}
-          </button>
+      <form onSubmit={onSubmit} className="cm-composer">
+        <div className="cm-composer-box">
+          <textarea
+            ref={composer}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            maxLength={4000}
+            placeholder="Reply to the client…"
+            aria-label="Reply"
+          />
+          <div className="cm-composer-bar">
+            <span className="cm-composer-count">{draft.length}/4000</span>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              disabled={send.isPending || !draft.trim()}
+            >
+              {send.isPending ? 'Sending…' : 'Send'}
+            </button>
+          </div>
         </div>
       </form>
     </div>
@@ -251,26 +258,15 @@ function ThreadPane({ clientId, clientName, matterId, matterTitle }: PaneProps) 
 }
 
 function Bubble({ message }: { message: PortalMessage }) {
-  const align = message.mine ? 'flex-end' : 'flex-start';
   const ts = new Date(message.sentAt).toLocaleString('en-IN', {
     dateStyle: 'medium', timeStyle: 'short',
   });
   return (
-    <div style={{ display: 'flex', justifyContent: align, marginBottom: 8 }}>
-      <div style={{ maxWidth: '75%' }}>
-        <div className="muted" style={{ fontSize: 11, marginBottom: 2, textAlign: message.mine ? 'right' : 'left' }}>
-          {message.mine ? 'You' : message.senderName} · {ts}
-        </div>
-        <div style={{
-          background: message.mine ? 'var(--text-primary)' : 'var(--bg-surface-2)',
-          color: message.mine ? 'var(--bg-base)' : 'inherit',
-          padding: '8px 12px', borderRadius: 10,
-          border: message.mine ? 'none' : '1px solid var(--border-default)',
-          fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-        }}>
-          {message.body}
-        </div>
+    <div className={`cm-msg${message.mine ? ' is-mine' : ''}`}>
+      <div className="cm-msg-meta">
+        <strong>{message.mine ? 'You' : message.senderName}</strong> · {ts}
       </div>
+      <div className="cm-bubble">{message.body}</div>
     </div>
   );
 }

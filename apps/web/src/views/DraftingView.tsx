@@ -28,7 +28,7 @@ import {
 import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
-import { LiveDetailsPanel } from '@/components/engine/LiveDetailsPanel';
+import { LiveDetailsPanel, missingDetailCount } from '@/components/engine/LiveDetailsPanel';
 import { DraftRevisePanel } from '@/components/DraftRevisePanel';
 import { LawSidePanel } from '@/components/LawSidePanel';
 import type { BlankForm } from '@/hooks/useFormatLibrary';
@@ -213,6 +213,11 @@ export function DraftingView() {
   const [error, setError] = useState<string | null>(null);
   const [showMobileForm, setShowMobileForm] = useState(false);
   const [stageMode, setStageMode] = useState(false);
+  // "Back to brief" with a draft on screen: the composer comes back (its prompt
+  // refilled from the draft's API transcript) while the draft is kept, so the
+  // advocate can tweak the brief and redraft, or go back to the draft unchanged.
+  const [briefOpen, setBriefOpen] = useState(false);
+  useEffect(() => { if (stageMode) setBriefOpen(false); }, [stageMode]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedHtml, setEditedHtml] = useState<string | null>(null);
   // The engine draft's formatted HTML, paired with the text it was built from: used
@@ -328,8 +333,12 @@ export function DraftingView() {
   // for this user AND the doc is one the engine handles — today, s.138 only).
   // When true, the general model auto-draft chat is demoted to a collapsed
   // fallback so the advocate sees one clear input, not two competing boxes.
+  // Also on while the draft on screen came from the engine: its detected label
+  // (a firm's own format, say) may not be in the built-in list, and the brief
+  // must reopen in the same composer it was typed in.
   const engineActive = Boolean(
-    engineStatus.data?.enabled && engineStatus.data.docLabels.includes(docType),
+    engineStatus.data?.enabled
+      && (engineStatus.data.docLabels.includes(docType) || engineSession?.docLabel === docType),
   );
   const values = allValues[docType] ?? {};
 
@@ -480,6 +489,16 @@ export function DraftingView() {
   // modal). The engine returns either a generated draft (blocks) or a refusal
   // (a legal finding) — surface each honestly. NO fact sheet; the advocate edits
   // the document text and its [placeholders] directly.
+  // Draft first, then ask: after each new draft, what it still needs opens in a
+  // popup on the right (the rail card holds the same fields once it's closed).
+  const [askOpen, setAskOpen] = useState(false);
+  useEffect(() => {
+    if (!askOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAskOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [askOpen]);
+
   const acceptEngineDraft = (s: IntakeState, opts: { live?: boolean } = {}) => {
     if (s.status === 'refused' && s.refusal) {
       const msg = s.refusal.reason || 'The engine can’t draft this as it stands.';
@@ -497,6 +516,7 @@ export function DraftingView() {
     }
     const detected = s.docLabel;
     setEngineSession(s);
+    if (!opts.live) setAskOpen(missingDetailCount(s) > 0 || (s.draftNotes?.length ?? 0) > 0);
     setDocType(detected);
     // The new engine draft supersedes any earlier hand edits (a live update only
     // runs once the advocate has unlocked, i.e. discarded, their edits).
@@ -527,8 +547,9 @@ export function DraftingView() {
     // Editor shows the document's own layout (single-document drafts).
     setEngineView(companionBody ? null : { text: body, html: blocksToHtml(s.draft.blocks) });
 
-    // Open items = the [placeholder] gaps left in the body (scanned live).
-    setOpenItems(collectOpenItems({ bodyText: body }));
+    // Open items = the [placeholder] gaps left in the body (scanned live), plus
+    // the engine's points to address before filing (an AI-drafted fallback).
+    setOpenItems(collectOpenItems({ bodyText: body, ...(s.draftNotes?.length ? { advisories: s.draftNotes } : {}) }));
     // BNS/BNSS/BSA conversions applied to this draft (legacy → in-force sections).
     setBnsConcordance(s.bnsConcordance ?? []);
     stream.reset();
@@ -672,6 +693,7 @@ export function DraftingView() {
   };
 
   const reset = () => {
+    setBriefOpen(false);
     setAllValues((av) => ({ ...av, [docType]: {} }));
     stream.reset();
     setError(null);
@@ -1397,9 +1419,20 @@ export function DraftingView() {
           that matter's notes and uploaded-document text into the form below).
           Hidden once a draft is already staged/out so the preview isn't
           buried. */}
-      {!stageMode && !hasOutput && (
+      {((!stageMode && !hasOutput) || briefOpen) && (
         <div className="dc-layout">
           <div className="dc-main">
+          {briefOpen && (
+            <button
+              className="btn btn-sm btn-ghost"
+              type="button"
+              style={{ alignSelf: 'flex-start', marginBottom: 12 }}
+              onClick={() => setStageMode(true)}
+              title="Return to the draft without changing it"
+            >
+              <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} /> Back to draft
+            </button>
+          )}
           {engineActive ? (
             <DraftBotModal
               inline
@@ -1418,6 +1451,7 @@ export function DraftingView() {
               onActiveLabel={setActiveEngineLabel}
               activeLabel={activeEngineLabel}
               onDrafted={acceptEngineDraft}
+              restoreFrom={engineSession}
               caseContext={draftCase}
               caseNotes={[
                 // Typed / dictated notes on the matter.
@@ -1917,12 +1951,12 @@ export function DraftingView() {
         {/* Document workspace: the document owns the main column; everything you
             DO with it (export, letterhead, filing checklist, Sanhita, share) sits
             in a labelled side rail, in the order it's used. */}
-        <div className={`draft-preview-wrap dw${hasOutput && !streaming ? ' dw--rail' : ''}`}>
+        <div className={`draft-preview-wrap dw${hasOutput && !streaming ? ' dw--rail' : ''}`} style={briefOpen ? { display: 'none' } : undefined}>
           <div className="dw-main">
           {(stageMode || hasOutput) && (
             <div className="dw-head">
               {stageMode && (
-                <button className="btn btn-sm btn-ghost dw-back" type="button" onClick={() => setStageMode(false)} title="Return to brief">
+                <button className="btn btn-sm btn-ghost dw-back" type="button" onClick={() => { setStageMode(false); if (hasOutput) setBriefOpen(true); }} title="Return to brief">
                   <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} /> Back to brief
                 </button>
               )}
@@ -2188,15 +2222,57 @@ export function DraftingView() {
                 <LetterheadPicker label="" value={letterheadChoice} onChange={setLetterheadChoice} className="dw-letterhead" />
               </section>
 
-              {/* MISSING DETAILS — live: typing re-drafts the document */}
-              {engineSession && engineSession.status === 'generated' && (
+              {/* MISSING DETAILS — live: typing re-drafts the document (in the
+                  popup while it's open, here once it's closed) */}
+              {engineSession && engineSession.status === 'generated' && !askOpen && (
                 <LiveDetailsPanel
                   state={engineSession}
+                  manual={engineSession.draftedBy === 'ai'}
                   locked={hasLocalEdits}
                   onUnlock={() => setEditedHtml(null)}
                   onUpdated={(s) => acceptEngineDraft(s, { live: true })}
                   language={outputLang}
                 />
+              )}
+
+              {/* ASK AFTER DRAFTING — the questions as a popup on the right. */}
+              {engineSession && engineSession.status === 'generated' && askOpen && (
+                <aside className="dw-ask-pop" role="dialog" aria-label="Details to complete">
+                  <div className="dw-ask-pop-head">
+                    <div>
+                      <div className="dc-eyebrow">Your draft is ready</div>
+                      <div className="dw-ask-pop-title">
+                        {missingDetailCount(engineSession) > 0
+                          ? `Fill ${missingDetailCount(engineSession)} detail${missingDetailCount(engineSession) === 1 ? '' : 's'} to complete it`
+                          : 'Check these points'}
+                      </div>
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskOpen(false)} aria-label="Close">
+                      <Icon name="close" size={14} />
+                    </button>
+                  </div>
+                  {(engineSession.draftNotes?.length ?? 0) > 0 && (
+                    <ul className="dw-ask-pop-notes">
+                      {engineSession.draftNotes!.map((n) => <li key={n}>{n}</li>)}
+                    </ul>
+                  )}
+                  <LiveDetailsPanel
+                    state={engineSession}
+                    manual={engineSession.draftedBy === 'ai'}
+                    locked={hasLocalEdits}
+                    onUnlock={() => setEditedHtml(null)}
+                    onUpdated={(s) => acceptEngineDraft(s, { live: true })}
+                    language={outputLang}
+                  />
+                  <button type="button" className="btn btn-sm" onClick={() => setAskOpen(false)}>
+                    Later, show the draft
+                  </button>
+                </aside>
+              )}
+              {engineSession && engineSession.status === 'generated' && !askOpen && missingDetailCount(engineSession) > 0 && (
+                <button type="button" className="dw-ask-reopen" onClick={() => setAskOpen(true)}>
+                  {missingDetailCount(engineSession)} detail{missingDetailCount(engineSession) === 1 ? '' : 's'} to complete
+                </button>
               )}
 
               {/* BEFORE FILING */}

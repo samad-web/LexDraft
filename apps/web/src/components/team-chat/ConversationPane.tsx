@@ -167,11 +167,8 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
   const showAuthors = d?.kind !== 'direct';
 
   return (
-    <div className="col" style={{ gap: 0, height: '100%', minHeight: 0 }}>
-      <header
-        className="row"
-        style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-default)', gap: 8, alignItems: 'center' }}
-      >
+    <div className="fm-thread">
+      <header className="fm-thread-head">
         {onBack && (
           // Only shown on narrow screens (TeamChatView's .team-chat-back rule).
           <button
@@ -184,13 +181,13 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
             <Icon name="chevron" size={18} style={{ transform: 'rotate(180deg)' }} />
           </button>
         )}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="fm-thread-who">
           {!compactHeader && (
-            <div style={{ fontWeight: 600, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div className="fm-thread-title">
               {d?.title ?? ' '}
             </div>
           )}
-          <div className="muted" style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div className="fm-thread-members">
             {d ? memberLine(d, myId) : ' '}
           </div>
         </div>
@@ -213,7 +210,7 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
       <div
         ref={scroller}
         onScroll={onScroll}
-        style={{ padding: 16, overflowY: 'auto', flex: 1, minHeight: 0 }}
+        className="fm-thread-log"
         role="log"
         aria-live="polite"
       >
@@ -258,16 +255,10 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
         })}
       </div>
 
-      <div style={{ padding: 12, borderTop: '1px solid var(--border-default)' }}>
+      <div className="fm-composer-wrap">
         {(replyTo || editing) && (
-          <div
-            className="row"
-            style={{
-              gap: 8, alignItems: 'center', marginBottom: 8, padding: '6px 10px',
-              borderLeft: '3px solid var(--text-primary)', background: 'var(--bg-surface-2)', borderRadius: 6,
-            }}
-          >
-            <div style={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+          <div className="fm-composer-ctx">
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600 }}>{editing ? 'Editing message' : `Replying to ${replyTo!.authorName}`}</div>
               <div className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {(editing ?? replyTo)!.body ?? 'This message was deleted'}
@@ -281,13 +272,12 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
         {attachments.length > 0 && (
           <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             {attachments.map((a) => (
-              <span key={a.id} className="badge" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-                <Icon name="file" size={12} /> {a.name}
+              <span key={a.id} className="fm-chip-file">
+                <Icon name="file" size={12} /> <span>{a.name}</span>
                 <button
                   type="button"
                   aria-label={`Remove ${a.name}`}
                   onClick={() => setAttachments((xs) => xs.filter((x) => x.id !== a.id))}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
                 >
                   ×
                 </button>
@@ -295,6 +285,7 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
             ))}
           </div>
         )}
+        <div className="fm-composer">
         <MentionComposer
           inputRef={composer}
           value={draft}
@@ -304,12 +295,12 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
           members={members.filter((m) => m.userId !== myId)}
           placeholder={d?.kind === 'matter' ? 'Message the matter team… (@ to mention)' : 'Type a message… (@ to mention)'}
         />
-        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8 }}>
-          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+        <div className="fm-composer-bar">
+          <div className="row" style={{ gap: 8, alignItems: 'center', minWidth: 0 }}>
             {!editing && (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-sm btn-ghost"
                 onClick={() => setPickerOpen(true)}
                 disabled={attachments.length >= 5}
                 title="Attach a document or draft from this firm"
@@ -317,16 +308,17 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
                 <Icon name="file" size={14} /> Attach
               </button>
             )}
-            <span className="muted tc-hint" style={{ fontSize: 12 }}>Enter to send · Shift+Enter for a new line</span>
+            <span className="tc-hint">Enter to send · Shift+Enter for a new line</span>
           </div>
           <button
             type="button"
-            className="btn btn-primary"
+            className="btn btn-sm btn-primary"
             onClick={submit}
             disabled={!draft.trim() || draft.length > MAX_LEN || send.isPending || edit.isPending}
           >
-            {editing ? 'Save' : send.isPending ? 'Sending…' : 'Send'}
+            {editing ? 'Save' : send.isPending ? 'Sending…' : <>Send <Icon name="arrow" size={13} /></>}
           </button>
+        </div>
         </div>
       </div>
 
@@ -347,7 +339,7 @@ export function ConversationPane({ conversationId, headerActions, compactHeader,
             <button type="button" className="btn btn-ghost" onClick={() => setDeleting(null)}>Cancel</button>
             <button type="button" className="btn" onClick={() => confirmDelete('me')}>Delete for me</button>
             {deleting && canDeleteForEveryone(deleting, myId) && (
-              <button type="button" className="btn btn-oxblood" onClick={() => confirmDelete('everyone')}>
+              <button type="button" className="btn btn-danger" onClick={() => confirmDelete('everyone')}>
                 Delete for everyone
               </button>
             )}
@@ -395,8 +387,8 @@ function DaySeparator({ iso }: { iso: string }) {
       ? 'Yesterday'
       : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   return (
-    <div className="mono muted" style={{ textAlign: 'center', fontSize: 10, letterSpacing: '0.1em', margin: '12px 0 8px' }}>
-      {label.toUpperCase()}
+    <div className="fm-day">
+      <span>{label}</span>
     </div>
   );
 }
@@ -438,25 +430,17 @@ function Bubble({ message: m, mine, showAuthor, members, myId, onReply, onEdit, 
 
   return (
     <div
-      style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom: 6 }}
+      className={`fm-msg${mine ? ' is-mine' : ''}${showAuthor && !mine ? ' has-author' : ''}`}
       onMouseLeave={() => setMenu(false)}
     >
-      <div style={{ maxWidth: '75%', position: 'relative' }}>
+      <div className="fm-msg-col">
         {showAuthor && !mine && (
-          <div className="muted" style={{ fontSize: 11, marginBottom: 2 }}>{m.authorName}</div>
+          <div className="fm-msg-author">{m.authorName}</div>
         )}
-        <div
-          style={{
-            background: mine ? 'var(--text-primary)' : 'var(--bg-surface-2)',
-            color: mine ? 'var(--bg-base)' : 'inherit',
-            padding: '8px 12px', borderRadius: 10,
-            border: mine ? 'none' : '1px solid var(--border-default)',
-            fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-          }}
-        >
+        <div className="fm-bubble">
           {m.replyTo && !m.deleted && (
-            <div style={{ borderLeft: '3px solid currentColor', padding: '2px 8px', marginBottom: 6, opacity: 0.75, fontSize: 12 }}>
-              <div style={{ fontWeight: 600 }}>{m.replyTo.authorName}</div>
+            <div className="fm-bubble-quote">
+              <strong>{m.replyTo.authorName}</strong>
               <div>{m.replyTo.body ?? 'This message was deleted'}</div>
             </div>
           )}
@@ -466,22 +450,21 @@ function Bubble({ message: m, mine, showAuthor, members, myId, onReply, onEdit, 
             <MessageBody body={m.body ?? ''} members={members} mentionIds={m.mentions} myId={myId} />
           )}
           {m.attachments.length > 0 && (
-            <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+            <div className="fm-attach-row">
               {m.attachments.map((a) => (
                 <button
                   key={a.id}
                   type="button"
-                  className="badge"
+                  className="fm-attach"
                   onClick={() => void openAttachment(a)}
-                  style={{ cursor: 'pointer', display: 'inline-flex', gap: 6, alignItems: 'center' }}
                   title={a.kind === 'draft' ? 'Open draft' : 'Open document'}
                 >
-                  <Icon name={a.kind === 'draft' ? 'draft' : 'file'} size={12} /> {a.name}
+                  <Icon name={a.kind === 'draft' ? 'draft' : 'file'} size={13} /> {a.name}
                 </button>
               ))}
             </div>
           )}
-          <div style={{ fontSize: 10, opacity: 0.7, marginTop: 4, textAlign: 'right' }}>
+          <div className="fm-bubble-meta">
             {m.editedAt && !m.deleted && 'Edited · '}
             {time}
             {mine && !m.deleted && (
@@ -498,21 +481,19 @@ function Bubble({ message: m, mine, showAuthor, members, myId, onReply, onEdit, 
         </div>
         <button
           type="button"
-          className="btn btn-ghost"
+          className="btn btn-ghost btn-sm fm-msg-more"
           aria-label="Message actions"
+          aria-expanded={menu}
           onClick={() => setMenu((o) => !o)}
-          style={{ position: 'absolute', top: showAuthor && !mine ? 16 : 0, ...(mine ? { left: -34 } : { right: -34 }), padding: '0 6px' }}
+          style={{ top: showAuthor && !mine ? 22 : 2, ...(mine ? { left: -34 } : { right: -34 }) }}
         >
           <Icon name="more" size={14} />
         </button>
         {menu && (
           <div
-            className="card"
+            className="fm-msg-menu"
             role="menu"
-            style={{
-              position: 'absolute', zIndex: 20, top: 24, ...(mine ? { right: 0 } : { left: 0 }),
-              padding: 4, minWidth: 160, display: 'flex', flexDirection: 'column',
-            }}
+            style={{ top: showAuthor && !mine ? 52 : 32, ...(mine ? { right: 0 } : { left: 0 }) }}
           >
             {!m.deleted && <MenuItem onClick={() => { setMenu(false); onReply(); }}>Reply</MenuItem>}
             {canEdit(m, myId) && <MenuItem onClick={() => { setMenu(false); onEdit(); }}>Edit</MenuItem>}
@@ -623,10 +604,9 @@ function MentionComposer({ value, onChange, onSubmit, onEscape, members, placeho
     <div style={{ position: 'relative' }}>
       {matches.length > 0 && (
         <div
-          className="card"
+          className="fm-mentions"
           role="listbox"
           aria-label="Mention a member"
-          style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 4, padding: 4, minWidth: 220, zIndex: 30 }}
         >
           {matches.map((m, i) => (
             <button
@@ -636,10 +616,6 @@ function MentionComposer({ value, onChange, onSubmit, onEscape, members, placeho
               aria-selected={i === highlight}
               className="btn btn-ghost"
               onMouseDown={(e) => { e.preventDefault(); pick(m); }}
-              style={{
-                width: '100%', justifyContent: 'flex-start',
-                background: i === highlight ? 'var(--bg-surface-2)' : undefined,
-              }}
             >
               @{m.name}
             </button>
@@ -656,11 +632,6 @@ function MentionComposer({ value, onChange, onSubmit, onEscape, members, placeho
         maxLength={MAX_LEN}
         placeholder={placeholder}
         aria-label="Message"
-        style={{
-          width: '100%', padding: '8px 10px', fontSize: 14,
-          border: '1px solid var(--border-default)', borderRadius: 6,
-          background: 'var(--card)', color: 'inherit', resize: 'vertical', fontFamily: 'inherit',
-        }}
       />
     </div>
   );
@@ -688,17 +659,20 @@ function AttachmentPicker({ open, onClose, selected, onPick }: {
     <Modal open={open} onClose={onClose} title="Attach a document or draft" width={560}
       footer={<button type="button" className="btn btn-primary" onClick={onClose}>Done</button>}
     >
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search by name or matter…"
-        aria-label="Search documents"
-        style={{ width: '100%', padding: '8px 10px', marginBottom: 12, border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
-      />
+      <div className="fm-search" style={{ marginBottom: 12 }}>
+        <input
+          type="search"
+          className="input"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by name or matter…"
+          aria-label="Search documents"
+        />
+        <span className="fm-search-icon"><Icon name="search" size={14} /></span>
+      </div>
       {docs.isLoading && <Skeleton width="100%" height={120} radius="md" />}
       {docs.isError && <ErrorState variant="inline" title="Couldn't load documents" description="Try again in a moment." />}
-      <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+      <div className="fm-people">
         {items.map((d) => {
           const kind: MessageAttachment['kind'] = d.kind === 'draft' ? 'draft' : 'document';
           const picked = selected.some((s) => s.id === d.id);
@@ -709,13 +683,13 @@ function AttachmentPicker({ open, onClose, selected, onPick }: {
               className="btn btn-ghost"
               disabled={picked}
               onClick={() => onPick({ kind, id: d.id!, name: d.name })}
-              style={{ width: '100%', justifyContent: 'space-between', gap: 12 }}
+              style={{ width: '100%', justifyContent: 'space-between', gap: 12, height: 'auto', minHeight: 44, padding: '8px 10px', color: 'var(--text-primary)' }}
             >
-              <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', minWidth: 0 }}>
-                <Icon name={kind === 'draft' ? 'draft' : 'file'} size={14} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.name}</span>
+              <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+                <span className="fm-doc-icon" style={{ width: 30, height: 30 }} aria-hidden><Icon name={kind === 'draft' ? 'draft' : 'file'} size={14} /></span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{d.name}</span>
               </span>
-              <span className="muted" style={{ fontSize: 12, flexShrink: 0 }}>{picked ? 'Attached' : d.case}</span>
+              <span className="muted" style={{ fontSize: 12, flexShrink: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40%' }}>{picked ? 'Attached' : d.case}</span>
             </button>
           );
         })}

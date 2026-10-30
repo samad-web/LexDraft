@@ -22,7 +22,7 @@ export function ReviewQueueView() {
   const buckets = useMemo(() => groupByDecision(items), [items]);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ai-queue" style={{ gap: 28 }}>
       <PageHeader
         title="My Review Queue"
         description="Contract reviews assigned to you, grouped by decision."
@@ -79,6 +79,20 @@ export function ReviewQueueView() {
 
       {!isLoading && items.length > 0 && (
         <>
+          <div className="ai-stats" role="list" aria-label="Queue summary">
+            <div className="ai-stat" role="listitem">
+              <span className="ai-stat-value">{buckets.pending.length}</span>
+              <span className="ai-stat-label">Awaiting decision</span>
+            </div>
+            <div className="ai-stat" role="listitem">
+              <span className="ai-stat-value">{buckets.changesRequested.length}</span>
+              <span className="ai-stat-label">Changes requested</span>
+            </div>
+            <div className="ai-stat" role="listitem">
+              <span className="ai-stat-value">{buckets.approved.length}</span>
+              <span className="ai-stat-label">Approved</span>
+            </div>
+          </div>
           <Bucket
             label="Awaiting your decision"
             token="warning"
@@ -120,11 +134,12 @@ function groupByDecision(items: ContractReviewSummary[]): BucketsByDecision {
 }
 
 type StatusToken = 'success' | 'warning' | 'danger' | 'info';
+// Black & white: weight, not colour, carries the state.
 const BADGE_BY_TOKEN: Record<StatusToken, string> = {
-  success: 'badge-sage',
-  warning: 'badge-amber',
-  danger: 'badge-vermillion',
-  info: 'badge-cobalt',
+  success: 'ai-pill',
+  warning: 'ai-pill ai-pill--outline',
+  danger: 'ai-pill ai-pill--solid',
+  info: 'ai-pill ai-pill--dashed',
 };
 
 function Bucket({
@@ -139,24 +154,21 @@ function Bucket({
   empty: string;
 }) {
   return (
-    <div className="col" style={{ gap: 10 }}>
-      <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-        <div className="heading-md">{label}</div>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          {items.length}
-        </span>
+    <section className="col" style={{ gap: 12 }}>
+      <div className="ai-section-head">
+        <h2 className="ai-section-title ai-section-title--sm">{label}</h2>
+        <span className="ai-count">{items.length}</span>
       </div>
       {items.length === 0 ? (
-        <div
-          className="card"
-          style={{ padding: 14, color: 'var(--text-tertiary)', fontSize: 13 }}
-        >
+        <div className="ai-empty-line">
           {empty}
         </div>
       ) : (
-        items.map((r) => <QueueRow key={r.id} item={r} token={token} />)
+        <div className="ai-list">
+          {items.map((r) => <QueueRow key={r.id} item={r} token={token} />)}
+        </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -166,28 +178,25 @@ function QueueRow({ item, token }: { item: ContractReviewSummary; token: StatusT
   return (
     <Link
       to={`/app/review?id=${encodeURIComponent(item.id)}`}
-      className="card review-row"
-      style={{
-        padding: 14,
-        borderLeft: `3px solid var(--${token})`,
-        textDecoration: 'none',
-        color: 'inherit',
-      }}
+      className={`ai-list-row ai-queue-row ai-queue-row--${token}`}
     >
-      <div>
-        <div style={{ fontWeight: 500, marginBottom: 2 }}>{item.title}</div>
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          {item.perspective.toUpperCase()} · {created.toLocaleString()}
-          {decided && ` · decided ${decided.toLocaleString()}`}
+      <div className="ai-queue-main">
+        <div className="ai-list-title">{item.title}</div>
+        <div className="ai-list-meta">
+          {item.perspective} · {created.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+          {decided && ` · decided ${decided.toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
         </div>
       </div>
-      <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-        {item.status === 'completed' ? `${item.riskScore ?? '-'}/100` : item.status.toUpperCase()}
+      <span className="ai-history-score">
+        {item.status === 'completed'
+          ? <><strong>{item.riskScore ?? '-'}</strong><small>/100 risk</small></>
+          : <small>{item.status.toUpperCase()}</small>}
       </span>
       <span className={`badge ${BADGE_BY_TOKEN[token]}`}>{decisionLabel(item.decision)}</span>
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-        {item.commentCount > 0 ? `${item.commentCount} 💬` : ''}
+      <span className="ai-queue-comments" aria-label={`${item.commentCount} comments`}>
+        {item.commentCount > 0 && <><Icon name="chat" size={13} /> {item.commentCount}</>}
       </span>
+      <Icon name="chevron" size={14} className="ai-row-chev" />
     </Link>
   );
 }

@@ -73,14 +73,14 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
         </>
       }
     >
-      <div className="col" style={{ gap: 16, minHeight: 80 }}>
+      <div className="col ai-judgment" style={{ gap: 18, minHeight: 80 }}>
         {analyze.isPending && (
-          <p className="body-md muted">Reading the judgment<span className="blink" /></p>
+          <div className="ai-note" role="status"><span className="lex-spinner" aria-hidden /><span>Reading the judgment<span className="blink" /></span></div>
         )}
 
         {!analyze.isPending && errMsg && (
           <div className="col" style={{ gap: 10 }}>
-            <p className="body-sm" style={{ color: 'var(--danger)' }}>{errMsg}</p>
+            <p className="ai-note ai-note--strong" role="alert" style={{ margin: 0 }}>{errMsg}</p>
             <button type="button" className="btn btn-sm" onClick={() => { if (entryId) analyze.mutate({ entryId }); }}>
               <Icon name="arrow" size={13} /> Retry
             </button>
@@ -91,7 +91,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
           <>
             <section className="col" style={{ gap: 6 }}>
               <div className="eyebrow">Summary</div>
-              <p className="body-md" style={{ whiteSpace: 'pre-wrap', margin: 0, color: 'var(--text-primary)' }}>
+              <p className="ai-judgment-text">
                 {data.summary || 'No summary available'}
               </p>
             </section>
@@ -99,7 +99,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
             {data.holding && (
               <section className="col" style={{ gap: 6 }}>
                 <div className="eyebrow">Holding · ratio</div>
-                <p className="body-md" style={{ whiteSpace: 'pre-wrap', margin: 0, color: 'var(--text-primary)' }}>
+                <p className="ai-judgment-text">
                   {data.holding}
                 </p>
               </section>
@@ -111,8 +111,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
                 {data.followUps.map((f, i) => (
                   <div
                     key={i}
-                    className="row"
-                    style={{ gap: 10, alignItems: 'flex-start', padding: '8px 12px', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}
+                    className="row ai-judgment-follow"
                   >
                     <span style={{ color: 'var(--text-secondary)', paddingTop: 2 }}><Icon name="flag" size={13} /></span>
                     <div className="col" style={{ gap: 2 }}>
@@ -125,7 +124,7 @@ export function JudgmentInsightPanel({ open, onClose, entryId, fileName }: Props
             )}
 
             <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-              {data.cached && <span className="badge badge-sage">cached</span>}
+              {data.cached && <span className="ai-pill">cached</span>}
               <span className="body-xs muted mono">{data.modelUsed}</span>
               <span className="spacer" style={{ flex: 1 }} />
               <button

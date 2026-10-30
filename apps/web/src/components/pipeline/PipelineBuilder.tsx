@@ -404,7 +404,7 @@ function PipelineCanvasEditor({ caseId }: { caseId: string }) {
                 </select>
 
                 <div className="row" style={{ justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                  <button type="button" className="btn btn-ghost btn-sm"
                           disabled={deleteNode.isPending}
                           onClick={() => {
                             deleteNode.mutate(selectedNode.id, { onError: (e) => err(e, 'Could not delete stage') });
@@ -454,7 +454,7 @@ function PipelineCanvasEditor({ caseId }: { caseId: string }) {
                   style={{ width: '100%', marginBottom: 10 }}
                 />
                 <div className="row" style={{ justifyContent: 'flex-end' }}>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ color: 'var(--danger)' }}
+                  <button type="button" className="btn btn-ghost btn-sm"
                           disabled={deleteEdge.isPending}
                           onClick={() => {
                             deleteEdge.mutate(selectedEdge.id, { onError: (e) => err(e, 'Could not delete link') });

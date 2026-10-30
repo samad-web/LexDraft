@@ -39,6 +39,12 @@ void import('./services/tn-land-records.service')
   .then((m) => m.warmLandBrowser())
   .catch((err) => logger.warn({ err }, 'land-records warm-up failed'));
 
+// Same for eFiling (filing.ecourts.gov.in): a ready browser, so an advocate's
+// portal login opens quickly. Each advocate still gets a private context.
+void import('./services/efiling-live.service')
+  .then((m) => m.warmEfilingBrowser())
+  .catch((err) => logger.warn({ err }, 'efiling warm-up failed'));
+
 // Boot the background worker. When DATABASE_URL is blank this is a no-op and
 // jobs run inline at enqueue time.
 jobs.start()
@@ -73,7 +79,12 @@ const shutdown = (signal: string) => {
   void cacheBroadcaster.stop().catch((err) => logger.warn({ err }, 'cacheBroadcaster.stop failed'));
   // Ends open SSE streams too - otherwise server.close() waits on them.
   void teamChatRealtime.stop().catch((err) => logger.warn({ err }, 'teamChatRealtime.stop failed'));
-  server.close(() => process.exit(0));
+  // Log advocates out of the eFiling portal first (one session per account
+  // there), then stop - bounded so shutdown never hangs on the portal.
+  void import('./services/efiling-live.service')
+    .then((m) => m.closeAllEfilingSessions(7000))
+    .catch((err) => logger.warn({ err }, 'efiling logout on shutdown failed'))
+    .finally(() => server.close(() => process.exit(0)));
   setTimeout(() => process.exit(1), 10_000).unref();
 };
 

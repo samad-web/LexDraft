@@ -215,8 +215,8 @@ function DocumentsPane({ caseId, documents, isLoading, selectedDocId, onSelect }
           <div className="body-sm" style={{ fontWeight: 500 }}>
             {upload.isPending ? 'Uploading…' : 'Drop PDFs, DOCX, TXT, or MD here'}
           </div>
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-            ≤ 25 MB each · multiple files supported
+          <div className="ai-field-meta">
+            Up to 25 MB each · multiple files supported
           </div>
         </div>
         <input
@@ -303,8 +303,8 @@ function DocRow({
           {doc.summary?.documentType && (
             <span className="chip chip-sm">{titleCase(doc.summary.documentType)}</span>
           )}
-          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
-            {new Date(doc.ingestedAt).toLocaleString()}
+          <span className="ai-field-meta">
+            {new Date(doc.ingestedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
           </span>
         </div>
       </div>
@@ -323,15 +323,15 @@ function DocRow({
 }
 
 function StatusChip({ status }: { status: MatterDocument['status'] }) {
-  if (status === 'ready')     return <span className="badge badge-sage">Ready</span>;
-  if (status === 'failed')    return <span className="badge badge-vermillion">Failed</span>;
+  if (status === 'ready')     return <span className="ai-pill">Ready</span>;
+  if (status === 'failed')    return <span className="ai-pill ai-pill--solid">Failed</span>;
   // The pipeline no longer embeds — the matter_doc_status enum still has
   // the 'embedding' value for backwards-compat with rows persisted before
   // the embed removal. Relabel to "Indexing…" so the user-visible language
   // reflects what's actually happening (text-only chunk persistence).
-  if (status === 'embedding') return <span className="badge badge-cobalt">Indexing…</span>;
-  if (status === 'extracting')return <span className="badge badge-cobalt">Extracting…</span>;
-  return <span className="badge badge-cream">Queued</span>;
+  if (status === 'embedding') return <span className="ai-pill ai-pill--dashed">Indexing…</span>;
+  if (status === 'extracting')return <span className="ai-pill ai-pill--dashed">Extracting…</span>;
+  return <span className="ai-pill ai-pill--dashed">Queued</span>;
 }
 
 function DocSkeletonList({ count }: { count: number }) {
@@ -443,11 +443,11 @@ function PullFromMatterModal({ open, onClose, caseId, ingestedDocumentIds }: Pul
               />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 500 }}>{d.name}</div>
-                <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                <div className="ai-field-meta">
                   {d.case} · {d.type} · {d.updated}
                 </div>
               </div>
-              {already && <span className="badge badge-cream">Already ingested</span>}
+              {already && <span className="ai-pill ai-pill--dashed">Already ingested</span>}
             </label>
           );
         })}
@@ -580,8 +580,9 @@ function BriefPanel({
     <div className="matter-intel-brief">
       <div className="row" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
         <div>
-          <div className="eyebrow">Matter brief{matterTitle ? ` · ${matterTitle}` : ''}</div>
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>
+          <div className="ai-eyebrow">Matter brief</div>
+          {matterTitle && <h3 className="ai-mi-brief-title">{matterTitle}</h3>}
+          <div className="ai-field-meta" style={{ marginTop: 4 }}>
             Generated {new Date(brief.generatedAt).toLocaleString()} · {brief.modelUsed}
           </div>
         </div>
@@ -601,7 +602,7 @@ function BriefPanel({
       {degraded && <DegradedModeBanner />}
 
       <BriefSection title="Current posture">
-        <p className="body-md">{brief.posture || <em className="muted">Unknown</em>}</p>
+        <p className="ai-mi-posture">{brief.posture || <em className="muted">Unknown</em>}</p>
       </BriefSection>
 
       <BriefSection title="Key facts">
@@ -619,7 +620,7 @@ function BriefPanel({
           <ol className="matter-intel-timeline">
             {timelineQ.data.items.map((f) => (
               <li key={f.id}>
-                <span className="mono tabular" style={{ minWidth: 96 }}>{f.eventDate ?? 'N/A'}</span>
+                <span className="ai-mi-date">{fmtDate(f.eventDate) ?? 'N/A'}</span>
                 <span>
                   {f.eventText}
                   <span className="muted body-xs" style={{ display: 'block' }}>{f.sourceFileName}</span>
@@ -634,7 +635,7 @@ function BriefPanel({
           <ol className="matter-intel-timeline">
             {brief.timeline.map((t, i) => (
               <li key={`${t.date ?? ''}-${i}`}>
-                <span className="mono tabular" style={{ minWidth: 96 }}>{t.date || 'N/A'}</span>
+                <span className="ai-mi-date">{fmtDate(t.date) || 'N/A'}</span>
                 <span>{t.event || ''}</span>
               </li>
             ))}
@@ -733,9 +734,9 @@ function DocumentDetailPanel({
     <div className="matter-intel-doc-detail">
       <div className="row" style={{ alignItems: 'flex-start', marginBottom: 16 }}>
         <div style={{ minWidth: 0 }}>
-          <div className="eyebrow">Document</div>
-          <h3 className="heading-md" style={{ marginTop: 4 }}>{doc.fileName}</h3>
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>
+          <div className="ai-eyebrow">Document</div>
+          <h3 className="ai-mi-brief-title" style={{ overflowWrap: 'anywhere' }}>{doc.fileName}</h3>
+          <div className="ai-field-meta" style={{ marginTop: 4 }}>
             {doc.pageCount ? `${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'} · ` : ''}
             Ingested {new Date(doc.ingestedAt).toLocaleString()}
           </div>
@@ -777,8 +778,8 @@ function DocumentDetailPanel({
       {degraded && <DegradedModeBanner />}
 
       {doc.status === 'failed' && doc.statusError && (
-        <div className="card" style={{ borderColor: 'var(--danger)', padding: 12, marginBottom: 16 }}>
-          <div className="body-sm" style={{ color: 'var(--danger)' }}>{doc.statusError}</div>
+        <div className="ai-note ai-note--strong" role="alert" style={{ marginBottom: 16 }}>
+          <span>{doc.statusError}</span>
         </div>
       )}
 
@@ -816,7 +817,7 @@ function DocumentDetailPanel({
               <ol className="matter-intel-timeline">
                 {summary.keyDates.map((d, i) => (
                   <li key={i}>
-                    <span className="mono tabular" style={{ minWidth: 96 }}>{d.date || 'N/A'}</span>
+                    <span className="ai-mi-date">{fmtDate(d.date) || 'N/A'}</span>
                     <span>{d.event || ''}</span>
                   </li>
                 ))}
@@ -1112,12 +1113,12 @@ function ChatStream({
           />
         )}
         {streamError && (
-          <div className="card" style={{ borderColor: 'var(--danger)', padding: 10, marginTop: 8 }}>
-            <div className="body-sm" style={{ color: 'var(--danger)' }}>{streamError}</div>
+          <div className="ai-note ai-note--strong" role="alert" style={{ marginTop: 8 }}>
+            <span>{streamError}</span>
           </div>
         )}
         {reconnecting && (
-          <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', padding: 6 }}>
+          <div className="ai-field-meta" style={{ padding: 6 }}>
             {reconnecting}
           </div>
         )}
@@ -1134,7 +1135,7 @@ function ChatStream({
           disabled={Boolean(streaming)}
         />
         <div className="row" style={{ marginTop: 8 }}>
-          <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+          <span className="ai-field-meta">
             ⌘/Ctrl+Enter to send
           </span>
           <span className="spacer" />
@@ -1246,14 +1247,14 @@ function CitationDrawer({
   return (
     <>
       <div className="side-panel-scrim" onClick={onClose} />
-      <aside className="side-panel is-open" role="dialog" aria-label="Source document">
+      <aside className="side-panel is-open ai-mi-drawer" role="dialog" aria-label="Source document">
         <div className="pane-head" style={{ padding: 16, borderBottom: '1px solid var(--border-default)' }}>
           <div>
             <div className="eyebrow">Source</div>
             <div className="heading-sm" style={{ marginTop: 4 }} title={docQ.data?.fileName}>
               {docQ.data?.fileName ?? 'Loading…'}
             </div>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 2 }}>
+            <div className="ai-field-meta" style={{ marginTop: 2 }}>
               Page {page}
             </div>
           </div>
@@ -1301,6 +1302,15 @@ function DegradedModeBanner() {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** "2026-03-12" → "12 Mar 2026"; anything that isn't an ISO date passes through. */
+function fmtDate(s: string | null | undefined): string | null {
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 function titleCase(s: string): string {
   return s.replace(/[_\s]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon, Skeleton, ErrorState } from '@lexdraft/ui';
+import { Icon, ErrorState } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
 import { useCalendarMonth, useCalendarWeek } from '@/hooks/useCalendar';
@@ -79,7 +79,7 @@ function HearingsHoverCard({ iso, hearings }: { iso: string; hearings: CalendarH
             {h.status && (
               <>
                 {' · '}
-                <span style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>{h.status}</span>
+                <span>{h.status}</span>
               </>
             )}
           </div>
@@ -124,23 +124,12 @@ export function CalendarView() {
   const handleTopAdd = () => setFormMode('create');
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ct ct-calendar" style={{ gap: 24 }}>
       <PageHeader
         title="Calendar"
         description="Your hearings by month or week. Click a day to see or add hearings."
         actions={<>
-        <div
-          role="tablist"
-          aria-label="Calendar view"
-          className="row"
-          style={{
-            gap: 0,
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-full)',
-            padding: 3,
-          }}
-        >
+        <div role="tablist" aria-label="Calendar view" className="ct-seg">
           <ViewToggleButton label="Month" active={mode === 'month'} onClick={() => setMode('month')} />
           <ViewToggleButton label="Week"  active={mode === 'week'}  onClick={() => setMode('week')} />
         </div>
@@ -196,26 +185,60 @@ function ViewToggleButton({
   onClick: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      style={{
-        appearance: 'none',
-        cursor: 'pointer',
-        padding: '6px 16px',
-        borderRadius: 'var(--radius-full)',
-        border: 'none',
-        background: active ? 'var(--text-primary)' : 'transparent',
-        color: active ? 'var(--bg-base)' : 'var(--text-secondary)',
-        fontSize: 13,
-        fontWeight: 500,
-        transition: 'background 150ms, color 150ms',
-      }}
-    >
+    <button type="button" role="tab" aria-selected={active} onClick={onClick}>
       {label}
     </button>
+  );
+}
+
+function exportEvents(all: CalendarHearing[]): IcsEvent[] {
+  return all.map((h, i) => {
+    const [hh = '10', mm = '00'] = (h.time || '10:00').split(':');
+    const start = new Date(`${h.date}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:00`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    return {
+      uid: h.id ?? `hearing-${h.date}-${i}`,
+      start, end,
+      summary: `${h.case} - ${h.purpose}`,
+      location: h.court,
+      description: `Status: ${h.status}`,
+    };
+  });
+}
+
+/** The first hearings of a day, listed inside its cell. */
+function DayItems({ hearings, max }: { hearings: CalendarHearing[]; max: number }) {
+  if (hearings.length === 0) return null;
+  const shown = hearings.slice(0, max);
+  return (
+    <span className="ct-day-items" aria-hidden="true">
+      {shown.map((h, i) => (
+        <span key={h.id ?? i} className="ct-day-item">
+          <b>{h.time || '--:--'}</b>
+          <span>{h.case}</span>
+        </span>
+      ))}
+      {hearings.length > shown.length && <span className="ct-day-more">+{hearings.length - shown.length} more</span>}
+    </span>
+  );
+}
+
+function CalNav({ label, onPrev, onToday, onNext, onExport }: {
+  label: string; onPrev: () => void; onToday: () => void; onNext: () => void; onExport: () => void;
+}) {
+  return (
+    <div className="ct-cal-nav">
+      <button type="button" className="btn btn-sm" aria-label={`Previous ${label}`} onClick={onPrev}>
+        <Icon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} />
+      </button>
+      <button type="button" className="btn btn-sm" onClick={onToday}>Today</button>
+      <button type="button" className="btn btn-sm" aria-label={`Next ${label}`} onClick={onNext}>
+        <Icon name="chevron" size={12} />
+      </button>
+      <button type="button" className="btn btn-sm ct-cal-export" onClick={onExport}>
+        <Icon name="download" size={12} /> Export ICS
+      </button>
+    </div>
   );
 }
 
@@ -243,101 +266,55 @@ function MonthPane({
     onSelect(todayIso());
   };
 
-  const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`;
+  const today = todayIso();
   const totalHearings = data?.hearings.length ?? 0;
   const days = data?.days ?? [];
   const leading = days[0] ? days[0].weekdayIndex : 0;
   const hearingsByDate = useMemo(() => indexByDate(data?.hearings ?? []), [data?.hearings]);
+  const busyDays = days.filter((d) => d.count > 0).length;
+  const upcoming = useMemo(
+    () => (data?.hearings ?? []).filter((h) => h.date >= today).sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')).slice(0, 6),
+    [data?.hearings, today],
+  );
+
+  const doExport = () => {
+    const all = data?.hearings ?? [];
+    if (all.length === 0) {
+      onExportNotice('No hearings this month to export', 'amber');
+      return;
+    }
+    const events = exportEvents(all);
+    downloadIcs(`hearings-${year}-${String(month).padStart(2, '0')}.ics`, events);
+    onExportNotice(`Exported ${events.length} hearings to .ics`, 'sage');
+  };
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div className="row" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+    <div className="col" style={{ gap: 20 }}>
+    <div className="ct-card ct-card-pad ct-cal ct-cal-card ct-month">
+      <div className="ct-cal-head">
         <div>
-          <div className="heading-md">{monthLabel}</div>
-          <div className="body-sm muted" style={{ marginTop: 4 }}>
+          <div className="ct-eyebrow">Month</div>
+          <h2 className="ct-cal-title">{MONTH_NAMES[month - 1]} <span style={{ fontWeight: 400 }}>{year}</span></h2>
+          <div className="ct-cal-sub">
             {isLoading ? 'Loading hearings…'
               : isError ? 'Could not load hearings for this month.'
-              : `${totalHearings} ${totalHearings === 1 ? 'hearing' : 'hearings'} this month`}
+              : <><b>{totalHearings}</b> {totalHearings === 1 ? 'hearing' : 'hearings'} this month{busyDays > 0 ? <> across <b>{busyDays}</b> {busyDays === 1 ? 'day' : 'days'}</> : null}</>}
           </div>
         </div>
-        <span className="spacer" />
-        <div className="row" style={{ gap: 6 }}>
-          <button type="button" className="btn btn-sm" aria-label="Previous month" onClick={goPrev}>
-            <Icon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-          <button type="button" className="btn btn-sm" onClick={goToday}>Today</button>
-          <button type="button" className="btn btn-sm" aria-label="Next month" onClick={goNext}>
-            <Icon name="chevron" size={12} />
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => {
-              const all = data?.hearings ?? [];
-              if (all.length === 0) {
-                onExportNotice('No hearings this month to export', 'amber');
-                return;
-              }
-              const events: IcsEvent[] = all.map((h, i) => {
-                const [hh = '10', mm = '00'] = (h.time || '10:00').split(':');
-                const start = new Date(`${h.date}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:00`);
-                const end = new Date(start.getTime() + 60 * 60 * 1000);
-                return {
-                  uid: h.id ?? `hearing-${h.date}-${i}`,
-                  start, end,
-                  summary: `${h.case} - ${h.purpose}`,
-                  location: h.court,
-                  description: `Status: ${h.status}`,
-                };
-              });
-              downloadIcs(`hearings-${year}-${String(month).padStart(2, '0')}.ics`, events);
-              onExportNotice(`Exported ${events.length} hearings to .ics`, 'sage');
-            }}
-          >
-            <Icon name="download" size={12} /> Export ICS
-          </button>
-        </div>
+        <CalNav label="month" onPrev={goPrev} onToday={goToday} onNext={goNext} onExport={doExport} />
       </div>
 
       {/* Weekday header */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-          gap: 8,
-          marginBottom: 8,
-        }}
-      >
-        {WEEKDAY_HEADERS.map((w) => (
-          <div
-            key={w}
-            className="mono"
-            style={{
-              fontSize: 11,
-              letterSpacing: '0.16em',
-              color: 'var(--text-tertiary)',
-              textAlign: 'center',
-              textTransform: 'uppercase',
-              padding: '4px 0',
-            }}
-          >
-            {w}
-          </div>
+      <div className="ct-cal-grid">
+        {WEEKDAY_HEADERS.map((w, i) => (
+          <div key={w} className={`ct-cal-wd${i >= 5 ? ' is-weekend' : ''}`}>{w}</div>
         ))}
       </div>
 
       {isLoading ? (
-        <div
-          aria-busy="true"
-          aria-label="Loading month"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-            gap: 8,
-          }}
-        >
+        <div className="ct-cal-grid" aria-busy="true" aria-label="Loading month">
           {Array.from({ length: 35 }, (_, i) => (
-            <Skeleton key={`sk-day-${i}`} height={96} radius="md" />
+            <span key={`sk-day-${i}`} className="ct-skel ct-cal-pad" />
           ))}
         </div>
       ) : isError ? (
@@ -347,26 +324,15 @@ function MonthPane({
           description="Check your connection and try again."
         />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-            gap: 8,
-          }}
-        >
+        <div className="ct-cal-grid">
           {Array.from({ length: leading }).map((_, i) => (
-            <div key={`pad-${i}`} aria-hidden style={{ minHeight: 96 }} />
+            <div key={`pad-${i}`} aria-hidden className="ct-cal-pad" />
           ))}
           {days.map((d) => {
             const isSelected = d.date === selected;
             const dayNum = Number(d.date.slice(8, 10));
             const hasHearings = d.count > 0;
-            const tone =
-              d.isToday
-                ? { bg: 'var(--text-primary)', fg: 'var(--bg-base)',      border: 'var(--text-primary)' }
-                : isSelected
-                  ? { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)', border: 'var(--text-primary)' }
-                  : { bg: 'var(--bg-surface)',   fg: 'var(--text-primary)', border: 'var(--border-default)' };
+            const list = hearingsByDate.get(d.date) ?? [];
             return (
               <button
                 key={d.date}
@@ -374,69 +340,55 @@ function MonthPane({
                 onClick={() => onSelect(d.date)}
                 aria-pressed={isSelected}
                 aria-label={`${d.date}${d.count ? `, ${d.count} ${d.count === 1 ? 'hearing' : 'hearings'}` : ''}`}
-                className="calendar-day-cell"
-                style={{
-                  appearance: 'none',
-                  cursor: 'pointer',
-                  background: tone.bg,
-                  color: tone.fg,
-                  border: `1px solid ${tone.border}`,
-                  borderRadius: 'var(--radius-md)',
-                  padding: 'var(--space-3) var(--space-3)',
-                  minHeight: 96,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                  transition: 'background 150ms, border-color 150ms',
-                  textAlign: 'left',
-                }}
+                className={`calendar-day-cell ct-day${d.isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${d.weekdayIndex >= 5 ? ' is-weekend' : ''}${d.date < today ? ' is-past' : ''}`}
               >
-                <span
-                  className="mono tabular"
-                  style={{ fontSize: 18, fontWeight: 600, lineHeight: 1 }}
-                >
-                  {dayNum}
+                <span className="ct-day-top">
+                  <span className="ct-day-num">{dayNum}</span>
+                  {hasHearings && <span className="ct-day-count">{d.count}</span>}
                 </span>
-                {hasHearings ? (
-                  <span
-                    className={`badge ${d.isToday ? '' : 'badge-cobalt'}`}
-                    style={{
-                      fontVariantNumeric: 'tabular-nums',
-                      // Today cell has `--text-primary` as its bg, so the
-                      // badge needs a contrasting overlay tinted from the
-                      // foreground colour. Using currentColor keeps it
-                      // theme-aware (light mode: light overlay on dark bg;
-                      // dark mode: dark overlay on light bg).
-                      background: d.isToday ? 'color-mix(in srgb, currentColor 18%, transparent)' : undefined,
-                      color: d.isToday ? 'var(--bg-base)' : undefined,
-                      borderColor: d.isToday ? 'color-mix(in srgb, currentColor 30%, transparent)' : undefined,
-                    }}
-                  >
-                    {d.count} {d.count === 1 ? 'hearing' : 'hearings'}
-                  </span>
-                ) : (
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize: 10,
-                      letterSpacing: '0.12em',
-                      textTransform: 'uppercase',
-                      color: d.isToday ? 'var(--bg-base)' : 'var(--text-tertiary)',
-                      opacity: d.isToday ? 0.7 : 1,
-                    }}
-                  >
-                    Add
-                  </span>
-                )}
+                {hasHearings ? <DayItems hearings={list} max={2} /> : <span className="ct-day-add cal-add">+ Add</span>}
                 {hasHearings && (
-                  <HearingsHoverCard iso={d.date} hearings={hearingsByDate.get(d.date) ?? []} />
+                  <HearingsHoverCard iso={d.date} hearings={list} />
                 )}
               </button>
             );
           })}
         </div>
       )}
+    </div>
+
+    {!isLoading && !isError && (
+      <div className="ct-card ct-card-pad">
+        <div className="ct-section-head" style={{ marginBottom: 6 }}>
+          <h3 className="ct-section-title">Coming up</h3>
+          <span className="ct-rule" />
+          <span className="ct-section-count">{upcoming.length ? `Next ${upcoming.length} this month` : 'Nothing ahead this month'}</span>
+        </div>
+        {upcoming.length === 0 ? (
+          <p className="ct-meta" style={{ margin: '8px 0 0' }}>No more hearings listed in {MONTH_NAMES[month - 1]}. Pick a day above to add one.</p>
+        ) : (
+          <div className="ct-agenda">
+            {upcoming.map((h, i) => {
+              const dt = new Date(`${h.date}T00:00:00`);
+              return (
+                <button key={h.id ?? i} type="button" className="ct-agenda-row" onClick={() => onSelect(h.date)}>
+                  <span className={`ct-date${h.date === today ? ' is-today' : ''}`}>
+                    <span className="ct-date-wd">{dt.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                    <span className="ct-date-d">{dt.getDate()}</span>
+                    <span className="ct-date-mo">{dt.toLocaleDateString('en-IN', { month: 'short' })}</span>
+                  </span>
+                  <span className="col" style={{ gap: 3, minWidth: 0 }}>
+                    <span className="ct-title">{h.case}</span>
+                    <span className="ct-meta">{h.purpose}{h.purpose && h.court ? <span className="ct-meta-dot" /> : null}{h.court}</span>
+                  </span>
+                  <span className={`ct-time${h.time ? '' : ' is-empty'}`}>{h.time || '--:--'}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    )}
     </div>
   );
 }
@@ -459,6 +411,8 @@ function WeekPane({
 
   const days = data?.days ?? [];
   const hearingsByDate = useMemo(() => indexByDate(data?.hearings ?? []), [data?.hearings]);
+  const today = todayIso();
+  const total = data?.hearings.length ?? 0;
 
   const goPrev = () => {
     const start = data?.weekStart ?? todayIso();
@@ -474,65 +428,43 @@ function WeekPane({
     setWeekStart(undefined);
     onSelect(todayIso());
   };
+  const doExport = () => {
+    const all = data?.hearings ?? [];
+    if (all.length === 0) {
+      onExportNotice('No hearings this week to export', 'amber');
+      return;
+    }
+    const events = exportEvents(all);
+    downloadIcs(`hearings-week-${data?.weekStart ?? todayIso()}.ics`, events);
+    onExportNotice(`Exported ${events.length} hearings to .ics`, 'sage');
+  };
+
+  const first = days[0]?.date;
+  const last = days[days.length - 1]?.date;
+  const fmt = (iso: string, o: Intl.DateTimeFormatOptions) => new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', o);
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6)' }}>
-      <div className="row" style={{ marginBottom: 16 }}>
-        <div className="heading-md">
-          {data?.weekStart
-            ? new Date(data.weekStart + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-            : new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+    <div className="ct-card ct-card-pad ct-cal ct-cal-card ct-week">
+      <div className="ct-cal-head">
+        <div>
+          <div className="ct-eyebrow">Week</div>
+          <h2 className="ct-cal-title">
+            {data?.weekStart
+              ? new Date(data.weekStart + 'T00:00:00').toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+              : new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          </h2>
+          <div className="ct-cal-sub">
+            {isLoading ? 'Loading hearings…'
+              : isError ? 'Could not load this week.'
+              : <>{first && last ? `${fmt(first, { day: 'numeric', month: 'short' })} – ${fmt(last, { day: 'numeric', month: 'short' })} · ` : ''}<b>{total}</b> {total === 1 ? 'hearing' : 'hearings'}</>}
+          </div>
         </div>
-        <span className="spacer" />
-        <div className="row" style={{ gap: 6 }}>
-          <button type="button" className="btn btn-sm" aria-label="Previous week" onClick={goPrev}>
-            <Icon name="chevron" size={12} style={{ transform: 'rotate(180deg)' }} />
-          </button>
-          <button type="button" className="btn btn-sm" onClick={goToday}>Today</button>
-          <button type="button" className="btn btn-sm" aria-label="Next week" onClick={goNext}>
-            <Icon name="chevron" size={12} />
-          </button>
-          <button
-            type="button"
-            className="btn btn-sm"
-            onClick={() => {
-              const all = data?.hearings ?? [];
-              if (all.length === 0) {
-                onExportNotice('No hearings this week to export', 'amber');
-                return;
-              }
-              const events: IcsEvent[] = all.map((h, i) => {
-                const [hh = '10', mm = '00'] = (h.time || '10:00').split(':');
-                const start = new Date(`${h.date}T${hh.padStart(2, '0')}:${mm.padStart(2, '0')}:00`);
-                const end = new Date(start.getTime() + 60 * 60 * 1000);
-                return {
-                  uid: h.id ?? `hearing-${h.date}-${i}`,
-                  start, end,
-                  summary: `${h.case} - ${h.purpose}`,
-                  location: h.court,
-                  description: `Status: ${h.status}`,
-                };
-              });
-              downloadIcs(`hearings-week-${data?.weekStart ?? todayIso()}.ics`, events);
-              onExportNotice(`Exported ${events.length} hearings to .ics`, 'sage');
-            }}
-          >
-            <Icon name="download" size={12} /> Export ICS
-          </button>
-        </div>
+        <CalNav label="week" onPrev={goPrev} onToday={goToday} onNext={goNext} onExport={doExport} />
       </div>
       {isLoading ? (
-        <div
-          aria-busy="true"
-          aria-label="Loading week"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-            gap: 10,
-          }}
-        >
+        <div className="ct-cal-grid" aria-busy="true" aria-label="Loading week">
           {Array.from({ length: 7 }, (_, i) => (
-            <Skeleton key={`sk-wk-${i}`} height={96} radius="md" />
+            <span key={`sk-wk-${i}`} className="ct-skel" style={{ minHeight: 120 }} />
           ))}
         </div>
       ) : isError ? (
@@ -542,67 +474,28 @@ function WeekPane({
           description="Check your connection and try again."
         />
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-            gap: 10,
-          }}
-        >
-          {days.map((d) => {
+        <div className="ct-cal-grid">
+          {days.map((d, idx) => {
             const isSelected = d.date === selected;
             const dayNum = Number(d.date.slice(8, 10));
+            const list = hearingsByDate.get(d.date) ?? [];
             return (
               <button
                 key={d.date}
                 type="button"
                 onClick={() => onSelect(d.date)}
-                className="calendar-day-cell"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: 8,
-                  padding: 'var(--space-4)',
-                  border: '1px solid',
-                  borderColor: isSelected ? 'var(--text-primary)' : 'var(--border-default)',
-                  background: isSelected ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
-                  borderRadius: 'var(--radius-md)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  minHeight: 96,
-                  transition: 'border-color 150ms, background 150ms',
-                }}
+                aria-label={`${d.date}, ${d.count} ${d.count === 1 ? 'hearing' : 'hearings'}`}
+                className={`calendar-day-cell ct-day${d.isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${idx >= 5 ? ' is-weekend' : ''}${d.date < today ? ' is-past' : ''}`}
               >
-                <div className="eyebrow" style={{ color: 'var(--text-tertiary)' }}>
-                  {d.weekday}
-                </div>
-                <div
-                  className="mono tabular"
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    lineHeight: 1,
-                  }}
-                >
-                  {dayNum}
-                  {d.isToday && (
-                    <span
-                      aria-hidden="true"
-                      className="dot dot-cobalt"
-                      style={{ marginLeft: 6, verticalAlign: 'middle' }}
-                    />
-                  )}
-                </div>
-                <span
-                  className={`badge ${d.count === 0 ? 'badge-cream' : 'badge-cobalt'}`}
-                  style={{ fontVariantNumeric: 'tabular-nums' }}
-                >
-                  {d.count} {d.count === 1 ? 'hearing' : 'hearings'}
+                <span className="ct-day-top">
+                  <span className="ct-day-wd">{d.weekday}</span>
+                  <span className="ct-day-num">{dayNum}</span>
                 </span>
+                {list.length > 0
+                  ? <DayItems hearings={list} max={4} />
+                  : <span className="ct-day-add cal-add">{d.count > 0 ? `${d.count} ${d.count === 1 ? 'hearing' : 'hearings'}` : 'No hearings · + Add'}</span>}
                 {d.count > 0 && (
-                  <HearingsHoverCard iso={d.date} hearings={hearingsByDate.get(d.date) ?? []} />
+                  <HearingsHoverCard iso={d.date} hearings={list} />
                 )}
               </button>
             );

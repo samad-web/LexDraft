@@ -19,13 +19,20 @@ const Schema = z.object({
   // preferring xAI when both are configured.
   LLM_PROVIDER: z.enum(['auto', 'anthropic', 'xai', 'none']).default('auto'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
-  ANTHROPIC_MODEL: z.string().default('claude-sonnet-4-6'),
+  ANTHROPIC_MODEL: z.string().default('claude-sonnet-5-5'),
   /** Model that reads an uploaded drafting format (scan / PDF / Word) into an
    *  engine template spec. Accuracy matters more than cost here: it runs once per
    *  uploaded format, not per draft. */
-  FORMAT_READER_MODEL: z.string().default('claude-opus-5-5'),
+  FORMAT_READER_MODEL: z.string().default('claude-sonnet-5-5'),
   XAI_API_KEY: z.string().optional().default(''),
   XAI_MODEL: z.string().default('grok-4'),
+  // OpenAI, through the same OpenAI-compatible client as xAI (lib/grok-client).
+  // When this key is set, the "xai" provider slot calls OpenAI instead of xAI:
+  // pick it with LLM_PROVIDER=xai / INTAKE_PROVIDER=xai.
+  OPENAI_API_KEY: z.string().optional().default(''),
+  OPENAI_MODEL: z.string().default('gpt-5.5'),
+  /** The fast extraction/question model when INTAKE_PROVIDER=xai routes to OpenAI. */
+  OPENAI_INTAKE_MODEL: z.string().default('gpt-5.4-mini'),
   // Conversational-intake extractor/classifier use a SEPARATE, FAST model — the
   // heavy drafting model (grok-4 / sonnet) is overkill for extraction/routing and
   // makes each intake turn slow. When set, intake uses these instead of the
@@ -249,13 +256,21 @@ if (parsed.data!.FIELD_ENCRYPTION_KEY) {
 function resolveProvider(): 'anthropic' | 'xai' | 'none' {
   const explicit = parsed.data!.LLM_PROVIDER;
   if (explicit !== 'auto') return explicit;
-  if (parsed.data!.XAI_API_KEY) return 'xai';
+  if (parsed.data!.XAI_API_KEY || parsed.data!.OPENAI_API_KEY) return 'xai';
   if (parsed.data!.ANTHROPIC_API_KEY) return 'anthropic';
   return 'none';
 }
 
+/** OPENAI_API_KEY points the OpenAI-compatible ("xai") slot at OpenAI. */
+const usesOpenAI = Boolean(parsed.data.OPENAI_API_KEY);
+
 export const env = {
   ...parsed.data,
+  ...(usesOpenAI ? { XAI_API_KEY: parsed.data.OPENAI_API_KEY, XAI_MODEL: parsed.data.OPENAI_MODEL } : {}),
+  /** Where the OpenAI-compatible client sends requests, and which API it is. */
+  openaiCompat: usesOpenAI
+    ? { vendor: 'openai' as const, baseURL: 'https://api.openai.com/v1' }
+    : { vendor: 'xai' as const, baseURL: 'https://api.x.ai/v1' },
   corsOrigins: parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean),
   isProd: parsed.data.NODE_ENV === 'production',
   hasDatabase: parsed.data.DATABASE_URL.length > 0,
@@ -334,7 +349,9 @@ export const env = {
    *  when configured (else they fall back to the drafting provider/model). Keeps
    *  intake responsive without downgrading the heavy General-AI drafting model. */
   intakeProvider: (parsed.data.INTAKE_PROVIDER || '') as 'anthropic' | 'xai' | '',
-  intakeModel: parsed.data.INTAKE_MODEL || '',
+  intakeModel: (usesOpenAI && parsed.data.INTAKE_PROVIDER === 'xai'
+    ? parsed.data.OPENAI_INTAKE_MODEL
+    : parsed.data.INTAKE_MODEL) || '',
   hasS3: parsed.data.STORAGE_DRIVER === 's3' || parsed.data.STORAGE_DRIVER === 'r2',
   storageS3ForcePathStyle: parsed.data.STORAGE_S3_FORCE_PATH_STYLE === 'true',
   /** Decoded 32-byte key, or null when FIELD_ENCRYPTION_KEY is unset. See

@@ -10,7 +10,7 @@ export type IconName =
   | 'shield' | 'globe' | 'menu' | 'eye' | 'eyeOff'
   | 'mic' | 'micOff' | 'edit' | 'trash' | 'calculator'
   | 'gavel' | 'efiling' | 'handshake' | 'sparkle' | 'map' | 'box' | 'inbox'
-  | 'building' | 'key' | 'translate' | 'swap' | 'pie' | 'mail';
+  | 'building' | 'key' | 'translate' | 'swap' | 'pie' | 'mail' | 'logout' | 'user';
 
 export interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {
   name: IconName;
@@ -81,6 +81,8 @@ const PATHS: Record<IconName, ReactNode> = {
   swap: (<><path d="M4 8h14l-4-4M20 16H6l4 4"/></>),
   pie: (<><path d="M21 12A9 9 0 1 1 12 3v9z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15z"/></>),
   mail: (<><rect x="2" y="4" width="20" height="16"/><path d="m2 6 10 7 10-7"/></>),
+  logout: (<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></>),
+  user: (<><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>),
 };
 
 export function Icon({ name, size = 16, className = '', ...rest }: IconProps) {

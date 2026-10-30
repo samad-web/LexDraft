@@ -33,7 +33,8 @@ import {
 import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
-import { intakeService, IntakeError, IntakeUnavailableError } from '../services/intake.service';
+import { intakeService, IntakeError, IntakeUnavailableError, isAttachedFormatLabel, attachedFormatDocType } from '../services/intake.service';
+import { FormatReadError } from '../services/format-reader.service';
 import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
 import { llmGenerationLimiter } from '../middleware/rateLimit';
 import { env } from '../env';
@@ -1050,6 +1051,10 @@ draftingRouter.post('/engine/sign-off', requireFeature('drafting.ai'), async (re
       const firm = await firmFormatsService.getByLabel(await firmIdForUser(req.user?.id), parsed.docLabel);
       docType = firm?.docType;
     }
+    if (!docType && isAttachedFormatLabel(parsed.docLabel)) {
+      // Same doc type the intake drafted it under (see intake resolveDoc).
+      docType = attachedFormatDocType(parsed.matterId);
+    }
     if (!docType) {
       res.status(404).json({ error: 'doc_not_routable' });
       return;
@@ -1162,6 +1167,22 @@ const IntakeAttach = z.object({
     .max(8),
 });
 
+// "Draft in this format": a format file attached in the chat plus the opening brief.
+const IntakeStartFormat = z.object({
+  message: z.string().min(1).max(CASE_CONTEXT_MAX),
+  format: z.object({
+    fileName: z.string().min(1).max(400),
+    mime: z.string().max(200),
+    dataBase64: z.string().min(1).refine(
+      (b) => Buffer.byteLength(b, 'base64') <= MAX_ATTACH_BYTES,
+      `the format file must be at most ${MAX_ATTACH_BYTES} bytes`,
+    ),
+  }),
+  provider: z.enum(['xai', 'anthropic']).optional(),
+  /** Also save it to the firm's formats, so later drafts need no reading. */
+  save: z.boolean().optional(),
+});
+
 /** Shared guard + quota + ctx resolution for the intake endpoints. Returns the
  *  run context, or writes an error response and returns null. */
 async function intakeSetup(
@@ -1249,6 +1270,45 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
       // Couldn't classify -> ask the client to pick a format explicitly.
       if (err instanceof IntakeError) {
         res.status(422).json({ error: 'doc_type_unclear', message: err.message });
+        return;
+      }
+      if (handleIntakeError(err, res)) return;
+      throw err;
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Begin a conversation that drafts in a format the advocate attached in the chat.
+// The format is read into an engine spec for THIS conversation only (not saved).
+draftingRouter.post('/engine/intake/start-format', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const parsed = IntakeStartFormat.parse(req.body);
+    if (!engineRoutingAllowed(req.user?.email)) {
+      res.status(403).json({ error: 'engine_routing_not_enabled' });
+      return;
+    }
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const firmId = await firmIdForUser(userId);
+    try {
+      await aiQuotaService.assertCanGenerate(firmId, userId);
+      const state = await intakeService.startWithFormat(
+        parsed.message,
+        parsed.format,
+        { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
+        { save: parsed.save === true },
+      );
+      res.json(state);
+    } catch (err) {
+      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+      if (err instanceof IntakeUnavailableError) {
+        res.status(422).json({ error: 'format_unusable', message: err.message });
+        return;
+      }
+      if (err instanceof FormatReadError) {
+        res.status(err.status).json({ error: 'format_read_failed', message: err.message });
         return;
       }
       if (handleIntakeError(err, res)) return;

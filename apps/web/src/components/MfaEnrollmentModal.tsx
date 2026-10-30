@@ -209,7 +209,8 @@ function ScanStep({
             style={{
               float: 'right',
               fontSize: 11,
-              color: copied ? 'var(--success)' : 'var(--text-tertiary)',
+              color: copied ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              fontWeight: copied ? 600 : 400,
             }}
           >
             {copied ? '✓ COPIED' : '⧉ COPY'}
@@ -268,16 +269,10 @@ function ConfirmStep({
       {error && (
         <div
           role="alert"
-          style={{
-            fontSize: 13,
-            color: 'var(--danger)',
-            background: 'var(--danger-bg)',
-            border: '1px solid var(--danger)',
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 12px',
-          }}
+          className="fm-error"
         >
-          {error}
+          <span className="fm-error-mark" aria-hidden>!</span>
+          <span>{error}</span>
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -343,8 +338,8 @@ function BackupStep({
         style={{
           fontSize: 13,
           color: 'var(--text-primary)',
-          background: 'var(--warning-bg, #fff7e6)',
-          border: '1px solid var(--warning, #b8860b)',
+          background: 'var(--bg-surface-2)',
+          border: '1px solid var(--text-primary)',
           borderRadius: 'var(--radius-md)',
           padding: '10px 12px',
         }}

@@ -47,7 +47,7 @@ import { jobs } from './jobs.service';
 import { aiUsageService } from './ai-usage.service';
 import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 import { claudeComplete } from '../lib/anthropic-client';
-import { grok, asRetryError } from '../lib/grok-client';
+import { grok, outputLimit, asRetryError } from '../lib/grok-client';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -491,7 +491,7 @@ async function callXaiJson(system: string, user: string): Promise<LlmResult> {
     try {
       res = await grok().chat.completions.create({
         model: env.XAI_MODEL,
-        max_tokens: 2048,
+        ...outputLimit(2048),
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: system },

@@ -11,15 +11,15 @@ import { PageHeader } from '@/components/PageHeader';
 function AnalyticsTabSkeleton() {
   return (
     <div className="col" style={{ gap: 16 }} aria-busy="true" aria-label="Loading analytics">
-      <div className="grid-auto-sm">
+      <div className="fm-kpis">
         {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div key={i} className="fm-kpi" style={{ gap: 12 }}>
             <Skeleton width="60%" height={11} />
-            <Skeleton width="40%" height={28} />
+            <Skeleton width="40%" height={34} />
           </div>
         ))}
       </div>
-      <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="fm-panel" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Skeleton width="35%" height={14} />
         {Array.from({ length: 6 }, (_, i) => (
           <div key={i} style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -49,7 +49,7 @@ const TABS: ReadonlyArray<TabDef> = [
 function formatInr(inr: number): string {
   if (Math.abs(inr) >= 10_000_000) return `${inr < 0 ? '-' : ''}₹${Math.abs(inr / 10_000_000).toFixed(2)} Cr`;
   if (Math.abs(inr) >= 100_000)    return `${inr < 0 ? '-' : ''}₹${Math.abs(inr / 100_000).toFixed(2)} L`;
-  return `₹${inr.toLocaleString('en-IN')}`;
+  return `${inr < 0 ? '-' : ''}₹${Math.abs(inr).toLocaleString('en-IN')}`;
 }
 
 export function PracticeAnalyticsView() {
@@ -57,20 +57,13 @@ export function PracticeAnalyticsView() {
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0]!;
 
   return (
-    <div className="col stagger" style={{ gap: 20 }}>
+    <div className="col stagger fm-view fm-practice">
       <PageHeader title="Workload & Profitability" description={activeTab.hint} />
 
       <div
         role="tablist"
         aria-label="Practice analytics tabs"
-        className="row"
-        style={{
-          gap: 4,
-          padding: 4,
-          background: 'var(--bg-surface-2)',
-          borderRadius: 'var(--radius-md)',
-          alignSelf: 'flex-start',
-        }}
+        className="fm-seg"
       >
         {TABS.map((t) => {
           const selected = t.id === tab;
@@ -81,12 +74,6 @@ export function PracticeAnalyticsView() {
               type="button"
               aria-selected={selected}
               onClick={() => setTab(t.id)}
-              className="btn"
-              style={{
-                background: selected ? 'var(--bg-surface)' : 'transparent',
-                border: selected ? '1px solid var(--border-subtle)' : '1px solid transparent',
-                fontWeight: selected ? 600 : 400,
-              }}
             >
               {t.label}
             </button>
@@ -108,9 +95,12 @@ function WorkloadTab() {
 
   if (isError) {
     return (
-      <div className="card" style={{ borderColor: 'var(--danger)' }}>
-        <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load workload</div>
-        <p className="body-sm muted">{(error as Error | null)?.message ?? 'Try again in a moment.'}</p>
+      <div className="fm-error" role="alert">
+        <span className="fm-error-mark" aria-hidden>!</span>
+        <div>
+          <strong>Couldn’t load workload</strong>
+          <div className="muted">{(error as Error | null)?.message ?? 'Try again in a moment.'}</div>
+        </div>
       </div>
     );
   }
@@ -123,42 +113,42 @@ function WorkloadTab() {
 
   return (
     <div className="col" style={{ gap: 16 }}>
-      <div className="stat-row">
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Active members</div>
-          <div className="heading-xl tabular">{data.totals.memberCount}</div>
+      <div className="fm-kpis">
+        <div className="fm-kpi">
+          <span className="fm-kpi-label">Active members</span>
+          <span className="fm-kpi-value">{data.totals.memberCount}</span>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Active matters</div>
-          <div className="heading-xl tabular">{data.totals.activeMatters}</div>
+        <div className="fm-kpi">
+          <span className="fm-kpi-label">Active matters</span>
+          <span className="fm-kpi-value">{data.totals.activeMatters}</span>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Hearings this week</div>
-          <div className="heading-xl tabular">{data.totals.hearingsThisWeek}</div>
+        <div className="fm-kpi">
+          <span className="fm-kpi-label">Hearings this week</span>
+          <span className="fm-kpi-value">{data.totals.hearingsThisWeek}</span>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Hearings next week</div>
-          <div className="heading-xl tabular">{data.totals.hearingsNextWeek}</div>
+        <div className="fm-kpi">
+          <span className="fm-kpi-label">Hearings next week</span>
+          <span className="fm-kpi-value">{data.totals.hearingsNextWeek}</span>
         </div>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table className="tbl">
+      <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+        <table className="tbl fm-tbl">
           <thead>
             <tr>
               <th>Member</th>
               <th>Role</th>
-              <th>Open matters</th>
+              <th className="num">Open matters</th>
               <th>Distribution</th>
-              <th>Hearings (this wk)</th>
-              <th>Hearings (next wk)</th>
-              <th>Open tasks</th>
+              <th className="num">Hearings (this wk)</th>
+              <th className="num">Hearings (next wk)</th>
+              <th className="num">Open tasks</th>
             </tr>
           </thead>
           <tbody>
             {members.length === 0 && (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={7} data-span="all">
                   <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
                     <div className="heading-sm">No active members</div>
                     <p className="body-sm muted">Invite teammates from Manage to populate this view.</p>
@@ -168,45 +158,31 @@ function WorkloadTab() {
             )}
             {members.map((m) => {
               const pct = maxMatters === 0 ? 0 : (m.openMatters / maxMatters) * 100;
-              const rowStyle = m.isOverloaded
-                ? { background: 'var(--warning-bg)' }
-                : undefined;
               return (
-                <tr key={m.userId} style={rowStyle}>
+                <tr key={m.userId} className={m.isOverloaded ? 'is-flagged' : undefined}>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{m.name}</div>
+                    <div className="fm-cell-title">
+                      {m.name}
+                      {m.isOverloaded && <span className="fm-pill is-solid" style={{ marginLeft: 8 }}>Overloaded</span>}
+                    </div>
                     {m.isOverloaded && (
-                      <div className="body-xs muted" style={{ marginTop: 2 }}>
+                      <div className="fm-cell-sub">
                         Carrying noticeably more than the median.
                       </div>
                     )}
                   </td>
-                  <td className="body-sm muted">{m.role}</td>
-                  <td className="mono tabular">{m.openMatters}</td>
-                  <td style={{ minWidth: 140 }}>
-                    <div
-                      style={{
-                        position: 'relative',
-                        height: 8,
-                        background: 'var(--bg-surface-2)',
-                        borderRadius: 'var(--radius-full)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${pct}%`,
-                          height: '100%',
-                          background: m.isOverloaded ? 'var(--warning)' : 'var(--text-primary)',
-                          borderRadius: 'var(--radius-full)',
-                          transition: 'width 240ms ease',
-                        }}
-                      />
+                  <td className="muted">{m.role}</td>
+                  <td className="num" style={{ fontFamily: 'var(--font-title)', fontSize: 16, fontWeight: 600 }}>{m.openMatters}</td>
+                  <td>
+                    <div className="fm-dist">
+                      <div className={`fm-bar${m.isOverloaded ? '' : ' is-soft'}`} aria-hidden>
+                        <span style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
                   </td>
-                  <td className="mono tabular">{m.hearingsThisWeek}</td>
-                  <td className="mono tabular">{m.hearingsNextWeek}</td>
-                  <td className="mono tabular">{m.openTasks}</td>
+                  <td className="num">{m.hearingsThisWeek}</td>
+                  <td className="num">{m.hearingsNextWeek}</td>
+                  <td className="num">{m.openTasks}</td>
                 </tr>
               );
             })}
@@ -214,7 +190,7 @@ function WorkloadTab() {
         </table>
       </div>
 
-      <p className="body-xs muted">
+      <p className="fm-footnote">
         Per-member matter and hearing counts are an even split of the firm-wide totals while
         the underlying tables don’t carry an assignee. Open-task counts come from
         the task assignee field directly.
@@ -250,15 +226,14 @@ function ProfitabilityTab() {
   return (
     <div className="col" style={{ gap: 16 }}>
       <div className="row" style={{ flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-        <label className="col" style={{ gap: 4 }}>
-          <span className="eyebrow">Opened since</span>
+        <label className="fm-date-filter">
+          <span className="fm-eyebrow">Opened since</span>
           <input
             type="date"
             className="input"
             value={since}
             onChange={(e) => setSince(e.target.value)}
             aria-label="Filter by matter open date"
-            style={{ minWidth: 180 }}
           />
         </label>
         {since && (
@@ -269,9 +244,12 @@ function ProfitabilityTab() {
       </div>
 
       {isError && (
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
-          <div className="heading-sm" style={{ marginBottom: 6 }}>Couldn’t load profitability</div>
-          <p className="body-sm muted">{(error as Error | null)?.message ?? 'Try again in a moment.'}</p>
+        <div className="fm-error" role="alert">
+          <span className="fm-error-mark" aria-hidden>!</span>
+          <div>
+            <strong>Couldn’t load profitability</strong>
+            <div className="muted">{(error as Error | null)?.message ?? 'Try again in a moment.'}</div>
+          </div>
         </div>
       )}
 
@@ -279,47 +257,44 @@ function ProfitabilityTab() {
 
       {!isLoading && !isError && (
         <>
-          <div className="stat-row">
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Paid (sum)</div>
-              <div className="heading-xl tabular">{formatInr(totals.paid)}</div>
+          <div className="fm-kpis">
+            <div className="fm-kpi">
+              <span className="fm-kpi-label">Paid (sum)</span>
+              <span className="fm-kpi-value">{formatInr(totals.paid)}</span>
             </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Expenses (sum)</div>
-              <div className="heading-xl tabular">{formatInr(totals.expenses)}</div>
+            <div className="fm-kpi">
+              <span className="fm-kpi-label">Expenses (sum)</span>
+              <span className="fm-kpi-value">{formatInr(totals.expenses)}</span>
             </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Net (sum)</div>
-              <div
-                className="heading-xl tabular"
-                style={{ color: totals.net < 0 ? 'var(--danger)' : undefined }}
-              >
-                {formatInr(totals.net)}
-              </div>
+            <div className="fm-kpi">
+              <span className="fm-kpi-label">Net (sum)</span>
+              <span className="fm-kpi-value">{formatInr(totals.net)}</span>
+              {totals.net < 0 && <span className="fm-kpi-hint"><strong>Net loss</strong> across these matters</span>}
             </div>
-            <div>
-              <div className="eyebrow" style={{ marginBottom: 6 }}>Unprofitable matters</div>
-              <div className="heading-xl tabular">{totals.unprofitable}</div>
+            <div className="fm-kpi">
+              <span className="fm-kpi-label">Unprofitable matters</span>
+              <span className="fm-kpi-value">{totals.unprofitable}</span>
+              <span className="fm-kpi-hint">of {matters.length} scored</span>
             </div>
           </div>
 
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            <table className="tbl">
+          <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+            <table className="tbl fm-tbl">
               <thead>
                 <tr>
                   <th>Matter</th>
                   <th>Client</th>
-                  <th>Paid</th>
-                  <th>Expenses</th>
-                  <th>Net</th>
-                  <th>Margin</th>
+                  <th className="num">Paid</th>
+                  <th className="num">Expenses</th>
+                  <th className="num">Net</th>
+                  <th className="num">Margin</th>
                   <th>Last invoice</th>
                 </tr>
               </thead>
               <tbody>
                 {matters.length === 0 && (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={7} data-span="all">
                       <div className="col" style={{ padding: '28px 8px', alignItems: 'center', gap: 6 }}>
                         <div className="heading-sm">No matters to score</div>
                         <p className="body-sm muted">
@@ -330,29 +305,24 @@ function ProfitabilityTab() {
                   </tr>
                 )}
                 {matters.map((m) => {
-                  const rowStyle = m.isUnprofitable
-                    ? { background: 'var(--danger-bg)' }
-                    : undefined;
                   const marginText =
                     m.marginPct === null ? '-' : `${m.marginPct}%`;
                   return (
-                    <tr key={m.caseId} style={rowStyle}>
+                    <tr key={m.caseId} className={m.isUnprofitable ? 'is-flagged' : undefined}>
                       <td>
-                        <div style={{ fontWeight: 500 }}>
-                          <em className="case-name">{m.title}</em>
-                        </div>
+                        <em className="case-name fm-matter">{m.title}</em>
+                        {m.isUnprofitable && (
+                          <div style={{ marginTop: 4 }}><span className="fm-pill is-strong">Unprofitable</span></div>
+                        )}
                       </td>
-                      <td className="body-sm muted">{m.client}</td>
-                      <td className="mono tabular">{formatInr(m.paidInr)}</td>
-                      <td className="mono tabular">{formatInr(m.expensesInr)}</td>
-                      <td
-                        className="mono tabular"
-                        style={{ color: m.netInr < 0 ? 'var(--danger)' : undefined }}
-                      >
+                      <td className="muted">{m.client}</td>
+                      <td className="num">{formatInr(m.paidInr)}</td>
+                      <td className="num">{formatInr(m.expensesInr)}</td>
+                      <td className={`num${m.netInr < 0 ? ' fm-neg' : ''}`} style={{ fontFamily: 'var(--font-title)', fontSize: 15.5, fontWeight: 600 }}>
                         {formatInr(m.netInr)}
                       </td>
-                      <td className="mono tabular">{marginText}</td>
-                      <td className="body-sm muted">{m.lastInvoiceAt ?? '-'}</td>
+                      <td className="num">{marginText}</td>
+                      <td><span className="fm-date">{m.lastInvoiceAt ?? '-'}</span></td>
                     </tr>
                   );
                 })}
@@ -360,7 +330,7 @@ function ProfitabilityTab() {
             </table>
           </div>
 
-          <p className="body-xs muted">
+          <p className="fm-footnote">
             Invoices are matched to matters by client name; expenses by matter title.
             Once a real case_id column lands on both, these numbers tighten up.
           </p>

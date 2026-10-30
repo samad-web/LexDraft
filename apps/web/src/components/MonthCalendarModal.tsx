@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal } from './Modal';
 import { useCalendarMonth } from '@/hooks/useCalendar';
 import type { CalendarHearing, CalendarMonth } from '@lexdraft/types';
@@ -69,13 +69,13 @@ export function MonthCalendarModal({ open, onClose }: MonthCalendarModalProps) {
     >
       <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
         <button type="button" className="btn btn-sm" onClick={goPrev} aria-label="Previous month">
-          {'<'} Prev
+          <span aria-hidden>‹</span> Prev
         </button>
         <button type="button" className="btn btn-sm" onClick={goToday}>
           Today
         </button>
         <button type="button" className="btn btn-sm" onClick={goNext} aria-label="Next month">
-          Next {'>'}
+          Next <span aria-hidden>›</span>
         </button>
       </div>
 
@@ -94,7 +94,7 @@ export function MonthCalendarModal({ open, onClose }: MonthCalendarModalProps) {
   );
 }
 
-// ------- Month grid -----------------------------------------------------------
+/// ------- Month grid -----------------------------------------------------------
 
 function MonthGrid({
   data,
@@ -109,62 +109,28 @@ function MonthGrid({
 }) {
   // Leading blanks so the 1st of the month lands in the correct column.
   const leading = data && data.days[0] ? data.days[0].weekdayIndex : 0;
-
-  const gridStyle: CSSProperties = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: 6,
-  };
+  const today = new Intl.DateTimeFormat('en-CA').format(new Date());
 
   // Render placeholder cells with the same dimensions as real day cells so
   // the modal's vertical extent doesn't jump when data arrives.
   const showSkeleton = isLoading && !data;
 
   return (
-    <div>
-      <div style={gridStyle}>
-        {WEEKDAY_HEADERS.map((w) => (
-          <div
-            key={w}
-            className="mono"
-            style={{
-              fontSize: 11,
-              letterSpacing: '0.14em',
-              color: 'var(--text-tertiary)',
-              textAlign: 'center',
-              padding: '4px 0',
-              textTransform: 'uppercase',
-            }}
-          >
-            {w}
-          </div>
+    <div className="ct-cal ct-month ct-mcal">
+      <div className="ct-cal-grid">
+        {WEEKDAY_HEADERS.map((w, i) => (
+          <div key={w} className={`ct-cal-wd${i >= 5 ? ' is-weekend' : ''}`}>{w}</div>
         ))}
       </div>
-      <div style={gridStyle}>
+      <div className="ct-cal-grid">
         {showSkeleton && Array.from({ length: 35 }).map((_, i) => (
-          <div
-            key={`skel-${i}`}
-            aria-hidden
-            style={{
-              minHeight: 64,
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-md)',
-              opacity: 0.5,
-            }}
-          />
+          <span key={`skel-${i}`} aria-hidden className="ct-skel ct-cal-pad" />
         ))}
         {!showSkeleton && Array.from({ length: leading }).map((_, i) => (
-          <div key={`pad-${i}`} aria-hidden style={{ minHeight: 64 }} />
+          <div key={`pad-${i}`} aria-hidden className="ct-cal-pad" />
         ))}
         {!showSkeleton && (data?.days ?? []).map((d) => {
           const isSelected = d.date === selected;
-          const tone =
-            d.isToday
-              ? { bg: 'var(--text-primary)', fg: 'var(--bg-base)', border: 'var(--text-primary)' }
-              : isSelected
-                ? { bg: 'var(--bg-surface-2)', fg: 'var(--text-primary)', border: 'var(--text-primary)' }
-                : { bg: 'var(--bg-surface)',  fg: 'var(--text-primary)', border: 'var(--border-subtle)' };
           const hasHearings = d.count > 0;
           return (
             <button
@@ -173,44 +139,15 @@ function MonthGrid({
               onClick={() => onSelect(d.date)}
               aria-pressed={isSelected}
               aria-label={`${d.date}${d.count ? `, ${d.count} ${d.count === 1 ? 'hearing' : 'hearings'}` : ''}`}
-              style={{
-                appearance: 'none',
-                cursor: 'pointer',
-                background: tone.bg,
-                color: tone.fg,
-                border: `1px solid ${tone.border}`,
-                borderRadius: 'var(--radius-md)',
-                padding: '10px 8px',
-                minHeight: 60,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: 6,
-                transition: 'background 120ms, border-color 120ms',
-                textAlign: 'left',
-              }}
+              className={`ct-day${d.isToday ? ' is-today' : ''}${isSelected ? ' is-selected' : ''}${d.weekdayIndex >= 5 ? ' is-weekend' : ''}${d.date < today ? ' is-past' : ''}`}
             >
-              <span
-                className="mono tabular"
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  letterSpacing: 0,
-                }}
-              >
-                {Number(d.date.slice(8, 10))}
+              <span className="ct-day-top">
+                <span className="ct-day-num">{Number(d.date.slice(8, 10))}</span>
+                {hasHearings && <span className="ct-day-count">{d.count}</span>}
               </span>
               {hasHearings && (
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 10,
-                    letterSpacing: '0.12em',
-                    textTransform: 'uppercase',
-                    color: d.isToday ? 'var(--bg-base)' : 'var(--text-secondary)',
-                  }}
-                >
-                  {d.count} {d.count === 1 ? 'hearing' : 'hearings'}
+                <span className="ct-day-add" style={{ opacity: 1 }}>
+                  {d.count === 1 ? 'hearing' : 'hearings'}
                 </span>
               )}
             </button>
@@ -237,75 +174,37 @@ function DayHearingsPanel({
 
   if (!selected) {
     return (
-      <div
-        className="body-sm muted"
-        style={{
-          border: '1px dashed var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          padding: 16,
-          textAlign: 'center',
-        }}
-      >
-        Select a day to see its cause list.
+      <div className="ct-day-empty">
+        <p>Select a day to see its cause list.</p>
       </div>
     );
   }
 
+  const nice = new Date(selected + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
   return (
-    <div
-      style={{
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
-        padding: 16,
-        background: 'var(--bg-surface)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      <div className="row" style={{ alignItems: 'baseline', gap: 12 }}>
-        <span className="heading-md">{selected}</span>
-        <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-          {hearings.length} {hearings.length === 1 ? 'HEARING' : 'HEARINGS'}
-        </span>
+    <div className="ct-card ct-card-pad" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="ct-section-head">
+        <h3 className="ct-section-title" style={{ fontSize: 18 }}>{nice}</h3>
+        <span className="ct-rule" />
+        <span className="ct-section-count">{hearings.length} {hearings.length === 1 ? 'hearing' : 'hearings'}</span>
       </div>
 
       {hearings.length === 0 ? (
-        <p className="body-sm muted" style={{ margin: 0 }}>
+        <p className="ct-meta" style={{ margin: 0 }}>
           No hearings on this day.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="ct-agenda">
           {hearings.map((h, i) => (
-            <li
-              key={h.id ?? `${h.date}-${i}`}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '70px 1fr',
-                gap: 12,
-                alignItems: 'center',
-                padding: '8px 0',
-                borderBottom: i < hearings.length - 1 ? '1px solid var(--border-subtle)' : 'none',
-              }}
-            >
-              <span className="mono tabular" style={{ fontSize: 13, color: 'var(--text-primary)' }}>
-                {h.time || '--:--'}
+            <div key={h.id ?? `${h.date}-${i}`} className="ct-agenda-row" style={{ gridTemplateColumns: '64px minmax(0, 1fr)', cursor: 'default' }}>
+              <span className={`ct-time${h.time ? '' : ' is-empty'}`}>{h.time || '--:--'}</span>
+              <span className="col" style={{ gap: 3, minWidth: 0 }}>
+                <span className="ct-title">{h.case}</span>
+                <span className="ct-meta">{h.purpose}{h.purpose && h.court ? <span className="ct-meta-dot" /> : null}{h.court}</span>
               </span>
-              <div>
-                <div className="body-md" style={{ marginBottom: 2 }}>
-                  <em className="case-name">{h.case}</em>
-                </div>
-                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  <span className="body-sm">{h.purpose}</span>
-                  <span style={{ width: 3, height: 3, background: 'var(--text-tertiary)', borderRadius: '50%' }} />
-                  <span className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                    {h.court.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

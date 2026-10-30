@@ -146,17 +146,16 @@ export function DiaryAssistantBar({ onBriefing }: Props) {
   const patch = (p: Partial<DiaryEntryDraft>) => setDraft((d) => (d ? { ...d, ...p } : d));
 
   return (
-    <div className="card" style={{ padding: 'var(--space-5)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <form className="row" style={{ gap: 8, alignItems: 'center' }} onSubmit={submit}>
+    <div className="card ct-assist">
+      <form className="ct-assist-form" onSubmit={submit}>
         <span
           aria-hidden
-          style={{ display: 'inline-flex', color: 'var(--accent, var(--text-secondary))' }}
+          className="ct-icon-tile"
         >
-          <Icon name="chat" size={16} />
+          <Icon name="chat" size={15} />
         </span>
         <input
           className="input"
-          style={{ flex: 1 }}
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder='Tell the assistant… e.g. "log Mehta v. Skyline hearing tomorrow 11am at HC Karnataka, arguments" or "what’s on this week?"'
@@ -180,24 +179,15 @@ export function DiaryAssistantBar({ onBriefing }: Props) {
       </form>
 
       {proposal && draft && (
-        <div
-          className="col"
-          style={{
-            gap: 12,
-            padding: 'var(--space-4)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-surface-2)',
-          }}
-        >
+        <div className="ct-assist-proposal">
           <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <span className="badge badge-cobalt">Proposed</span>
+            <span className="ct-pill is-ink">Proposed</span>
             <span className="body-sm" style={{ color: 'var(--text-secondary)' }}>{proposal.confirmation}</span>
           </div>
 
           <div className="form-row">
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>MATTER *</span>
+              <span className="ct-flabel">MATTER *</span>
               <input
                 className="input"
                 value={draft.caseLabel}
@@ -207,15 +197,15 @@ export function DiaryAssistantBar({ onBriefing }: Props) {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>DATE</span>
+              <span className="ct-flabel">DATE</span>
               <DatePicker value={draft.date} onChange={(v) => patch({ date: v })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>TIME</span>
+              <span className="ct-flabel">TIME</span>
               <TimePicker value={draft.time} onChange={(v) => patch({ time: v })} />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>KIND</span>
+              <span className="ct-flabel">KIND</span>
               <Select
                 value={draft.kind}
                 onChange={(v) => patch({ kind: v as DiaryKind })}
@@ -223,15 +213,15 @@ export function DiaryAssistantBar({ onBriefing }: Props) {
               />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>CNR</span>
+              <span className="ct-flabel">CNR</span>
               <input className="input mono" value={draft.cnr} onChange={(e) => patch({ cnr: e.target.value })} placeholder="optional" />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>FORUM</span>
+              <span className="ct-flabel">FORUM</span>
               <input className="input" value={draft.forum} onChange={(e) => patch({ forum: e.target.value })} placeholder="e.g. High Court of Karnataka, Court Hall 12" />
             </label>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4, gridColumn: '1 / -1' }}>
-              <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>DETAIL</span>
+              <span className="ct-flabel">DETAIL</span>
               <input className="input" value={draft.detail} onChange={(e) => patch({ detail: e.target.value })} placeholder="Short note / purpose" />
             </label>
           </div>

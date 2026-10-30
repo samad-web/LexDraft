@@ -64,7 +64,7 @@ export function LField({ label, required, children, wide }: { label: string; req
     <label className="col" style={{ gap: 5, minWidth: 0, gridColumn: wide ? '1 / -1' : undefined }}>
       <span className="body-sm" style={{ fontWeight: 600 }}>
         {label}
-        {required ? <span aria-hidden style={{ color: 'var(--danger)', marginLeft: 2 }}>*</span> : null}
+        {required ? <span aria-hidden style={{ color: 'var(--text-primary)', marginLeft: 2 }}>*</span> : null}
       </span>
       {children}
     </label>

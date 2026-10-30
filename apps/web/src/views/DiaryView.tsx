@@ -62,6 +62,13 @@ function addDaysIso(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** "13 Nov 2026" - readable date for reminders and next dates. */
+function niceDate(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function formatHeading(iso: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -148,7 +155,7 @@ export function DiaryView() {
   }, [entries]);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ct ct-diary" style={{ gap: 24 }}>
       <PageHeader
         title="Court Diary"
         description="Hearings, judgments and filings by date, with next-date reminders."
@@ -236,52 +243,29 @@ export function DiaryView() {
 
       {reminders.length > 0 && (
         <section className="col" style={{ gap: 12 }}>
-          <div className="row" style={{ gap: 12 }}>
-            <div className="heading-md">Reminders</div>
-            <span className="hairline" style={{ flex: 1 }} />
-            <span className="mono body-xs muted tabular">
-              {reminders.length} upcoming
+          <div className="ct-section-head">
+            <h2 className="ct-section-title">Reminders</h2>
+            <span className="ct-rule" />
+            <span className="ct-section-count">
+              {reminders.length} upcoming{reminders.some((r) => r.due) ? ` · ${reminders.filter((r) => r.due).length} due` : ''}
             </span>
           </div>
-          <div className="card" style={{ padding: 0 }}>
-            {reminders.map(({ entry, remindOn, due }, idx) => (
-              <div
-                key={entry.id}
-                className="row"
-                style={{
-                  alignItems: 'center',
-                  gap: 16,
-                  padding: 'var(--space-4) var(--space-6)',
-                  borderBottom: idx === reminders.length - 1 ? 'none' : '1px solid var(--border-subtle)',
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'var(--bg-surface-2)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-full)',
-                    color: 'var(--text-secondary)',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Icon name="calendar" size={14} />
-                </div>
-                <div className="col" style={{ gap: 4, flex: 1, minWidth: 0 }}>
+          <div className="ct-card">
+            {reminders.map(({ entry, remindOn, due }) => (
+              <div key={entry.id} className="ct-remind">
+                <span className="ct-icon-tile"><Icon name="bell" size={15} /></span>
+                <div className="col" style={{ gap: 4, minWidth: 0 }}>
                   <div className="row" style={{ gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <em className="case-name" style={{ fontWeight: 500 }}>{entry.caseLabel}</em>
-                    {due && <span className="badge badge-amber">Due</span>}
+                    <span className="ct-title">{entry.caseLabel}</span>
+                    {due && <span className="ct-pill is-ink">Due</span>}
                   </div>
-                  <div className="body-sm" style={{ color: 'var(--text-secondary)' }}>
-                    Remind {offsetLabel(entry.reminderOffsetDays as number)} · Next hearing {entry.nextHearingDate}
+                  <div className="ct-meta">
+                    Remind {offsetLabel(entry.reminderOffsetDays as number)}<span className="ct-meta-dot" />Next hearing {niceDate(entry.nextHearingDate as string)}
                   </div>
                 </div>
-                <div className="mono body-xs muted tabular" title="Reminder date">
-                  {remindOn}
+                <div className="ct-remind-on" title="Reminder date">
+                  <b>{niceDate(remindOn)}</b>
+                  Remind on
                 </div>
               </div>
             ))}
@@ -289,7 +273,7 @@ export function DiaryView() {
         </section>
       )}
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+      <div className="ct-toolbar">
         {FILTERS.map((f) => (
           <button
             key={f.id}
@@ -299,6 +283,7 @@ export function DiaryView() {
             onClick={() => setFilter(f.id)}
           >
             {f.label}
+            {!isLoading && !isError && <span className="ct-chip-count">{f.id === 'all' ? entries.length : entries.filter((e) => e.kind === f.id).length}</span>}
           </button>
         ))}
       </div>
@@ -306,99 +291,64 @@ export function DiaryView() {
       <div className="col" style={{ gap: 28 }}>
         {pager.slice.map((g) => (
           <section key={g.date} className="col" style={{ gap: 12 }}>
-            <div className="row" style={{ gap: 12 }}>
-              <div className="heading-md">{formatHeading(g.date)}</div>
-              <span className="hairline" style={{ flex: 1 }} />
-              <span className="mono body-xs muted tabular">{g.entries.length} item{g.entries.length === 1 ? '' : 's'}</span>
+            <div className="ct-section-head">
+              <h2 className="ct-section-title">{formatHeading(g.date)}</h2>
+              <span className="ct-rule" />
+              <span className="ct-section-count">{g.entries.length} item{g.entries.length === 1 ? '' : 's'}</span>
             </div>
-            <div className="card" style={{ padding: 0 }}>
-              {g.entries.map((e, idx) => {
+            <div className="ct-card">
+              {g.entries.map((e) => {
                 const meta = KIND_META[e.kind];
                 return (
-                  <div
-                    key={e.id}
-                    className="row"
-                    style={{
-                      alignItems: 'flex-start',
-                      gap: 16,
-                      padding: 'var(--space-4) var(--space-6)',
-                      borderBottom:
-                        idx === g.entries.length - 1 ? 'none' : '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div
-                      className="mono tabular"
-                      style={{
-                        width: 56,
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        paddingTop: 2,
-                      }}
-                    >
-                      {e.time}
-                    </div>
-                    <div
-                      style={{
-                        width: 32,
-                        height: 32,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'var(--bg-surface-2)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-full)',
-                        color: 'var(--text-secondary)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Icon name={meta.icon} size={14} />
-                    </div>
-                    <div className="col" style={{ gap: 4, flex: 1, minWidth: 0 }}>
-                      <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-                        <em className="case-name" style={{ fontWeight: 500 }}>{e.caseLabel}</em>
-                        <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
+                  <div key={e.id} className="ct-erow">
+                    <div className={`ct-erow-time${e.time ? '' : ' is-empty'}`}>{e.time || 'No time'}</div>
+                    <span className="ct-icon-tile" aria-hidden><Icon name={meta.icon} size={15} /></span>
+                    <div className="ct-erow-body">
+                      <div className="ct-erow-head">
+                        <span className="ct-title">{e.caseLabel}</span>
+                        <span className={`ct-pill${e.kind === 'judgment' ? ' is-strong' : ''}`}>{meta.label}</span>
                       </div>
-                      <div className="body-sm" style={{ color: 'var(--text-primary)' }}>
-                        {e.detail}
-                      </div>
-                      <div className="row" style={{ gap: 10 }}>
-                        <span className="mono body-xs muted tabular">{e.cnr}</span>
-                        <span className="body-xs muted">·</span>
-                        <span className="body-xs muted">{e.forum}</span>
+                      {e.detail && <div className="ct-erow-detail">{e.detail}</div>}
+                      <div className="ct-meta">
+                        {e.cnr && <span className="ct-code">{e.cnr}</span>}
+                        {e.cnr && e.forum && <span className="ct-meta-dot" />}
+                        {e.forum}
+                        {e.bench && <><span className="ct-meta-dot" />{e.bench}</>}
+                        {e.nextHearingDate && <><span className="ct-meta-dot" />Next date {niceDate(e.nextHearingDate)}</>}
                       </div>
                     </div>
-                    {e.kind === 'hearing' && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() =>
-                          setCoverageDefaults({
-                            caseLabel: e.caseLabel,
-                            court: e.forum,
-                            hearingDate: e.date,
-                            hearingTime: e.time,
-                            purpose: e.detail,
-                          })
-                        }
-                        title="Post this hearing to the coverage board"
-                      >
-                        <Icon name="members" size={12} /> Request coverage
-                      </button>
-                    )}
-                    {e.kind === 'judgment' && e.attachmentFileName && (
-                      <div className="row" style={{ gap: 6 }}>
+                    <div className="ct-erow-actions">
+                      {e.kind === 'hearing' && (
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          onClick={() => setInsightEntry({ id: e.id, fileName: e.attachmentFileName! })}
-                          title="AI summary, holding & follow-ups"
+                          onClick={() =>
+                            setCoverageDefaults({
+                              caseLabel: e.caseLabel,
+                              court: e.forum,
+                              hearingDate: e.date,
+                              hearingTime: e.time,
+                              purpose: e.detail,
+                            })
+                          }
+                          title="Post this hearing to the coverage board"
                         >
-                          <Icon name="research" size={12} /> Analyze
+                          <Icon name="members" size={12} /> Request coverage
                         </button>
-                        <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
-                      </div>
-                    )}
-                    <div className="row" style={{ gap: 4 }}>
+                      )}
+                      {e.kind === 'judgment' && e.attachmentFileName && (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setInsightEntry({ id: e.id, fileName: e.attachmentFileName! })}
+                            title="AI summary, holding & follow-ups"
+                          >
+                            <Icon name="research" size={12} /> Analyze
+                          </button>
+                          <JudgmentAttachmentButton entryId={e.id} fileName={e.attachmentFileName} />
+                        </>
+                      )}
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -406,7 +356,7 @@ export function DiaryView() {
                         title="Edit this diary entry"
                         aria-label="Edit diary entry"
                       >
-                        <Icon name="edit" size={12} />
+                        <Icon name="edit" size={13} />
                       </button>
                       <button
                         type="button"
@@ -415,7 +365,7 @@ export function DiaryView() {
                         title="Delete this diary entry"
                         aria-label="Delete diary entry"
                       >
-                        <Icon name="trash" size={12} />
+                        <Icon name="trash" size={13} />
                       </button>
                     </div>
                   </div>
@@ -425,8 +375,17 @@ export function DiaryView() {
           </section>
         ))}
         {isLoading && (
-          <div className="card" style={{ textAlign: 'center', padding: 'var(--space-9)' }}>
-            <p className="body-md muted">Loading diary<span className="blink" /></p>
+          <div className="ct-card ct-loading-row" aria-busy="true" aria-label="Loading diary">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} className="row" style={{ gap: 16 }}>
+                <span className="ct-skel" style={{ width: 44, height: 14 }} />
+                <span className="ct-skel" style={{ width: 34, height: 34 }} />
+                <div className="col" style={{ gap: 8, flex: 1 }}>
+                  <span className="ct-skel" style={{ width: '40%', height: 14 }} />
+                  <span className="ct-skel" style={{ width: '70%', height: 12 }} />
+                </div>
+              </div>
+            ))}
           </div>
         )}
         {isError && !isLoading && (

@@ -5,6 +5,7 @@ import type { CreateClauseRequest } from '@lexdraft/types';
 import { useImportClauses } from '@/hooks/useClauses';
 import { useUIStore } from '@/store/ui';
 import { useModalA11y } from '@/hooks/useModalA11y';
+import { Icon } from '@lexdraft/ui';
 
 interface ImportClausesModalProps {
   open: boolean;
@@ -210,36 +211,27 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
       }}
     >
       <div
+        className="ai-sheet ai-sheet--wide"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 28,
-          width: 'min(720px, 100%)',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
       >
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Import clauses</div>
-          <h3 id="import-clauses-title" className="display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em' }}>
+        <div className="ai-sheet-head">
+          <div className="ai-eyebrow">Import clauses</div>
+          <h3 id="import-clauses-title" className="ai-sheet-title">
             Bulk add to clause bank
           </h3>
-          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          <p className="ai-sheet-desc">
             Duplicates (same category + title, case-insensitive) are skipped.
           </p>
         </div>
 
         {/* tabs */}
-        <div className="pill-nav" style={{ alignSelf: 'flex-start' }}>
+        <div className="ai-seg" role="tablist" aria-label="Import format">
           {(['json', 'csv', 'docx'] as const).map((t) => (
             <button
               key={t}
               type="button"
+              role="tab"
+              aria-selected={tab === t}
               className={tab === t ? 'active' : ''}
               onClick={() => handleTabChange(t)}
             >
@@ -262,48 +254,48 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
               />
             </Field>
             <Field label="DOCX FILE">
-              <input type="file" accept=".docx" onChange={handleFile} className="input" style={{ padding: '8px 12px' }} />
+              <input type="file" accept=".docx" onChange={handleFile} className="input ai-file-input" />
             </Field>
             {text && <div className="body-sm muted">{text}</div>}
           </>
         ) : (
           <>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="ai-import-file">
               <input
                 type="file"
                 accept={tab === 'json' ? '.json,application/json' : '.csv,text/csv'}
                 onChange={handleFile}
-                className="input"
-                style={{ padding: '8px 12px', maxWidth: 300 }}
+                className="input ai-file-input"
               />
               <span className="muted body-sm">or paste below</span>
             </div>
             <Field label={tab === 'json' ? 'JSON' : 'CSV'}>
               <textarea
-                className="input mono"
+                className="input mono ai-code-input"
                 rows={tab === 'json' ? 12 : 8}
                 value={text}
                 onChange={(e) => handleTextChange(e.target.value)}
                 placeholder={tab === 'json' ? JSON_SAMPLE : CSV_SAMPLE}
-                style={{ fontSize: 12 }}
               />
             </Field>
           </>
         )}
 
         {parseError && (
-          <div className="body-sm" style={{ color: 'var(--danger)' }}>
-            ⚠ {parseError}
+          <div className="ai-note ai-note--strong" role="alert">
+            <Icon name="flag" size={14} />
+            <span>{parseError}</span>
           </div>
         )}
 
         {parsed.length > 0 && (
-          <div className="card" style={{ padding: 12, background: 'var(--bg-surface-2)' }}>
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Preview · {parsed.length} clause{parsed.length === 1 ? '' : 's'}</div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflow: 'auto' }}>
+          <div className="ai-import-preview">
+            <div className="ai-eyebrow">Preview · {parsed.length} clause{parsed.length === 1 ? '' : 's'}</div>
+            <ul>
               {parsed.slice(0, 20).map((c, i) => (
-                <li key={i} style={{ fontSize: 13 }}>
-                  <span className="mono muted" style={{ fontSize: 11 }}>{c.category}</span> · {c.title}
+                <li key={i}>
+                  <span className="ai-import-cat">{c.category}</span>
+                  <span className="ai-import-title">{c.title}</span>
                 </li>
               ))}
               {parsed.length > 20 && (
@@ -313,8 +305,8 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="btn" onClick={onClose}>Cancel</button>
+        <div className="ai-sheet-foot">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button
             type="button"
             className="btn btn-primary"
@@ -331,8 +323,8 @@ export function ImportClausesModal({ open, onClose }: ImportClausesModalProps) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
+    <label className="ai-field">
+      <span className="field-label">{label}</span>
       {children}
     </label>
   );

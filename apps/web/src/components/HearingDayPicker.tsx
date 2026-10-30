@@ -253,12 +253,12 @@ export function HearingDayPicker({ value, onChange, min, max, disabled, placehol
           role="dialog"
           aria-label="Choose a day"
           id={panelId}
-          className="select-menu datepicker-panel"
+          className="select-menu datepicker-panel ct-hday"
           style={{ ...panelStyle, padding: 'var(--space-3)', zIndex: 1000 }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
             <button type="button" className="datepicker-nav" onClick={goPrev} aria-label="Previous month">‹</button>
-            <span className="body-sm" style={{ fontWeight: 500 }}>{MONTHS[cursor.m]} {cursor.y}</span>
+            <span className="ct-hday-title">{MONTHS[cursor.m]} {cursor.y}</span>
             <button type="button" className="datepicker-nav" onClick={goNext} aria-label="Next month">›</button>
           </div>
 

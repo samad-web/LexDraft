@@ -48,12 +48,13 @@ export function EmptyState({
   return (
     <div
       role="status"
-      className={isCard ? 'card' : undefined}
+      className={isCard ? 'card empty-state empty-state--card' : 'empty-state empty-state--inline'}
       style={isCard ? cardStyle : inlineStyle}
     >
       {icon && isCard && (
         <span
           aria-hidden
+          className="empty-state-icon"
           style={{
             width: 44,
             height: 44,
@@ -69,7 +70,7 @@ export function EmptyState({
           <Icon name={icon} size={20} />
         </span>
       )}
-      <div className={isCard ? 'heading-sm' : 'heading-sm'} style={{ marginTop: isCard ? 2 : 0 }}>
+      <div className="heading-sm empty-state-title" style={{ marginTop: isCard ? 2 : 0 }}>
         {title}
       </div>
       {description && (

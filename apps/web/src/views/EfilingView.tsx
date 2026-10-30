@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { FilingsList } from '@/components/efiling/FilingsList';
 import { FilingDetail } from '@/components/efiling/FilingDetail';
@@ -16,7 +16,8 @@ import {
   type PortalModule,
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
-import { useEfilingFilings } from '@/hooks/useEfiling';
+import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, usePortalLists, type PortalList } from '@/hooks/useEfiling';
+import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 
 // =============================================================================
@@ -182,6 +183,27 @@ export function EfilingView() {
   const { data: filings } = useEfilingFilings();
   const objectionCount = (filings ?? []).filter((f) => f.status === 'objected').length;
 
+  // eFiling starts with the advocate's own portal login, as on the portal.
+  const connection = useEfilingPortalStore((s) => s.connection);
+  const offline = useEfilingPortalStore((s) => s.offline);
+  const setOffline = useEfilingPortalStore((s) => s.setOffline);
+  const disconnect = useEfilingPortalStore((s) => s.disconnect);
+  const endSession = useEndEfilingSession();
+  const status = useEfilingSessionStatus(connection?.sessionId ?? null);
+  const [ended, setEnded] = useState(false);
+  // The keep-alive found no session (DifAi restarted, idle timeout, portal
+  // logged it out): back to the login.
+  const lost = Boolean(connection && status.isError);
+  useEffect(() => {
+    if (!lost) return;
+    disconnect();
+    setEnded(true);
+  }, [lost, disconnect]);
+  const logOut = () => {
+    if (connection) endSession.mutate(connection.sessionId);
+    disconnect();
+  };
+
   const go = (next: Menu, extra: Record<string, string | null> = {}) => {
     const p = new URLSearchParams();
     if (next !== 'dashboard') p.set('m', next);
@@ -194,12 +216,32 @@ export function EfilingView() {
   // A filing opened from a list, a notification or a link: show it in full.
   const showDetail = Boolean(filingId) && !['new_case', 'pleadings', 'oath', 'payments', 'wallet', 'applications', 'submitted_ias'].includes(m);
 
+  if (!connection && !offline) {
+    return (
+      <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
+        <PageHeader title="eFiling" description="Log in with your own eFiling account to start, as on filing.ecourts.gov.in." />
+        <section className="card col" style={{ gap: 14, maxWidth: 640 }} aria-label="eFiling login">
+          <h2 className="heading-md">eFiling Services · Sign In</h2>
+          {ended ? <p className="body-sm" role="status">Your eFiling session ended. Log in again to continue.</p> : null}
+          {/* Logged in: the screen that was asked for (?m=, ?filing=) opens, else the Dashboard. */}
+          <PortalLoginPanel onConnected={() => setEnded(false)} />
+          <div className="row" style={{ gap: 8, alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: 12 }}>
+            <span className="body-sm muted" style={{ flex: 1 }}>No eFiling login handy? You can still prepare filings and log in later.</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without logging in</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
       <PageHeader
         title="eFiling"
         description="Laid out like the eFiling 3.0 portal: prepare filings here, file on the portal, and track them until registered."
       />
+
+      <ConnectionBar connection={connection} onLogOut={logOut} onLogIn={() => setOffline(false)} pending={endSession.isPending} />
 
       <nav
         aria-label="eFiling menu"
@@ -228,7 +270,12 @@ export function EfilingView() {
           <FilingDetail filingId={filingId!} onClose={() => go(m)} />
         ) : (
           <>
-            {m === 'dashboard' ? <EfilingDashboard onOpen={open} onNav={(x) => go(x)} /> : null}
+            {/* Logged in: the dashboard IS the portal's - its tiles, its numbers, its lists. */}
+            {m === 'dashboard' && connection ? (
+              <PortalDashboard sessionId={connection.sessionId} preparedCount={(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length}
+                onNewCase={() => go('new_case')} onPrepared={() => go('filings')} />
+            ) : null}
+            {m === 'dashboard' && !connection ? <EfilingDashboard onOpen={open} onNav={(x) => go(x)} /> : null}
             {m === 'new_case' ? (
               <NewCaseFiling
                 key={caseParam ?? 'new'}
@@ -256,6 +303,128 @@ export function EfilingView() {
           </>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Who is connected to the portal - or that DifAi is preparing offline. */
+function ConnectionBar({ connection, onLogOut, onLogIn, pending }: {
+  connection: PortalConnection | null;
+  onLogOut: () => void;
+  onLogIn: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="card row" role="status" aria-label="eFiling connection" style={{ gap: 10, padding: '10px 14px', alignItems: 'center', flexWrap: 'wrap' }}>
+      <span className={`dot ${connection ? 'dot-sage' : ''}`} aria-hidden />
+      <span className="body-sm" style={{ flex: 1 }}>
+        {connection
+          ? <>Connected to filing.ecourts.gov.in as <strong>{connection.username}</strong>{connection.stateName ? ` · ${connection.stateName}` : ''}</>
+          : <>Not connected to the eFiling portal. You can prepare filings; log in to file them.</>}
+      </span>
+      {connection
+        ? <button type="button" className="btn btn-ghost btn-sm" onClick={onLogOut} disabled={pending}>Log out of eFiling</button>
+        : <button type="button" className="btn btn-primary btn-sm" onClick={onLogIn}>Log in to eFiling</button>}
+    </div>
+  );
+}
+
+/**
+ * The portal's own Dashboard, read over the advocate's session: the same six
+ * tiles in the same order and grouping (Draft / Completed Pleadings, Draft /
+ * Completed IAs, Objections, My Cases) with the portal's numbers; a tile opens
+ * the portal's own table. Case Filing drafts and eFiled cases from the portal
+ * follow, then what DifAi has prepared that isn't on the portal yet.
+ */
+function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
+  sessionId: string;
+  preparedCount: number;
+  onNewCase: () => void;
+  onPrepared: () => void;
+}) {
+  const { data, isLoading, isError, error, refetch, isFetching } = usePortalLists(sessionId);
+  const lists = data?.items ?? [];
+  const [open, setOpen] = useState<PortalList['key']>('draft_pleadings');
+  const byKey = (k: PortalList['key']) => lists.find((l) => l.key === k);
+  const shown = byKey(open) ?? null;
+  const tile = (k: PortalList['key'], label: string) => {
+    const l = byKey(k);
+    const on = open === k;
+    return (
+      <button
+        key={k}
+        type="button"
+        className="card"
+        aria-pressed={on}
+        onClick={() => setOpen(k)}
+        style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 150, flex: 1, cursor: 'pointer',
+          background: on ? 'var(--bg-inverse)' : undefined, color: on ? 'var(--text-inverse)' : undefined,
+        }}
+      >
+        <span className="body-sm" style={{ fontWeight: 700, color: 'inherit' }}>{label}</span>
+        <span style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>{isLoading ? '…' : l?.error ? '!' : l?.total ?? 0}</span>
+      </button>
+    );
+  };
+  const panel = (children: React.ReactNode) => (
+    <div className="row" style={{ gap: 10, padding: 10, borderRadius: 10, border: '1px solid var(--border-default)', background: 'var(--bg-surface-2, var(--bg-subtle))', flex: '2 1 320px' }}>{children}</div>
+  );
+  return (
+    <div className="col" style={{ gap: 16 }} aria-label="Your eFiling dashboard">
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span className="body-sm muted">From your account on filing.ecourts.gov.in</span>
+        <span className="row" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void refetch(); }} disabled={isFetching}>{isFetching ? 'Reading…' : 'Refresh from portal'}</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onNewCase}>+ New Case Filing</button>
+        </span>
+      </div>
+      {isError ? <p className="body-sm">{(error as Error)?.message || 'Could not read the portal right now.'}</p> : null}
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
+        {panel(<>{tile('draft_pleadings', 'Draft Pleadings')}{tile('completed_pleadings', 'Completed Pleadings')}</>)}
+        {panel(<>{tile('draft_ias', 'Draft IAs')}{tile('completed_ias', 'Completed IAs')}</>)}
+        <div className="row" style={{ gap: 10, flex: '2 1 320px' }}>{tile('objections', 'Objections')}{tile('my_cases', 'My Cases')}</div>
+      </div>
+      <section className="card col" style={{ gap: 10 }} aria-label={shown?.label ?? 'List'}>
+        <h3 className="heading-sm">{shown?.label ?? 'Draft Pleadings'}</h3>
+        {isLoading ? <p className="body-sm muted">Reading your dashboard from filing.ecourts.gov.in…</p> : shown ? <PortalListTable list={shown} /> : null}
+      </section>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+        {(['draft_cases', 'filed_cases'] as const).map((k) => {
+          const l = byKey(k);
+          return (
+            <button key={k} type="button" className="card row" onClick={() => setOpen(k)} aria-pressed={open === k}
+              style={{ flex: '1 1 240px', gap: 10, alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+              <span className="body-sm" style={{ fontWeight: 600 }}>Case Filing · {k === 'draft_cases' ? 'Draft Cases on the portal' : 'eFiled Cases'}</span>
+              <strong>{isLoading ? '…' : l?.error ? '!' : l?.total ?? 0}</strong>
+            </button>
+          );
+        })}
+        <button type="button" className="card row" onClick={onPrepared} style={{ flex: '1 1 240px', gap: 10, alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+          <span className="body-sm" style={{ fontWeight: 600 }}>Prepared in DifAi, not yet on the portal</span>
+          <strong>{preparedCount}</strong>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PortalListTable({ list }: { list: PortalList }) {
+  if (list.error) return <p className="body-sm">{list.label}: {list.error}</p>;
+  if (list.rows.length === 0) return <p className="body-sm muted">No {list.label.toLowerCase()} on your portal account.</p>;
+  const cols = Math.max(list.headers.length, ...list.rows.map((r) => ('cells' in r ? r.cells.length : 0)));
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tbl" aria-label={list.label}>
+        {list.headers.length ? <thead><tr>{list.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead> : null}
+        <tbody>
+          {list.rows.map((r, i) => ('group' in r ? (
+            <tr key={i}><td colSpan={cols} style={{ fontWeight: 700, textAlign: 'center' }}>{r.group}</td></tr>
+          ) : (
+            <tr key={i}>{r.cells.map((c, j) => <td key={j}>{c}</td>)}</tr>
+          )))}
+        </tbody>
+      </table>
     </div>
   );
 }

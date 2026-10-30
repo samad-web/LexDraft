@@ -84,3 +84,30 @@ def test_range_cutting_a_soft_broken_paragraph_returns_none():
     # Lines: 0 HEAD, 1 line one, 2 line two — replacing only line 1 would split it.
     assert splice_lines(buf.getvalue(), 1, 1, ["x"]) is None
     assert splice_lines(buf.getvalue(), 1, 2, ["x"]) is not None
+
+
+def test_body_never_inherits_a_bold_sub_heading():
+    # The s.138 complaint skeleton opens its body with BOLD sub-headings
+    # ("1. Description of the Complainant"); the composed pleading spliced over
+    # them must come out as plain justified body text, not bold.
+    src = _doc([
+        ("IN THE COURT OF THE JUDICIAL MAGISTRATE", WD_ALIGN_PARAGRAPH.CENTER, True),
+        ("1. Description of the Complainant", None, True),
+        ("Abdul Rahman, having his office at Chennai.", WD_ALIGN_PARAGRAPH.JUSTIFY, False),
+        ("2. Description of the Accused", None, True),
+        ("3. The Complainant humbly submits that the cheque was dishonoured.", WD_ALIGN_PARAGRAPH.JUSTIFY, False),
+        ("PRAYER", WD_ALIGN_PARAGRAPH.CENTER, True),
+    ])
+    body = ["1. The Complainant, Mr. Abdul Rahman, is the payee.", "2. The Accused is the drawer.",
+            "FACTS OF THE CASE", "3. On 10 January 2026 the Accused borrowed Rs. 5,00,000/-."]
+    out = splice_lines(src, 1, 4, body)
+    paras = [p for p in Document(io.BytesIO(out)).paragraphs if p.text.strip()]
+    by_text = {p.text: p for p in paras}
+    for t in (body[0], body[1], body[3]):
+        p = by_text[t]
+        assert not any(r.bold for r in p.runs), t
+        assert p.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY, t
+    assert any(r.bold for r in by_text["FACTS OF THE CASE"].runs)
+    assert [p.text for p in paras][0].startswith("IN THE COURT")
+    assert [p.text for p in paras][-1] == "PRAYER"
+    assert any(r.bold for r in paras[0].runs) and any(r.bold for r in paras[-1].runs)

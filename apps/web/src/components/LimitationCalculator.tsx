@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import type { LimitationCalculation, LimitationFilingType } from '@lexdraft/types';
+import { Icon } from '@lexdraft/ui';
 import {
   useCalculateLimitation,
   useComputeFromRule,
@@ -68,36 +69,30 @@ export function LimitationCalculator() {
   }
 
   return (
-    <div className="card" style={{ padding: 'var(--space-6, 24px)' }}>
-      <div style={{ marginBottom: 'var(--space-4, 16px)' }}>
-        <div className="eyebrow" style={{ marginBottom: 4 }}>Calculator</div>
-        <h2 className="heading-md" style={{ margin: 0 }}>Compute a deadline</h2>
-        <p className="body-sm muted" style={{ marginTop: 4, maxWidth: 540 }}>
+    <div className="card ct-calc">
+      <div className="ct-card-head" style={{ marginBottom: 16 }}>
+        <span className="ct-icon-tile" aria-hidden><Icon name="limitation" size={15} /></span>
+        <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+        <div className="ct-eyebrow" style={{ marginBottom: 2 }}>Calculator</div>
+        <h2 className="ct-card-title">Compute a deadline</h2>
+        <p className="ct-card-sub" style={{ maxWidth: 620 }}>
           Pick the cause of action and the trigger date. The calculator returns the statutory deadline,
           any compound milestones, and a citation. Always verify against the bare Act for the specific facts.
         </p>
+        </div>
+        <div className="ct-seg" role="tablist" aria-label="Calculate by">
+          <button type="button" role="tab" aria-selected={mode === 'filing'} onClick={() => setMode('filing')}>
+            By filing type
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'matter'} onClick={() => setMode('matter')}>
+            By matter type
+          </button>
+        </div>
       </div>
 
-      <div className="row" style={{ gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          className={`chip${mode === 'filing' ? ' active' : ''}`}
-          onClick={() => setMode('filing')}
-        >
-          By filing type
-        </button>
-        <button
-          type="button"
-          className={`chip${mode === 'matter' ? ' active' : ''}`}
-          onClick={() => setMode('matter')}
-        >
-          By matter type
-        </button>
-      </div>
-
-      <form onSubmit={onSubmit} className="row" style={{ gap: 'var(--space-3, 12px)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <form onSubmit={onSubmit} className="ct-calc-form">
         {mode === 'filing' && (
-          <label className="col" style={{ flex: '2 1 320px', gap: 6 }}>
+          <label>
             <span className="eyebrow">Filing type</span>
             <select
               value={filingTypeId}
@@ -119,7 +114,7 @@ export function LimitationCalculator() {
         )}
 
         {mode === 'matter' && (
-          <label className="col" style={{ flex: '2 1 320px', gap: 6 }}>
+          <label>
             <span className="eyebrow">Matter type</span>
             <select
               value={matterType}
@@ -143,7 +138,7 @@ export function LimitationCalculator() {
           </label>
         )}
 
-        <label className="col" style={{ flex: '1 1 200px', gap: 6 }}>
+        <label>
           <span className="eyebrow">
             {mode === 'filing'
               ? selected?.triggerLabel ?? 'Trigger date'
@@ -172,12 +167,12 @@ export function LimitationCalculator() {
       </form>
 
       {mode === 'filing' && calc.isError && (
-        <p style={{ marginTop: 'var(--space-3, 12px)', color: 'var(--danger)' }}>
+        <p className="ct-notice is-danger" style={{ marginTop: 14, marginBottom: 0 }}>
           Could not calculate. {(calc.error as Error)?.message ?? ''}
         </p>
       )}
       {mode === 'matter' && ruleCalc.isError && (
-        <p style={{ marginTop: 'var(--space-3, 12px)', color: 'var(--danger)' }}>
+        <p className="ct-notice is-danger" style={{ marginTop: 14, marginBottom: 0 }}>
           Could not calculate. {(ruleCalc.error as Error)?.message ?? ''}
         </p>
       )}
@@ -193,8 +188,8 @@ function RuleResult({ result }: { result: ComputeDeadlineResult }) {
   const critical = !expired && result.daysRemaining <= 7;
   const warning = !expired && !critical && result.daysRemaining <= 30;
   return (
-    <div className="col" style={{ gap: 'var(--space-4, 16px)', marginTop: 'var(--space-5, 20px)' }}>
-      <div className="row" style={{ gap: 'var(--space-4, 16px)', flexWrap: 'wrap' }}>
+    <div className="ct-calc-result">
+      <div className="ct-calc-stats">
         <Stat label="Deadline" value={result.deadline} mono />
         <Stat
           label="Days remaining"
@@ -217,8 +212,8 @@ function Result({ result }: { result: LimitationCalculation }) {
   const warning = !expired && !critical && result.daysRemaining <= 30;
 
   return (
-    <div className="col" style={{ gap: 'var(--space-4, 16px)', marginTop: 'var(--space-5, 20px)' }}>
-      <div className="row" style={{ gap: 'var(--space-4, 16px)', flexWrap: 'wrap' }}>
+    <div className="ct-calc-result">
+      <div className="ct-calc-stats">
         <Stat
           label="Deadline"
           value={result.deadline}
@@ -234,30 +229,17 @@ function Result({ result }: { result: LimitationCalculation }) {
       </div>
 
       {result.steps.length > 0 && (
-        <div className="card" style={{ padding: 0 }}>
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Milestone</th>
-                <th style={{ width: 130 }}>Date</th>
-                <th style={{ width: 130, textAlign: 'right' }}>From trigger</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.steps.map((s, i) => (
-                <tr key={i}>
-                  <td>
-                    <div className="col" style={{ gap: 2 }}>
-                      <span style={{ fontWeight: 500 }}>{s.label}</span>
-                      {s.notes && <span className="body-xs muted">{s.notes}</span>}
-                    </div>
-                  </td>
-                  <td className="mono tabular">{s.date}</td>
-                  <td className="mono tabular" style={{ textAlign: 'right' }}>+{s.daysFromTrigger}d</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="ct-steps">
+          {result.steps.map((s, i) => (
+            <div key={i} className="ct-step">
+              <div className="col" style={{ gap: 2, minWidth: 0 }}>
+                <span style={{ fontWeight: 500, fontSize: 13.5 }}>{s.label}</span>
+                {s.notes && <span className="body-xs muted">{s.notes}</span>}
+              </div>
+              <span className="ct-step-d">{s.date}</span>
+              <span className="ct-step-n">+{s.daysFromTrigger}d</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -282,58 +264,21 @@ function Stat(props: {
   small?: boolean;
   tone?: 'default' | 'danger' | 'warning';
 }) {
-  const colors = {
-    default: 'var(--text-primary)',
-    danger:  'var(--danger)',
-    warning: 'var(--warning)',
-  } as const;
+  const tone = props.tone === 'danger' ? ' is-critical' : props.tone === 'warning' ? ' is-warning' : '';
   return (
-    <div className="col" style={{ gap: 4, minWidth: 140 }}>
-      <span className="eyebrow">{props.label}</span>
-      <span
-        className={props.mono ? 'mono tabular' : ''}
-        style={{
-          fontSize: props.small ? 14 : 22,
-          fontWeight: 600,
-          color: colors[props.tone ?? 'default'],
-        }}
-      >
-        {props.value}
-      </span>
+    <div className={`ct-calc-stat${tone}`}>
+      <span className="ct-eyebrow">{props.label}</span>
+      <span className={`ct-calc-stat-v${props.small ? ' is-small' : ''}`}>{props.value}</span>
     </div>
   );
 }
 
 function Notice(props: { tone: 'info' | 'warning' | 'danger'; children: React.ReactNode }) {
-  const bg = props.tone === 'danger'
-    ? 'rgba(220, 38, 38, 0.06)'
-    : 'var(--bg-surface-2)';
-  const fg = props.tone === 'danger'
-    ? 'var(--danger)'
-    : props.tone === 'warning'
-      ? 'var(--warning)'
-      : 'var(--text-primary)';
   return (
-    <div
-      className="body-sm"
-      style={{
-        padding: '8px 12px',
-        borderRadius: 6,
-        background: bg,
-        color: fg,
-        border: '1px solid var(--border, transparent)',
-      }}
-    >
+    <div className={`ct-notice${props.tone === 'info' ? '' : ` is-${props.tone}`}`} role={props.tone === 'danger' ? 'alert' : undefined}>
       {props.children}
     </div>
   );
 }
 
-const selectStyle: React.CSSProperties = {
-  padding: '8px 10px',
-  border: '1px solid var(--border, #d4d4d8)',
-  borderRadius: 6,
-  background: 'var(--card, #fff)',
-  color: 'inherit',
-  fontSize: 14,
-};
+const selectStyle: React.CSSProperties = {};

@@ -11,13 +11,14 @@
 // See docs/conversational-intake-plan.md.
 // =============================================================================
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   IntakeState,
   IntakeStartRequest,
   IntakeReplyRequest,
   IntakeEditRequest,
   IntakeAttachRequest,
+  IntakeAttachmentFile,
 } from '@lexdraft/types';
 import { api } from '@/lib/api';
 
@@ -34,6 +35,22 @@ export function useIntakeStart() {
 export function useIntakeStartAuto() {
   return useMutation<IntakeState, Error, { message: string; instruction?: string }>({
     mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/start-auto', req),
+  });
+}
+
+/** Begin a conversation that drafts IN a format attached in the chat ("draft in
+ *  this format"). The file is read into a format for this conversation only. */
+export function useIntakeStartFormat() {
+  const qc = useQueryClient();
+  return useMutation<IntakeState, Error, { message: string; format: IntakeAttachmentFile; save?: boolean }>({
+    mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/start-format', req),
+    onSuccess: (s) => {
+      // "Save to my formats" adds it to the Formats library.
+      if (s.formatSave?.saved) {
+        qc.invalidateQueries({ queryKey: ['firm-formats'] });
+        qc.invalidateQueries({ queryKey: ['engine-status'] });
+      }
+    },
   });
 }
 

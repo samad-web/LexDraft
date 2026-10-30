@@ -42,12 +42,13 @@ const JURISDICTION_OPTIONS: SelectOption[] = [
   ...Object.entries(JURISDICTION_LABEL).map(([value, label]) => ({ value, label })),
 ];
 
+// Black & white: issued is ink-filled, in-flight states are outlined.
 const STATUS_BADGE_CLASS: Record<TitleReportStatus, string> = {
-  draft:     'badge-cream',
-  in_review: 'badge-amber',
-  finalised: 'badge-cobalt',
-  issued:    'badge-sage',
-  withdrawn: 'badge-vermillion',
+  draft:     'ai-pill',
+  in_review: 'ai-pill ai-pill--outline',
+  finalised: 'ai-pill ai-pill--outline',
+  issued:    'ai-pill ai-pill--solid',
+  withdrawn: 'ai-pill ai-pill--dashed',
 };
 
 const VERDICT_LABEL: Record<string, string> = {
@@ -100,6 +101,22 @@ export function TitleReportsView() {
           </button>
         }
       />
+
+      {items.length > 0 && !status && !jurisdiction && !q.trim() && (
+        <div className="ai-stats" role="list" aria-label="Reports by status">
+          {([
+            ['Drafts', items.filter((it) => it.status === 'draft').length],
+            ['In review', items.filter((it) => it.status === 'in_review').length],
+            ['Finalised', items.filter((it) => it.status === 'finalised').length],
+            ['Issued', items.filter((it) => it.status === 'issued').length],
+          ] as const).map(([label, n]) => (
+            <div key={label} className="ai-stat" role="listitem">
+              <span className="ai-stat-value">{n}</span>
+              <span className="ai-stat-label">{label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="tr-filters">
         <div className="tr-filter">
@@ -169,19 +186,19 @@ export function TitleReportsView() {
                   }
                 }}
               >
-                <div className="tr-col tr-col--num">
+                <div className="tr-col tr-col--num" data-label="Report">
                   <strong>{it.reportNumber}</strong>
                 </div>
                 <div className="tr-col tr-col--applicant">
                   <div className="tr-applicant">{it.applicantName}</div>
                   {it.bankName ? <div className="tr-bank">{it.bankName}</div> : null}
                 </div>
-                <div className="tr-col">{JURISDICTION_LABEL[it.jurisdictionState] ?? it.jurisdictionState}</div>
-                <div className="tr-col">
+                <div className="tr-col" data-label="Jurisdiction">{JURISDICTION_LABEL[it.jurisdictionState] ?? it.jurisdictionState}</div>
+                <div className="tr-col" data-label="Status">
                   <span className={`badge ${STATUS_BADGE_CLASS[it.status]}`}>{STATUS_LABEL[it.status]}</span>
                 </div>
-                <div className="tr-col">{VERDICT_LABEL[it.opinionVerdict] ?? it.opinionVerdict}</div>
-                <div className="tr-col tr-col--date">{formatRelative(it.updatedAt)}</div>
+                <div className="tr-col" data-label="Opinion">{VERDICT_LABEL[it.opinionVerdict] ?? it.opinionVerdict}</div>
+                <div className="tr-col tr-col--date" data-label="Updated">{formatRelative(it.updatedAt)}</div>
               </li>
             ))}
           </ul>

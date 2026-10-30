@@ -26,30 +26,15 @@ export function LetterheadsPanel() {
   const personalItems = data?.personalItems ?? [];
 
   return (
-    <div className="col" style={{ gap: 28 }}>
+    <div className="fm-lh">
       {/* Effective default banner */}
       {data?.effectiveDefault && (
-        <div
-          className="card"
-          style={{
-            padding: 14,
-            background: 'var(--bg-surface-2)',
-            borderLeft: '3px solid var(--text-primary)',
-          }}
-        >
-          <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
-            <span
-              className="mono"
-              style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
-            >
-              ACTIVE DEFAULT
-            </span>
-            <strong>{data.effectiveDefault.name}</strong>
-            <span className="body-sm muted">
-              · {data.effectiveDefault.ownerUserId ? 'Personal' : 'Firm'} ·{' '}
-              applied to your exports automatically
-            </span>
-          </div>
+        <div className="fm-lh-default">
+          <span className="fm-eyebrow">Active default</span>
+          <span className="fm-lh-default-name">{data.effectiveDefault.name}</span>
+          <span className="fm-lh-default-note">
+            {data.effectiveDefault.ownerUserId ? 'Personal' : 'Firm'} · applied to your exports automatically
+          </span>
         </div>
       )}
 
@@ -106,42 +91,31 @@ function Section({
   emptyText,
 }: SectionProps) {
   return (
-    <div className="col" style={{ gap: 12 }}>
-      <div className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div className="heading-md" style={{ marginBottom: 2 }}>
-            {title}
-          </div>
-          <div className="body-sm muted">{subtitle}</div>
+    <section className="fm-lh-section">
+      <div className="fm-lh-head">
+        <div>
+          <h2 className="fm-panel-title" style={{ margin: 0 }}>{title}</h2>
+          <p className="fm-panel-sub">{subtitle}</p>
         </div>
         <button className="btn btn-sm" type="button" onClick={onCreate}>
           <Icon name="plus" size={14} /> New letterhead
         </button>
       </div>
 
-      {loading && (
-        <div className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-          Loading…
-        </div>
-      )}
+      {loading && <div className="fm-status-sub">Loading…</div>}
 
       {!loading && items.length === 0 && (
-        <div
-          className="card"
-          style={{ padding: 16, color: 'var(--text-tertiary)', fontSize: 13 }}
-        >
-          {emptyText}
-        </div>
+        <div className="fm-lh-empty">{emptyText}</div>
       )}
 
       {!loading && items.length > 0 && (
-        <div className="grid-auto-lg" style={{ gap: 12 }}>
+        <div className="fm-lh-grid">
           {items.map((l) => (
             <LetterheadCard key={l.id} letterhead={l} onEdit={() => onEdit(l.id)} />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -183,46 +157,29 @@ function LetterheadCard({
   };
 
   return (
-    <div
-      className="card"
-      style={{
-        padding: 12,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
+    <div className="fm-lh-card">
       {/* Mini preview - letterheads with a logo show a placeholder until the
           GET URL resolves; the editor renders the live logo via useLogoUrl. */}
-      <LetterheadPreview
-        templateKey={letterhead.templateKey}
-        fields={letterhead.fields}
-        logoUrl={null}
-        scaleToWidth={260}
-      />
-
-      <div className="row" style={{ alignItems: 'baseline', gap: 6 }}>
-        <strong style={{ fontSize: 13 }}>{letterhead.name}</strong>
-        {letterhead.isDefault && (
-          <span
-            className="badge badge-sage"
-            style={{ fontSize: 10, padding: '2px 6px' }}
-          >
-            DEFAULT
-          </span>
-        )}
+      <div className="fm-lh-paper">
+        <LetterheadPreview
+          templateKey={letterhead.templateKey}
+          fields={letterhead.fields}
+          logoUrl={null}
+          scaleToWidth={240}
+        />
       </div>
 
-      <div
-        className="mono"
-        style={{ fontSize: 10, color: 'var(--text-tertiary)' }}
-      >
-        {letterhead.templateKey.replace(/-/g, ' ').toUpperCase()}
+      <div className="fm-lh-meta">
+        <div className="fm-lh-name">
+          {letterhead.name}
+          {letterhead.isDefault && <span className="fm-pill is-solid">Default</span>}
+        </div>
+        <div className="fm-lh-tpl">{letterhead.templateKey.replace(/-/g, ' ')}</div>
       </div>
 
-      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+      <div className="fm-lh-actions">
         <button className="btn btn-ghost btn-sm" onClick={onEdit}>
-          Edit
+          <Icon name="edit" size={13} /> Edit
         </button>
         {!letterhead.isDefault && (
           <button
@@ -236,7 +193,7 @@ function LetterheadCard({
         {confirmingDelete ? (
           <>
             <button
-              className="btn btn-oxblood btn-sm"
+              className="btn btn-danger btn-sm is-end"
               onClick={() => void handleDelete()}
               disabled={remove.isPending}
             >
@@ -251,11 +208,12 @@ function LetterheadCard({
           </>
         ) : (
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm is-end"
             onClick={() => setConfirmingDelete(true)}
-            style={{ color: 'var(--danger)', marginLeft: 'auto' }}
+            aria-label={`Delete ${letterhead.name}`}
+            title="Delete"
           >
-            <Icon name="close" size={12} />
+            <Icon name="trash" size={13} />
           </button>
         )}
       </div>

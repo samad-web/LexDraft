@@ -297,9 +297,9 @@ function CalcSheet({
 
   return (
     <div className="col" style={{ gap: 12 }}>
-      <div style={calcBoxStyle}>
-        <div className="row" style={{ alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--border-subtle)', minHeight: 48 }}>
-          <span className="eyebrow">Calculation</span>
+      <div style={calcBoxStyle} className="ai-calc-sheet">
+        <div className="row" style={{ alignItems: 'center', gap: 8, padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', minHeight: 50 }}>
+          <span className="ai-panel-title" style={{ fontSize: 17 }}>Calculation</span>
           {edited && <span className="badge">Edited</span>}
           <span className="spacer" />
           {edited && (
@@ -425,9 +425,9 @@ function CalcSheet({
           </span>
         </div>
 
-        <div className="row" style={{ alignItems: 'center', gap: 12, padding: '16px 14px', background: 'var(--bg-surface-2)' }}>
-          <div className="col" style={{ gap: 2 }}>
-            <span className="body-sm" style={{ fontWeight: 600 }}>{totalLabel}</span>
+        <div className="ai-calc-totalrow">
+          <div className="col" style={{ gap: 4, minWidth: 0 }}>
+            <span className="ai-eyebrow">{totalLabel}</span>
             {edited && total !== estimate && (
               <span className="body-xs muted">
                 Schedule figure <span className="mono tabular">₹{formatINR(estimate)}</span>
@@ -435,7 +435,7 @@ function CalcSheet({
             )}
           </div>
           <span className="spacer" />
-          <span className="display-md tabular">₹{formatINR(total)}</span>
+          <span className="ai-calc-total">₹{formatINR(total)}</span>
         </div>
       </div>
 
@@ -479,7 +479,7 @@ export function CalculatorsView() {
   const { data: states = [], isLoading: statesLoading, isError: statesError } = useCalculatorStates();
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ai-calc" style={{ gap: 24 }}>
       <PageHeader
         title="Court Fee & Stamp Duty"
         description={`Estimate court fees and stamp duty across ${states.length || 36} states, then adjust the calculation to match the actual schedule.`}
@@ -511,8 +511,8 @@ export function CalculatorsView() {
       )}
 
       {!statesLoading && !statesError && states.length > 0 && (
-        <div className="card">
-          <div className="row" style={{ alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="card ai-calc-card">
+          <div className="row ai-calc-tabs" style={{ alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <PillNav items={TABS} value={tab} onChange={setTab} ariaLabel="Calculator type" />
           </div>
           {tab === 'court-fee'  && <CourtFeePanel  states={states} />}
@@ -557,7 +557,7 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
     <div className="calc-layout">
       <div className="col" style={{ gap: 16 }}>
         <div>
-          <label className="label" htmlFor="cf-state">State</label>
+          <label className="field-label ai-calc-label" htmlFor="cf-state">State</label>
           <Select
             id="cf-state"
             value={stateCode}
@@ -566,7 +566,7 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor="cf-value">Matter value (INR)</label>
+          <label className="field-label ai-calc-label" htmlFor="cf-value">Matter value (INR)</label>
           <input
             id="cf-value"
             className="input tabular"
@@ -581,7 +581,7 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
             Plaint valuation per Order VII, CPC.
           </div>
           {valueStr.trim() === '' && (
-            <div className="body-xs" style={{ marginTop: 2, color: 'var(--warning)' }}>
+            <div className="body-xs" style={{ marginTop: 2, color: 'var(--text-primary)', fontWeight: 600 }}>
               Empty: calculating against ₹0.
             </div>
           )}
@@ -590,10 +590,10 @@ function CourtFeePanel({ states }: { states: StateRef[] }) {
 
       <div style={{ minWidth: 0 }}>
       {isFetching && !data && (
-        <div className="body-sm muted">Calculating…</div>
+        <div className="ai-note" role="status"><span className="lex-spinner" aria-hidden /><span>Calculating…</span></div>
       )}
       {errMsg && (
-        <div className="body-sm" style={{ color: 'var(--danger)' }}>{errMsg}</div>
+        <div className="ai-note ai-note--strong" role="alert"><Icon name="flag" size={14} /><span>{errMsg}</span></div>
       )}
       {data && !errMsg && (
         <CalcSheet
@@ -681,7 +681,7 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
     <div className="calc-layout">
       <div className="col" style={{ gap: 16 }}>
         <div>
-          <label className="label" htmlFor="sd-state">State</label>
+          <label className="field-label ai-calc-label" htmlFor="sd-state">State</label>
           <Select
             id="sd-state"
             value={stateCode}
@@ -690,7 +690,7 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor="sd-inst">Instrument</label>
+          <label className="field-label ai-calc-label" htmlFor="sd-inst">Instrument</label>
           <Select
             id="sd-inst"
             value={safeInstrument}
@@ -699,7 +699,7 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor="sd-value">Consideration / value (INR)</label>
+          <label className="field-label ai-calc-label" htmlFor="sd-value">Consideration / value (INR)</label>
           <input
             id="sd-value"
             className="input tabular"
@@ -714,13 +714,13 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
             Ignored for fixed-duty instruments (e.g. affidavit).
           </div>
           {valueStr.trim() === '' && (
-            <div className="body-xs" style={{ marginTop: 2, color: 'var(--warning)' }}>
+            <div className="body-xs" style={{ marginTop: 2, color: 'var(--text-primary)', fontWeight: 600 }}>
               Empty: calculating against ₹0.
             </div>
           )}
         </div>
         <div>
-          <label className="label" htmlFor="sd-market">Market value (INR, optional)</label>
+          <label className="field-label ai-calc-label" htmlFor="sd-market">Market value (INR, optional)</label>
           <input
             id="sd-market"
             className="input tabular"
@@ -742,10 +742,10 @@ function StampDutyPanel({ states }: { states: StateRef[] }) {
 
       <div style={{ minWidth: 0 }}>
       {isFetching && !data && (
-        <div className="body-sm muted">Calculating…</div>
+        <div className="ai-note" role="status"><span className="lex-spinner" aria-hidden /><span>Calculating…</span></div>
       )}
       {errMsg && (
-        <div className="body-sm" style={{ color: 'var(--danger)' }}>{errMsg}</div>
+        <div className="ai-note ai-note--strong" role="alert"><Icon name="flag" size={14} /><span>{errMsg}</span></div>
       )}
       {data && !errMsg && (
         <CalcSheet

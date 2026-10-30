@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Select } from '@lexdraft/ui';
+import { Icon, Select } from '@lexdraft/ui';
+
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts.length === 1 ? parts[0]!.slice(0, 2).toUpperCase() : (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
 import type { FirmCreateUserResponse, FirmManagedUser, UserStatus } from '@lexdraft/types';
 import {
   useFirmPracticeGroups,
@@ -45,15 +51,13 @@ export function ManageUsersPanel() {
   const pager = usePagination(filtered);
 
   if (users.isLoading || roles.isLoading) {
-    return <div className="muted">Loading users…</div>;
+    return <div className="fm-loading">Loading users…</div>;
   }
   if (users.isError) {
     return (
-      <div className="card" style={{ borderColor: 'var(--danger)' }}>
-        <div className="row" style={{ gap: 12 }}>
-          <span className="badge badge-vermillion">Error</span>
-          <span className="body-sm">{(users.error as Error)?.message ?? 'Failed to load users.'}</span>
-        </div>
+      <div className="fm-error" role="alert">
+        <span className="fm-error-mark" aria-hidden>!</span>
+        <span>{(users.error as Error)?.message ?? 'Failed to load users.'}</span>
       </div>
     );
   }
@@ -102,28 +106,32 @@ export function ManageUsersPanel() {
 
   return (
     <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div className="body-sm muted" style={{ flex: 1, minWidth: 200 }}>
+      <div className="fm-manage-intro">
+        <p>
           Add a member two ways: <strong>Add member</strong> creates the account immediately and they sign in
           with Google; <strong>Send invite</strong> sends a link where they sign in with Google and verify their WhatsApp number.
-        </div>
+        </p>
         <button type="button" className="btn" onClick={() => setInviteOpen(true)}>
-          + Send invite
+          <Icon name="mail" size={14} /> Send invite
         </button>
         <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-          + Add member
+          <Icon name="plus" size={14} /> Add member
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        <input
-          className="input"
-          style={{ flex: 1, minWidth: 220 }}
-          placeholder="Search by name or email…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <div style={{ width: 220 }}>
+      <div className="fm-filters">
+        <div className="fm-search">
+          <input
+            className="input"
+            type="search"
+            aria-label="Search members"
+            placeholder="Search by name or email…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <span className="fm-search-icon"><Icon name="search" size={14} /></span>
+        </div>
+        <div style={{ minWidth: 0 }}>
           <Select
             value={roleFilter}
             onChange={setRoleFilter}
@@ -133,7 +141,7 @@ export function ManageUsersPanel() {
             ]}
           />
         </div>
-        <div style={{ width: 180 }}>
+        <div style={{ minWidth: 0 }}>
           <Select
             value={statusFilter}
             onChange={(v) => setStatusFilter(v as UserStatus | '')}
@@ -148,43 +156,40 @@ export function ManageUsersPanel() {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
-          <div className="muted">
-            {users.data?.length === 0
-              ? 'No users in this firm yet - invite your first co-advocate from the Invitations tab.'
-              : 'No users match the current filters.'}
-          </div>
+        <div className="fm-empty-card">
+          {users.data?.length === 0
+            ? 'No users in this firm yet - invite your first co-advocate from the Invitations tab.'
+            : 'No users match the current filters.'}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
+          <table className="tbl fm-tbl">
             <thead>
               <tr>
                 <th>Member</th>
-                <th style={{ width: 200 }}>Role</th>
-                <th style={{ width: 200 }}>Practice group</th>
-                <th style={{ width: 130 }}>Status</th>
-                <th style={{ width: 140, textAlign: 'right' }}>Actions</th>
+                <th style={{ width: 210 }}>Role</th>
+                <th style={{ width: 210 }}>Practice group</th>
+                <th style={{ width: 120 }}>Status</th>
+                <th style={{ width: 130, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {pager.slice.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <div style={{ fontWeight: 500 }}>
-                      {u.name}
-                      {u.isSuperadmin && (
-                        <span
-                          className="badge badge-vermillion mono"
-                          style={{ marginLeft: 8, fontSize: 9 }}
-                          title="Platform superadmin"
-                        >
-                          PLATFORM
-                        </span>
-                      )}
-                    </div>
-                    <div className="mono muted" style={{ fontSize: 11, marginTop: 2 }}>
-                      {u.email}
+                    <div className="fm-user">
+                      <span className="fm-avatar is-sm" aria-hidden>{initialsOf(u.name)}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="fm-cell-title">
+                          {u.name}
+                          {u.isSuperadmin && (
+                            <span className="fm-pill is-solid" style={{ marginLeft: 8 }} title="Platform superadmin">
+                              Platform
+                            </span>
+                          )}
+                        </div>
+                        <div className="fm-user-email">{u.email}</div>
+                      </div>
                     </div>
                   </td>
                   <td>
@@ -209,12 +214,12 @@ export function ManageUsersPanel() {
                   </td>
                   <td>
                     <span
-                      className={`badge ${
+                      className={`fm-pill ${
                         u.status === 'active'
-                          ? 'badge-sage'
+                          ? 'is-solid'
                           : u.status === 'suspended'
-                            ? 'badge-amber'
-                            : 'badge-vermillion'
+                            ? 'is-dashed'
+                            : 'is-muted'
                       }`}
                     >
                       {u.status}
@@ -234,7 +239,7 @@ export function ManageUsersPanel() {
               ))}
             </tbody>
           </table>
-          <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+          <div className="fm-tbl-foot">
             <Pagination
               page={pager.page}
               totalPages={pager.totalPages}

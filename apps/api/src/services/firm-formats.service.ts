@@ -142,6 +142,20 @@ export const firmFormatsService = {
     return rows[0] ? fromRow(rows[0]) : null;
   },
 
+  /** The APPROVED format saved from this exact file (by content hash), for this
+   *  firm only — so the same file attached again is not read (and paid for) twice. */
+  async getBySourceHash(firmId: string | null, sha256: string): Promise<FirmFormat | null> {
+    if (!firmId || !sha256) return null;
+    const sql = db();
+    if (!sql) return null;
+    const rows = await sql<Row[]>`
+      select ${sql.unsafe(COLS)} from firm_engine_formats
+      where firm_id = ${firmId}::uuid and source_sha256 = ${sha256} and status = 'approved'
+      order by approved_at desc nulls last
+      limit 1`;
+    return rows[0] ? fromRow(rows[0]) : null;
+  },
+
   /**
    * Save a reviewed format as APPROVED (the advocate approves at save time, after
    * checking the preview). Throws FirmFormatConflictError when the firm already

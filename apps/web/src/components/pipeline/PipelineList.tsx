@@ -335,7 +335,6 @@ export function PipelineList({ caseId }: { caseId: string }) {
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"
-                          style={{ color: 'var(--danger)' }}
                           disabled={deleteNode.isPending}
                           onClick={() => {
                             deleteNode.mutate(n.id, { onError: (e) => err(e, 'Could not delete stage') });

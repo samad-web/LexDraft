@@ -20,7 +20,7 @@ import { logger } from '../logger';
 import { withRetry } from '../lib/retry';
 import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 import { anthropic, usageFrom, asRetryError } from '../lib/anthropic-client';
-import { grok, asRetryError as asGrokRetryError } from '../lib/grok-client';
+import { grok, outputLimit, asRetryError as asGrokRetryError } from '../lib/grok-client';
 
 type Provider = 'xai' | 'anthropic' | 'none';
 
@@ -140,7 +140,7 @@ async function callGrok(system: string, user: string, maxTokens: number, model: 
       try {
         res = await grok().chat.completions.create({
           model,
-          max_tokens: maxTokens,
+          ...outputLimit(maxTokens),
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: user },

@@ -155,6 +155,12 @@ export function normaliseComposedMarkdown(text: string): string {
 const NUMBERED = /^\s*(\d+)([A-Z]?)\s*[.)]\s/;
 const SUB_ITEM = /^\s+\S|^\s*(?:\([0-9a-z]{1,4}\)|[A-Z][.)]|[a-z][.)]|[ivx]+[.)])\s/;
 const PRAYER = /\bPRAYER\b|\bit is (?:therefore )?(?:most )?(?:humbly |respectfully )?prayed\b/i;
+/** An un-numbered all-capitals line: a section heading ("LIST OF DOCUMENTS"). */
+const SECTION_HEADING = (t: string): boolean => {
+  const letters = t.replace(/[^A-Za-z]/g, '');
+  return letters.length >= 4 && t.trim().length <= 90
+    && letters.replace(/[^A-Z]/g, '').length / letters.length > 0.85;
+};
 
 export interface Segments {
   /** First line of the numbered run (the composed body starts here). */
@@ -176,9 +182,20 @@ export interface Segments {
 export function segmentBlocks(blocks: Array<{ text: string }>): Segments | null {
   const start = blocks.findIndex((b) => NUMBERED.test(b.text));
   if (start === -1) return null;
+  // The run may hold un-numbered lines between numbered ones (the s.138
+  // complaint's "1. Description of the Complainant" / address line / "humbly
+  // submits as follows:"): they belong to the body, else the composed body would
+  // replace only the first line and the skeleton body would print after it. The
+  // run ends at the last numbered line before a section heading (PRAYER, LIST OF
+  // DOCUMENTS …), an un-numbered prayer, or the Place / Date line.
   let end = start;
-  while (end + 1 < blocks.length && (NUMBERED.test(blocks[end + 1]!.text) || SUB_ITEM.test(blocks[end + 1]!.text))) {
-    end += 1;
+  for (let i = start + 1; i < blocks.length; i += 1) {
+    const t = blocks[i]!.text;
+    if (NUMBERED.test(t) || SUB_ITEM.test(t)) {
+      end = i;
+      continue;
+    }
+    if (SECTION_HEADING(t) || PRAYER.test(t) || /^\s*(?:Place|Date)\s*:/i.test(t)) break;
   }
   let bodyEnd = end;
   for (let i = start; i <= end; i += 1) {
@@ -189,6 +206,21 @@ export function segmentBlocks(blocks: Array<{ text: string }>): Segments | null 
   }
   if (bodyEnd < start) return null;
   return { start, bodyEnd, end, startNumber: Number(NUMBERED.exec(blocks[start]!.text)![1]) };
+}
+
+/**
+ * Number every body paragraph in sequence. A paragraph whose opening sentence the
+ * checks stripped loses its typed "6." with it; a pleading never has an
+ * un-numbered body paragraph. Sub-items "(a)", lead-ins ending in ":" and section
+ * headings stay as they are.
+ */
+export function numberBody(paragraphs: string[], first: number): string[] {
+  let n = first;
+  return paragraphs.map((p) => {
+    // (a numbered paragraph that introduces a list also ends in ":" — it is numbered)
+    if (SUB_ITEM.test(p) || (!NUMBERED.test(p) && /:\s*$/.test(p)) || SECTION_HEADING(p)) return p;
+    return `${n++}. ${p.replace(NUMBERED, '')}`;
+  });
 }
 
 /** Renumber the numbered prayer lines to continue after the composed body. */
@@ -227,7 +259,7 @@ const GUIDES: Record<ComposeFamily, string> = {
 2. The accused — and, where an accused is a company/firm, the persons in charge of and responsible for its business (Section 141), only if such facts are given.
 3. The transaction and the legally enforceable debt. 4. The cheque(s). 5. Presentation and dishonour (memo, reason).
 6. The statutory notice, its dispatch and service; failure to pay within 15 days. 7. The cause of action and when it arose.
-8. Territorial jurisdiction (the payee's bank branch). 9. Limitation — filed within one month of the cause of action.
+8. Territorial jurisdiction under Section 142(2)(a): the court where the branch of the bank in which the PAYEE (complainant) maintains the account — the collecting branch — is situated; never the drawee (accused's) bank branch, and name the collecting branch only as the skeleton or facts give it. 9. Limitation — filed within one month of the cause of action.
 10. The documents relied on and that the complainant will lead evidence.`,
   suit: `1. The parties' descriptions. 2. The facts in chronological order, each event in its own paragraph with dates and amounts.
 3. Any demand, notice and reply. 4. The cause of action and when and where it arose.
@@ -334,8 +366,11 @@ async function verify(args: {
 }
 
 function toParagraphs(text: string): string[] {
+  // A numbered paragraph or "(a)" sub-item on the very next line is its own
+  // paragraph too — else "(a) Cheque …\n4. The said cheque …" stays one
+  // paragraph that numberBody can't see into.
   return normaliseComposedMarkdown(text)
-    .split(/\n{2,}/)
+    .split(/\n{2,}|\n(?=\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))\s)/)
     .map((t) => t.trim())
     .filter(Boolean);
 }
@@ -415,6 +450,7 @@ export async function composeAndVerify(args: {
   const lost = lostParticulars(body, paragraphs.join('\n'));
   if (lost.length) return reject(`dropped from the skeleton: ${lost.map((p) => p.raw).join(', ')}`);
   if (!paragraphs.length) return reject('nothing left after checks');
+  paragraphs = numberBody(paragraphs, seg.startNumber);
 
   const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
   const spliced = [...paragraphs, ...prayer];

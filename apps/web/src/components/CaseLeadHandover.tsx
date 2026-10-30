@@ -55,32 +55,46 @@ export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTi
   };
 
   return (
-    <div className="card">
-      <div className="eyebrow" style={{ marginBottom: 8 }}>Assignment</div>
-      <h2 className="heading-md" style={{ marginBottom: 12 }}>Lead advocate</h2>
-      {canEdit ? (
-        <>
-          <Select
-            value={currentLeadId ?? ''}
-            onChange={onChange}
-            options={options}
-            disabled={setLead.isPending || teammates.isLoading}
-          />
-          <p className="body-xs muted" style={{ marginTop: 8 }}>
-            {isHead
-              ? 'As a firm head you can hand this matter to anyone.'
-              : 'You can hand off your own matter to a colleague.'}
-          </p>
-          {canHandOff && (
-            <button
-              type="button"
-              className="btn"
-              style={{ marginTop: 12 }}
-              onClick={() => setHandoffOpen(true)}
-            >
-              Hand off entire case…
-            </button>
+    <div className="card cs-lead">
+      <div className="cs-lead-grid">
+        <div style={{ minWidth: 0 }}>
+          <div className="cs-count">Assignment</div>
+          <h2 className="cs-card-title" style={{ marginTop: 6 }}>Lead advocate</h2>
+          {canEdit ? (
+            <p className="cs-card-sub">
+              {isHead
+                ? 'As a firm head you can hand this matter to anyone.'
+                : 'You can hand off your own matter to a colleague.'}
+            </p>
+          ) : (
+            <p className="cs-lead-name" style={{ margin: '8px 0 0' }}>
+              {lead.data ? `${lead.data.name} · ${lead.data.role}` : 'Unassigned'}
+            </p>
           )}
+        </div>
+        {canEdit && (
+          <div className="col" style={{ gap: 10, minWidth: 0 }}>
+            <Select
+              value={currentLeadId ?? ''}
+              onChange={onChange}
+              options={options}
+              disabled={setLead.isPending || teammates.isLoading}
+            />
+            {canHandOff && (
+              <button
+                type="button"
+                className="btn"
+                style={{ justifyContent: 'center' }}
+                onClick={() => setHandoffOpen(true)}
+              >
+                Hand off entire case…
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {canEdit && (
+        <>
           <HandOffCaseModal
             open={handoffOpen}
             onClose={() => setHandoffOpen(false)}
@@ -88,10 +102,6 @@ export function CaseLeadHandover({ caseId, caseTitle }: { caseId: string; caseTi
             caseTitle={caseTitle}
           />
         </>
-      ) : (
-        <p className="body-sm" style={{ margin: 0 }}>
-          {lead.data ? `${lead.data.name} · ${lead.data.role}` : 'Unassigned'}
-        </p>
       )}
     </div>
   );

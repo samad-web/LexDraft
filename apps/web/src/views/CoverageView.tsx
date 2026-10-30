@@ -145,7 +145,7 @@ export function CoverageView() {
   const isClaimer = (r: CoverageRequest): boolean => !!me && r.claimedBy === me.id;
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ct ct-coverage" style={{ gap: 24 }}>
       <PageHeader
         title="Coverage Board"
         description="Ask a colleague to cover a hearing you can't attend, or pick one up."
@@ -163,20 +163,12 @@ export function CoverageView() {
       <RequestCoverageModal open={modalOpen} onClose={() => setModalOpen(false)} />
 
       {isLoading && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
-          }}
-        >
+        <div className="ct-board is-3" style={{ ['--ct-cols' as string]: 3 }} aria-busy="true">
           {[0, 1, 2].map((c) => (
-            <div key={c} className="card" style={{ background: 'var(--bg-surface-2)', padding: 16, minHeight: 360 }}>
+            <div key={c} className="ct-col">
               <Skeleton width={120} height={14} />
-              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <Skeleton width="100%" height={80} radius="md" />
-                <Skeleton width="100%" height={80} radius="md" />
-              </div>
+              <Skeleton width="100%" height={110} radius="md" />
+              <Skeleton width="100%" height={110} radius="md" />
             </div>
           ))}
         </div>
@@ -198,94 +190,75 @@ export function CoverageView() {
       )}
 
       {!isLoading && !isError && requests.length > 0 && (
-        <div
-          className="kanban"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-            gap: 16,
-          }}
-        >
+        <div className="ct-kpis">
+          <div className="ct-kpi"><span className="ct-kpi-label">Needs cover</span><span className="ct-kpi-value">{grouped.open.length}</span><span className="ct-kpi-note">Open requests</span></div>
+          <div className="ct-kpi"><span className="ct-kpi-label">Covered</span><span className="ct-kpi-value">{grouped.claimed.length}</span><span className="ct-kpi-note">Counsel locked in</span></div>
+          <div className="ct-kpi"><span className="ct-kpi-label">Completed</span><span className="ct-kpi-value">{grouped.completed.length}</span><span className="ct-kpi-note">Hearings attended</span></div>
+        </div>
+      )}
+
+      {!isLoading && !isError && requests.length > 0 && (
+        <div className="ct-board is-3" style={{ ['--ct-cols' as string]: 3 }}>
           {COLUMNS.map((col) => {
             const cards = grouped[col.id];
             return (
-              <div
-                key={col.id}
-                style={{
-                  background: 'var(--bg-surface-2)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: 'var(--space-4)',
-                  minHeight: 420,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 12,
-                }}
-              >
-                <div className="row">
-                  <div className="col" style={{ gap: 2 }}>
-                    <span className="eyebrow">{col.label}</span>
-                    <span className="body-xs muted">{col.sub}</span>
+              <div key={col.id} className="ct-col">
+                <div className="ct-col-head">
+                  <div style={{ minWidth: 0 }}>
+                    <span className="ct-col-title">{col.label}</span>
+                    <span className="ct-col-sub">{col.sub}</span>
                   </div>
-                  <span className="spacer" />
-                  <span className="mono body-sm muted">{cards.length}</span>
+                  <span className="ct-col-count">{cards.length}</span>
                 </div>
-                <div className="col" style={{ gap: 10 }}>
-                  {cards.length === 0 && (
-                    <div className="body-sm muted" style={{ padding: 'var(--space-3)' }}>
-                      Nothing here yet.
-                    </div>
-                  )}
-                  {cards.map((r) => (
+                {cards.length === 0 && (
+                  <div className="ct-col-empty">Nothing here yet.</div>
+                )}
+                {cards.map((r) => {
+                  const dt = r.hearingDate ? new Date(r.hearingDate + 'T00:00:00') : null;
+                  const valid = dt && !Number.isNaN(dt.getTime());
+                  return (
                     <div
                       key={r.id}
-                      className="card card-hover"
+                      className="ct-tcard"
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setSelectedId(r.id)}
-                      style={{
-                        background: 'var(--bg-base)',
-                        padding: 'var(--space-4)',
-                        cursor: 'pointer',
-                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') setSelectedId(r.id); }}
                     >
-                      <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-                        <span className={`badge ${STATUS_BADGE[r.status]}`}>{STATUS_LABEL[r.status]}</span>
-                        <span className="spacer" />
-                        <span className="mono body-xs muted tabular">{formatDate(r.hearingDate)}</span>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 14,
-                          fontWeight: 500,
-                          lineHeight: 1.4,
-                          marginBottom: 6,
-                          color: 'var(--text-primary)',
-                        }}
-                      >
-                        {r.caseLabel}
-                      </div>
-                      <div className="body-sm muted" style={{ marginBottom: 10 }}>
-                        {r.court} · {r.hearingTime}
-                      </div>
-                      <div className="row" style={{ gap: 8 }}>
-                        <div className="avatar" style={{ width: 22, height: 22, fontSize: 10 }}>
-                          {initials(r.requestedByName)}
+                      <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
+                        <span className="ct-date" aria-label={formatDate(r.hearingDate)}>
+                          {valid ? (
+                            <>
+                              <span className="ct-date-wd">{dt!.toLocaleDateString('en-IN', { weekday: 'short' })}</span>
+                              <span className="ct-date-d">{dt!.getDate()}</span>
+                              <span className="ct-date-mo">{dt!.toLocaleDateString('en-IN', { month: 'short' })}</span>
+                            </>
+                          ) : <span className="ct-date-d">—</span>}
+                        </span>
+                        <div className="col" style={{ gap: 4, minWidth: 0, flex: 1 }}>
+                          <span className="ct-tcard-title">{r.caseLabel}</span>
+                          <span className="ct-meta">{r.court}</span>
+                          {r.purpose && <span className="ct-meta" style={{ color: 'var(--text-tertiary)' }}>{r.purpose}</span>}
                         </div>
-                        <span className="body-xs muted">
+                      </div>
+                      <div className="ct-tcard-foot">
+                        <div className="avatar" title={r.requestedByName ?? 'Unknown'}>{initials(r.requestedByName)}</div>
+                        <span className="ct-tcard-due" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {r.requestedByName ?? 'Unknown'}
                         </span>
                         {r.claimedByName && (
                           <>
-                            <span className="body-xs muted">→</span>
-                            <div className="avatar" style={{ width: 22, height: 22, fontSize: 10 }}>
-                              {initials(r.claimedByName)}
-                            </div>
-                            <span className="body-xs muted">{r.claimedByName}</span>
+                            <Icon name="arrow" size={12} />
+                            <div className="avatar" title={r.claimedByName}>{initials(r.claimedByName)}</div>
+                            <span className="ct-tcard-due">{r.claimedByName}</span>
                           </>
                         )}
+                        <span className="spacer" />
+                        <span className={`ct-time${r.hearingTime ? '' : ' is-empty'}`}>{r.hearingTime || '--:--'}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -294,34 +267,12 @@ export function CoverageView() {
 
       {selected && (
         <>
-          <div
-            onClick={() => setSelectedId(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.6)',
-              backdropFilter: 'blur(4px)',
-              zIndex: 60,
-            }}
-          />
-          <div
-            className="card"
-            style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: 'min(480px, 100vw)',
-              zIndex: 61,
-              padding: 'var(--space-7)',
-              overflowY: 'auto',
-              background: 'var(--bg-elevated)',
-              borderRadius: 0,
-              borderLeft: '1px solid var(--border-default)',
-            }}
-          >
-            <div className="row" style={{ marginBottom: 16 }}>
-              <span className={`badge ${STATUS_BADGE[selected.status]}`}>{STATUS_LABEL[selected.status]}</span>
+          <div className="ct-scrim" onClick={() => setSelectedId(null)} />
+          <aside className="ct-drawer" role="dialog" aria-modal="true" aria-label={selected.caseLabel}>
+            <div className="ct-drawer-top">
+              <span className={`ct-pill${selected.status === 'open' ? ' is-ink' : selected.status === 'claimed' ? ' is-strong' : selected.status === 'cancelled' ? ' is-quiet' : ''}`}>
+                {STATUS_LABEL[selected.status]}
+              </span>
               <span className="spacer" />
               <button
                 type="button"
@@ -332,70 +283,67 @@ export function CoverageView() {
                 <Icon name="close" size={14} />
               </button>
             </div>
-            <h2 className="heading-lg" style={{ marginBottom: 6 }}>{selected.caseLabel}</h2>
-            <div className="body-sm muted" style={{ marginBottom: 24 }}>
-              {selected.court}
+            <div>
+              <div className="ct-eyebrow">Coverage request</div>
+              <h2 className="ct-drawer-title" style={{ marginTop: 8 }}>{selected.caseLabel}</h2>
+              <p className="ct-drawer-sub">{selected.court}</p>
             </div>
 
-            <div className="grid-2" style={{ gap: 16, marginBottom: 20 }}>
-              <div>
-                <div className="label">Date</div>
-                <div className="mono body-md tabular">{formatDate(selected.hearingDate)}</div>
+            <div className="ct-facts">
+              <div className="ct-fact">
+                <span className="ct-eyebrow">Date</span>
+                <span className="ct-fact-value">{formatDate(selected.hearingDate)}</span>
               </div>
-              <div>
-                <div className="label">Time</div>
-                <div className="mono body-md tabular">{selected.hearingTime}</div>
+              <div className="ct-fact">
+                <span className="ct-eyebrow">Time</span>
+                <span className="ct-fact-value">{selected.hearingTime || '—'}</span>
               </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <div className="label">Purpose</div>
-                <div className="body-sm">{selected.purpose}</div>
+              <div className="ct-fact is-wide">
+                <span className="ct-eyebrow">Purpose</span>
+                <span className="ct-fact-value">{selected.purpose || '—'}</span>
               </div>
-              <div>
-                <div className="label">Requested by</div>
-                <div className="row" style={{ gap: 8 }}>
-                  <div className="avatar" style={{ width: 24, height: 24, fontSize: 10 }}>
-                    {initials(selected.requestedByName)}
-                  </div>
-                  <span className="body-sm">{selected.requestedByName ?? 'Unknown'}</span>
-                </div>
+              <div className="ct-fact">
+                <span className="ct-eyebrow">Requested by</span>
+                <span className="ct-fact-value">
+                  <span className="avatar">{initials(selected.requestedByName)}</span>
+                  {selected.requestedByName ?? 'Unknown'}
+                </span>
               </div>
-              <div>
-                <div className="label">Covered by</div>
+              <div className="ct-fact">
+                <span className="ct-eyebrow">Covered by</span>
                 {selected.claimedByName ? (
-                  <div className="row" style={{ gap: 8 }}>
-                    <div className="avatar" style={{ width: 24, height: 24, fontSize: 10 }}>
-                      {initials(selected.claimedByName)}
-                    </div>
-                    <span className="body-sm">{selected.claimedByName}</span>
-                  </div>
+                  <span className="ct-fact-value">
+                    <span className="avatar">{initials(selected.claimedByName)}</span>
+                    {selected.claimedByName}
+                  </span>
                 ) : (
-                  <span className="body-sm muted">- Not yet claimed -</span>
+                  <span className="ct-fact-value" style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}>Not yet claimed</span>
                 )}
               </div>
             </div>
 
             {selected.briefUrl && (
-              <div style={{ marginBottom: 16 }}>
-                <div className="label">Brief packet</div>
+              <div className="ct-drawer-block">
+                <span className="ct-eyebrow">Brief packet</span>
                 <a
                   href={selected.briefUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="body-sm"
-                  style={{ color: 'var(--accent)' }}
+                  style={{ color: 'var(--text-primary)', textDecoration: 'underline', textUnderlineOffset: 3, overflowWrap: 'anywhere' }}
                 >
                   {selected.briefUrl}
                 </a>
               </div>
             )}
             {selected.briefNotes && (
-              <div style={{ marginBottom: 24 }}>
-                <div className="label">Notes for covering counsel</div>
-                <p className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{selected.briefNotes}</p>
+              <div className="ct-drawer-block">
+                <span className="ct-eyebrow">Notes for covering counsel</span>
+                <p className="body-sm" style={{ whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.6 }}>{selected.briefNotes}</p>
               </div>
             )}
 
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <div className="ct-drawer-actions">
               {selected.status === 'open' && !isMine(selected) && (
                 <button
                   type="button"
@@ -427,14 +375,9 @@ export function CoverageView() {
                 </button>
               )}
             </div>
-          </div>
+          </aside>
         </>
       )}
-
-      <style>{`
-        @media (max-width: 1023px) { .kanban { grid-template-columns: repeat(2, 1fr) !important; } }
-        @media (max-width: 640px)  { .kanban { grid-template-columns: 1fr !important; } }
-      `}</style>
     </div>
   );
 }

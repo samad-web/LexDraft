@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Case, PhysicalDocStatus } from '@lexdraft/types';
+import { Icon } from '@lexdraft/ui';
 import { useCases } from '@/hooks/useCases';
 import { useCreatePhysicalDocument } from '@/hooks/usePhysicalDocuments';
 
@@ -78,13 +79,18 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
   return (
     <div role="dialog" aria-modal="true" aria-labelledby="phys-doc-title" style={overlay}>
       <div style={panel} className="card">
-        <div className="row" style={{ alignItems: 'baseline', marginBottom: 16 }}>
-          <h2 id="phys-doc-title" className="heading-lg">Add physical document</h2>
-          <span className="spacer" />
-          <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="Close">×</button>
+        <div className="row" style={{ alignItems: 'flex-start', marginBottom: 20, gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="fm-eyebrow">Register an original</div>
+            <h2 id="phys-doc-title" className="heading-lg" style={{ marginTop: 6 }}>Add physical document</h2>
+            <p className="fm-panel-sub">Record where the paper original is kept and who holds it.</p>
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="Close" style={{ width: 38, padding: 0, justifyContent: 'center' }}>
+            <Icon name="close" size={16} />
+          </button>
         </div>
 
-        <form onSubmit={onSubmit} className="col" style={{ gap: 12 }}>
+        <form onSubmit={onSubmit} className="col" style={{ gap: 14 }}>
           <div className="form-row">
             <Field label="File number" required>
               <input className="input" value={fileNo} onChange={(e) => setFileNo(e.target.value)} required maxLength={80} />
@@ -139,10 +145,15 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
             />
           </Field>
 
-          {error && <div role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{error}</div>}
+          {error && (
+            <div role="alert" className="fm-error">
+              <span className="fm-error-mark" aria-hidden>!</span>
+              <span>{error}</span>
+            </div>
+          )}
 
-          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
-            <button type="button" className="btn" onClick={onClose} disabled={create.isPending}>Cancel</button>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 8, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose} disabled={create.isPending}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={create.isPending}>
               {create.isPending ? 'Saving…' : 'Add document'}
             </button>
@@ -155,9 +166,9 @@ export function NewPhysicalDocModal({ open, onClose }: Props) {
 
 function Field(props: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="col" style={{ gap: 4 }}>
-      <span style={{ fontSize: 13, fontWeight: 500 }}>
-        {props.label} {props.required && <span style={{ color: 'var(--danger)' }}>*</span>}
+    <label className="col" style={{ gap: 6 }}>
+      <span className="field-label">
+        {props.label}{props.required && <span className="fm-req" aria-label="required">*</span>}
       </span>
       {props.children}
       {props.hint && <span className="muted" style={{ fontSize: 12 }}>{props.hint}</span>}

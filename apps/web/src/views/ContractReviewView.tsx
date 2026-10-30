@@ -54,12 +54,27 @@ const SEVERITY_TOKEN: Record<ReviewSeverity, StatusToken> = {
   Standard: 'success',
 };
 
+// Strictly black & white: severity is carried by weight, never colour.
+// Ink-filled = most serious, outline = moderate, dashed = absent/open, plain = fine.
 const TOKEN_TO_BADGE: Record<StatusToken, string> = {
-  danger: 'badge-vermillion',
-  warning: 'badge-amber',
-  info: 'badge-cobalt',
-  success: 'badge-sage',
+  danger: 'ai-pill ai-pill--solid',
+  warning: 'ai-pill ai-pill--outline',
+  info: 'ai-pill ai-pill--dashed',
+  success: 'ai-pill',
 };
+
+function StepHead({ n, title, done, children }: { n: number; title: string; done?: boolean; children?: React.ReactNode }) {
+  return (
+    <div className={`ai-step-head${done ? ' is-done' : ''}`}>
+      <span className="ai-step-num" aria-hidden>{done ? <Icon name="check" size={13} /> : n}</span>
+      <div className="ai-step-text">
+        <span className="ai-eyebrow">Step {n} of 3</span>
+        <h2 className="ai-step-title">{title}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
 
 function bucketOf(sev: ReviewSeverity): ResultTab {
   if (sev === 'Critical' || sev === 'High') return 'critical';
@@ -282,17 +297,18 @@ export function ContractReviewView() {
   const score = active?.riskScore ?? null;
   const risk = riskLabel(score);
 
+
   return (
     <div
       style={{ gap: 24 }}
-      className={sourceText.trim() ? 'contract-review-layout split-2' : 'contract-review-layout'}
+      className={sourceText.trim() ? 'ai-review contract-review-layout split-2' : 'ai-review contract-review-layout'}
     >
-    <div className="col stagger" style={{ gap: 24, minWidth: 0 }}>
+    <div className="col stagger" style={{ gap: 28, minWidth: 0 }}>
       <PageHeader
         title="Contract Review"
         description="Upload a contract, choose your side, and get a clause-by-clause risk score."
         actions={step === 3 ? (
-          <button className="btn btn-ghost" onClick={reset}>
+          <button className="btn" onClick={reset}>
             <Icon name="plus" size={14} /> New review
           </button>
         ) : undefined}
@@ -300,38 +316,24 @@ export function ContractReviewView() {
 
       {/* Step 1 - upload / paste */}
       {step < 3 && (
-        <div className="col" style={{ gap: 16 }}>
-          <div className="row" style={{ gap: 12 }}>
-            <span
-              className="mono"
-              style={{
-                fontSize: 11,
-                color: step >= 1 ? 'var(--text-primary)' : 'var(--text-tertiary)',
-              }}
-            >
-              STEP 01
-            </span>
-            <div className="heading-lg">Upload contract</div>
-            {fileName && <span className="badge badge-sage">{fileName}</span>}
-          </div>
+        <section className="ai-panel ai-review-step">
+          <StepHead n={1} title="Upload contract" done={step >= 2}>
+            {fileName && (
+              <span className="ai-file-chip" title={fileName}>
+                <Icon name="file" size={12} /> <span>{fileName}</span>
+              </span>
+            )}
+          </StepHead>
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-            style={{
-              border: '2px dashed var(--border-strong)',
-              borderRadius: 'var(--radius-lg)',
-              padding: 32,
-              textAlign: 'center',
-              background: fileName ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
-              cursor: 'pointer',
-              transition: 'all 150ms',
-            }}
+            className={`ai-drop${fileName ? ' has-file' : ''}`}
           >
-            <Icon name="upload" size={32} className="muted" />
-            <div className="heading-lg" style={{ marginTop: 12, marginBottom: 4 }}>
+            <span className="ai-drop-icon" aria-hidden><Icon name="upload" size={20} /></span>
+            <div className="ai-drop-title">
               {fileName ?? 'Drop a contract here'}
             </div>
-            <p className="body-md muted" style={{ marginBottom: 16 }}>
+            <p className="ai-drop-hint">
               {fileName
                 ? 'Drop another to replace, or edit the text in the box below'
                 : 'PDF, DOCX, or plain text - extracted in your browser, never uploaded as-is'}
@@ -347,109 +349,82 @@ export function ContractReviewView() {
             </label>
           </div>
           {parseHint && (
-            <div
-              className="card"
-              style={{
-                background: 'var(--info-bg, var(--bg-surface-2))',
-                borderLeft: '3px solid var(--info)',
-                padding: 12,
-                fontSize: 13,
-              }}
-            >
-              {parseHint}
+            <div className="ai-note" role="status" aria-live="polite">
+              <span className="lex-spinner" aria-hidden />
+              <span>{parseHint}</span>
             </div>
           )}
-          <label className="col" style={{ gap: 6 }}>
-            <span className="label">Or paste contract text</span>
+          <label className="ai-field">
+            <span className="field-label">Or paste contract text</span>
             <textarea
-              className="input"
+              className="input ai-review-text"
               rows={10}
               value={sourceText}
               placeholder="Paste the contract body here. The model reads up to ~120KB; longer documents are truncated."
               onChange={(e) => setSourceText(e.target.value)}
-              style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 12, lineHeight: 1.5 }}
             />
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+            <span className="ai-field-meta">
               {sourceText.length.toLocaleString()} chars
-            </div>
+            </span>
           </label>
-        </div>
+        </section>
       )}
 
       {/* Step 2 - perspective */}
       {step >= 2 && step < 3 && (
-        <div className="col" style={{ gap: 16 }}>
-          <div className="row" style={{ gap: 12 }}>
-            <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)' }}>
-              STEP 02
-            </span>
-            <div className="heading-lg">Whose side are you on?</div>
-          </div>
-          <div className="grid-4">
+        <section className="ai-panel ai-review-step">
+          <StepHead n={2} title="Whose side are you on?" done={!!perspective} />
+          <div className="ai-choices" role="group" aria-label="Perspective">
             {PERSPECTIVES.map((p) => {
               const activeOpt = perspective === p;
               return (
                 <button
                   key={p}
-                  className="card card-hover"
+                  type="button"
+                  className={`ai-choice${activeOpt ? ' is-active' : ''}`}
+                  aria-pressed={activeOpt}
                   onClick={() => setPerspective(p)}
-                  style={{
-                    padding: 22,
-                    textAlign: 'center',
-                    background: activeOpt ? 'var(--text-primary)' : 'var(--bg-surface)',
-                    color: activeOpt ? 'var(--bg-base)' : 'var(--text-primary)',
-                    borderColor: activeOpt ? 'var(--text-primary)' : 'var(--border-default)',
-                    cursor: 'pointer',
-                  }}
                 >
-                  <div className="heading-md" style={{ color: 'inherit', marginBottom: 4 }}>
-                    {p}
-                  </div>
-                  <div className="mono" style={{ fontSize: 10, opacity: 0.6 }}>
-                    REPRESENT
-                  </div>
+                  <span className="ai-choice-kicker">Represent</span>
+                  <span className="ai-choice-title">{p}</span>
                 </button>
               );
             })}
           </div>
           {perspective && (
-            <button
-              className="btn btn-primary btn-lg"
-              onClick={analyze}
-              disabled={createReview.isPending || extractDocument.isPending}
-              style={{ alignSelf: 'flex-start' }}
-            >
-              {extractDocument.isPending
-                ? 'Reading document…'
-                : createReview.isPending
-                  ? 'Sending…'
-                  : 'Analyze contract'}{' '}
-              <Icon name="arrow" size={14} />
-            </button>
+            <div className="ai-review-go">
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={analyze}
+                disabled={createReview.isPending || extractDocument.isPending}
+              >
+                {extractDocument.isPending
+                  ? 'Reading document…'
+                  : createReview.isPending
+                    ? 'Sending…'
+                    : 'Analyze contract'}{' '}
+                <Icon name="arrow" size={14} />
+              </button>
+              <span className="ai-review-go-note">
+                Reviewing for the <strong>{perspective}</strong> under Indian law.
+              </span>
+            </div>
           )}
-        </div>
+        </section>
       )}
 
       {/* Step 3 - results */}
       {step === 3 && (
         <div className="col" style={{ gap: 20 }}>
-          <div className="row" style={{ gap: 12 }}>
-            <span className="mono" style={{ fontSize: 11, color: 'var(--text-primary)' }}>
-              STEP 03
-            </span>
-            <div className="heading-lg">
-              Results
-              {active && ` · ${active.perspective} perspective`}
-            </div>
-          </div>
+          <StepHead n={3} title={active ? `Results · ${active.perspective} perspective` : 'Results'} />
 
           {isAnalyzing && (
-            <div className="card" style={{ padding: 60, textAlign: 'center' }}>
-              <div className="heading-lg" style={{ marginBottom: 8 }}>
-                Analyzing
-                <span className="blink" />
+            <div className="ai-state" role="status" aria-live="polite">
+              <span className="lex-spinner lex-spinner-lg" aria-hidden />
+              <div className="ai-state-title">
+                Analyzing<span className="blink" />
               </div>
-              <p className="body-md muted">
+              <p className="ai-state-body">
                 The model is reading the contract and cross-referencing Indian law. This usually
                 takes 10-30 seconds.
               </p>
@@ -457,17 +432,10 @@ export function ContractReviewView() {
           )}
 
           {isFailed && active && (
-            <div
-              className="card"
-              style={{
-                borderLeft: '3px solid var(--danger)',
-                padding: 20,
-              }}
-            >
-              <div className="heading-md" style={{ marginBottom: 6 }}>
-                Review failed
-              </div>
-              <p className="body-sm muted" style={{ marginBottom: 12 }}>
+            <div className="ai-state ai-state--alert" role="alert">
+              <span className="ai-state-icon" aria-hidden><Icon name="flag" size={18} /></span>
+              <div className="ai-state-title">Review failed</div>
+              <p className="ai-state-body">
                 {active.errorMessage ?? 'The analyzer returned an error.'}
               </p>
               <button className="btn" onClick={reset}>
@@ -479,96 +447,62 @@ export function ContractReviewView() {
           {!isAnalyzing && active && active.status === 'completed' && findings && (
             <>
               {active.provider === 'none' && (
-                <div
-                  className="card"
-                  style={{
-                    background: 'var(--bg-surface-2)',
-                    borderLeft: '3px solid var(--warning)',
-                    padding: 12,
-                    fontSize: 13,
-                  }}
-                >
-                  Demonstration only - no LLM provider configured on this server. The findings
-                  below are illustrative.
+                <div className="ai-note">
+                  <Icon name="flag" size={14} />
+                  <span>
+                    Demonstration only - no LLM provider configured on this server. The findings
+                    below are illustrative.
+                  </span>
                 </div>
               )}
 
-              <div className="card results-head">
-                <RiskGauge score={score ?? 0} />
-                <div>
-                  <div
-                    className="mono"
-                    style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 6 }}
-                  >
-                    RISK SCORE
+              <div className="ai-panel ai-risk">
+                <div className="ai-risk-gauge">
+                  <RiskGauge score={score ?? 0} />
+                  <div className="ai-risk-num">
+                    <span className="ai-figure">{score ?? '-'}</span>
+                    <small>/ 100</small>
                   </div>
-                  <div
-                    className="row"
-                    style={{ alignItems: 'baseline', gap: 8, marginBottom: 14 }}
-                  >
-                    <span className="mono tabular" style={{ fontSize: 64, fontWeight: 400 }}>
-                      {score ?? '-'}
-                    </span>
-                    <span
-                      className="mono"
-                      style={{ fontSize: 16, color: 'var(--text-tertiary)' }}
-                    >
-                      /100
-                    </span>
-                    <span className={`badge ${TOKEN_TO_BADGE[risk.token]}`} style={{ marginLeft: 8 }}>
-                      {risk.label}
-                    </span>
+                </div>
+                <div className="ai-risk-body">
+                  <div className="ai-risk-top">
+                    <span className="ai-eyebrow">Risk score</span>
+                    <span className={`badge ${TOKEN_TO_BADGE[risk.token]}`}>{risk.label}</span>
                   </div>
+                  <h3 className="ai-risk-title">{active.title}</h3>
                   {active.summary && (
-                    <p className="body-md" style={{ lineHeight: 1.6 }}>
+                    <p className="ai-risk-summary">
                       {active.summary}
                     </p>
                   )}
+                  <dl className="ai-risk-counts">
+                    {tabs.map((t) => (
+                      <div key={t.id}>
+                        <dt>{t.label}</dt>
+                        <dd>{t.count}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
               </div>
 
-              <div
-                style={{
-                  borderBottom: '1px solid var(--border-default)',
-                  overflowX: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <div className="row" style={{ gap: 0, minWidth: 'min-content' }}>
+              <WorkflowStrip review={active} />
+
+              <div className="ai-tabbar">
+                <div className="ai-tabs" role="tablist" aria-label="Findings by severity">
                   {tabs.map((t) => {
                     const isActive = resultTab === t.id;
                     return (
                       <button
                         key={t.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`ai-tab${isActive ? ' is-active' : ''}`}
                         onClick={() => setResultTab(t.id)}
-                        style={{
-                          padding: '14px 16px',
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                          background: 'transparent',
-                          border: 0,
-                          borderBottom: `2px solid ${
-                            isActive ? 'var(--text-primary)' : 'transparent'
-                          }`,
-                          whiteSpace: 'nowrap',
-                          cursor: 'pointer',
-                        }}
                       >
-                        {t.label}{' '}
-                        <span
-                          className="mono"
-                          style={{
-                            marginLeft: 6,
-                            color: `var(--${t.token})`,
-                            fontSize: 11,
-                          }}
-                        >
-                          {t.count}
-                        </span>
+                        {t.label}
+                        <span className="ai-tab-count">{t.count}</span>
                       </button>
                     );
                   })}
@@ -576,54 +510,19 @@ export function ContractReviewView() {
                 {/* Card vs redline toggle. Redline mode lays each finding out
                     as before/after columns so the rewrite is comparable at a
                     glance - the card view keeps the comment threads & details. */}
-                <div
-                  className="row"
-                  style={{
-                    gap: 0,
-                    padding: 2,
-                    background: 'var(--bg-surface-2)',
-                    borderRadius: 'var(--radius-md)',
-                    marginRight: 4,
-                  }}
-                >
-                  <button
-                    onClick={() => setRedlineMode(false)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: !redlineMode ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                      background: !redlineMode ? 'var(--bg-surface)' : 'transparent',
-                      border: 0,
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                    }}
-                  >
+                <div className="ai-seg ai-seg--sm" role="group" aria-label="View">
+                  <button type="button" className={!redlineMode ? 'active' : ''} aria-pressed={!redlineMode} onClick={() => setRedlineMode(false)}>
                     Cards
                   </button>
-                  <button
-                    onClick={() => setRedlineMode(true)}
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: redlineMode ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                      background: redlineMode ? 'var(--bg-surface)' : 'transparent',
-                      border: 0,
-                      borderRadius: 'var(--radius-sm)',
-                      cursor: 'pointer',
-                    }}
-                  >
+                  <button type="button" className={redlineMode ? 'active' : ''} aria-pressed={redlineMode} onClick={() => setRedlineMode(true)}>
                     Redline
                   </button>
                 </div>
               </div>
 
-              <WorkflowStrip review={active} />
-
               <div className="col" style={{ gap: 12 }}>
                 {findings[resultTab].length === 0 ? (
-                  <div className="card" style={{ padding: 20, color: 'var(--text-tertiary)' }}>
+                  <div className="ai-empty-line">
                     No findings in this bucket.
                   </div>
                 ) : redlineMode ? (
@@ -648,8 +547,6 @@ export function ContractReviewView() {
               <ReviewDiscussion reviewId={active.id} />
             </>
           )}
-
-          <style>{`@media (max-width: 767px) { .results-head { grid-template-columns: 1fr !important; text-align: center; } }`}</style>
         </div>
       )}
 
@@ -694,49 +591,41 @@ function HistoryPanel({ items, loading, activeId, onOpen, onRemove }: HistoryPan
   if (items.length === 0) return null;
 
   return (
-    <div className="col" style={{ gap: 12 }}>
-      <div className="heading-md">Prior reviews</div>
-      <div className="col" style={{ gap: 8 }}>
+    <section className="col" style={{ gap: 12 }}>
+      <div className="ai-section-head">
+        <h2 className="ai-section-title ai-section-title--sm">Prior reviews</h2>
+        <span className="ai-section-meta">{Math.min(items.length, 10)} most recent</span>
+      </div>
+      <div className="ai-list">
         {items.slice(0, 10).map((r) => {
           const risk = riskLabel(r.riskScore);
           const isActive = r.id === activeId;
           return (
             <div
               key={r.id}
-              className="card review-row"
-              style={{
-                padding: 14,
-                borderLeft: isActive
-                  ? '3px solid var(--text-primary)'
-                  : '3px solid transparent',
-              }}
+              className={`ai-list-row ai-history-row${isActive ? ' is-active' : ''}`}
             >
               <button
+                type="button"
+                className="ai-history-open"
                 onClick={() => onOpen(r.id)}
-                style={{
-                  background: 'transparent',
-                  border: 0,
-                  textAlign: 'left',
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
               >
-                <div style={{ fontWeight: 500, marginBottom: 2 }}>{r.title}</div>
-                <div
-                  className="mono"
-                  style={{ fontSize: 11, color: 'var(--text-tertiary)' }}
-                >
-                  {r.perspective.toUpperCase()} · {new Date(r.createdAt).toLocaleString()}
-                </div>
+                <span className="ai-list-title">{r.title}</span>
+                <span className="ai-list-meta">
+                  {r.perspective} · {new Date(r.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </span>
               </button>
-              <span className="mono" style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-                {r.status === 'completed' ? `${r.riskScore ?? '-'}/100` : r.status.toUpperCase()}
+              <span className="ai-history-score">
+                {r.status === 'completed'
+                  ? <><strong>{r.riskScore ?? '-'}</strong><small>/100</small></>
+                  : <small>{r.status.toUpperCase()}</small>}
               </span>
               <span className={`badge ${TOKEN_TO_BADGE[risk.token]}`}>{risk.label}</span>
               <button
-                className="btn btn-ghost btn-sm"
+                className="btn btn-ghost btn-sm ai-icon-btn"
                 onClick={() => void onRemove(r.id)}
                 title="Remove this review"
+                aria-label={`Remove ${r.title}`}
               >
                 <Icon name="close" size={14} />
               </button>
@@ -744,7 +633,7 @@ function HistoryPanel({ items, loading, activeId, onOpen, onRemove }: HistoryPan
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -752,8 +641,6 @@ function RiskGauge({ score }: { score: number }) {
   const r = 70;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - score / 100);
-  const stroke =
-    score < 40 ? 'var(--success)' : score < 70 ? 'var(--warning)' : 'var(--danger)';
   return (
     <svg
       width="160"
@@ -762,14 +649,15 @@ function RiskGauge({ score }: { score: number }) {
       style={{ transform: 'rotate(-90deg)' }}
       aria-label={`Risk score ${score} of 100`}
     >
-      <circle cx="80" cy="80" r={r} fill="none" stroke="var(--border-strong)" strokeWidth="6" />
+      <circle cx="80" cy="80" r={r} fill="none" stroke="var(--border-subtle)" strokeWidth="8" />
       <circle
         cx="80"
         cy="80"
         r={r}
         fill="none"
-        stroke={stroke}
-        strokeWidth="6"
+        stroke="var(--text-primary)"
+        strokeWidth="8"
+        strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={offset}
         style={{ transition: 'stroke-dashoffset 1.2s ease-out' }}
@@ -793,83 +681,30 @@ function RedlineRow({ finding }: { finding: ContractReviewFinding }) {
   const hasExcerpt = !!finding.excerpt && finding.excerpt.trim().length > 0;
 
   return (
-    <div
-      className="card redline-row"
-      style={{
-        borderLeft: `3px solid var(--${token})`,
-        padding: 16,
-        display: 'grid',
-        gap: 12,
-      }}
-    >
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+    <div className={`ai-finding ai-finding--${token} redline-row`}>
+      <div className="ai-finding-top">
         <span className={`badge ${badgeClass}`}>{finding.severity.toUpperCase()}</span>
-        {finding.law && <span className="badge">{finding.law}</span>}
-        <span className="heading-md" style={{ fontWeight: 500 }}>
-          {finding.title}
-        </span>
+        {finding.law && <span className="ai-law">{finding.law}</span>}
       </div>
-      <div
-        className={`redline-cols${hasExcerpt ? ' redline-cols-2' : ''}`}
-        style={{ gap: 12 }}
-      >
+      <h3 className="ai-finding-title">{finding.title}</h3>
+      <div className={`redline-cols${hasExcerpt ? ' redline-cols-2' : ''}`} style={{ gap: 12 }}>
         {hasExcerpt && (
           <div>
-            <div
-              className="mono"
-              style={{
-                fontSize: 11,
-                color: 'var(--text-tertiary)',
-                marginBottom: 6,
-              }}
-            >
-              ORIGINAL
-            </div>
-            <blockquote
-              className="mono"
-              style={{
-                background: 'var(--bg-surface-2)',
-                padding: 12,
-                fontSize: 12,
-                lineHeight: 1.6,
-                borderLeft: '2px solid var(--danger)',
-                borderRadius: 'var(--radius-sm)',
-                margin: 0,
-                whiteSpace: 'pre-wrap',
-                textDecoration: 'line-through',
-                textDecorationColor: 'var(--danger)',
-                textDecorationThickness: '1px',
-                opacity: 0.85,
-              }}
-            >
+            <div className="ai-eyebrow" style={{ marginBottom: 6 }}>Original</div>
+            <blockquote className="ai-quote ai-quote--struck">
               {finding.excerpt}
             </blockquote>
           </div>
         )}
         <div>
-          <div
-            className="mono"
-            style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 6 }}
-          >
-            {hasExcerpt ? 'SUGGESTED REWRITE' : 'MISSING CLAUSE - ADD'}
+          <div className="ai-eyebrow" style={{ marginBottom: 6 }}>
+            {hasExcerpt ? 'Suggested rewrite' : 'Missing clause - add'}
           </div>
-          <div
-            className="body-sm"
-            style={{
-              background: 'var(--success-bg, var(--bg-surface-2))',
-              padding: 12,
-              fontSize: 13,
-              lineHeight: 1.6,
-              borderLeft: '2px solid var(--success)',
-              borderRadius: 'var(--radius-sm)',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+          <div className="ai-rewrite">
             {finding.suggestion || '-'}
           </div>
         </div>
       </div>
-      <style>{`@media (max-width: 767px) { .redline-cols { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 }
@@ -898,73 +733,47 @@ function ClauseCard({ finding, findingIndex, reviewId }: ClauseCardProps) {
   const visibleCount = findingComments.filter((c) => !c.isDeleted).length;
 
   return (
-    <div className="card" style={{ borderLeft: `3px solid var(--${token})`, padding: 20 }}>
-      <div className="row" style={{ marginBottom: 10, gap: 8, flexWrap: 'wrap' }}>
+    <article className={`ai-finding ai-finding--${token}`}>
+      <div className="ai-finding-top">
         <span className={`badge ${badgeClass}`}>{finding.severity.toUpperCase()}</span>
-        {finding.law && <span className="badge">{finding.law}</span>}
-        <span className="spacer" />
+        {finding.law && <span className="ai-law">{finding.law}</span>}
       </div>
-      <div className="heading-md" style={{ marginBottom: 10 }}>
+      <h3 className="ai-finding-title">
         {finding.title}
-      </div>
+      </h3>
       {finding.excerpt && (
-        <blockquote
-          className="mono"
-          style={{
-            background: 'var(--bg-surface-2)',
-            padding: 12,
-            fontSize: 12,
-            lineHeight: 1.6,
-            borderLeft: '2px solid var(--border-strong)',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 12,
-            whiteSpace: 'pre-wrap',
-          }}
-        >
+        <blockquote className="ai-quote">
           {finding.excerpt}
         </blockquote>
       )}
-      <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+      <div className="ai-finding-actions">
         {finding.suggestion && (
           <button
-            className="btn btn-ghost btn-sm"
+            className={`ai-disclose${open ? ' is-open' : ''}`}
             onClick={() => setOpen(!open)}
-            style={{ padding: 0 }}
+            aria-expanded={open}
           >
             <Icon name={open ? 'chevronD' : 'chevron'} size={14} /> Suggested redline
           </button>
         )}
         <button
-          className="btn btn-ghost btn-sm"
+          className={`ai-disclose${commentsOpen ? ' is-open' : ''}`}
           onClick={() => setCommentsOpen((v) => !v)}
-          style={{ padding: 0 }}
+          aria-expanded={commentsOpen}
         >
           <Icon name={commentsOpen ? 'chevronD' : 'chevron'} size={14} /> Comments
           {visibleCount > 0 && (
-            <span className="mono" style={{ marginLeft: 6, color: 'var(--text-tertiary)' }}>
-              ({visibleCount})
-            </span>
+            <span className="ai-tab-count">{visibleCount}</span>
           )}
         </button>
       </div>
       {open && finding.suggestion && (
-        <div
-          className="body-sm"
-          style={{
-            background: 'var(--success-bg)',
-            color: 'var(--text-primary)',
-            padding: 14,
-            lineHeight: 1.6,
-            marginTop: 10,
-            borderLeft: '2px solid var(--success)',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
+        <div className="ai-rewrite">
           {finding.suggestion}
         </div>
       )}
       {commentsOpen && (
-        <div style={{ marginTop: 12 }}>
+        <div className="ai-finding-thread">
           <CommentThread
             reviewId={reviewId}
             findingIndex={findingIndex}
@@ -973,7 +782,7 @@ function ClauseCard({ finding, findingIndex, reviewId }: ClauseCardProps) {
           />
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -1023,19 +832,19 @@ function WorkflowStrip({ review }: { review: ContractReview }) {
   };
 
   return (
-    <div className="card status-row" style={{ padding: 16 }}>
-      <span className={`badge ${TOKEN_TO_BADGE[meta.token]}`}>{meta.label}</span>
+    <div className="ai-workflow">
+      <div className="ai-workflow-status">
+        <span className="ai-eyebrow">Decision</span>
+        <span className={`badge ${TOKEN_TO_BADGE[meta.token]}`}>{meta.label}</span>
+      </div>
 
-      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          REVIEWER
-        </span>
+      <label className="ai-workflow-reviewer">
+        <span className="ai-eyebrow">Reviewer</span>
         <select
           className="input"
           value={review.assignedTo?.id ?? ''}
           onChange={(e) => void handleAssign(e.target.value)}
           disabled={update.isPending || usersQuery.isLoading}
-          style={{ minWidth: 220 }}
         >
           <option value="">Unassigned</option>
           {(usersQuery.data?.items ?? []).map((u) => (
@@ -1045,17 +854,17 @@ function WorkflowStrip({ review }: { review: ContractReview }) {
           ))}
         </select>
         {review.decidedBy && review.decidedAt && (
-          <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-            decided by {review.decidedBy.name || review.decidedBy.email} ·{' '}
+          <span className="ai-workflow-decided">
+            Decided by {review.decidedBy.name || review.decidedBy.email} ·{' '}
             {new Date(review.decidedAt).toLocaleString()}
           </span>
         )}
-      </div>
+      </label>
 
-      <div className="row" style={{ gap: 8 }}>
+      <div className="ai-workflow-actions">
         {review.decision === 'approved' || review.decision === 'changes_requested' ? (
           <button
-            className="btn btn-ghost btn-sm"
+            className="btn btn-sm"
             disabled={update.isPending || !canDecide}
             onClick={() => void handleDecision(null)}
             title={canDecide ? 'Re-open this review' : 'Only the assignee can re-open'}
@@ -1078,7 +887,7 @@ function WorkflowStrip({ review }: { review: ContractReview }) {
               onClick={() => void handleDecision('approved')}
               title={canDecide ? 'Approve this review' : 'Only the assignee can approve'}
             >
-              Approve
+              <Icon name="check" size={13} /> Approve
             </button>
           </>
         )}
@@ -1100,11 +909,11 @@ function ReviewDiscussion({ reviewId }: { reviewId: string }) {
   const visibleCount = topLevel.filter((c) => !c.isDeleted).length;
 
   return (
-    <div className="col" style={{ gap: 12, marginTop: 12 }}>
-      <div className="row" style={{ alignItems: 'center', gap: 8 }}>
-        <div className="heading-md">Discussion</div>
+    <section className="ai-panel ai-discussion">
+      <div className="ai-section-head">
+        <h2 className="ai-section-title ai-section-title--sm">Discussion</h2>
         {visibleCount > 0 && (
-          <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+          <span className="ai-section-meta">
             {visibleCount} comment{visibleCount === 1 ? '' : 's'}
           </span>
         )}
@@ -1115,7 +924,7 @@ function ReviewDiscussion({ reviewId }: { reviewId: string }) {
         comments={topLevel}
         loading={commentsQuery.isLoading}
       />
-    </div>
+    </section>
   );
 }
 
@@ -1169,16 +978,12 @@ function CommentThread({ reviewId, findingIndex, comments, loading }: CommentThr
   };
 
   return (
-    <div className="col" style={{ gap: 8 }}>
+    <div className="ai-thread">
       {loading && (
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          Loading…
-        </div>
+        <div className="ai-thread-note">Loading…</div>
       )}
       {!loading && roots.length === 0 && (
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          No comments yet.
-        </div>
+        <div className="ai-thread-note">No comments yet.</div>
       )}
       {roots.map((c) => (
         <CommentNode
@@ -1205,7 +1010,7 @@ function CommentThread({ reviewId, findingIndex, comments, loading }: CommentThr
           }}
         />
       ))}
-      <div className="row" style={{ gap: 8, marginTop: 4 }}>
+      <div className="ai-composer-row">
         <input
           className="input"
           placeholder={findingIndex === null ? 'Add a comment…' : 'Reply to this clause…'}
@@ -1214,10 +1019,9 @@ function CommentThread({ reviewId, findingIndex, comments, loading }: CommentThr
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') void handleAdd();
           }}
-          style={{ flex: 1 }}
         />
         <button
-          className="btn btn-sm"
+          className="btn"
           onClick={() => void handleAdd()}
           disabled={!body.trim() || createComment.isPending}
         >
@@ -1237,95 +1041,100 @@ interface CommentNodeProps {
   onDelete: (id: string) => Promise<void>;
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1]![0] : '')).toUpperCase() || '?';
+}
+
 function CommentNode({ comment, replies, currentUserId, onEdit, onDelete }: CommentNodeProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(comment.body);
   const isAuthor = !!currentUserId && comment.author?.id === currentUserId;
   const ts = new Date(comment.createdAt).toLocaleString();
   const edited = comment.updatedAt !== comment.createdAt;
+  const authorName = comment.author?.name || comment.author?.email || 'Unknown';
 
   return (
-    <div className="card" style={{ padding: 12, background: 'var(--bg-surface-2)' }}>
-      <div className="row" style={{ gap: 8, alignItems: 'baseline' }}>
-        <strong style={{ fontSize: 13 }}>
-          {comment.author?.name || comment.author?.email || 'Unknown'}
-        </strong>
-        <span className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          {ts}
-          {edited && !comment.isDeleted && ' · edited'}
-        </span>
-        <span className="spacer" style={{ flex: 1 }} />
-        {isAuthor && !comment.isDeleted && (
-          <>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => {
-                setEditing((v) => !v);
-                setDraft(comment.body);
-              }}
-              style={{ padding: 0 }}
-            >
-              {editing ? 'Cancel' : 'Edit'}
-            </button>
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => void onDelete(comment.id)}
-              style={{ padding: 0 }}
-            >
-              Delete
-            </button>
-          </>
+    <div className="ai-comment">
+      <span className="ai-comment-avatar" aria-hidden>{initialsOf(authorName)}</span>
+      <div className="ai-comment-main">
+        <div className="ai-comment-head">
+          <strong>{authorName}</strong>
+          <span className="ai-comment-time">
+            {ts}
+            {edited && !comment.isDeleted && ' · edited'}
+          </span>
+          <span className="spacer" style={{ flex: 1 }} />
+          {isAuthor && !comment.isDeleted && (
+            <span className="ai-comment-tools">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing((v) => !v);
+                  setDraft(comment.body);
+                }}
+              >
+                {editing ? 'Cancel' : 'Edit'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void onDelete(comment.id)}
+              >
+                Delete
+              </button>
+            </span>
+          )}
+        </div>
+        {comment.isDeleted ? (
+          <div className="ai-comment-body is-removed">
+            (comment removed)
+          </div>
+        ) : editing ? (
+          <div className="col" style={{ gap: 6, marginTop: 8 }}>
+            <textarea
+              className="input"
+              rows={3}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+            />
+            <div className="row" style={{ gap: 6 }}>
+              <button
+                className="btn btn-sm"
+                onClick={async () => {
+                  if (!draft.trim()) return;
+                  await onEdit(comment.id, draft.trim());
+                  setEditing(false);
+                }}
+                disabled={!draft.trim()}
+              >
+                Save
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="ai-comment-body">
+            {comment.body}
+          </div>
+        )}
+        {replies.length > 0 && (
+          <div className="ai-comment-replies">
+            {replies.map((r) => (
+              <CommentNode
+                key={r.id}
+                comment={r}
+                replies={[]}
+                reviewId={comment.reviewId}
+                currentUserId={currentUserId}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
         )}
       </div>
-      {comment.isDeleted ? (
-        <div className="body-sm" style={{ marginTop: 6, color: 'var(--text-tertiary)', fontStyle: 'italic' }}>
-          (comment removed)
-        </div>
-      ) : editing ? (
-        <div className="col" style={{ gap: 6, marginTop: 8 }}>
-          <textarea
-            className="input"
-            rows={3}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-          />
-          <div className="row" style={{ gap: 6 }}>
-            <button
-              className="btn btn-sm"
-              onClick={async () => {
-                if (!draft.trim()) return;
-                await onEdit(comment.id, draft.trim());
-                setEditing(false);
-              }}
-              disabled={!draft.trim()}
-            >
-              Save
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="body-sm" style={{ marginTop: 6, whiteSpace: 'pre-wrap' }}>
-          {comment.body}
-        </div>
-      )}
-      {replies.length > 0 && (
-        <div className="col" style={{ gap: 6, marginTop: 8, marginLeft: 16 }}>
-          {replies.map((r) => (
-            <CommentNode
-              key={r.id}
-              comment={r}
-              replies={[]}
-              reviewId={comment.reviewId}
-              currentUserId={currentUserId}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

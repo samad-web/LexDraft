@@ -143,15 +143,16 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
         description="Send it to the advocate however you like - WhatsApp, SMS, in person. Opening it lets them set up their own free DifAi account and take over this case."
         footer={<button type="button" className="btn btn-primary" onClick={handleClose}>Done</button>}
       >
-        <div className="col" style={{ gap: 16, alignItems: 'center' }}>
+        <div className="cs-share">
           {qrDataUrl && (
-            <img
-              src={qrDataUrl}
-              alt="QR code to accept this case handover"
-              width={200}
-              height={200}
-              style={{ borderRadius: 'var(--radius-md)', background: '#fff', padding: 8 }}
-            />
+            <span className="cs-share-qr">
+              <img
+                src={qrDataUrl}
+                alt="QR code to accept this case handover"
+                width={200}
+                height={200}
+              />
+            </span>
           )}
           {canNativeShare && (
             <button
@@ -163,11 +164,11 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
               Share via WhatsApp, SMS…
             </button>
           )}
-          <div className="row" style={{ gap: 8, width: '100%' }}>
+          <div className="cs-share-link">
             <input className="input" readOnly value={acceptUrl(link.shareToken)} onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className="btn" onClick={() => { void handleCopyLink(); }}>Copy</button>
           </div>
-          <p className="body-xs muted" style={{ margin: 0 }}>
+          <p className="cs-hint" style={{ margin: 0 }}>
             This link works once and expires in 7 days.
           </p>
         </div>
@@ -195,19 +196,11 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
       }
     >
       <Field label="HAND OFF TO" required wide>
-        <div className="row" style={{ gap: 8 }}>
-          <button
-            type="button"
-            className={mode === 'teammate' ? 'btn btn-primary' : 'btn'}
-            onClick={() => setMode('teammate')}
-          >
+        <div className="cs-seg" role="group" aria-label="Hand off to">
+          <button type="button" aria-pressed={mode === 'teammate'} onClick={() => setMode('teammate')}>
             A colleague in my firm
           </button>
-          <button
-            type="button"
-            className={mode === 'external' ? 'btn btn-primary' : 'btn'}
-            onClick={() => setMode('external')}
-          >
+          <button type="button" aria-pressed={mode === 'external'} onClick={() => setMode('external')}>
             An advocate outside my firm
           </button>
         </div>
@@ -248,19 +241,11 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
       </Field>
 
       <Field label="URGENCY" wide>
-        <div className="row" style={{ gap: 8 }}>
-          <button
-            type="button"
-            className={urgency === 'urgent' ? 'btn btn-primary' : 'btn'}
-            onClick={() => setUrgency('urgent')}
-          >
+        <div className="cs-seg" role="group" aria-label="Urgency">
+          <button type="button" aria-pressed={urgency === 'urgent'} onClick={() => setUrgency('urgent')}>
             Urgent - today
           </button>
-          <button
-            type="button"
-            className={urgency === 'normal' ? 'btn btn-primary' : 'btn'}
-            onClick={() => setUrgency('normal')}
-          >
+          <button type="button" aria-pressed={urgency === 'normal'} onClick={() => setUrgency('normal')}>
             Normal
           </button>
         </div>

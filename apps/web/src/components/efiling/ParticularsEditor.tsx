@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useAddFilingParty,
   useDeleteFilingParty,
@@ -110,7 +110,14 @@ function CaseParticularsForm({ caseId, particulars, parties, part, nav }: {
   const portalCodes = useMemo(() => new Set((portalStates.data ?? []).map((s) => s.code)), [portalStates.data]);
 
   const [p, setP] = useState<ParticularsPatch>({});
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirtyState] = useState(false);
+  // Counts edits, so a save that finishes while the advocate is still typing
+  // doesn't mark the form clean - the reload after it would wipe that typing.
+  const edits = useRef(0);
+  const setDirty = (v: boolean) => {
+    if (v) edits.current += 1;
+    setDirtyState(v);
+  };
   const [message, setMessage] = useState<string | null>(null);
   const [localPlaint, setLocalPlaint] = useState(false);
   // Load from the server on first render and after a save - never over
@@ -165,12 +172,16 @@ function CaseParticularsForm({ caseId, particulars, parties, part, nav }: {
   const acts = p.acts ?? [];
   const isMact = MACT_RE.test(`${p.caseTypeName ?? ''} ${p.caseTypeCode ?? ''}`);
   const mact: MactDetails = p.mact ?? {};
-  const setMact = (patch: Partial<MactDetails>) => set({ mact: { ...mact, ...patch } });
+  const setMact = (patch: Partial<MactDetails>) => {
+    setDirty(true);
+    setP((cur) => ({ ...cur, mact: { ...(cur.mact ?? {}), ...patch } }));
+  };
   const relief = ex('reliefSought');
   const appellate = isAppellate(relief);
 
   const onSave = async (done: string) => {
     setMessage(null);
+    const editsAtSave = edits.current;
     try {
       const { acts: rawActs, extra: rawExtra, ...rest } = p;
       const body: ParticularsPatch = { ...rest, acts: (rawActs ?? []).filter((a) => a.act.trim()) };
@@ -184,7 +195,7 @@ function CaseParticularsForm({ caseId, particulars, parties, part, nav }: {
         await updateParty.mutateAsync({ id: client.id, patch: { name: clientDraft.name.trim() || client.name, mobile: orNull(clientDraft.mobile.replace(/\s+/g, '')) } });
         setClientDraft(null);
       }
-      setDirty(false);
+      if (edits.current === editsAtSave) setDirty(false);
       setMessage(done);
       nav.onSaved?.();
     } catch (err) {
@@ -939,6 +950,7 @@ function FactsSection({ caseId, facts, nav }: { caseId: string; facts: FactDraft
   const save = useSaveCaseFacts(caseId);
   const [rows, setRowsState] = useState<FactDraft[]>(facts);
   const [dirty, setDirty] = useState(false);
+  const edits = useRef(0);
   const [message, setMessage] = useState<string | null>(null);
   const serverKey = JSON.stringify(facts);
   useEffect(() => {
@@ -946,6 +958,7 @@ function FactsSection({ caseId, facts, nav }: { caseId: string; facts: FactDraft
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverKey]);
   const setRows = (next: FactDraft[] | ((cur: FactDraft[]) => FactDraft[])) => {
+    edits.current += 1;
     setDirty(true);
     setRowsState(next);
   };
@@ -953,9 +966,11 @@ function FactsSection({ caseId, facts, nav }: { caseId: string; facts: FactDraft
 
   const onSave = async () => {
     setMessage(null);
+    const editsAtSave = edits.current;
     try {
       await save.mutateAsync(rows.filter((r) => r.description.trim()));
-      setDirty(false);
+      // Typing during the save stays: only a save of the latest rows is clean.
+      if (edits.current === editsAtSave) setDirty(false);
       setMessage('Saved.');
       nav.onSaved?.();
     } catch (err) {

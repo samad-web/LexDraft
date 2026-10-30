@@ -42,9 +42,9 @@ export function MemberProfileModal({ open, member, onClose }: MemberProfileModal
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
+          background: 'var(--bg-elevated)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-xl)',
           padding: 28,
           width: 'min(520px, 100%)',
           display: 'flex',
@@ -53,44 +53,40 @@ export function MemberProfileModal({ open, member, onClose }: MemberProfileModal
         }}
       >
         <div className="row" style={{ gap: 16, alignItems: 'flex-start' }}>
-          <div className="avatar" style={{ width: 56, height: 56, fontSize: 18 }}>
+          <div className="fm-avatar is-lg" aria-hidden>
             {member.initials}
           </div>
-          <div style={{ flex: 1 }}>
-            <div className="eyebrow" style={{ marginBottom: 4 }}>Chambers profile</div>
-            <h3 id="member-profile-title" style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="fm-eyebrow" style={{ marginBottom: 4 }}>Chambers profile</div>
+            <h3 id="member-profile-title" className="fm-member-name" style={{ fontSize: 22, margin: 0 }}>
               {member.name}
             </h3>
             <div className="body-sm muted" style={{ marginTop: 4 }}>{member.role}</div>
           </div>
           <span
-            className={`badge ${member.status === 'active' ? 'badge-sage' : 'badge-amber'}`}
+            className={`fm-pill ${member.status === 'active' ? 'is-solid' : 'is-dashed'}`}
             style={{ flex: '0 0 auto' }}
           >
-            {member.status === 'active' ? 'ACTIVE' : 'ON LEAVE'}
+            {member.status === 'active' ? 'Active' : 'On leave'}
           </span>
         </div>
 
-        <hr className="hairline" />
-
-        <div className="col" style={{ gap: 12 }}>
-          <ProfileRow label="ENROLMENT" value={member.enrolment} mono />
-          <ProfileRow label="EMAIL" value={member.email} mono />
-          <div>
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', marginBottom: 6 }}>
-              PRACTICE AREAS
-            </div>
+        <dl className="fm-dl">
+          <ProfileRow label="Enrolment" value={member.enrolment} />
+          <ProfileRow label="Email" value={member.email} />
+          <dt>Practice areas</dt>
+          <dd>
             <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
               {member.practiceAreas.length === 0 ? (
                 <span className="muted body-sm">Not specified.</span>
               ) : (
                 member.practiceAreas.map((p) => (
-                  <span key={p} className="badge badge-cream">{p}</span>
+                  <span key={p} className="fm-pill is-plain">{p}</span>
                 ))
               )}
             </div>
-          </div>
-        </div>
+          </dd>
+        </dl>
 
         <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
           <button
@@ -102,7 +98,7 @@ export function MemberProfileModal({ open, member, onClose }: MemberProfileModal
           >
             <Icon name="file" size={14} /> Copy email
           </button>
-          <button type="button" className="btn btn-primary" onClick={onClose}>
+          <button type="button" className="btn btn-primary" onClick={onClose} style={{ minWidth: 96 }}>
             Close
           </button>
         </div>
@@ -111,18 +107,11 @@ export function MemberProfileModal({ open, member, onClose }: MemberProfileModal
   );
 }
 
-function ProfileRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+function ProfileRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="row" style={{ gap: 12 }}>
-      <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', minWidth: 96 }}>
-        {label}
-      </span>
-      <span
-        style={{ fontSize: 13, fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)' }}
-        className={mono ? 'tabular' : ''}
-      >
-        {value}
-      </span>
-    </div>
+    <>
+      <dt>{label}</dt>
+      <dd className={value === 'Not on record' ? 'is-muted' : undefined}>{value}</dd>
+    </>
   );
 }

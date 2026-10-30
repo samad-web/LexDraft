@@ -68,6 +68,109 @@ export function useConfirmDuplicateEfilingLogin() {
   });
 }
 
+export interface EfilingSessionStatus { sessionId: string; authenticated: boolean; idleMinutesLeft: number }
+
+/** Keep-alive for the connected portal session; 404 means it has ended. */
+export function useEfilingSessionStatus(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId],
+    queryFn: () => api.get<EfilingSessionStatus>(`/efiling/live/session/${sessionId}`),
+    enabled: !!sessionId,
+    refetchInterval: 2 * 60 * 1000,
+    refetchIntervalInBackground: true,
+    retry: false,
+  });
+}
+
+export interface PortalSnapshot {
+  url: string;
+  title: string;
+  headings: string[];
+  links: Array<{ text: string; href: string }>;
+  counts: Record<string, number>;
+  fields: Array<{ tag: string; type: string; id: string; name: string; label: string; text: string; required: boolean; section: string; options?: string[] }>;
+}
+
+/** One of the advocate's own portal pages, read over their session (read-only). */
+export function usePortalPage(sessionId: string | null, what: 'dashboard' | 'new_case', enabled = true) {
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId, 'read', what],
+    queryFn: () => api.get<PortalSnapshot>(`/efiling/live/session/${sessionId}/read`, { what }),
+    enabled: !!sessionId && enabled,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+export interface PortalList {
+  key: 'draft_cases' | 'filed_cases' | 'draft_pleadings' | 'completed_pleadings' | 'draft_ias' | 'completed_ias' | 'objections' | 'my_cases';
+  label: string;
+  total: number | null;
+  headers: string[];
+  rows: Array<{ group: string } | { cells: string[] }>;
+  error: string | null;
+}
+
+/** The advocate's own portal dashboard lists, read over their session. */
+export function usePortalLists(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId, 'lists'],
+    queryFn: () => api.get<{ items: PortalList[] }>(`/efiling/live/session/${sessionId}/lists`),
+    enabled: !!sessionId,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+export interface PortalTabReport {
+  tab: 'initial' | 'litigant' | 'facts' | 'case_details' | 'mvc';
+  label: string;
+  status: 'done' | 'partial' | 'failed' | 'skipped';
+  filled: string[];
+  missing: string[];
+  portal: string[];
+}
+
+/** Fill New Case Filing tabs 1-6 on the real portal (saved there as a draft). */
+export function useFillOnPortal(filingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ pdeNo: string | null; tabs: PortalTabReport[] }>(`/efiling/live/session/${sessionId}/filings/${filingId}/fill`),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['efiling'] }); },
+  });
+}
+
+/** "eFile Case" on the real portal - irreversible; the caller confirms first. */
+export function useEfileOnPortal(filingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ ok: boolean; pdeNo: string | null; portal: string[]; errorTabs: string[] }>(`/efiling/live/session/${sessionId}/filings/${filingId}/efile`, { confirmed: true }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['efiling'] }); },
+  });
+}
+
+/** Upload the filing bundle as a pleading on the real portal (Pleading Upload). */
+export function useUploadPleadingOnPortal(filingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ ok: boolean; pdeNo: string; title: string; pleadingNumber: string | null; portal: string[] }>(`/efiling/live/session/${sessionId}/filings/${filingId}/upload-pleading`),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['efiling'] }); },
+  });
+}
+
+/** Final submission on the real portal (Draft Pleadings > GRN > Submit). Irreversible. */
+export function useSubmitOnPortal(filingId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      api.post<{ ok: boolean; grn: string; portal: string[] }>(`/efiling/live/session/${sessionId}/filings/${filingId}/submit`, { confirmed: true }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['efiling'] }); },
+  });
+}
+
 export function useEndEfilingSession() {
   return useMutation({
     mutationFn: (sessionId: string) => api.post<{ ok: true }>(`/efiling/live/session/${sessionId}/end`),

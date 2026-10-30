@@ -8,10 +8,19 @@ import { hydrateUIAttributes } from './store/ui';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initNative } from './lib/native';
+import { uiFor } from './lib/chambers';
 import './styles/tokens.css';
 import './styles/globals.css';
+import './styles/chambers.css';
+// Per-feature-group Chambers styles, loaded last so they win ties.
+import './styles/chambers/case.css';
+import './styles/chambers/court.css';
+import './styles/chambers/clients.css';
+import './styles/chambers/ai.css';
+import './styles/chambers/firm.css';
 
 hydrateUIAttributes();
+document.documentElement.dataset.ui = uiFor(window.location.pathname);
 initNative();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

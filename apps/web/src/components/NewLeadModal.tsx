@@ -175,6 +175,18 @@ export function NewLeadModal({ open, onClose }: Props) {
           />
         </Field>
       </div>
+      {Number(valueInr) > 0 && (
+        <div className="form-row">
+          <div className="cm-preview" aria-live="polite">
+            <span className="cm-preview-figure">
+              ₹{Math.round((Number(valueInr) * Math.max(0, Math.min(100, Number(probability) || 0))) / 100).toLocaleString('en-IN')}
+            </span>
+            <span className="cm-preview-note">
+              Weighted fee: ₹{Number(valueInr).toLocaleString('en-IN')} × {Math.max(0, Math.min(100, Number(probability) || 0))}%
+            </span>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, ErrorState, Select, type SelectOption } from '@lexdraft/ui';
+import { ErrorState, Icon, Select, type SelectOption } from '@lexdraft/ui';
 import { useAuthStore } from '@/store/auth';
 import { useSignOut } from '@/hooks/useAuth';
 import { useMfaStatus, useMfaDisable } from '@/hooks/useMfa';
@@ -38,7 +38,7 @@ export function SettingsView() {
   const [tab, setTab] = useState<TabId>('account');
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-settings">
       <PageHeader
         title="Settings"
         description="Your account, security, language, letterheads and privacy choices."
@@ -53,7 +53,36 @@ export function SettingsView() {
   );
 }
 
-// -- Account tab (existing surface, unchanged behaviourally) ----------------
+/// -- Account tab (existing surface, unchanged behaviourally) ----------------
+
+/** One settings row: a title + description on the left, the controls on the
+ *  right (stacked on tablets and phones). */
+function SettingsRow({
+  eyebrow,
+  title,
+  description,
+  children,
+  danger,
+  flush,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: React.ReactNode;
+  children: React.ReactNode;
+  danger?: boolean;
+  flush?: boolean;
+}) {
+  return (
+    <section className={`fm-set-row${danger ? ' is-danger' : ''}`}>
+      <div className="fm-set-intro">
+        {eyebrow && <div className="fm-eyebrow">{eyebrow}</div>}
+        <h2 className="fm-set-title">{title}</h2>
+        {description && <p className="fm-set-desc">{description}</p>}
+      </div>
+      <div className={`fm-set-card${flush ? ' is-flush' : ''}`}>{children}</div>
+    </section>
+  );
+}
 
 function AccountPanel() {
   const user = useAuthStore((s) => s.user);
@@ -61,16 +90,20 @@ function AccountPanel() {
   const navigate = useNavigate();
 
   return (
-    <div className="col" style={{ gap: 24 }}>
-      <Card>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>Account</div>
-        <div className="col" style={{ gap: 10 }}>
+    <div className="fm-set">
+      <SettingsRow
+        eyebrow="Account"
+        title="Your profile"
+        description="The name, email and role your firm sees on matters, drafts and the audit log."
+        flush
+      >
+        <div className="fm-kv">
           <Row label="Name" value={user?.name || '-'} />
           <Row label="Email" value={user?.email || '-'} />
           <Row label="Role" value={user?.role || '-'} />
           {user?.firm && <Row label="Firm" value={user.firm} />}
         </div>
-      </Card>
+      </SettingsRow>
 
       <TrialStatusPanel />
 
@@ -78,27 +111,32 @@ function AccountPanel() {
 
       <LanguagePreferencePanel />
 
-      <Card>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>Session</div>
-        <button
-          className="btn btn-oxblood"
-          onClick={() => {
-            signOut();
-            navigate('/');
-          }}
-        >
-          Sign out
-        </button>
-      </Card>
+      <SettingsRow
+        eyebrow="Session"
+        title="Sign out"
+        description="Ends this session on this device. Your work stays saved."
+      >
+        <div className="fm-set-actions">
+          <button
+            className="btn"
+            onClick={() => {
+              signOut();
+              navigate('/');
+            }}
+          >
+            <Icon name="logout" size={14} /> Sign out
+          </button>
+        </div>
+      </SettingsRow>
     </div>
   );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="row" style={{ justifyContent: 'space-between' }}>
-      <span className="muted body-sm">{label}</span>
-      <span className="body-md">{value}</span>
+    <div className="fm-kv-row">
+      <span className="fm-kv-label">{label}</span>
+      <span className="fm-kv-value">{value}</span>
     </div>
   );
 }
@@ -109,6 +147,8 @@ function Row({ label, value }: { label: string; value: string }) {
 // the conversion conversation from Settings (instead of only via the
 // dashboard-wide banner). Renders for trial firms only; paid/legacy firms
 // see nothing — the standard billing panel takes over (still TBD).
+
+const TRIAL_DAYS = 14;
 
 function TrialStatusPanel() {
   const navigate = useNavigate();
@@ -121,6 +161,7 @@ function TrialStatusPanel() {
   const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
   const expired = msLeft <= 0;
   const isDemo = !!user.isDemo;
+  const usedPct = expired ? 100 : Math.max(4, Math.min(100, Math.round(((TRIAL_DAYS - daysLeft) / TRIAL_DAYS) * 100)));
 
   const ends = endsAt.toLocaleString('en-IN', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -128,39 +169,40 @@ function TrialStatusPanel() {
   });
 
   return (
-    <Card style={{ borderColor: expired ? 'var(--danger)' : daysLeft <= 3 ? 'var(--warning)' : 'var(--border-default)' }}>
-      <div className="eyebrow" style={{ marginBottom: 14 }}>
-        {isDemo ? 'Demo session' : 'Trial'}
-      </div>
-      <div className="col" style={{ gap: 10 }}>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="muted body-sm">Status</span>
-          <span className="body-md" style={{ fontWeight: 500 }}>
+    <SettingsRow
+      eyebrow={isDemo ? 'Demo session' : 'Trial'}
+      title="Plan status"
+      description={isDemo
+        ? 'This is a sandbox account so you can explore DifAi. Convert to a real account any time: your existing work carries over.'
+        : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
+    >
+      <div>
+        <div className="fm-figure">
+          {expired ? 'Ended' : daysLeft}
+          <small>
             {expired
               ? (isDemo ? 'Demo session ended' : 'Trial ended')
-              : (isDemo ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} of demo remaining` : `${daysLeft} day${daysLeft === 1 ? '' : 's'} of trial remaining`)}
-          </span>
-        </div>
-        <div className="row" style={{ justifyContent: 'space-between' }}>
-          <span className="muted body-sm">Ends</span>
-          <span className="body-md">{ends}</span>
-        </div>
-        <p className="muted body-sm" style={{ margin: '8px 0 0' }}>
-          {isDemo
-            ? 'This is a sandbox account so you can explore DifAi. Convert to a real account any time: your existing work carries over.'
-            : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
-        </p>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => navigate('/#pricing')}
-          >
-            {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
-          </button>
+              : (isDemo ? `day${daysLeft === 1 ? '' : 's'} of demo remaining` : `day${daysLeft === 1 ? '' : 's'} of trial remaining`)}
+          </small>
         </div>
       </div>
-    </Card>
+      <div className="fm-trial-track" aria-hidden><span style={{ width: `${usedPct}%` }} /></div>
+      <div className="fm-kv">
+        <div className="fm-kv-row">
+          <span className="fm-kv-label">Ends</span>
+          <span className="fm-kv-value">{ends}</span>
+        </div>
+      </div>
+      <div className="fm-set-actions">
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => navigate('/#pricing')}
+        >
+          {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
+        </button>
+      </div>
+    </SettingsRow>
   );
 }
 
@@ -181,58 +223,54 @@ function LanguagePreferencePanel() {
   const dirty = value !== current;
 
   return (
-    <Card>
-      <div className="eyebrow" style={{ marginBottom: 14 }}>Language</div>
-      <div className="col" style={{ gap: 12 }}>
-        <p className="muted body-sm" style={{ margin: 0 }}>
-          Default for AI-facing features. Today this drives Mock Arguments:
-          opposing counsel will argue in this language and the review will be
-          written in it. You can still pick a different language per session.
-        </p>
-        <div style={{ maxWidth: 420 }}>
-          <Select
-            value={value}
-            onChange={(v) => setValue(v)}
-            options={LANGUAGES.map<SelectOption>((l) => ({
-              value: l.code,
-              label: `${l.englishName} (${l.nativeName})`,
-              hint: l.voiceSupport === 'full'    ? 'VOICE'
-                  : l.voiceSupport === 'partial' ? 'VOICE·PARTIAL'
-                  :                                'TEXT',
-            }))}
-          />
-        </div>
-        <div className="body-xs muted">
-          Currently: <strong>{findLanguage(current).englishName}</strong>
-        </div>
-        <div>
-          <button
-            type="button"
-            className="btn"
-            disabled={!dirty || update.isPending}
-            onClick={() => {
-              update.mutate(
-                { defaultLanguageCode: value },
-                {
-                  onSuccess: () =>
-                    showToast({ type: 'sage', text: 'Default language updated' }),
-                  onError: (err) =>
-                    showToast({
-                      type: 'vermillion',
-                      text:
-                        err instanceof Error
-                          ? err.message
-                          : 'Could not update language preference',
-                    }),
-                },
-              );
-            }}
-          >
-            {update.isPending ? 'Saving…' : 'Save language'}
-          </button>
-        </div>
+    <SettingsRow
+      eyebrow="Language"
+      title="AI language"
+      description="Default for AI-facing features. Today this drives Mock Arguments: opposing counsel will argue in this language and the review will be written in it. You can still pick a different language per session."
+    >
+      <div style={{ maxWidth: 440 }}>
+        <Select
+          value={value}
+          onChange={(v) => setValue(v)}
+          options={LANGUAGES.map<SelectOption>((l) => ({
+            value: l.code,
+            label: `${l.englishName} (${l.nativeName})`,
+            hint: l.voiceSupport === 'full'    ? 'VOICE'
+                : l.voiceSupport === 'partial' ? 'VOICE·PARTIAL'
+                :                                'TEXT',
+          }))}
+        />
       </div>
-    </Card>
+      <div className="fm-set-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!dirty || update.isPending}
+          onClick={() => {
+            update.mutate(
+              { defaultLanguageCode: value },
+              {
+                onSuccess: () =>
+                  showToast({ type: 'sage', text: 'Default language updated' }),
+                onError: (err) =>
+                  showToast({
+                    type: 'vermillion',
+                    text:
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not update language preference',
+                  }),
+              },
+            );
+          }}
+        >
+          {update.isPending ? 'Saving…' : 'Save language'}
+        </button>
+        <span className="fm-status-sub">
+          Currently <strong style={{ color: 'var(--text-primary)' }}>{findLanguage(current).englishName}</strong>
+        </span>
+      </div>
+    </SettingsRow>
   );
 }
 
@@ -241,7 +279,7 @@ function LanguagePreferencePanel() {
 /**
  * Renders one of three states:
  *   - "loading"       - the /me/mfa/status query is in flight (rare; <300ms)
- *   - "not-enrolled"  - CTA to set up. If `required` is also true, an amber
+ *   - "not-enrolled"  - CTA to set up. If `required` is also true, a
  *                       banner reinforces that the role mandates it.
  *   - "enrolled"      - confirmation strip + disable / regenerate actions
  */
@@ -277,11 +315,13 @@ function SecurityPanel() {
 
   return (
     <>
-      <Card>
-        <div className="eyebrow" style={{ marginBottom: 14 }}>Security & MFA</div>
-
+      <SettingsRow
+        eyebrow="Security & MFA"
+        title="Two-factor authentication"
+        description="A one-time code from an authenticator app on your phone, on top of Google sign-in."
+      >
         {status.isPending && (
-          <div className="muted body-sm">Checking MFA status…</div>
+          <div className="fm-status-sub">Checking MFA status…</div>
         )}
 
         {status.isError && (
@@ -294,30 +334,28 @@ function SecurityPanel() {
         )}
 
         {status.data && !status.data.enrolled && (
-          <div className="col" style={{ gap: 12 }}>
+          <>
+            <div className="fm-status-line">
+              <span className="fm-status-mark is-off" aria-hidden><Icon name="shield" size={16} /></span>
+              <div>
+                <div className="fm-status-title">Not set up</div>
+                <div className="fm-status-sub">Signing in with Google only</div>
+              </div>
+            </div>
             {status.data.required && (
-              <div
-                role="alert"
-                style={{
-                  background: 'var(--warning-bg, #fff7e6)',
-                  border: '1px solid var(--warning, #b8860b)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '10px 12px',
-                  fontSize: 13,
-                  color: 'var(--text-primary)',
-                }}
-              >
-                <strong>Your role requires two-factor authentication.</strong>{' '}
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  Set it up now to avoid losing access on next sign-in.
-                </span>
+              <div role="alert" className="fm-required">
+                <span className="fm-error-mark" aria-hidden>!</span>
+                <div>
+                  <strong>Your role requires two-factor authentication.</strong>{' '}
+                  <span>Set it up now to avoid losing access on next sign-in.</span>
+                </div>
               </div>
             )}
-            <p className="muted body-sm" style={{ margin: 0 }}>
+            <p>
               Two-factor authentication adds a one-time code from your phone
               on top of Google sign-in. It takes about a minute to set up.
             </p>
-            <div>
+            <div className="fm-set-actions">
               <button
                 type="button"
                 className="btn btn-primary"
@@ -326,39 +364,21 @@ function SecurityPanel() {
                 Set up two-factor authentication
               </button>
             </div>
-          </div>
+          </>
         )}
 
         {status.data && status.data.enrolled && (
-          <div className="col" style={{ gap: 12 }}>
-            <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-              <span
-                aria-hidden
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  background: 'var(--success, #2f7a3b)',
-                  color: 'var(--bg-base)',
-                  fontSize: 13,
-                  fontWeight: 700,
-                }}
-              >
-                ✓
-              </span>
-              <span className="body-md" style={{ fontWeight: 500 }}>
-                MFA is active
-              </span>
-              {status.data.enrolledAt && (
-                <span className="muted body-sm">
-                  · enrolled {formatDate(status.data.enrolledAt)}
-                </span>
-              )}
+          <>
+            <div className="fm-status-line">
+              <span className="fm-status-mark" aria-hidden><Icon name="check" size={16} /></span>
+              <div>
+                <div className="fm-status-title">MFA is active</div>
+                {status.data.enrolledAt && (
+                  <div className="fm-status-sub">Enrolled {formatDate(status.data.enrolledAt)}</div>
+                )}
+              </div>
             </div>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <div className="fm-set-actions">
               <button
                 type="button"
                 className="btn btn-sm"
@@ -369,16 +389,16 @@ function SecurityPanel() {
               </button>
               <button
                 type="button"
-                className="btn btn-sm btn-oxblood"
+                className="btn btn-sm btn-ghost"
                 onClick={handleDisable}
                 disabled={disableMfa.isPending}
               >
                 {disableMfa.isPending ? 'Disabling…' : 'Disable MFA'}
               </button>
             </div>
-          </div>
+          </>
         )}
-      </Card>
+      </SettingsRow>
 
       <MfaEnrollmentModal open={enrollOpen} onClose={() => setEnrollOpen(false)} />
     </>
@@ -400,8 +420,7 @@ function formatDate(iso: string): string {
 // ---- Privacy & Data tab (DPDP §11) ----------------------------------------
 //
 // Four sections, in order, satisfying DPDP §11 (data principal rights -
-// access, erasure, grievance). Layout matches the rest of Settings: stack of
-// <Card>s separated by 24px vertical gap.
+// access, erasure, grievance).
 
 function PrivacyPanel() {
   const user = useAuthStore((s) => s.user);
@@ -417,62 +436,65 @@ function PrivacyPanel() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   return (
-    <div className="col" style={{ gap: 24 }}>
+    <div className="fm-set">
       {/* a) Export my data --------------------------------------------------- */}
-      <Card>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Export</div>
-        <h2 className="heading-md" style={{ margin: 0, marginBottom: 6 }}>Export my data</h2>
-        <p className="muted body-sm" style={{ margin: 0, marginBottom: 14 }}>
+      <SettingsRow
+        eyebrow="Export"
+        title="Export my data"
+        description="Honours your right of access under DPDP §11."
+      >
+        <p>
           Download all of your personal data we hold - drafts, profile, audit
-          entries, consent history. Honours your right under DPDP §11.
+          entries, consent history.
         </p>
-        <button
-          type="button"
-          className="btn"
-          disabled={exportMutation.isPending}
-          onClick={async () => {
-            try {
-              await exportMutation.mutateAsync();
-              showToast({ type: 'sage', text: 'Export downloaded.' });
-            } catch (err) {
-              showToast({
-                type: 'vermillion',
-                text: err instanceof Error ? err.message : 'Export failed. Try again.',
-              });
-            }
-          }}
-        >
-          {exportMutation.isPending ? 'Preparing export…' : 'Download my data (.json)'}
-        </button>
-      </Card>
+        <div className="fm-set-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={exportMutation.isPending}
+            onClick={async () => {
+              try {
+                await exportMutation.mutateAsync();
+                showToast({ type: 'sage', text: 'Export downloaded.' });
+              } catch (err) {
+                showToast({
+                  type: 'vermillion',
+                  text: err instanceof Error ? err.message : 'Export failed. Try again.',
+                });
+              }
+            }}
+          >
+            <Icon name="download" size={14} />
+            {exportMutation.isPending ? 'Preparing export…' : 'Download my data (.json)'}
+          </button>
+        </div>
+      </SettingsRow>
 
       {/* b) Consent history -------------------------------------------------- */}
-      <Card>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Consent ledger</div>
-        <h2 className="heading-md" style={{ margin: 0, marginBottom: 6 }}>Consent history</h2>
-        <p className="muted body-sm" style={{ margin: 0, marginBottom: 14 }}>
-          A tamper-evident log of the consents you have granted or revoked.
-        </p>
+      <SettingsRow
+        eyebrow="Consent ledger"
+        title="Consent history"
+        description="A tamper-evident log of the consents you have granted or revoked."
+        flush={!consentsLoading && consents.length > 0}
+      >
         {consentsLoading ? (
-          <div className="muted body-sm">Loading consent history…</div>
+          <div className="fm-status-sub">Loading consent history…</div>
         ) : consents.length === 0 ? (
-          <div className="muted body-sm">
+          <div className="fm-status-sub">
             No consent records yet - these appear when you accept or revise terms.
           </div>
         ) : (
           <ConsentTable rows={consents} />
         )}
-      </Card>
+      </SettingsRow>
 
       {/* c) Delete my account ------------------------------------------------ */}
-      <Card style={{ borderColor: 'var(--danger)' }}>
-        <div className="eyebrow" style={{ marginBottom: 8, color: 'var(--danger)' }}>
-          Danger zone
-        </div>
-        <h2 className="heading-md" style={{ margin: 0, marginBottom: 6 }}>
-          Delete my account permanently
-        </h2>
-
+      <SettingsRow
+        eyebrow="Danger zone"
+        title="Delete my account permanently"
+        description="Your data is marked for deletion and purged after the retention window."
+        danger
+      >
         {pendingDeletion ? (
           <PendingDeletionState
             scheduledPurgeAt={pendingDeletion.scheduledPurgeAt}
@@ -494,24 +516,25 @@ function PrivacyPanel() {
           />
         ) : (
           <>
-            <p className="muted body-sm" style={{ margin: 0, marginBottom: 14 }}>
+            <p>
               Your data will be marked for deletion and permanently purged after
               the retention window. Until then you can cancel.
             </p>
-            <button
-              type="button"
-              className="btn"
-              style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
-              onClick={() => {
-                setDeleteError(null);
-                setDeleteOpen(true);
-              }}
-            >
-              Request deletion
-            </button>
+            <div className="fm-set-actions">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => {
+                  setDeleteError(null);
+                  setDeleteOpen(true);
+                }}
+              >
+                Request deletion
+              </button>
+            </div>
           </>
         )}
-      </Card>
+      </SettingsRow>
 
       {/* d) About this data -------------------------------------------------- */}
       <AboutDataCard />
@@ -551,79 +574,41 @@ function PrivacyPanel() {
 
 function ConsentTable({ rows }: { rows: ConsentRecord[] }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table
-        style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          fontSize: 13,
-        }}
-      >
-        <thead>
-          <tr style={{ textAlign: 'left' }}>
-            <Th>Type</Th>
-            <Th>Version</Th>
-            <Th>Status</Th>
-            <Th>Recorded</Th>
+    <table className="tbl fm-tbl">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Version</th>
+          <th>Status</th>
+          <th>Recorded</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.id}>
+            <td><span className="fm-cell-title" style={{ textTransform: 'capitalize' }}>{r.consentType.replace(/_/g, ' ')}</span></td>
+            <td><span className="fm-code">{r.consentVersion}</span></td>
+            <td>
+              <span className={`fm-pill ${r.granted ? 'is-solid' : 'is-dashed'}`}>
+                {r.granted ? 'Granted' : 'Revoked'}
+              </span>
+            </td>
+            <td>
+              <span className="fm-date">
+                {new Date(r.createdAt).toLocaleString('en-IN', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </td>
           </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-              <Td>{r.consentType}</Td>
-              <Td>
-                <code className="mono" style={{ fontSize: 12 }}>{r.consentVersion}</code>
-              </Td>
-              <Td>
-                <span
-                  className="mono"
-                  style={{
-                    fontSize: 11,
-                    letterSpacing: '0.12em',
-                    color: r.granted ? 'var(--success)' : 'var(--danger)',
-                  }}
-                >
-                  {r.granted ? 'GRANTED' : 'REVOKED'}
-                </span>
-              </Td>
-              <Td>
-                <span className="muted">
-                  {new Date(r.createdAt).toLocaleString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        ))}
+      </tbody>
+    </table>
   );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th
-      className="mono"
-      style={{
-        padding: '8px 10px',
-        fontSize: 11,
-        letterSpacing: '0.12em',
-        color: 'var(--text-tertiary)',
-        fontWeight: 500,
-      }}
-    >
-      {children}
-    </th>
-  );
-}
-
-function Td({ children }: { children: React.ReactNode }) {
-  return <td style={{ padding: '10px' }}>{children}</td>;
 }
 
 function PendingDeletionState({
@@ -646,101 +631,66 @@ function PendingDeletionState({
         minute: '2-digit',
       });
   return (
-    <div className="col" style={{ gap: 12 }}>
-      <p className="body-sm" style={{ margin: 0 }}>
-        Deletion scheduled for <strong>{dateStr}</strong>. You can cancel until then.
-      </p>
-      <div>
+    <>
+      <div className="fm-required">
+        <span className="fm-error-mark" aria-hidden>!</span>
+        <div>
+          Deletion scheduled for <strong>{dateStr}</strong>. <span>You can cancel until then.</span>
+        </div>
+      </div>
+      <div className="fm-set-actions">
         <button
           type="button"
           className="btn"
-          style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
           disabled={isCancelling}
           onClick={onCancel}
         >
           {isCancelling ? 'Cancelling…' : 'Cancel deletion'}
         </button>
       </div>
-    </div>
+    </>
   );
 }
 
 function AboutDataCard() {
   const [open, setOpen] = useState(false);
   return (
-    <Card>
+    <SettingsRow
+      eyebrow="Reference"
+      title="About this data"
+      description="Your rights under the Digital Personal Data Protection Act 2023."
+    >
       <button
         type="button"
+        className="fm-disclose"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-          width: '100%',
-        }}
       >
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Reference</div>
-          <h2 className="heading-md" style={{ margin: 0 }}>About this data</h2>
-        </div>
-        <span
-          className="mono"
-          style={{
-            fontSize: 11,
-            letterSpacing: '0.16em',
-            color: 'var(--text-tertiary)',
-          }}
-        >
-          {open ? 'HIDE' : 'SHOW'}
-        </span>
+        <span>{open ? 'Hide details' : 'Show details'}</span>
+        <Icon name="chevron" size={16} />
       </button>
       {open && (
-        <div
-          className="col body-sm"
-          style={{
-            gap: 10,
-            marginTop: 14,
-            paddingTop: 14,
-            borderTop: '1px solid var(--border-subtle)',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-          }}
-        >
-          <p style={{ margin: 0 }}>
+        <div className="fm-prose">
+          <p>
             Under the Digital Personal Data Protection Act 2023 (DPDP §11) you
             have the right to access a copy of your personal data, request
             correction or erasure of inaccurate data, and seek grievance
             redressal through our designated Data Protection Officer.
           </p>
-          <p style={{ margin: 0 }}>
+          <p>
             Exports are generated on demand and are not retained server-side
             once downloaded. Deletion requests honour a retention window so you
             can cancel if requested in error.
           </p>
-          <p style={{ margin: 0 }}>
+          <p>
             For full terms, see our{' '}
-            <a
-              href="/legal/privacy"
-              style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}
-            >
-              Privacy Policy
-            </a>{' '}
+            <a href="/legal/privacy">Privacy Policy</a>{' '}
             and{' '}
-            <a
-              href="/legal/terms"
-              style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}
-            >
-              Terms of Service
-            </a>
+            <a href="/legal/terms">Terms of Service</a>
             .
           </p>
         </div>
       )}
-    </Card>
+    </SettingsRow>
   );
 }
-

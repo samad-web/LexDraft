@@ -724,13 +724,42 @@ async def splice_text_lines(body: Dict[str, Any],
     if out is None:
         return {"matched": False}
 
-    def _blocks() -> List[Dict[str, Any]]:
+    def _tidied() -> tuple:
+        # The composed body gets the same final tidy as every served document
+        # (paragraph numbers closed up, Indian figures, dd.mm.yyyy dates).
         import tempfile
         from pathlib import Path
+        from .tidy import tidy_docx
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "spliced.docx"
             path.write_bytes(out)
-            return _extract_blocks(path)
+            tidy_docx(path)
+            return path.read_bytes(), _extract_blocks(path)
 
-    return {"matched": True, "docx_base64": base64.b64encode(out).decode("ascii"),
-            "blocks": await run_in_threadpool(_blocks)}
+    tidied, blocks = await run_in_threadpool(_tidied)
+    return {"matched": True, "docx_base64": base64.b64encode(tidied).decode("ascii"),
+            "blocks": blocks}
+
+
+@app.post("/v1/compose-docx")
+async def compose_text_docx(body: Dict[str, Any],
+                            authorization: Optional[str] = Header(default=None)) -> Dict[str, Any]:
+    """Lay out plain drafted text (one paragraph per entry) as a court-format
+    .docx — for documents the Node app drafted itself when the engine's checks
+    would have blocked a "Draft now". Returns the .docx and its display blocks."""
+    _check_token(authorization)
+    import tempfile
+    from pathlib import Path
+    from .compose import compose_docx
+    paras = body.get("paragraphs")
+    if not isinstance(paras, list) or not paras or not all(isinstance(p, str) for p in paras):
+        raise HTTPException(status_code=422, detail={"error": "validation", "issues": [
+            {"field": "paragraphs", "code": "type", "message": "paragraphs[] (strings) required"}]})
+
+    def _run() -> Dict[str, Any]:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = compose_docx([p for p in paras][:2000], Path(tmp) / "composed.docx")
+            return {"docx_base64": base64.b64encode(out.read_bytes()).decode("ascii"),
+                    "blocks": _extract_blocks(out)}
+
+    return await run_in_threadpool(_run)

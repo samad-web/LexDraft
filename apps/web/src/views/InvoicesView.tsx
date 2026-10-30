@@ -31,11 +31,32 @@ const FILTERS: ReadonlyArray<FilterOption> = [
   { id: 'paid',    label: 'Paid'    },
 ];
 
-const STATUS_BADGE: Record<InvoiceStatus, { label: string; cls: string }> = {
-  paid:    { label: 'PAID',    cls: 'badge-sage'       },
-  pending: { label: 'PENDING', cls: 'badge-cobalt'     },
-  overdue: { label: 'OVERDUE', cls: 'badge-vermillion' },
+// label: the PDF register's wording; text + cls: the on-screen pill.
+// Overdue is the one that needs action, so it is ink-filled (never red).
+const STATUS_BADGE: Record<InvoiceStatus, { label: string; text: string; cls: string }> = {
+  paid:    { label: 'PAID',    text: 'Paid',    cls: 'cm-pill cm-pill--soft' },
+  pending: { label: 'PENDING', text: 'Pending', cls: 'cm-pill cm-pill--line' },
+  overdue: { label: 'OVERDUE', text: 'Overdue', cls: 'cm-pill cm-pill--ink'  },
 };
+
+/** "2026-10-28" -> "28 Oct 2026". */
+function formatDay(iso: string): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** "in 12 days" / "18 days overdue" / "Settled" under the due date. */
+function relativeDue(inv: Invoice): string {
+  if (inv.status === 'paid') return 'Settled';
+  const due = new Date(`${inv.dueDate.slice(0, 10)}T00:00:00`).getTime();
+  if (Number.isNaN(due)) return '';
+  const today = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00').getTime();
+  const days = Math.round((due - today) / 86_400_000);
+  if (days === 0) return 'Due today';
+  if (days > 0) return `in ${days} day${days === 1 ? '' : 's'}`;
+  return `${-days} day${days === -1 ? '' : 's'} overdue`;
+}
 
 function formatINR(value: number): string {
   return value.toLocaleString('en-IN');
@@ -77,6 +98,12 @@ export function InvoicesView() {
     return { billed, outstanding, overdue, thisMonth };
   }, [invoices]);
 
+  const counts = useMemo<Record<FilterId, number>>(() => {
+    const c: Record<FilterId, number> = { all: invoices.length, pending: 0, overdue: 0, paid: 0 };
+    for (const inv of invoices) c[inv.status] += 1;
+    return c;
+  }, [invoices]);
+
   const filtered = useMemo<ReadonlyArray<Invoice>>(() => {
     const needle = q.trim().toLowerCase();
     return invoices.filter((i) => {
@@ -99,7 +126,7 @@ export function InvoicesView() {
   const pager = usePagination(visible);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-invoices" style={{ gap: 24 }}>
       <PageHeader
         title="Invoices"
         description="Raise invoices, track what clients owe, and export for GST filing."
@@ -221,14 +248,7 @@ export function InvoicesView() {
           </button>
         </Gate>
         </>}
-      >
-        <PageSearch
-          value={q}
-          onChange={setQ}
-          placeholder="Search by invoice number or client…"
-          label="Search invoices"
-        />
-      </PageHeader>
+      />
       <NewInvoiceModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <Gate feature="billing.invoice">
         <FAB ariaLabel="New invoice" onClick={() => setModalOpen(true)}>
@@ -241,44 +261,57 @@ export function InvoicesView() {
         onClose={() => setSelected(null)}
       />
 
-      <div className="stat-row">
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Total billed</div>
-          <div className="heading-lg mono tabular">₹{formatINR(stats.billed)}</div>
+      <div className="cm-kpis" aria-label="Receivables summary">
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">Total billed</div>
+          <div className="cm-kpi-value">₹{formatINR(stats.billed)}</div>
+          <div className="cm-kpi-note">{invoices.length} {invoices.length === 1 ? 'invoice' : 'invoices'}</div>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Outstanding</div>
-          <div className="heading-lg mono tabular" style={{ color: 'var(--info)' }}>
-            ₹{formatINR(stats.outstanding)}
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">Outstanding</div>
+          <div className="cm-kpi-value">₹{formatINR(stats.outstanding)}</div>
+          <div className="cm-kpi-note">Pending and overdue</div>
+        </div>
+        <div className={`cm-kpi${stats.overdue > 0 ? ' is-alert' : ''}`}>
+          <div className="cm-kpi-label">Overdue</div>
+          <div className="cm-kpi-value">₹{formatINR(stats.overdue)}</div>
+          <div className="cm-kpi-note">
+            {counts.overdue > 0
+              ? `${counts.overdue} ${counts.overdue === 1 ? 'invoice' : 'invoices'} past due`
+              : 'Nothing past due'}
           </div>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Overdue</div>
-          <div className="heading-lg mono tabular" style={{ color: 'var(--danger)' }}>
-            ₹{formatINR(stats.overdue)}
-          </div>
-        </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>This month</div>
-          <div className="heading-lg mono tabular">₹{formatINR(stats.thisMonth)}</div>
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">This month</div>
+          <div className="cm-kpi-value">₹{formatINR(stats.thisMonth)}</div>
+          <div className="cm-kpi-note">Issued this month</div>
         </div>
       </div>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={`chip ${filter === f.id ? 'active' : ''}`}
-            aria-pressed={filter === f.id}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="cm-toolbar">
+        <div className="cm-filters" role="group" aria-label="Filter by status">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`chip ${filter === f.id ? 'active' : ''}`}
+              aria-pressed={filter === f.id}
+            >
+              {f.label}
+              {invoices.length > 0 && <span className="cm-chip-count">{counts[f.id]}</span>}
+            </button>
+          ))}
+        </div>
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by invoice number or client…"
+          label="Search invoices"
+        />
       </div>
 
-      <div className="card">
+      <div className="card cm-table-card">
         <table className="tbl">
           <thead>
             <tr>
@@ -352,7 +385,7 @@ export function InvoicesView() {
             ))}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={6} data-span="all">
                   <ErrorState
                     variant="inline"
                     title="Couldn't load invoices"
@@ -363,16 +396,18 @@ export function InvoicesView() {
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
-                <td colSpan={6}>
-                  <EmptyState
-                    variant="inline"
-                    title={invoices.length === 0 ? 'No invoices yet' : 'No invoices to show'}
-                    description={
-                      invoices.length === 0
-                        ? 'Bill a client to start tracking AR. New invoices appear here as drafts.'
-                        : 'Try a different search or filter.'
-                    }
-                  />
+                <td colSpan={6} data-span="all">
+                  <div className="cm-empty">
+                    <EmptyState
+                      variant="inline"
+                      title={invoices.length === 0 ? 'No invoices yet' : 'No invoices to show'}
+                      description={
+                        invoices.length === 0
+                          ? 'Bill a client to start tracking AR. New invoices appear here as drafts.'
+                          : 'Try a different search or filter.'
+                      }
+                    />
+                  </div>
                 </td>
               </tr>
             )}
@@ -381,22 +416,22 @@ export function InvoicesView() {
               return (
                 <tr
                   key={inv.id}
+                  className={inv.status === 'overdue' ? 'is-overdue' : undefined}
                   onClick={() => setSelected(inv)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(inv); } }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td className="mono tabular" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                    {inv.invoiceNo}
+                  <td className="mono tabular cm-inv-no">{inv.invoiceNo}</td>
+                  <td className="cm-client-cell">{inv.client}</td>
+                  <td className="cm-num cm-amount">₹{formatINR(inv.amountInr)}</td>
+                  <td className="cm-date-cell">{formatDay(inv.issuedDate)}</td>
+                  <td className="cm-date-cell">
+                    {formatDay(inv.dueDate)}
+                    <span className="cm-due-rel">{relativeDue(inv)}</span>
                   </td>
-                  <td>{inv.client}</td>
-                  <td className="mono tabular" style={{ textAlign: 'right', fontWeight: 500 }}>
-                    ₹{formatINR(inv.amountInr)}
-                  </td>
-                  <td className="mono tabular muted">{inv.issuedDate}</td>
-                  <td className="mono tabular muted">{inv.dueDate}</td>
-                  <td><span className={`badge ${badge.cls}`}>{badge.label}</span></td>
+                  <td><span className={badge.cls}>{badge.text}</span></td>
                 </tr>
               );
             })}

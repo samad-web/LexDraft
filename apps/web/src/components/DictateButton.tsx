@@ -35,7 +35,7 @@ export function DictateButton({ onTranscript, label = 'Dictate', size = 'sm' }: 
       style={{ flexShrink: 0 }}
     >
       <Icon name="mic" size={12} />
-      {dictation.listening ? 'Listening…' : label}
+      {dictation.listening ? 'Listening… tap to stop' : label}
     </button>
   );
 }

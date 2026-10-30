@@ -9,7 +9,6 @@ import { ROUTE_TITLES, locateInNav, visibleNavGroups } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useSignOut } from '@/hooks/useAuth';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -24,7 +23,6 @@ export function Topbar() {
   // any client-only notifications are reflected instantly.
   const { markRead, markAllRead } = useNotifications();
   const unreadCount = useUnreadCount();
-  const signOut = useSignOut();
   // Background-fetch indicator. A small dot pulses next to the title when
   // any react-query is in flight after the initial paint.
   const fetchingCount = useIsFetching();
@@ -82,27 +80,14 @@ export function Topbar() {
       )}
 
       <div className="topbar-title">
-        <div className="topbar-title-row">
-          {meta.title}
-          {fetchingCount > 0 && (
-            <span
-              aria-label="Updating"
-              title="Updating"
-              className="fetch-pulse"
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: 'var(--info)',
-                display: 'inline-block',
-                flexShrink: 0,
-              }}
-            />
-          )}
-        </div>
         {meta.eyebrow && (
-          <div className="mono topbar-eyebrow">{meta.eyebrow.toUpperCase()}</div>
+          <>
+            <span className="topbar-eyebrow">{meta.eyebrow}</span>
+            <span className="topbar-crumb-sep" aria-hidden>/</span>
+          </>
         )}
+        <span className="topbar-title-row">{meta.title}</span>
+        {fetchingCount > 0 && <span aria-label="Updating" title="Updating" className="fetch-pulse topbar-pulse" />}
       </div>
 
       <button
@@ -125,15 +110,15 @@ export function Topbar() {
         <Icon name="search" size={16} />
       </button>
 
-      <div className="topbar-theme">
+      <div className="topbar-theme" title="Light / dark mode">
         <ThemeToggle />
       </div>
 
       <div style={{ position: 'relative' }}>
         <button
-          className="btn btn-ghost"
           onClick={() => setNotifOpen((o) => !o)}
-          style={{ padding: '0 8px', position: 'relative' }}
+          className="btn btn-ghost topbar-icon"
+          style={{ position: 'relative' }}
           aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : 'Notifications'}
         >
           <Icon name="bell" />
@@ -148,8 +133,9 @@ export function Topbar() {
                 height: 16,
                 padding: '0 4px',
                 borderRadius: 8,
-                background: 'var(--danger)',
-                color: '#fff',
+                // Ink, not red: red is kept for mandatory issues only.
+                background: 'var(--text-primary)',
+                color: 'var(--bg-base)',
                 fontSize: 10,
                 fontWeight: 600,
                 display: 'inline-flex',
@@ -173,15 +159,6 @@ export function Topbar() {
         )}
       </div>
 
-      <button
-        className="btn btn-oxblood topbar-signout"
-        onClick={() => {
-          signOut();
-          navigate('/');
-        }}
-      >
-        Sign out
-      </button>
     </div>
   );
 }

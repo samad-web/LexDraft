@@ -8,7 +8,7 @@ export function ManagePracticeGroupsPanel() {
   const pager = usePagination(groups.data ?? []);
 
   if (groups.isLoading) {
-    return <div className="muted">Loading practice groups…</div>;
+    return <div className="fm-loading">Loading practice groups…</div>;
   }
 
   return (
@@ -19,15 +19,15 @@ export function ManagePracticeGroupsPanel() {
       />
 
       {(groups.data ?? []).length === 0 ? (
-        <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
-          <div className="heading-sm" style={{ marginBottom: 8 }}>No practice groups yet</div>
-          <div className="body-sm muted">
+        <div className="fm-empty-card">
+          <div className="fm-panel-title">No practice groups yet</div>
+          <div>
             Once created, practice groups appear here. Members can then be assigned to a group from the Users tab.
           </div>
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
+          <table className="tbl fm-tbl">
             <thead>
               <tr>
                 <th>Practice group</th>
@@ -38,10 +38,10 @@ export function ManagePracticeGroupsPanel() {
             <tbody>
               {pager.slice.map((g) => (
                 <tr key={g.id}>
-                  <td style={{ fontWeight: 500 }}>{g.name}</td>
-                  <td className="mono tabular" style={{ textAlign: 'right' }}>{g.memberCount}</td>
+                  <td><span className="fm-cell-title">{g.name}</span></td>
+                  <td className="num" style={{ textAlign: 'right', fontFamily: 'var(--font-title)', fontSize: 16, fontWeight: 600 }}>{g.memberCount}</td>
                   <td>
-                    <span className={`badge ${g.archivedAt ? 'badge-amber' : 'badge-sage'}`}>
+                    <span className={`fm-pill ${g.archivedAt ? 'is-muted' : 'is-solid'}`}>
                       {g.archivedAt ? 'Archived' : 'Active'}
                     </span>
                   </td>
@@ -49,7 +49,7 @@ export function ManagePracticeGroupsPanel() {
               ))}
             </tbody>
           </table>
-          <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+          <div className="fm-tbl-foot">
             <Pagination
               page={pager.page}
               totalPages={pager.totalPages}

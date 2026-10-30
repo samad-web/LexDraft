@@ -16,17 +16,18 @@ import {
   type EcourtsSyncResult,
 } from '@/hooks/useCases';
 import type { MatterTimelineEvent } from '@lexdraft/types';
-import { PipelineBuilder } from '@/components/pipeline/PipelineBuilder';
 import { NewHearingModal } from '@/components/NewHearingModal';
+import { EditCaseModal } from '@/components/EditCaseModal';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { NewDocumentModal } from '@/components/NewDocumentModal';
 import { CaseDocumentsPanel } from '@/components/CaseDocumentsPanel';
 import { CaseNotesPanel } from '@/components/CaseNotesPanel';
-import { CaseLeadHandover } from '@/components/CaseLeadHandover';
+import { CaseCoCounselTab } from '@/components/case/CaseCoCounselTab';
 import { MatterIntelPanel } from '@/components/matter-intel/MatterIntelPanel';
 import { CopyButton } from '@/components/CopyButton';
 import { EcourtsLinkCard } from '@/components/ecourts/EcourtsLinkCard';
 import { EcourtsCaseSnapshot } from '@/components/ecourts/EcourtsCaseSnapshot';
+import { linkStatusDisplay } from '@/components/ecourts/linkStatus';
 import { Modal } from '@/components/Modal';
 import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
@@ -43,14 +44,15 @@ const EcourtsCaseRecord = lazy(() => import('@/views/EcourtsView').then((m) => (
 // away. `?tab=<id>` deep-links (the case-create flow lands on documents).
 const CASE_TABS = [
   { id: 'overview',     label: 'Overview' },
+  { id: 'cocounsel',    label: 'Co-Counsel' },
   { id: 'ecourts',      label: 'eCourts' },
   { id: 'hearings',     label: 'Hearings' },
   { id: 'documents',    label: 'Documents' },
-  { id: 'filings',      label: 'Filings & Applications' },
-  { id: 'work',         label: 'Tasks & Deadlines' },
+  { id: 'filings',      label: 'Filings' },
+  { id: 'work',         label: 'Tasks' },
   { id: 'billing',      label: 'Billing' },
-  { id: 'intelligence', label: 'Intelligence' },
-  { id: 'discussion',   label: 'Discussion' },
+  { id: 'intelligence', label: 'AI insights' },
+  { id: 'discussion',   label: 'Team chat' },
 ] as const;
 type CaseTab = (typeof CASE_TABS)[number]['id'];
 const isCaseTab = (t: string | null): t is CaseTab => CASE_TABS.some((x) => x.id === t);
@@ -66,6 +68,8 @@ export function CaseDetailView() {
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [diaryAll, setDiaryAll] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
@@ -124,16 +128,20 @@ export function CaseDetailView() {
 
   if (isLoading) {
     return (
-      <div className="col" style={{ gap: 16 }}>
-        <PageHeader back={back} title={<Skeleton width={320} height={28} />} />
-        <div className="card"><span className="muted">Loading matter…</span></div>
+      <div className="col cs" aria-busy="true">
+        <section className="cs-hero cs-loading-hero" aria-label="Loading matter">
+          <Skeleton width={160} height={11} />
+          <Skeleton width="62%" height={34} />
+          <Skeleton width="44%" height={14} />
+          <span className="cs-muted">Loading matter…</span>
+        </section>
       </div>
     );
   }
 
   if (isError || !data) {
     return (
-      <div className="col" style={{ gap: 16 }}>
+      <div className="col cs">
         <PageHeader back={back} title="Matter" />
         <ErrorState
           title="Couldn’t load matter"
@@ -211,78 +219,95 @@ export function CaseDetailView() {
   const current: CaseTab = tabs.some((t) => t.id === activeTab) ? activeTab : 'overview';
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
-      <PageHeader
-        back={back}
-        title={<em className="case-name">{c.title}</em>}
-        description={<>{c.court} · For {c.client}</>}
-        actions={<>
+    <div className="col stagger cs">
+      {/* HERO - who, where, what stage, and when it is next in court. */}
+      <section className="cs-hero" aria-labelledby="case-hero-title">
+        <div className="cs-hero-main">
+          <div className="adv-eyebrow">{String(c.type)} matter · {c.status}</div>
+          <h1 id="case-hero-title" className="cs-hero-title"><em className="case-name">{c.title}</em></h1>
+          <p className="cs-hero-sub">
+            {c.client ? <>Client: <strong>{c.client}</strong></> : <span className="cs-missing">No client added</span>}
+            <span className="cs-hero-dot">·</span>
+            {c.court ? <>Court: <strong>{c.court}</strong></> : <span className="cs-missing">No court added</span>}
+            {(!c.client || !c.court) && (
+              <button type="button" className="adv-link cs-hero-fill" onClick={() => setEditOpen(true)}>Add details</button>
+            )}
+          </p>
+          <div className="cs-hero-tags">
+            <span className="adv-pill">Stage: <strong>{String(c.stage)}</strong></span>
+            {hasRealCnr ? (
+              <>
+                <span className="cs-hero-cnr">CNR <CopyButton value={c.cnr.toUpperCase()} mono /></span>
+                <span className={`badge ${linkStatusDisplay(c.ecourtsLinkStatus).badge}`}>{linkStatusDisplay(c.ecourtsLinkStatus).label}</span>
+              </>
+            ) : (
+              <span className="adv-pill">Not linked to eCourts</span>
+            )}
+            <label className="cs-hero-toggle" title="When enabled, this matter is visible in the client portal.">
+              <input
+                type="checkbox"
+                checked={!!c.visibleToClient}
+                disabled={!c.id || updateVisibility.isPending}
+                onChange={(e) => updateVisibility.mutate({
+                  id: c.id, visibleToClient: e.target.checked,
+                })}
+              />
+              Visible to client
+            </label>
+          </div>
+        </div>
+
+        <NextDatePanel next={c.next} onAdd={() => setHearingOpen(true)} />
+
+        <div className="cs-hero-actions">
+          {hasRealCnr && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => { void handleSyncFromEcourts(); }}
+              disabled={syncFromEcourts.isPending}
+              title="Bring in the latest status, hearings and orders from eCourts"
+            >
+              <Icon name="ecourts" size={14} />{' '}
+              {syncFromEcourts.isPending ? 'Updating…' : 'Update from eCourts'}
+            </button>
+          )}
+          <button type="button" className="btn" onClick={() => setEditOpen(true)}>
+            <Icon name="edit" size={14} /> Edit details
+          </button>
           <MoreMenu
             items={[
-              ...(canDraft ? [{ label: 'Draft for this matter', icon: 'draft' as const, onSelect: openDraft, title: 'Its details and notes are pulled in as context' }] : []),
-              { label: 'Upload document', icon: 'upload', onSelect: () => setDocOpen(true) },
-              { label: 'Add pending', icon: 'tasks', onSelect: () => setTaskOpen(true) },
+              ...(canDraft ? [{ label: 'Draft a document with AI', icon: 'draft' as const, onSelect: openDraft, title: 'The case details and notes are used automatically' }] : []),
+              { label: 'Upload a document', icon: 'upload', onSelect: () => setDocOpen(true) },
+              { label: 'Add a task', icon: 'tasks', onSelect: () => setTaskOpen(true) },
               {
-                label: 'Prepare eFiling',
+                label: 'File online (eFiling)',
                 icon: 'efiling',
                 onSelect: () => navigate(`/app/efiling?case=${encodeURIComponent(c.id)}`),
                 title: 'Prepare a filing for the eCourts eFiling portal and track it until the court registers it',
               },
               {
-                label: generateLetter.isPending ? 'Generating engagement letter…' : 'Generate engagement letter',
+                label: generateLetter.isPending ? 'Preparing engagement letter…' : 'Engagement letter for client',
                 icon: 'mail',
                 onSelect: () => { void handleGenerateEngagement(); },
                 disabled: generateLetter.isPending,
                 title: "Uses the firm's default template for this matter type",
               },
             ]}
+            label="More actions"
           />
-          <button
-            type="button"
-            className="btn"
-            onClick={() => { void handleSyncFromEcourts(); }}
-            disabled={syncFromEcourts.isPending || !hasRealCnr}
-            title={hasRealCnr
-              ? 'Pull latest case status, hearings, and orders from the eCourts gateway'
-              : 'Link this matter to eCourts first (see the eCourts connection card in Overview)'}
-          >
-            <Icon name="ecourts" size={14} />{' '}
-            {syncFromEcourts.isPending ? 'Syncing…' : 'Sync eCourts'}
-          </button>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => setHearingOpen(true)}
           >
-            <Icon name="plus" size={14} /> Hearing
+            <Icon name="plus" size={14} /> Add hearing date
           </button>
-        </>}
-      >
-        <span className="badge badge-sage">{c.status.toUpperCase()}</span>
-        <span className="badge badge-cobalt">{String(c.type).toUpperCase()}</span>
-        <span className="body-sm muted">CNR <CopyButton value={c.cnr} /></span>
-        <span className="body-sm" style={{ color: c.next ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>
-          Next date: <strong className="mono tabular">{c.next || 'not posted'}</strong>
-        </span>
-        <label
-          className="row"
-          style={{ gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-secondary)' }}
-          title="When enabled, this matter is visible in the client portal."
-        >
-          <input
-            type="checkbox"
-            checked={!!c.visibleToClient}
-            disabled={!c.id || updateVisibility.isPending}
-            onChange={(e) => updateVisibility.mutate({
-              id: c.id, visibleToClient: e.target.checked,
-            })}
-          />
-          Visible to client
-        </label>
-      </PageHeader>
+        </div>
+      </section>
 
       {/* Tab strip */}
-      <div className="matter-intel-tabs case-tabs" role="tablist" aria-label="Matter sections">
+      <div className="matter-intel-tabs case-tabs cs-tabs" role="tablist" aria-label="Matter sections">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -316,6 +341,8 @@ export function CaseDetailView() {
         </Suspense>
       )}
 
+      {current === 'cocounsel' && <CaseCoCounselTab caseId={c.id} caseTitle={c.title} />}
+
       {current === 'filings' && <CaseFilingsTab caseId={c.id} />}
 
       {current === 'work' && (
@@ -338,73 +365,17 @@ export function CaseDetailView() {
       )}
 
       {current === 'overview' && (
-      <>
-      {/* BODY - two columns */}
-      <div className="case-body split-2-wide" style={{ gap: 24 }}>
-        {/* LEFT */}
-        <div className="col" style={{ gap: 24 }}>
-          {/* eCourts first: a linked matter opens on its live court status. */}
-          {hasRealCnr ? (
-            <EcourtsCaseSnapshot cnr={c.cnr.trim().toUpperCase()} court={ecourtsCourt} onOpenRecord={() => setActiveTab('ecourts')} />
-          ) : (
-            <div className="card row" style={{ gap: 12, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <div className="col" style={{ gap: 2 }}>
-                <span className="heading-sm">Not connected to eCourts</span>
-                <span className="body-sm muted">Add the real CNR (or case number) and DifAi brings in its status, hearings, orders and parties.</span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => document.getElementById('ecourts-connection')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              >
-                Connect to eCourts
-              </button>
-            </div>
-          )}
-
-          {/* PIPELINE BUILDER — this matter's own branching pipeline graph.
-              Stages, branches and conditions are per-case (migration 0054). */}
-          <div className="card">
-            <PipelineBuilder caseId={c.id} />
-          </div>
-
-          {/* Case meta */}
-          <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Matter</div>
-            <h2 className="heading-md" style={{ marginBottom: 12 }}>Particulars</h2>
-            <div className="grid-2" style={{ gap: 16 }}>
-              <MetaItem label="CNR"        value={c.cnr}         mono copyable />
-              <MetaItem label="Court"      value={c.court} />
-              <MetaItem label="Stage"      value={String(c.stage)} />
-              <MetaItem label="Status"     value={c.status} />
-              <MetaItem label="Client"     value={c.client} />
-              <MetaItem label="Next date"  value={c.next}        mono />
-              {c.judge && <MetaItem label="Bench" value={c.judge} />}
-              {c.filingNo && <MetaItem label="Filing No." value={c.filingNo} mono copyable />}
-              {c.firNo && (
-                <MetaItem
-                  label="FIR"
-                  value={`${c.firNo}/${c.firYear ?? ''}${c.firDetails ? ` · ${c.firDetails.split('^').filter(Boolean).join(' · ')}` : ''}`}
-                />
-              )}
-              {c.ecourtsSyncedAt && (
-                <MetaItem
-                  label="Last eCourts sync"
-                  value={new Date(c.ecourtsSyncedAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                />
-              )}
-            </div>
-          </div>
-
-          {/* eCourts connection - status + link a manual / unfound matter. */}
+      <div className="cs-ov">
+        {/* MAIN - live court status, the facts, and what happened. */}
+        <div className="cs-ov-main">
           {linkedJustNow && fromEcourts ? (
-            <div className="card row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap', borderColor: 'var(--success, var(--border))' }} role="status">
-              <span className={`dot ${linkedJustNow === 'linked' ? 'dot-sage' : 'dot-amber'}`} style={{ flexShrink: 0 }} />
-              <div style={{ flex: '1 1 260px', minWidth: 0 }}>
-                <div className="heading-sm">
+            <div className="cs-banner" role="status">
+              <span className="cs-banner-icon"><Icon name={linkedJustNow === 'linked' ? 'check' : 'limitation'} size={16} /></span>
+              <div className="cs-banner-text">
+                <div className="cs-banner-title">
                   {linkedJustNow === 'linked' ? 'Connected to eCourts' : 'CNR saved. Connects when eCourts is back'}
                 </div>
-                <p className="body-sm muted">
+                <p>
                   {remaining.isFetching
                     ? 'Checking what is left to connect…'
                     : nextToConnect
@@ -426,144 +397,143 @@ export function CaseDetailView() {
               </button>
             </div>
           ) : null}
-          <EcourtsLinkCard
-            key={`${c.id}:${c.ecourtsLinkStatus ?? ''}`}
-            c={c}
-            onLinked={(s) => setLinkedJustNow(s)}
-          />
 
-          {/* Lead advocate + handover (case_assignments). */}
-          <CaseLeadHandover caseId={c.id} caseTitle={c.title} />
-
-          {/* Acts & sections — populated by the eCourts sync (case_acts table). */}
-          {(acts.data?.length ?? 0) > 0 && (
-            <div className="card">
-              <div className="eyebrow" style={{ marginBottom: 8 }}>Statute</div>
-              <h2 className="heading-md" style={{ marginBottom: 12 }}>Acts & sections</h2>
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {acts.data!.map((a) => (
-                  <span key={a.id} className="badge" style={{ fontFamily: 'var(--font-mono)' }}>
-                    {a.actName} §{a.section}
-                  </span>
-                ))}
-              </div>
-            </div>
+          {/* eCourts first: a linked matter opens on its live court status;
+              an unlinked one on the card that links it (CNR or case number). */}
+          {hasRealCnr ? (
+            <EcourtsCaseSnapshot cnr={c.cnr.trim().toUpperCase()} court={ecourtsCourt} onOpenRecord={() => setActiveTab('ecourts')} />
+          ) : (
+            <EcourtsLinkCard
+              key={`${c.id}:${c.ecourtsLinkStatus ?? ''}`}
+              c={c}
+              onLinked={(s) => setLinkedJustNow(s)}
+            />
           )}
 
-          {/* Timeline — stage transitions, hearings, documents, notes,
-              merged newest-first from /api/cases/:id/timeline. */}
-          <div>
-            <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-              <h2 className="heading-lg">Matter diary</h2>
-              <span className="spacer" />
-              <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                {timeline.data?.length ?? 0} ENTRIES
+          {/* Notes - the case facts and working notes; AI drafting pulls these in. */}
+          <CaseNotesPanel caseId={c.id} matterTitle={c.title} />
+
+          {/* Matter diary - newest first, the latest five unless expanded. */}
+          <div className="card">
+            <div className="cs-card-head">
+              <div className="cs-card-titles">
+                <h2 className="cs-card-title">Case history</h2>
+                <p className="cs-card-sub">Every hearing, stage change, filing and note, newest first.</p>
+              </div>
+              <span className="cs-count">
+                {timeline.data?.length ?? 0} {(timeline.data?.length ?? 0) === 1 ? 'entry' : 'entries'}
               </span>
             </div>
             {timeline.isLoading ? (
-              <p className="body-md muted">Loading diary…</p>
+              <p className="cs-muted">Loading diary…</p>
             ) : timeline.isError ? (
-              <p className="body-sm" style={{ color: 'var(--danger)' }}>
-                Could not load diary. {(timeline.error as Error)?.message ?? ''}
-              </p>
+              <p className="cs-muted">Could not load diary. {(timeline.error as Error)?.message ?? ''}</p>
             ) : (timeline.data?.length ?? 0) === 0 ? (
-              <p className="body-md muted">
-                No diary entries yet. Stage moves, next dates, filings and notes will appear here.
-              </p>
+              <p className="cs-muted">Nothing yet. Every hearing, stage change, filing and note is recorded here automatically.</p>
             ) : (
-              <div className="col" style={{ gap: 10 }}>
-                {timeline.data!.map((e) => (
-                  <TimelineRow key={e.id} event={e} />
-                ))}
-              </div>
+              <>
+                <ul className="cs-diary">
+                  {(diaryAll ? timeline.data! : timeline.data!.slice(0, 5)).map((e) => (
+                    <TimelineRow key={e.id} event={e} />
+                  ))}
+                </ul>
+                {timeline.data!.length > 5 && (
+                  <button type="button" className="adv-link cs-diary-more" onClick={() => setDiaryAll((v) => !v)}>
+                    {diaryAll ? 'Show latest only' : `Show all ${timeline.data!.length} entries`}
+                  </button>
+                )}
+              </>
             )}
           </div>
-
-          {/* Parties — populated by the eCourts sync (case_parties table).
-              Falls back to a hint when the matter has never been synced. */}
-          <div>
-            <div className="row" style={{ alignItems: 'flex-end', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid var(--border-default)' }}>
-              <h2 className="heading-lg">Parties</h2>
-              <span className="spacer" />
-              {(parties.data?.length ?? 0) > 0 && (
-                <span className="mono" style={{ fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}>
-                  {parties.data!.length} ON RECORD
-                </span>
-              )}
-            </div>
-            {parties.isLoading ? (
-              <p className="body-md muted">Loading parties…</p>
-            ) : (parties.data?.length ?? 0) === 0 ? (
-              <p className="body-md muted">
-                No parties on record. Click <strong>Sync from eCourts</strong> in the header to import them, or add manually when the matter file is opened.
-              </p>
-            ) : (
-              <div className="grid-2">
-                {parties.data!.map((p) => (
-                  <div key={p.id} className="card" style={{ padding: 20 }}>
-                    <div className="eyebrow" style={{ marginBottom: 6, textTransform: 'uppercase' }}>{p.side}</div>
-                    <div className="heading-md" style={{ marginBottom: 4 }}>{p.partyName}</div>
-                    {p.roleLabel && (
-                      <div className="body-sm muted" style={{ marginBottom: 12 }}>{p.roleLabel}</div>
-                    )}
-                    {p.advocateName && (
-                      <div className="mono" style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)' }}>
-                        COUNSEL: {p.advocateName}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Notes - typed memos or uploaded files; AI drafting can pull these
-              in as context when generating documents for this matter. */}
-          <CaseNotesPanel caseId={c.id} matterTitle={c.title} />
         </div>
 
-        {/* RIGHT */}
-        <div className="col" style={{ gap: 24 }}>
-          {/* Next date — when the matter is next posted on the cause-list. */}
-          <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 8 }}>Next date</div>
-            {c.next ? (
-              <div className="mono tabular" style={{ fontSize: 22, fontWeight: 600, marginBottom: 16 }}>
-                {c.next}
-              </div>
-            ) : (
-              <p className="body-md muted" style={{ marginBottom: 16 }}>Not posted to a date yet.</p>
-            )}
-            {canDraft && (
-              <div className="row" style={{ gap: 8 }}>
-                <button type="button" className="btn btn-primary btn-block" onClick={openDraft}>
-                  Prepare brief
+        {/* SIDE - quick actions and the matter's particulars. */}
+        <aside className="cs-ov-side">
+          <div className="card cs-quick-card">
+            <div className="cs-card-head"><h2 className="cs-card-title">What would you like to do?</h2></div>
+            <div className="cs-quick">
+              {canDraft && (
+                <button type="button" className="btn btn-primary" onClick={openDraft}>
+                  <Icon name="draft" size={14} /> Draft a document with AI
                 </button>
-              </div>
-            )}
+              )}
+              <button type="button" className="btn" onClick={() => setHearingOpen(true)}>
+                <Icon name="calendar" size={14} /> Add a hearing date
+              </button>
+              <button type="button" className="btn" onClick={() => setDocOpen(true)}>
+                <Icon name="upload" size={14} /> Upload a document
+              </button>
+              <button type="button" className="btn" onClick={() => setTaskOpen(true)}>
+                <Icon name="tasks" size={14} /> Add a task
+              </button>
+            </div>
           </div>
 
           {/* At a glance - one line per hub tab, each jumping to it. */}
           <div className="card">
-            <div className="heading-md" style={{ marginBottom: 8 }}>At a glance</div>
-            <ul className="dash-list">
-              <GlanceRow label="Hearings on record" value={String(hearingCount)} onOpen={() => setActiveTab('hearings')} />
+            <div className="cs-card-head" style={{ marginBottom: 4 }}><h2 className="cs-card-title">In this case</h2></div>
+            <ul className="cs-glance">
+              <GlanceRow label="Hearings" value={String(hearingCount)} onOpen={() => setActiveTab('hearings')} />
               <GlanceRow
-                label="Open pendings"
+                label="Open tasks"
                 value={taskBoard.isLoading ? '…' : String(openTasks)}
                 onOpen={() => setActiveTab('work')}
               />
-              <GlanceRow label="Filings & applications" value="View" onOpen={() => setActiveTab('filings')} />
-              {canBill && <GlanceRow label="Invoices & expenses" value="View" onOpen={() => setActiveTab('billing')} />}
+              <GlanceRow label="Filings & applications" value="" onOpen={() => setActiveTab('filings')} />
+              {canBill && <GlanceRow label="Fees & expenses" value="" onOpen={() => setActiveTab('billing')} />}
             </ul>
           </div>
 
-          {/* Recent documents have moved to the unified Timeline (left
-              column) which streams document uploads alongside hearings and
-              stage moves. A dedicated card here would duplicate that. */}
-        </div>
+          {/* Parties + acts - populated by the eCourts sync. */}
+          <div className="card">
+            <div className="cs-card-head" style={{ marginBottom: 6 }}>
+              <div className="cs-card-titles"><h2 className="cs-card-title">Parties</h2></div>
+              {(parties.data?.length ?? 0) > 0 && (
+                <span className="cs-count">{parties.data!.length} on record</span>
+              )}
+            </div>
+            {parties.isLoading ? (
+              <p className="cs-muted">Loading parties…</p>
+            ) : (parties.data?.length ?? 0) === 0 ? (
+              <p className="cs-muted">
+                {hasRealCnr ? 'None on record yet. Sync eCourts to import them.' : 'Imported from eCourts once the CNR is added.'}
+              </p>
+            ) : (
+              <ul className="cs-parties">
+                {parties.data!.map((p) => (
+                  <li key={p.id}>
+                    <span className="adv-eyebrow">{p.side}</span>
+                    <span className="cs-party-name">{p.partyName}</span>
+                    {(p.roleLabel || p.advocateName) && (
+                      <span className="cs-line-sub">
+                        {[p.roleLabel, p.advocateName ? `Counsel: ${p.advocateName}` : ''].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {(acts.data?.length ?? 0) > 0 && (
+              <div className="cs-acts" aria-label="Acts and sections">
+                {acts.data!.map((a) => (
+                  <span key={a.id} className="cs-act">
+                    <strong>§ {a.section}</strong> {a.actName}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Linked matters: connection status + change CNR live down here. */}
+          {hasRealCnr && (
+            <EcourtsLinkCard
+              key={`${c.id}:${c.ecourtsLinkStatus ?? ''}`}
+              c={c}
+              onLinked={(s) => setLinkedJustNow(s)}
+            />
+          )}
+        </aside>
       </div>
-      </>
       )}
 
       <EngagementLetterPreview
@@ -578,6 +548,7 @@ export function CaseDetailView() {
       />
 
       <NewDocumentModal open={docOpen} onClose={() => setDocOpen(false)} defaultCase={c.title} />
+      <EditCaseModal open={editOpen} onClose={() => setEditOpen(false)} c={c} />
       <NewHearingModal
         open={hearingOpen}
         onClose={() => setHearingOpen(false)}
@@ -602,34 +573,44 @@ export function CaseDetailView() {
 function GlanceRow({ label, value, onOpen }: { label: string; value: string; onOpen: () => void }) {
   return (
     <li>
-      <button type="button" className="dash-row" onClick={onOpen}>
-        <span className="dash-row-main"><span className="body-sm">{label}</span></span>
-        <span className="mono tabular body-sm">{value}</span>
+      <button type="button" onClick={onOpen}>
+        <span className="cs-glance-label">{label}</span>
+        {value && <span className="cs-glance-value">{value}</span>}
         <Icon name="chevron" size={14} />
       </button>
     </li>
   );
 }
 
-function MetaItem({
-  label,
-  value,
-  mono,
-  copyable,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  /** When true, render the value as a CopyButton so advocates can grab
-   *  long identifiers (CNR, file numbers) without a select-all gesture. */
-  copyable?: boolean;
-}) {
-  return (
-    <div>
-      <div className="eyebrow" style={{ marginBottom: 4 }}>{label}</div>
-      <div className={mono && !copyable ? 'mono tabular' : ''} style={{ fontSize: 14, color: 'var(--text-primary)' }}>
-        {copyable ? <CopyButton value={value} mono={mono} /> : value}
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** The hero's date panel: big day, weekday and how far away it is. */
+function NextDatePanel({ next, onAdd }: { next: string; onAdd: () => void }) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(next ?? '');
+  if (!m) {
+    return (
+      <div className="cs-next is-empty">
+        <div className="adv-eyebrow">Next date</div>
+        <div className="cs-next-none">Not posted</div>
+        <button type="button" className="adv-link" onClick={onAdd}>Add hearing date →</button>
       </div>
+    );
+  }
+  const [, y, mo, d] = m;
+  const date = new Date(+y!, +mo! - 1, +d!);
+  const now = new Date();
+  const days = Math.round((date.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 864e5);
+  const when = days === 0 ? 'Today' : days === 1 ? 'Tomorrow' : days === -1 ? 'Yesterday'
+    : days > 0 ? `In ${days} days` : `${-days} days ago · post the next date`;
+  return (
+    <div className={`cs-next${days === 0 ? ' is-today' : ''}`}>
+      <div className="adv-eyebrow">Next date</div>
+      <div className="cs-next-day">
+        <span className="cs-next-d">{+d!}</span>
+        <span className="cs-next-my">{MONTHS_SHORT[+mo! - 1]} {y}</span>
+      </div>
+      <div className="cs-next-when">{WEEKDAYS[date.getDay()]} · <strong>{when}</strong></div>
     </div>
   );
 }
@@ -689,24 +670,7 @@ function EngagementLetterPreview({
         </>
       }
     >
-      <pre
-        style={{
-          background: 'var(--bg-surface-2)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          padding: 20,
-          margin: 0,
-          minHeight: 320,
-          maxHeight: '60vh',
-          overflow: 'auto',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          fontFamily: 'var(--font-serif, Georgia, serif)',
-          fontSize: 14,
-          lineHeight: 1.6,
-          color: 'var(--text-primary)',
-        }}
-      >
+      <pre className="cs-letter">
         {text ?? ''}
       </pre>
     </Modal>
@@ -739,33 +703,33 @@ function EcourtsSyncResultModal({
         <button type="button" className="btn btn-primary" onClick={onClose}>Close</button>
       }
     >
-      <div className="col stagger" style={{ gap: 20 }}>
-        <SummaryRow
-          label="FIELDS UPDATED"
-          value={String(changeEntries.length)}
-          detail={changeEntries.length === 0 ? 'Already up to date' : undefined}
-        />
-        <SummaryRow
-          label="HEARINGS REPLACED"
-          value={String(sync.hearingsReplaced)}
-          detail="The full hearing history was re-imported from eCourts."
-        />
-        <SummaryRow
-          label="ACTS / SECTIONS"
-          value={String(sync.actsReplaced)}
-          detail={sync.actsReplaced > 0 ? 'Refreshed from the court record.' : undefined}
-        />
-        <SummaryRow
-          label="PARTIES"
-          value={String(sync.partiesReplaced)}
-          detail={sync.partiesReplaced > 0 ? 'Petitioner / respondent + extras imported.' : undefined}
-        />
+      <div className="cs-sync">
+        <div className="cs-sync-figs">
+          <SummaryRow
+            label="Fields updated"
+            value={String(changeEntries.length)}
+            detail={changeEntries.length === 0 ? 'Already up to date' : undefined}
+          />
+          <SummaryRow
+            label="Hearings replaced"
+            value={String(sync.hearingsReplaced)}
+            detail="The full hearing history was re-imported from eCourts."
+          />
+          <SummaryRow
+            label="Acts / sections"
+            value={String(sync.actsReplaced)}
+            detail={sync.actsReplaced > 0 ? 'Refreshed from the court record.' : undefined}
+          />
+          <SummaryRow
+            label="Parties"
+            value={String(sync.partiesReplaced)}
+            detail={sync.partiesReplaced > 0 ? 'Petitioner / respondent + extras imported.' : undefined}
+          />
+        </div>
 
         {changeEntries.length > 0 && (
           <div className="col" style={{ gap: 8 }}>
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-              CHANGES
-            </div>
+            <div className="cs-count">Changes</div>
             <table className="tbl">
               <thead>
                 <tr>
@@ -790,9 +754,7 @@ function EcourtsSyncResultModal({
         {(sync.surfaceOnly.transfers.length > 0
           || sync.surfaceOnly.finalOrders + sync.surfaceOnly.interimOrders > 0) && (
           <div className="col" style={{ gap: 8 }}>
-            <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-              ADDITIONAL DATA (NOT YET STORED)
-            </div>
+            <div className="cs-count">Additional data (not yet stored)</div>
             <p className="body-sm muted">
               eCourts returned these too; DifAi doesn't have columns for them yet. They'll appear in the eCourts gateway view in full.
             </p>
@@ -811,10 +773,10 @@ function EcourtsSyncResultModal({
 
 function SummaryRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return (
-    <div className="row" style={{ alignItems: 'baseline', gap: 16 }}>
-      <span className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)', minWidth: 160 }}>{label}</span>
-      <span className="heading-md tabular">{value}</span>
-      {detail && <span className="body-sm muted">{detail}</span>}
+    <div className="cs-sync-fig">
+      <span className="cs-count">{label}</span>
+      <span className="cs-figure">{value}</span>
+      {detail && <p>{detail}</p>}
     </div>
   );
 }
@@ -823,17 +785,6 @@ function fmtValue(v: unknown): string {
   if (v === null || v === undefined || v === '') return 'Not set';
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v);
-}
-
-function kindToColor(kind: MatterTimelineEvent['kind']): string {
-  switch (kind) {
-    case 'stage':       return 'var(--success, #2f7d32)';
-    case 'hearing':     return 'var(--info, #2563eb)';
-    case 'document':    return 'var(--warning, #b45309)';
-    case 'application': return 'var(--accent, #7c3aed)';
-    case 'note':        return 'var(--border-default)';
-    default:            return 'var(--border-default)';
-  }
 }
 
 function kindLabel(kind: MatterTimelineEvent['kind']): string {
@@ -848,35 +799,19 @@ function kindLabel(kind: MatterTimelineEvent['kind']): string {
 }
 
 function TimelineRow({ event }: { event: MatterTimelineEvent }) {
-  const date = event.at ? event.at.slice(0, 10) : '';
+  const date = event.at
+    ? new Date(event.at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
   return (
-    <div
-      className="card"
-      style={{ padding: 18, borderLeft: `3px solid ${kindToColor(event.kind)}` }}
-    >
-      <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
-        <div
-          className="mono tabular"
-          style={{ fontSize: 11, letterSpacing: '0.14em', color: 'var(--text-tertiary)', minWidth: 92, paddingTop: 2 }}
-        >
-          {date}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div className="row" style={{ gap: 8, marginBottom: 4, alignItems: 'baseline' }}>
-            <span
-              className="mono"
-              style={{ fontSize: 10, letterSpacing: '0.16em', color: 'var(--text-tertiary)' }}
-            >
-              {kindLabel(event.kind)}
-            </span>
-            {event.actorName && (
-              <span className="body-sm muted">· {event.actorName}</span>
-            )}
-          </div>
-          <div className="heading-sm" style={{ marginBottom: event.body ? 4 : 0 }}>{event.title}</div>
-          {event.body && <div className="body-sm muted">{event.body}</div>}
-        </div>
-      </div>
-    </div>
+    <li className="cs-diary-row">
+      <time className="cs-diary-date" dateTime={event.at ? event.at.slice(0, 10) : undefined}>{date}</time>
+      <span className="cs-diary-body">
+        <span className="cs-diary-kind">
+          {kindLabel(event.kind)}{event.actorName ? ` · ${event.actorName}` : ''}
+        </span>
+        <span className="cs-diary-title">{event.title}</span>
+        {event.body && <span className="cs-line-sub">{event.body}</span>}
+      </span>
+    </li>
   );
 }

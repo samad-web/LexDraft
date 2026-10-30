@@ -1,0 +1,935 @@
+/* =================================================================
+   DifAi "Chambers" design (2026-10-30).
+
+   Strictly black and white, like a law report: a serif for page titles and
+   key figures, Inter for everything else, an ink sidebar, white cards on a
+   soft grey canvas, and tables that become stacked cards on phones. Red is
+   still kept for buttons that name a mandatory issue.
+
+   Applies to every screen except the marketing landing page: main.tsx and
+   App.tsx set <html data-ui="chambers"> everywhere but "/". Colours change
+   only through the tokens below, so view-specific rules in globals.css (and
+   the red alert buttons) keep working unchanged.
+   ================================================================= */
+
+
+/* ---------- TOKENS ---------- */
+:root[data-ui='chambers'] {
+  --bg-base:       #F4F4F3;
+  --bg-surface:    #FFFFFF;
+  --bg-surface-2:  #F1F1F0;
+  --bg-elevated:   #FFFFFF;
+  --bg-inverse:    #0B0B0B;
+
+  --text-primary:   #0B0B0B;
+  --text-secondary: #4A4A4A;
+  --text-tertiary:  #6B6B6B;
+  --text-disabled:  #B0B0B0;
+
+  --border-subtle:  #E7E7E5;
+  --border-default: #D9D9D7;
+  --border-strong:  #A6A6A4;
+  --border-focus:   #0B0B0B;
+
+  --success-bg: #F1F1F0;
+  --warning-bg: #F1F1F0;
+  --info-bg:    #F1F1F0;
+
+  --radius-sm:  8px;
+  --radius-md:  10px;
+  --radius-lg:  16px;
+  --radius-xl:  22px;
+
+  --shadow-card:    0 1px 2px rgba(0, 0, 0, 0.035);
+  --shadow-raised:  0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.14);
+  --shadow-popover: 0 2px 6px rgba(0, 0, 0, 0.05), 0 16px 40px -10px rgba(0, 0, 0, 0.22);
+  --shadow-modal:   0 40px 90px -20px rgba(0, 0, 0, 0.40);
+  --focus-ring:     0 0 0 3px rgba(11, 11, 11, 0.10);
+  --scrim:          rgba(8, 8, 8, 0.46);
+
+  --font-title: 'Source Serif 4', 'Georgia', 'Times New Roman', serif;
+
+  /* Component tokens read by globals.css */
+  --btn-h: 38px;
+  --btn-px: 16px;
+  --btn-fs: 13.5px;
+  --btn-ls: -0.003em;
+  --btn-gap: 7px;
+  --btn-r: 10px;
+  --btn-bg: var(--bg-surface);
+  --btn-bg-hover: var(--bg-surface-2);
+  --btn-shadow: var(--shadow-card);
+  --btn-primary-shadow: 0 1px 2px rgba(0, 0, 0, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --btn-primary-hover: color-mix(in srgb, var(--text-primary) 84%, var(--bg-base));
+  --btn-ghost-px: 12px;
+  --btn-sm-h: 32px;
+  --btn-sm-px: 12px;
+  --btn-sm-fs: 12.5px;
+  --btn-sm-r: 8px;
+  --btn-lg-h: 46px;
+  --btn-lg-px: 24px;
+  --btn-lg-fs: 14.5px;
+  --btn-lg-r: 12px;
+  --input-h: 40px;
+  --input-fs: 14px;
+  --input-shadow: var(--shadow-card);
+  --input-focus-outline: 0;
+  --input-focus-shadow: var(--focus-ring);
+  --card-border: var(--border-subtle);
+  --card-shadow: var(--shadow-card);
+  --badge-h: 22px;
+  --badge-px: 9px;
+  --badge-fs: 11.5px;
+  --th-fs: 11px;
+  --th-ls: 0.09em;
+  --th-color: var(--text-tertiary);
+  --th-pad: 13px 18px;
+  --th-bg: var(--bg-surface);
+  --td-pad: 15px 18px;
+  --tr-hover: color-mix(in srgb, var(--bg-surface-2) 70%, var(--bg-surface));
+
+  /* The ink sidebar is the same in both themes. */
+  --ink:        #0B0B0B;
+  --ink-line:   rgba(255, 255, 255, 0.08);
+  --ink-text:   rgba(255, 255, 255, 0.70);
+  --ink-faint:  rgba(255, 255, 255, 0.42);
+  --ink-hover:  rgba(255, 255, 255, 0.06);
+  --ink-active: rgba(255, 255, 255, 0.11);
+}
+
+:root[data-ui='chambers'][data-theme='dark'] {
+  --bg-base:       #0B0B0B;
+  --bg-surface:    #141414;
+  --bg-surface-2:  #1B1B1B;
+  --bg-elevated:   #181818;
+  --bg-inverse:    #F5F5F5;
+
+  --text-primary:   #F5F5F5;
+  --text-secondary: #A8A8A8;
+  --text-tertiary:  #8C8C8C;
+  --text-disabled:  #4D4D4D;
+
+  --border-subtle:  #222222;
+  --border-default: #2E2E2E;
+  --border-strong:  #4D4D4D;
+  --border-focus:   #F5F5F5;
+
+  --success-bg: #1B1B1B;
+  --warning-bg: #1B1B1B;
+  --info-bg:    #1B1B1B;
+
+  --shadow-card:    none;
+  --shadow-raised:  0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  --shadow-popover: 0 16px 44px -10px rgba(0, 0, 0, 0.75);
+  --shadow-modal:   0 40px 90px -20px rgba(0, 0, 0, 0.85);
+  --focus-ring:     0 0 0 3px rgba(255, 255, 255, 0.14);
+
+  --ink:        #050505;
+}
+
+/* ---------- BASE TYPE ---------- */
+[data-ui='chambers'] body {
+  background: var(--bg-base);
+  font-feature-settings: 'cv11', 'ss01', 'calt';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+[data-ui='chambers'] .heading-xl {
+  font-family: var(--font-title);
+  font-size: 34px;
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  font-optical-sizing: auto;
+}
+[data-ui='chambers'] .heading-lg {
+  font-family: var(--font-title);
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.008em;
+}
+[data-ui='chambers'] .heading-md { font-size: 16px; letter-spacing: -0.006em; }
+[data-ui='chambers'] .heading-sm { font-size: 14px; }
+[data-ui='chambers'] .display {
+  font-family: var(--font-title);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+[data-ui='chambers'] .eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+[data-ui='chambers'] :is(a, button, [role='button'], [role='tab'], summary):focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+[data-ui='chambers'] ::selection { background: var(--text-primary); color: var(--bg-base); }
+
+@media (max-width: 767px) {
+  [data-ui='chambers'] .heading-xl { font-size: 28px; }
+  [data-ui='chambers'] .heading-lg { font-size: 21px; }
+}
+
+/* ---------- APP SHELL ---------- */
+[data-ui='chambers'] .app {
+  grid-template-columns: 256px minmax(0, 1fr);
+  background: linear-gradient(to right, var(--ink) 256px, var(--bg-base) 256px);
+}
+[data-ui='chambers'] .main { background: var(--bg-base); }
+[data-ui='chambers'] .content {
+  padding: 36px 44px 72px;
+  max-width: 1320px;
+}
+
+/* Sidebar: ink in both themes. Re-pointing the tokens here makes everything
+   inside (badges, avatar, highlighter, quota) follow without extra rules. */
+[data-ui='chambers'] .sidebar {
+  --text-primary:   #FFFFFF;
+  --text-secondary: var(--ink-text);
+  --text-tertiary:  var(--ink-faint);
+  --bg-base:        var(--ink);
+  --bg-surface:     var(--ink-active);
+  --bg-surface-2:   var(--ink-hover);
+  --border-subtle:  var(--ink-line);
+  --border-default: rgba(255, 255, 255, 0.14);
+  --border-strong:  rgba(255, 255, 255, 0.3);
+  color: #FFFFFF;
+  background: var(--ink);
+  border-right: 1px solid var(--ink);
+  overflow: visible; /* the account menu pops out; the nav scrolls itself */
+  z-index: 45; /* above page content, so the account menu can pop out over it */
+  color-scheme: dark;
+}
+[data-ui='chambers'][data-theme='dark'] .sidebar { border-right-color: #1C1C1C; }
+[data-ui='chambers'] .sidebar .wordmark { padding: 24px 22px 18px; color: #FFFFFF; }
+[data-ui='chambers'] .sidebar nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  padding-bottom: 8px;
+}
+[data-ui='chambers'] .nav-section { padding: 4px 0 6px; }
+[data-ui='chambers'] .nav-group-title {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  color: var(--ink-faint);
+  padding: 14px 22px 6px;
+}
+[data-ui='chambers'] .nav-item {
+  margin: 1px 10px;
+  padding: 7px 12px;
+  min-height: 34px;
+  font-size: 13.5px;
+  color: var(--ink-text);
+  border-radius: 8px;
+  gap: 11px;
+}
+[data-ui='chambers'] .nav-item:hover { color: #FFFFFF; }
+[data-ui='chambers'] .nav-item:hover::after { background: var(--ink-hover); opacity: 1; border-radius: 8px; }
+[data-ui='chambers'] .nav-item.active { color: #FFFFFF; font-weight: 500; }
+[data-ui='chambers'] .nav-item .nav-icon { opacity: 0.85; }
+[data-ui='chambers'] .nav-item.active .nav-icon { opacity: 1; }
+[data-ui='chambers'] .nav-highlighter {
+  left: 10px;
+  right: 10px;
+  background: var(--ink-active);
+  border: 0;
+  border-radius: 8px;
+  box-shadow: inset 2px 0 0 #FFFFFF;
+  transition:
+    transform 420ms cubic-bezier(.32, .72, 0, 1),
+    height    420ms cubic-bezier(.32, .72, 0, 1),
+    opacity   200ms ease;
+}
+
+/* Sidebar foot: quota + account */
+.sidebar-foot {
+  margin-top: auto;
+  padding: 12px 12px 14px;
+  border-top: 1px solid var(--ink-line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+[data-ui='chambers'] .sidebar .quota {
+  margin: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+.quota-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.quota-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); }
+.quota-count { font-size: 12.5px; font-weight: 600; color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.quota-note { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+[data-ui='chambers'] .sidebar .quota-track { background: rgba(255, 255, 255, 0.12); margin: 9px 0 7px; height: 3px; }
+[data-ui='chambers'] .sidebar .quota-fill { background: #FFFFFF; }
+
+.account { position: relative; }
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #FFFFFF;
+  cursor: pointer;
+  text-align: left;
+  transition: background 140ms ease;
+}
+.account-btn:hover, .account-btn.is-open { background: var(--ink-hover); }
+[data-ui='chambers'] .account-avatar {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  background: #FFFFFF;
+  color: #0B0B0B;
+  border: 0;
+}
+.account-text { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.account-name, .account-detail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.account-name { font-size: 13px; font-weight: 500; }
+.account-detail { font-size: 11.5px; color: var(--ink-faint); }
+.account-chev { color: var(--ink-faint); flex-shrink: 0; transform: rotate(180deg); }
+.account-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 80;
+  padding: 6px;
+  border-radius: 14px;
+  background: #171717;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.6);
+  animation: account-in 160ms cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes account-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.account-menu-head { padding: 10px 10px 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 4px; }
+.account-menu-name { font-size: 13px; font-weight: 600; color: #FFFFFF; }
+.account-menu-detail { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink-text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.account-menu-item:hover { background: rgba(255, 255, 255, 0.07); color: #FFFFFF; }
+.account-menu-rule { height: 1px; background: rgba(255, 255, 255, 0.08); margin: 4px 6px; }
+
+/* Topbar: frosted, with a breadcrumb */
+[data-ui='chambers'] .topbar {
+  height: 60px;
+  padding: 0 32px;
+  gap: 8px;
+  background: color-mix(in srgb, var(--bg-base) 84%, transparent);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  backdrop-filter: saturate(160%) blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+@supports (padding: env(safe-area-inset-top)) {
+  [data-ui='chambers'] .topbar { height: calc(60px + env(safe-area-inset-top, 0)); }
+}
+[data-ui='chambers'] .topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  font-size: 13.5px;
+}
+[data-ui='chambers'] .topbar-eyebrow {
+  font-size: 13.5px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+.topbar-crumb-sep { color: var(--border-strong); }
+[data-ui='chambers'] .topbar-title-row { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.topbar-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  flex-shrink: 0;
+}
+[data-ui='chambers'] .topbar .topbar-back {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px 0 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  margin-right: 6px;
+}
+[data-ui='chambers'] .topbar .topbar-search {
+  min-width: 320px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-tertiary);
+  font-size: 13.5px;
+  font-weight: 400;
+  box-shadow: var(--shadow-card);
+}
+[data-ui='chambers'] .topbar .topbar-search:hover { border-color: var(--border-strong); color: var(--text-secondary); }
+[data-ui='chambers'] .topbar .topbar-search-kbd {
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--bg-surface-2);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+[data-ui='chambers'] .topbar .topbar-icon,
+[data-ui='chambers'] .topbar .topbar-search-mobile,
+[data-ui='chambers'] .topbar .topbar-menu {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 10px;
+  color: var(--text-secondary);
+}
+/* Theme toggle sits beside the bell on every screen size. */
+[data-ui='chambers'] .topbar .topbar-theme { display: inline-flex; }
+[data-ui='chambers'] .topbar .topbar-theme .btn { width: 38px; height: 38px; min-height: 38px; padding: 0; border-radius: 10px; border-color: transparent; background: transparent; box-shadow: none; color: var(--text-secondary); }
+[data-ui='chambers'] .topbar .topbar-theme .btn:hover { background: var(--bg-surface); color: var(--text-primary); }
+[data-ui='chambers'] .topbar .topbar-icon:hover,
+[data-ui='chambers'] .topbar .topbar-search-mobile:hover,
+[data-ui='chambers'] .topbar .topbar-menu:hover { background: var(--bg-surface); color: var(--text-primary); }
+
+/* Section tabs (Hearings / Documents / ...): an underlined tab strip. */
+[data-ui='chambers'] .section-tabs {
+  margin: -8px 0 28px;
+  border-bottom: 1px solid var(--border-default);
+}
+[data-ui='chambers'] .section-tabs .pill-nav {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  gap: 22px;
+}
+[data-ui='chambers'] .section-tabs .pill-nav button {
+  padding: 10px 0 12px;
+  border-radius: 0;
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+[data-ui='chambers'] .section-tabs .pill-nav button:hover { color: var(--text-primary); }
+[data-ui='chambers'] .section-tabs .pill-nav button.active { color: var(--text-primary); }
+[data-ui='chambers'] .section-tabs .pill-nav-indicator {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: inset 0 -2px 0 var(--text-primary);
+}
+
+/* ---------- PAGE HEADER ---------- */
+[data-ui='chambers'] .page-header { gap: 16px; margin-bottom: 28px; }
+[data-ui='chambers'] .col > .page-header { margin-bottom: 4px; }
+[data-ui='chambers'] .page-header-row { align-items: flex-end; gap: 20px; }
+[data-ui='chambers'] .page-header-desc { font-size: 14px; line-height: 1.55; color: var(--text-secondary); margin-top: 8px; max-width: 620px; }
+[data-ui='chambers'] .page-header-meta {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  margin-top: 10px;
+}
+[data-ui='chambers'] .page-header-back { font-size: 13px; font-weight: 500; }
+
+/* ---------- BUTTONS & INPUTS ----------
+   Sizes, fills and shadows come from the --btn-* / --input-* tokens, so a
+   view's own button classes (e.g. the red .adv-alert-btn) still win. */
+[data-ui='chambers'] .sidebar .btn { --btn-bg: transparent; --btn-shadow: none; }
+[data-ui='chambers'] label { font-weight: 500; }
+
+/* ---------- CARDS ---------- */
+[data-ui='chambers'] .card-hover:hover,
+[data-ui='chambers'] .row-clickable:hover {
+  transform: none;
+  border-color: var(--border-default);
+  box-shadow: var(--shadow-raised);
+}
+[data-ui='chambers'] .stat-row {
+  border-color: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+[data-ui='chambers'] .stat-row .display,
+[data-ui='chambers'] .stat-row .display-sm,
+[data-ui='chambers'] .stat-row .display-md {
+  font-family: var(--font-title);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* ---------- PILLS, CHIPS, BADGES ---------- */
+[data-ui='chambers'] .pill-nav {
+  background: var(--bg-surface);
+  border-color: var(--border-subtle);
+  padding: 3px;
+  box-shadow: var(--shadow-card);
+}
+[data-ui='chambers'] .pill-nav button { padding: 7px 15px; font-size: 13px; }
+[data-ui='chambers'] .pill-nav--wrap { background: transparent; box-shadow: none; padding: 0; }
+[data-ui='chambers'] .pill-nav--wrap button {
+  padding: 6px 13px;
+  font-size: 12.5px;
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+}
+[data-ui='chambers'] .pill-nav--wrap button.active { background: transparent; }
+[data-ui='chambers'] .chip { height: 30px; font-size: 12.5px; background: var(--bg-surface); }
+[data-ui='chambers'] .chip.active { background: var(--text-primary); }
+[data-ui='chambers'] .avatar { font-size: 12px; letter-spacing: 0.02em; border-color: var(--border-subtle); }
+
+/* Red is for buttons naming a mandatory issue only, so status dots and the
+   "vermillion" badge are ink. */
+[data-ui='chambers'] .badge-vermillion { --dot-color: var(--text-primary); color: var(--text-primary); font-weight: 600; }
+[data-ui='chambers'] .dot-vermillion { background: var(--text-primary); }
+
+/* ---------- TABLES ---------- */
+
+/* Tablets: keep tables real tables (globals.css split thead and tbody into
+   separate tables, so header and body columns stopped lining up). The card
+   around a table scrolls it sideways instead. */
+@media (min-width: 641px) and (max-width: 1023px) {
+  [data-ui='chambers'] .tbl { display: table; overflow: visible; }
+  [data-ui='chambers'] .tbl > thead { display: table-header-group; width: auto; min-width: 0; }
+  [data-ui='chambers'] .tbl > tbody { display: table-row-group; width: auto; min-width: 0; }
+  [data-ui='chambers'] .tbl > tfoot { display: table-footer-group; width: auto; min-width: 0; }
+  [data-ui='chambers'] .card:has(> .tbl) { overflow-x: auto !important; }
+}
+
+/* Phones: every table becomes a stack of cards. Each cell shows its column
+   name (lib/chambers.ts copies it from the header into data-label). */
+@media (max-width: 640px) {
+  [data-ui='chambers'] .tbl,
+  [data-ui='chambers'] .tbl > tbody,
+  [data-ui='chambers'] .tbl > tbody > tr,
+  [data-ui='chambers'] .tbl > tbody > tr > td {
+    display: block;
+    width: 100%;
+    min-width: 0 !important;
+  }
+  [data-ui='chambers'] .tbl { overflow: visible; background: transparent; }
+  [data-ui='chambers'] .card > .tbl, [data-ui='chambers'] .card > table.tbl { min-width: 0; }
+  [data-ui='chambers'] .card:has(> .tbl) { overflow: visible !important; }
+  [data-ui='chambers'] .tbl > thead { display: none; }
+  [data-ui='chambers'] .tbl > tbody > tr {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-surface);
+  }
+  [data-ui='chambers'] .tbl > tbody > tr:last-child { border-bottom: 0; }
+  [data-ui='chambers'] .tbl > tbody > tr:hover td { background: transparent; }
+  [data-ui='chambers'] .tbl > tbody > tr > td,
+  [data-ui='chambers'] .tbl:not(.clients-tbl) th,
+  [data-ui='chambers'] .tbl:not(.clients-tbl) td {
+    white-space: normal;
+  }
+  [data-ui='chambers'] .tbl > tbody > tr > td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 4px 0;
+    border: 0;
+    font-size: 13.5px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  [data-ui='chambers'] .tbl > tbody > tr > td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    max-width: 45%;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  [data-ui='chambers'] .tbl > tbody > tr > td:not([data-label])::before,
+  [data-ui='chambers'] .tbl > tbody > tr > td[data-label='']::before { content: none; }
+  /* The first column is the row's title. */
+  [data-ui='chambers'] .tbl > tbody > tr > td:first-child {
+    display: block;
+    text-align: left;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0 0 6px;
+  }
+  [data-ui='chambers'] .tbl > tbody > tr > td:first-child::before { content: none; }
+  /* Action cells: buttons on their own line. */
+  [data-ui='chambers'] .tbl > tbody > tr > td:last-child:has(button, a.btn) {
+    justify-content: flex-start;
+    padding-top: 10px;
+  }
+  [data-ui='chambers'] .tbl > tbody > tr > td:last-child:has(button, a.btn)::before { content: none; }
+  [data-ui='chambers'] .tbl > tbody > tr > td:last-child .row { flex-wrap: wrap; }
+  /* A full-width message row ("No hearings yet"). */
+  [data-ui='chambers'] .tbl > tbody > tr > td[data-span='all'] { display: block; text-align: center; font-weight: 400; font-size: 14px; }
+  [data-ui='chambers'] .tbl > tbody > tr > td[data-span='all']::before { content: none; }
+  [data-ui='chambers'] .tbl > tbody > tr > td:empty { display: none; }
+}
+
+/* ---------- MENUS, MODALS, TOASTS ---------- */
+[data-ui='chambers'] .more-menu-list,
+[data-ui='chambers'] .notif-panel {
+  background: var(--bg-elevated);
+  border-color: var(--border-subtle);
+  border-radius: 14px;
+  box-shadow: var(--shadow-popover);
+}
+[data-ui='chambers'] .more-menu-item { border-radius: 8px; font-size: 13.5px; }
+[data-ui='chambers'] .modal-shell {
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-modal);
+  background: var(--bg-elevated);
+}
+[data-ui='chambers'] .modal-shell .display {
+  font-family: var(--font-title);
+  font-weight: 600;
+}
+/* Dialog panels are white sheets: inside a dialog the "canvas" token points
+   at the elevated surface, which covers the ~20 hand-built dialogs too. */
+[data-ui='chambers'] [role='dialog'] > *,
+[data-ui='chambers'] .modal-shell { --bg-base: var(--bg-elevated); }
+/* Only centred panels (they set their own border-radius inline); side
+   drawers keep their square edges. */
+[data-ui='chambers'] [role='dialog'][aria-modal='true'] > form[style*='border-radius'],
+[data-ui='chambers'] [role='dialog'][aria-modal='true'] > div[style*='border-radius']:not(.modal-shell) {
+  border-color: var(--border-subtle) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-modal);
+}
+[data-ui='chambers'] .label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: var(--text-secondary);
+}
+.field-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.field-hint {
+  margin-left: 8px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+}
+[data-ui='chambers'] .label .hint,
+[data-ui='chambers'] .label .mono {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+[data-ui='chambers'] .modal-overlay {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+[data-ui='chambers'] .toast { border-radius: 14px; box-shadow: var(--shadow-popover); }
+
+/* ---------- TRIAL BANNER (components/TrialBanner.tsx) ---------- */
+.trial-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 32px;
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.trial-banner-label { font-weight: 600; white-space: nowrap; }
+.trial-banner-note { color: var(--text-tertiary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trial-banner-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--text-primary);
+  background: var(--text-primary);
+  color: var(--bg-base);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.trial-banner-btn:hover { opacity: 0.86; }
+.trial-banner--critical { background: var(--danger); color: #FFFFFF; border-bottom-color: var(--danger); }
+.trial-banner--critical .trial-banner-note { color: rgba(255, 255, 255, 0.85); }
+.trial-banner--critical .trial-banner-btn { background: #FFFFFF; color: var(--danger); border-color: #FFFFFF; }
+@media (max-width: 1023px) { .trial-banner { padding: 8px 20px; } }
+@media (max-width: 640px) {
+  .trial-banner { padding: 8px 14px; font-size: 12.5px; }
+  .trial-banner-note { display: none; }
+}
+
+/* ---------- DASHBOARD (views/AdvocateDashboardView.tsx) ---------- */
+[data-ui='chambers'] .adv { gap: 24px; }
+[data-ui='chambers'] .adv-date { font-size: 11px; letter-spacing: 0.16em; }
+[data-ui='chambers'] .adv-greet {
+  font-family: var(--font-title);
+  font-size: 40px;
+  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  margin-top: 10px;
+}
+[data-ui='chambers'] .adv-name { font-weight: 600; font-style: italic; }
+[data-ui='chambers'] .adv-sub { font-size: 14.5px; margin-top: 10px; }
+[data-ui='chambers'] .adv-kpi,
+[data-ui='chambers'] .adv-card {
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+[data-ui='chambers'] .adv-kpi { padding: 22px 24px; min-height: 168px; }
+[data-ui='chambers'] .adv-kpi:hover { background: var(--bg-surface); border-color: var(--border-default); box-shadow: var(--shadow-raised); }
+[data-ui='chambers'] .adv-kpi-label { font-size: 11px; letter-spacing: 0.13em; color: var(--text-tertiary); }
+[data-ui='chambers'] .adv-kpi-icon,
+[data-ui='chambers'] .adv-card-icon { border-radius: 10px; background: var(--bg-base); border-color: var(--border-subtle); }
+[data-ui='chambers'] .adv-kpi-icon { width: 32px; height: 32px; }
+[data-ui='chambers'] .adv-kpi-value {
+  font-family: var(--font-title);
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums;
+}
+[data-ui='chambers'] .adv-kpi-value small {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+[data-ui='chambers'] .adv-card { padding: 24px 26px; }
+[data-ui='chambers'] .adv-card-title { font-family: var(--font-title); font-size: 21px; font-weight: 600; letter-spacing: -0.008em; }
+[data-ui='chambers'] .adv-row { border-radius: 10px; }
+[data-ui='chambers'] .adv-avatar { background: var(--bg-base); border-color: var(--border-subtle); font-size: 15px; font-family: var(--font-title); }
+[data-ui='chambers'] .adv-dateblock { border-radius: 10px; }
+[data-ui='chambers'] .adv-dateblock:not(.is-today) { background: var(--bg-base); }
+[data-ui='chambers'] .adv-dateblock-d { font-family: var(--font-title); font-size: 18px; }
+[data-ui='chambers'] .adv-pill-time { font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums; background: var(--bg-base); }
+[data-ui='chambers'] .adv-bar { height: 4px; border: 0; background: var(--bg-surface-2); }
+@media (max-width: 640px) {
+  /* KPI cards become a swipeable row instead of a cramped 2-up grid. */
+  [data-ui='chambers'] .adv-kpis {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 2px 16px 6px;
+    gap: 12px;
+  }
+  [data-ui='chambers'] .adv-kpis::-webkit-scrollbar { display: none; }
+  [data-ui='chambers'] .adv-kpis > * { flex: 0 0 min(82%, 320px); scroll-snap-align: start; scroll-margin-left: 16px; }
+}
+@media (max-width: 767px) {
+  [data-ui='chambers'] .adv-greet { font-size: 30px; }
+  [data-ui='chambers'] .adv-kpi { padding: 18px; min-height: 0; }
+  [data-ui='chambers'] .adv-kpi-value { font-size: 36px; }
+  [data-ui='chambers'] .adv-card { padding: 18px; }
+}
+
+/* ---------- DRAFT COMPOSER (DraftingView / DraftBotModal) ---------- */
+[data-ui='chambers'] .dc-title { font-family: var(--font-title); font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+[data-ui='chambers'] .dc-composer { padding: 30px 32px; gap: 20px; }
+[data-ui='chambers'] .dc-input {
+  background: var(--bg-surface);
+  border-color: var(--border-default);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+[data-ui='chambers'] .dc-input:focus-within { border-color: var(--border-focus); box-shadow: var(--focus-ring); }
+[data-ui='chambers'] .dc-textarea { font-size: 15.5px; padding: 18px 20px; min-height: 180px; }
+[data-ui='chambers'] .dc-input-bar { background: var(--bg-base); border-top-color: var(--border-subtle); padding: 8px 12px; }
+[data-ui='chambers'] .dc-starter { border-radius: 999px; }
+[data-ui='chambers'] .dc-card-title { font-family: var(--font-title); font-size: 17px; }
+[data-ui='chambers'] .dc-submit { min-width: 180px; }
+[data-ui='chambers'] .dw-quick { display: flex; flex-wrap: wrap; gap: 6px; }
+[data-ui='chambers'] .dw-quick-chip { height: 28px; font-size: 12px; padding: 0 11px; color: var(--text-primary); }
+[data-ui='chambers'] .dw-quick-chip:disabled { opacity: 0.5; cursor: not-allowed; }
+@media (max-width: 767px) {
+  [data-ui='chambers'] .dc-composer { padding: 20px 18px; }
+  [data-ui='chambers'] .dc-title { font-size: 22px; }
+  [data-ui='chambers'] .dc-submit { width: 100%; margin-left: 0; }
+}
+
+/* ---------- SIGN-UP (views/SignupView.tsx) ---------- */
+[data-ui='chambers'] .signup-shell { text-align: center; }
+[data-ui='chambers'] .signup-shell .heading-xl { font-size: 40px; }
+[data-ui='chambers'] .signup-shell .lede { font-size: 15.5px; max-width: 460px; margin-left: auto; margin-right: auto; }
+[data-ui='chambers'] .signup-shell .card { text-align: left; padding: 28px !important; border-radius: 20px; box-shadow: var(--shadow-raised); }
+@media (max-width: 640px) { [data-ui='chambers'] .signup-shell .heading-xl { font-size: 32px; } }
+
+/* ---------- EMPTY STATES (packages/ui EmptyState) ---------- */
+[data-ui='chambers'] .empty-state--card { padding: 52px 28px !important; gap: 12px !important; }
+[data-ui='chambers'] .empty-state-icon {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 16px !important;
+  background: var(--bg-base) !important;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--bg-base) 55%, transparent);
+  color: var(--text-secondary) !important;
+  margin-bottom: 6px !important;
+}
+[data-ui='chambers'] .empty-state-title { font-family: var(--font-title); font-size: 19px; font-weight: 600; letter-spacing: -0.005em; }
+[data-ui='chambers'] .empty-state--inline .empty-state-title { font-family: var(--font-sans); font-size: 14px; }
+[data-ui='chambers'] .empty-state p { font-size: 13.5px; color: var(--text-tertiary); }
+
+/* ---------- TABLET (rail) ---------- */
+@media (max-width: 1023px) {
+  [data-ui='chambers'] .app {
+    grid-template-columns: 72px minmax(0, 1fr);
+    background: linear-gradient(to right, var(--ink) 72px, var(--bg-base) 72px);
+  }
+  [data-ui='chambers'] .content { padding: 28px 28px 56px; }
+  [data-ui='chambers'] .topbar { padding: 0 20px 0 16px; }
+  [data-ui='chambers'] .sidebar .wordmark { padding: 22px 0 16px; }
+  [data-ui='chambers'] .sidebar .nav-item { margin: 2px 12px; padding: 0; height: 44px; justify-content: center; }
+  [data-ui='chambers'] .sidebar .nav-highlighter { left: 12px; right: 12px; box-shadow: none; }
+  [data-ui='chambers'] .sidebar .nav-section { padding: 2px 0; }
+  [data-ui='chambers'] .sidebar .nav-section + .nav-section { border-top: 1px solid var(--ink-line); margin: 0 14px; padding-top: 6px; }
+  [data-ui='chambers'] .sidebar .nav-section + .nav-section .nav-item { margin-left: -2px; margin-right: -2px; }
+  [data-ui='chambers'] .sidebar-foot { padding: 10px 0 14px; align-items: center; }
+  [data-ui='chambers'] .sidebar .account-text,
+  [data-ui='chambers'] .sidebar .account-chev { display: none; }
+  [data-ui='chambers'] .sidebar .account-btn { width: auto; padding: 4px; }
+  [data-ui='chambers'] .sidebar:not(.is-open) .account-menu { left: calc(100% + 10px); right: auto; bottom: 0; width: 240px; }
+
+  [data-ui='chambers'] .sidebar.is-open { width: 288px; z-index: 70; }
+  [data-ui='chambers'] .sidebar.is-open .wordmark { padding: 24px 22px 18px; }
+  [data-ui='chambers'] .sidebar.is-open .nav-item { margin: 1px 10px; padding: 7px 12px; height: auto; justify-content: flex-start; }
+  [data-ui='chambers'] .sidebar.is-open .nav-section + .nav-section { border-top: 0; margin: 0; }
+  [data-ui='chambers'] .sidebar.is-open .nav-highlighter { left: 10px; right: 10px; }
+  [data-ui='chambers'] .sidebar.is-open .sidebar-foot { padding: 12px 12px 14px; align-items: stretch; }
+  [data-ui='chambers'] .sidebar.is-open .account-text { display: flex; }
+  [data-ui='chambers'] .sidebar.is-open .account-chev { display: block; }
+  [data-ui='chambers'] .sidebar.is-open .account-btn { width: 100%; padding: 8px; }
+}
+
+/* ---------- PHONE ---------- */
+@media (max-width: 767px) {
+  [data-ui='chambers'] .app { grid-template-columns: minmax(0, 1fr); background: var(--bg-base); }
+  [data-ui='chambers'] .content { padding: 20px 16px calc(112px + env(safe-area-inset-bottom, 0)); }
+  [data-ui='chambers'] .topbar { height: 56px; padding: 0 10px; gap: 4px; }
+  @supports (padding: env(safe-area-inset-top)) {
+    [data-ui='chambers'] .topbar { height: calc(56px + env(safe-area-inset-top, 0)); }
+  }
+  [data-ui='chambers'] .topbar-title { font-size: 16px; padding-left: 2px; }
+  [data-ui='chambers'] .topbar-eyebrow,
+  [data-ui='chambers'] .topbar-crumb-sep { display: none; }
+  [data-ui='chambers'] .topbar-title-row { font-size: 16px; }
+  [data-ui='chambers'] .topbar .topbar-back { width: 36px; padding: 0; justify-content: center; margin-right: 0; border-color: transparent; background: transparent; }
+  [data-ui='chambers'] .sidebar { width: 296px; max-width: 86vw; z-index: 70; }
+  [data-ui='chambers'] .sidebar .account-text { display: flex; }
+  [data-ui='chambers'] .sidebar .account-chev { display: block; }
+  [data-ui='chambers'] .sidebar .account-btn { width: 100%; padding: 8px; }
+  [data-ui='chambers'] .sidebar-foot { align-items: stretch; padding: 12px 12px calc(14px + env(safe-area-inset-bottom, 0)); }
+  [data-ui='chambers'] .sidebar .nav-item { margin: 1px 10px; padding: 9px 12px; height: auto; justify-content: flex-start; min-height: 40px; font-size: 14.5px; }
+  [data-ui='chambers'] .sidebar .nav-section + .nav-section { border-top: 0; margin: 0; padding-top: 4px; }
+  [data-ui='chambers'] .sidebar .nav-section + .nav-section .nav-item { margin: 1px 10px; }
+  [data-ui='chambers'] .sidebar .nav-highlighter { left: 10px; right: 10px; }
+  [data-ui='chambers'] .sidebar .wordmark { padding: 22px 22px 14px; justify-content: flex-start; }
+  [data-ui='chambers'] .page-header { margin-bottom: 22px; }
+  [data-ui='chambers'] .section-tabs { margin: -4px -16px 22px; padding: 0 16px; }
+  [data-ui='chambers'] .section-tabs .pill-nav { gap: 20px; }
+  :root[data-ui='chambers'] {
+    --card-pad: 18px;
+    --btn-h: 42px;
+    --btn-sm-h: 34px;
+    --input-h: 44px;
+    --input-fs: 16px; /* 16px stops iOS zooming into inputs */
+  }
+
+  /* Bottom bar: a floating, frosted dock with Draft raised in the middle. */
+  [data-ui='chambers'] .mobile-nav {
+    left: 10px;
+    right: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0));
+    height: 66px;
+    padding: 0 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
+    -webkit-backdrop-filter: saturate(170%) blur(18px);
+    backdrop-filter: saturate(170%) blur(18px);
+    box-shadow: var(--shadow-popover);
+  }
+  [data-ui='chambers'] .mobile-nav-item {
+    gap: 3px;
+    color: var(--text-tertiary);
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    background: none;
+    border: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mobile-nav-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 28px;
+    border-radius: 999px;
+    transition: background 160ms ease, color 160ms ease;
+  }
+  [data-ui='chambers'] .mobile-nav-item.active { color: var(--text-primary); }
+  [data-ui='chambers'] .mobile-nav-item.active .mobile-nav-icon { background: var(--bg-surface-2); }
+  [data-ui='chambers'] .mobile-nav-center .mobile-nav-icon {
+    width: 50px;
+    height: 50px;
+    margin-top: -26px;
+    border-radius: 17px;
+    background: var(--text-primary);
+    color: var(--bg-base);
+    box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.45), 0 0 0 4px var(--bg-base);
+  }
+  [data-ui='chambers'] .mobile-nav-center.active .mobile-nav-icon { background: var(--text-primary); }
+  [data-ui='chambers'] .mobile-nav-center { color: var(--text-primary); }
+  /* Floating action buttons sit above the dock. */
+  [data-ui='chambers'] .fab { bottom: calc(92px + env(safe-area-inset-bottom, 0)); right: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-menu { animation: none; }
+  [data-ui='chambers'] .nav-highlighter { transition: opacity 150ms ease; }
+}

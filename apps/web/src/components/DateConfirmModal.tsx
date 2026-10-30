@@ -37,22 +37,10 @@ export function DateConfirmModal({ open, initial, onCancel, onConfirm }: DateCon
         padding: 16,
       }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 24,
-          width: 'min(440px, 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 14,
-        }}
-      >
+      <div onClick={(e) => e.stopPropagation()} className="ct-dconfirm">
         <div>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>Date the document</div>
-          <h3 id="date-confirm-title" style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>
+          <div className="ct-eyebrow" style={{ marginBottom: 6 }}>Date the document</div>
+          <h3 id="date-confirm-title" className="ct-dconfirm-title">
             Confirm document date
           </h3>
           <p className="muted" style={{ fontSize: 13, marginTop: 6, lineHeight: 1.55 }}>

@@ -51,13 +51,19 @@ export function MatterDiscussionPanel({ caseId }: { caseId: string }) {
       </section>
 
       <aside className="card col" style={{ gap: 12 }}>
-        <div className="heading-sm">People on this matter</div>
-        {d.assignees.length === 0 && <div className="muted body-sm">No one is assigned yet.</div>}
+        <div>
+          <div className="fm-eyebrow">Matter team</div>
+          <h3 className="fm-panel-title" style={{ fontSize: 18 }}>People on this matter</h3>
+        </div>
+        {d.assignees.length === 0 && <div className="fm-quiet">No one is assigned yet.</div>}
         {d.assignees.map((a) => (
-          <div key={a.userId} className="row" style={{ alignItems: 'center', gap: 8 }}>
-            <span style={{ flex: 1 }}>
+          <div key={a.userId} className="row" style={{ alignItems: 'center', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border-subtle)' }}>
+            <span className="fm-avatar is-sm" aria-hidden>
+              {a.name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase()}
+            </span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500 }}>
               {a.userId === myId ? 'You' : a.name}
-              <span className="muted mono" style={{ fontSize: 10, marginLeft: 8 }}>{a.roleOnCase.toUpperCase()}</span>
+              <span className={`fm-pill${a.roleOnCase === 'lead' ? ' is-solid' : ' is-muted'}`} style={{ marginLeft: 8 }}>{a.roleOnCase}</span>
             </span>
             {a.roleOnCase !== 'lead' && (d.canManageMembers || a.userId === myId) && (
               <button
@@ -72,12 +78,12 @@ export function MatterDiscussionPanel({ caseId }: { caseId: string }) {
           </div>
         ))}
         {d.canManageMembers && candidates.length > 0 && (
-          <div className="row" style={{ gap: 8 }}>
+          <div className="fm-inline">
             <select
+              className="input"
               value={adding}
               onChange={(e) => setAdding(e.target.value)}
               aria-label="Assign a colleague"
-              style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
             >
               <option value="">Assign a colleague…</option>
               {candidates.map((t) => (
@@ -94,7 +100,7 @@ export function MatterDiscussionPanel({ caseId }: { caseId: string }) {
             </button>
           </div>
         )}
-        <p className="muted body-sm" style={{ margin: 0 }}>
+        <p className="fm-footnote" style={{ margin: 0 }}>
           Collaborators added here are assigned to the matter. To change the lead, use "Hand off entire case" on the Overview tab.
         </p>
       </aside>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Icon, EmptyState, ErrorState } from '@lexdraft/ui';
+import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { FAB } from '@/components/FAB';
 import type { Expense, ExpenseStatus } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
@@ -7,7 +7,7 @@ import { useExpenses } from '@/hooks/useExpenses';
 import { NewExpenseModal } from '@/components/NewExpenseModal';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { Gate } from '@/components/Gate';
-import { PageHeader } from '@/components/PageHeader';
+import { PageHeader, PageSearch } from '@/components/PageHeader';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { apiClient } from '@/lib/api';
@@ -15,11 +15,18 @@ import { useSavedFilter } from '@/hooks/useSavedFilter';
 
 interface BadgeMeta { label: string; cls: string }
 const STATUS_BADGE: Record<ExpenseStatus, BadgeMeta> = {
-  pending: { label: 'Pending', cls: 'badge-amber' },
-  approved: { label: 'Approved', cls: 'badge-cobalt' },
-  billed: { label: 'Billed', cls: 'badge-sage' },
+  pending: { label: 'Pending', cls: 'cm-pill cm-pill--ink' },
+  approved: { label: 'Approved', cls: 'cm-pill cm-pill--line' },
+  billed: { label: 'Billed', cls: 'cm-pill cm-pill--soft' },
 };
-const FALLBACK_BADGE: BadgeMeta = { label: 'Unknown', cls: 'badge' };
+const FALLBACK_BADGE: BadgeMeta = { label: 'Unknown', cls: 'cm-pill cm-pill--soft' };
+
+/** "2026-10-28" -> "28 Oct 2026". */
+function formatDay(iso: string): string {
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 type FilterId = 'all' | ExpenseStatus;
 const FILTER_IDS: ReadonlyArray<FilterId> = ['all', 'pending', 'approved', 'billed'];
@@ -69,7 +76,7 @@ export function ExpensesView() {
   }, [rows]);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger cm-expenses" style={{ gap: 24 }}>
       <PageHeader
         title="Expenses"
         description="Log disbursements against matters and see what is billable or reimbursable."
@@ -197,74 +204,60 @@ export function ExpensesView() {
         </FAB>
       </Gate>
 
-      <div className="stat-row">
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>This month</div>
-          <div className="heading-xl tabular">{formatINR(stats.monthTotal)}</div>
-          <div className="body-sm muted">{rows.length} entries</div>
+      <div className="cm-kpis" aria-label="Expenses summary">
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">This month</div>
+          <div className="cm-kpi-value">{formatINR(stats.monthTotal)}</div>
+          <div className="cm-kpi-note">{rows.length} entries</div>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Reimbursable</div>
-          <div className="heading-xl tabular">{formatINR(stats.reimbursable)}</div>
-          <div className="body-sm muted">Owed back to fee earners</div>
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">Reimbursable</div>
+          <div className="cm-kpi-value">{formatINR(stats.reimbursable)}</div>
+          <div className="cm-kpi-note">Owed back to fee earners</div>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Billable</div>
-          <div className="heading-xl tabular">{formatINR(stats.billable)}</div>
-          <div className="body-sm muted">To pass through to clients</div>
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">Billable</div>
+          <div className="cm-kpi-value">{formatINR(stats.billable)}</div>
+          <div className="cm-kpi-note">To pass through to clients</div>
         </div>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Unallocated</div>
-          <div className="heading-xl tabular">{formatINR(stats.unallocated)}</div>
-          <div className="body-sm muted">Pending review</div>
-        </div>
-      </div>
-
-      <div className="row" style={{ flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ position: 'relative', flex: '1 1 280px', maxWidth: 360 }}>
-          <input
-            type="search"
-            className="input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search by description, category, or expense no.…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search expenses"
-          />
-          <span
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-tertiary)',
-              display: 'inline-flex',
-            }}
-          >
-            <Icon name="search" size={14} />
-          </span>
+        <div className="cm-kpi">
+          <div className="cm-kpi-label">Unallocated</div>
+          <div className="cm-kpi-value">{formatINR(stats.unallocated)}</div>
+          <div className="cm-kpi-note">Pending review</div>
         </div>
       </div>
 
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={`chip ${filter === f.id ? 'active' : ''}`}
-            aria-pressed={filter === f.id}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="cm-toolbar">
+        <div className="cm-filters" role="group" aria-label="Filter by status">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setFilter(f.id)}
+              className={`chip ${filter === f.id ? 'active' : ''}`}
+              aria-pressed={filter === f.id}
+            >
+              {f.label}
+              {rows.length > 0 && (
+                <span className="cm-chip-count">
+                  {f.id === 'all' ? rows.length : rows.filter((r) => r.status === f.id).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <PageSearch
+          value={q}
+          onChange={setQ}
+          placeholder="Search by description, category, or expense no.…"
+          label="Search expenses"
+        />
       </div>
 
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card cm-table-card" style={{ padding: 0 }}>
         {isLoading ? (
-          <div className="col" style={{ padding: 'var(--space-9)', alignItems: 'center' }}>
-            <span className="muted">Loading expenses<span className="blink" /></span>
+          <div className="col" style={{ padding: 24, gap: 12 }} aria-busy="true">
+            {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} width="100%" height={40} />)}
           </div>
         ) : isError ? (
           <ErrorState
@@ -286,8 +279,8 @@ export function ExpensesView() {
           <table className="tbl">
             <thead>
               <tr>
-                <th>Date</th>
                 <th>Description</th>
+                <th>Date</th>
                 <th>Category</th>
                 <th>Matter</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
@@ -299,21 +292,23 @@ export function ExpensesView() {
                 const badge = STATUS_BADGE[row.status] ?? FALLBACK_BADGE;
                 return (
                   <tr key={row.id}>
-                    <td className="mono muted tabular">{row.date}</td>
                     <td>
-                      <div style={{ fontWeight: 500 }}>{row.description}</div>
-                      <div className="body-xs muted mono">{row.expenseNo}</div>
+                      <div className="cm-expense-desc">{row.description}</div>
+                      <div className="mono cm-expense-ref">{row.expenseNo}</div>
+                      {(row.billable || row.reimbursable) && (
+                        <div className="cm-flags">
+                          {row.billable && <span className="cm-flag">Billable</span>}
+                          {row.reimbursable && <span className="cm-flag">Reimbursable</span>}
+                        </div>
+                      )}
                     </td>
-                    <td className="muted">{row.category}</td>
-                    <td>
-                      <em className="case-name">{row.caseLabel}</em>
+                    <td className="cm-date-cell">{formatDay(row.date)}</td>
+                    <td className="cm-muted-cell">{row.category}</td>
+                    <td className="cm-muted-cell">
+                      {row.caseLabel ? <em className="case-name">{row.caseLabel}</em> : '—'}
                     </td>
-                    <td className="mono tabular" style={{ textAlign: 'right', fontWeight: 500 }}>
-                      {formatINR(row.amountInr)}
-                    </td>
-                    <td>
-                      <span className={`badge ${badge.cls}`}>{badge.label}</span>
-                    </td>
+                    <td className="cm-num cm-amount">{formatINR(row.amountInr)}</td>
+                    <td><span className={badge.cls}>{badge.label}</span></td>
                   </tr>
                 );
               })}

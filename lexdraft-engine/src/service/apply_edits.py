@@ -77,6 +77,18 @@ def _auto_numbered(p) -> bool:
     return ppr is not None and ppr.numPr is not None
 
 
+def _emphasised(p) -> bool:
+    """Bold or underlined lead run — a template sub-heading, not body text."""
+    runs = [r for r in p.runs if r.text.strip()]
+    return bool(runs) and bool(runs[0].bold or runs[0].underline)
+
+
+def _is_heading_text(text: str) -> bool:
+    letters = [c for c in text if c.isalpha()]
+    caps = bool(letters) and sum(c.isupper() for c in letters) / len(letters) > 0.85
+    return caps and len(text) <= 70 and not _LEADING_NUMBER.match(text)
+
+
 def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str]) -> Optional[bytes]:
     """Replace display lines [start, end] (inclusive, the same line indexing as the
     Draft page's blocks) with `paragraphs` — one Word paragraph each — keeping the
@@ -117,17 +129,26 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
         if el not in {p._p for p in picked} and not "".join(el.itertext()).strip():
             el.getparent().remove(el)
 
-    model, insert_after = picked[-1], picked[-1]._p
-    for i, text in enumerate(new):
-        if i < len(picked):
-            p = picked[i]
-        else:
-            clone = copy.deepcopy(model._p)
-            insert_after.addnext(clone)
-            insert_after = clone
-            p = Paragraph(clone, model._parent)
+    # Every new paragraph is a clone of a MODEL from the range: body text takes the
+    # template's plain body paragraph (the longest un-emphasised one), so a bold
+    # sub-heading it happens to land on ("1. Description of the Complainant")
+    # never makes the pleading bold; a caps heading line takes a bold one.
+    plain = [p for p in picked if not _emphasised(p)]
+    body_model = max(plain, key=lambda p: len(p.text)) if plain else None
+    heading_model = next((p for p in picked if _emphasised(p)), None)
+    anchor = picked[0]._p
+    for text in new:
+        is_heading = _is_heading_text(text) and heading_model is not None
+        model = heading_model if is_heading else (body_model or picked[-1])
+        clone = copy.deepcopy(model._p)
+        anchor.addprevious(clone)
+        p = Paragraph(clone, model._parent)
+        if body_model is None and not is_heading:
+            for r in p.runs:  # no plain paragraph to copy: strip the emphasis
+                r.bold = None
+                r.underline = None
         _set_text(p, _LEADING_NUMBER.sub("", text) if _auto_numbered(p) else text)
-    for p in picked[len(new):]:
+    for p in picked:
         p._p.getparent().remove(p._p)
 
     buf = io.BytesIO()

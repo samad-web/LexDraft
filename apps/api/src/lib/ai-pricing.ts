@@ -24,6 +24,8 @@ export interface ModelPrice {
 const ANTHROPIC_OPUS: ModelPrice = { inputPerMTok: 5, outputPerMTok: 25 };
 const ANTHROPIC_SONNET: ModelPrice = { inputPerMTok: 3, outputPerMTok: 15 };
 const ANTHROPIC_HAIKU: ModelPrice = { inputPerMTok: 1, outputPerMTok: 5 };
+const ANTHROPIC_SONNET_5_5: ModelPrice = { inputPerMTok: 2, outputPerMTok: 10 };
+const ANTHROPIC_OPUS_5_5: ModelPrice = { inputPerMTok: 4, outputPerMTok: 20 };
 const XAI_GROK: ModelPrice = { inputPerMTok: 3, outputPerMTok: 15 };
 
 /** Conservative fallback when a model id isn't recognised - use Sonnet rates. */
@@ -31,6 +33,8 @@ export const DEFAULT_PRICING: ModelPrice = ANTHROPIC_SONNET;
 
 // Exact-id lookups first; substring rules below cover version-suffixed ids.
 const EXACT: Record<string, ModelPrice> = {
+  'claude-sonnet-5-5': ANTHROPIC_SONNET_5_5,
+  'claude-opus-5-5': ANTHROPIC_OPUS_5_5,
   'claude-sonnet-4-6': ANTHROPIC_SONNET,
   'claude-haiku-4-5': ANTHROPIC_HAIKU,
   'claude-opus-4-8': ANTHROPIC_OPUS,

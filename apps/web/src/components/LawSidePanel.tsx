@@ -90,24 +90,11 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
   return (
     <aside
       aria-label={title}
-      style={{
-        position: 'sticky',
-        top: 'var(--space-6, 24px)',
-        width: '100%',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 'var(--space-5, 20px)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 12,
-        maxHeight: 'calc(100vh - 120px)',
-        overflow: 'auto',
-      }}
+      className="ai-lawpanel"
     >
       <div className="row" style={{ alignItems: 'center', gap: 8 }}>
-        <Icon name="research" size={14} />
-        <div className="eyebrow">{title}</div>
+        <Icon name="research" size={15} />
+        <div className="ai-lawpanel-title">{title}</div>
         <span className="spacer" />
         {q.isFetching && (
           <span className="mono body-xs muted" aria-live="polite">…</span>
@@ -120,7 +107,6 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
         placeholder="Search this corpus…"
         value={manualQuery}
         onChange={(e) => setManualQuery(e.target.value)}
-        style={{ fontSize: 13, height: 36 }}
         aria-label="Override the live context with a manual query"
       />
 
@@ -135,7 +121,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
       {q.isLoading && debounced && (
         <div className="col" style={{ gap: 8 }}>
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} aria-busy="true" style={{ padding: 10, border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
+            <div key={i} aria-busy="true" className="ai-lawpanel-hit">
               <Skeleton height={12} width="50%" />
               <div style={{ height: 6 }} />
               <Skeleton height={10} width="100%" />
@@ -147,7 +133,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
       )}
 
       {q.isError && (
-        <p className="body-xs" style={{ color: 'var(--danger)', padding: '8px 4px' }}>
+        <p className="ai-note ai-note--strong" role="alert" style={{ margin: 0 }}>
           Couldn&rsquo;t reach the law corpus.
         </p>
       )}
@@ -163,32 +149,26 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
           {q.data.results.map((hit) => (
             <article
               key={hit.id}
-              style={{
-                padding: 10,
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--bg-surface-2)',
-              }}
+              className="ai-lawpanel-hit"
             >
-              <div className="row" style={{ gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                <span className="mono body-xs" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+              <div className="row" style={{ gap: 6, marginBottom: 4, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <span className="ai-lawpanel-cite">
                   {hit.citation ?? `${hit.actTitle ?? 'Law'}${hit.sectionNumber ? ` § ${hit.sectionNumber}` : ''}`}
                 </span>
                 <JurisdictionBadge jurisdiction={hit.jurisdiction} state={hit.state} compact />
               </div>
               {hit.sectionHeading && (
-                <div className="body-xs" style={{ marginBottom: 4, fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                <div className="ai-lawpanel-heading">
                   {hit.sectionHeading}
                 </div>
               )}
-              <p className="body-xs muted" style={{ lineHeight: 1.5, marginBottom: 8 }}>
+              <p className="ai-lawpanel-text">
                 {hit.content}
               </p>
               <div className="row" style={{ gap: 4 }}>
                 <button
                   type="button"
                   className="btn btn-sm"
-                  style={{ fontSize: 11, padding: '2px 8px', height: 24 }}
                   onClick={() => copyCitation(hit)}
                   title="Copy citation"
                 >
@@ -198,8 +178,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
                   <button
                     type="button"
                     className="btn btn-sm"
-                    style={{ fontSize: 11, padding: '2px 8px', height: 24 }}
-                    onClick={() => openPdf(hit)}
+                      onClick={() => openPdf(hit)}
                     title="Open source PDF"
                   >
                     PDF
@@ -211,7 +190,7 @@ export function LawSidePanel({ context, title = 'Related law', k = 6, debounceMs
           <button
             type="button"
             className="btn btn-sm btn-block"
-            style={{ marginTop: 4, fontSize: 12 }}
+            style={{ marginTop: 4 }}
             onClick={() =>
               navigate(`/app/research?mode=corpus&q=${encodeURIComponent(debounced)}`)
             }

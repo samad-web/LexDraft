@@ -22,6 +22,9 @@ interface Props {
   /** Discard the hand edits so live updates can resume. */
   onUnlock: () => void;
   language?: 'EN' | 'HI' | 'TA';
+  /** Re-draft only on "Update document" (an AI-drafted document: each update is
+   *  a model call, so not on every keystroke). */
+  manual?: boolean;
 }
 
 const DEBOUNCE_MS = 900;
@@ -33,7 +36,12 @@ function isMissing(f: FactSheetField): boolean {
   return !v || PLACEHOLDER.test(v);
 }
 
-export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language }: Props) {
+/** How many details a drafted document still needs (required and optional). */
+export function missingDetailCount(state: IntakeState): number {
+  return state.factSheet.flatMap((s) => s.fields).filter(isMissing).length;
+}
+
+export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language, manual }: Props) {
   const edit = useIntakeEdit();
   const fields = useMemo(() => state.factSheet.flatMap((s) => s.fields), [state.factSheet]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -84,6 +92,7 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language 
   const change = (key: string, value: string) => {
     setValues((v) => ({ ...v, [key]: value }));
     pending.current[key] = value;
+    if (manual) return; // saved on "Update document"
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => { void flush(); }, DEBOUNCE_MS);
   };
@@ -104,7 +113,9 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language 
       <p className="dc-card-text" style={{ marginTop: 0 }}>
         {missingRequired.length + missingOptional.length === 0
           ? 'Every detail is filled. Edit any of them and the document updates.'
-          : 'Fill these in and the document updates as you type. Anything left blank stays a [placeholder].'}
+          : manual
+            ? 'Fill these in, then click Update document. Anything left blank stays a [placeholder].'
+            : 'Fill these in and the document updates as you type. Anything left blank stays a [placeholder].'}
       </p>
 
       {locked && (
@@ -128,6 +139,13 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language 
       {(filled.length > 0 || (!showAll && shown.length === 0)) && (
         <button type="button" className="btn btn-ghost btn-sm" style={{ marginTop: 8 }} onClick={() => setShowAll((s) => !s)}>
           {showAll ? 'Show only missing details' : `Show all details (${fields.length})`}
+        </button>
+      )}
+
+      {manual && (
+        <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 8 }}
+          disabled={locked || edit.isPending} onClick={() => { void flush(); }}>
+          {edit.isPending ? 'Updating…' : 'Update document'}
         </button>
       )}
 

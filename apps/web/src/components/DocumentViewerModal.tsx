@@ -149,29 +149,18 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
         </>
       }
     >
-      <div
-        style={{
-          background: 'var(--bg-surface-2)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 'var(--radius-md)',
-          padding: hasFile && (isPdf || isImage) ? 0 : '24px 16px',
-          minHeight: 320,
-          // No outer scroll: the iframe handles its own paging, images are
-          // contained by maxHeight, and long draft text scrolls inside the
-          // surrounding modal-shell (90vh). Two stacked scroll regions look
-          // broken on Windows where each renders its own scrollbar gutter.
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
+      {/* No outer scroll: the iframe handles its own paging, images are
+          contained by maxHeight, and long draft text scrolls inside the
+          surrounding modal-shell (90vh). Two stacked scroll regions look
+          broken on Windows where each renders its own scrollbar gutter. */}
+      <div className={`fm-viewer-stage${hasFile && (isPdf || isImage) ? '' : ' is-text'}`}>
         {isLoading && (
-          <p className="body-md muted" style={{ textAlign: 'center', padding: 32 }}>
+          <p className="fm-viewer-msg">
             Loading document<span className="blink" />
           </p>
         )}
         {isError && (
-          <p className="body-md" style={{ color: 'var(--danger)', textAlign: 'center', padding: 32 }}>
+          <p className="fm-viewer-msg is-error">
             Couldn&apos;t load this document.
           </p>
         )}
@@ -227,26 +216,16 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
 
         {/* Uploaded but unsupported preview type - offer download */}
         {!isLoading && !isError && hasFile && !isPdf && !isImage && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              padding: 32,
-              flex: 1,
-            }}
-          >
-            <Icon name="documents" size={28} />
-            <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)' }}>
+          <div className="fm-viewer-file">
+            <span className="fm-viewer-file-icon" aria-hidden><Icon name="file" size={26} /></span>
+            <div className="fm-viewer-file-name">
               {data?.fileName}
             </div>
-            <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)', letterSpacing: '0.12em' }}>
+            <div className="fm-viewer-meta">
               {data?.fileSize ? formatBytes(data.fileSize) : ''}
               {data?.fileMime ? ` · ${data.fileMime}` : ''}
             </div>
-            <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 360 }}>
+            <p className="body-sm muted" style={{ textAlign: 'center', maxWidth: 360, margin: 0 }}>
               Inline preview isn&apos;t available for this file type. Use Download original to open it in a native viewer.
             </p>
           </div>
@@ -276,34 +255,24 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
         )}
 
         {!isLoading && !isError && !hasFile && (!draftData || !hasDraftBody) && (
-          <p className="body-md muted" style={{ textAlign: 'center', padding: 32 }}>
+          <p className="fm-viewer-msg">
             No preview available for this entry. Drafts created in the editor and uploaded files will show their full content here.
           </p>
         )}
       </div>
 
       {hasFile && (
-        <div
-          className="mono"
-          style={{
-            fontSize: 11,
-            color: 'var(--text-tertiary)',
-            letterSpacing: '0.08em',
-            // Long filenames or mimes (e.g. application/vnd.openxmlformats-...)
-            // can be one unbroken token — without wrap rules they push the
-            // modal wider than its max-width.
-            overflowWrap: 'anywhere',
-            wordBreak: 'break-word',
-          }}
-        >
+        // Long filenames or mimes (e.g. application/vnd.openxmlformats-...)
+        // can be one unbroken token; .fm-viewer-meta wraps them.
+        <div className="fm-viewer-meta">
           {data?.fileName}
           {typeof data?.fileSize === 'number' ? ` · ${formatBytes(data.fileSize)}` : ''}
           {data?.fileMime ? ` · ${data.fileMime}` : ''}
         </div>
       )}
       {!hasFile && draftData?.updatedAt && (
-        <div className="mono" style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          Last edited · {new Date(draftData.updatedAt).toLocaleString()}
+        <div className="fm-viewer-meta">
+          Last edited · {new Date(draftData.updatedAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </div>
       )}
     </Modal>

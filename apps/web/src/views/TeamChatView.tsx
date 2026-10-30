@@ -52,7 +52,7 @@ export function TeamChatView() {
   const selected = useConversation(selectedId);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-chat">
       <PageHeader
         title="Team Chat"
         description="Message colleagues directly, in groups, or about a matter."
@@ -64,17 +64,21 @@ export function TeamChatView() {
       />
 
       <div className={`team-chat-grid${selectedId ? ' has-selection' : ''}`}>
-        <aside className="card team-chat-list" style={{ padding: 0, overflow: 'auto' }}>
-          <div style={{ padding: 10, borderBottom: '1px solid var(--border-default)' }}>
-            <input
-              type="search"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Search conversations"
-              aria-label="Search conversations"
-              style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
-            />
+        <aside className="card team-chat-list">
+          <div className="fm-chat-search">
+            <div className="fm-search">
+              <input
+                type="search"
+                className="input"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Search conversations"
+                aria-label="Search conversations"
+              />
+              <span className="fm-search-icon"><Icon name="search" size={14} /></span>
+            </div>
           </div>
+          <div className="fm-chat-rows">
           {list.isLoading && (
             <div aria-busy="true" style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
               {Array.from({ length: 5 }, (_, i) => <Skeleton key={i} width="100%" height={36} />)}
@@ -97,9 +101,13 @@ export function TeamChatView() {
           {visible.map((c) => (
             <ConversationRow key={c.id} c={c} active={c.id === selectedId} onClick={() => select(c.id)} />
           ))}
+          {list.data && items.length > 0 && visible.length === 0 && (
+            <div className="fm-quiet" style={{ padding: '16px 12px' }}>No conversations match “{filter.trim()}”.</div>
+          )}
+          </div>
         </aside>
 
-        <section className="card team-chat-thread" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <section className="card team-chat-thread">
           {selectedId ? (
             <ConversationPane
               key={selectedId}
@@ -119,7 +127,7 @@ export function TeamChatView() {
               }
             />
           ) : (
-            <div style={{ padding: 16 }}>
+            <div style={{ margin: 'auto', padding: 24 }}>
               <EmptyState variant="inline" title="Select a conversation" description="Choose a conversation from the list, or start a new one." />
             </div>
           )}
@@ -137,13 +145,8 @@ export function TeamChatView() {
       )}
 
       <style>{`
-        .team-chat-grid { display: grid; grid-template-columns: 320px 1fr; gap: 16px; height: calc(100vh - 230px); min-height: 480px; }
-        .team-chat-list, .team-chat-thread { min-height: 0; }
         .team-chat-back { display: none; }
         @media (max-width: 900px) {
-          .team-chat-grid { grid-template-columns: 1fr; height: calc(100vh - 200px); }
-          .team-chat-grid.has-selection .team-chat-list { display: none; }
-          .team-chat-grid:not(.has-selection) .team-chat-thread { display: none !important; }
           .team-chat-back { display: inline-flex; }
         }
         /* Phone (matches the shell's 767px breakpoint): the list scrolls with
@@ -156,9 +159,9 @@ export function TeamChatView() {
              position: fixed and collapses the full-screen thread. */
           .team-chat-grid { height: auto; min-height: 0; animation: none !important; }
           .team-chat-grid.has-selection .team-chat-thread {
-            position: fixed; left: 0; right: 0; z-index: 20;
-            top: calc(56px + env(safe-area-inset-top, 0px));
-            bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+            position: fixed; left: 0; right: 0; z-index: 46;
+            top: env(safe-area-inset-top, 0px);
+            bottom: calc(86px + env(safe-area-inset-bottom, 0px));
             border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0;
           }
           .tc-btn-label, .tc-hint { display: none; }
@@ -168,48 +171,60 @@ export function TeamChatView() {
   );
 }
 
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter((p) => /[A-Za-z0-9]/.test(p));
+  if (parts.length === 0) return '?';
+  return parts.length === 1 ? parts[0]!.slice(0, 2).toUpperCase() : (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+}
+
+function ConvoAvatar({ c }: { c: ConversationSummary }) {
+  if (c.kind === 'matter') {
+    return <span className="fm-avatar is-ink" aria-hidden><Icon name="cases" size={15} /></span>;
+  }
+  if (c.kind === 'group') {
+    return <span className="fm-avatar" aria-hidden><Icon name="members" size={15} /></span>;
+  }
+  return <span className="fm-avatar" aria-hidden>{initialsOf(c.title)}</span>;
+}
+
 function ConversationRow({ c, active, onClick }: { c: ConversationSummary; active: boolean; onClick: () => void }) {
   const kindLabel = c.kind === 'matter' ? 'Matter' : c.kind === 'group' ? 'Group' : null;
   const when = c.lastMessageAt ? shortTime(c.lastMessageAt) : '';
+  const unread = c.unreadCount > 0 && !c.muted;
   return (
     <button
       type="button"
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
-      style={{
-        display: 'block', width: '100%', textAlign: 'left',
-        padding: '12px 14px', background: active ? 'var(--bg-surface-2)' : 'transparent',
-        border: 'none', borderBottom: '1px solid var(--border-default)', cursor: 'pointer', color: 'inherit',
-      }}
+      className={`fm-convo${unread ? ' is-unread' : ''}`}
     >
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-        <div style={{ fontWeight: c.unreadCount > 0 ? 700 : 600, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {c.title}
-        </div>
-        <span className="muted mono" style={{ fontSize: 10, flexShrink: 0 }}>{when}</span>
-      </div>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, marginTop: 4 }}>
-        <div style={{ fontSize: 13, color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {kindLabel && <span className="mono" style={{ fontSize: 9, letterSpacing: '0.1em', marginRight: 6 }}>{kindLabel.toUpperCase()}</span>}
-          {c.lastMessagePreview
-            ? `${c.kind !== 'direct' && c.lastMessageAuthorName ? `${c.lastMessageAuthorName.split(' ')[0]}: ` : ''}${c.lastMessagePreview}`
-            : 'No messages yet'}
-        </div>
-        <span className="row" style={{ gap: 4, flexShrink: 0 }}>
-          {c.muted && <span className="muted" title="Muted" style={{ fontSize: 11 }}>muted</span>}
-          {c.mentionedUnread && <span className="badge" title="You were mentioned" style={{ fontWeight: 700 }}>@</span>}
-          {c.unreadCount > 0 && (
-            <span
-              className="badge"
-              aria-label={`${c.unreadCount} unread`}
-              // Monochrome: solid for unread, outline when muted.
-              style={c.muted ? undefined : { background: 'var(--text-primary)', color: 'var(--bg-base)', borderColor: 'var(--text-primary)', fontWeight: 600 }}
-            >
-              {c.unreadCount > 99 ? '99+' : c.unreadCount}
-            </span>
-          )}
+      <ConvoAvatar c={c} />
+      <span className="fm-convo-body">
+        <span className="fm-convo-top">
+          <span className="fm-convo-title">{c.title}</span>
+          <span className="fm-convo-time">{when}</span>
         </span>
-      </div>
+        <span className="fm-convo-bottom">
+          <span className="fm-convo-preview">
+            {kindLabel && <span className="fm-convo-kind">{kindLabel}</span>}
+            {c.lastMessagePreview
+              ? `${c.kind !== 'direct' && c.lastMessageAuthorName ? `${c.lastMessageAuthorName.split(' ')[0]}: ` : ''}${c.lastMessagePreview}`
+              : 'No messages yet'}
+          </span>
+          <span className="fm-convo-flags">
+            {c.muted && <span className="fm-convo-muted" title="Muted" aria-label="Muted"><Icon name="bell" size={12} /></span>}
+            {c.mentionedUnread && <span className="fm-unread is-at" title="You were mentioned">@</span>}
+            {c.unreadCount > 0 && (
+              <span
+                className={`fm-unread${c.muted ? ' is-muted' : ''}`}
+                aria-label={`${c.unreadCount} unread`}
+              >
+                {c.unreadCount > 99 ? '99+' : c.unreadCount}
+              </span>
+            )}
+          </span>
+        </span>
+      </span>
     </button>
   );
 }
@@ -283,14 +298,13 @@ function NewConversationModal({ open, onClose, onOpened }: { open: boolean; onCl
         </div>
       }
     >
-      <div className="matter-intel-tabs" role="tablist" style={{ marginBottom: 12 }}>
+      <div className="fm-seg" role="tablist" style={{ marginBottom: 14 }}>
         {(['direct', 'group'] as const).map((m) => (
           <button
             key={m}
             type="button"
             role="tab"
             aria-selected={mode === m}
-            className={`matter-intel-tab${mode === m ? ' is-active' : ''}`}
             onClick={() => { setMode(m); setPicked((p) => (m === 'direct' ? p.slice(0, 1) : p)); }}
           >
             {m === 'direct' ? 'Direct message' : 'Group'}
@@ -299,43 +313,48 @@ function NewConversationModal({ open, onClose, onOpened }: { open: boolean; onCl
       </div>
       {mode === 'group' && (
         <input
+          className="input"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={100}
           placeholder="Group name, e.g. Litigation team"
           aria-label="Group name"
-          style={{ width: '100%', padding: '8px 10px', marginBottom: 10, border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
+          style={{ width: '100%', marginBottom: 10 }}
         />
       )}
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search colleagues"
-        aria-label="Search colleagues"
-        style={{ width: '100%', padding: '8px 10px', marginBottom: 10, border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
-      />
+      <div className="fm-search" style={{ marginBottom: 10 }}>
+        <input
+          type="search"
+          className="input"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search colleagues"
+          aria-label="Search colleagues"
+        />
+        <span className="fm-search-icon"><Icon name="search" size={14} /></span>
+      </div>
       {teammates.isLoading && <Skeleton width="100%" height={120} radius="md" />}
-      <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+      <div className="fm-people">
         {people.map((t) => {
           const on = picked.includes(t.id);
           return (
-            <label key={t.id} className="row" style={{ gap: 10, padding: '8px 4px', cursor: 'pointer', alignItems: 'center' }}>
+            <label key={t.id} className="fm-person">
               <input
                 type={mode === 'direct' ? 'radio' : 'checkbox'}
                 name="team-chat-person"
                 checked={on}
                 onChange={() => setPicked((p) => (mode === 'direct' ? [t.id] : on ? p.filter((x) => x !== t.id) : [...p, t.id]))}
               />
+              <span className="fm-avatar is-sm" aria-hidden>{initialsOf(t.name)}</span>
               <span style={{ flex: 1, minWidth: 0 }}>
-                <span style={{ fontWeight: 500 }}>{t.name}</span>
-                <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{t.role}</span>
+                <span className="fm-person-name" style={{ display: 'block' }}>{t.name}</span>
+                <span className="fm-person-role" style={{ display: 'block' }}>{t.role}</span>
               </span>
             </label>
           );
         })}
         {teammates.data && people.length === 0 && (
-          <div className="muted">{(teammates.data ?? []).length <= 1 ? 'No colleagues in your firm yet. Invite members from Manage firm.' : 'No one matches that search.'}</div>
+          <div className="fm-quiet">{(teammates.data ?? []).length <= 1 ? 'No colleagues in your firm yet. Invite members from Manage firm.' : 'No one matches that search.'}</div>
         )}
       </div>
     </Modal>
@@ -369,7 +388,7 @@ function GroupMembersModal({ open, onClose, conversation, onLeft }: {
         <div className="row" style={{ gap: 8, justifyContent: 'space-between', width: '100%' }}>
           <button
             type="button"
-            className="btn btn-oxblood"
+            className="btn btn-ghost"
             onClick={() => myId && remove.mutate(myId, { onSuccess: onLeft, onError: fail })}
             disabled={remove.isPending}
           >
@@ -380,13 +399,13 @@ function GroupMembersModal({ open, onClose, conversation, onLeft }: {
       }
     >
       {conversation.canManage && (
-        <div className="row" style={{ gap: 8, marginBottom: 16 }}>
+        <div className="fm-inline" style={{ marginBottom: 16 }}>
           <input
+            className="input"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={100}
             aria-label="Group name"
-            style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
           />
           <button
             type="button"
@@ -398,12 +417,14 @@ function GroupMembersModal({ open, onClose, conversation, onLeft }: {
           </button>
         </div>
       )}
-      <div className="col" style={{ gap: 4 }}>
+      <div className="fm-eyebrow" style={{ marginBottom: 6 }}>{conversation.members.length} members</div>
+      <div className="col" style={{ gap: 0 }}>
         {conversation.members.map((m) => (
-          <div key={m.userId} className="row" style={{ alignItems: 'center', gap: 8, padding: '6px 0' }}>
-            <span style={{ flex: 1 }}>
+          <div key={m.userId} className="row" style={{ alignItems: 'center', gap: 12, padding: '8px 0', borderTop: '1px solid var(--border-subtle)' }}>
+            <span className="fm-avatar is-sm" aria-hidden>{initialsOf(m.name)}</span>
+            <span style={{ flex: 1, minWidth: 0, fontWeight: 500 }}>
               {m.userId === myId ? 'You' : m.name}
-              {m.role === 'admin' && <span className="badge" style={{ marginLeft: 8 }}>Admin</span>}
+              {m.role === 'admin' && <span className="fm-pill is-muted" style={{ marginLeft: 8 }}>Admin</span>}
             </span>
             {conversation.canManage && m.userId !== myId && (
               <button type="button" className="btn btn-ghost" onClick={() => remove.mutate(m.userId, { onError: fail })}>
@@ -414,12 +435,12 @@ function GroupMembersModal({ open, onClose, conversation, onLeft }: {
         ))}
       </div>
       {conversation.canManage && candidates.length > 0 && (
-        <div className="row" style={{ gap: 8, marginTop: 16 }}>
+        <div className="fm-inline" style={{ marginTop: 16 }}>
           <select
+            className="input"
             value={adding}
             onChange={(e) => setAdding(e.target.value)}
             aria-label="Add member"
-            style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--card)', color: 'inherit' }}
           >
             <option value="">Add a colleague…</option>
             {candidates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}

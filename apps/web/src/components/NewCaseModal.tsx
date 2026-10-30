@@ -138,7 +138,13 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
   // shape (built-in debounce), and we auto-apply the result once per CNR — the
   // advocate can still edit every field afterward.
   const cnrValid = CNR_RE.test(cnr.trim());
-  const cnrLookup = useEcourtsCnr(cnrValid ? cnr : null);
+  // District Courts first; a CNR District Courts doesn't know is retried
+  // against the High Courts, so a matter already in a High Court (e.g. one
+  // taken over from another advocate) still fills in from its CNR.
+  const dcLookup = useEcourtsCnr(cnrValid ? cnr : null, 'DC');
+  const tryHc = cnrValid && dcLookup.isError && dcLookup.isNotFound;
+  const hcLookup = useEcourtsCnr(tryHc ? cnr : null, 'HC');
+  const cnrLookup = tryHc ? hcLookup : dcLookup;
   const [appliedCnr, setAppliedCnr] = useState<string>('');
 
   useEffect(() => {
@@ -321,34 +327,19 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
       aria-modal="true"
       aria-labelledby="new-case-title"
       onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, background: 'var(--scrim)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-        padding: 16,
-      }}
+      className="cs-dialog-scrim"
     >
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={handleSubmit}
-        style={{
-          background: 'var(--bg-base)',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-lg)',
-          padding: 28,
-          width: 'min(640px, 100%)',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
+        className="cs-dialog"
       >
         <div>
-          <div className="eyebrow" style={{ marginBottom: 4 }}>New matter</div>
-          <h3 id="new-case-title" className="display" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          <div className="cs-count">New matter</div>
+          <h3 id="new-case-title" className="cs-dialog-title">
             Open a case file
           </h3>
-          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+          <p className="cs-dialog-desc">
             All fields are optional, fill in what you have. With a CNR the matter connects to eCourts automatically. Without one, link it later from the matter page (by CNR or by case number).
           </p>
         </div>
@@ -372,12 +363,12 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
               placeholder="Primary client (party we represent)"
             />
           </Field>
-          <Field label="COURT">
+          <Field label="COURT LEVEL" hint="Where the matter is now; change it later if it moves up or changes hands">
             <input
               className="input"
               value={court}
               onChange={(e) => setCourt(e.target.value)}
-              placeholder="e.g. High Court of Karnataka"
+              placeholder="e.g. District Court, Chennai / High Court of Madras"
             />
           </Field>
           <Field
@@ -385,6 +376,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
             hint={
               cnrValid && cnrLookup.isFetching ? 'Fetching from eCourts…'
               : cnrValid && cnrLookup.data ? 'Fetched from eCourts ✓'
+              : cnrValid && cnrLookup.queued ? 'eCourts is busy; fetching in the background, details fill in shortly'
               : cnrValid && cnrLookup.isError && cnrLookup.isNotFound ? 'No eCourts record yet. Save anyway; DifAi keeps checking at 9 AM and 7 PM'
               : cnrValid && cnrLookup.isError ? 'eCourts is not responding. Save anyway; it will connect automatically when eCourts is back'
               : 'Optional: enter a 16-char CNR to auto-fetch from eCourts'
@@ -394,7 +386,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
               <input
                 className="input mono"
                 value={cnr}
-                onChange={(e) => setCnr(e.target.value)}
+                onChange={(e) => setCnr(e.target.value.replace(/[\s-]/g, '').toUpperCase())}
                 placeholder={placeholderCnr()}
                 style={{ paddingRight: 34, width: '100%', boxSizing: 'border-box' }}
               />
@@ -440,7 +432,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
           </Field>
         </div>
 
-        <Field label="CASE CONTENT / NOTES" hint="Optional: type or dictate the matter's background, facts, or working notes. Saved to the case's Notes." wide>
+        <Field label="CASE CONTENT / NOTES" hint="Optional: type or dictate the matter's background and facts. Saved to the case's Notes, where you can edit it any time." wide>
           <div className="row" style={{ gap: 8, marginBottom: 8, justifyContent: 'flex-end' }}>
             <DictateButton onTranscript={appendSpoken(setCaseContent)} label="Voice note" />
           </div>
@@ -472,7 +464,7 @@ export function NewCaseModal({ open, onClose, defaultType, prefill }: NewCaseMod
           onOverrideChange={setOverrideAck}
         />
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 4 }}>
+        <div className="cs-dialog-foot">
           <button type="button" className="btn" onClick={() => { setStagedDocs([]); setCaseContent(''); onClose(); }}>Cancel</button>
           <button
             type="submit"
@@ -511,17 +503,7 @@ interface ConflictPanelProps {
 function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onOverrideChange }: ConflictPanelProps) {
   if (!result && loading) {
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        style={{
-          fontSize: 12,
-          color: 'var(--text-tertiary)',
-          padding: '8px 10px',
-          border: '1px dashed var(--border-default)',
-          borderRadius: 'var(--radius-md)',
-        }}
-      >
+      <div role="status" aria-live="polite" className="cs-conflict-scan">
         Scanning conflicts…
       </div>
     );
@@ -531,27 +513,11 @@ function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onO
   if (result.severity === 'green') {
     if (dismissed) return null;
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 12,
-          fontSize: 12,
-          color: 'var(--text-tertiary)',
-          padding: '8px 10px',
-          border: '1px solid var(--border-default)',
-          borderRadius: 'var(--radius-md)',
-        }}
-      >
-        <span>No conflicts found across firm matters.</span>
+      <div role="status" aria-live="polite" className="cs-conflict-ok">
+        <span><Icon name="check" size={12} /> No conflicts found across firm matters.</span>
         <button
           type="button"
           onClick={onDismiss}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--text-tertiary)', fontSize: 12, padding: 0,
-          }}
           aria-label="Dismiss conflict notice"
         >
           Dismiss
@@ -561,28 +527,14 @@ function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onO
   }
 
   const isRed = result.severity === 'red';
-  const accent = isRed ? 'var(--danger)' : 'var(--warning)';
   const heading = isRed
     ? 'Existing client / direct conflict detected'
     : 'Potential conflict - name appears in a past matter';
 
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      style={{
-        border: `1px solid ${accent}`,
-        borderLeft: `4px solid ${accent}`,
-        borderRadius: 'var(--radius-md)',
-        padding: '12px 14px',
-        background: 'var(--bg-base)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 600, color: accent }}>{heading}</div>
-      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div role="alert" aria-live="assertive" className={`cs-conflict${isRed ? '' : ' is-potential'}`}>
+      <div className="cs-conflict-title"><Icon name="flag" size={14} /> {heading}</div>
+      <ul>
         {result.hits.slice(0, 6).map((h, i) => (
           <li key={hitKey(h, i)}>
             <HitLine hit={h} />
@@ -595,7 +547,7 @@ function ConflictPanel({ result, loading, dismissed, onDismiss, overrideAck, onO
         ) : null}
       </ul>
       {isRed ? (
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+        <label>
           <input
             type="checkbox"
             checked={overrideAck}

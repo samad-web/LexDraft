@@ -98,7 +98,7 @@ export function MockArgumentsView(): JSX.Element {
   const [stage, setStage] = useState<Stage>({ kind: 'landing' });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+    <div className="ai-ma" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       {stage.kind === 'landing' && (
         <Landing
           onStart={() => setStage({ kind: 'setup' })}
@@ -176,36 +176,39 @@ function Landing(props: {
 
       {/* Compact stats strip — only shown once the user has finished one. */}
       {(items.length > 0 || avgScore != null) && (
-        <div className="card">
-          <div className="row" style={{ gap: 'var(--space-7)' }}>
-            <StatBlock label="Sessions" value={String(items.length)} />
-            <StatBlock label="Concluded" value={String(concluded.length)} />
-            <StatBlock
-              label="Avg score"
-              value={avgScore == null ? 'N/A' : `${avgScore}/100`}
-            />
-          </div>
+        <div className="ai-stats" role="list">
+          <StatBlock label="Sessions" value={String(items.length)} />
+          <StatBlock label="Concluded" value={String(concluded.length)} />
+          <StatBlock
+            label="Avg score"
+            value={avgScore == null ? 'N/A' : String(avgScore)}
+            suffix={avgScore == null ? undefined : '/100'}
+          />
         </div>
       )}
 
       {/* Past sessions */}
       <div>
-        <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>Past sessions</div>
+        <div className="ai-section-head" style={{ marginBottom: 14 }}>
+          <h2 className="ai-section-title ai-section-title--sm">Past sessions</h2>
+          {items.length > 0 && <span className="ai-count">{items.length}</span>}
+        </div>
         {sessions.isLoading && (
-          <div className="muted body-sm">Loading…</div>
+          <div className="ai-thread-note">Loading…</div>
         )}
         {!sessions.isLoading && items.length === 0 && (
           <div className="ma-empty">
-            <div className="heading-sm" style={{ marginBottom: 'var(--space-2)' }}>
+            <span className="ai-drop-icon" aria-hidden><Icon name="gavel" size={20} /></span>
+            <div className="ai-state-title">
               No sessions yet
             </div>
-            <div className="body-sm muted">
+            <div className="ai-state-body">
               Start your first practice to argue against opposing counsel.
             </div>
           </div>
         )}
         {items.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className="ai-list">
             {items.map((s) => {
               const onClick = (): void => {
                 if (s.status === 'active') props.onResume(s.id);
@@ -231,13 +234,11 @@ function Landing(props: {
                         sessions stay distinguishable when one advocate has
                         several rows for the same case. Falls back to the
                         matter when the user join produced no name. */}
-                    <div className="heading-sm" style={{ marginBottom: 'var(--space-1)' }}>
+                    <div className="ai-ma-row-title">
                       {s.preparedByName || s.matterTitle}
                     </div>
-                    <div className="body-sm muted" style={{ marginBottom: 'var(--space-1)' }}>
-                      {s.preparedByName ? s.matterTitle : null}
-                    </div>
-                    <div className="body-xs">
+                    {s.preparedByName ? <div className="ai-ma-row-matter">{s.matterTitle}</div> : null}
+                    <div className="ai-list-meta">
                       {ROLES.find((r) => r.value === s.role)?.label} · {s.judgePersona} ·{' '}
                       {findLanguage(s.languageCode).englishName} ·{' '}
                       {s.turnCount} turn{s.turnCount === 1 ? '' : 's'} ·{' '}
@@ -245,22 +246,22 @@ function Landing(props: {
                       {new Date(s.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
-                  <div className="row" style={{ gap: 'var(--space-3)', alignItems: 'center' }}>
+                  <div className="ai-ma-row-side">
                     {s.overallScore != null && (
-                      <span className="badge badge-sage">
-                        {Math.round(s.overallScore)}/100
+                      <span className="ai-history-score">
+                        <strong>{Math.round(s.overallScore)}</strong><small>/100</small>
                       </span>
                     )}
                     {s.status === 'active' && (
-                      <span className="badge badge-cobalt">Active</span>
+                      <span className="ai-pill ai-pill--solid">Active</span>
                     )}
                     {s.status === 'concluded' && (
-                      <span className="badge">Concluded</span>
+                      <span className="ai-pill">Concluded</span>
                     )}
                     {s.status === 'abandoned' && (
-                      <span className="badge badge-amber">Abandoned</span>
+                      <span className="ai-pill ai-pill--dashed">Abandoned</span>
                     )}
-                    <Icon name="chevron" className="muted" />
+                    <Icon name="chevron" className="ai-row-chev" />
                   </div>
                 </div>
               );
@@ -272,11 +273,11 @@ function Landing(props: {
   );
 }
 
-function StatBlock(props: { label: string; value: string }): JSX.Element {
+function StatBlock(props: { label: string; value: string; suffix?: string }): JSX.Element {
   return (
-    <div>
-      <div className="heading-lg" style={{ marginBottom: 'var(--space-1)' }}>{props.value}</div>
-      <div className="eyebrow">{props.label}</div>
+    <div className="ai-stat" role="listitem">
+      <span className="ai-stat-value">{props.value}{props.suffix && <small>{props.suffix}</small>}</span>
+      <span className="ai-stat-label">{props.label}</span>
     </div>
   );
 }
@@ -382,9 +383,9 @@ function Setup(props: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       {/* Header */}
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="ai-ma-head">
         <div>
-          <div className="eyebrow">Step · session setup</div>
+          <div className="ai-eyebrow">Step · session setup</div>
           <h2 className="heading-xl" style={{ margin: 'var(--space-2) 0 0' }}>
             New mock argument
           </h2>
@@ -395,18 +396,22 @@ function Setup(props: {
       </div>
 
       {/* Source picker */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <div className="eyebrow">1 · Choose a matter</div>
-        <div className="row" style={{ gap: 'var(--space-2)' }}>
+      <div className="ai-panel">
+        <MaSecHead n={1} title="Choose a matter" />
+        <div className="ai-seg" role="tablist" aria-label="Matter source">
           <button
-            className={`chip ${tab === 'case' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'case'}
+            className={tab === 'case' ? 'active' : ''}
             onClick={() => setTab('case')}
             type="button"
           >
             Pick existing case
           </button>
           <button
-            className={`chip ${tab === 'upload' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={tab === 'upload'}
+            className={tab === 'upload' ? 'active' : ''}
             onClick={() => setTab('upload')}
             type="button"
           >
@@ -432,7 +437,7 @@ function Setup(props: {
               }))}
             />
             {cases.isError && (
-              <div className="body-sm" style={{ marginTop: 'var(--space-2)', color: 'var(--danger)' }}>
+              <div className="ai-note ai-note--strong" style={{ marginTop: 'var(--space-2)' }}>
                 {(cases.error as Error)?.message ?? 'Could not load cases. Check your connection and reload.'}
               </div>
             )}
@@ -545,7 +550,7 @@ function Setup(props: {
               </div>
             )}
             {uploadFile.isError && (
-              <div className="body-sm" style={{ marginTop: 'var(--space-2)', color: 'var(--danger)' }}>
+              <div className="ai-note ai-note--strong" style={{ marginTop: 'var(--space-2)' }}>
                 Upload failed: {(uploadFile.error as Error)?.message ?? 'unknown error'}
               </div>
             )}
@@ -555,8 +560,8 @@ function Setup(props: {
 
       {/* Matter summary editor */}
       {hasSource && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <div className="eyebrow">2 · Confirm matter summary</div>
+        <div className="ai-panel">
+          <MaSecHead n={2} title="Confirm matter summary" />
           <div className="body-sm muted">
             This summary is pinned to every turn's prompt. Edit anything that's off: facts you'd
             cite, the issues at stake, the statutes in play.
@@ -567,8 +572,8 @@ function Setup(props: {
 
       {/* Role / persona / duration / input mode */}
       {hasSource && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
-          <div className="eyebrow">3 · Configure</div>
+        <div className="ai-panel" style={{ gap: 'var(--space-6)' }}>
+          <MaSecHead n={3} title="Configure" />
 
           <div>
             <div className="label">Your role</div>
@@ -593,21 +598,12 @@ function Setup(props: {
                 <button
                   key={p.value}
                   type="button"
+                  aria-pressed={persona === p.value}
+                  className={`ai-choice${persona === p.value ? ' is-active' : ''}`}
                   onClick={() => setPersona(p.value)}
-                  style={{
-                    textAlign: 'left',
-                    padding: 'var(--space-4)',
-                    border: '1px solid',
-                    borderColor: persona === p.value ? 'var(--text-primary)' : 'var(--border-default)',
-                    borderRadius: 'var(--radius-md)',
-                    background: persona === p.value ? 'var(--bg-surface-2)' : 'var(--bg-surface)',
-                    cursor: 'pointer',
-                  }}
                 >
-                  <div className="heading-sm" style={{ marginBottom: 'var(--space-1)' }}>{p.label}</div>
-                  <div className="body-xs" style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
-                    {p.desc}
-                  </div>
+                  <span className="ai-choice-title">{p.label}</span>
+                  <span className="ai-choice-desc">{p.desc}</span>
                 </button>
               ))}
             </div>
@@ -669,7 +665,7 @@ function Setup(props: {
 
       {/* Confirm + start */}
       {hasSource && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div className="ai-panel ai-ma-confirm">
           <label className="row" style={{ gap: 'var(--space-3)', alignItems: 'flex-start' }}>
             <input
               type="checkbox"
@@ -693,6 +689,18 @@ function Setup(props: {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MaSecHead(props: { n: number; title: string }): JSX.Element {
+  return (
+    <div className="ai-step-head">
+      <span className="ai-step-num" aria-hidden>{props.n}</span>
+      <div className="ai-step-text">
+        <span className="ai-eyebrow">Step {props.n} of 3</span>
+        <h3 className="ai-step-title">{props.title}</h3>
+      </div>
     </div>
   );
 }
@@ -881,8 +889,9 @@ function SessionDetails(props: {
   const s = session.data;
   if (session.isLoading || !s) {
     return (
-      <div className="card">
-        <div className="muted body-sm">Loading session…</div>
+      <div className="ai-state" role="status">
+        <span className="lex-spinner lex-spinner-lg" aria-hidden />
+        <div className="ai-state-body">Loading session…</div>
       </div>
     );
   }
@@ -893,9 +902,9 @@ function SessionDetails(props: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       {/* Header */}
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="ai-ma-head">
         <div>
-          <div className="eyebrow">Resume · session details</div>
+          <div className="ai-eyebrow">Resume · session details</div>
           <h2 className="heading-xl" style={{ margin: 'var(--space-2) 0 0' }}>
             {s.matterSummary.title || 'Untitled matter'}
           </h2>
@@ -906,8 +915,8 @@ function SessionDetails(props: {
       </div>
 
       {/* Top facts strip */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <div className="eyebrow">At a glance</div>
+      <div className="ai-panel">
+        <h3 className="ai-panel-title">At a glance</h3>
         <div className="grid-auto-sm">
           <DetailField label="Your role" value={ROLES.find((r) => r.value === s.role)?.label ?? s.role} />
           <DetailField label="Bench persona" value={s.judgePersona} />
@@ -925,8 +934,8 @@ function SessionDetails(props: {
       </div>
 
       {/* Matter summary preview */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-        <div className="eyebrow">Matter</div>
+      <div className="ai-panel">
+        <h3 className="ai-panel-title">Matter</h3>
         <div className="facts-grid-2">
           {s.matterSummary.court && (
             <DetailField label="Court" value={s.matterSummary.court} />
@@ -955,8 +964,8 @@ function SessionDetails(props: {
       {/* Most recent turn preview — helps the user re-orient before they
           tap the mic and have to remember where they left off. */}
       {lastTurn && (
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          <div className="eyebrow">Last exchange</div>
+        <div className="ai-panel">
+          <h3 className="ai-panel-title">Last exchange</h3>
           <div className="body-xs muted">
             {lastTurn.speaker === 'user' ? 'You said' : 'Opposing counsel said'}
           </div>
@@ -994,7 +1003,7 @@ function DetailField(props: { label: string; value: string }): JSX.Element {
   return (
     <div>
       <div className="label">{props.label}</div>
-      <div className="body-sm" style={{ marginTop: 'var(--space-1)' }}>
+      <div className="ai-detail-value">
         {props.value}
       </div>
     </div>
@@ -1230,7 +1239,7 @@ function Live(props: {
   }
 
   if (session.isLoading || !session.data) {
-    return <div className="muted body-md" style={{ padding: 'var(--space-5)' }}>Loading session…</div>;
+    return <div className="ai-state" role="status"><span className="lex-spinner lex-spinner-lg" aria-hidden /><div className="ai-state-body">Loading session…</div></div>;
   }
 
   const s = session.data;
@@ -1238,18 +1247,12 @@ function Live(props: {
   return (
     <div className="workspace-2">
       {/* Main panel */}
-      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minHeight: 540, padding: 0, overflow: 'hidden' }}>
+      <div className="card ai-ma-live" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', minHeight: 540, padding: 0, overflow: 'hidden' }}>
         {/* Header */}
-        <div
-          className="row"
-          style={{
-            justifyContent: 'space-between', alignItems: 'flex-start',
-            padding: 'var(--space-5) var(--space-6) 0',
-          }}
-        >
+        <div className="ai-ma-live-head">
           <div style={{ minWidth: 0 }}>
-            <div className="eyebrow">Live session</div>
-            <h2 className="heading-lg" style={{ margin: 'var(--space-1) 0 var(--space-1)' }}>
+            <div className="ai-eyebrow ai-ma-live-tag"><span className="ma-rec-dot" aria-hidden /> Live session</div>
+            <h2 className="heading-lg" style={{ margin: 'var(--space-2) 0 var(--space-3)' }}>
               {s.matterSummary.title || 'Untitled matter'}
             </h2>
             <div className="row" style={{ gap: 'var(--space-2)', flexWrap: 'wrap' }}>
@@ -1276,20 +1279,8 @@ function Live(props: {
         </div>
 
         {reconnect && (
-          <div
-            style={{
-              margin: '0 var(--space-6)',
-              padding: 'var(--space-2) var(--space-3)',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--warning-bg)',
-              color: 'var(--warning)',
-              fontSize: 12,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-            }}
-          >
-            <span className="ma-rec-dot" style={{ background: 'var(--warning)' }} />
+          <div className="ai-note ai-ma-inset" role="status">
+            <span className="lex-spinner" aria-hidden />
             Reconnecting… (attempt {reconnect.attempt} of 3)
           </div>
         )}
@@ -1300,17 +1291,7 @@ function Live(props: {
             user doesn't hear digit-only garble; this banner tells them
             why opposing counsel is silent and how to fix it. */}
         {voiceMode && !tts.voiceAvailable && (
-          <div
-            style={{
-              margin: '0 var(--space-6)',
-              padding: 'var(--space-2) var(--space-3)',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--warning-bg)',
-              color: 'var(--text-primary)',
-              fontSize: 12,
-              border: '1px solid var(--warning)',
-            }}
-          >
+          <div className="ai-note ai-ma-inset">
             <strong>No {findLanguage(s.languageCode).englishName} voice installed.</strong>{' '}
             <span className="muted">
               Opposing counsel's replies appear as text only. Install a {findLanguage(s.languageCode).englishName} system voice (Windows: Settings → Time &amp; Language → Speech → Add voices) and refresh to enable speech.
@@ -1363,19 +1344,8 @@ function Live(props: {
             />
           )}
           {streamError && (
-            <div
-              style={{
-                padding: 'var(--space-3) var(--space-4)',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--danger-bg)',
-                color: 'var(--danger)',
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 'var(--space-3)',
-              }}
-            >
-              <Icon name="close" />
+            <div className="ai-note ai-note--strong" role="alert">
+              <Icon name="flag" />
               <div style={{ flex: 1 }}>Stream error: {streamError}</div>
               <button className="btn btn-sm" onClick={() => setStreamError(null)}>Dismiss</button>
             </div>
@@ -1383,7 +1353,7 @@ function Live(props: {
         </div>
 
         {/* Composer */}
-        <div style={{ borderTop: '1px solid var(--border-subtle)', padding: 'var(--space-4) var(--space-6) var(--space-5)' }}>
+        <div className="ai-ma-composer">
           {voiceMode ? (
             <VoiceComposer
               stt={stt}
@@ -1571,19 +1541,7 @@ function VoiceComposer(props: VoiceComposerProps): JSX.Element {
           no error was surfaced. Common causes: spoke too softly, mic muted in
           OS, language mismatch. Dismissed by next start() or X. */}
       {props.emptyCapture && !stt.listening && !showEditor && (
-        <div
-          role="status"
-          style={{
-            padding: 'var(--space-3) var(--space-4)',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--warning-bg)',
-            color: 'var(--warning)',
-            fontSize: 13,
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 'var(--space-3)',
-          }}
-        >
+        <div role="status" className="ai-note">
           <div style={{ flex: 1 }}>
             <strong>We didn't catch that.</strong>{' '}
             Tap the mic and try again: speak closer to the microphone, or check that the right
@@ -1602,17 +1560,7 @@ function VoiceComposer(props: VoiceComposerProps): JSX.Element {
       {stt.error && stt.error !== 'no-speech' && (() => {
         const { title, hint } = explainSttError(stt.error);
         return (
-          <div
-            role="alert"
-            style={{
-              padding: 'var(--space-3) var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--danger-bg)',
-              color: 'var(--danger)',
-              fontSize: 13,
-              lineHeight: 1.5,
-            }}
-          >
+          <div role="alert" className="ai-note ai-note--strong" style={{ flexDirection: 'column', gap: 0 }}>
             <div style={{ fontWeight: 600 }}>{title}</div>
             <div style={{ marginTop: 4 }}>{hint}</div>
           </div>
@@ -1820,15 +1768,15 @@ function ContextPanel(props: {
   const s = props.session.matterSummary;
   return (
     <div
-      className="card"
+      className="card ai-ma-context"
       style={{
         position: 'sticky', top: 'var(--space-5)',
         display: 'flex', flexDirection: 'column', gap: 'var(--space-4)',
       }}
     >
       <div>
-        <div className="eyebrow">Case context</div>
-        <div className="heading-md" style={{ marginTop: 'var(--space-1)' }}>{s.title || 'Untitled'}</div>
+        <div className="ai-eyebrow">Case context</div>
+        <div className="ai-panel-title" style={{ marginTop: 'var(--space-2)' }}>{s.title || 'Untitled'}</div>
         {s.court && <div className="body-xs">{s.court}</div>}
       </div>
 
@@ -1901,7 +1849,7 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
   const [rerunError, setRerunError] = useState<string | null>(null);
 
   if (session.isLoading || !session.data) {
-    return <div className="muted body-md" style={{ padding: 'var(--space-5)' }}>Loading review…</div>;
+    return <div className="ai-state" role="status"><span className="lex-spinner lex-spinner-lg" aria-hidden /><div className="ai-state-body">Loading review…</div></div>;
   }
   const s = session.data;
   const r = s.review;
@@ -1933,9 +1881,9 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
       {/* Header */}
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="ai-ma-head">
         <div>
-          <div className="eyebrow">Session review</div>
+          <div className="ai-eyebrow">Session review</div>
           <h2 className="heading-xl" style={{ margin: 'var(--space-2) 0 var(--space-1)' }}>
             {s.matterSummary.title}
           </h2>
@@ -1947,7 +1895,7 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
             )}
           </div>
         </div>
-        <div className="row" style={{ gap: 'var(--space-2)' }}>
+        <div className="ai-ma-head-actions">
           {canRerun && (
             <button
               className="btn"
@@ -1975,8 +1923,8 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
       {exportError && (
         <div
-          className="body-sm"
-          style={{ color: 'var(--danger)', padding: 'var(--space-3)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)' }}
+          className="ai-note ai-note--strong"
+          role="alert"
         >
           PDF export failed: {exportError}
         </div>
@@ -1984,32 +1932,19 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
       {rerunError && (
         <div
-          className="body-sm"
-          style={{ color: 'var(--danger)', padding: 'var(--space-3)', background: 'var(--danger-bg)', borderRadius: 'var(--radius-sm)' }}
+          className="ai-note ai-note--strong"
+          role="alert"
         >
           Re-run failed: {rerunError}
         </div>
       )}
 
       {!r && (
-        <div className="card">
-          <div className="body-md muted">No review has been generated yet for this session.</div>
-        </div>
+        <div className="ai-empty-line">No review has been generated yet for this session.</div>
       )}
 
       {r && r.isDemo && (
-        <div
-          role="status"
-          style={{
-            padding: 'var(--space-4)',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--warning-bg)',
-            color: 'var(--warning)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-2)',
-          }}
-        >
+        <div role="status" className="ai-note ai-note--strong" style={{ flexDirection: 'column' }}>
           <div style={{ fontSize: 13, lineHeight: 1.55 }}>
             <strong>This is a placeholder review, not real feedback.</strong>{' '}
             No AI provider is configured on this deployment (or the last run couldn't be scored), so
@@ -2028,18 +1963,7 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
         const allZero = dims.every((d) => d === 0) && r.rubric.overall === 0;
         if (!allZero) return null;
         return (
-          <div
-            role="status"
-            style={{
-              padding: 'var(--space-4)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--warning-bg)',
-              color: 'var(--warning)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-3)',
-            }}
-          >
+          <div role="status" className="ai-note ai-note--strong" style={{ flexDirection: 'column' }}>
             <div style={{ fontSize: 13, lineHeight: 1.55 }}>
               <strong>Scores didn't parse from this run.</strong>{' '}
               The qualitative review below is real, but the LLM didn't return numeric scores in a
@@ -2071,7 +1995,7 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
                 </pre>
               </details>
             ) : (
-              <div className="body-xs" style={{ color: 'var(--warning)', opacity: 0.85 }}>
+              <div className="body-xs muted">
                 Raw response wasn't captured for this row — re-run the review to populate it (column
                 added in migration 0037).
               </div>
@@ -2083,7 +2007,7 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
       {r && (
         <>
           {/* Hero: donut + qualitative summary */}
-          <div className="card facts-meta" style={{ alignItems: 'center' }}>
+          <div className="ai-panel ai-ma-hero">
             <div className="ma-score-donut" style={{ ['--pct' as never]: r.rubric.overall }}>
               <div className="ma-score-value">
                 <span className="ma-score-num">{Math.round(r.rubric.overall)}</span>
@@ -2091,16 +2015,16 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
               </div>
             </div>
             <div>
-              <div className="eyebrow" style={{ marginBottom: 'var(--space-2)' }}>Overall</div>
-              <div className="body-md" style={{ lineHeight: 1.55 }}>
+              <div className="ai-eyebrow" style={{ marginBottom: 'var(--space-2)' }}>Overall assessment</div>
+              <div className="ai-ma-verdict">
                 {r.qualitativeSummary || 'No qualitative summary generated.'}
               </div>
             </div>
           </div>
 
           {/* Rubric bars */}
-          <div className="card">
-            <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>Rubric</div>
+          <div className="ai-panel">
+            <h3 className="ai-panel-title">Rubric</h3>
             <div className="facts-grid-2" style={{ gap: 'var(--space-5) var(--space-7)' }}>
               <RubricBar label="Legal soundness" score={r.rubric.legalSoundness} />
               <RubricBar label="Citation use"    score={r.rubric.citationUse} />
@@ -2118,17 +2042,17 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
           {/* Where to improve — concrete rewrites with score lift */}
           {r.improvements.length > 0 && (
-            <div className="card">
-              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-3)' }}>
-                <div>
-                  <div className="eyebrow">Where to improve</div>
+            <div className="ai-panel">
+              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-end', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+                  <h3 className="ai-panel-title">Where to improve</h3>
                   <div className="body-sm muted" style={{ marginTop: 'var(--space-1)' }}>
                     Concrete rewrites for your weakest turns. Argue this way next time and the
                     estimated overall score lifts by the value shown.
                   </div>
                 </div>
                 <div className="row" style={{ gap: 'var(--space-2)', alignItems: 'baseline' }}>
-                  <span className="heading-lg">
+                  <span className="ai-figure" style={{ fontSize: 34 }}>
                     +{r.improvements.reduce((sum, imp) => sum + imp.projectedLift, 0)}
                   </span>
                   <span className="body-xs">total lift</span>
@@ -2144,11 +2068,11 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
           {/* Missed arguments */}
           {r.missedArguments.length > 0 && (
-            <div className="card">
-              <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>
+            <div className="ai-panel">
+              <h3 className="ai-panel-title">
                 Arguments a strong advocate would have raised
-              </div>
-              <ul style={{ paddingLeft: 'var(--space-4)', margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              </h3>
+              <ul className="ai-ol">
                 {r.missedArguments.map((m, i) => (
                   <li key={i}>
                     <div className="body-md" style={{ fontWeight: 500 }}>{m.point}</div>
@@ -2166,11 +2090,11 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
           {/* Study list */}
           {r.studyList.length > 0 && (
-            <div className="card">
-              <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>
+            <div className="ai-panel">
+              <h3 className="ai-panel-title">
                 Read before your next session
-              </div>
-              <ul style={{ paddingLeft: 'var(--space-4)', margin: 0, display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              </h3>
+              <ul className="ai-ol">
                 {r.studyList.map((it, i) => (
                   <li key={i}>
                     <div className="body-md" style={{ fontWeight: 500 }}>{it.title}</div>
@@ -2186,10 +2110,10 @@ function Review(props: { sessionId: string; onBack: () => void }): JSX.Element {
 
           {/* Per-turn breakdown */}
           {userTurnsWithRating.length > 0 && (
-            <div className="card">
-              <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>
+            <div className="ai-panel">
+              <h3 className="ai-panel-title">
                 Turn-by-turn breakdown
-              </div>
+              </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                 {userTurnsWithRating.map((t) => (
                   <TurnRatingCard key={t.id} turn={t} rating={t.rating!} />
@@ -2218,15 +2142,15 @@ function RubricBar(props: { label: string; score: number }): JSX.Element {
 
 function ListCard(props: { title: string; items: string[]; dot: 'sage' | 'vermillion' }): JSX.Element {
   return (
-    <div className="card">
-      <div className="eyebrow" style={{ marginBottom: 'var(--space-3)' }}>{props.title}</div>
+    <div className="ai-panel">
+      <h3 className="ai-panel-title">{props.title}</h3>
       {props.items.length === 0 ? (
         <div className="body-sm muted">None recorded.</div>
       ) : (
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {props.items.map((s, i) => (
             <li key={i} className="body-md" style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-3)' }}>
-              <span className={`dot dot-${props.dot}`} style={{ marginTop: 8, flexShrink: 0 }} />
+              <span className={`ai-mark ai-mark--${props.dot === 'sage' ? 'plus' : 'minus'}`} aria-hidden />
               <span>{s}</span>
             </li>
           ))}
@@ -2317,7 +2241,7 @@ function ImprovementCard(props: { improvement: MaImprovement }): JSX.Element {
           ))}
         </div>
         {imp.projectedLift > 0 && (
-          <span className="badge badge-sage" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span className="ai-pill ai-pill--solid" style={{ fontVariantNumeric: 'tabular-nums' }}>
             +{imp.projectedLift} pts
           </span>
         )}
@@ -2326,37 +2250,14 @@ function ImprovementCard(props: { improvement: MaImprovement }): JSX.Element {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
         <div>
           <div className="eyebrow" style={{ marginBottom: 'var(--space-1)' }}>You said</div>
-          <div
-            style={{
-              padding: 'var(--space-3)',
-              background: 'var(--bg-surface-2)',
-              borderLeft: '3px solid var(--border-default)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 13,
-              lineHeight: 1.5,
-              fontStyle: 'italic',
-              color: 'var(--text-secondary)',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+          <div className="ai-quote ai-ma-said">
             "{imp.currentExcerpt}"
           </div>
         </div>
 
         <div>
           <div className="eyebrow" style={{ marginBottom: 'var(--space-1)' }}>Stronger version</div>
-          <div
-            style={{
-              padding: 'var(--space-3)',
-              background: 'var(--success-bg)',
-              borderLeft: '3px solid var(--success)',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 14,
-              lineHeight: 1.55,
-              color: 'var(--text-primary)',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+          <div className="ai-rewrite">
             {imp.betterVersion}
           </div>
         </div>

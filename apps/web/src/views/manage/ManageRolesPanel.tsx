@@ -1,3 +1,4 @@
+import { Icon } from '@lexdraft/ui';
 import { useFirmRoles } from '@/hooks/useFirmAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
@@ -7,7 +8,7 @@ export function ManageRolesPanel() {
   const pager = usePagination(roles.data ?? []);
 
   if (roles.isLoading) {
-    return <div className="muted">Loading roles…</div>;
+    return <div className="fm-loading">Loading roles…</div>;
   }
 
   return (
@@ -18,10 +19,10 @@ export function ManageRolesPanel() {
       />
 
       {(roles.data ?? []).length === 0 ? (
-        <div className="muted">No roles available.</div>
+        <div className="fm-empty-card">No roles available.</div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
+          <table className="tbl fm-tbl">
             <thead>
               <tr>
                 <th>Role</th>
@@ -33,11 +34,11 @@ export function ManageRolesPanel() {
             <tbody>
               {pager.slice.map((r) => (
                 <tr key={r.id}>
-                  <td style={{ fontWeight: 500 }}>{r.name}</td>
+                  <td><span className="fm-cell-title">{r.name}</span></td>
                   <td className="muted">{r.description ?? '-'}</td>
-                  <td className="mono tabular" style={{ textAlign: 'right' }}>{r.userCount}</td>
+                  <td className="num" style={{ textAlign: 'right', fontFamily: 'var(--font-title)', fontSize: 16, fontWeight: 600 }}>{r.userCount}</td>
                   <td>
-                    <span className={`badge ${r.isSystem ? '' : 'badge-cobalt'}`}>
+                    <span className={`fm-pill ${r.isSystem ? 'is-muted' : 'is-strong'}`}>
                       {r.isSystem ? 'System' : 'Custom'}
                     </span>
                   </td>
@@ -45,7 +46,7 @@ export function ManageRolesPanel() {
               ))}
             </tbody>
           </table>
-          <div style={{ padding: '0 var(--space-4) var(--space-4)' }}>
+          <div className="fm-tbl-foot">
             <Pagination
               page={pager.page}
               totalPages={pager.totalPages}
@@ -62,17 +63,13 @@ export function ManageRolesPanel() {
 
 export function PhaseTwoBanner({ title, copy }: { title: string; copy: string }) {
   return (
-    <div
-      className="card"
-      style={{
-        background: 'var(--bg-surface-2)',
-        borderColor: 'var(--border-default)',
-        padding: 20,
-      }}
-    >
-      <div className="eyebrow" style={{ marginBottom: 6 }}>Phase 2 preview</div>
-      <div className="heading-sm" style={{ marginBottom: 4 }}>{title}</div>
-      <div className="body-sm muted">{copy}</div>
+    <div className="fm-note">
+      <span className="fm-note-icon" aria-hidden><Icon name="sparkle" size={14} /></span>
+      <div style={{ minWidth: 0 }}>
+        <div className="fm-eyebrow" style={{ marginBottom: 4 }}>Phase 2 preview</div>
+        <div className="fm-note-title">{title}</div>
+        <div>{copy}</div>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import * as efilingLive from '../services/efiling-live.service';
+import { efileCaseOnPortal, fillNewCaseOnPortal, submitPleadingOnPortal, uploadPleadingOnPortal } from '../services/efiling-portal-filing.service';
 import { BadRequestError, UnauthorizedError } from '../lib/errors';
 import { ALL_STEP_KEYS, PARTICULARS_EXTRA_KEYS, EFILING_PORTAL_STATES, EFILING_PORTAL_STATE_CODES, PORTAL_STEPS_BY_KIND, type PortalStepKey } from '../lib/efiling/types';
 import { requireFeature } from '../services/permissions.service';
@@ -136,6 +137,52 @@ efilingRouter.post(
 // 501 EfilingNotCapturedError until real selectors are captured from a
 // logged-in advocate session. Not stubbed out of the router entirely so the
 // frontend/UI contract is already settled.
+
+// The connected session: keep-alive/status, and reading the advocate's own
+// portal pages (navigation only - nothing is saved or submitted there).
+efilingRouter.get(
+  '/live/session/:sessionId',
+  validate({ params: SessionIdParam }),
+  (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      res.json(efilingLive.efilingSessionStatus(sessionId, req.user.id));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+efilingRouter.get(
+  '/live/session/:sessionId/read',
+  validate({ params: SessionIdParam, query: z.object({ what: z.enum(['dashboard', 'new_case']).default('dashboard') }) }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const { what } = req.query as unknown as { what: 'dashboard' | 'new_case' };
+      res.json(await efilingLive.readPortalPage(sessionId, req.user.id, what));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// The advocate's own portal dashboard lists (read-only).
+efilingRouter.get(
+  '/live/session/:sessionId/lists',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      res.json({ items: await efilingLive.readPortalLists(sessionId, req.user.id) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 efilingRouter.post(
   '/live/session/:sessionId/file',
@@ -493,3 +540,23 @@ efilingRouter.put('/profile',
     }).strict(),
   }),
   handle((req, c) => efilingProfileService.update(c.userId, c.firmId, req.body)));
+
+// ---- on the real portal: fill New Case Filing, then eFile it ---------------
+// Both run over the advocate's own logged-in portal session. Filling saves
+// the portal's tabs 1-6 (a draft there); "eFile Case" is the irreversible
+// step and needs { confirmed: true } from the advocate.
+const LiveFilingParam = z.object({ sessionId: uuid, id: uuid });
+
+efilingRouter.post('/live/session/:sessionId/filings/:id/fill', requireFeature('matter.create'), validate({ params: LiveFilingParam }),
+  handle((req, c) => fillNewCaseOnPortal(p(req, 'sessionId'), c.userId, c.firmId, p(req, 'id'))));
+
+efilingRouter.post('/live/session/:sessionId/filings/:id/efile', requireFeature('matter.create'),
+  validate({ params: LiveFilingParam, body: z.object({ confirmed: z.literal(true) }).strict() }),
+  handle((req, c) => efileCaseOnPortal(p(req, 'sessionId'), c.userId, c.firmId, p(req, 'id'), req.body.confirmed === true)));
+
+efilingRouter.post('/live/session/:sessionId/filings/:id/upload-pleading', requireFeature('matter.create'), validate({ params: LiveFilingParam }),
+  handle((req, c) => uploadPleadingOnPortal(p(req, 'sessionId'), c.userId, c.firmId, p(req, 'id'))));
+
+efilingRouter.post('/live/session/:sessionId/filings/:id/submit', requireFeature('matter.create'),
+  validate({ params: LiveFilingParam, body: z.object({ confirmed: z.literal(true) }).strict() }),
+  handle((req, c) => submitPleadingOnPortal(p(req, 'sessionId'), c.userId, c.firmId, p(req, 'id'), req.body.confirmed === true)));

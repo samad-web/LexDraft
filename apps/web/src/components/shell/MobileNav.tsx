@@ -16,18 +16,19 @@ interface NavEntry {
   requiresFeature?: FeatureKey;
   /** Other routes that should also light this entry up. */
   alsoActiveOn?: string[];
+  /** The raised centre button. */
+  center?: boolean;
 }
 
-// Phone use is mostly in court, so Hearings takes the slot Draft used to
-// have; Draft and everything else stay one tap away under More.
+// Phone use is mostly in court: Hearings sits next to Home, and Draft (the
+// flagship) takes the raised centre slot. Tasks and everything else are one
+// tap away under More.
 const ITEMS: ReadonlyArray<NavEntry> = [
   { id: 'dashboard', label: 'Home',     icon: 'home',      to: '/app/dashboard' },
   { id: 'hearings',  label: 'Hearings', icon: 'causelist', to: '/app/causelist', requiresFeature: 'matter.view', alsoActiveOn: ['/app/calendar', '/app/diary'] },
+  { id: 'draft',     label: 'Draft',    icon: 'draft',     to: '/app/draft',     requiresFeature: 'drafting.ai', center: true },
   { id: 'cases',     label: 'Cases',    icon: 'cases',     to: '/app/cases',     requiresFeature: 'matter.view' },
-  // Tasks icon (not 'chat' — that's a wholly different feature). Earlier
-  // glyph was confusing.
-  { id: 'tasks',     label: 'Tasks', icon: 'tasks', to: '/app/tasks',  requiresFeature: 'matter.view' },
-  { id: 'more',      label: 'More',  icon: 'more',  action: 'menu' },
+  { id: 'more',      label: 'More',     icon: 'more',      action: 'menu' },
 ];
 
 export function MobileNav() {
@@ -59,11 +60,14 @@ export function MobileNav() {
                 navigate(it.to);
               }
             }}
-            className={`mobile-nav-item${active ? ' active' : ''}`}
+            className={`mobile-nav-item${active ? ' active' : ''}${it.center ? ' mobile-nav-center' : ''}`}
             aria-label={it.label}
+            aria-current={active ? 'page' : undefined}
           >
-            <Icon name={it.icon} className="nav-icon" size={20} />
-            <span>{it.label}</span>
+            <span className="mobile-nav-icon">
+              <Icon name={it.icon} className="nav-icon" size={20} />
+            </span>
+            <span className="mobile-nav-label">{it.label}</span>
           </button>
         );
       })}

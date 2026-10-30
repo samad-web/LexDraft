@@ -53,10 +53,10 @@ const CHIPS: ChipDef[] = [
 
 function statusFor(doc: DocumentRecord): { label: string; cls: string } {
   const t = doc.type.toLowerCase();
-  if (/final|signed|filed/i.test(t)) return { label: 'Filed', cls: 'badge-sage' };
-  if (/draft/i.test(t)) return { label: 'Draft', cls: 'badge-amber' };
-  if (/notice/i.test(t)) return { label: 'Sent', cls: 'badge-cobalt' };
-  return { label: doc.type.toUpperCase(), cls: 'badge' };
+  if (/final|signed|filed/i.test(t)) return { label: 'Filed', cls: 'is-solid' };
+  if (/draft/i.test(t)) return { label: 'Draft', cls: 'is-dashed' };
+  if (/notice/i.test(t)) return { label: 'Sent', cls: 'is-strong' };
+  return { label: doc.type.toUpperCase(), cls: 'is-muted' };
 }
 
 export function DocumentsView() {
@@ -138,7 +138,7 @@ export function DocumentsView() {
   const pager = usePagination(filtered);
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger fm-view fm-docs">
       <PageHeader
         title="Document Vault"
         description="Every pleading, notice, contract and receipt across your matters."
@@ -161,20 +161,10 @@ export function DocumentsView() {
         </>}
       />
 
-      <div className="docs-grid split-rail" style={{ gap: 24 }}>
-        {/* Folder rail */}
-        <aside
-          className="col"
-          style={{
-            gap: 4,
-            background: 'var(--bg-surface-2)',
-            border: '1px solid var(--border-default)',
-            borderRadius: 'var(--radius-lg)',
-            padding: 'var(--space-4)',
-            alignSelf: 'flex-start',
-          }}
-        >
-          <div className="eyebrow" style={{ padding: '8px 12px' }}>Folders</div>
+      <div className="fm-docs-grid">
+        {/* Folder rail (a tab strip below 1200px) */}
+        <nav className="fm-folders" aria-label="Folders">
+          <div className="fm-eyebrow">Folders</div>
           {FOLDERS.map((f) => {
             const active = folder === f.id;
             return (
@@ -182,63 +172,40 @@ export function DocumentsView() {
                 key={f.id}
                 type="button"
                 onClick={() => setFolder(f.id)}
-                className="row"
-                style={{
-                  padding: '10px 12px',
-                  textAlign: 'left',
-                  border: '1px solid transparent',
-                  background: active ? 'var(--bg-surface)' : 'transparent',
-                  color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: active ? 500 : 400,
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  borderRadius: 'var(--radius-md)',
-                  gap: 10,
-                  width: '100%',
-                  fontFamily: 'var(--font-sans)',
-                }}
+                className={`fm-folder${active ? ' is-active' : ''}`}
+                aria-pressed={active}
               >
                 <Icon name="documents" size={14} />
-                <span>{f.label}</span>
-                <span className="spacer" />
-                <span className="mono body-xs muted">{counts[f.id] ?? 0}</span>
+                <span className="fm-folder-label">{f.label}</span>
+                <span className="fm-folder-count">{counts[f.id] ?? 0}</span>
               </button>
             );
           })}
-        </aside>
+        </nav>
 
         {/* Right side: search + chips + table */}
-        <div className="col" style={{ gap: 16 }}>
-          <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: '1 1 280px', minWidth: 240 }}>
+        <div className="fm-docs-main">
+          <div className="fm-toolbar">
+            <div className="fm-search">
               <input
                 className="input"
-                style={{ paddingLeft: 36, width: '100%' }}
+                type="search"
                 placeholder="Search by filename or matter…"
+                aria-label="Search documents"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 12,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--text-tertiary)',
-                  display: 'flex',
-                }}
-              >
-                <Icon name="search" size={14} />
-              </div>
+              <span className="fm-search-icon"><Icon name="search" size={14} /></span>
             </div>
           </div>
 
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <div className="fm-chips" role="group" aria-label="Document type">
             {CHIPS.map((c) => (
               <button
                 key={c.id}
                 type="button"
                 className={`chip${chip === c.id ? ' active' : ''}`}
+                aria-pressed={chip === c.id}
                 onClick={() => setChip(c.id)}
               >
                 {c.label}
@@ -246,13 +213,11 @@ export function DocumentsView() {
             ))}
           </div>
 
-          <div className="card" style={{ padding: 0 }}>
+          <div className="card fm-docs-card">
             {docs.isLoading && (
-              <div style={{ padding: 'var(--space-6)' }}>
-                <p className="body-md muted">
-                  Loading documents<span className="blink" />
-                </p>
-              </div>
+              <p className="fm-loading">
+                Loading documents<span className="blink" />
+              </p>
             )}
             {docs.isError && (
               <div style={{ padding: 'var(--space-6)' }}>
@@ -264,172 +229,158 @@ export function DocumentsView() {
               </div>
             )}
             {docs.data && (
-              <table className="tbl tbl-fit docs-tbl">
-                <colgroup>
-                  <col style={{ width: 'auto' }} />
-                  <col style={{ width: 140 }} />
-                  <col style={{ width: 100 }} />
-                  <col style={{ width: 96 }} />
-                  <col style={{ width: 96 }} />
-                  <col style={{ width: 80 }} />
-                  <col style={{ width: 92 }} />
-                  <col style={{ width: 88 }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Document</th>
-                    <th>Matter</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Updated</th>
-                    <th title="Share with the client portal">Shared</th>
-                    <th title="Client must acknowledge">Ack req'd</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {pager.slice.map((d) => {
-                    const status = statusFor(d);
-                    const key = d.id ?? `${d.name}-${d.updated}`;
-                    const docId = d.id ?? '';
-                    return (
-                      <tr
-                        key={key}
-                        className="docs-row"
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`Open ${d.name}`}
-                        onClick={() => setViewing(d)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            setViewing(d);
-                          }
-                        }}
-                      >
-                        <td>
-                          <div
-                            className="row docs-name-cell"
-                            style={{ gap: 10, minWidth: 0 }}
-                            title={d.name}
-                          >
-                            <Icon name="documents" size={14} />
-                            <span
-                              style={{
-                                fontWeight: 500,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                minWidth: 0,
-                                flex: 1,
-                              }}
-                            >
-                              {d.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td
-                          className="muted"
-                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                          title={d.case}
+              <div className="fm-scroll">
+                <table className="tbl tbl-fit docs-tbl fm-tbl">
+                  <colgroup>
+                    <col style={{ width: 'auto' }} />
+                    <col style={{ width: 160 }} />
+                    <col style={{ width: 112 }} />
+                    <col style={{ width: 136 }} />
+                    <col style={{ width: 104 }} />
+                    <col style={{ width: 76 }} />
+                    <col style={{ width: 84 }} />
+                    <col style={{ width: 112 }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Document</th>
+                      <th>Matter</th>
+                      <th>Type</th>
+                      <th>Status</th>
+                      <th>Updated</th>
+                      <th className="is-center" title="Share with the client portal">Shared</th>
+                      <th className="is-center" title="Client must acknowledge">Ack req'd</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pager.slice.map((d) => {
+                      const status = statusFor(d);
+                      const key = d.id ?? `${d.name}-${d.updated}`;
+                      const docId = d.id ?? '';
+                      const isDraft = d.kind === 'draft';
+                      return (
+                        <tr
+                          key={key}
+                          className="docs-row"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Open ${d.name}`}
+                          onClick={() => setViewing(d)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              setViewing(d);
+                            }
+                          }}
                         >
-                          {d.case}
-                        </td>
-                        <td
-                          className="muted"
-                          style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                          title={d.type}
-                        >
-                          {d.type}
-                        </td>
-                        <td>
-                          <span className={`badge ${status.cls}`}>{status.label}</span>
-                        </td>
-                        <td className="mono muted">{d.updated}</td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label="Share with client"
-                            checked={!!d.sharedWithClient}
-                            disabled={!docId || updateFlags.isPending}
-                            onChange={(e) => updateFlags.mutate({
-                              id: docId, sharedWithClient: e.target.checked,
-                            })}
+                          <td>
+                            <div className="fm-doc-name" title={d.name}>
+                              <span className={`fm-doc-icon${isDraft ? ' is-draft' : ''}`} aria-hidden>
+                                <Icon name={isDraft ? 'draft' : 'file'} size={15} />
+                              </span>
+                              <span className="fm-doc-text">
+                                <span className="fm-doc-title" style={{ display: 'block' }}>{d.name}</span>
+                                <span className="fm-doc-type" style={{ display: 'block' }}>
+                                  {isDraft ? 'Saved draft' : d.hasFile ? 'File attached' : 'Record only'}
+                                </span>
+                              </span>
+                            </div>
+                          </td>
+                          <td title={d.case}>
+                            <div className="fm-ellip">{d.case}</div>
+                          </td>
+                          <td title={d.type}>
+                            <div className="fm-ellip">{d.type}</div>
+                          </td>
+                          <td>
+                            <span className={`fm-pill ${status.cls}`}>{status.label}</span>
+                          </td>
+                          <td><span className="fm-date">{d.updated}</span></td>
+                          <td className="is-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              aria-label="Share with client"
+                              checked={!!d.sharedWithClient}
+                              disabled={!docId || updateFlags.isPending}
+                              onChange={(e) => updateFlags.mutate({
+                                id: docId, sharedWithClient: e.target.checked,
+                              })}
+                            />
+                          </td>
+                          <td className="is-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              aria-label="Requires acknowledgement"
+                              checked={!!d.requiresAcknowledgement}
+                              disabled={!docId || !d.sharedWithClient || updateFlags.isPending}
+                              onChange={(e) => updateFlags.mutate({
+                                id: docId, requiresAcknowledgement: e.target.checked,
+                              })}
+                              title={!d.sharedWithClient ? 'Share with client first' : ''}
+                            />
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <div className="fm-doc-actions">
+                              {d.hasFile && docId && (
+                                <Gate feature="esign.send">
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-ghost"
+                                    onClick={() => setSigning(d)}
+                                    title="Send for electronic signature"
+                                    aria-label={`Send ${d.name} for signature`}
+                                  >
+                                    <Icon name="check" size={13} />
+                                  </button>
+                                </Gate>
+                              )}
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-ghost"
+                                onClick={() => handleEdit(d)}
+                                disabled={!docId}
+                                title={d.kind === 'draft' ? 'Edit draft' : 'Edit metadata'}
+                                aria-label={`Edit ${d.name}`}
+                              >
+                                <Icon name="edit" size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-ghost"
+                                onClick={() => handleDelete(d)}
+                                disabled={!docId || deleteDocument.isPending || deleteDraft.isPending}
+                                title="Delete"
+                                aria-label={`Delete ${d.name}`}
+                              >
+                                <Icon name="trash" size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={8} data-span="all">
+                          <EmptyState
+                            variant="inline"
+                            title={docs.data && docs.data.length === 0 ? 'No documents yet' : 'No documents match'}
+                            description={
+                              docs.data && docs.data.length === 0
+                                ? 'Upload a pleading, notice, or contract to start the matter record.'
+                                : 'Try a different folder or clear the search.'
+                            }
                           />
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            aria-label="Requires acknowledgement"
-                            checked={!!d.requiresAcknowledgement}
-                            disabled={!docId || !d.sharedWithClient || updateFlags.isPending}
-                            onChange={(e) => updateFlags.mutate({
-                              id: docId, requiresAcknowledgement: e.target.checked,
-                            })}
-                            title={!d.sharedWithClient ? 'Share with client first' : ''}
-                          />
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>
-                          <div className="row" style={{ gap: 6, justifyContent: 'flex-end' }}>
-                            {d.hasFile && docId && (
-                              <Gate feature="esign.send">
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-ghost"
-                                  onClick={() => setSigning(d)}
-                                  title="Send for electronic signature"
-                                  aria-label={`Send ${d.name} for signature`}
-                                >
-                                  <Icon name="check" size={12} />
-                                </button>
-                              </Gate>
-                            )}
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-ghost"
-                              onClick={() => handleEdit(d)}
-                              disabled={!docId}
-                              title={d.kind === 'draft' ? 'Edit draft' : 'Edit metadata'}
-                              aria-label={`Edit ${d.name}`}
-                            >
-                              <Icon name="edit" size={12} />
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-ghost"
-                              onClick={() => handleDelete(d)}
-                              disabled={!docId || deleteDocument.isPending || deleteDraft.isPending}
-                              title="Delete"
-                              aria-label={`Delete ${d.name}`}
-                              style={{ color: 'var(--danger)' }}
-                            >
-                              <Icon name="trash" size={12} />
-                            </button>
-                          </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                  {filtered.length === 0 && (
-                    <tr>
-                      <td colSpan={8}>
-                        <EmptyState
-                          variant="inline"
-                          title={docs.data && docs.data.length === 0 ? 'No documents yet' : 'No documents match'}
-                          description={
-                            docs.data && docs.data.length === 0
-                              ? 'Upload a pleading, notice, or contract to start the matter record.'
-                              : 'Try a different folder or clear the search.'
-                          }
-                        />
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
             {docs.data && (
-              <div style={{ padding: '0 var(--space-4)' }}>
+              <div className="fm-tbl-foot">
                 <Pagination
                   page={pager.page}
                   totalPages={pager.totalPages}
@@ -442,39 +393,6 @@ export function DocumentsView() {
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 900px) { .docs-grid { grid-template-columns: 1fr !important; } }
-
-        /* Defeat the global \`min-width: max-content\` rule on table cards
-           (globals.css §.tbl) for the documents table — that rule forces a
-           horizontal scrollbar on wide schemas, which we don't want here.
-           Instead, use a fixed table layout with explicit column widths and
-           ellipsis-truncate the long cells. */
-        .docs-grid .card:has(> .tbl) { overflow: hidden; }
-        .docs-grid .card > .docs-tbl { min-width: 0; }
-        .docs-tbl { table-layout: fixed; width: 100%; }
-        /* The Document cell uses a flex row inside the <td>; let the span
-           inside truncate by giving the flex parent min-width: 0. Without
-           this, flex's default min-width: auto would keep the span at its
-           intrinsic width and push the table wide. */
-        .docs-tbl .docs-name-cell { min-width: 0; }
-
-        /* Trim padding at narrower widths so the action buttons + status
-           badge still fit inside the explicit column widths. */
-        @media (max-width: 1200px) {
-          .docs-tbl th, .docs-tbl td { padding-left: 12px; padding-right: 12px; }
-        }
-
-        /* Whole row is now the click target for opening the document; give
-           it an affordance so users know it. Keyboard focus uses the same
-           treatment plus a visible outline. */
-        .docs-tbl .docs-row { cursor: pointer; }
-        .docs-tbl .docs-row:focus-visible {
-          outline: 2px solid var(--text-primary);
-          outline-offset: -2px;
-        }
-      `}</style>
 
       <NewDocumentModal open={modalOpen} onClose={() => setModalOpen(false)} />
       <FAB ariaLabel="Upload document" onClick={() => setModalOpen(true)}>

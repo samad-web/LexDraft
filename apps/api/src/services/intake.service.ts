@@ -43,7 +43,17 @@ import {
   type EngineBundleDoc,
 } from './engine-client.service';
 import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
-import { firmFormatsService, isFirmFormatLabel, type FirmFormat } from './firm-formats.service';
+import { createHash } from 'node:crypto';
+import {
+  firmFormatsService,
+  FirmFormatConflictError,
+  isFirmFormatLabel,
+  labelForTitle,
+  type FirmFormat,
+  type FirmFormatReviewNotes,
+  type FirmFormatSpec,
+} from './firm-formats.service';
+import { formatReader } from './format-reader.service';
 import { enrichFormWithBns, type BnsConcordanceEntry } from '../lib/bns-enrichment';
 import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
 import { intakeCompose } from './intake-compose.service';
@@ -61,6 +71,8 @@ import {
   type EngineDescribe,
 } from '../lib/intake-doc-config';
 import { aiUsageService } from './ai-usage.service';
+import { claudeComplete } from '../lib/anthropic-client';
+import { grokComplete } from '../lib/grok-client';
 
 // Reserved keys stored in facts_json but never part of the engine form.
 const K_META = '__intakeMeta';
@@ -77,7 +89,95 @@ const K_LAST_EXTRACT_FAILED = '__lastExtractFailed';
  *  the brief/docs and their in-force 2023-Sanhita replacements. Stored for the UI
  *  and the drafting brief; NEVER sent to the engine as a form field. */
 const K_BNS_CONCORDANCE = '__bnsConcordance';
-const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE]);
+/** A format the advocate attached in the draft chat ("draft in this format"),
+ *  read into an engine spec once and kept on THIS conversation only. */
+const K_FORMAT = '__attachedFormat';
+const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE, K_FORMAT]);
+
+/** Label suffix for a conversation drafting in an attached format. */
+export const ATTACHED_FORMAT_SUFFIX = ' (attached format)';
+
+export function isAttachedFormatLabel(label: string): boolean {
+  return label.endsWith(ATTACHED_FORMAT_SUFFIX);
+}
+
+/** The engine doc type an attached format drafts (and signs off) under. */
+export function attachedFormatDocType(matterId: string): string {
+  return `attached_format_${matterId.replace(/-/g, '').toLowerCase()}`;
+}
+
+interface AttachedFormat {
+  title: string;
+  spec: FirmFormatSpec;
+  sourceName: string;
+  /** What the reader changed in an old format (repealed law updated, OCR/typing
+   *  fixes) or could not read with confidence — shown with every draft. */
+  notes?: string[];
+}
+
+/** The reader's review notes as "Before filing" points for the advocate. */
+function formatNotes(fileName: string, review: FirmFormatReviewNotes): string[] {
+  const notes: string[] = [];
+  for (const u of review.law_updates ?? []) {
+    notes.push(`Your format cited ${u.original}; drafted as ${u.updated}${u.note ? ` (${u.note})` : ''}. Check it.`);
+  }
+  for (const u of review.uncertain ?? []) notes.push(`In "${fileName}", couldn't confirm: ${u}`);
+  const fixes = review.corrections?.length ?? 0;
+  if (fixes) notes.push(`Corrected ${fixes} typing/scan error${fixes === 1 ? '' : 's'} in "${fileName}".`);
+  return notes.slice(0, 30);
+}
+
+/** A chat-attached format already read, by firm + file hash: attaching the same
+ *  file again reuses it instead of paying for another read. In-process only (a
+ *  restart re-reads once); a format saved to the firm is found in the DB instead. */
+interface ReadFormat { title: string; spec: FirmFormatSpec; reviewNotes: FirmFormatReviewNotes }
+const READ_CACHE_MAX = 200;
+const READ_CACHE_TTL_MS = 7 * 24 * 60 * 60_000;
+const readCache = new Map<string, { at: number; value: ReadFormat }>();
+
+function cachedRead(key: string): ReadFormat | null {
+  const hit = readCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > READ_CACHE_TTL_MS) { readCache.delete(key); return null; }
+  return hit.value;
+}
+
+function rememberRead(key: string, value: ReadFormat): void {
+  readCache.delete(key);
+  readCache.set(key, { at: Date.now(), value });
+  while (readCache.size > READ_CACHE_MAX) readCache.delete(readCache.keys().next().value!);
+}
+
+/** Save an attached format to the firm's formats ("Save to my formats"), so later
+ *  drafts pick it from Formats with no reading cost. Never throws. */
+async function saveAttachedFormat(
+  read: ReadFormat,
+  file: { fileName: string; sha256: string },
+  ctx: RunCtx,
+): Promise<NonNullable<IntakeState['formatSave']>> {
+  if (!ctx.firmId) return { saved: false, message: 'Not saved: this account has no firm to save formats to.' };
+  if (LABEL_TO_ENGINE_DOC[read.title] || LABEL_TO_ENGINE_DOC[labelForTitle(read.title)]) {
+    return { saved: false, message: `Not saved: "${read.title}" is already a built-in format name.` };
+  }
+  try {
+    const saved = await firmFormatsService.createApproved({
+      title: read.title, spec: read.spec, reviewNotes: read.reviewNotes,
+      sourceName: file.fileName, sourceSha256: file.sha256,
+    }, { firmId: ctx.firmId, userId: ctx.userId });
+    return { saved: true, label: saved.label, message: `Saved "${saved.title}" to your formats.` };
+  } catch (err) {
+    if (err instanceof FirmFormatConflictError) return { saved: false, message: `Not saved: ${err.message}` };
+    logger.warn({ err }, 'intake: saving an attached format failed');
+    return { saved: false, message: 'The draft is ready, but the format could not be saved to your formats.' };
+  }
+}
+
+/** Add an attached format's notes to a drafted state's "Before filing" points. */
+function withFormatNotes(out: IntakeState, state: StoredState): IntakeState {
+  const notes = state.format?.notes ?? [];
+  if (!notes.length) return out;
+  return { ...out, draftNotes: [...notes, ...(out.draftNotes ?? [])] };
+}
 
 /** How many times a single field may be asked conversationally before we fall
  *  back to a typed micro-form control (§5.2 guard; §12 open for review). */
@@ -125,6 +225,8 @@ interface StoredState {
   /** IPC/CrPC/Evidence-Act -> BNS/BNSS/BSA concordance found in the brief/docs.
    *  Kept OUT of `form` (never engine-bound); surfaced to the UI + drafting brief. */
   bnsConcordance: BnsConcordanceEntry[];
+  /** Set only when drafting in a format attached in the chat. */
+  format?: AttachedFormat;
 }
 
 function unpack(facts: Record<string, unknown>): StoredState {
@@ -143,6 +245,7 @@ function unpack(facts: Record<string, unknown>): StoredState {
     sourceText: (facts[K_SOURCE] as string) ?? '',
     lastExtractFailed: Boolean(facts[K_LAST_EXTRACT_FAILED]),
     bnsConcordance: parseBnsConcordance(facts[K_BNS_CONCORDANCE]),
+    ...(facts[K_FORMAT] ? { format: facts[K_FORMAT] as AttachedFormat } : {}),
   };
 }
 
@@ -171,6 +274,7 @@ function pack(s: StoredState, docLabel: string): Record<string, unknown> {
     [K_SOURCE]: s.sourceText,
     [K_LAST_EXTRACT_FAILED]: s.lastExtractFailed,
     [K_BNS_CONCORDANCE]: s.bnsConcordance,
+    ...(s.format ? { [K_FORMAT]: s.format } : {}),
   };
 }
 
@@ -472,6 +576,23 @@ function draftForDoc(
   return engineClient.draft(doc.docType, matterId, fields, opts);
 }
 
+/** A format drafted from its own spec (firm or attached): sections from its fields. */
+function docFromSpec(firm: FirmFormat): ResolvedDoc {
+  const sections = intakeSectionsFromDescribe({
+    doc_type: firm.docType,
+    title: firm.title,
+    slots: [],
+    fields: firm.spec.fields.map((f) => ({
+      key: f.key,
+      kind: f.kind,
+      required: f.required,
+      ...(Array.isArray(f['enum_values']) ? { enum_values: f['enum_values'] as string[] } : {}),
+      ...(typeof f['label'] === 'string' ? { label: f['label'] as string } : {}),
+    })),
+  });
+  return { docType: firm.docType, sections, firm };
+}
+
 // Cache of engine-derived intake sections, keyed by engine doc_type. Populated
 // lazily from GET /v1/doc-types the first time a passthrough doc is resolved, so
 // the 45 passthrough doc types need no hand-written config (s.138 keeps its own).
@@ -486,25 +607,35 @@ const derivedSectionsCache = new Map<string, IntakeSectionSpec[]>();
 async function resolveDoc(
   docLabel: string,
   firmId: string | null = null,
+  matterId: string | null = null,
 ): Promise<ResolvedDoc | null> {
   // A firm's OWN format ("<title> (firm format)"): its fields come from the stored
   // spec, never from the engine registry, and only this firm can resolve it.
   if (isFirmFormatLabel(docLabel) && !LABEL_TO_ENGINE_DOC[docLabel]) {
     const firm = await firmFormatsService.getByLabel(firmId, docLabel);
-    if (!firm) return null;
-    const sections = intakeSectionsFromDescribe({
-      doc_type: firm.docType,
-      title: firm.title,
-      slots: [],
-      fields: firm.spec.fields.map((f) => ({
-        key: f.key,
-        kind: f.kind,
-        required: f.required,
-        ...(Array.isArray(f['enum_values']) ? { enum_values: f['enum_values'] as string[] } : {}),
-        ...(typeof f['label'] === 'string' ? { label: f['label'] as string } : {}),
-      })),
+    return firm ? docFromSpec(firm) : null;
+  }
+  // A format attached in the chat ("<title> (attached format)"): the spec lives on
+  // this conversation's fact sheet, so it resolves only with its own matter.
+  if (isAttachedFormatLabel(docLabel) && !LABEL_TO_ENGINE_DOC[docLabel]) {
+    if (!matterId) return null;
+    const sheet = await factSheetService.getCurrent(matterId);
+    if (!sheet || (sheet.firmId ?? null) !== firmId) return null;
+    const format = unpack(sheet.facts).format;
+    if (!format) return null;
+    return docFromSpec({
+      id: matterId,
+      title: format.title,
+      label: docLabel,
+      docType: attachedFormatDocType(matterId),
+      status: 'approved',
+      version: 1,
+      spec: format.spec,
+      reviewNotes: {},
+      sourceName: format.sourceName,
+      approvedAt: null,
+      createdAt: sheet.createdAt,
     });
-    return { docType: firm.docType, sections, firm };
   }
   const docType = LABEL_TO_ENGINE_DOC[docLabel];
   if (!docType) return null;
@@ -546,6 +677,105 @@ interface RunCtx extends Ctx {
 
 export class IntakeError extends Error {}
 
+/**
+ * DRAFT FIRST, ALWAYS. A "Draft now" must give the advocate a document, then
+ * point out what's missing — never stop at "I still need …". When the engine's
+ * own checks still block (a fixed legal choice not given, or a hard-stop such as
+ * "cruelty must be pleaded with a dated instance"), Claude drafts the SAME
+ * document type from the facts on record, every missing particular as a visible
+ * [placeholder], and the engine's points come back as draftNotes for the
+ * "Before filing" checklist. Returns null if the model is unavailable (the
+ * blocked state is then returned unchanged).
+ */
+async function aiFallbackDraft(
+  docLabel: string,
+  specs: IntakeFieldSpec[],
+  state: StoredState,
+  blocked: IntakeState,
+  ctx: RunCtx,
+): Promise<IntakeState | null> {
+  // The drafting provider: Claude, or the OpenAI-compatible slot (xAI / OpenAI).
+  const viaCompat = env.llmProvider === 'xai';
+  if (viaCompat ? !env.XAI_API_KEY : !env.ANTHROPIC_API_KEY) return null;
+  const facts = labelledFacts(specs, state.form);
+  const advocateSaid = state.transcript
+    .filter((t) => t.role === 'advocate')
+    .map((t) => t.text)
+    .join('\n\n')
+    .slice(0, 20_000);
+  const missing = blocked.factSheet
+    .flatMap((s) => s.fields)
+    .filter((f) => f.required && (f.outstanding || !String(f.value ?? '').trim()))
+    .map((f) => f.label);
+  const notes: string[] = [];
+  // The draft is written to answer the engine's check, so it reads as a point to confirm.
+  if (blocked.refusal?.reason) notes.push(`Confirm the draft answers this check: ${blocked.refusal.reason.replace(/\.$/, '')}.`);
+  if (missing.length) notes.push(`Still to be provided: ${missing.join(', ')}.`);
+
+  const system = [
+    `You draft Indian court documents for practising advocates (Tamil Nadu courts by default).`,
+    `Draft the COMPLETE ${docLabel}, ready for the advocate to review: cause title, parties,`,
+    `numbered paragraphs, the relief/prayer, verification and signature lines, as filed in an`,
+    `Indian court.`,
+    `Use ONLY the facts given. Never invent names, dates, ages, addresses, amounts, case numbers`,
+    `or court names: write each missing particular as a bracketed placeholder, e.g.`,
+    `[date of each instance of cruelty to be provided].`,
+    `Where the points-to-address list says something must be pleaded, include the paragraph for`,
+    `it with placeholders for the specifics rather than leaving it out. Where a point says the`,
+    `document is not maintainable as framed (e.g. a writ with no State respondent), FIX it with`,
+    `settled practice: implead the proper authority (for a writ, the State / statutory`,
+    `authority whose act is challenged, e.g. the Sub-Registrar who registered a cancellation,`,
+    `with private beneficiaries as further respondents) and plead the legal basis.`,
+    `Apply the settled law of the jurisdiction to the relief and grounds, citing only`,
+    `well-established statutes and leading judgments you are sure of.`,
+    `Output plain text only: one paragraph per line, a blank line between paragraphs, no`,
+    `markdown, no commentary before or after the document.`,
+  ].join(' ');
+  const user = [
+    `Document: ${docLabel}`,
+    `Facts on record (field: value):\n${Object.entries(facts).map(([k, v]) => `- ${k}: ${v}`).join('\n') || '- (none extracted)'}`,
+    `What the advocate wrote:\n${advocateSaid || '(nothing)'}`,
+    state.sourceText ? `Attached documents (text):\n${state.sourceText.slice(0, 20_000)}` : '',
+    notes.length ? `Points to address (leave placeholders for them):\n- ${notes.join('\n- ')}` : '',
+  ].filter(Boolean).join('\n\n');
+
+  try {
+    const out = viaCompat
+      ? await grokComplete({ system, user, maxTokens: 8000 })
+      : await claudeComplete({ system, user, maxTokens: 8000 });
+    recordUsage(ctx, viaCompat
+      ? { provider: 'xai', model: env.XAI_MODEL, ...out }
+      : { provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...out });
+    const lines = out.text.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim());
+    if (lines.length < 3) return null;
+    // A filing-style Word/PDF, not a "working copy": the engine lays the text out
+    // in the house court format. Text-only only if that fails.
+    let composed: { docxBase64: string; blocks: Array<{ key: string; text: string }> } | null = null;
+    try {
+      composed = await engineClient.composeDocx(lines);
+    } catch (err) {
+      logger.warn({ err, docLabel }, 'intake: compose-docx failed; returning text-only draft');
+    }
+    return {
+      ...blocked,
+      status: 'generated',
+      refusal: null,
+      questions: [],
+      draft: {
+        blocks: composed?.blocks.length ? composed.blocks : lines.map((text, i) => ({ key: `p${i}`, text })),
+        signals: { review_banner: '', unverified_marker: '' },
+        unfilledSlots: [],
+        docxBase64: composed?.docxBase64 ?? null,
+      },
+      draftedBy: 'ai',
+      draftNotes: notes,
+    };
+  } catch (err) {
+    logger.warn({ err, docLabel }, 'intake: AI fallback draft failed');
+    return null;
+  }
+}
+
 /** The advocate explicitly named a document type that can't be drafted here. */
 export class IntakeUnavailableError extends IntakeError {}
 
@@ -562,12 +792,52 @@ export function explicitRequest(text: string): string | null {
   return last;
 }
 
+const LABEL_STOPWORDS = new Set(['of', 'for', 'the', 'a', 'an', 'to', 'by', 'as', 'u', 's', 'and', 'in', 'on', 'with']);
+const labelWords = (s: string) =>
+  s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => !LABEL_STOPWORDS.has(w)) ?? [];
+
+/**
+ * The label the requested phrase NAMES ("writ petition jurisdiction of …" ->
+ * "Writ Petition (Civil)"). A label's core words (outside brackets) must open the
+ * phrase in order — one leading qualifier allowed ("civil writ petition") — so a
+ * stray word later ("… which will be filed") can't pick a label. The label naming
+ * the most words wins; its bracketed qualifier ("Criminal") breaks a tie.
+ */
+export function labelNamedIn(phrase: string, labels: string[]): string | null {
+  const words = labelWords(phrase);
+  let best: { label: string; score: number } | null = null;
+  for (const label of labels) {
+    // "Probate / Letters of Administration" names two documents; "u/s" is not a split
+    for (const alt of label.replace(/\([^)]*\)/g, ' ').split(/\s+\/\s+/)) {
+      const core = labelWords(alt);
+      if (!core.length) continue;
+      const start = words.indexOf(core[0]!);
+      if (start < 0 || start > 1) continue;
+      let at = start;
+      let ok = true;
+      for (const w of core.slice(1)) {
+        const next = words.indexOf(w, at + 1);
+        if (next < 0 || next > at + 2) { ok = false; break; }
+        at = next;
+      }
+      if (!ok) continue;
+      const qualifiers = labelWords((label.match(/\(([^)]*)\)/) ?? [])[1] ?? '');
+      const score = core.length * 10 + qualifiers.filter((q) => words.includes(q)).length;
+      if (!best || score > best.score) best = { label, score };
+    }
+  }
+  return best?.label ?? null;
+}
+
 export const intakeService = {
   /** Is a Draft-page label drivable by the conversational intake loop? */
   async routable(docLabel: string, firmId: string | null = null): Promise<boolean> {
     // Cheap synchronous check first: a label with no engine mapping (and not a
     // firm format) is never routable and needs no engine round-trip.
-    if (!LABEL_TO_ENGINE_DOC[docLabel] && !isFirmFormatLabel(docLabel)) return false;
+    if (!LABEL_TO_ENGINE_DOC[docLabel] && !isFirmFormatLabel(docLabel) && !isAttachedFormatLabel(docLabel)) return false;
+    // An attached format resolves only with its own matter, which every call
+    // after the start carries; resolveDoc enforces that (and the firm) per call.
+    if (isAttachedFormatLabel(docLabel) && !LABEL_TO_ENGINE_DOC[docLabel]) return true;
     try {
       return (await resolveDoc(docLabel, firmId)) !== null;
     } catch (err) {
@@ -639,31 +909,37 @@ export const intakeService = {
     // not pick the format. If it names a document that exists but can't be drafted
     // here, say so instead of drafting something else.
     const requested = explicitRequest(instruction?.trim() || message);
-    const requestedLabel = requested ? keywordGuessLabel(requested, labels) : null;
+    const requestedLabel = requested
+      ? (labelNamedIn(requested, labels) ?? keywordGuessLabel(requested, labels))
+      : null;
     if (requested && !requestedLabel) {
-      const known = keywordGuessLabel(requested, Object.keys(LABEL_TO_ENGINE_DOC));
+      const known = labelNamedIn(requested, Object.keys(LABEL_TO_ENGINE_DOC))
+        ?? keywordGuessLabel(requested, Object.keys(LABEL_TO_ENGINE_DOC));
       if (known) {
         throw new IntakeUnavailableError(
           `"${known}" can't be drafted here yet. Open Formats to pick a format, or describe the document differently.`,
         );
       }
     }
+    // When the advocate named a document, a FACT word in the brief ("gift deed",
+    // "notice") must never pick the format — only the named phrase is classified.
+    const classifyText = requested ?? forKeyword;
     const instructionLabel = requestedLabel
-      ?? (instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
+      ?? (!requested && instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
     if (instructionLabel) {
       label = instructionLabel;
       confidence = 'high';
     } else if (env.intakeDeterministic) {
-      label = keywordGuessLabel(forKeyword, labels);
+      label = keywordGuessLabel(classifyText, labels);
       confidence = 'low';
     } else {
       const guess = await intakeLlm.classifyDocType({
         brief: message, labels,
-        ...(instruction?.trim() ? { instruction: instruction.trim() } : {}),
+        ...(requested ? { instruction: `draft ${requested}` } : instruction?.trim() ? { instruction: instruction.trim() } : {}),
         ...(ctx.provider ? { provider: ctx.provider } : {}),
         onUsage: (u) => recordUsage(ctx, u),
       });
-      label = guess.label ?? keywordGuessLabel(forKeyword, labels);
+      label = guess.label ?? keywordGuessLabel(classifyText, labels);
       confidence = guess.label ? guess.confidence : 'low';
     }
     if (!label) {
@@ -679,6 +955,69 @@ export const intakeService = {
     };
   },
 
+  /**
+   * Start a conversation that drafts IN THE ADVOCATE'S OWN FORMAT, attached in the
+   * chat ("draft in this format"). The file is read into an engine spec by the same
+   * reader as "Upload a format", but it is kept on this conversation only — never
+   * saved to the firm's formats. The draft then follows that layout and wording,
+   * filled from the facts given, exactly as a saved firm format would.
+   */
+  async startWithFormat(
+    message: string,
+    file: AttachmentInput,
+    ctx: RunCtx,
+    opts: { save?: boolean } = {},
+  ): Promise<IntakeState> {
+    const data = Buffer.from(file.dataBase64, 'base64');
+    const sha256 = createHash('sha256').update(data).digest('hex');
+    const cacheKey = `${ctx.firmId ?? ctx.userId}:${sha256}`;
+    let formatSave: IntakeState['formatSave'];
+
+    // The same file costs one read, ever: a format the firm already saved from it,
+    // else one read recently in this server, else read it now.
+    let read: ReadFormat | null = null;
+    const savedFormat = await firmFormatsService.getBySourceHash(ctx.firmId, sha256);
+    if (savedFormat) {
+      read = { title: savedFormat.title, spec: savedFormat.spec, reviewNotes: savedFormat.reviewNotes };
+      if (opts.save) formatSave = { saved: true, label: savedFormat.label, message: `"${savedFormat.title}" is already in your formats.` };
+    } else {
+      read = cachedRead(cacheKey);
+    }
+    if (!read) {
+      const fresh = await formatReader.read({ fileName: file.fileName, mime: file.mime, data });
+      recordUsage(ctx, { provider: 'anthropic', ...fresh.usage });
+      if (!fresh.isLegalFormat) {
+        throw new IntakeUnavailableError(
+          `"${file.fileName}" doesn't look like a drafting format. Attach the format itself (a blank or sample document), or untick "Use as format" to read it for facts instead.`,
+        );
+      }
+      if (!fresh.ok) {
+        throw new IntakeUnavailableError(
+          `I couldn't use "${file.fileName}" as a format: ${fresh.problems.slice(0, 3).join('; ') || 'it could not be read cleanly'}. Try a clearer copy.`,
+        );
+      }
+      const title = fresh.title.replace(/\s+/g, ' ').trim().slice(0, 150) || 'Attached format';
+      read = { title, spec: fresh.spec, reviewNotes: fresh.reviewNotes };
+      rememberRead(cacheKey, read);
+    }
+    if (opts.save && !savedFormat) formatSave = await saveAttachedFormat(read, { fileName: file.fileName, sha256 }, ctx);
+
+    const title = read.title;
+    const docLabel = `${title}${ATTACHED_FORMAT_SUFFIX}`;
+    const initial: StoredState = {
+      form: {}, meta: {}, transcript: [], askCounts: {}, pending: [], sourceText: '',
+      lastExtractFailed: false, bnsConcordance: [],
+      format: { title, spec: read.spec, sourceName: file.fileName, notes: formatNotes(file.fileName, read.reviewNotes) },
+    };
+    const sheet = await factSheetService.create(pack(initial, docLabel), ctx);
+    const doc = await resolveDoc(docLabel, ctx.firmId, sheet.matterId);
+    if (!doc) throw new IntakeError(`attached format "${title}" could not be resolved`);
+    initial.form = seedDefaults(doc.sections);
+    if (Object.keys(initial.form).length) await factSheetService.revise(sheet.matterId, pack(initial, docLabel), ctx);
+    const state = await this._turn(sheet.matterId, docLabel, message, ctx, 'narration');
+    return formatSave ? { ...state, formatSave } : state;
+  },
+
   /** Continue a conversation with the advocate's next message. */
   async reply(matterId: string, docLabel: string, message: string, ctx: RunCtx): Promise<IntakeState> {
     return this._turn(matterId, docLabel, message, ctx, 'narration');
@@ -692,7 +1031,7 @@ export const intakeService = {
    * No new advocate message; it re-evaluates the current state with draftNow on.
    */
   async draftNow(matterId: string, docLabel: string, ctx: RunCtx): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel, ctx.firmId);
+    const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const current = await factSheetService.getCurrent(matterId);
@@ -707,11 +1046,14 @@ export const intakeService = {
     if (state.lastExtractFailed && !hasAnyFact) {
       return this._extractFailedTurn(matterId, docLabel, doc, specs, state, ctx);
     }
-    return this._evaluate(matterId, docLabel, doc, specs, state, ctx, {
+    const out = await this._evaluate(matterId, docLabel, doc, specs, state, ctx, {
       phrase: true,
       bumpAsks: false,
       draftNow: true,
     });
+    if (out.status === 'generated' && out.draft) return withFormatNotes({ ...out, draftedBy: 'engine' }, state);
+    // Draft first, always — the engine's points become "Before filing" notes.
+    return withFormatNotes((await aiFallbackDraft(docLabel, specs, state, out, ctx)) ?? out, state);
   },
 
   /**
@@ -727,7 +1069,7 @@ export const intakeService = {
     ctx: RunCtx,
     opts: { draftNow?: boolean } = {},
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel, ctx.firmId);
+    const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const allowed = new Set(specs.map((f) => f.key));
@@ -760,16 +1102,18 @@ export const intakeService = {
     if (opts.draftNow) {
       // Live update: re-draft straight away, gaps as [placeholders] — the same
       // path as "Draft now", with no question phrasing (fast, no model call).
-      return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, {
+      const out = await this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, {
         phrase: false, bumpAsks: false, draftNow: true,
       });
+      if (out.status === 'generated' && out.draft) return withFormatNotes({ ...out, draftedBy: 'engine' }, state);
+      return withFormatNotes((await aiFallbackDraft(docLabel, specs, state, out, ctx)) ?? out, state);
     }
     return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, { phrase: true });
   },
 
   /** Load the current state without changing anything (reopen a conversation). */
   async load(matterId: string, docLabel: string, ctx: RunCtx): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel, ctx.firmId);
+    const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
     const current = await factSheetService.getCurrent(matterId);
@@ -790,7 +1134,7 @@ export const intakeService = {
     ctx: RunCtx,
     via: 'narration' | 'question',
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel, ctx.firmId);
+    const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
@@ -859,6 +1203,18 @@ export const intakeService = {
     // only ever reported missing after extraction SUCCEEDED and still didn't find it.
     if (patch.modelUsed === 'fallback:error' && isDocumentPaste(message)) {
       return this._extractFailedTurn(matterId, docLabel, doc, specs, state, ctx);
+    }
+
+    // The FILING date is the day the advocate files, not a date from the facts: the
+    // extractor otherwise picks up the cheque / notice date ("Date: 10.03.2026" on a
+    // complaint filed in April). Keep it only when the sentence it came from is about
+    // filing; else date the document today (editable in the panel like any field).
+    patch.fields = patch.fields.filter((f) =>
+      f.key !== 'filing_date' || /\bfil(?:e|ed|ing)\b/i.test(f.source ?? ''));
+    if (specs.some((f) => f.key === 'filing_date') && !String(state.form.filing_date ?? '').trim()
+      && !patch.fields.some((f) => f.key === 'filing_date')) {
+      state.form.filing_date = todayIso();
+      state.meta.filing_date = { confidence: 'inferred', source: 'today (date of filing)', via: 'narration' };
     }
 
     // MERGE (§7 contradictions surfaced, not silently overwritten).
@@ -992,7 +1348,7 @@ export const intakeService = {
     caption: string,
     ctx: RunCtx,
   ): Promise<IntakeState> {
-    const doc = await resolveDoc(docLabel, ctx.firmId);
+    const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
@@ -1884,6 +2240,11 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
     // when a 138 notice or cheque is ATTACHED as the reference content. Guard against
     // the more-specific affidavit labels ("Affidavit of Service", "Surety Affidavit"),
     // which the advocate would name explicitly and which have their own doc types.
+    // Writs: matched before "affidavit" (a writ is filed WITH an affidavit) and the
+    // fact cues ("gift", "sale", "notice") the impugned action usually mentions.
+    // (Not the registry's "coding sheet – writ side", which is its own format.)
+    [/^(?![\s\S]*\bcoding\s+sheet\b)[\s\S]*(?:\bhabeas\s+corpus\b|\b(?:criminal|crl\.?)\s+writ\b|\bwrit\b[^.]{0,40}\bcriminal\b)/, 'Writ Petition (Criminal)'],
+    [/^(?![\s\S]*\bcoding\s+sheet\b)[\s\S]*(?:\bwrit\b|\bmandamus\b|\bcertiorari\b|\bquo\s+warranto\b|\barticle\s*226\b)/, 'Writ Petition (Civil)'],
     [/\baffidavit\b(?!\s+of\s+(?:service|surety))/, 'Affidavit'],
     // A s.138 matter splits into TWO documents: the pre-litigation demand NOTICE
     // and the court COMPLAINT filed after the notice period lapses. When the brief

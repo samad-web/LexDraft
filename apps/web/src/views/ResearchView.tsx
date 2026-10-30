@@ -179,7 +179,7 @@ export function ResearchView() {
   };
 
   return (
-    <div className="col stagger" style={{ gap: 24 }}>
+    <div className="col stagger ai-research" style={{ gap: 24 }}>
       <PageHeader
         title="Legal Research"
         description={
@@ -192,13 +192,13 @@ export function ResearchView() {
       />
 
       {/* Mode switcher */}
-      <div className="row" role="tablist" style={{ gap: 4 }}>
+      <div className="ai-seg" role="tablist" aria-label="Research mode">
         <button
           type="button"
           role="tab"
           aria-selected={mode === 'ask'}
           onClick={() => switchMode('ask')}
-          className={`btn ${mode === 'ask' ? 'btn-primary' : ''}`}
+          className={mode === 'ask' ? 'active' : ''}
         >
           <Icon name="chat" size={14} /> Ask Lex.AI
         </button>
@@ -207,7 +207,7 @@ export function ResearchView() {
           role="tab"
           aria-selected={mode === 'corpus'}
           onClick={() => switchMode('corpus')}
-          className={`btn ${mode === 'corpus' ? 'btn-primary' : ''}`}
+          className={mode === 'corpus' ? 'active' : ''}
         >
           <Icon name="search" size={14} /> Search statutes
         </button>
@@ -215,19 +215,12 @@ export function ResearchView() {
 
       <form
         onSubmit={onSubmit}
-        className="card"
-        style={{
-          background: 'var(--bg-surface-2)',
-          padding: 'var(--space-5)',
-        }}
+        className="ai-ask"
       >
-        <div className="row" style={{ gap: 12, alignItems: 'flex-start' }}>
-          <div style={{ color: 'var(--text-tertiary)', display: 'flex', alignSelf: 'center' }}>
-            <Icon name="research" size={18} />
-          </div>
-          <textarea
-            className="input"
-            rows={2}
+        <textarea
+            className="ai-ask-input"
+            rows={3}
+            aria-label={mode === 'ask' ? 'Your legal question' : 'Search the statute corpus'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
@@ -235,8 +228,18 @@ export function ResearchView() {
                 ? 'e.g. What is the limitation period for filing a winding-up petition under the Companies Act, 2013?'
                 : 'e.g. cheating dishonest inducement, or IPC 420, or limitation period winding up'
             }
-            style={{ flex: 1, resize: 'vertical', height: 'auto', fontSize: 16, lineHeight: 1.5 }}
+            onKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
           />
+        <div className="ai-ask-bar">
+          <span className="ai-ask-hint">
+            <Icon name={mode === 'ask' ? 'sparkle' : 'search'} size={13} />
+            {mode === 'ask' ? 'Answers cite Indian statutes and judgments' : 'Hybrid search across indexed Acts'}
+          </span>
           <button
             type="submit"
             className="btn btn-primary"
@@ -271,8 +274,8 @@ export function ResearchView() {
 
       {/* Jurisdiction filter — corpus mode only. */}
       {mode === 'corpus' && (
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span className="eyebrow" style={{ alignSelf: 'center', marginRight: 4 }}>Scope</span>
+        <div className="row ai-research-scope" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="ai-eyebrow" style={{ alignSelf: 'center', marginRight: 4 }}>Scope</span>
           <button
             type="button"
             className={`chip ${scopeKind === 'all' ? 'active' : ''}`}
@@ -302,7 +305,7 @@ export function ResearchView() {
               className="input"
               value={scopeState}
               onChange={(e) => setScopeState(e.target.value)}
-              style={{ height: 32, fontSize: 13, padding: '0 12px', minWidth: 200 }}
+              style={{ height: 34, minHeight: 34, fontSize: 13, padding: '0 12px', width: 'auto', minWidth: 180, maxWidth: '100%' }}
               aria-label="Filter by specific state"
             >
               <option value="">All states</option>
@@ -318,9 +321,9 @@ export function ResearchView() {
       )}
 
       {mode === 'ask' && ask.isPending && (
-        <div className="card" aria-busy="true">
-          <div className="eyebrow" style={{ marginBottom: 12 }}>Lex.AI</div>
-          <p className="body-md muted">
+        <div className="ai-panel" aria-busy="true">
+          <div className="ai-eyebrow">Lex.AI</div>
+          <p className="body-md muted" style={{ margin: 0 }}>
             Researching<span className="blink" />
           </p>
           <div className="col" style={{ gap: 10, marginTop: 16 }}>
@@ -380,23 +383,21 @@ export function ResearchView() {
             />
           ) : (
             <div className="col" style={{ gap: 12 }}>
-              <div className="row">
-                <span className="eyebrow">
+              <div className="ai-section-head">
+                <h2 className="ai-section-title ai-section-title--sm">
                   {lawsSearch.data.results.length} matching section{lawsSearch.data.results.length === 1 ? '' : 's'}
-                </span>
-                <span className="spacer" />
+                </h2>
               </div>
               {lawsSearch.data.results.map((hit) => (
-                <article key={hit.id} className="card card-hover">
-                  <div className="row" style={{ marginBottom: 8, gap: 8, flexWrap: 'wrap' }}>
-                    <span className="mono body-sm" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                <article key={hit.id} className="ai-hit">
+                  <div className="ai-hit-head">
+                    <span className="ai-hit-cite">
                       {hit.citation
                         ?? `${hit.actTitle ?? 'Section'}${hit.sectionNumber ? `, § ${hit.sectionNumber}` : ''}`}
                     </span>
                     {hit.sectionHeading && (
                       <>
-                        <span className="muted">·</span>
-                        <span className="body-sm" style={{ fontStyle: 'italic' }}>
+                        <span className="ai-hit-heading">
                           {hit.sectionHeading}
                         </span>
                       </>
@@ -404,19 +405,19 @@ export function ResearchView() {
                     <JurisdictionBadge jurisdiction={hit.jurisdiction} state={hit.state} />
                     <VerificationBadge verified={hit.verified} />
                     <span className="spacer" />
-                    <span className="mono body-xs muted" title="Reciprocal-rank-fusion score">
+                    <span className="ai-hit-score" title="Reciprocal-rank-fusion score">
                       {(hit.rerankScore ?? hit.score).toFixed(3)}
                     </span>
                   </div>
                   {hit.oldSection && (
-                    <p className="body-xs muted" style={{ marginBottom: 8 }}>
+                    <p className="ai-hit-replaces">
                       Replaces {hit.oldSection}
                     </p>
                   )}
-                  <p className="body-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>
+                  <p className="ai-hit-text">
                     {hit.content}
                   </p>
-                  <div className="row rule-top" style={{ gap: 8, marginTop: 14, paddingTop: 12 }}>
+                  <div className="ai-hit-actions">
                     <button type="button" className="btn btn-sm" onClick={() => copyCitation(hit)}>
                       <Icon name="documents" size={12} /> Copy citation
                     </button>
@@ -442,16 +443,18 @@ export function ResearchView() {
 
       {mode === 'ask' && ask.data && !ask.isPending && (
         <>
-          <div className="card">
-            <div className="row" style={{ marginBottom: 12 }}>
-              <span className="eyebrow">Lex.AI</span>
+          <article className="ai-panel ai-answer">
+            <div className="row" style={{ gap: 10 }}>
+              <span className="ai-answer-mark" aria-hidden><Icon name="sparkle" size={14} /></span>
+              <span className="ai-eyebrow">Lex.AI</span>
               <span className="spacer" />
-              <span className="mono body-xs muted">
+              <span className="ai-field-meta">
                 {ask.data.citations.length} citation{ask.data.citations.length === 1 ? '' : 's'}
               </span>
             </div>
-            <p className="body-lg" style={{ whiteSpace: 'pre-wrap' }}>{ask.data.answer}</p>
-            <div className="row rule-top" style={{ gap: 8, marginTop: 20, paddingTop: 16 }}>
+            {ask.data.query && <h2 className="ai-answer-q">{ask.data.query}</h2>}
+            <p className="ai-answer-text">{ask.data.answer}</p>
+            <div className="ai-hit-actions">
               <button
                 type="button"
                 className="btn btn-sm"
@@ -491,32 +494,33 @@ export function ResearchView() {
                 Cite in draft
               </button>
             </div>
-          </div>
+          </article>
 
           {ask.data.citations.length > 0 && (
-            <div className="col" style={{ gap: 12 }}>
-              <div className="eyebrow">Authorities</div>
-              {ask.data.citations.map((c, i) => (
-                <div key={`${c.citation}-${i}`} className="card card-hover">
-                  <div className="row" style={{ marginBottom: 8 }}>
-                    <em className="case-name body-md" style={{ fontStyle: 'italic', fontWeight: 500 }}>
-                      {c.title}
-                    </em>
-                  </div>
-                  <div className="row" style={{ gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-                    <span className="mono body-sm muted">{c.court}</span>
-                    <span className="muted">·</span>
-                    <span className="mono body-sm" style={{ color: 'var(--text-primary)' }}>{c.citation}</span>
-                  </div>
-                  <p className="body-sm muted">{c.excerpt}</p>
-                </div>
-              ))}
-            </div>
+            <section className="col" style={{ gap: 12 }}>
+              <h2 className="ai-section-title ai-section-title--sm">Authorities</h2>
+              <ol className="ai-list ai-authorities">
+                {ask.data.citations.map((c, i) => (
+                  <li key={`${c.citation}-${i}`} className="ai-authority">
+                    <span className="ai-authority-n">{String(i + 1).padStart(2, '0')}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="ai-authority-title">{c.title}</div>
+                      <div className="ai-authority-meta">
+                        <span>{c.court}</span>
+                        <span aria-hidden>·</span>
+                        <strong>{c.citation}</strong>
+                      </div>
+                      {c.excerpt && <p className="ai-authority-excerpt">{c.excerpt}</p>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
           )}
 
-          <div className="card" style={{ background: 'var(--bg-surface-2)' }}>
-            <label className="label" htmlFor="followup-input">Ask a follow-up</label>
-            <div className="row" style={{ gap: 10 }}>
+          <div className="ai-panel ai-followup">
+            <label className="field-label" htmlFor="followup-input">Ask a follow-up</label>
+            <div className="ai-composer-row" style={{ marginTop: 0 }}>
               <input
                 id="followup-input"
                 className="input"

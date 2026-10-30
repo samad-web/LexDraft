@@ -66,8 +66,12 @@ export function DraftMissingFields({ schema, values, setField, onRegenerate, bus
       return;
     }
     setActiveKey(key);
-    const current = values[key] ?? '';
-    dictation.start((t) => setField(key, current ? `${current} ${t}` : t));
+    // Dictation keeps going until stopped, so accumulate phrases locally.
+    let current = values[key] ?? '';
+    dictation.start((t) => {
+      current = current ? `${current} ${t}` : t;
+      setField(key, current);
+    });
   };
 
   return (

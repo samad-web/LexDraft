@@ -8,9 +8,9 @@ interface Props {
 }
 
 const STATUS_BADGE: Record<InvoiceStatus, { label: string; cls: string }> = {
-  paid:    { label: 'PAID',    cls: 'badge-sage'       },
-  pending: { label: 'PENDING', cls: 'badge-cobalt'     },
-  overdue: { label: 'OVERDUE', cls: 'badge-vermillion' },
+  paid:    { label: 'Paid',    cls: 'cm-pill cm-pill--soft' },
+  pending: { label: 'Pending', cls: 'cm-pill cm-pill--line' },
+  overdue: { label: 'Overdue', cls: 'cm-pill cm-pill--ink'  },
 };
 
 function formatINR(value: number): string {
@@ -54,47 +54,31 @@ export function InvoiceDetailModal({ open, invoice, onClose }: Props) {
         <button type="button" className="btn" onClick={onClose}>Close</button>
       }
     >
-      <div className="row" style={{ alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-            CLIENT
+      <div className="cm-invdetail">
+        <div className="cm-invdetail-amount">
+          <div className="cm-invdetail-head">
+            <span className="cm-label">Amount</span>
+            <span className={badge.cls}>{badge.label}</span>
           </div>
-          <div className="body-md" style={{ marginTop: 4 }}>{invoice.client}</div>
+          <div className="cm-invdetail-figure">₹{formatINR(invoice.amountInr)}</div>
+          <div className={`cm-invdetail-due${invoice.status !== 'paid' && due < 0 ? ' is-overdue' : ''}`}>{dueLabel}</div>
         </div>
-        <span className={`badge ${badge.cls}`} style={{ flex: '0 0 auto' }}>{badge.label}</span>
-      </div>
 
-      <hr className="hairline" />
-
-      <div>
-        <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-          AMOUNT
+        <div className="cm-invdetail-grid">
+          <DetailRow label="Client" value={invoice.client} />
+          <DetailRow label="Issued" value={formatLongDate(invoice.issuedDate)} />
+          <DetailRow label="Due" value={formatLongDate(invoice.dueDate)} />
         </div>
-        <div className="heading-lg mono tabular" style={{ marginTop: 4 }}>
-          ₹{formatINR(invoice.amountInr)}
-        </div>
-      </div>
-
-      <div className="form-row">
-        <DetailRow label="ISSUED" value={formatLongDate(invoice.issuedDate)} />
-        <DetailRow label="DUE" value={formatLongDate(invoice.dueDate)} hint={dueLabel} />
       </div>
     </Modal>
   );
 }
 
-function DetailRow({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="mono" style={{ fontSize: 10, letterSpacing: '0.18em', color: 'var(--text-tertiary)' }}>
-        {label}
-      </div>
-      <div className="mono tabular" style={{ marginTop: 4, fontSize: 14, color: 'var(--text-primary)' }}>
-        {value}
-      </div>
-      {hint && (
-        <div className="body-sm muted" style={{ marginTop: 4 }}>{hint}</div>
-      )}
+    <div style={{ minWidth: 0 }}>
+      <div className="cm-label">{label}</div>
+      <div className="cm-invdetail-v">{value}</div>
     </div>
   );
 }

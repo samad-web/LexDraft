@@ -201,7 +201,7 @@ class TestSharedDebtSlot:
 
     def test_debt_slot_prewritten_accepted(self):
         result = complaint.build(**_base(debt_slot="The accused borrowed Rs.1,00,000."))
-        assert result.context["debt_slot"] == "The accused borrowed Rs.1,00,000."
+        assert result.context["debt_slot"] == "the accused borrowed Rs.1,00,000."  # reads on from "… and that"
 
 
 class TestCheques:
@@ -402,3 +402,12 @@ class TestCourtDesignation:
         assert result.context["court_designation"] == (
             "Metropolitan Magistrate, Fast Track Court-III"
         )
+
+
+def test_debt_paragraph_fits_a_loan_and_goods():
+    from src.pipelines.s138_complaint import _GOODS_DEBT, _debt_clause
+    loan = "On 10 January 2026 the accused borrowed Rs. 5,00,000 for his business."
+    assert _debt_clause(loan).startswith("on 10 January 2026")
+    assert not _GOODS_DEBT.search(loan)  # a hand-loan never says "the said goods were delivered"
+    assert _GOODS_DEBT.search("the price of books and printed materials supplied on credit")
+    assert _debt_clause("Abdul Rahman lent the money") == "Abdul Rahman lent the money"

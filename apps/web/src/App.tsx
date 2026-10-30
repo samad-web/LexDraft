@@ -19,6 +19,7 @@ import { SuperadminBanner } from '@/components/shell/SuperadminBanner';
 import { CapExceededModal } from '@/components/CapExceededModal';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
+import { uiFor, watchStackedTables } from '@/lib/chambers';
 // Route-level views are code-split so heavy deps (pdf.js, mammoth, framer-motion)
 // only download when the user actually navigates to a view that needs them. The
 // app shell (Sidebar/Topbar/banners) stays eager. Named exports are unwrapped to
@@ -147,6 +148,15 @@ export function App() {
       Loading…
     </div>
   );
+
+  // The "Chambers" design (styles/chambers.css) covers every screen except
+  // the marketing landing page, which keeps its own look.
+  useEffect(() => {
+    document.documentElement.dataset.ui = uiFor(location.pathname);
+  }, [location.pathname]);
+
+  // Phones: tables read as stacked cards, so label each cell with its column.
+  useEffect(() => watchStackedTables(), []);
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
@@ -291,16 +301,17 @@ export function App() {
 
   return (
     <>
-      <OfflineBanner />
-      <ImpersonationBanner />
-      {user.isSuperadmin && !actAs && <SuperadminBanner />}
-      <DeletionScheduledBanner />
-      <TrialBanner />
-      <MfaPromptBanner />
       <a href="#main-content" className="skip-link">Skip to content</a>
       <div className="app">
         <Sidebar />
         <div className="main">
+          {/* Banners sit over the content column, so the sidebar runs full height. */}
+          <OfflineBanner />
+          <ImpersonationBanner />
+          {user.isSuperadmin && !actAs && <SuperadminBanner />}
+          <DeletionScheduledBanner />
+          <TrialBanner />
+          <MfaPromptBanner />
           <Topbar />
           <main className="content" id="main-content" tabIndex={-1} key={location.pathname}>
             <SectionTabs />

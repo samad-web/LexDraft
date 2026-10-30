@@ -170,6 +170,10 @@ beforeAll(async () => {
   await ctx.addInitScript(([t, usr]) => {
     localStorage.setItem('lexdraft-auth', JSON.stringify({ state: { user: usr, token: t, actAs: null, previousSession: null }, version: 0 }));
     localStorage.removeItem('lexdraft.ecourts.court');
+    // These tests prepare filings without a real portal login.
+    if (!sessionStorage.getItem('e2e.efiling.loginGate')) {
+      sessionStorage.setItem('difai.efiling.portal', JSON.stringify({ state: { connection: null, offline: true }, version: 1 }));
+    }
   }, [token, me.body.user ?? me.body] as const);
   page = await ctx.newPage();
   page.on('pageerror', (e) => console.log('PAGE ERROR:', e.message));
@@ -687,6 +691,30 @@ describe('eFiling: every field and endpoint', () => {
     });
   });
 
+  it('eFiling starts with the portal login; "Prepare without logging in" opens the screens', async () => {
+    const ctx = page.context();
+    const gate = await ctx.newPage();
+    await gate.addInitScript(() => {
+      // Runs after the context's "prepare offline" script: undo it here.
+      sessionStorage.setItem('e2e.efiling.loginGate', '1');
+      sessionStorage.setItem('difai.efiling.portal', JSON.stringify({ state: { connection: null, offline: false }, version: 1 }));
+    });
+    await gate.route('**/api/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/stream')) return route.abort();
+      try { await route.fulfill({ response: await route.fetch({ url: `http://localhost:${PORT}${url.pathname}${url.search}` }) }); } catch { await route.abort().catch(() => {}); }
+    });
+    await gate.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
+    await gate.getByRole('heading', { name: 'eFiling Services · Sign In' }).waitFor();
+    // The real login form, before any eFiling screen.
+    await gate.locator('select').filter({ hasText: 'Select state' }).waitFor();
+    expect(await gate.getByRole('navigation', { name: 'eFiling menu' }).count()).toBe(0);
+    await gate.getByRole('button', { name: 'Prepare without logging in' }).click();
+    await gate.getByRole('navigation', { name: 'eFiling menu' }).waitFor();
+    await gate.getByText('Not connected to the eFiling portal').waitFor();
+    await gate.close();
+  });
+
   it('portal login tab loads the 30 portal states and user types', async () => {
     await page.goto(`${WEB}/app/efiling?m=portal`, { waitUntil: 'domcontentloaded' });
     const states = page.locator('select').filter({ hasText: 'Select state' });
@@ -784,7 +812,7 @@ describe('eFiling laid out like the portal', () => {
 
   it('Vakalat: mark the offer accepted, and Print Vakalat links to the vakalatnama generator', async () => {
     await page.goto(`${WEB}/app/efiling?m=vakalat`, { waitUntil: 'domcontentloaded' });
-    expect(await page.getByRole('link', { name: /Print Vakalat/ }).getAttribute('href')).toBe('/app/calculators?tab=vakalatnama');
+    expect(await page.getByRole('link', { name: /Draft a vakalatnama/ }).first().getAttribute('href')).toBe('/app/draft');
     await page.locator('div.row', { hasText: 'KL020100999992026' }).locator('select').first().selectOption('done');
     await pollFor(async () => (await getFiling(wizardId)).steps.vakalat).toBe('done');
   });
@@ -854,7 +882,7 @@ describe('eFiling laid out like the portal', () => {
       state: bundle.particulars.stateCode, district: bundle.particulars.districtCode, est: bundle.particulars.estCode,
     });
     await pay.getByRole('button', { name: 'First time? Set up one-click fill' }).click();
-    const bm = pay.getByRole('link', { name: 'LexDraft Fill' });
+    const bm = pay.getByRole('link', { name: 'DifAi Fill' });
     expect((await bm.getAttribute('href'))?.startsWith('javascript:')).toBe(true);
   });
 

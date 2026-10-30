@@ -1,4 +1,10 @@
 import { useState } from 'react';
+import { Icon } from '@lexdraft/ui';
+
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 import { useCancelInvitation, useInvitations, useResendInvitation } from '@/hooks/useInvitations';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { useUIStore } from '@/store/ui';
@@ -22,31 +28,28 @@ export function ManageInvitationsPanel() {
   const pastPager = usePagination(past);
 
   if (invitations.isLoading) {
-    return <div className="muted">Loading invitations…</div>;
+    return <div className="fm-loading">Loading invitations…</div>;
   }
 
   return (
     <div className="col" style={{ gap: 20 }}>
-      <div className="row" style={{ alignItems: 'flex-end' }}>
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 6 }}>Invitations</div>
-          <div className="body-md muted">
-            Pending: {pending.length} · Past: {past.length}
-          </div>
-        </div>
-        <span className="spacer" />
+      <div className="fm-manage-intro">
+        <p>
+          <strong>{pending.length}</strong> pending · <strong>{past.length}</strong> past. Share a pending link with a
+          colleague, resend it for seven more days, or cancel it.
+        </p>
         <button type="button" className="btn btn-primary" onClick={() => setInviteOpen(true)}>
-          + Invite member
+          <Icon name="plus" size={14} /> Invite member
         </button>
       </div>
 
       {pending.length === 0 && past.length === 0 ? (
-        <div className="card" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
-          <div className="heading-sm" style={{ marginBottom: 8 }}>No invitations yet</div>
-          <div className="body-sm muted" style={{ marginBottom: 16 }}>
+        <div className="fm-empty-card">
+          <div className="fm-panel-title">No invitations yet</div>
+          <div style={{ marginBottom: 16 }}>
             Create an invite from the button above, then share its link with your colleague.
           </div>
-          <button type="button" className="btn btn-primary" onClick={() => setInviteOpen(true)}>
+          <button type="button" className="btn" onClick={() => setInviteOpen(true)}>
             Send your first invite
           </button>
         </div>
@@ -55,16 +58,12 @@ export function ManageInvitationsPanel() {
           <Section title="Pending" empty="No pending invitations.">
             {pendingPager.slice.map((i) => (
               <tr key={i.id}>
-                <td className="mono" style={{ fontSize: 13 }}>{i.email}</td>
+                <td className="fm-cell-title" style={{ overflowWrap: 'anywhere' }}>{i.email}</td>
                 <td>{i.role}</td>
-                <td className="mono muted" style={{ fontSize: 12 }}>
-                  {new Date(i.createdAt).toLocaleDateString()}
-                </td>
-                <td className="mono muted" style={{ fontSize: 12 }}>
-                  {new Date(i.expiresAt).toLocaleDateString()}
-                </td>
+                <td><span className="fm-date">{shortDate(i.createdAt)}</span></td>
+                <td><span className="fm-date">{shortDate(i.expiresAt)}</span></td>
                 <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'inline-flex', gap: 6 }}>
+                  <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="btn btn-sm"
@@ -100,8 +99,7 @@ export function ManageInvitationsPanel() {
                     </button>
                     <button
                       type="button"
-                      className="btn btn-sm"
-                      style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}
+                      className="btn btn-sm btn-ghost"
                       onClick={() => cancel.mutate(i.id, {
                         onSuccess: () => showToast({ type: 'amber', text: 'Invite cancelled' }),
                         onError: (err) => showToast({
@@ -128,26 +126,26 @@ export function ManageInvitationsPanel() {
             />
           )}
 
-          <Section title="Past" empty="No past invitations.">
+          <Section title="Past" empty="No past invitations." fourth="Status">
             {pastPager.slice.map((i) => (
               <tr key={i.id}>
-                <td className="mono" style={{ fontSize: 13 }}>{i.email}</td>
+                <td className="fm-cell-title" style={{ overflowWrap: 'anywhere' }}>{i.email}</td>
                 <td>{i.role}</td>
                 <td>
+                  <span className="fm-date">{shortDate(i.createdAt)}</span>
+                </td>
+                <td>
                   <span
-                    className={`badge ${
+                    className={`fm-pill ${
                       i.status === 'accepted'
-                        ? 'badge-sage'
+                        ? 'is-solid'
                         : i.status === 'expired'
-                          ? 'badge-amber'
-                          : 'badge-vermillion'
+                          ? 'is-dashed'
+                          : 'is-muted'
                     }`}
                   >
                     {i.status}
                   </span>
-                </td>
-                <td className="mono muted" style={{ fontSize: 12 }}>
-                  {new Date(i.createdAt).toLocaleDateString()}
                 </td>
                 <td />
               </tr>
@@ -170,20 +168,20 @@ export function ManageInvitationsPanel() {
   );
 }
 
-function Section({ title, empty, children }: { title: string; empty: string; children: React.ReactNode }) {
+function Section({ title, empty, children, fourth = 'Expires' }: { title: string; empty: string; children: React.ReactNode; fourth?: string }) {
   const hasRows = Array.isArray(children) ? children.length > 0 : !!children;
   return (
-    <div className="col" style={{ gap: 10 }}>
-      <div className="eyebrow">{title}</div>
+    <div className="col" style={{ gap: 12 }}>
+      <div className="fm-section-label"><h3 className="fm-panel-title">{title}</h3></div>
       {hasRows ? (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table className="tbl">
+          <table className="tbl fm-tbl">
             <thead>
               <tr>
                 <th>Email</th>
-                <th style={{ width: 200 }}>Role / status</th>
+                <th style={{ width: 200 }}>Role</th>
                 <th style={{ width: 130 }}>Sent</th>
-                <th style={{ width: 130 }}>Expires</th>
+                <th style={{ width: 130 }}>{fourth}</th>
                 <th style={{ width: 240, textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -191,7 +189,7 @@ function Section({ title, empty, children }: { title: string; empty: string; chi
           </table>
         </div>
       ) : (
-        <div className="muted body-sm" style={{ padding: 12 }}>{empty}</div>
+        <div className="fm-empty-card" style={{ padding: '22px 20px' }}>{empty}</div>
       )}
     </div>
   );

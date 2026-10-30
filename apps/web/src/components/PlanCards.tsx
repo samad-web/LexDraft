@@ -1,4 +1,5 @@
 import type { BillingCycle, BillingPlan, BillingPlanId } from '@lexdraft/types';
+import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '@lexdraft/ui';
 
 // Plans as the sign-up page shows them before there is a session to ask the
@@ -43,32 +44,15 @@ export function planPrice(p: BillingPlan, cycle: BillingCycle): { main: string; 
 }
 
 export function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: BillingCycle) => void }) {
-  const btn = (c: BillingCycle, label: string) => (
-    <button
-      type="button"
-      onClick={() => onChange(c)}
-      aria-pressed={cycle === c}
-      style={{
-        padding: '6px 14px', border: 0, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-        borderRadius: 'var(--radius-full)',
-        background: cycle === c ? 'var(--text-primary)' : 'transparent',
-        color: cycle === c ? 'var(--bg-base)' : 'var(--text-secondary)',
-      }}
-    >
+  const btn = (c: BillingCycle, label: ReactNode) => (
+    <button type="button" onClick={() => onChange(c)} aria-pressed={cycle === c}>
       {label}
     </button>
   );
   return (
-    <div
-      role="group"
-      aria-label="Billing cycle"
-      style={{
-        display: 'inline-flex', gap: 2, padding: 3, alignSelf: 'center',
-        border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)',
-      }}
-    >
+    <div role="group" aria-label="Billing cycle" className="cm-cycle">
       {btn('monthly', 'Monthly')}
-      {btn('annual', 'Yearly · save 20%')}
+      {btn('annual', <>Yearly · <span className="cm-cycle-save">save 20%</span></>)}
     </div>
   );
 }
@@ -86,49 +70,50 @@ interface Props {
   columns?: number;
 }
 
+/** "₹4,999/mo" -> figure "₹4,999" + unit "/mo" so the unit can be set small. */
+function splitPrice(main: string): { figure: string; unit: string } {
+  const i = main.indexOf('/');
+  return i > 0 ? { figure: main.slice(0, i), unit: main.slice(i) } : { figure: main, unit: '' };
+}
+
 export function PlanCards({ plans, cycle, selected, onSelect, currentId, compact, columns }: Props) {
+  const cls = [
+    'cm-plans',
+    columns ? 'cm-plans--cols' : 'cm-plans--two',
+    compact ? 'cm-plans--compact' : '',
+  ].filter(Boolean).join(' ');
   return (
     <div
-      className={columns ? undefined : 'facts-grid-2'}
-      style={columns
-        ? { display: 'grid', gap: 12, gridTemplateColumns: `repeat(auto-fit, minmax(${columns >= 4 ? 190 : 220}px, 1fr))` }
-        : { gap: 10 }}
+      className={cls}
+      style={columns ? ({ '--cm-plan-min': `${columns >= 4 ? 200 : 220}px` } as CSSProperties) : undefined}
     >
       {plans.map((p) => {
         const active = selected === p.id;
         const price = planPrice(p, cycle);
+        const { figure, unit } = splitPrice(price.main);
         return (
           <button
             key={p.id}
             type="button"
             onClick={() => onSelect(p.id)}
             aria-pressed={active}
-            style={{
-              padding: 16, textAlign: 'left', cursor: 'pointer',
-              display: 'flex', flexDirection: 'column', gap: 6,
-              background: active ? 'var(--text-primary)' : 'var(--bg-surface)',
-              color: active ? 'var(--bg-base)' : 'var(--text-primary)',
-              border: `1px solid ${active ? 'var(--text-primary)' : 'var(--border-default)'}`,
-              borderRadius: 'var(--radius-lg)',
-              transition: 'border-color 150ms, background 150ms, color 150ms',
-            }}
+            className={`cm-plan${active ? ' is-selected' : ''}`}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 600 }}>{p.name}</span>
-              {currentId === p.id && (
-                <span className="mono" style={{ fontSize: 9, letterSpacing: '0.1em', border: '1px solid currentColor', borderRadius: 'var(--radius-full)', padding: '2px 6px' }}>
-                  CURRENT
-                </span>
-              )}
-            </div>
-            <span style={{ fontSize: 12, opacity: 0.75 }}>{p.for}</span>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600, marginTop: 4 }}>{price.main}</span>
-            <span className="mono" style={{ fontSize: 10, opacity: 0.7 }}>{price.sub}</span>
+            <span className="cm-plan-top">
+              <span className="cm-plan-name">{p.name}</span>
+              {currentId === p.id && <span className="cm-plan-tag">Current</span>}
+            </span>
+            <span className="cm-plan-for">{p.for}</span>
+            <span className="cm-plan-price">
+              {figure}
+              {unit && <small>{unit}</small>}
+            </span>
+            <span className="cm-plan-sub">{price.sub}</span>
             {!compact && (
-              <ul style={{ listStyle: 'none', margin: '6px 0 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <ul className="cm-plan-feats">
                 {p.features.map((f) => (
-                  <li key={f} style={{ display: 'flex', gap: 6, fontSize: 12, alignItems: 'flex-start' }}>
-                    <Icon name="check" size={12} /> <span>{f}</span>
+                  <li key={f}>
+                    <Icon name="check" size={13} /> <span>{f}</span>
                   </li>
                 ))}
               </ul>
