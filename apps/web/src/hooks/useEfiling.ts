@@ -179,11 +179,32 @@ export interface PortalDashboardView {
   today?: { title: string; table: Pick<PortalList, 'headers' | 'rows'> | null; text: string };
 }
 
+const httpStatus = (err: unknown) =>
+  (err as { response?: { status?: number }; status?: number })?.response?.status ?? (err as { status?: number })?.status;
+
+/**
+ * A portal read that finds the session gone (404 expired, 410 signed out by
+ * the portal) re-checks the session, so the screen goes back to the login.
+ */
+function usePortalRead<T>(sessionId: string | null, get: () => Promise<T>) {
+  const qc = useQueryClient();
+  return async () => {
+    try {
+      return await get();
+    } catch (err) {
+      const s = httpStatus(err);
+      if (s === 404 || s === 410) void qc.invalidateQueries({ queryKey: ['efiling', 'live', sessionId], exact: true });
+      throw err;
+    }
+  };
+}
+
 /** The portal's own dashboard: tile numbers, calendar badges and today's listed cases (one quick read). */
 export function usePortalCounts(sessionId: string | null) {
+  const read = usePortalRead(sessionId, () => api.get<PortalDashboardView>(`/efiling/live/session/${sessionId}/counts`));
   return useQuery({
     queryKey: ['efiling', 'live', sessionId, 'counts'],
-    queryFn: () => api.get<PortalDashboardView>(`/efiling/live/session/${sessionId}/counts`),
+    queryFn: read,
     enabled: !!sessionId,
     staleTime: 60 * 1000,
     retry: false,
@@ -192,14 +213,15 @@ export function usePortalCounts(sessionId: string | null) {
 
 /** One portal dashboard list, read when its tile is opened. */
 export function usePortalList(sessionId: string | null, key: PortalList['key'] | null, ready = true) {
+  const read = usePortalRead(sessionId, () => api.get<PortalList>(`/efiling/live/session/${sessionId}/lists/${key}`));
   return useQuery({
     queryKey: ['efiling', 'live', sessionId, 'list', key],
-    queryFn: () => api.get<PortalList>(`/efiling/live/session/${sessionId}/lists/${key}`),
+    queryFn: read,
     // The portal session does one step at a time: wait for the tile numbers.
     enabled: !!sessionId && !!key && ready,
     staleTime: 60 * 1000,
     // "Still working on your last eFiling step" (409): try again shortly.
-    retry: (n, err) => n < 4 && ((err as { response?: { status?: number }; status?: number })?.response?.status ?? (err as { status?: number })?.status) === 409,
+    retry: (n, err) => n < 4 && httpStatus(err) === 409,
     retryDelay: 1500,
   });
 }

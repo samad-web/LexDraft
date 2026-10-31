@@ -33,6 +33,8 @@ const fx = {
   csrf: 'tok0',
   csrfSeen: [] as string[],
   loggedOut: false,
+  /** The portal ended the session (same account logged in elsewhere). */
+  signedOut: false,
 };
 
 const svg = (code: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="50"><rect width="150" height="50" fill="#fff"/><text x="12" y="34" font-size="26" font-family="monospace">${code}</text></svg>`;
@@ -95,7 +97,8 @@ const TILES: Record<string, { route: string; field: string; html: string }> = {
   draft_cases: { route: 'advocate_case_registration/getUnRegisteredPDE', field: 'pde_list', html: '<table><thead><tr><th>Sr. No.</th><th>E-Filing Number</th><th>Litigant Name</th></tr></thead><tbody><tr><td>1</td><td>59/2026</td><td>Ramesh Kumar</td></tr></tbody></table>' },
   filed_cases: { route: 'advocate_case_registration/getSubmittedPDE', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>E-Filing No</th></tr></thead><tbody></tbody></table>' },
   efiling_activity: { route: 'dashboard/fetchActivities', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>ePayments</th></tr></thead><tbody><tr><td>1</td><td>O.S. - C202600019</td><td><select><option>Select GRN</option><option>KL26GRN00012345 - 4320.00</option></select></td></tr></tbody></table>' },
-  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
+  // As the real portal returns it (columns, buttons and links as on screen).
+  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn">View Documents</button></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn">View Status</button></td></tr></tbody></table>' },
   draft_ia: { route: 'dashboard/fetchDraftIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   completed_ia: { route: 'dashboard/fetchCompletedIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   my_cases: { route: 'Portfolio_new/my_cases', field: 'html', html: '<table><thead><tr><th>Sr No</th><th>Cases</th><th>Party Name</th></tr></thead><tbody><tr><td>1</td><td>OS/57/2024</td><td>Ramesh Kumar Vs Suresh Babu</td></tr></tbody></table>' },
@@ -153,7 +156,7 @@ async function serve(route: Route): Promise<void> {
     fx.loggedOut = true;
     return route.fulfill({ contentType: 'text/html', body: '<html><body>Logged out</body></html>' });
   }
-  if (req.method() === 'GET' && p === 'dashboard') return route.fulfill({ contentType: 'text/html', body: dashboardPage() });
+  if (req.method() === 'GET' && p === 'dashboard') return route.fulfill({ contentType: 'text/html', body: fx.signedOut ? loginPage : dashboardPage() });
   if (req.method() === 'GET') return route.fulfill({ contentType: 'text/html', body: loginPage });
 
   const f = form(req.postData());
@@ -177,6 +180,8 @@ async function serve(route: Route): Promise<void> {
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: true, redirect_path: `${ORIGIN}/pdedev/?p=dashboard` }) });
   }
   const tile = Object.values(TILES).find((t) => t.route === p);
+  // A dead session: the portal's ajax gets no list back.
+  if (tile && fx.signedOut) return route.fulfill({ status: 200, contentType: 'text/html', body: '' });
   if (tile) {
     // The rotating token: anything but the latest one is refused.
     const sent = f.get('__csrf_magic') ?? '';
@@ -266,12 +271,54 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(one).toMatchObject({ key: 'objections', total: 1, rows: [{ group: 'C202600004 - Maintenance Application' }, { cells: ['1', 'Court fee deficit of Rs. 120.', '21-10-2026'] }] });
   });
 
+  it("Completed Pleadings comes back with the portal's own columns and row", async () => {
+    const l = await live.readPortalList(sessionId, USER, 'completed_pleadings');
+    expect(l.error).toBeNull();
+    expect(l.headers).toEqual(['Sr.No.', 'e-Filing Number / Case Number', 'Establishment', 'Cause Title', 'Upload Pleadings (Mandatory)', 'Oath Recording', 'ePayments', 'Application Submitted', 'Last Updated on', 'Status']);
+    const row = l.rows[0] as { cells: string[] };
+    expect(row.cells[1]).toMatch(/^STC\/4377\/2026.*TNCH0C0121292026.*Court Verified eFile Case/);
+    expect(row.cells[2]).toBe('The Metropolitan Magistrates Courts, Saidapet, Chennai');
+    expect(row.cells[6]).toBe('TNCT2716H2608P694 - 6600.00');
+    expect(row.cells[8]).toBe('27-08-2026 15:09:56');
+  });
+
+  it('clicking tiles quickly: each read waits its turn instead of failing', async () => {
+    const [a, b, c] = await Promise.all([
+      live.readPortalCounts(sessionId, USER),
+      live.readPortalList(sessionId, USER, 'completed_pleadings'),
+      live.readPortalList(sessionId, USER, 'objections'),
+    ]);
+    expect(a.counts.completed_pleadings).toBe(2);
+    expect(b.rows).toHaveLength(1);
+    expect(c.total).toBe(1);
+  });
+
   it('runs one portal step at a time: a second request meanwhile is told to wait', async () => {
     const results = await Promise.allSettled([live.readPortalLists(sessionId, USER), live.readPortalLists(sessionId, USER)]);
     expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
     const rejected = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
     expect(String(rejected.reason?.message)).toMatch(/Still working on your last eFiling step/);
   });
+
+  it('the portal signs the session out (account opened elsewhere): 410 "log in again", never 401, and the session shows logged out', async () => {
+    fx.signedOut = true;
+    try {
+      const err = await live.readPortalList(sessionId, USER, 'draft_ias').then(() => null, (e: { status?: number; message?: string }) => e);
+      expect(err?.status).toBe(410);
+      expect(err?.message).toMatch(/signed this session out.*Log in again/);
+      expect(live.efilingSessionStatus(sessionId, USER).authenticated).toBe(false);
+      // Refresh says the same straight away.
+      await expect(live.readPortalCounts(sessionId, USER)).rejects.toMatchObject({ status: 410 });
+    } finally {
+      fx.signedOut = false;
+    }
+    // Log in again, as the advocate would.
+    await live.endEfilingSession(sessionId, USER);
+    ({ sessionId } = await live.startEfilingSession(USER, '4', 'advocate'));
+    await live.submitEfilingCredentials(sessionId, USER, 'adv@example.com', PASSWORD);
+    expect(await live.submitEfilingLoginCaptcha(sessionId, USER, fx.lastCode)).toEqual({ status: 'authenticated' });
+    fx.loggedOut = false;
+  }, 90_000);
 
   it('"Log out of eFiling" also logs out on the portal (one session per account)', async () => {
     await live.endEfilingSession(sessionId, USER);

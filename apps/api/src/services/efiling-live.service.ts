@@ -111,6 +111,17 @@ export async function warmEfilingBrowser(): Promise<void> {
 
 /** One portal step at a time per advocate: a second click while one runs
  *  would race the portal's rotating token and its captcha. */
+/**
+ * For reads the advocate triggers by clicking around (tiles, the dashboard):
+ * wait for the step in progress instead of refusing, like the portal's own
+ * page simply finishing one request before the next.
+ */
+async function queued<T>(session: EfilingSession, fn: () => Promise<T>, waitMs = 30_000): Promise<T> {
+  const until = Date.now() + waitMs;
+  while (session.busy && Date.now() < until) await new Promise((r) => setTimeout(r, 150));
+  return exclusive(session, fn);
+}
+
 async function exclusive<T>(session: EfilingSession, fn: () => Promise<T>): Promise<T> {
   if (session.busy) throw new EcourtsHttpError(409, 'Still working on your last eFiling step - wait a moment.');
   session.busy = true;
@@ -142,6 +153,16 @@ async function closeSession(sessionId: string): Promise<void> {
   } catch (err) {
     logger.warn({ err, sessionId }, 'efiling-live: error closing browser on session teardown');
   }
+}
+
+/**
+ * The portal signed this session out (usually: the same account was logged in
+ * somewhere else, and the portal allows one session per account). 410, not
+ * 401 - a 401 would sign the advocate out of DifAi itself.
+ */
+function portalSessionEnded(session: EfilingSession): EcourtsHttpError {
+  session.authenticated = false;
+  return new EcourtsHttpError(410, 'The eFiling portal has signed this session out (the same account was probably opened in another browser). Log in again.');
 }
 
 function getSession(sessionId: string, userId: string): EfilingSession {
@@ -753,7 +774,7 @@ async function findLink(page: Page, pattern: RegExp): Promise<string | null> {
  */
 async function readPortalPageStep(sessionId: string, userId: string, what: PortalPage): Promise<PortalSnapshot> {
   const session = getSession(sessionId, userId);
-  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
   const { page } = session;
   if (what === 'dashboard') {
     const home = await findLink(page, /dashboard|^\s*home\s*$/i);
@@ -766,8 +787,7 @@ async function readPortalPageStep(sessionId: string, userId: string, what: Porta
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
   // Bounced back to the login form: the portal ended the session.
   if (await page.$('#user_name')) {
-    session.authenticated = false;
-    throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
+    throw portalSessionEnded(session);
   }
   const snap = await snapshot(page);
   await keepCapture(page, what, snap).catch((err) => logger.warn({ err }, 'efiling-live: capture failed'));
@@ -912,15 +932,17 @@ export interface PortalList extends PortalTableData {
 }
 
 /** Make sure the session is on the portal's logged-in dashboard. */
-async function ensureDashboard(session: EfilingSession): Promise<void> {
+async function ensureDashboard(session: EfilingSession, fresh = false): Promise<void> {
   const { page } = session;
-  if (await page.$('#efiling_activity, #draft_cases, #objections')) return;
+  if (!fresh && await page.$('#efiling_activity, #draft_cases, #objections')) return;
   await page.goto(`${BASE}/pdedev/?p=dashboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
-  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
-  if (await page.$('#user_name')) {
-    session.authenticated = false;
-    throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
+  const landed = await page.waitForSelector('#efiling_activity, #draft_cases, #objections, #user_name', { timeout: 15_000 }).catch(() => null);
+  // Bounced to the login form (or anywhere that isn't the dashboard while
+  // the address says login): the portal ended the session.
+  if (await page.$('#user_name') || (!landed && /login|logout|session/i.test(page.url()))) {
+    throw portalSessionEnded(session);
   }
+  if (!landed) throw new EcourtsHttpError(502, "The eFiling portal didn't open your dashboard - it may be slow right now. Try Refresh.");
 }
 
 /** One of the portal's lists: click its tile (or make the same request). */
@@ -1003,8 +1025,8 @@ async function readCalendarAndToday(page: Page): Promise<Omit<PortalDashboardVie
 
 async function readPortalCountsStep(sessionId: string, userId: string): Promise<PortalDashboardView> {
   const session = getSession(sessionId, userId);
-  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
-  await ensureDashboard(session);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  await ensureDashboard(session, true);
   // The portal draws its calendar badges a moment after load.
   await session.page.waitForSelector('.ui-datepicker-calendar', { timeout: 5000 }).catch(() => {});
   const counts = (await snapshot(session.page).catch(() => null))?.counts ?? {};
@@ -1016,12 +1038,19 @@ async function readPortalCountsStep(sessionId: string, userId: string): Promise<
 /** One dashboard list, as the portal shows it when that tile is clicked. */
 async function readPortalListStep(sessionId: string, userId: string, key: PortalListKey): Promise<PortalList> {
   const session = getSession(sessionId, userId);
-  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
   const l = PORTAL_LISTS.find((x) => x.key === key);
   if (!l) throw new EcourtsHttpError(400, 'Unknown eFiling list.');
   await ensureDashboard(session);
   const counts = (await snapshot(session.page).catch(() => null))?.counts ?? {};
-  return readOneList(session.page, l, counts[l.label]);
+  const list = await readOneList(session.page, l, counts[l.label]);
+  // Nothing came back: the portal may have signed this session out while the
+  // old dashboard stayed on screen. Reload it - that tells us (410) - and try once more.
+  if (list.error && !list.rows.length) {
+    await ensureDashboard(session, true);
+    return readOneList(session.page, l, counts[l.label]);
+  }
+  return list;
 }
 
 /**
@@ -1031,13 +1060,12 @@ async function readPortalListStep(sessionId: string, userId: string, key: Portal
  */
 async function readPortalListsStep(sessionId: string, userId: string): Promise<PortalList[]> {
   const session = getSession(sessionId, userId);
-  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
   const { page } = session;
   if (!(await page.$('#__csrf_magic'))) {
     await readPortalPageStep(sessionId, userId, 'dashboard').catch(() => {});
     if (!(await page.$('#__csrf_magic')) && (await page.$('#user_name'))) {
-      session.authenticated = false;
-      throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
+      throw portalSessionEnded(session);
     }
   }
   const tileCounts = (await snapshot(page).catch(() => null))?.counts ?? {};
@@ -1096,10 +1124,9 @@ process.on('beforeExit', () => {
 export async function withPortalPage<T>(sessionId: string, userId: string, fn: (page: Page) => Promise<T>): Promise<T> {
   const session = getSession(sessionId, userId);
   return exclusive(session, async () => {
-    if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+    if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
     if (await session.page.$('#user_name')) {
-      session.authenticated = false;
-      throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
+      throw portalSessionEnded(session);
     }
     return fn(session.page);
   });
@@ -1140,10 +1167,10 @@ export async function readPortalLists(sessionId: string, userId: string) {
   return exclusive(getSession(sessionId, userId), () => readPortalListsStep(sessionId, userId));
 }
 export async function readPortalCounts(sessionId: string, userId: string) {
-  return exclusive(getSession(sessionId, userId), () => readPortalCountsStep(sessionId, userId));
+  return queued(getSession(sessionId, userId), () => readPortalCountsStep(sessionId, userId));
 }
 export async function readPortalList(sessionId: string, userId: string, key: PortalListKey) {
-  return exclusive(getSession(sessionId, userId), () => readPortalListStep(sessionId, userId, key));
+  return queued(getSession(sessionId, userId), () => readPortalListStep(sessionId, userId, key));
 }
 
 /** Internals exposed for tests only. */
