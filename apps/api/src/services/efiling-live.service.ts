@@ -951,14 +951,66 @@ async function readOneList(page: Page, l: (typeof PORTAL_LISTS)[number], tileCou
  * Pleadings, Draft / Completed IAs, Objections, My Cases) - one quick read of
  * the page, so DifAi's dashboard shows them at once. Lists load per tile.
  */
-async function readPortalCountsStep(sessionId: string, userId: string): Promise<Partial<Record<PortalListKey, number>>> {
+export interface PortalDashboardView {
+  counts: Partial<Record<PortalListKey, number>>;
+  /** The portal's Calendar: the month it shows and the case count badge per day. */
+  calendar: { month: number | null; year: number | null; days: Record<string, number> };
+  /** "Cases Listed Today - dd-mm-yyyy" as the portal shows it. */
+  today: { title: string; table: PortalTableData | null; text: string };
+}
+
+/** The portal dashboard's Calendar badges and "Cases Listed Today" box, as rendered. */
+async function readCalendarAndToday(page: Page): Promise<Omit<PortalDashboardView, 'counts'>> {
+  const raw = await page.evaluate(() => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const cal = document.querySelector('.ui-datepicker-calendar') as any;
+    const days: Record<string, number> = {};
+    if (cal) {
+      for (const td of [...cal.querySelectorAll('td')] as any[]) {
+        if (td.classList.contains('ui-datepicker-other-month')) continue;
+        const a = td.querySelector('a, span.ui-state-default');
+        // The day is the link's own text; a badge may sit inside or beside it.
+        const own = a ? [...a.childNodes].filter((n: any) => n.nodeType === 3).map((n: any) => String(n.textContent).trim()).join('') : '';
+        const day = Number(td.getAttribute('data-date')) || Number(own.replace(/\D/g, '')) || Number(txt(a).replace(/\D/g, ''));
+        // A badge is any leaf with just a number that isn't the day itself.
+        const badge = [...td.querySelectorAll('*')].find((el: any) => el !== a && !el.children.length && /^\d+$/.test(txt(el)));
+        if (day && badge) days[String(day)] = Number(txt(badge));
+      }
+    }
+    const month = (document.querySelector('.ui-datepicker-month') as any);
+    const year = (document.querySelector('.ui-datepicker-year') as any);
+    const monthVal = month ? Number(month.value ?? NaN) : NaN;
+    const yearVal = year ? Number(year.value ?? txt(year)) : NaN;
+    // "Cases Listed Today - dd-mm-yyyy" heading and the box under it.
+    // The innermost element naming it (later in document order = deeper).
+    const heading = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6,div,span,label,b,strong')]
+      .filter((e: any) => /cases listed/i.test(txt(e)) && txt(e).length < 60).pop() as any;
+    let box: any = document.querySelector('.activeCasestbl');
+    if (!box && heading) box = heading.nextElementSibling ?? heading.parentElement?.nextElementSibling;
+    const table = box?.querySelector('table');
+    return {
+      days,
+      month: Number.isFinite(monthVal) ? monthVal + 1 : null,
+      year: Number.isFinite(yearVal) ? yearVal : null,
+      title: heading ? txt(heading) : '',
+      tableHtml: table ? String(table.outerHTML) : '',
+      text: box && !table ? txt(box).slice(0, 300) : '',
+    };
+  }).catch(() => ({ days: {}, month: null, year: null, title: '', tableHtml: '', text: '' }));
+  const table = raw.tableHtml ? await htmlTable(page, raw.tableHtml) : null;
+  return { calendar: { month: raw.month, year: raw.year, days: raw.days }, today: { title: raw.title, table, text: raw.text } };
+}
+
+async function readPortalCountsStep(sessionId: string, userId: string): Promise<PortalDashboardView> {
   const session = getSession(sessionId, userId);
   if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
   await ensureDashboard(session);
+  // The portal draws its calendar badges a moment after load.
+  await session.page.waitForSelector('.ui-datepicker-calendar', { timeout: 5000 }).catch(() => {});
   const counts = (await snapshot(session.page).catch(() => null))?.counts ?? {};
   const out: Partial<Record<PortalListKey, number>> = {};
   for (const l of PORTAL_LISTS) if (counts[l.label] !== undefined) out[l.key] = counts[l.label]!;
-  return out;
+  return { counts: out, ...(await readCalendarAndToday(session.page)) };
 }
 
 /** One dashboard list, as the portal shows it when that tile is clicked. */

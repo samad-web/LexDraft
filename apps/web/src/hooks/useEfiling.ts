@@ -171,11 +171,19 @@ export function useSubmitOnPortal(filingId: string) {
   });
 }
 
-/** The numbers on the portal's own dashboard tiles (one quick read). */
+export interface PortalDashboardView {
+  counts: Partial<Record<PortalList['key'], number>>;
+  /** The portal's Calendar: month shown (1-12) and the case count badge per day. */
+  calendar?: { month: number | null; year: number | null; days: Record<string, number> };
+  /** "Cases Listed Today - dd-mm-yyyy" as the portal shows it. */
+  today?: { title: string; table: Pick<PortalList, 'headers' | 'rows'> | null; text: string };
+}
+
+/** The portal's own dashboard: tile numbers, calendar badges and today's listed cases (one quick read). */
 export function usePortalCounts(sessionId: string | null) {
   return useQuery({
     queryKey: ['efiling', 'live', sessionId, 'counts'],
-    queryFn: () => api.get<{ counts: Partial<Record<PortalList['key'], number>> }>(`/efiling/live/session/${sessionId}/counts`),
+    queryFn: () => api.get<PortalDashboardView>(`/efiling/live/session/${sessionId}/counts`),
     enabled: !!sessionId,
     staleTime: 60 * 1000,
     retry: false,

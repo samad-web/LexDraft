@@ -111,6 +111,13 @@ const dashboardPage = () => `<!doctype html><html><body>
 <div class="row panel"><div class="col tile"><span>Objections</span><span>1</span></div><div class="col tile"><span>My Cases</span><span>1</span></div></div>
 ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
 <a href="${ORIGIN}/pdedev/?p=login/logOut">Logout</a>
+<!-- jQuery UI datepicker as the portal draws it, with case-count badges. -->
+<div class="calendar-box"><h4>Calendar</h4><div class="datepicker"><div class="ui-datepicker-header"><select class="ui-datepicker-month"><option value="9" selected>Oct</option></select><select class="ui-datepicker-year"><option value="2026" selected>2026</option></select></div>
+<table class="ui-datepicker-calendar"><tbody>
+<tr><td class="ui-datepicker-other-month"><span class="ui-state-default">28</span><span class="badge">9</span></td><td><a class="ui-state-default" href="#">1</a></td><td><a class="ui-state-default" href="#">5<span class="badge">5</span></a></td></tr>
+<tr><td><a class="ui-state-default" href="#">22</a></td><td><a class="ui-state-default" href="#">23</a><span class="badge">1</span></td></tr>
+</tbody></table></div></div>
+<div class="today-box"><div class="box-title"><h4>Cases Listed Today - 31-10-2026</h4></div><div class="activeCasestbl">No Cases</div></div>
 <div id="db_screen"><div id="history_body"></div></div>
 <script>
   var TILES = ${JSON.stringify(Object.fromEntries(Object.entries(TILES).map(([k, v]) => [k, { route: v.route, field: v.field }])))};
@@ -250,8 +257,11 @@ describe('eFiling portal dashboard (fixture portal)', () => {
   });
 
   it('reads the numbers off the portal\'s own tiles at once (pairs in shared panels), then one list per tile', async () => {
-    const counts = await live.readPortalCounts(sessionId, USER);
-    expect(counts).toEqual({ draft_pleadings: 1, completed_pleadings: 2, draft_ias: 0, completed_ias: 3, objections: 1, my_cases: 1 });
+    const view = await live.readPortalCounts(sessionId, USER);
+    expect(view.counts).toEqual({ draft_pleadings: 1, completed_pleadings: 2, draft_ias: 0, completed_ias: 3, objections: 1, my_cases: 1 });
+    // The Calendar's badges (other-month days skipped) and "Cases Listed Today".
+    expect(view.calendar).toEqual({ month: 10, year: 2026, days: { '5': 5, '23': 1 } });
+    expect(view.today).toEqual({ title: 'Cases Listed Today - 31-10-2026', table: null, text: 'No Cases' });
     const one = await live.readPortalList(sessionId, USER, 'objections');
     expect(one).toMatchObject({ key: 'objections', total: 1, rows: [{ group: 'C202600004 - Maintenance Application' }, { cells: ['1', 'Court fee deficit of Rs. 120.', '21-10-2026'] }] });
   });

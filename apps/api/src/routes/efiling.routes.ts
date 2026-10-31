@@ -178,7 +178,7 @@ efilingRouter.get(
     try {
       if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
       const { sessionId } = req.params as unknown as { sessionId: string };
-      res.json({ counts: await efilingLive.readPortalCounts(sessionId, req.user.id) });
+      res.json(await efilingLive.readPortalCounts(sessionId, req.user.id));
     } catch (err) {
       next(err);
     }

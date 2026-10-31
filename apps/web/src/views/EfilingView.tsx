@@ -392,6 +392,16 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
         {panel(<>{tile('draft_ias', 'Draft IAs')}{tile('completed_ias', 'Completed IAs')}</>)}
         <div className="row" style={{ gap: 10, flex: '2 1 320px' }}>{tile('objections', 'Objections')}{tile('my_cases', 'My Cases')}</div>
       </div>
+      <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
+        <PortalCalendar calendar={counts.data?.calendar} loading={isLoading} />
+        <section className="card col" style={{ gap: 10, flex: '2 1 360px' }} aria-label="Cases Listed Today">
+          <h3 className="heading-sm">{counts.data?.today?.title || `Cases Listed Today - ${todayDmy()}`}</h3>
+          {isLoading ? <p className="body-sm muted">Reading from filing.ecourts.gov.in…</p>
+            : counts.data?.today?.table && counts.data.today.table.rows.length
+              ? <PortalListTable list={{ key: 'my_cases', label: 'Cases Listed Today', total: null, error: null, ...counts.data.today.table }} />
+              : <p className="body-sm muted">{counts.data?.today?.text || 'No Cases'}</p>}
+        </section>
+      </div>
       <section className="card col" style={{ gap: 10 }} aria-label={shown?.label ?? 'List'}>
         <h3 className="heading-sm">{shown?.label ?? LIST_LABEL[open]}</h3>
         {list.isLoading ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
@@ -415,6 +425,48 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
         </button>
       </div>
     </div>
+  );
+}
+
+function todayDmy() {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** The portal's dashboard Calendar: the month it shows, with its case-count badge on each day. */
+function PortalCalendar({ calendar, loading }: { calendar?: { month: number | null; year: number | null; days: Record<string, number> }; loading: boolean }) {
+  const now = new Date();
+  const month = (calendar?.month ?? now.getMonth() + 1) - 1;
+  const year = calendar?.year ?? now.getFullYear();
+  const first = new Date(year, month, 1).getDay();
+  const total = new Date(year, month + 1, 0).getDate();
+  const isThisMonth = month === now.getMonth() && year === now.getFullYear();
+  const cells: Array<number | null> = [...Array(first).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
+  while (cells.length % 7) cells.push(null);
+  return (
+    <section className="card col" style={{ gap: 8, flex: '1 1 280px' }} aria-label="Calendar">
+      <h3 className="heading-sm">Calendar</h3>
+      <div className="body-sm" style={{ fontWeight: 700, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
+        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="body-sm muted" style={{ fontWeight: 600 }}>{d}</span>)}
+        {cells.map((d, i) => {
+          const n = d ? calendar?.days?.[String(d)] : undefined;
+          const today = isThisMonth && d === now.getDate();
+          return (
+            <span key={i} className="body-sm" title={n ? `${n} case${n === 1 ? '' : 's'} listed` : undefined}
+              style={{ position: 'relative', padding: '6px 0', borderRadius: 6, border: today ? '1px solid var(--text-primary)' : '1px solid transparent', fontWeight: n ? 700 : 400 }}>
+              {d ?? ''}
+              {n ? (
+                <span aria-label={`${n} cases`} style={{ position: 'absolute', top: -2, right: 0, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, fontSize: 10, lineHeight: '16px', background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>{n}</span>
+              ) : null}
+            </span>
+          );
+        })}
+      </div>
+      {loading ? <span className="body-sm muted">Reading the portal calendar…</span> : null}
+    </section>
   );
 }
 
