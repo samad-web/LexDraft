@@ -105,6 +105,10 @@ const TILES: Record<string, { route: string; field: string; html: string }> = {
 const dashboardPage = () => `<!doctype html><html><body>
 <input type="hidden" id="base_url" value="${ORIGIN}/pdedev"><input type="hidden" id="__csrf_magic" value="${fx.csrf}">
 <h3>Dashboard</h3>
+<!-- The real dashboard's tiles: pairs inside shared panels, label, icon, number. -->
+<div class="row panel"><div class="col tile"><span>Draft Pleadings</span><i class="fa"></i><span>1</span></div><div class="col tile"><span>Completed Pleadings</span><i class="fa"></i><span>2</span></div></div>
+<div class="row panel"><div class="col tile"><span>Draft IAs</span><span>0</span></div><div class="col tile"><span>Completed IAs</span><span>3</span></div></div>
+<div class="row panel"><div class="col tile"><span>Objections</span><span>1</span></div><div class="col tile"><span>My Cases</span><span>1</span></div></div>
 ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
 <a href="${ORIGIN}/pdedev/?p=login/logOut">Logout</a>
 <div id="db_screen"><div id="history_body"></div></div>
@@ -243,6 +247,13 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     });
     // Eight tile requests, each carrying the token the previous one issued.
     expect(fx.csrfSeen).toEqual(['tok0', 'tok1', 'tok2', 'tok3', 'tok4', 'tok5', 'tok6', 'tok7']);
+  });
+
+  it('reads the numbers off the portal\'s own tiles at once (pairs in shared panels), then one list per tile', async () => {
+    const counts = await live.readPortalCounts(sessionId, USER);
+    expect(counts).toEqual({ draft_pleadings: 1, completed_pleadings: 2, draft_ias: 0, completed_ias: 3, objections: 1, my_cases: 1 });
+    const one = await live.readPortalList(sessionId, USER, 'objections');
+    expect(one).toMatchObject({ key: 'objections', total: 1, rows: [{ group: 'C202600004 - Maintenance Application' }, { cells: ['1', 'Court fee deficit of Rs. 120.', '21-10-2026'] }] });
   });
 
   it('runs one portal step at a time: a second request meanwhile is told to wait', async () => {

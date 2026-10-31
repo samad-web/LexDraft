@@ -169,6 +169,37 @@ efilingRouter.get(
   },
 );
 
+// The portal dashboard's tile numbers (one quick read), then one list per
+// tile on demand - each request stays inside the web server's time limit.
+efilingRouter.get(
+  '/live/session/:sessionId/counts',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      res.json({ counts: await efilingLive.readPortalCounts(sessionId, req.user.id) });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+const PORTAL_LIST_KEYS = ['draft_cases', 'filed_cases', 'draft_pleadings', 'completed_pleadings', 'draft_ias', 'completed_ias', 'objections', 'my_cases'] as const;
+efilingRouter.get(
+  '/live/session/:sessionId/lists/:key',
+  validate({ params: z.object({ sessionId: z.string().uuid(), key: z.enum(PORTAL_LIST_KEYS) }) }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId, key } = req.params as unknown as { sessionId: string; key: (typeof PORTAL_LIST_KEYS)[number] };
+      res.json(await efilingLive.readPortalList(sessionId, req.user.id, key));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // The advocate's own portal dashboard lists (read-only).
 efilingRouter.get(
   '/live/session/:sessionId/lists',

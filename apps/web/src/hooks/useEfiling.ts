@@ -171,6 +171,31 @@ export function useSubmitOnPortal(filingId: string) {
   });
 }
 
+/** The numbers on the portal's own dashboard tiles (one quick read). */
+export function usePortalCounts(sessionId: string | null) {
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId, 'counts'],
+    queryFn: () => api.get<{ counts: Partial<Record<PortalList['key'], number>> }>(`/efiling/live/session/${sessionId}/counts`),
+    enabled: !!sessionId,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+/** One portal dashboard list, read when its tile is opened. */
+export function usePortalList(sessionId: string | null, key: PortalList['key'] | null, ready = true) {
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId, 'list', key],
+    queryFn: () => api.get<PortalList>(`/efiling/live/session/${sessionId}/lists/${key}`),
+    // The portal session does one step at a time: wait for the tile numbers.
+    enabled: !!sessionId && !!key && ready,
+    staleTime: 60 * 1000,
+    // "Still working on your last eFiling step" (409): try again shortly.
+    retry: (n, err) => n < 4 && ((err as { response?: { status?: number }; status?: number })?.response?.status ?? (err as { status?: number })?.status) === 409,
+    retryDelay: 1500,
+  });
+}
+
 export function useEndEfilingSession() {
   return useMutation({
     mutationFn: (sessionId: string) => api.post<{ ok: true }>(`/efiling/live/session/${sessionId}/end`),

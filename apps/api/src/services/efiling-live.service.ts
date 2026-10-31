@@ -399,7 +399,7 @@ async function submitEfilingLoginCaptchaStep(
       .map((e: any) => String(e.textContent).trim())).catch(() => [])) as string[];
     const captchaImageBase64 = await freshLoginCaptcha(page).catch(() => '');
     const hint = fieldErrors.some((e) => /password/i.test(e))
-      ? ' - the password DifAi was given does not fit the portal's rule. Press Cancel, re-type your eFiling password (use Show to check it) and log in again.'
+      ? " - the password DifAi was given does not fit the portal's rule. Press Cancel, re-type your eFiling password (use Show to check it) and log in again."
       : '';
     return { retry: true, captchaImageBase64, reason: (fieldErrors.join(' · ') || 'The eFiling portal did not accept the form - check the username and password.') + hint };
   }
@@ -702,9 +702,18 @@ async function snapshot(page: Page): Promise<PortalSnapshot> {
       .filter((l) => l.text && /^https:\/\/filing\.ecourts\.gov\.in\//.test(l.href) && !/logout/i.test(l.href));
     const counts: Record<string, number> = {};
     for (const label of tiles) {
-      const holders = [...document.querySelectorAll('div, a, li, span')].filter((e: any) => vis(e) && txt(e).includes(label) && txt(e).length < label.length + 40);
+      // The tile itself: the SMALLEST element holding the label and a number
+      // after it (tiles sit in pairs inside shared panels - a panel holds
+      // both tiles' labels and numbers). "Draft Pleadings" must not match
+      // "Completed Pleadings"'s text either.
+      const holders = [...document.querySelectorAll('div, a, li, span, button')]
+        .filter((e: any) => vis(e) && txt(e).includes(label) && txt(e).length < label.length + 40)
+        .sort((x: any, y: any) => txt(x).length - txt(y).length);
       for (const h of holders) {
-        const m = /(\d+)/.exec(txt(h).replace(label, ''));
+        const t = txt(h);
+        const at = t.indexOf(label);
+        if (at > 0 && /[A-Za-z]$/.test(t.slice(0, at).trim())) continue;
+        const m = /^\D*?(\d+)/.exec(t.slice(at + label.length));
         if (m) { counts[label] = Number(m[1]); break; }
       }
     }
@@ -902,51 +911,86 @@ export interface PortalList extends PortalTableData {
   error: string | null;
 }
 
+/** Make sure the session is on the portal's logged-in dashboard. */
+async function ensureDashboard(session: EfilingSession): Promise<void> {
+  const { page } = session;
+  if (await page.$('#efiling_activity, #draft_cases, #objections')) return;
+  await page.goto(`${BASE}/pdedev/?p=dashboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+  if (await page.$('#user_name')) {
+    session.authenticated = false;
+    throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
+  }
+}
+
+/** One of the portal's lists: click its tile (or make the same request). */
+async function readOneList(page: Page, l: (typeof PORTAL_LISTS)[number], tileCount: number | undefined): Promise<PortalList> {
+  try {
+    const fromTile = await clickTile(page, l.tile);
+    if (fromTile !== null) {
+      const table = fromTile ? await htmlTable(page, fromTile) : { headers: [], rows: [] };
+      return { key: l.key, label: l.label, total: tileCount ?? table.rows.filter((r) => 'cells' in r).length, ...table, error: fromTile ? null : 'The portal did not show this list.' };
+    }
+    // Tile not on this page: make the same request its click would.
+    const reply = await portalPost(page, l.route, l.postdata);
+    if (!reply.json) {
+      return { key: l.key, label: l.label, total: null, headers: [], rows: [], error: reply.httpStatus === 200 ? 'The portal sent an unexpected answer.' : `The portal answered ${reply.httpStatus}.` };
+    }
+    const html = typeof reply.json[l.field] === 'string' ? (reply.json[l.field] as string) : '';
+    const err = typeof reply.json['errormsg'] === 'string' ? (reply.json['errormsg'] as string) : null;
+    const table = html ? await htmlTable(page, html) : { headers: [], rows: [] };
+    const total = Number(reply.json['total_record']);
+    return { key: l.key, label: l.label, total: Number.isFinite(total) ? total : table.rows.filter((r) => 'cells' in r).length, ...table, error: err };
+  } catch (e) {
+    return { key: l.key, label: l.label, total: null, headers: [], rows: [], error: (e as Error).message };
+  }
+}
+
 /**
- * The advocate's own portal dashboard lists, read with the same calls the
- * portal's dashboard.js makes (DSH:149-479). Read-only.
+ * The numbers on the portal's own dashboard tiles (Draft / Completed
+ * Pleadings, Draft / Completed IAs, Objections, My Cases) - one quick read of
+ * the page, so DifAi's dashboard shows them at once. Lists load per tile.
+ */
+async function readPortalCountsStep(sessionId: string, userId: string): Promise<Partial<Record<PortalListKey, number>>> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+  await ensureDashboard(session);
+  const counts = (await snapshot(session.page).catch(() => null))?.counts ?? {};
+  const out: Partial<Record<PortalListKey, number>> = {};
+  for (const l of PORTAL_LISTS) if (counts[l.label] !== undefined) out[l.key] = counts[l.label]!;
+  return out;
+}
+
+/** One dashboard list, as the portal shows it when that tile is clicked. */
+async function readPortalListStep(sessionId: string, userId: string, key: PortalListKey): Promise<PortalList> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
+  const l = PORTAL_LISTS.find((x) => x.key === key);
+  if (!l) throw new EcourtsHttpError(400, 'Unknown eFiling list.');
+  await ensureDashboard(session);
+  const counts = (await snapshot(session.page).catch(() => null))?.counts ?? {};
+  return readOneList(session.page, l, counts[l.label]);
+}
+
+/**
+ * Every dashboard list at once (tests and small accounts). The screens use
+ * readPortalCounts + readPortalList: one request per list stays well inside
+ * the web server's time limit.
  */
 async function readPortalListsStep(sessionId: string, userId: string): Promise<PortalList[]> {
   const session = getSession(sessionId, userId);
   if (!session.authenticated) throw new EcourtsHttpError(409, 'Log in to eFiling first.');
   const { page } = session;
-  // The token lives on the portal's logged-in pages; bounced to the login
-  // form means the portal ended the session.
   if (!(await page.$('#__csrf_magic'))) {
     await readPortalPageStep(sessionId, userId, 'dashboard').catch(() => {});
-    if (!(await page.$('#__csrf_magic'))) {
-      if (await page.$('#user_name')) {
-        session.authenticated = false;
-        throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
-      }
+    if (!(await page.$('#__csrf_magic')) && (await page.$('#user_name'))) {
+      session.authenticated = false;
+      throw new EcourtsHttpError(401, 'Your eFiling session has ended on the portal. Log in again.');
     }
   }
-  // The numbers the portal prints on its own tiles, where it shows them.
   const tileCounts = (await snapshot(page).catch(() => null))?.counts ?? {};
   const out: PortalList[] = [];
-  for (const l of PORTAL_LISTS) {
-    try {
-      const fromTile = await clickTile(page, l.tile);
-      if (fromTile !== null) {
-        const table = fromTile ? await htmlTable(page, fromTile) : { headers: [], rows: [] };
-        out.push({ key: l.key, label: l.label, total: tileCounts[l.label] ?? table.rows.filter((r) => 'cells' in r).length, ...table, error: fromTile ? null : 'The portal did not show this list.' });
-        continue;
-      }
-      // Tile not on this page: make the same request its click would.
-      const reply = await portalPost(page, l.route, l.postdata);
-      const html = typeof reply.json?.[l.field] === 'string' ? (reply.json[l.field] as string) : '';
-      const err = typeof reply.json?.['errormsg'] === 'string' ? (reply.json['errormsg'] as string) : null;
-      if (!reply.json) {
-        out.push({ key: l.key, label: l.label, total: null, headers: [], rows: [], error: reply.httpStatus === 200 ? 'The portal sent an unexpected answer.' : `The portal answered ${reply.httpStatus}.` });
-        continue;
-      }
-      const table = html ? await htmlTable(page, html) : { headers: [], rows: [] };
-      const total = Number(reply.json['total_record']);
-      out.push({ key: l.key, label: l.label, total: Number.isFinite(total) ? total : table.rows.filter((r) => 'cells' in r).length, ...table, error: err });
-    } catch (e) {
-      out.push({ key: l.key, label: l.label, total: null, headers: [], rows: [], error: (e as Error).message });
-    }
-  }
+  for (const l of PORTAL_LISTS) out.push(await readOneList(page, l, tileCounts[l.label]));
   if (process.env['NODE_ENV'] !== 'production') {
     const dir = process.env['EFILING_CAPTURE_DIR'] || join(tmpdir(), 'difai-efiling-capture');
     await mkdir(dir, { recursive: true }).catch(() => {});
@@ -1042,6 +1086,12 @@ export async function readPortalPage(sessionId: string, userId: string, what: Po
 
 export async function readPortalLists(sessionId: string, userId: string) {
   return exclusive(getSession(sessionId, userId), () => readPortalListsStep(sessionId, userId));
+}
+export async function readPortalCounts(sessionId: string, userId: string) {
+  return exclusive(getSession(sessionId, userId), () => readPortalCountsStep(sessionId, userId));
+}
+export async function readPortalList(sessionId: string, userId: string, key: PortalListKey) {
+  return exclusive(getSession(sessionId, userId), () => readPortalListStep(sessionId, userId, key));
 }
 
 /** Internals exposed for tests only. */

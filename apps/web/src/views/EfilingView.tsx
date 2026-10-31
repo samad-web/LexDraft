@@ -16,7 +16,7 @@ import {
   type PortalModule,
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
-import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, usePortalLists, type PortalList } from '@/hooks/useEfiling';
+import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, usePortalCounts, usePortalList, type PortalList } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -342,13 +342,20 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
   onNewCase: () => void;
   onPrepared: () => void;
 }) {
-  const { data, isLoading, isError, error, refetch, isFetching } = usePortalLists(sessionId);
-  const lists = data?.items ?? [];
+  // Tile numbers first (one quick read of the portal's dashboard), then the
+  // list of whichever tile is open - like clicking a tile on the portal.
+  const counts = usePortalCounts(sessionId);
   const [open, setOpen] = useState<PortalList['key']>('draft_pleadings');
-  const byKey = (k: PortalList['key']) => lists.find((l) => l.key === k);
-  const shown = byKey(open) ?? null;
+  const list = usePortalList(sessionId, open, !counts.isLoading);
+  const isLoading = counts.isLoading;
+  const isFetching = counts.isFetching || list.isFetching;
+  const isError = counts.isError;
+  const error = counts.error;
+  const refetch = () => { void counts.refetch(); void list.refetch(); };
+  const shown = list.data ?? null;
+  const countOf = (k: PortalList['key']) => counts.data?.counts?.[k];
   const tile = (k: PortalList['key'], label: string) => {
-    const l = byKey(k);
+    const n = countOf(k);
     const on = open === k;
     return (
       <button
@@ -363,7 +370,7 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
         }}
       >
         <span className="body-sm" style={{ fontWeight: 700, color: 'inherit' }}>{label}</span>
-        <span style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>{isLoading ? '…' : l?.error ? '!' : l?.total ?? 0}</span>
+        <span style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>{isLoading ? '…' : n ?? '–'}</span>
       </button>
     );
   };
@@ -386,17 +393,19 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
         <div className="row" style={{ gap: 10, flex: '2 1 320px' }}>{tile('objections', 'Objections')}{tile('my_cases', 'My Cases')}</div>
       </div>
       <section className="card col" style={{ gap: 10 }} aria-label={shown?.label ?? 'List'}>
-        <h3 className="heading-sm">{shown?.label ?? 'Draft Pleadings'}</h3>
-        {isLoading ? <p className="body-sm muted">Reading your dashboard from filing.ecourts.gov.in…</p> : shown ? <PortalListTable list={shown} /> : null}
+        <h3 className="heading-sm">{shown?.label ?? LIST_LABEL[open]}</h3>
+        {list.isLoading ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
+        {list.isError ? <p className="body-sm">{(list.error as Error)?.message || 'Could not open this list on the portal.'}</p> : null}
+        {shown ? <PortalListTable list={shown} /> : null}
       </section>
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
         {(['draft_cases', 'filed_cases'] as const).map((k) => {
-          const l = byKey(k);
+          const l = open === k ? list.data : undefined;
           return (
             <button key={k} type="button" className="card row" onClick={() => setOpen(k)} aria-pressed={open === k}
               style={{ flex: '1 1 240px', gap: 10, alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
               <span className="body-sm" style={{ fontWeight: 600 }}>Case Filing · {k === 'draft_cases' ? 'Draft Cases on the portal' : 'eFiled Cases'}</span>
-              <strong>{isLoading ? '…' : l?.error ? '!' : l?.total ?? 0}</strong>
+              <strong>{open === k && list.isLoading ? '…' : l?.total ?? 'Open'}</strong>
             </button>
           );
         })}
@@ -408,6 +417,11 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
     </div>
   );
 }
+
+const LIST_LABEL: Record<PortalList['key'], string> = {
+  draft_pleadings: 'Draft Pleadings', completed_pleadings: 'Completed Pleadings', draft_ias: 'Draft IAs', completed_ias: 'Completed IAs',
+  objections: 'Objections', my_cases: 'My Cases', draft_cases: 'Draft Cases', filed_cases: 'eFiled Cases',
+};
 
 function PortalListTable({ list }: { list: PortalList }) {
   if (list.error) return <p className="body-sm">{list.label}: {list.error}</p>;
