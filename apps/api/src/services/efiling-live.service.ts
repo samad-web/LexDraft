@@ -1266,6 +1266,8 @@ export interface PortalRowView {
   title: string[];
   /** One per tab (Document, Application, Court Fee, Oath), or just one. */
   sections: Array<{ name: string; table: PortalTableData | null; text: string }>;
+  /** The button opened a document (the portal's PDF viewer), not a window: open it with openPortalFile. */
+  file?: boolean;
 }
 
 /**
@@ -1313,6 +1315,9 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
     for (const t of [...document.querySelectorAll('table')] as any[]) {
       t.setAttribute('data-difai-before', `${t.getClientRects().length ? 1 : 0}:${txt(t).length}`);
     }
+    for (const e of [...document.querySelectorAll('iframe, object, embed')] as any[]) {
+      if (e.tagName === 'OBJECT') e.setAttribute('data', ''); else e.setAttribute('src', 'about:blank');
+    }
     btn.click();
     return 'ok';
   }, { match, action });
@@ -1322,15 +1327,28 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
   // Wait for a table that appeared or changed, and let it finish filling.
   const found = await page.waitForFunction(() => {
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const viewer = ([...document.querySelectorAll('iframe, object, embed')] as any[]).find((x) => {
+      const u = String(x.getAttribute('src') ?? x.getAttribute('data') ?? '');
+      return u && u !== 'about:blank';
+    });
+    if (viewer) return 'file';
+    const inPopup = (x: any) => !x.closest('.ui-datepicker, .hasDatepicker, .fc, #calendar')
+      && !!(x.closest('#history_body') || x.closest('.modal, [role=dialog], .popup'));
     const changed = ([...document.querySelectorAll('table:not([data-difai-list])')] as any[]).filter((x) => x.getClientRects().length
+      && inPopup(x)
       && x.getAttribute('data-difai-before') !== `1:${txt(x).length}`
       && [...x.querySelectorAll('tbody tr')].some((r: any) => r.children.length > 1 || txt(r)));
     // A pop-up inside a row changes the list around it too: take the innermost.
     const t = changed.find((x) => !changed.some((y) => y !== x && x.contains(y)));
     if (!t) return false;
     t.setAttribute('data-difai-opened', '1');
-    return true;
-  }, undefined, { timeout: Math.max(5_000, Math.min(20_000, deadline - Date.now())), polling: 250 }).then(() => true).catch(() => false);
+    return 'table';
+  }, undefined, { timeout: Math.max(5_000, Math.min(20_000, deadline - Date.now())), polling: 250 })
+    .then((h) => h.jsonValue() as Promise<string>).catch(() => '');
+  if (found === 'file') {
+    await closePortalPopups(page);
+    return { title: [], sections: [], file: true };
+  }
   if (!found) {
     await closePortalPopups(page);
     throw new EcourtsHttpError(502, `The portal did not show anything for "${action}". It may be slow - try again.`);
@@ -1538,11 +1556,16 @@ async function openPortalFileStep(sessionId: string, userId: string, key: Portal
     const root = document.querySelector(scope) as any;
     if (!root) return 'row';
     const want = row.map((m: string) => String(m).replace(/\s+/g, ''));
-    const tr = ([...root.querySelectorAll('tr')] as any[]).find((r) => r.getClientRects().length && want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}).replace(/\s+/g, '') === w));
+    const rowsOf = ([...root.querySelectorAll('tr')] as any[]).filter((r) => want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}).replace(/\s+/g, '') === w));
+    const tr = rowsOf.find((r) => r.getClientRects().length) ?? rowsOf[0];
     if (!tr) return 'row';
     const a = ([...tr.querySelectorAll('a, button, input[type=button]')] as any[])
-      .find((b) => (txt(b) || String(b.value ?? '').trim()) === link && b.getClientRects().length > 0);
+      .filter((b) => (txt(b) || String(b.value ?? '').trim()) === link)
+      .sort((x, y) => (y.getClientRects().length ? 1 : 0) - (x.getClientRects().length ? 1 : 0))[0];
     if (!a) return 'link';
+    // The portal's viewers (showFile / showDashboardFile) skip a document that
+    // is already the last one shown (#pl_pop_hid1): clear that, so it loads.
+    for (const id of ['pl_pop_hid1']) { const h = document.getElementById(id) as any; if (h) h.value = ''; }
     a.removeAttribute('target');
     a.click();
     return 'ok';

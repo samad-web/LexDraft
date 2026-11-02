@@ -222,7 +222,7 @@ const myCasesPage = () => MY_CASES_PAGE
 
 const TILES: Record<string, { route: string; field: string; html: string }> = {
   draft_cases: { route: 'advocate_case_registration/getUnRegisteredPDE', field: 'pde_list', html: '<table><thead><tr><th>Sr. No.</th><th>E-Filing Number</th><th>Litigant Name</th></tr></thead><tbody><tr><td>1</td><td>59/2026</td><td>Ramesh Kumar</td></tr></tbody></table>' },
-  filed_cases: { route: 'advocate_case_registration/getSubmittedPDE', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>E-Filing No</th></tr></thead><tbody></tbody></table>' },
+  filed_cases: { route: 'advocate_case_registration/getSubmittedPDE', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>E-Filing No</th><th>Action</th></tr></thead><tbody><tr><td>1</td><td>ATN20250009438C202600002</td><td><button class="btn" onclick="fxCasePdf()">View</button></td></tr></tbody></table>' },
   efiling_activity: { route: 'dashboard/fetchActivities', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>ePayments</th></tr></thead><tbody><tr><td>1</td><td>O.S. - C202600019</td><td><select><option>Select GRN</option><option>KL26GRN00012345 - 4320.00</option></select></td></tr></tbody></table>' },
   // As the real portal returns it (columns, buttons and links as on screen).
   completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table class="search"><tr><td>Search By (eFiling Number/CNR Number/Party Name)</td><td><input></td><td><button>Search</button></td><td><button>Clear</button></td></tr></table><table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#" onclick="return fxAck()">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn" id="btn-pop7" onclick="fxDocs(7)">View Documents</button><div class="popup" id="pop7" style="display:none"><div id="dv_challan7"><table id="example_pl7"><thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody><tr><td>0</td><td>stale</td><td></td><td></td><td></td><td></td></tr></tbody></table></div></div></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn" onclick="fxStatus()">View Status</button></td></tr></tbody></table>' },
@@ -262,7 +262,18 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
 </div></div>
 <script>
   // Like the portal's fetchPleadingData: fill the row's hidden pop-up, then show it.
+  function fxRedrawCalendar() {
+    var c = document.querySelector('.ui-datepicker-calendar');
+    if (c) c.replaceWith(c.cloneNode(true));
+  }
+  function fxCasePdf() {
+    setTimeout(function () {
+      var d = document.getElementById('dv_data') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'dv_data' }));
+      d.innerHTML = '<object id="myPdf" type="application/pdf" data="/pdedev/temp/case_ATN20250009438C202600002.pdf"></object>';
+    }, 400);
+  }
   function fxDocs(id) {
+    fxRedrawCalendar();
     setTimeout(function () {
       document.getElementById('example_pl' + id).innerHTML = '<thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody>'
         + '<tr class="dtrg-group"><td colspan="6">Ambeth Arivukarasan Proprietor Thoorigai Prints</td></tr>'
@@ -273,6 +284,10 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
     }, 600);
   }
   function fxPdf(n) {
+    var last = document.getElementById('pl_pop_hid1');
+    if (!last) { last = Object.assign(document.createElement('input'), { type: 'hidden', id: 'pl_pop_hid1' }); document.body.appendChild(last); }
+    if (last.value === String(n)) return false;
+    last.value = String(n);
     var box = document.getElementById('vw_doc_app_list_modal');
     if (!box) { box = document.createElement('div'); box.id = 'vw_doc_app_list_modal'; box.className = 'modal'; document.body.appendChild(box); }
     box.innerHTML = '<div id="pdfPreviewContainer">Loading document...</div>';
@@ -301,6 +316,7 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
     return false;
   }
   function fxStatus() {
+    fxRedrawCalendar();
     setTimeout(function () { document.getElementById('mod_status').style.display = 'block'; fxTab('st_doc'); }, 400);
   }
   // The portal's ajaxCall: form body + ajax_req + the current token; the reply's nsteptoken is the next one.
@@ -558,6 +574,16 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     const doc2 = v.sections[0]!.table!.rows[2] as { cells: string[] };
     const f2 = await live.openPortalFile(sessionId, USER, 'completed_pleadings', { match: row.slice(0, 2), action: 'View Documents', docRow: doc2.cells.slice(0, 2), link: 'PROOF AFFIDAVIT' });
     expect(f2.body.toString()).toBe('%PDF-1.4 fixture /pdedev/temp/ATN20250009438D202600002.pdf');
+    // The same document again (the portal's viewer would skip it): still opens.
+    await live.openPortalFile(sessionId, USER, 'completed_pleadings', { match: row.slice(0, 2), action: 'View Documents', docRow: doc2.cells.slice(0, 2), link: 'PROOF AFFIDAVIT' })
+      .then((f) => expect(f.body.toString()).toBe('%PDF-1.4 fixture /pdedev/temp/ATN20250009438D202600002.pdf'));
+  }, 90_000);
+
+  it('eFiled Cases > View opens the case PDF (not a window): DifAi says so, then shows that PDF', async () => {
+    const v = await live.openPortalRowAction(sessionId, USER, 'filed_cases', ['1', 'ATN20250009438C202600002'], 'View');
+    expect(v).toEqual({ title: [], sections: [], file: true });
+    const f = await live.openPortalFile(sessionId, USER, 'filed_cases', { match: ['1', 'ATN20250009438C202600002'], link: 'View' });
+    expect(f.body.toString()).toBe('%PDF-1.4 fixture /pdedev/temp/case_ATN20250009438C202600002.pdf');
   }, 90_000);
 
   it('Acknowledgement in the list row opens its PDF', async () => {

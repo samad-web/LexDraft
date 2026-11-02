@@ -91,6 +91,11 @@ export async function runSelfTest(sessionId: string, userId: string): Promise<vo
       if (!row) continue;
       for (const action of (row.actions ?? []).filter((a) => /^view\b/i.test(a))) {
         const v = await step(`${k}: ${action}`, () => live.openPortalRowAction(sessionId, userId, k, row.cells.slice(0, 2), action));
+        if (v?.file) {
+          await step(`${k}: ${action}: the document it opens`, () => live.openPortalFile(sessionId, userId, k, { match: row.cells.slice(0, 2), link: action }),
+            (f) => ({ name: f.name, contentType: f.contentType, bytes: f.body.length, pdf: f.body.subarray(0, 5).toString('latin1') === '%PDF-' }));
+          continue;
+        }
         const sec = v?.sections.find((s) => s.table?.rows.some((r) => 'cells' in r && r.actions?.length));
         const doc = sec?.table?.rows.find((r) => 'cells' in r && r.actions?.length) as { cells: string[]; actions?: string[] } | undefined;
         if (doc) {

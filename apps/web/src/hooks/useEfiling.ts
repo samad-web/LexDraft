@@ -230,6 +230,8 @@ export function usePortalList(sessionId: string | null, key: PortalList['key'] |
 export interface PortalRowView {
   title: string[];
   sections: Array<{ name: string; table: Pick<PortalList, 'headers' | 'rows'> | null; text: string }>;
+  /** The button opened a document (the portal's PDF viewer), not a window. */
+  file?: boolean;
 }
 
 /** Click a button in one row of a portal list and read what it opens. */

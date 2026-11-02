@@ -396,7 +396,15 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
   const onAction = (key: PortalList['key']) => (cells: string[], action: string) => {
     const v = { key, match: cells.slice(0, 2), action };
     setDrill(v);
-    openRow.mutate(v);
+    openRow.mutate(v, {
+      // Some "View" buttons open the case PDF (eFiled Cases > View): show it as a document.
+      onSuccess: (r) => {
+        if (!r.file) return;
+        setDrill(null);
+        openRow.reset();
+        showFile({ key, match: v.match, link: action });
+      },
+    });
   };
   const closeDrill = () => { setDrill(null); openRow.reset(); };
   // A document link (Acknowledgement, COMPLAINT ...): the PDF the portal shows.
