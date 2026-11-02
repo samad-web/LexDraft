@@ -218,7 +218,9 @@ describe.skipIf(!DIR)('DifAi eFiling screens from real portal data (preview)', (
     await page.getByPlaceholder('Captcha code').fill(fx.lastCode);
     await page.getByRole('button', { name: 'Submit', exact: true }).click();
     await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 60_000 });
-    for (const m of SCREENS) {
+    // EFILING_PREVIEW_ONLY=new_case,fav_clients ... shows just those screens.
+    const only = (process.env['EFILING_PREVIEW_ONLY'] ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    for (const m of only.length ? SCREENS.filter((x) => only.includes(x)) : SCREENS) {
       await page.goto(`${WEB}/app/efiling${m === 'dashboard' ? '' : `?m=${m}`}`, { waitUntil: 'domcontentloaded' });
       await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 30_000 });
       await page.waitForLoadState('networkidle').catch(() => {});
@@ -226,6 +228,7 @@ describe.skipIf(!DIR)('DifAi eFiling screens from real portal data (preview)', (
       await page.screenshot({ path: join(OUT, `${m}.png`), fullPage: true });
     }
     // The dashboard's windows, as the portal opens them.
+    if (only.length && !only.includes('dashboard')) return;
     await page.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
     await page.getByRole('button', { name: /^Completed Pleadings: / }).click();
     await page.getByRole('dialog', { name: 'Completed Pleadings' }).waitFor();
