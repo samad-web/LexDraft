@@ -39,6 +39,8 @@ const fx = {
   mapped: [] as string[],
   /** My Cases keeps its cases in window globals (as the portal's my_cases.js does). */
   myCasesGlobals: true,
+  /** The portal's newer My Cases: a group's case links are not on the page until it is opened. */
+  lazyCaseLinks: false,
   /** The widget's own requests (portfolio/...), with what they sent. */
   portfolio: [] as Array<{ route: string; body: string }>,
 };
@@ -213,7 +215,8 @@ function fxHistoryBack() { document.getElementById('case_history_div').style.dis
 // so DifAi has to read what the widget drew instead.
 const myCasesPage = () => MY_CASES_PAGE
   .replace('FXTOP', fx.myCasesGlobals ? 'var CNR_Numbers_ef, CNR_Numbers_HC_ef; var allCNRRepresentative = [];' : '')
-  .replace('FXLOCAL', fx.myCasesGlobals ? '' : 'var CNR_Numbers_ef, CNR_Numbers_HC_ef, allCNRRepresentative;');
+  .replace('FXLOCAL', fx.myCasesGlobals ? '' : 'var CNR_Numbers_ef, CNR_Numbers_HC_ef, allCNRRepresentative;')
+  .replace("(filing ? 'show_filing_case_history_link' : 'show_case_history_link')", fx.lazyCaseLinks ? "'fx_group_closed'" : "(filing ? 'show_filing_case_history_link' : 'show_case_history_link')");
 
 const TILES: Record<string, { route: string; field: string; html: string }> = {
   draft_cases: { route: 'advocate_case_registration/getUnRegisteredPDE', field: 'pde_list', html: '<table><thead><tr><th>Sr. No.</th><th>E-Filing Number</th><th>Litigant Name</th></tr></thead><tbody><tr><td>1</td><td>59/2026</td><td>Ramesh Kumar</td></tr></tbody></table>' },
@@ -390,7 +393,9 @@ async function serve(route: Route): Promise<void> {
     const reply = (o: Record<string, unknown>) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ nsteptoken: fx.csrf, ...o }) });
     if (p === 'portfolio/getMyCasesData/') return reply({ mycases_dc: MY_CASES.dc, mycases_hc: MY_CASES.hc });
     if (p === 'portfolio/getRepresentingForCinos/') return reply({ existing_cases: [{ cino: 'TNCH0C0012342024', litigant_type: 1, litigant_name: 'Ramesh Kumar', llitigant_name: null }] });
-    if (p === 'portfolio/getCaseHistory/' || p === 'portfolio/getFilingCaseHistory/') return reply({ option: CASE_HISTORY });
+    if (p === 'portfolio/getCaseHistory/' || p === 'portfolio/getFilingCaseHistory/') {
+      return reply({ option: /NOPE/.test(req.postData() ?? '') ? '' : CASE_HISTORY });
+    }
     if (p === 'portfolio/getViewBusiness/') return reply({ option: `<span><b>Daily Status</b></span><table><tr><td>Business</td><td>Arguments heard in part.</td></tr><tr><td>Next Purpose</td><td>Hearing</td></tr><tr><td>Next Hearing Date</td><td>${dmyOf(FUTURE)}</td></tr></table>` });
     return reply({});
   }
@@ -633,8 +638,23 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     fx.portfolio = [];
     await live.openMyCaseHistory(sessionId, USER, 'TNCB0A0000012026', 'd');
     expect(fx.portfolio.map((r) => r.route)).toContain('portfolio/getFilingCaseHistory/');
-    await expect(live.openMyCaseHistory(sessionId, USER, 'NOPE00000000000', 'd')).rejects.toMatchObject({ status: 409 });
+    await expect(live.openMyCaseHistory(sessionId, USER, 'NOPE00000000000', 'd')).rejects.toMatchObject({ status: 502 });
   }, 60_000);
+
+  it("My Cases (portal's newer script): the case link isn't on the page until its group opens - DifAi makes the portal's own getCaseHistory request", async () => {
+    fx.lazyCaseLinks = true;
+    try {
+      fx.portfolio = [];
+      const h = await live.openMyCaseHistory(sessionId, USER, 'TNCH0C0012342024', 'd');
+      expect(fx.portfolio.find((r) => r.route === 'portfolio/getCaseHistory/')!.body).toMatch(/^cino1=TNCH0C0012342024&source=mycases&.*selected_court=D/);
+      expect(h.blocks.filter((b) => b.kind === 'heading').map((b) => b.text)).toEqual(['City Civil Court, Chennai', 'Case Details', 'Case Status', 'Petitioner and Advocate', 'Case History']);
+      // Its hearing dates still open the Daily Status, as on the portal.
+      const d = await live.openMyCaseHistory(sessionId, USER, 'TNCH0C0012342024', 'd', { text: dmyOf(PAST), nth: 0 });
+      expect(d.name).toBe('Daily Status');
+    } finally {
+      fx.lazyCaseLinks = false;
+    }
+  }, 90_000);
 
   it("My Cases: when the widget's records can't be read, DifAi reads the panels it drew instead", async () => {
     fx.myCasesGlobals = false;

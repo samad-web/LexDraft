@@ -2012,7 +2012,25 @@ async function openMyCaseHistoryStep(sessionId: string, userId: string, cino: st
       a.click();
       return true;
     }, { cino, court });
-    if (!clicked) throw new EcourtsHttpError(409, 'That case is no longer in My Cases on the portal - Refresh and try again.');
+    if (!clicked) {
+      // The portal's newer My Cases (portfolio/my_cases_new.js) loads a
+      // group's cases only when that group is opened, so the link may not be
+      // on the page. Its click handler makes one request - getCaseHistory
+      // with the CNR - and draws obj.option into #case_history: do the same.
+      const reply = await portalPost(page, 'portfolio/getCaseHistory/',
+        `cino1=${encodeURIComponent(cino)}&source=mycases&language_flag=marathi&bilingual_flag=0&selected_court=${court === 'h' ? 'H' : 'D'}`);
+      const html = typeof reply.json?.['option'] === 'string' ? (reply.json['option'] as string) : '';
+      if (!html.trim()) throw new EcourtsHttpError(502, 'The portal did not return this case\'s details. Try again.');
+      await page.evaluate((h) => {
+        let box = document.getElementById('case_history') as any;
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'case_history';
+          (document.getElementById('history_body') ?? document.body).appendChild(box);
+        }
+        box.innerHTML = h;
+      }, html);
+    }
     const shown = await page.waitForFunction(() => String((document.getElementById('case_history') as any)?.textContent ?? '').trim().length > 0, undefined, { timeout: 25_000, polling: 250 }).then(() => true).catch(() => false);
     if (!shown) throw new EcourtsHttpError(502, 'The portal did not show this case history. It may be slow - try again.');
     await settle(page, '#case_history');
