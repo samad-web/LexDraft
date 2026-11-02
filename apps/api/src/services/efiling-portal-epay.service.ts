@@ -82,8 +82,11 @@ export interface EpayFormView {
   amountWords: Record<string, string>;
   /** #errSpan1: the portal's amount check (epay/chk_amount). */
   amountError: string;
-  /** "I agree" (#i_agree) and its words, when the page has it. */
-  terms: { label: string; checked: boolean } | null;
+  /**
+   * "I agree" (#i_agree) and its words, when the page has it; title / text:
+   * the portal's Terms and Conditions box above it, when the page shows one.
+   */
+  terms: { label: string; checked: boolean; title?: string; text?: string } | null;
   otp: { shown: boolean; label: string; message: string; buttons: EpayButton[] };
   buttons: EpayButton[];
   /** What verify_otp_new put in #div_redirect, read as a form or link. */
@@ -102,7 +105,13 @@ export interface EpayProceedResult {
 export interface EpayTxnAction { label: string; fn: string }
 export type EpayTxnRow = { group: string } | { ref: string; cells: string[]; actions: EpayTxnAction[] };
 export interface EpayTxnTable { headers: string[]; rows: EpayTxnRow[] }
-export interface EpayTransactions { tables: EpayTxnTable[]; text: string; messages: string[] }
+export interface EpayTransactions {
+  tables: EpayTxnTable[];
+  text: string;
+  messages: string[];
+  /** The portal window's own title ("Transaction List"), when it has one. */
+  title?: string;
+}
 
 export interface EpayOpened { url: string; file: { name: string; contentType: string; base64: string } | null }
 export interface EpayTxnActionResult { transactions: EpayTransactions; opened: EpayOpened[]; messages: string[] }
@@ -319,7 +328,9 @@ async function readForm(page: Page, messages: string[] = []): Promise<EpayFormVi
     const h = (globalThis as any).__dfe;
     const root = document.getElementById('frm') ?? document.querySelector('input[name=epayOptions]')?.closest('form') ?? document.body;
     const content = document.querySelector('.content-wrapper, main, #content, .container-fluid, .container') ?? document.body;
-    const heading = ([...content.querySelectorAll('h1, h2, h3, h4, legend, .card-header, .box-title')] as any[]).find((e) => h.shown(e) && h.txt(e) && h.txt(e).length < 80);
+    const outside = (e: any) => !e.closest('nav, header, footer, .navbar, .modal, table, form, #frm');
+    const heading = ([...content.querySelectorAll('h1, h2, h3, h4, legend, .card-header, .box-title')] as any[]).find((e) => h.shown(e) && h.txt(e) && h.txt(e).length < 80)
+      ?? ([...document.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .box-title, .page-title, .card-title')] as any[]).find((e) => h.shown(e) && outside(e) && h.txt(e) && h.txt(e).length < 80);
     const fields: any[] = [];
     const radioGroups = new Map<string, any>();
     for (const el of [...root.querySelectorAll('input, select, textarea')] as any[]) {
@@ -364,7 +375,24 @@ async function readForm(page: Page, messages: string[] = []): Promise<EpayFormVi
       if (t) amountWords[field!] = t;
     }
     const agree = document.getElementById('i_agree');
-    const terms = agree ? { label: h.labelOf(agree), checked: !!agree.checked } : null;
+    // The Terms and Conditions box the portal shows above "I agree": the
+    // smallest shown block whose text starts with its title.
+    let termsBox: any = null;
+    if (agree) {
+      for (const e of [...document.querySelectorAll('div, p, fieldset, section, textarea, span')] as any[]) {
+        if (!h.shown(e) || e.contains(agree) || e.closest('nav, .navbar, .modal')) continue;
+        const t = e.tagName === 'TEXTAREA' ? String(e.value ?? '') : h.txt(e);
+        if (!/^terms\s*(and|&)\s*conditions\b/i.test(t) || t.length < 120) continue;
+        if (!termsBox || termsBox.contains(e)) termsBox = e;
+      }
+    }
+    const termsRaw = termsBox ? (termsBox.tagName === 'TEXTAREA' ? String(termsBox.value ?? '') : String(termsBox.innerText ?? h.txt(termsBox))) : '';
+    const termsTitle = /^\s*(terms\s*(and|&)\s*conditions)\s*:?/i.exec(termsRaw)?.[1] ?? '';
+    const termsText = termsRaw.slice(termsRaw.toLowerCase().indexOf(termsTitle.toLowerCase()) + termsTitle.length)
+      .replace(/^\s*:?\s*/, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim().slice(0, 6000);
+    const terms = agree
+      ? { label: h.labelOf(agree), checked: !!agree.checked, ...(termsText ? { title: termsTitle.replace(/\s+/g, ' '), text: termsText } : {}) }
+      : null;
     const btnInfo = (b: any) => ({ label: h.label(b), id: b.id ?? '', kind: h.buttonKind(b), disabled: !!b.disabled });
     const allButtons = ([...document.querySelectorAll('button, input[type=button], input[type=submit], a.btn, a[onclick]')] as any[]).filter((b) => h.shown(b));
     const otpBox = document.getElementById('div_otp');
@@ -685,6 +713,7 @@ async function readTransactionList(page: Page, messages: string[] = []): Promise
     const h = (globalThis as any).__dfe;
     const box = document.getElementById('divTransList');
     if (!box) return { tables: [], text: '', messages };
+    const winTitle = h.txt(box.closest('.modal')?.querySelector('.modal-title, .modal-header h1, .modal-header h2, .modal-header h3, .modal-header h4, .modal-header h5'));
     const tables = ([...box.querySelectorAll('table')] as any[]).filter((t) => !t.parentElement?.closest('table') && !t.closest('.dataTables_scrollHead'));
     const out = tables.map((table, ti) => {
       let head = table.tHead?.rows?.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
@@ -708,7 +737,7 @@ async function readTransactionList(page: Page, messages: string[] = []): Promise
       }).filter((r: any) => ('group' in r ? r.group : r.cells.some(Boolean)));
       return { headers, rows };
     }).filter((t) => t.rows.length || t.headers.length);
-    return { tables: out, text: out.length ? '' : h.txt(box).slice(0, 500), messages };
+    return { tables: out, text: out.length ? '' : h.txt(box).slice(0, 500), messages, ...(winTitle && winTitle.length < 80 ? { title: winTitle } : {}) };
   }, { fns: [...TXN_FNS] as string[], messages }) as Promise<EpayTransactions>;
 }
 
@@ -822,11 +851,18 @@ async function readWalletPage(page: Page): Promise<EpayWalletView['page']> {
   await install(page);
   const got = await page.evaluate(() => {
     const h = (globalThis as any).__dfe;
-    const content = document.querySelector('.content-wrapper, main, #content, .container-fluid, .container') ?? document.body;
-    const headings = ([...content.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .box-title')] as any[]).filter((e) => h.shown(e)).map((e) => String(h.txt(e))).filter((t: string) => t && t.length < 120).slice(0, 20);
+    // The page's own content: the largest content block (the first one can be
+    // the portal's A- A A+ text-size bar).
+    const blocks = ([...document.querySelectorAll('.content-wrapper, main, #content, .container-fluid, .container')] as any[]).filter((e) => h.shown(e) && !e.closest('nav, header, .navbar'));
+    const content = blocks.sort((a, b) => h.txt(b).length - h.txt(a).length)[0] ?? document.body;
+    const headings = ([...content.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .box-title, .page-title, .card-title')] as any[]).filter((e) => h.shown(e) && !e.closest('nav, header, .navbar, .modal')).map((e) => String(h.txt(e))).filter((t: string) => t && t.length < 120).slice(0, 20);
     const tables = ([...content.querySelectorAll('table')] as any[]).filter((t) => h.shown(t) && !t.parentElement?.closest('table')).map((t) => String(t.outerHTML));
     const clone = content.cloneNode(true);
-    for (const e of [...clone.querySelectorAll('table, script, style, nav, .navbar, .modal, select')]) e.remove();
+    for (const e of [...clone.querySelectorAll('table, script, style, nav, header, footer, .navbar, .modal, select')]) e.remove();
+    // The portal's text-size bar (A- A A+ A A) is not page content.
+    for (const e of [...clone.querySelectorAll('*')] as any[]) {
+      if (/^(A[-+]?\s*){3,6}$/.test(String(e.textContent ?? '').replace(/\s+/g, ' ').trim())) e.remove();
+    }
     return { title: headings[0] ?? String(document.title ?? ''), headings, tables, text: String(clone.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 1500) };
   }) as { title: string; headings: string[]; tables: string[]; text: string };
   const tables: PortalTableData[] = [];

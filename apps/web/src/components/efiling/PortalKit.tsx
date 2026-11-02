@@ -52,9 +52,11 @@ export type PortalRows = PortalList['rows'];
  * Number/Party Name)" with Search / Clear and First · Prev · pages · Next ·
  * Last, "Show N entries", the table, "Showing a to b of n entries".
  */
-export function PortalListView({ label, headers, rows, pageSize: initialSize, onAction, onLink, busy }: {
+export function PortalListView({ label, headers, rows, pageSize: initialSize, onAction, onLink, busy, variant = 'portal' }: {
   label: string; headers: string[]; rows: PortalRows; pageSize: number;
   onAction?: (cells: string[], action: string) => void; onLink?: (cells: string[], link: string) => void; busy?: boolean;
+  /** 'portal': the dashboard lists' Search By … bar; 'datatable': the plain table controls the portal uses inside its windows. */
+  variant?: 'portal' | 'datatable';
 }) {
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
@@ -98,6 +100,41 @@ export function PortalListView({ label, headers, rows, pageSize: initialSize, on
       {pager}
     </div>
   );
+  const showN = (
+    <label className="body-sm" style={{ fontWeight: 700 }}>
+      Show{' '}
+      <select value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(0); }}>
+        {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+      </select>{' '}entries
+    </label>
+  );
+  if (variant === 'datatable') {
+    // Inside the portal's windows: "Show N entries" | "Search:", the table,
+    // "Showing a to b of n entries" | Previous · pages · Next.
+    return (
+      <div className="col" style={{ gap: 10 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {showN}
+          <label className="row body-sm" style={{ gap: 6, alignItems: 'center', fontWeight: 700 }}>
+            Search:
+            <input className="input" value={query} onChange={(e) => { setQuery(e.target.value); setDraft(e.target.value); setPage(0); }} style={{ width: 200 }} />
+          </label>
+        </div>
+        {found.length ? <PortalTable headers={headers} rows={pageRows} onAction={onAction} onLink={onLink} busy={busy} />
+          : <p className="body-sm muted" style={{ textAlign: 'center' }}>{q ? 'No matching records found' : 'No data available in table'}</p>}
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span className="body-sm">{found.length ? `Showing ${p * size + 1} to ${p * size + shown.length} of ${found.length} entries` : 'Showing 0 to 0 of 0 entries'}</span>
+          <span className="row" style={{ gap: 4, alignItems: 'center' }}>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={p === 0} onClick={() => setPage(p - 1)}>Previous</button>
+            {Array.from({ length: pages }, (_, i) => i).filter((i) => Math.abs(i - p) < 3).map((i) => (
+              <button key={i} type="button" style={{ ...pagerBtn(i === p), border: '1px solid var(--border-default)', borderRadius: 3 }} aria-current={i === p ? 'page' : undefined} onClick={() => setPage(i)}>{i + 1}</button>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" disabled={p >= pages - 1} onClick={() => setPage(p + 1)}>Next</button>
+          </span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="col" style={{ gap: 14 }}>
       {bar}

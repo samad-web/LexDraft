@@ -73,7 +73,11 @@ export interface LiveControl {
 }
 
 /** A button or link on the portal page: its text and which one of that text it is. */
-export interface LiveClick { text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string }
+export interface LiveClick {
+  text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string;
+  /** The open tab / current page (the portal marks it active / current). */
+  active?: boolean;
+}
 
 export interface LiveCell { text: string; controls: LiveControl[]; clicks: LiveClick[] }
 export type LiveRow = { group: string } | { cells: LiveCell[] };
@@ -151,7 +155,7 @@ export const CHANGES_ACCOUNT = /\b(add|save|submit|assign|accept|approve|remove|
  */
 function installHelpers(): void {
   const W = globalThis as any;
-  if (W.__difai && W.__difai.v === 5) return;
+  if (W.__difai && W.__difai.v === 6) return;
   if (!W.__difaiXhrPatched && W.XMLHttpRequest) {
     W.__difaiXhrPatched = true;
     W.__difaiPending = 0;
@@ -214,7 +218,7 @@ function installHelpers(): void {
   const clickables = () => ([...document.body.querySelectorAll(CLICK)] as any[])
     .filter((e) => !e.closest(OUTSIDE) && shown(e) && textOf(e));
   const clickInfo = () => {
-    const m = new Map<any, { text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string }>();
+    const m = new Map<any, { text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string; active?: boolean }>();
     const counts = new Map<string, number>();
     for (const e of clickables()) {
       const text = textOf(e);
@@ -223,6 +227,7 @@ function installHelpers(): void {
       m.set(e, {
         text, nth, kind: e.tagName === 'A' && !e.classList.contains('btn') ? 'link' : 'button',
         disabled: !!e.disabled || e.classList.contains('disabled') || e.getAttribute('aria-disabled') === 'true', id: e.id || '',
+        ...(/\b(active|current)\b/.test(String(e.className)) || /\bactive\b/.test(String(e.parentElement?.className ?? '')) || e.getAttribute('aria-selected') === 'true' ? { active: true } : {}),
       });
     }
     return m;
@@ -289,7 +294,17 @@ function installHelpers(): void {
     while (root && root !== document.body && !parts.every((p) => root.contains(p))) root = root.parentElement;
     return root || document.body;
   };
-  const isDataTable = (t: any) => !!t.querySelector('thead th') || !t.querySelector('select, textarea, input[type=text], input:not([type])');
+  // A table holding other tables (a page laid out in a table, a calendar's
+  // header + body grids) is layout: its own headings and tables are read.
+  const isDataTable = (t: any) => !t.querySelector('table') && (!!t.querySelector('thead th') || !t.querySelector('select, textarea, input[type=text], input:not([type])'));
+  /** A short line in large type (the portal's page titles that are not h1-h6). */
+  const bigTitle = (n: any): string => {
+    // (Cells of data tables are read by readTable, never here.)
+    if (n.closest('a, button, label')) return '';
+    const t = norm(n.innerText ?? n.textContent);
+    if (!t || t.length > 80 || /\n/.test(String(n.innerText ?? '').trim())) return '';
+    return parseFloat(W.getComputedStyle(n).fontSize) >= 19 ? t : '';
+  };
   const BLOCK = 'div,p,ul,ol,li,section,article,form,fieldset,center,header,footer,dl,dt,dd,hr,tr,table,tbody,thead';
   const walk = (root: any) => {
     const items: any[] = [];
@@ -398,6 +413,8 @@ function installHelpers(): void {
         const inner = n.querySelector(`${CONTROL}, button, input[type=button], input[type=submit], a.btn, table, h1, h2, h3, h4, h5, h6, legend`);
         const block = n.matches(BLOCK);
         if (!inner) {
+          const big = info.has(n) ? '' : bigTitle(n);
+          if (big) { flush(); items.push({ kind: 'heading', text: big }); continue; }
           if (block) flush();
           inline(n);
           if (block) flush();
@@ -430,7 +447,9 @@ function installHelpers(): void {
   const screen = () => {
     consumed.clear();
     const root = pickRoot();
-    const items = walk(root);
+    let items = walk(root);
+    // Nothing in the box the visible parts share (the page still settling): the whole page.
+    if (!items.length && root !== document.body) items = walk(document.body);
     // Pop-ups the portal opened (results, messages) after the page itself.
     for (const m of [...document.querySelectorAll('.modal')] as any[]) {
       if (root.contains(m) || m.contains(root) || !shown(m)) continue;
@@ -447,7 +466,7 @@ function installHelpers(): void {
     const h = items.find((i: any) => i.kind === 'heading');
     return { title: h ? h.text : norm(document.title), url: String(document.location.href), items };
   };
-  W.__difai = { v: 5, norm, shown, clickables, textOf, screen };
+  W.__difai = { v: 6, norm, shown, clickables, textOf, screen };
 }
 
 async function helpers(page: Page): Promise<void> {

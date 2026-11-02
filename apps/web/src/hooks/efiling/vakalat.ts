@@ -30,7 +30,11 @@ export interface LiveControl {
   maxLength?: number;
 }
 
-export interface LiveClick { text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string }
+export interface LiveClick {
+  text: string; nth: number; kind: 'button' | 'link'; disabled: boolean; id: string;
+  /** The open tab / current page (the portal marks it active / current). */
+  active?: boolean;
+}
 export interface LiveCell { text: string; controls: LiveControl[]; clicks: LiveClick[] }
 export type LiveRow = { group: string } | { cells: LiveCell[] };
 export interface LiveTable { id: string; headers: string[]; filters?: LiveCell[]; rows: LiveRow[] }

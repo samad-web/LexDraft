@@ -960,7 +960,10 @@ export async function htmlTable(page: Page, html: string): Promise<PortalTableDa
         for (const b of [...visible(c).querySelectorAll('button, a, input[type=button]')] as any[]) {
           const label = txt(b) || String(b.value ?? '').trim();
           const clickable = b.tagName !== 'A' || b.getAttribute('onclick') || /^(#|javascript:)/i.test(b.getAttribute('href') ?? '#');
-          if (label && clickable && label.length < 40 && !actions.includes(label)) actions.push(label);
+          // Long document names are links on the portal too ("DOC NO 10 STATUTORY NOTICE ..."):
+          // a long label counts when the link runs a portal function, not a plain name link.
+          const fn = !!b.getAttribute('onclick');
+          if (label && clickable && (label.length < 40 || (fn && label.length <= 160)) && !actions.includes(label)) actions.push(label);
         }
       }
       return {

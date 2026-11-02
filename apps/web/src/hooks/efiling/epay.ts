@@ -35,7 +35,8 @@ export interface EpayFormView {
   caseDetails: string;
   amountWords: Record<string, string>;
   amountError: string;
-  terms: { label: string; checked: boolean } | null;
+  /** title / text: the portal's Terms and Conditions box above "I agree", when shown. */
+  terms: { label: string; checked: boolean; title?: string; text?: string } | null;
   otp: { shown: boolean; label: string; message: string; buttons: EpayButton[] };
   buttons: EpayButton[];
   redirect: { text: string; gateway: EpayGateway | null } | null;
@@ -46,7 +47,7 @@ export interface EpayProceedResult { form: EpayFormView; gateway: EpayGateway | 
 export interface EpayTxnAction { label: string; fn: string }
 export type EpayTxnRow = { group: string } | { ref: string; cells: string[]; actions: EpayTxnAction[] };
 export interface EpayTxnTable { headers: string[]; rows: EpayTxnRow[] }
-export interface EpayTransactions { tables: EpayTxnTable[]; text: string; messages: string[] }
+export interface EpayTransactions { tables: EpayTxnTable[]; text: string; messages: string[]; /** The portal window's title. */ title?: string }
 export interface EpayOpened { url: string; file: { name: string; contentType: string; base64: string } | null }
 export interface EpayTxnActionResult { transactions: EpayTransactions; opened: EpayOpened[]; messages: string[] }
 

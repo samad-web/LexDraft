@@ -23,6 +23,7 @@ import {
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 import { PortalHeader, type ChromeMenu } from '@/components/efiling/PortalChrome';
+import { PortalTabs } from '@/components/efiling/PortalForm';
 import '@/styles/efiling-portal.css';
 import { PortalEpay } from '@/components/efiling/portal/PortalEpay';
 import { PortalApplications } from '@/components/efiling/portal/PortalApplications';
@@ -705,7 +706,7 @@ function PortalRowWindow({ action, view, loading, error, onRetry, onLink, busy }
       ) : null}
       {section ? (
         section.table && section.table.rows.length
-          ? <PortalListView key={`${tab}-${section.name}`} label={section.name} headers={section.table.headers} rows={section.table.rows} pageSize={10} busy={busy}
+          ? <PortalListView key={`${tab}-${section.name}`} label={section.name} headers={section.table.headers} rows={section.table.rows} pageSize={10} busy={busy} variant="datatable"
               onLink={onLink ? (cells, link) => onLink(view.sections.length > 1 ? section.name : undefined, cells, link) : undefined} />
           : <p className="body-sm muted">{section.text || `Nothing under ${section.name} on the portal.`}</p>
       ) : null}
@@ -765,17 +766,14 @@ function MyCasesWindow({ data, loading, error, onCase, busy }: {
         </div>
         <label className="row body-sm" style={{ gap: 8, alignItems: 'center', fontWeight: 700 }}>
           Search Keyword
-          <select value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ minWidth: 220, fontWeight: 400 }}>
+          <select value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ width: 300, maxWidth: '60vw', height: 32, fontWeight: 400 }}>
             <option value="">Select</option>
             {options.map((c) => <option key={`${c.court}${c.cino}`} value={c.cino}>{c.caseNo}{c.filing ? ' (F)' : ''} - {c.petName} Vs {c.resName}</option>)}
           </select>
         </label>
       </div>
-      <div className="row" role="tablist" aria-label="Pending / Disposed / Both" style={{ gap: 4 }}>
-        {(['Pending', 'Disposed', 'Both'] as const).map((f) => (
-          <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} style={{ ...seg(filter === f), borderRadius: 4 }}>{f}</button>
-        ))}
-      </div>
+      {/* The portal's Pending / Disposed / Both tab strip. */}
+      <PortalTabs tabs={(['Pending', 'Disposed', 'Both'] as const).map((f) => ({ key: f, label: f }))} active={filter} onPick={setFilter} />
       {courts.map(({ k, label }) => {
         // The band shows whenever that court list has cases (showHideDivsIfCasesExist).
         if (!data.cases.some((c) => c.court === k)) return null;

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { PortalModal } from '../PortalKit';
+import { PortalButton, PortalInput, PortalPage, PortalPanel, PortalSearchCase, PortalSelect, PortalTabs, Star } from '../PortalForm';
 import {
   fileToBase64, useAddPleadingFile, useAddPleadingIndex, useDeletePleading, useDeletePleadingIndex, useDraftPleadings,
   useMergePleadings, useOathCase, useOathDocument, useOathScreen, usePlayOath, usePleadingAuth, usePleadingCase,
@@ -14,8 +15,46 @@ import {
 // Pleadings > Video Recording, live on the advocate's portal account. Every
 // label, tab, list column and row button comes from the portal page itself
 // (read by the API); DifAi only falls back to the portal function's meaning
-// where the portal shows a bare icon. Monochrome, as the rest of eFiling.
+// where the portal shows a bare icon. Laid out as the portal lays these pages
+// out (centred heading, the Search Case box, the grey file panel with its
+// numbered notes, centred Submit), in DifAi's black and white.
 // =============================================================================
+
+// The portal's Font Awesome icons on these pages, drawn in currentColor.
+const ico = { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.4, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+const ICON = {
+  send: <svg {...ico} fill="currentColor" stroke="none"><path d="M23 1 1 10.5l7 3 1.5 8.5 4-5.5 6 4.5z" /></svg>,
+  upload: <svg {...ico}><path d="M12 15V3M6 9l6-6 6 6M3 15v5h18v-5" /></svg>,
+  list: <svg {...ico}><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" /></svg>,
+  userCheck: <svg {...ico}><circle cx="9" cy="7" r="4" /><path d="M2 21c0-4 3-7 7-7 2 0 3.5.6 4.5 1.5" /><path d="m15 18 2.5 2.5L22 16" /></svg>,
+  plus: <svg {...ico}><path d="M12 5v14M5 12h14" /></svg>,
+};
+
+/** The portal writes some labels with their " *" in the text ("Search Keyword *"). */
+const bare = (l: string) => l.replace(/\s*\*\s*$/, '');
+const starred = (l: string) => /\*\s*$/.test(l);
+
+/** The portal's numbered notes under Choose File on Pleadings > Upload Pleadings. */
+const UPLOAD_NOTES = (
+  <ol style={{ margin: '6px 0 0', paddingLeft: 22, fontSize: 14, lineHeight: 1.5, listStyle: 'decimal' }}>
+    <li>File name should not contain special characters, except underscore (_)</li>
+    <li>Only PDF file allowed up to <b>20 MB</b> size</li>
+    <li>If uploaded documents aren't showing, <b>Clear your browser cache and try again.</b><br />If the 'Merge' button isn't visible, do the same and try again.</li>
+  </ol>
+);
+
+/** The case-source radios as the portal shows them inside the Search Case box. */
+function Choices({ name, items, value, onPick }: { name: string; items: Array<{ value: string; label: string }>; value: string; onPick: (v: string) => void }) {
+  return (
+    <>
+      {items.map((r) => (
+        <label key={r.value} className="row" style={{ gap: 6, alignItems: 'center', fontSize: 14 }}>
+          <input type="radio" name={name} value={r.value} checked={value === r.value} onChange={() => onPick(r.value)} />{r.label}
+        </label>
+      ))}
+    </>
+  );
+}
 
 // What a portal row button does, by the portal function it calls - used only
 // when the portal shows a bare icon with no text or title.
@@ -55,8 +94,9 @@ function PleadingList({ table, empty, onCall, busy, check }: {
   onCall?: (row: PleadingRow, call: PortalCall) => void;
   check?: { picked: Set<string>; toggle: (id: string) => void };
 }) {
-  if (!table || !table.rows.some(isRow)) return <p className="body-sm muted">{empty}</p>;
-  const cols = Math.max(table.headers.length, ...table.rows.map((r) => (isRow(r) ? r.cells.length : 0)));
+  // As DataTables does: the header stays, with the portal's own "No record" row or ours.
+  if (!table || (!table.rows.some(isRow) && !table.headers.length)) return empty ? <p className="body-sm muted">{empty}</p> : null;
+  const cols = Math.max(1, table.headers.length, ...table.rows.map((r) => (isRow(r) ? r.cells.length : 0)));
   const td: React.CSSProperties = { padding: '10px 8px', borderRight: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'pre-line', fontSize: 14 };
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -92,6 +132,7 @@ function PleadingList({ table, empty, onCall, busy, check }: {
           ) : (
             <tr key={i}><td colSpan={cols} style={{ ...td, textAlign: 'left', fontWeight: 700, background: 'var(--bg-surface-2)' }}>{r.group}</td></tr>
           )))}
+          {!table.rows.length && empty ? <tr><td colSpan={cols} style={td}>{empty}</td></tr> : null}
         </tbody>
       </table>
     </div>
@@ -129,35 +170,71 @@ const field: React.CSSProperties = { display: 'flex', flexDirection: 'column', g
 const lbl: React.CSSProperties = { fontWeight: 700, fontSize: 14 };
 
 /**
- * The case box: the e-filing numbers as listed; for an existing case the
- * portal's search box (type 3+ letters, it lists the advocate's matching cases).
+ * The picker in the Search Case box: the e-filing numbers as a plain select;
+ * for "Search My Cases" the portal's Select2 box - open it, type 3+ letters,
+ * it lists the advocate's matching cases to pick from.
  */
-function CaseChooser({ label, existing, options, value, onChange, onSearch, searching, searchError }: {
+function CasePicker({ label, existing, options, value, onChange, onSearch, searching, searchError }: {
   label: string; existing: boolean; options: PortalOption[]; value: string; onChange: (v: string) => void;
   onSearch: (term: string) => void; searching: boolean; searchError: unknown;
 }) {
+  const [open, setOpen] = useState(false);
   const [term, setTerm] = useState('');
+  const [shown, setShown] = useState('');
+  const box = useRef<HTMLDivElement>(null);
+  const search = useRef(onSearch);
+  search.current = onSearch;
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', away);
+    return () => document.removeEventListener('mousedown', away);
+  }, [open]);
+  useEffect(() => {
+    const t = term.trim();
+    if (t.length < 3) return;
+    const id = setTimeout(() => search.current(t), 400);
+    return () => clearTimeout(id);
+  }, [term]);
+  if (!existing) {
+    return (
+      <PortalSelect aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Select</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+      </PortalSelect>
+    );
+  }
+  const short = term.trim().length < 3;
+  const item: React.CSSProperties = { display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', fontSize: 14, border: 'none', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer' };
   return (
-    <div className="col" style={{ gap: 8, maxWidth: 520 }}>
-      {existing ? (
-        <div className="row" style={{ gap: 8, alignItems: 'flex-end' }}>
-          <label style={field}><span style={lbl}>{label}</span>
-            <input className="input" placeholder="Enter Text" value={term} onChange={(e) => setTerm(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && term.trim().length >= 3) onSearch(term.trim()); }} /></label>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={term.trim().length < 3 || searching} onClick={() => onSearch(term.trim())}>{searching ? 'Searching…' : 'Search'}</button>
+    <div ref={box} style={{ position: 'relative', width: '100%' }}>
+      <button type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((o) => !o)}
+        style={{ width: '100%', height: 32, padding: '0 8px', fontSize: 14, border: '1px solid var(--text-primary)', borderRadius: 3, background: 'var(--bg-surface)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(value && shown) || 'Select'}</span>
+        <span aria-hidden style={{ fontSize: 10 }}>▼</span>
+      </button>
+      {open ? (
+        <div style={{ position: 'absolute', zIndex: 5, left: 0, right: 0, top: '100%', background: 'var(--bg-surface)', border: '1px solid var(--text-primary)', borderTop: 'none', padding: 4 }}>
+          <PortalInput autoFocus aria-label={`${label} search`} value={term} onChange={(e) => setTerm(e.target.value)} />
+          <div role="listbox" style={{ maxHeight: 220, overflowY: 'auto', marginTop: 4 }}>
+            {short ? <p className="body-sm" style={{ margin: 0, padding: '6px 8px' }}>Please enter {3 - term.trim().length} or more characters</p>
+              : searching ? <p className="body-sm" style={{ margin: 0, padding: '6px 8px' }}>Searching…</p>
+                : searchError ? <p className="body-sm" style={{ margin: 0, padding: '6px 8px' }}>{errText(searchError, 'The results could not be loaded.')}</p>
+                  : !options.length ? <p className="body-sm" style={{ margin: 0, padding: '6px 8px' }}>No results found</p>
+                    : options.map((o) => (
+                      <button key={o.value} type="button" role="option" aria-selected={o.value === value} style={{ ...item, background: o.value === value ? 'var(--bg-surface-2)' : 'transparent' }}
+                        onClick={() => { setShown(o.text); onChange(o.value); setOpen(false); }}>{o.text}</button>
+                    ))}
+          </div>
         </div>
       ) : null}
-      <label style={field}>
-        {existing ? null : <span style={lbl}>{label}</span>}
-        <select className="input" aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Select</option>
-          {options.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-        </select>
-      </label>
-      <Said error={searchError} />
     </div>
   );
 }
+
+/** A grey-panel row as the portal lays it out: bold label (its * before or after), then the fields. */
+const panelRow: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 1fr)', columnGap: 16, rowGap: 6, alignItems: 'start' };
+const panelLbl: React.CSSProperties = { fontWeight: 700, fontSize: 15, paddingTop: 6 };
 
 // ---- Pleadings > Use Template ---------------------------------------------------
 
@@ -176,62 +253,58 @@ function UseTemplate({ sessionId }: { sessionId: string }) {
   const resetGen = gen.reset;
   useEffect(() => { setType(''); setParties(new Set()); resetGen(); }, [caseQ.data, resetGen]);
   const label = (id: string, fallback: string) => s?.labels[id] || fallback;
-  if (screen.isLoading) return <p className="body-sm">Opening Pleadings &gt; Use Template on your portal…</p>;
-  if (screen.isError || !s) return <Said error={screen.error ?? new Error("Couldn't open Use Template on the portal.")} />;
+  if (screen.isLoading) return <PortalPage title="Use Templates" required={null}><p className="body-sm">Opening Pleadings &gt; Use Template on your portal…</p></PortalPage>;
+  if (screen.isError || !s) return <PortalPage title="Use Templates" required={null}><Said error={screen.error ?? new Error("Couldn't open Use Template on the portal.")} /></PortalPage>;
   const v = caseQ.data;
   // Only one side's clients at a time, as on the portal.
   const sideOn = v?.parties.find((p) => parties.has(p.value))?.side ?? null;
+  const pickerLabel = source === '1' ? label('txt_case_search', 'Search Keyword *') : label('sel_pde_no', 'e-Filing Number');
+  const typeLabel = label('type_pleading', 'Type of Pleading *');
   return (
-    <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{s.title || 'Use Template'}</h2>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={screen.isFetching || caseQ.isFetching}
-          onClick={() => { void screen.refetch(); if (c) void caseQ.refetch(); }}>{screen.isFetching || caseQ.isFetching ? 'Reading…' : 'Refresh from portal'}</button>
-      </div>
-      <div className="row" role="radiogroup" aria-label="Case" style={{ gap: 18, flexWrap: 'wrap' }}>
-        {s.sources.map((r) => (
-          <label key={r.value} className="row" style={{ gap: 6, alignItems: 'center', fontWeight: 600 }}>
-            <input type="radio" name="tpl-cases" checked={source === r.value} onChange={() => { setSource(r.value); setValue(''); }} />{r.label}
-          </label>
-        ))}
-      </div>
-      {source === '1' || source === '3' ? (
-        <CaseChooser label={source === '1' ? label('txt_case_search', 'Case') : label('sel_pde_no', 'e-Filing Number')}
-          existing={source === '1'} options={source === '1' ? search.data?.items ?? [] : s.efiled} value={value} onChange={setValue}
-          onSearch={(term) => search.mutate({ term })} searching={search.isPending} searchError={search.error} />
-      ) : <p className="body-sm">A registered case by its case number is chosen on the portal for now; DifAi covers the e-filed and existing-case choices.</p>}
-      <Said error={caseQ.error} />
-      {caseQ.isFetching && !v ? <p className="body-sm">Reading the case on the portal…</p> : null}
-      {v ? (
-        <>
-          {v.parties.length ? (
-            <fieldset style={{ border: '1px solid var(--border-default)', padding: '8px 12px' }}>
-              <legend style={lbl}>{v.clientsLabel || 'My Clients'}</legend>
-              <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
-                {v.parties.map((p) => (
-                  <label key={p.value} className="row" style={{ gap: 6, alignItems: 'center' }}>
-                    <input type="checkbox" disabled={!!sideOn && sideOn !== p.side} checked={parties.has(p.value)}
-                      onChange={() => setParties((x) => { const n = new Set(x); if (n.has(p.value)) n.delete(p.value); else n.add(p.value); return n; })} />
-                    {p.label}
-                  </label>
-                ))}
+    <PortalPage title={s.title || 'Use Templates'}>
+      <div style={{ padding: '0 2.5%' }} className="col">
+        <div className="col" style={{ gap: 10 }}>
+          <PortalSearchCase choices={<Choices name="tpl-cases" items={s.sources} value={source} onPick={(x) => { setSource(x); setValue(''); }} />}
+            pickerLabel={bare(pickerLabel)} required={starred(pickerLabel)}
+            picker={source === '1' || source === '3' ? (
+              <CasePicker label={bare(pickerLabel)} existing={source === '1'} options={source === '1' ? search.data?.items ?? [] : s.efiled} value={value} onChange={setValue}
+                onSearch={(term) => search.mutate({ term })} searching={search.isPending} searchError={search.error} />
+            ) : <span className="body-sm">Choose this case on the portal.</span>} />
+          <PortalPanel>
+            <div className="col" style={{ gap: 12 }}>
+              {v?.parties.length ? (
+                <div style={panelRow}>
+                  <span style={panelLbl}>{v.clientsLabel || 'My Clients'}</span>
+                  <div className="row" style={{ gap: 18, flexWrap: 'wrap', paddingTop: 6 }}>
+                    {v.parties.map((p) => (
+                      <label key={p.value} className="row" style={{ gap: 6, alignItems: 'center', fontSize: 14 }}>
+                        <input type="checkbox" disabled={!!sideOn && sideOn !== p.side} checked={parties.has(p.value)}
+                          onChange={() => setParties((x) => { const n = new Set(x); if (n.has(p.value)) n.delete(p.value); else n.add(p.value); return n; })} />
+                        {p.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <div style={{ ...panelRow, gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 280px) auto', alignItems: 'center' }}>
+                <span style={{ ...panelLbl, paddingTop: 0 }}>{bare(typeLabel)}<Star /></span>
+                <PortalSelect aria-label={bare(typeLabel)} value={type} disabled={!v} onChange={(e) => { setType(e.target.value); gen.reset(); }}>
+                  <option value="">Select an Option</option>
+                  {(v?.pleadingTypes ?? []).map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+                </PortalSelect>
+                <span className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <PortalButton icon={ICON.send} disabled={!v || !type || gen.isPending}
+                    onClick={() => gen.mutate({ ...c!, typePleading: type, parties: [...parties] })}>{gen.isPending ? 'Generating on the portal…' : label('submit', 'Submit')}</PortalButton>
+                  {gen.data && v ? <a href={gen.data.url} style={{ fontWeight: 700, color: 'var(--text-primary)' }} download={`${v.pleadingTypes.find((o) => o.value === type)?.text || 'template'}.doc`}>{label('rptname', 'click to open the file')}</a> : null}
+                </span>
               </div>
-            </fieldset>
-          ) : null}
-          <label style={{ ...field, maxWidth: 520 }}><span style={lbl}>{label('type_pleading', 'Type of Pleading')} *</span>
-            <select className="input" value={type} onChange={(e) => { setType(e.target.value); gen.reset(); }}>
-              <option value="">Select</option>
-              {v.pleadingTypes.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-            </select></label>
-          <div className="row" style={{ gap: 10, alignItems: 'center' }}>
-            <button type="button" className="btn btn-primary btn-sm" disabled={!type || gen.isPending}
-              onClick={() => gen.mutate({ ...c!, typePleading: type, parties: [...parties] })}>{gen.isPending ? 'Generating on the portal…' : label('submit', 'Generate')}</button>
-            {gen.data ? <a className="btn btn-ghost btn-sm" href={gen.data.url} download={`${v.pleadingTypes.find((o) => o.value === type)?.text || 'template'}.doc`}>{label('rptname', 'Download')}</a> : null}
-          </div>
-          <Said error={gen.error} />
-        </>
-      ) : null}
-    </div>
+              {caseQ.isFetching && !v ? <p className="body-sm" style={{ margin: 0 }}>Reading the case on the portal…</p> : null}
+            </div>
+          </PortalPanel>
+          <Said error={caseQ.error ?? gen.error} />
+        </div>
+      </div>
+    </PortalPage>
   );
 }
 
@@ -257,45 +330,33 @@ function PleadingUpload({ sessionId }: { sessionId: string }) {
   const options = source === '1' ? search.data?.items ?? s?.existing ?? [] : s?.efiled ?? [];
   const label = (id: string, fallback: string) => s?.labels[id] || fallback;
 
-  if (screen.isLoading) return <p className="body-sm">Opening Pleadings &gt; Pleading Upload on your portal…</p>;
-  if (screen.isError || !s) return <Said error={screen.error ?? new Error("Couldn't open Pleading Upload on the portal.")} />;
-  const tabs = s.tabs.length ? s.tabs.map((t, i) => ({ key: tabOf(t.id, i), label: t.label })) : [{ key: 'upload' as Tab, label: s.title || 'Pleading Upload' }];
+  if (screen.isLoading) return <PortalPage title="Pleadings" required={null}><p className="body-sm">Opening Pleadings &gt; Pleadings on your portal…</p></PortalPage>;
+  if (screen.isError || !s) return <PortalPage title="Pleadings" required={null}><Said error={screen.error ?? new Error("Couldn't open Pleadings on the portal.")} /></PortalPage>;
+  const seen = new Set<Tab>();
+  const tabs = (s.tabs.length ? s.tabs.map((t, i) => ({ key: tabOf(t.id, i), label: t.label })) : [{ key: 'upload' as Tab, label: 'Upload Pleadings' }])
+    .filter((t) => (seen.has(t.key) ? false : (seen.add(t.key), true)))
+    .map((t) => ({ ...t, icon: t.key === 'index' ? ICON.list : t.key === 'esign' ? ICON.userCheck : ICON.upload }));
+  const pickerLabel = source === '1' ? label('txt_case_search', 'Search Keyword *') : label('sel_pde_no', 'e-Filing Number');
 
   return (
-    <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{s.title || 'Pleading Upload'}</h2>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={screen.isFetching || caseQ.isFetching}
-          onClick={() => { void screen.refetch(); if (c) void caseQ.refetch(); }}>{screen.isFetching || caseQ.isFetching ? 'Reading…' : 'Refresh from portal'}</button>
-      </div>
-      <div className="row" role="radiogroup" aria-label="Case" style={{ gap: 18, flexWrap: 'wrap' }}>
-        {s.sources.map((r) => (
-          <label key={r.value} className="row" style={{ gap: 6, alignItems: 'center', fontWeight: 600 }}>
-            <input type="radio" name="pl-cases" value={r.value} checked={source === r.value} onChange={() => { setSource(r.value); setValue(''); }} />
-            {r.label}
-          </label>
-        ))}
-      </div>
-      <CaseChooser label={source === '1' ? label('txt_case_search', 'Case') : label('sel_pde_no', 'e-Filing Number')}
-        existing={source === '1'} options={options} value={value} onChange={setValue}
-        onSearch={(term) => search.mutate({ term })} searching={search.isPending} searchError={search.error} />
-      {caseQ.isError ? <Said error={caseQ.error} /> : null}
-      {c ? (
-        <>
-          <div role="tablist" className="row" style={{ gap: 0, borderBottom: '2px solid var(--text-primary)', flexWrap: 'wrap' }}>
-            {tabs.map((t) => (
-              <button key={t.key + t.label} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
-                style={{ padding: '10px 18px', border: 'none', cursor: 'pointer', fontWeight: 700, background: tab === t.key ? 'var(--bg-inverse)' : 'transparent', color: tab === t.key ? 'var(--text-inverse)' : 'inherit' }}>
-                {t.label}
-              </button>
-            ))}
+    <PortalPage title={s.title || 'Pleadings'} required={null}>
+      <div>
+        <PortalTabs tabs={tabs} active={tab} onPick={setTab} bold />
+        <div className="col" style={{ gap: 12, border: '1px solid var(--border-default)', borderTop: 'none', padding: '12px 8px 10px' }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fields marked with * are required.</p>
+          <div className="col" style={{ gap: 10, padding: '0 3%' }}>
+            <PortalSearchCase choices={<Choices name="pl-cases" items={s.sources} value={source} onPick={(x) => { setSource(x); setValue(''); }} />}
+              pickerLabel={bare(pickerLabel)} required={starred(pickerLabel)}
+              picker={<CasePicker label={bare(pickerLabel)} existing={source === '1'} options={options} value={value} onChange={setValue}
+                onSearch={(term) => search.mutate({ term })} searching={search.isPending} searchError={search.error} />} />
+            {caseQ.isError ? <Said error={caseQ.error} /> : null}
+            {tab === 'upload' ? <UploadTab sessionId={sessionId} c={c} labels={s.labels} docTypes={s.docTypes} /> : null}
+            {tab === 'index' && c ? <IndexTab sessionId={sessionId} c={c} labels={s.labels} /> : null}
+            {tab === 'esign' && c ? <EsignTab sessionId={sessionId} c={c} labels={s.labels} /> : null}
           </div>
-          {tab === 'upload' ? <UploadTab sessionId={sessionId} c={c} labels={s.labels} docTypes={s.docTypes} /> : null}
-          {tab === 'index' ? <IndexTab sessionId={sessionId} c={c} labels={s.labels} /> : null}
-          {tab === 'esign' ? <EsignTab sessionId={sessionId} c={c} /> : null}
-        </>
-      ) : <p className="body-sm muted">Select the case to upload pleadings against.</p>}
-    </div>
+        </div>
+      </div>
+    </PortalPage>
   );
 }
 
@@ -309,7 +370,7 @@ function titleNotes(v: string): string | null {
   return null;
 }
 
-function UploadTab({ sessionId, c, labels, docTypes }: { sessionId: string; c: CaseRef; labels: Record<string, string>; docTypes: Array<{ value: string; text: string }> | null }) {
+function UploadTab({ sessionId, c, labels, docTypes }: { sessionId: string; c: CaseRef | null; labels: Record<string, string>; docTypes: Array<{ value: string; text: string }> | null }) {
   const caseQ = usePleadingCase(sessionId, c);
   const add = useAddPleadingFile(sessionId);
   const submit = useSubmitPleadingFiles(sessionId);
@@ -337,7 +398,7 @@ function UploadTab({ sessionId, c, labels, docTypes }: { sessionId: string; c: C
   const busy = add.isPending || submit.isPending || del.isPending || merge.isPending;
 
   const doAdd = async () => {
-    if (!file) return;
+    if (!file || !c) return;
     const base64 = await fileToBase64(file);
     add.mutate({ ...c, title, docType: docType || null, file: { name: file.name, base64 } }, {
       onSuccess: (r) => { setAdded(r.added); if (r.ok) { setTitle(''); setFile(null); setDocType(''); if (fileRef.current) fileRef.current.value = ''; } },
@@ -345,104 +406,119 @@ function UploadTab({ sessionId, c, labels, docTypes }: { sessionId: string; c: C
   };
   const onCall = (_row: PleadingRow, call: PortalCall) => {
     const no = call.args[0] ?? '';
-    if (call.fn === 'showFile') { setViewing(no); view.mutate({ ...c, pleadingNumber: no }); }
+    if (call.fn === 'showFile' && c) { setViewing(no); view.mutate({ ...c, pleadingNumber: no }); }
     if (call.fn === 'removeFile') setConfirm({ kind: 'delete', no });
   };
   const closeView = () => { if (view.data) URL.revokeObjectURL(view.data.url); setViewing(null); view.reset(); };
   const picks = [...picked].map((id) => id.replace(/^chk_/, ''));
+  const fileLabel = labels['file_name'] || 'File Name';
+  const listed = !!view_?.table && (view_.table.rows.length > 0 || view_.table.headers.length > 0);
 
   return (
-    <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        {docTypes ? (
-          <label style={field}>
-            <span style={lbl}>{labels['selDocType'] || 'Document Type'}</span>
-            <select className="input" value={docType} onChange={(e) => {
-              const v = e.target.value;
-              setDocType(v);
-              // As the portal: the type's name becomes the title (fixed for value 1).
-              setTitle(v ? docTypes.find((o) => o.value === v)?.text ?? '' : '');
-            }}>
-              <option value="">Select</option>
-              {docTypes.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-            </select>
-          </label>
-        ) : null}
-        <label style={field}>
-          <span style={lbl}>{labels['file_name'] || 'Document Title'} *</span>
-          <input className="input" value={title} readOnly={lockedTitle} onChange={(e) => setTitle(e.target.value)} />
-          {notes ? <span className="body-sm" style={{ fontWeight: 700 }}>{notes}</span> : null}
-        </label>
-        <label style={field}>
-          <span style={lbl}>{labels['doc_file_name'] || 'Choose file'} *</span>
-          <input ref={fileRef} type="file" accept="application/pdf,.pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-        </label>
-        <button type="button" className="btn btn-primary btn-sm" disabled={!file || !title || busy} onClick={() => void doAdd()}>
-          {add.isPending ? 'Adding on the portal…' : labels['add_btn'] || 'Add'}
-        </button>
-      </div>
-      <Said lines={add.data?.portal} error={add.error} />
-      {addedNow.length ? (
-        <ul style={{ listStyle: 'none', margin: 0, padding: 0, border: '1px solid var(--border-default)' }}>
-          {addedNow.map((f, i) => (
-            <li key={i} className="row" style={{ gap: 12, padding: '8px 12px', borderBottom: '1px solid var(--border-default)', flexWrap: 'wrap' }}>
-              <span style={{ flex: '1 1 200px' }}>{f.title}</span>
-              <span style={{ flex: '1 1 200px', fontWeight: 600 }}>{f.file}{f.signed ? <span style={{ ...inverseBtn, marginLeft: 8, cursor: 'default' }}>Digitally Signed</span> : null}</span>
-              <span className="body-sm muted">{f.size}</span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {view_?.parties.length ? (
-        <fieldset style={{ border: '1px solid var(--border-default)', padding: '8px 12px' }}>
-          <legend style={lbl}>{view_.clientsLabel || 'My Clients'}</legend>
-          <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
-            {view_.parties.map((p) => (
-              <label key={p.value} className="row" style={{ gap: 6, alignItems: 'center' }}>
-                <input type="checkbox" checked={parties.has(p.value)} onChange={() => setParties((s) => { const n = new Set(s); if (n.has(p.value)) n.delete(p.value); else n.add(p.value); return n; })} />
-                {p.label}
-              </label>
-            ))}
+    <div className="col" style={{ gap: 12 }}>
+      <PortalPanel>
+        <div className="col" style={{ gap: 12 }}>
+          {docTypes?.length ? (
+            <div style={{ ...panelRow, gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 270px)' }}>
+              <span style={panelLbl}>{labels['selDocType'] || 'Document Type'}</span>
+              <PortalSelect aria-label={labels['selDocType'] || 'Document Type'} value={docType} onChange={(e) => {
+                const v = e.target.value;
+                setDocType(v);
+                // As the portal: the type's name becomes the title (fixed for value 1).
+                setTitle(v ? docTypes.find((o) => o.value === v)?.text ?? '' : '');
+              }}>
+                <option value="">Select</option>
+                {docTypes.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+              </PortalSelect>
+            </div>
+          ) : null}
+          {/* * File Name | [title] | [Choose File] No file chosen + the portal's notes | + Add File */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 200px) minmax(0, 270px) minmax(260px, 1.4fr) auto', columnGap: 24, rowGap: 8, alignItems: 'start' }}>
+            <span style={panelLbl}><span aria-hidden style={{ marginRight: 4 }}>*</span>{fileLabel}</span>
+            <div className="col" style={{ gap: 4 }}>
+              <PortalInput aria-label={fileLabel} value={title} readOnly={lockedTitle} onChange={(e) => setTitle(e.target.value)} />
+              {notes ? <span className="body-sm" style={{ fontWeight: 700 }}>{notes}</span> : null}
+            </div>
+            <div>
+              <input ref={fileRef} type="file" aria-label={labels['doc_file_name'] || 'Select file'} accept="application/pdf,.pdf" style={{ fontSize: 14 }}
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              {UPLOAD_NOTES}
+            </div>
+            <PortalButton icon={ICON.plus} disabled={!c || !file || !title || busy} onClick={() => void doAdd()}>
+              {add.isPending ? 'Adding on the portal…' : labels['add_btn'] || 'Add File'}
+            </PortalButton>
           </div>
-        </fieldset>
-      ) : null}
-      <div className="row" style={{ gap: 8 }}>
-        <button type="button" className="btn btn-primary btn-sm" disabled={!addedNow.length || busy || !!title} onClick={() => setConfirm({ kind: 'submit' })}>
-          {submit.isPending ? 'Submitting on the portal…' : labels['submit'] || 'Submit'}
-        </button>
-        {title && addedNow.length ? <span className="body-sm">Press {labels['add_btn'] || 'Add'} for the title you typed first.</span> : null}
-      </div>
+          <Said lines={add.data?.portal} error={add.error} />
+          {addedNow.length ? (
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, border: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+              {addedNow.map((f, i) => (
+                <li key={i} className="row" style={{ gap: 12, padding: '8px 12px', borderBottom: '1px solid var(--border-default)', flexWrap: 'wrap' }}>
+                  <span style={{ flex: '1 1 200px' }}>{f.title}</span>
+                  <span style={{ flex: '1 1 200px', fontWeight: 600 }}>{f.file}{f.signed ? <span style={{ ...inverseBtn, marginLeft: 8, cursor: 'default' }}>Digitally Signed</span> : null}</span>
+                  <span className="body-sm muted">{f.size}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {view_?.parties.length ? (
+            <div style={panelRow}>
+              <span style={panelLbl}>{view_.clientsLabel || 'My Clients'}</span>
+              <div className="row" style={{ gap: 18, flexWrap: 'wrap', paddingTop: 6 }}>
+                {view_.parties.map((p) => (
+                  <label key={p.value} className="row" style={{ gap: 6, alignItems: 'center', fontSize: 14 }}>
+                    <input type="checkbox" checked={parties.has(p.value)} onChange={() => setParties((s) => { const n = new Set(s); if (n.has(p.value)) n.delete(p.value); else n.add(p.value); return n; })} />
+                    {p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="col" style={{ alignItems: 'center', gap: 6, paddingTop: 24 }}>
+            <PortalButton icon={ICON.send} disabled={!c || !addedNow.length || busy || !!title} onClick={() => setConfirm({ kind: 'submit' })}>
+              {submit.isPending ? 'Submitting on the portal…' : labels['submit'] || 'Submit'}
+            </PortalButton>
+            {title && addedNow.length ? <span className="body-sm">Press {labels['add_btn'] || 'Add File'} for the title you typed first.</span> : null}
+          </div>
+        </div>
+      </PortalPanel>
       <Said lines={submit.data?.portal ?? del.data?.portal ?? merge.data?.portal} error={submit.error ?? del.error ?? merge.error} />
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 700 }}>{caseQ.isFetching ? 'Reading the portal…' : ''}</span>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={picked.size < 2 || busy} onClick={() => { setMergeTitle(''); setConfirm({ kind: 'merge' }); }}>Merge</button>
+      {/* The portal's list box under the panel (empty until the case has pleadings). */}
+      <div className="col" style={{ gap: 10, border: '1px solid var(--border-default)', borderRadius: 8, minHeight: 18, padding: listed || caseQ.isFetching ? 10 : 0 }}>
+        {caseQ.isFetching ? <span className="body-sm" style={{ fontWeight: 700 }}>Reading the portal…</span> : null}
+        {listed ? (
+          <>
+            <div className="row" style={{ justifyContent: 'flex-end' }}>
+              <PortalButton outline disabled={picked.size < 2 || busy} onClick={() => { setMergeTitle(''); setConfirm({ kind: 'merge' }); }}>Merge</PortalButton>
+            </div>
+            <PleadingList table={view_?.table} empty="No pleading uploaded for this case yet." onCall={onCall} busy={busy}
+              check={{ picked, toggle: (id) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }) }} />
+          </>
+        ) : null}
       </div>
-      <PleadingList table={view_?.table} empty="No pleading uploaded for this case yet." onCall={onCall} busy={busy}
-        check={{ picked, toggle: (id) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; }) }} />
 
       {confirm?.kind === 'submit' ? (
         <Confirm title={labels['submit'] || 'Submit'} yes={labels['submit'] || 'Submit'} busy={submit.isPending}
           text={`Submit ${addedNow.length} added file${addedNow.length === 1 ? '' : 's'} as this case's pleading on the portal${parties.size ? '' : ' (tick at least one client first)'}?`}
           onNo={() => setConfirm(null)}
-          onYes={() => submit.mutate({ ...c, parties: [...parties] }, { onSuccess: (r) => { setLatest(r.view); setAdded(r.view.added); setConfirm(null); }, onError: () => setConfirm(null) })} />
+          onYes={() => submit.mutate({ ...c!, parties: [...parties] }, { onSuccess: (r) => { setLatest(r.view); setAdded(r.view.added); setConfirm(null); }, onError: () => setConfirm(null) })} />
       ) : null}
       {confirm?.kind === 'delete' ? (
         <Confirm title="Delete" yes="Delete" busy={del.isPending}
           text="Do you want to delete this document? The associated oath recording will also be deleted permanently."
           onNo={() => setConfirm(null)}
-          onYes={() => del.mutate({ ...c, pleadingNumber: confirm.no }, { onSuccess: (r) => { setLatest(r.view); setConfirm(null); }, onError: () => setConfirm(null) })} />
+          onYes={() => del.mutate({ ...c!, pleadingNumber: confirm.no }, { onSuccess: (r) => { setLatest(r.view); setConfirm(null); }, onError: () => setConfirm(null) })} />
       ) : null}
       {confirm?.kind === 'merge' ? (
         <PortalModal title="Merge" onClose={() => setConfirm(null)} level={2}>
           <div className="col" style={{ gap: 12 }}>
-            <ol className="body-sm" style={{ margin: 0 }}>{picks.map((p) => <li key={p}>{p}</li>)}</ol>
+            <ol className="body-sm" style={{ margin: 0, paddingLeft: 22, listStyle: 'decimal' }}>{picks.map((p) => <li key={p}>{p}</li>)}</ol>
             <label style={field}><span style={lbl}>{labels['merge_txt'] || 'Document Title'} *</span>
               <input className="input" value={mergeTitle} onChange={(e) => setMergeTitle(e.target.value)} /></label>
             <p className="body-sm">After merging document, previous indexing of documents get removed, confirm?</p>
             <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConfirm(null)}>Cancel</button>
               <button type="button" className="btn btn-primary btn-sm" disabled={!mergeTitle.trim() || merge.isPending}
-                onClick={() => merge.mutate({ ...c, pleadingNumbers: picks, title: mergeTitle.trim() }, { onSuccess: (r) => { setLatest(r.view); setPicked(new Set()); setConfirm(null); }, onError: () => setConfirm(null) })}>
+                onClick={() => merge.mutate({ ...c!, pleadingNumbers: picks, title: mergeTitle.trim() }, { onSuccess: (r) => { setLatest(r.view); setPicked(new Set()); setConfirm(null); }, onError: () => setConfirm(null) })}>
                 {merge.isPending ? 'Merging on the portal…' : 'Merge'}
               </button>
             </div>
@@ -518,7 +594,7 @@ function IndexTab({ sessionId, c, labels }: { sessionId: string; c: CaseRef; lab
 
 // ---- eSign tab -------------------------------------------------------------------
 
-function EsignTab({ sessionId, c }: { sessionId: string; c: CaseRef }) {
+function EsignTab({ sessionId, c, labels }: { sessionId: string; c: CaseRef; labels: Record<string, string> }) {
   const [all, setAll] = useState(false);
   const list = usePleadingEsign(sessionId, c, all, true);
   const [table, setTable] = useState<PleadingTable | undefined>(undefined);
@@ -537,7 +613,7 @@ function EsignTab({ sessionId, c }: { sessionId: string; c: CaseRef }) {
     <div className="col" style={{ gap: 14 }}>
       <label className="row" style={{ gap: 6, alignItems: 'center', fontWeight: 600 }}>
         <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
-        {list.data?.showAllLabel || 'Show All'}
+        {list.data?.showAllLabel || labels['chkShowAlleSign'] || 'Show All'}
       </label>
       {list.isLoading ? <p className="body-sm">Reading the eSign list on the portal…</p> : null}
       <Said error={list.error} />
@@ -774,58 +850,70 @@ function OathRecording({ sessionId }: { sessionId: string }) {
   const label = (id: string, fallback: string) => s?.labels[id] || docQ.data?.labels[id] || fallback;
   const recorderLabels = useMemo(() => Object.entries(s?.labels ?? {}).filter(([k]) => k.startsWith('recorder')).map(([, v]) => v), [s]);
 
-  if (screen.isLoading) return <p className="body-sm">Opening Pleadings &gt; Video Recording on your portal…</p>;
-  if (screen.isError || !s) return <Said error={screen.error ?? new Error("Couldn't open Video Recording on the portal.")} />;
+  if (screen.isLoading) return <PortalPage title="Oath Recording" required={null}><p className="body-sm">Opening Pleadings &gt; Video Recording on your portal…</p></PortalPage>;
+  if (screen.isError || !s) return <PortalPage title="Oath Recording" required={null}><Said error={screen.error ?? new Error("Couldn't open Video Recording on the portal.")} /></PortalPage>;
   const d = docQ.data;
+  const videos = caseQ.data?.videos;
+  const row: React.CSSProperties = { display: 'grid', gridTemplateColumns: '140px minmax(0, 1fr)', columnGap: 12, alignItems: 'center' };
+  const rowLbl: React.CSSProperties = { fontWeight: 700, fontSize: 14 };
   return (
-    <div className="col" style={{ gap: 16 }}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{s.title || 'Video Recording'}</h2>
-        <button type="button" className="btn btn-ghost btn-sm" disabled={screen.isFetching || caseQ.isFetching}
-          onClick={() => { void screen.refetch(); if (pdeNo) void caseQ.refetch(); }}>{screen.isFetching || caseQ.isFetching ? 'Reading…' : 'Refresh from portal'}</button>
-      </div>
-      <div className="row" role="radiogroup" aria-label="Case" style={{ gap: 18, flexWrap: 'wrap' }}>
-        {s.sources.map((r) => (
-          <label key={r.value} className="row" style={{ gap: 6, alignItems: 'center', fontWeight: 600 }}>
-            <input type="radio" name="oath-case" checked={searchCase === r.value} onChange={() => { setSearchCase(r.value); setPdeNo(''); setDocument(''); }} />{r.label}
-          </label>
-        ))}
-      </div>
-      <div className="row" style={{ gap: 14, flexWrap: 'wrap' }}>
-        <label style={field}><span style={lbl}>{label('sel_pde_no', 'e-Filing Number')}</span>
-          <select className="input" value={pdeNo} onChange={(e) => { setPdeNo(e.target.value); setDocument(''); setClient(''); }}>
-            <option value="">Select</option>
-            {s.cases.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-          </select></label>
-        <label style={field}><span style={lbl}>{label('selDocument', 'Document')}</span>
-          <select className="input" value={document} disabled={!caseQ.data} onChange={(e) => { setDocument(e.target.value); setClient(''); }}>
-            <option value="">Select</option>
-            {(caseQ.data?.documents ?? []).map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-          </select></label>
-      </div>
-      <Said error={caseQ.error ?? docQ.error} />
-      {docQ.isFetching ? <p className="body-sm">Reading the document's details on the portal…</p> : null}
-      {d ? (
-        <div className="col" style={{ gap: 12, border: '1px solid var(--border-default)', padding: 14 }}>
-          {[['est_name', 'Establishment', d.establishment], ['cause_tit', 'Cause Title', d.causeTitle], ['case_num', 'Case Number', d.caseNumber], ['liti_name', 'Litigant', d.litigants]]
-            .filter(([, , v]) => v).map(([id, fb, v]) => (
-              <div key={id} className="row" style={{ gap: 10, flexWrap: 'wrap' }}><b style={{ minWidth: 160 }}>{label(id!, fb!)}</b><span>{v}</span></div>
-            ))}
-          {d.oathMessage ? <p style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)', padding: 12, margin: 0 }}>{d.oathMessage}</p> : null}
-          <label style={{ ...field, maxWidth: 420 }}><span style={lbl}>{label('selClientList', 'Client')}</span>
-            <select className="input" value={client} onChange={(e) => setClient(e.target.value)}>
-              <option value="">Select Client</option>
-              {d.clients.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
-            </select></label>
-          <Recorder sessionId={sessionId} labels={recorderLabels} target={client ? { searchCase, pdeNo, document, client } : null} clientName={client.split('~')[2] ?? ''} />
+    <PortalPage title={s.title || 'Oath Recording'} required={null}>
+      <div className="row" style={{ gap: 12, alignItems: 'flex-start', flexWrap: 'wrap', padding: '0 4%' }}>
+        {/* Left: the case card, then the oath videos list. */}
+        <div className="col" style={{ gap: 16, flex: '0 1 440px', minWidth: 300 }}>
+          <div className="col" style={{ gap: 14, border: '1px solid var(--border-default)', borderRadius: 4, boxShadow: '0 1px 3px var(--border-default)', padding: '10px 12px 14px 8px' }}>
+            <div style={row}>
+              <span style={rowLbl}>Search Case</span>
+              <div className="row" role="radiogroup" aria-label="Search Case" style={{ gap: 18, flexWrap: 'wrap' }}>
+                <Choices name="oath-case" items={s.sources} value={searchCase} onPick={(x) => { setSearchCase(x); setPdeNo(''); setDocument(''); }} />
+              </div>
+            </div>
+            <div style={{ ...row, alignItems: 'start' }}>
+              <span style={{ ...rowLbl, paddingLeft: 8 }}>{label('sel_pde_no', 'e-Filing Number')}</span>
+              <label className="col" style={{ gap: 4 }}>
+                <span style={rowLbl}>Select Case</span>
+                <PortalSelect value={pdeNo} onChange={(e) => { setPdeNo(e.target.value); setDocument(''); setClient(''); }}>
+                  <option value="">Select</option>
+                  {s.cases.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+                </PortalSelect>
+              </label>
+            </div>
+            <div style={row}>
+              <span style={{ ...rowLbl, paddingLeft: 8 }}>{label('selDocument', 'Documents')}</span>
+              <PortalSelect aria-label={label('selDocument', 'Documents')} value={document} disabled={!caseQ.data} onChange={(e) => { setDocument(e.target.value); setClient(''); }}>
+                <option value="">{caseQ.data ? 'Select' : ''}</option>
+                {(caseQ.data?.documents ?? []).map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+              </PortalSelect>
+            </div>
+          </div>
+          <PleadingList table={videos ?? { headers: ['Sr. No.', 'Document Title', 'Oath Video.'], rows: [] }} empty={pdeNo && videos ? 'No oath video recorded for this case yet.' : ''}
+            onCall={(_r, call) => { if (call.fn === 'setVideo') { setPlaying(call.args[0] ?? ''); play.mutate({ filepath: call.args[0] ?? '' }); } }} />
         </div>
-      ) : null}
-      {pdeNo ? (
-        <PleadingList table={caseQ.data?.videos} empty="No oath video recorded for this case yet."
-          onCall={(_r, call) => { if (call.fn === 'setVideo') { setPlaying(call.args[0] ?? ''); play.mutate({ filepath: call.args[0] ?? '' }); } }} />
-      ) : null}
+        {/* Right: the portal's recording pane - the document's details, the client, the recorder. */}
+        <div className="col" style={{ gap: 12, flex: '1 1 420px', minHeight: 406, border: '1px solid var(--border-default)', padding: 14 }}>
+          <Said error={caseQ.error ?? docQ.error} />
+          {docQ.isFetching ? <p className="body-sm" style={{ margin: 0 }}>Reading the document's details on the portal…</p> : null}
+          {d ? (
+            <>
+              {[['est_name', 'Establishment Name', d.establishment], ['cause_tit', 'Cause Title', d.causeTitle], ['case_num', 'Case Type', d.caseNumber], ['liti_name', 'Litigant', d.litigants]]
+                .filter(([, , v]) => v).map(([id, fb, v]) => (
+                  <div key={id} style={{ ...row, gridTemplateColumns: '160px minmax(0, 1fr)', alignItems: 'start' }}><b style={{ fontSize: 14 }}>{label(id!, fb!)}</b><span style={{ fontSize: 14 }}>{v}</span></div>
+                ))}
+              {d.oathMessage ? <p style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)', padding: 12, margin: 0, fontSize: 14 }}>{d.oathMessage}</p> : null}
+              <div style={{ ...row, gridTemplateColumns: '160px minmax(0, 320px)' }}>
+                <b style={{ fontSize: 14 }}>{label('selClientList', 'Client Name')}</b>
+                <PortalSelect aria-label={label('selClientList', 'Client Name')} value={client} onChange={(e) => setClient(e.target.value)}>
+                  <option value="">Select Client</option>
+                  {d.clients.map((o) => <option key={o.value} value={o.value}>{o.text}</option>)}
+                </PortalSelect>
+              </div>
+              <Recorder sessionId={sessionId} labels={recorderLabels} target={client ? { searchCase, pdeNo, document, client } : null} clientName={client.split('~')[2] ?? ''} />
+            </>
+          ) : null}
+        </div>
+      </div>
       {playing ? <FileModal kind="video" title="Oath Video" file={play.data} error={play.error} pending={play.isPending} onClose={() => { if (play.data) URL.revokeObjectURL(play.data.url); setPlaying(null); play.reset(); }} /> : null}
-    </div>
+    </PortalPage>
   );
 }
 
@@ -845,6 +933,8 @@ function Recorder({ sessionId, labels, target, clientName }: {
   useEffect(() => () => { rec.current?.stream.getTracks().forEach((t) => t.stop()); if (clip) URL.revokeObjectURL(clip.url); }, [clip]);
   const startLabel = labels.find((l) => /start/i.test(l)) || 'Start Recording';
   const pauseLabel = labels.find((l) => /pause/i.test(l)) || 'Pause';
+  const uploadLabel = labels.find((l) => /upload/i.test(l)) || 'Upload';
+  const heading = labels.find((l) => /record your/i.test(l));
   const start = async () => {
     setErr(null);
     try {
@@ -875,15 +965,17 @@ function Recorder({ sessionId, labels, target, clientName }: {
   };
   return (
     <div className="col" style={{ gap: 10 }}>
+      {heading ? <b style={{ fontSize: 15 }}>{heading}</b> : null}
       {clientName ? <p className="body-sm" style={{ margin: 0 }}><b>{clientName}</b></p> : null}
       <video ref={live} muted playsInline style={{ width: '100%', maxWidth: 520, background: 'var(--bg-inverse)', display: state === 'recording' || state === 'paused' ? 'block' : 'none' }} />
       {clip ? <video src={clip.url} controls style={{ width: '100%', maxWidth: 520, background: 'var(--bg-inverse)' }} /> : null}
       <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-        {state === 'idle' || state === 'done' ? <button type="button" className="btn btn-primary btn-sm" disabled={!target} onClick={() => void start()}>{startLabel}</button> : null}
-        {state === 'recording' ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => { rec.current?.pause(); setState('paused'); }}>{pauseLabel}</button> : null}
-        {state === 'paused' ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => { rec.current?.resume(); setState('recording'); }}>Resume</button> : null}
-        {state === 'recording' || state === 'paused' ? <button type="button" className="btn btn-primary btn-sm" onClick={() => rec.current?.stop()}>Stop Recording</button> : null}
-        {clip ? <button type="button" className="btn btn-primary btn-sm" disabled={upload.isPending || !target} onClick={() => setConfirm(true)}>{upload.isPending ? 'Uploading to the portal…' : 'Upload'}</button> : null}
+        {state === 'idle' || state === 'done' ? <PortalButton disabled={!target} onClick={() => void start()}>{startLabel}</PortalButton> : null}
+        {state === 'recording' ? <PortalButton outline onClick={() => { rec.current?.pause(); setState('paused'); }}>{pauseLabel}</PortalButton> : null}
+        {state === 'paused' ? <PortalButton outline onClick={() => { rec.current?.resume(); setState('recording'); }}>Resume</PortalButton> : null}
+        {state === 'recording' || state === 'paused' ? <PortalButton onClick={() => rec.current?.stop()}>Stop Recording</PortalButton> : null}
+        {clip ? <a href={clip.url} download="oath-recording.webm" style={{ alignSelf: 'center', fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{labels.find((l) => /download/i.test(l)) || 'Download'}</a> : null}
+        {clip ? <PortalButton icon={ICON.upload} disabled={upload.isPending || !target} onClick={() => setConfirm(true)}>{upload.isPending ? 'Uploading to the portal…' : uploadLabel}</PortalButton> : null}
       </div>
       {!target ? <p className="body-sm muted">Select the client first.</p> : null}
       <Said lines={upload.data?.portal} error={err ? new Error(err) : upload.error} />

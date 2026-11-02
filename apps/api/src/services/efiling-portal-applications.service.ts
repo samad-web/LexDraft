@@ -380,7 +380,7 @@ async function readScreen(page: Page): Promise<Pick<AppsScreen, 'tabs' | 'items'
       return { kind: 'table', id: String(t.id ?? ''), headers, rows };
     };
 
-    const SKIP = 'script, style, noscript, template, nav, .navbar, header, footer, .modal, .chosen-container, .nav-tabs, '
+    const SKIP = 'script, style, noscript, template, nav, .navbar, header, footer, .modal, .chosen-container, .nav-tabs, [data-difai-tabstrip], '
       + '.dataTables_length, .dataTables_filter, .dataTables_info, .dataTables_paginate, #validateError, .alert-danger-cust, .alert-success-cust, #loader, .loader';
     const walk = (root: any, out: any[]) => {
       let loose = '';
@@ -437,8 +437,26 @@ async function readScreen(page: Page): Promise<Pick<AppsScreen, 'tabs' | 'items'
       if (leafish(el) && txt(el) && el.getClientRects().length) labelOf(el);
     }
 
-    const tabs = ([...document.querySelectorAll('.nav-tabs a, .nav-tabs button, [role=tab]')] as any[])
-      .filter((a) => shown(a) && !a.closest('nav, .navbar, .modal'))
+    // The page's tab strip. On the live Applications page the strip (Applications /
+    // Pay Fees / Authentication) can sit inside a <nav> wrapper, so it is found
+    // from applications.js's own tab ids (#epay_tab, #otp_tab) as well as by its
+    // classes; only the portal's top menu bar is left out.
+    for (const e of [...document.querySelectorAll('[data-difai-tabstrip]')] as any[]) e.removeAttribute('data-difai-tabstrip');
+    const TAB_SEL = '.nav-tabs a, .nav-tabs button, .nav-pills a, [role=tab], [data-toggle=tab], [data-bs-toggle=tab], [data-toggle=pill], [data-bs-toggle=pill]';
+    const menuBar = (a: any) => !!a.closest('.navbar, .main-header, .dropdown-menu, .modal')
+      || (!!a.closest('nav') && !a.closest('.nav-tabs, .nav-pills, [role=tablist], [data-difai-tabstrip]'));
+    for (const id of ['app_tab', 'epay_tab', 'otp_tab']) {
+      const el = document.getElementById(id) as any;
+      const strip = el?.closest('.nav-tabs, .nav-pills, [role=tablist], ul, ol, .nav');
+      if (strip && !strip.closest('.navbar, .main-header, .modal')) strip.setAttribute('data-difai-tabstrip', '1');
+    }
+    const tabEls = new Set<any>([...document.querySelectorAll(TAB_SEL)] as any[]);
+    for (const strip of [...document.querySelectorAll('[data-difai-tabstrip]')] as any[]) {
+      for (const a of [...strip.querySelectorAll('a, button')] as any[]) tabEls.add(a);
+    }
+    const tabs = ([...tabEls] as any[])
+      .sort((x, y) => (x.compareDocumentPosition(y) & 4 ? -1 : 1))
+      .filter((a) => shown(a) && !menuBar(a))
       .map((a) => {
         const href = String(a.getAttribute('href') ?? a.getAttribute('data-target') ?? a.getAttribute('data-bs-target') ?? '');
         const pane = /^#[\w-]+$/.test(href) ? document.querySelector(href) : null;
@@ -570,7 +588,8 @@ async function target(page: Page, key: AppsScreenKey, ref: string): Promise<{ ta
     const text = String(el.textContent || el.value || '').replace(/\s+/g, ' ').trim();
     return {
       tag: String(el.tagName).toLowerCase(), type: String(el.getAttribute('type') ?? '').toLowerCase(), text,
-      risky: !el.closest('.nav-tabs, [role=tablist]') && el.getAttribute('role') !== 'tab'
+      risky: !el.closest('.nav-tabs, .nav-pills, [role=tablist], [data-difai-tabstrip]') && el.getAttribute('role') !== 'tab'
+        && !/^(tab|pill)$/.test(String(el.getAttribute('data-toggle') ?? el.getAttribute('data-bs-toggle') ?? ''))
         && (new RegExp(riskyText, 'i').test(text) || new RegExp(riskyFn).test(String(el.getAttribute('onclick') ?? ''))),
       disabled: !!el.disabled || el.classList.contains('disabled') || !!el.closest('fieldset[disabled], .disabledcs'),
       logout: /log\s*out|sign\s*out/i.test(`${text} ${el.getAttribute('href') ?? ''}`),

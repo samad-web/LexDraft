@@ -81,10 +81,14 @@ export function PortalFormGrid({ children, columns = 2 }: { children: ReactNode;
 }
 
 /** One label + field pair: the label right-aligned with its * after it, the field beside it. */
-export function PortalFormRow({ label, required, children, wide }: { label: ReactNode; required?: boolean; children: ReactNode; wide?: boolean }) {
+export function PortalFormRow({ label, required, children, wide, labelAlign = 'right' }: {
+  label: ReactNode; required?: boolean; children: ReactNode; wide?: boolean;
+  /** Where the portal puts the label in its cell (most forms: right; ePayments: left). */
+  labelAlign?: 'left' | 'right';
+}) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(140px, 0.9fr) 1.3fr', alignItems: 'center', columnGap: 18, gridColumn: wide ? '1 / -1' : undefined }}>
-      <span style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{label}{required ? <Star /> : null}</span>
+      <span style={{ textAlign: labelAlign, fontWeight: 700, fontSize: 14 }}>{label}{required ? <Star /> : null}</span>
       <span style={{ minWidth: 0 }}>{children}</span>
     </div>
   );
@@ -112,17 +116,19 @@ export function PortalButton({ children, onClick, disabled, outline, icon, type 
 }
 
 /** The portal's tab strip: each tab an icon and label, the open one filled. */
-export function PortalTabs<T extends string>({ tabs, active, onPick }: {
+export function PortalTabs<T extends string>({ tabs, active, onPick, bold }: {
   tabs: ReadonlyArray<{ key: T; label: string; icon?: ReactNode; disabled?: boolean }>;
   active: T;
   onPick: (k: T) => void;
+  /** Bold, roomier tabs (the portal's Pleadings / form-page tab strips). */
+  bold?: boolean;
 }) {
   return (
     <div role="tablist" className="row" style={{ gap: 4, flexWrap: 'wrap', borderBottom: '1px solid var(--border-default)' }}>
       {tabs.map((t) => (
         <button key={t.key} type="button" role="tab" aria-selected={active === t.key} disabled={t.disabled} onClick={() => onPick(t.key)}
           style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', fontSize: 15, cursor: t.disabled ? 'default' : 'pointer',
+            display: 'inline-flex', alignItems: 'center', gap: 6, padding: bold ? '9px 18px' : '6px 12px', fontSize: 15, fontWeight: bold ? 700 : undefined, cursor: t.disabled ? 'default' : 'pointer',
             border: '1px solid var(--border-default)', borderBottom: 'none', borderRadius: '4px 4px 0 0', marginBottom: -1,
             background: active === t.key ? 'var(--bg-inverse)' : 'var(--bg-surface)', color: active === t.key ? 'var(--text-inverse)' : 'var(--text-primary)',
             opacity: t.disabled ? 0.5 : 1,

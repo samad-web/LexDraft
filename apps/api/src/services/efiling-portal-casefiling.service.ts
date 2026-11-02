@@ -461,7 +461,9 @@ const DOM = (a: DomArgs): Any => {
       || jq(el, 'change') || jq(el, 'click') || /\b(rdoCivCrim|rdoHCDC)\b/.test(String(el.className))
       || /^(ftype|ftype_lh|fcasetype|rdoCourtType|pet_res|pet_res_legal_heir|rdoCaseFiled)$/.test(el.name || '')
       || /^(fextraorg_check|fother_check|fother_check_lh|hidepolicest)$/.test(el.id || ''));
-    const clean = (s: string): string => s.replace(/\*/g, '').replace(/\s+/g, ' ').replace(/\s*:\s*$/, '').trim();
+    // "(required)" in a label is the portal's * (screen-reader text beside it).
+    const clean = (s: string): string => s.replace(/\*/g, '').replace(/\(required\)/gi, '').replace(/\s+/g, ' ').replace(/\s*:\s*$/, '').trim();
+    const req = (s: string): boolean => /\*|\(required\)/i.test(s);
     const fields: Any[] = [];
     const radiosDone = new Set<string>();
     for (const el of all) {
@@ -474,10 +476,16 @@ const DOM = (a: DomArgs): Any => {
         if (!vis.length) continue;
         const own = group.map((r) => labelFor(r) ?? r.closest('label')).filter(Boolean);
         const raw = nearLabel(el, [...own, ...group]);
+        // A <label for> on the first radio that repeats the group's name ("Gender"): its own text follows it ("Male").
+        const optText = (r: Any): string => {
+          const o = clean(ownLabel(r));
+          const sib = clean(txt(r.nextSibling) || '');
+          return (o && sib && o.toLowerCase() === clean(raw).toLowerCase() ? sib : o || sib) || String(r.value);
+        };
         fields.push({
-          key, id: '', name: el.name, kind: 'radio', label: clean(raw), required: /\*/.test(raw) || group.some((r) => r.required),
+          key, id: '', name: el.name, kind: 'radio', label: clean(raw), required: req(raw) || group.some((r) => r.required),
           value: String(group.find((r) => r.checked)?.value ?? ''),
-          options: vis.map((r) => ({ value: String(r.value), text: clean(ownLabel(r) || txt(r.nextSibling) || String(r.value)), ...(r.disabled ? { disabled: true } : {}) })),
+          options: vis.map((r) => ({ value: String(r.value), text: optText(r), ...(r.disabled ? { disabled: true } : {}) })),
           placeholder: '', maxLength: null, disabled: vis.every((r) => r.disabled), readOnly: false, live: group.some(live),
           section: sectionOf(el), error: errorOf(el),
         });
@@ -493,7 +501,7 @@ const DOM = (a: DomArgs): Any => {
       fields.push({
         key, id: el.id || '', name: el.name || '', kind,
         label: clean(raw) || clean(el.getAttribute('placeholder') || el.getAttribute('title') || el.name || el.id || ''),
-        required: !!el.required || /\*/.test(raw) || el.classList.contains('required') || el.getAttribute('aria-required') === 'true',
+        required: !!el.required || req(raw) || el.classList.contains('required') || el.getAttribute('aria-required') === 'true',
         value: el.type === 'checkbox' ? (el.checked ? String(el.value || 'Y') : '') : String(el.value ?? ''),
         ...(el.type === 'checkbox' ? { checked: !!el.checked } : {}),
         ...(el.tagName === 'SELECT' ? { options: ([...el.options] as Any[]).slice(0, 3000).map((o) => ({ value: String(o.value), text: txt(o), ...(o.disabled ? { disabled: true } : {}) })) } : {}),
