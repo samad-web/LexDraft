@@ -1891,7 +1891,7 @@ export interface PortalBlock {
   table?: PortalTableData;
 }
 
-async function readBlocks(page: Page, sel: string): Promise<PortalBlock[]> {
+export async function readBlocks(page: Page, sel: string): Promise<PortalBlock[]> {
   const raw = await page.evaluate((s) => {
     const root = document.querySelector(s) as any;
     if (!root) return [];
@@ -2045,7 +2045,7 @@ export interface PortalMap {
 }
 
 // Never opened while mapping: anything that ends, removes or changes something.
-const MAP_SKIP = /log\s*out|sign\s*out|exit|delete|remove|discard|withdraw|cancel/i;
+const MAP_SKIP = /log\s*out|sign\s*out|exit|delete|remove|discard|withdraw|cancel|password/i;
 
 export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap, 'menu' | 'item' | 'url'>> {
   return page.evaluate(() => {
@@ -2095,6 +2095,12 @@ export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap,
   });
 }
 
+/** The portal's login form itself (a page merely having a user_name field is not it). */
+async function onLoginForm(page: Page): Promise<boolean> {
+  return page.evaluate(() => !!document.querySelector('#user_name') && !!document.querySelector('#user_password')
+    && !!document.querySelector('#captcha_image, #fcaptcha_code_mobile')).catch(() => false);
+}
+
 async function mapPortalStep(sessionId: string, userId: string): Promise<PortalMap> {
   const session = getSession(sessionId, userId);
   if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
@@ -2124,11 +2130,22 @@ async function mapPortalStep(sessionId: string, userId: string): Promise<PortalM
   const pages: PortalPageMap[] = [];
   const scripts = new Set<string>();
   const base = new URL(page.url());
+  // Saved after every page, so an interruption keeps what was mapped.
+  const save = () => writeFile(join(dir, 'portal-map.json'), JSON.stringify({ takenAt: new Date().toISOString(), dir, menus, pages }, null, 2));
+  // Pages that ended the session on an earlier run are not opened again.
+  const { readFile, appendFile } = await import('node:fs/promises');
+  const skipFile = join(tmpdir(), 'difai-portal-map', 'skip.txt');
+  const skipped = new Set((await readFile(skipFile, 'utf8').catch(() => '')).split('\n').map((x) => x.trim()).filter(Boolean));
+  await save();
+  logger.info({ menus: menus.map((m) => `${m.menu} (${m.items.length})`) }, 'efiling portal map: menus');
   for (const m of menus) {
     for (const it of m.items) {
-      if (MAP_SKIP.test(it.text) || MAP_SKIP.test(it.href)) continue;
+      if (MAP_SKIP.test(it.text) || MAP_SKIP.test(it.href) || skipped.has(`${m.menu} > ${it.text}`)) continue;
+      logger.info({ menu: m.menu, item: it.text, href: it.href }, 'efiling portal map: opening');
       try {
-        await ensureDashboard(session, true);
+        await page.goto(`${BASE}/pdedev/?p=dashboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+        await page.waitForSelector('#efiling_activity, #draft_cases, #objections, #user_name', { timeout: 15_000 }).catch(() => null);
+        if (await onLoginForm(page)) throw portalSessionEnded(session);
         const href = it.href && !/^(#|javascript:)/i.test(it.href) ? new URL(it.href, page.url()).toString() : '';
         if (href && new URL(href).hostname === base.hostname) {
           await page.goto(href, { waitUntil: 'domcontentloaded', timeout: 30_000 });
@@ -2146,7 +2163,19 @@ async function mapPortalStep(sessionId: string, userId: string): Promise<PortalM
         }
         await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
         await page.waitForTimeout(800);
-        if (await page.$('#user_name')) throw portalSessionEnded(session);
+        // The login form here means this page (or the portal) ended the
+        // session; confirm on the dashboard before saying so.
+        if (await onLoginForm(page)) {
+          await page.goto(`${BASE}/pdedev/?p=dashboard`, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+          await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+          if (await onLoginForm(page)) {
+            await save();
+            await appendFile(skipFile, `${m.menu} > ${it.text}\n`).catch(() => {});
+            const e = portalSessionEnded(session);
+            e.message = `The portal signed the session out when "${m.menu} > ${it.text}" was opened. ${pages.length} pages were mapped and saved - log in again and DifAi will skip that page next time.`;
+            throw e;
+          }
+        }
         const s = await readPageStructure(page);
         for (const src of s.scripts) scripts.add(src);
         pages.push({ menu: m.menu, item: it.text, url: page.url(), ...s });
@@ -2154,6 +2183,7 @@ async function mapPortalStep(sessionId: string, userId: string): Promise<PortalM
         if (e instanceof EcourtsHttpError && e.status === 410) throw e;
         pages.push({ menu: m.menu, item: it.text, url: page.url(), title: '', headings: [], tabs: [], fields: [], buttons: [], tables: [], links: [], scripts: [], error: (e as Error).message });
       }
+      await save();
     }
   }
   // The pages' own scripts (public code), for the exact requests they make.
@@ -2165,10 +2195,9 @@ async function mapPortalStep(sessionId: string, userId: string): Promise<PortalM
       await writeFile(join(dir, 'js', u.pathname.replace(/^\/+/, '').replace(/[\\/]/g, '_')), body);
     } catch { /* one script missing is fine */ }
   }
-  await ensureDashboard(session, true);
-  const map: PortalMap = { takenAt: new Date().toISOString(), dir, menus, pages };
-  await writeFile(join(dir, 'portal-map.json'), JSON.stringify(map, null, 2));
-  return map;
+  await ensureDashboard(session, true).catch(() => {});
+  await save();
+  return { takenAt: new Date().toISOString(), dir, menus, pages };
 }
 
 /** Map the portal's menus and pages (structure only) - a local setup tool. */
