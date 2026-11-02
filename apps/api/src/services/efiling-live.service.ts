@@ -188,6 +188,20 @@ async function closeSession(sessionId: string): Promise<void> {
 }
 
 /**
+ * The advocate is logged in on the portal. On a local DifAi with
+ * EFILING_SELF_TEST=1, this also starts the read-only self-test of every
+ * eFiling feature over this session (efiling-selftest.service.ts).
+ */
+function markLoggedIn(session: EfilingSession): void {
+  session.authenticated = true;
+  if (process.env['EFILING_SELF_TEST'] !== '1' || process.env['NODE_ENV'] === 'production') return;
+  setTimeout(() => {
+    void import('./efiling-selftest.service').then((m) => m.runSelfTest(session.id, session.userId))
+      .catch((e) => logger.warn({ err: e }, 'efiling self-test did not start'));
+  }, 4000);
+}
+
+/**
  * The portal signed this session out (usually: the same account was logged in
  * somewhere else, and the portal allows one session per account). 410, not
  * 401 - a 401 would sign the advocate out of DifAi itself.
@@ -467,7 +481,7 @@ async function submitEfilingLoginCaptchaStep(
     // A slow portal can still log the advocate in after the wait: check.
     await page.waitForURL((u) => !/\/pdedev\/?(\?.*)?$/.test(u.toString()), { timeout: 20_000 }).catch(() => {});
     if (!(await page.locator('#frm_login').isVisible().catch(() => false))) {
-      session.authenticated = true;
+      markLoggedIn(session);
       session.pendingLogin = undefined;
       return { status: 'authenticated' };
     }
@@ -487,7 +501,7 @@ async function submitEfilingLoginCaptchaStep(
 
   const stillOnLogin = await page.locator('#frm_login').isVisible().catch(() => false);
   if (!stillOnLogin) {
-    session.authenticated = true;
+    markLoggedIn(session);
     session.pendingLogin = undefined;
     return { status: 'authenticated' };
   }
@@ -633,7 +647,7 @@ async function confirmDuplicateEfilingLoginStep(
   if (!(await answered)) {
     await page.waitForURL((u) => u.toString() !== urlBeforeSubmit, { timeout: 20_000 }).catch(() => {});
     if (page.url() !== urlBeforeSubmit) {
-      session.authenticated = true;
+      markLoggedIn(session);
       session.pendingLogin = undefined;
       return { status: 'authenticated' };
     }
@@ -659,7 +673,7 @@ async function confirmDuplicateEfilingLoginStep(
   // only reliable signal.
   const navigatedAway = page.url() !== urlBeforeSubmit;
   if (navigatedAway) {
-    session.authenticated = true;
+    markLoggedIn(session);
     session.pendingLogin = undefined;
     return { status: 'authenticated' };
   }

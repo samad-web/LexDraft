@@ -36,6 +36,8 @@ const fx = {
   /** The portal ended the session (same account logged in elsewhere). */
   signedOut: false,
   pdfServed: [] as string[],
+  /** Every POST route the stand-in portal received. */
+  posts: [] as string[],
   mapped: [] as string[],
   /** My Cases keeps its cases in window globals (as the portal's my_cases.js does). */
   myCasesGlobals: true,
@@ -361,9 +363,13 @@ async function serve(route: Route): Promise<void> {
   }
   if (req.method() === 'GET' && url.pathname.endsWith('upload_pleading.js')) return route.fulfill({ contentType: 'text/javascript', body: 'function submitData(){ /* portal js */ }' });
   if (req.method() === 'GET' && p === 'dashboard') return route.fulfill({ contentType: 'text/html', body: fx.signedOut ? loginPage : dashboardPage() });
+  // The login page is the portal's root; any other page this stand-in doesn't
+  // have is an ordinary (empty) portal page, not a sign-out.
+  if (req.method() === 'GET' && p && p !== 'login') return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><body><input type="hidden" id="__csrf_magic" value="${fx.csrf}"><div class="container"><h3>Not in this stand-in: ${p}</h3></div></body></html>` });
   if (req.method() === 'GET') return route.fulfill({ contentType: 'text/html', body: loginPage });
 
   const f = form(req.postData());
+  if (req.method() === 'POST') fx.posts.push(p);
   if (p === 'login/verify_login/') {
     fx.loginAttempts.push({ user: f.get('user_name') ?? '', password: f.get('user_password') ?? '', captcha: f.get('fcaptcha_code') ?? '' });
     const ok = f.get('fcaptcha_code') === fx.lastCode && f.get('user_name') === 'adv@example.com' && f.get('user_password') === PASSWORD;
@@ -698,6 +704,38 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(await readFile(join(map.dir, 'js', 'pdedev_js_upload_pleading.js'), 'utf8')).toContain('submitData');
     await rm(map.dir, { recursive: true, force: true });
   }, 120_000);
+
+  it('self-test (local only): walks every feature read-only, writes a report and portal screenshots', async () => {
+    const { runSelfTest } = await import('../src/services/efiling-selftest.service');
+    const { readdir, readFile, rm } = await import('node:fs/promises');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const base = join(tmpdir(), 'difai-efiling-selftest');
+    const before = new Set(await readdir(base).catch(() => [] as string[]));
+    process.env['EFILING_SELF_TEST'] = '1';
+    fx.posts = [];
+    try {
+      await runSelfTest(sessionId, USER);
+    } finally {
+      delete process.env['EFILING_SELF_TEST'];
+    }
+    const dir = join(base, (await readdir(base)).find((d) => !before.has(d))!);
+    const report = JSON.parse(await readFile(join(dir, 'report.json'), 'utf8')) as { results: Array<{ step: string; ok: boolean; shot?: string }> };
+    expect(report.results.length).toBeGreaterThan(30);
+    const ok = (name: string) => report.results.find((r) => r.step === name)?.ok;
+    expect(ok('dashboard counts + calendar + today')).toBe(true);
+    expect(ok('list completed_pleadings')).toBe(true);
+    expect(ok('completed_pleadings: View Documents')).toBe(true);
+    expect(ok('completed_pleadings: View Documents: open document "COMPLAINT"')).toBe(true);
+    expect(ok('My Cases')).toBe(true);
+    expect(report.results.filter((r) => r.shot).length).toBeGreaterThan(30);
+    expect((await readFile(join(dir, 'summary.txt'), 'utf8')).split('\n')[0]).toMatch(/steps ok$/);
+    // Read-only: nothing that saves, submits, pays, deletes, assigns or sends an OTP.
+    const writes = fx.posts.filter((r) => /insert|submit|save|delete|remove|pay|otp|assign|accept|revoke|import|efile/i.test(r)
+      && !/\/(get|fetch|read|list|view|chk|fill)[A-Za-z_]*\/?$/i.test(r));
+    expect(writes).toEqual([]);
+    await rm(dir, { recursive: true, force: true });
+  }, 600_000);
 
   it('clicking tiles quickly: each read waits its turn instead of failing', async () => {
     const [a, b, c] = await Promise.all([
