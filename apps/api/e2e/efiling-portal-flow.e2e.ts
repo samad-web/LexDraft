@@ -137,7 +137,8 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
         + '<tr class="dtrg-group"><td colspan="6">Ambeth Arivukarasan Proprietor Thoorigai Prints</td></tr>'
         + '<tr><td>1</td><td>COMPLAINT (ATN20250009438D202600001)</td><td>27-08-2026 15:00:56</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr>'
         + '<tr><td>2</td><td>PROOF AFFIDAVIT (ATN20250009438D202600002)</td><td>27-08-2026 15:01:19</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr></tbody>';
-      document.getElementById('dv_challan' + id).style.display = 'block';
+      document.getElementById('dv_challan' + id).insertAdjacentHTML('afterbegin', '<div class="dataTables_length">Show <select><option>10</option><option>25</option><option>50</option><option>100</option></select> entries</div>');
+      setTimeout(function () { document.getElementById('dv_challan' + id).style.display = 'block'; }, 400);
     }, 600);
   }
   var FX_TABS = {
@@ -309,7 +310,8 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(l.error).toBeNull();
     expect(l.headers).toEqual(['Sr.No.', 'e-Filing Number / Case Number', 'Establishment', 'Cause Title', 'Upload Pleadings (Mandatory)', 'Oath Recording', 'ePayments', 'Application Submitted', 'Last Updated on', 'Status']);
     const row = l.rows[0] as { cells: string[] };
-    expect(row.cells[1]).toMatch(/^STC\/4377\/2026.*TNCH0C0121292026.*Court Verified eFile Case/);
+    expect(row.cells[1]).toBe('STC/4377/2026\n(TNCH0C0121292026)\nSTC - ATN20250009438C202600002\nCourt Verified eFile Case\nAcknowledgement');
+    expect(row.cells[3]).toBe('Ambeth Arivukarasan Proprietor Thoorigai Prints\nVs\nR Venkatesh Bhat Proprietor Ms Venki Publications');
     expect(row.cells[2]).toBe('The Metropolitan Magistrates Courts, Saidapet, Chennai');
     expect(row.cells[6]).toBe('TNCT2716H2608P694 - 6600.00');
     expect(row.cells[8]).toBe('27-08-2026 15:09:56');

@@ -330,11 +330,12 @@ function ConnectionBar({ connection, onLogOut, onLogIn, pending }: {
 }
 
 /**
- * The portal's own Dashboard, read over the advocate's session: the same six
- * tiles in the same order and grouping (Draft / Completed Pleadings, Draft /
- * Completed IAs, Objections, My Cases) with the portal's numbers; a tile opens
- * the portal's own table. Case Filing drafts and eFiled cases from the portal
- * follow, then what DifAi has prepared that isn't on the portal yet.
+ * The portal's own Dashboard, read over the advocate's session and laid out
+ * as filing.ecourts.gov.in lays it out, so nothing is in a new place: the six
+ * tiles in their three panels (Draft / Completed Pleadings, Draft / Completed
+ * IAs, Objections, My Cases), the Calendar, "Cases Listed Today". A tile opens
+ * its list in a pop-up window with the portal's search and paging; a row's
+ * View Documents / View Status opens a second window on top, tab by tab.
  */
 function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
   sessionId: string;
@@ -342,17 +343,12 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
   onNewCase: () => void;
   onPrepared: () => void;
 }) {
-  // Tile numbers first (one quick read of the portal's dashboard), then the
-  // list of whichever tile is open - like clicking a tile on the portal.
   const counts = usePortalCounts(sessionId);
-  const [open, setOpen] = useState<PortalList['key']>('draft_pleadings');
+  const [open, setOpen] = useState<PortalList['key'] | null>(null);
   const list = usePortalList(sessionId, open, !counts.isLoading);
   const isLoading = counts.isLoading;
   const isFetching = counts.isFetching || list.isFetching;
-  const isError = counts.isError;
-  const error = counts.error;
-  const refetch = () => { void counts.refetch(); void list.refetch(); };
-  const shown = list.data ?? null;
+  const refetch = () => { void counts.refetch(); if (open) void list.refetch(); };
   // A row's button (View Documents / View Status), done on the portal.
   const openRow = useOpenPortalRow(sessionId);
   const [drill, setDrill] = useState<{ key: PortalList['key']; match: string[]; action: string } | null>(null);
@@ -361,87 +357,88 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
     setDrill(v);
     openRow.mutate(v);
   };
-  const countOf = (k: PortalList['key']) => counts.data?.counts?.[k];
-  const tile = (k: PortalList['key'], label: string) => {
-    const n = countOf(k);
-    const on = open === k;
+  const closeDrill = () => { setDrill(null); openRow.reset(); };
+  const tile = (k: PortalList['key'], label: string, icon: React.ReactNode) => {
+    const n = counts.data?.counts?.[k];
     return (
-      <button
-        key={k}
-        type="button"
-        className="card"
-        aria-pressed={on}
-        onClick={() => setOpen(k)}
+      <button key={k} type="button" onClick={() => setOpen(k)} aria-label={`${label}: ${n ?? 'not read yet'}`}
         style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, minWidth: 150, flex: 1, cursor: 'pointer',
-          background: on ? 'var(--bg-inverse)' : undefined, color: on ? 'var(--text-inverse)' : undefined,
-        }}
-      >
-        <span className="body-sm" style={{ fontWeight: 700, color: 'inherit' }}>{label}</span>
-        <span style={{ fontSize: 30, fontWeight: 700, lineHeight: 1.1 }}>{isLoading ? '…' : n ?? '–'}</span>
+          flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px 16px', cursor: 'pointer',
+          background: 'var(--bg-inverse)', color: 'var(--text-inverse)', border: 'none', borderRadius: 2, textAlign: 'left',
+        }}>
+        <span style={{ alignSelf: 'center', textAlign: 'center', fontSize: 16, fontWeight: 600, flex: 1 }}>{label}</span>
+        <span className="row" style={{ alignItems: 'center', gap: 18 }}>
+          <span aria-hidden style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--text-inverse)', color: 'var(--bg-inverse)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>{icon}</span>
+          <span style={{ fontSize: 40, fontWeight: 500, lineHeight: 1 }}>{isLoading ? '…' : n ?? '–'}</span>
+        </span>
       </button>
     );
   };
   const panel = (children: React.ReactNode) => (
-    <div className="row" style={{ gap: 10, padding: 10, borderRadius: 10, border: '1px solid var(--border-default)', background: 'var(--bg-surface-2, var(--bg-subtle))', flex: '2 1 320px' }}>{children}</div>
+    <div className="row" style={{ gap: 14, padding: 12, border: '1px solid var(--border-default)', borderRadius: 4, flex: '1 1 300px', alignItems: 'stretch' }}>{children}</div>
   );
   return (
-    <div className="col" style={{ gap: 16 }} aria-label="Your eFiling dashboard">
+    <div className="col" style={{ gap: 18 }} aria-label="Your eFiling dashboard">
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span className="body-sm muted">From your account on filing.ecourts.gov.in</span>
         <span className="row" style={{ gap: 8 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => { void refetch(); }} disabled={isFetching}>{isFetching ? 'Reading…' : 'Refresh from portal'}</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={refetch} disabled={isFetching}>{isFetching ? 'Reading…' : 'Refresh from portal'}</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={onNewCase}>+ New Case Filing</button>
         </span>
       </div>
-      {isError ? <p className="body-sm">{(error as Error)?.message || 'Could not read the portal right now.'}</p> : null}
+      {counts.isError ? <p className="body-sm">{(counts.error as Error)?.message || 'Could not read the portal right now.'}</p> : null}
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
-        {panel(<>{tile('draft_pleadings', 'Draft Pleadings')}{tile('completed_pleadings', 'Completed Pleadings')}</>)}
-        {panel(<>{tile('draft_ias', 'Draft IAs')}{tile('completed_ias', 'Completed IAs')}</>)}
-        <div className="row" style={{ gap: 10, flex: '2 1 320px' }}>{tile('objections', 'Objections')}{tile('my_cases', 'My Cases')}</div>
+        {panel(<>{tile('draft_pleadings', 'Draft Pleadings', <IconEdit />)}{tile('completed_pleadings', 'Completed Pleadings', <IconCheck />)}</>)}
+        {panel(<>{tile('draft_ias', 'Draft IAs', <IconEdit />)}{tile('completed_ias', 'Completed IAs', <IconCheck />)}</>)}
+        {panel(<>{tile('objections', 'Objections', <IconQuestion />)}{tile('my_cases', 'My Cases', <IconBriefcase />)}</>)}
       </div>
-      <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
+      <div className="row" style={{ gap: 30, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <PortalCalendar calendar={counts.data?.calendar} loading={isLoading} />
-        <section className="card col" style={{ gap: 10, flex: '2 1 360px' }} aria-label="Cases Listed Today">
-          <h3 className="heading-sm">{counts.data?.today?.title || `Cases Listed Today - ${todayDmy()}`}</h3>
-          {isLoading ? <p className="body-sm muted">Reading from filing.ecourts.gov.in…</p>
-            : counts.data?.today?.table && counts.data.today.table.rows.length
-              ? <PortalListTable list={{ key: 'my_cases', label: 'Cases Listed Today', total: null, error: null, ...counts.data.today.table }} />
-              : <p className="body-sm muted">{counts.data?.today?.text || 'No Cases'}</p>}
+        <section className="col" style={{ gap: 14, flex: '1 1 420px', minWidth: 0 }} aria-label="Cases Listed Today">
+          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{counts.data?.today?.title || `Cases Listed Today - ${todayDmy()}`}</h3>
+          <div style={{ border: '1px solid var(--border-default)', padding: 12, minHeight: 110 }}>
+            {isLoading ? <p className="body-sm muted" style={{ textAlign: 'center' }}>Reading from filing.ecourts.gov.in…</p>
+              : counts.data?.today?.table && counts.data.today.table.rows.length
+                ? <PortalTable rows={counts.data.today.table.rows} headers={counts.data.today.table.headers} />
+                : (
+                  <div className="col" style={{ alignItems: 'center', gap: 6 }}>
+                    <span aria-hidden style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--bg-surface-2)', display: 'grid', placeItems: 'center' }}><IconFolder /></span>
+                    <span className="body-sm">{counts.data?.today?.text || 'No Cases'}</span>
+                  </div>
+                )}
+          </div>
         </section>
       </div>
-      <section className="card col" style={{ gap: 10 }} aria-label={shown?.label ?? 'List'}>
-        <h3 className="heading-sm">{shown?.label ?? LIST_LABEL[open]}</h3>
-        {list.isLoading ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
-        {list.isError ? <p className="body-sm">{(list.error as Error)?.message || 'Could not open this list on the portal.'}</p> : null}
-        {shown ? <PortalListTable list={shown} onAction={onAction(shown.key)} busy={openRow.isPending} /> : null}
-      </section>
-      {drill ? (
-        <PortalRowPanel
-          title={`${drill.action} · ${drill.match[1] ?? ''}`}
-          view={openRow.data}
-          loading={openRow.isPending}
-          error={openRow.isError ? ((openRow.error as Error)?.message || 'The portal did not answer.') : null}
-          onRetry={() => openRow.mutate(drill)}
-          onClose={() => { setDrill(null); openRow.reset(); }}
-        />
-      ) : null}
-      <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
-        {(['draft_cases', 'filed_cases'] as const).map((k) => {
-          const l = open === k ? list.data : undefined;
-          return (
-            <button key={k} type="button" className="card row" onClick={() => setOpen(k)} aria-pressed={open === k}
-              style={{ flex: '1 1 240px', gap: 10, alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-              <span className="body-sm" style={{ fontWeight: 600 }}>Case Filing · {k === 'draft_cases' ? 'Draft Cases on the portal' : 'eFiled Cases'}</span>
-              <strong>{open === k && list.isLoading ? '…' : l?.total ?? 'Open'}</strong>
-            </button>
-          );
-        })}
-        <button type="button" className="card row" onClick={onPrepared} style={{ flex: '1 1 240px', gap: 10, alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-          <span className="body-sm" style={{ fontWeight: 600 }}>Prepared in DifAi, not yet on the portal</span>
-          <strong>{preparedCount}</strong>
-        </button>
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span className="body-sm muted">Case Filing on the portal:</span>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen('draft_cases')}>Draft Cases</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen('filed_cases')}>eFiled Cases</button>
+        <span className="body-sm muted">·</span>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onPrepared}>Prepared in DifAi, not yet on the portal ({preparedCount})</button>
       </div>
+
+      {open ? (
+        <PortalModal title={LIST_LABEL[open]} onClose={() => { closeDrill(); setOpen(null); }}>
+          {list.isLoading || list.isFetching ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
+          {list.isError ? <p className="body-sm">{(list.error as Error)?.message || 'Could not open this list on the portal.'}</p> : null}
+          {list.data && !list.isFetching ? (
+            list.data.error && !list.data.rows.length
+              ? <p className="body-sm">{list.data.error}</p>
+              : <PortalListView key={open} label={list.data.label} headers={list.data.headers} rows={list.data.rows} pageSize={25} onAction={onAction(open)} busy={openRow.isPending} />
+          ) : null}
+        </PortalModal>
+      ) : null}
+      {drill ? (
+        <PortalModal level={2} title="" onClose={closeDrill}>
+          <PortalRowWindow
+            action={drill.action}
+            view={openRow.data}
+            loading={openRow.isPending}
+            error={openRow.isError ? ((openRow.error as Error)?.message || 'The portal did not answer.') : null}
+            onRetry={() => openRow.mutate(drill)}
+          />
+        </PortalModal>
+      ) : null}
     </div>
   );
 }
@@ -451,42 +448,68 @@ function todayDmy() {
   return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-/** The portal's dashboard Calendar: the month it shows, with its case-count badge on each day. */
+/** The portal's dashboard Calendar: month and year boxes, arrows, the day grid and its case-count badges. */
 function PortalCalendar({ calendar, loading }: { calendar?: { month: number | null; year: number | null; days: Record<string, number> }; loading: boolean }) {
   const now = new Date();
-  const month = (calendar?.month ?? now.getMonth() + 1) - 1;
-  const year = calendar?.year ?? now.getFullYear();
-  const first = new Date(year, month, 1).getDay();
-  const total = new Date(year, month + 1, 0).getDate();
-  const isThisMonth = month === now.getMonth() && year === now.getFullYear();
-  const cells: Array<number | null> = [...Array(first).fill(null), ...Array.from({ length: total }, (_, i) => i + 1)];
-  while (cells.length % 7) cells.push(null);
+  const [view, setView] = useState({ m: now.getMonth(), y: now.getFullYear() });
+  useEffect(() => {
+    if (calendar?.month && calendar.year) setView({ m: calendar.month - 1, y: calendar.year });
+  }, [calendar?.month, calendar?.year]);
+  const { m, y } = view;
+  const shift = (by: number) => setView(({ m: mm, y: yy }) => ({ m: (mm + by + 12) % 12, y: yy + Math.floor((mm + by) / 12) }));
+  const badges = calendar && calendar.month === m + 1 && calendar.year === y ? calendar.days : {};
+  const first = new Date(y, m, 1).getDay();
+  const total = new Date(y, m + 1, 0).getDate();
+  const prevTotal = new Date(y, m, 0).getDate();
+  const cells: Array<{ d: number; other: boolean }> = [
+    ...Array.from({ length: first }, (_, i) => ({ d: prevTotal - first + i + 1, other: true })),
+    ...Array.from({ length: total }, (_, i) => ({ d: i + 1, other: false })),
+  ];
+  for (let d = 1; cells.length % 7; d++) cells.push({ d, other: true });
+  const cell: React.CSSProperties = { border: '1px solid var(--border-default)', padding: '6px 6px', textAlign: 'right', position: 'relative', fontSize: 15 };
   return (
-    <section className="card col" style={{ gap: 8, flex: '1 1 280px' }} aria-label="Calendar">
-      <h3 className="heading-sm">Calendar</h3>
-      <div className="body-sm" style={{ fontWeight: 700, textAlign: 'center' }}>{MONTHS[month]} {year}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, textAlign: 'center' }}>
-        {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <span key={d} className="body-sm muted" style={{ fontWeight: 600 }}>{d}</span>)}
-        {cells.map((d, i) => {
-          const n = d ? calendar?.days?.[String(d)] : undefined;
-          const today = isThisMonth && d === now.getDate();
-          return (
-            <span key={i} className="body-sm" title={n ? `${n} case${n === 1 ? '' : 's'} listed` : undefined}
-              style={{ position: 'relative', padding: '6px 0', borderRadius: 6, border: today ? '1px solid var(--text-primary)' : '1px solid transparent', fontWeight: n ? 700 : 400 }}>
-              {d ?? ''}
-              {n ? (
-                <span aria-label={`${n} cases`} style={{ position: 'absolute', top: -2, right: 0, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 8, fontSize: 10, lineHeight: '16px', background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>{n}</span>
-              ) : null}
-            </span>
-          );
-        })}
+    <section className="col" style={{ gap: 14, flex: '0 1 450px', minWidth: 280 }} aria-label="Calendar">
+      <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Calendar</h3>
+      <div style={{ border: '1px solid var(--border-default)', padding: 4 }}>
+        <div className="row" style={{ alignItems: 'center', gap: 6, padding: 6, background: 'var(--bg-surface-2)' }}>
+          <button type="button" aria-label="Previous month" onClick={() => shift(-1)} style={calArrow}>◀</button>
+          <select aria-label="Month" value={m} onChange={(e) => setView({ m: Number(e.target.value), y })} style={{ flex: 1 }}>
+            {MONTHS.map((n, i) => <option key={n} value={i}>{n}</option>)}
+          </select>
+          <select aria-label="Year" value={y} onChange={(e) => setView({ m, y: Number(e.target.value) })} style={{ flex: 1 }}>
+            {Array.from({ length: 7 }, (_, i) => now.getFullYear() - 3 + i).map((yy) => <option key={yy} value={yy}>{yy}</option>)}
+          </select>
+          <button type="button" aria-label="Next month" onClick={() => shift(1)} style={calArrow}>▶</button>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 2, tableLayout: 'fixed' }}>
+          <thead><tr>{['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => <th key={d} style={{ padding: '8px 0', fontSize: 15 }}>{d}</th>)}</tr></thead>
+          <tbody>
+            {Array.from({ length: cells.length / 7 }, (_, w) => (
+              <tr key={w}>
+                {cells.slice(w * 7, w * 7 + 7).map((c, i) => {
+                  const today = !c.other && c.d === now.getDate() && m === now.getMonth() && y === now.getFullYear();
+                  const n = c.other ? undefined : badges[String(c.d)];
+                  return (
+                    <td key={i} title={n ? `${n} case${n === 1 ? '' : 's'} listed` : undefined}
+                      style={{ ...cell, background: today ? 'var(--bg-surface-2)' : undefined, fontWeight: today || n ? 700 : 400, opacity: c.other ? 0.45 : 1, outline: today ? '2px solid var(--text-primary)' : undefined }}>
+                      {n ? <span aria-label={`${n} cases`} style={{ position: 'absolute', top: 2, left: 3, minWidth: 16, height: 16, borderRadius: 8, fontSize: 10, lineHeight: '16px', textAlign: 'center', background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>{n}</span> : null}
+                      {c.d}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       {loading ? <span className="body-sm muted">Reading the portal calendar…</span> : null}
     </section>
   );
 }
+
+const calArrow: React.CSSProperties = { width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'var(--bg-inverse)', color: 'var(--text-inverse)', fontSize: 10, cursor: 'pointer' };
 
 const LIST_LABEL: Record<PortalList['key'], string> = {
   draft_pleadings: 'Draft Pleadings', completed_pleadings: 'Completed Pleadings', draft_ias: 'Draft IAs', completed_ias: 'Completed IAs',
@@ -496,30 +519,145 @@ const LIST_LABEL: Record<PortalList['key'], string> = {
 // The portal's row buttons DifAi can open and read (not file downloads).
 const ROW_ACTION = /^view\b/i;
 
-function PortalListTable({ list, onAction, busy }: { list: PortalList; onAction?: (cells: string[], action: string) => void; busy?: boolean }) {
-  if (list.error) return <p className="body-sm">{list.label}: {list.error}</p>;
-  if (list.rows.length === 0) return <p className="body-sm muted">No {list.label.toLowerCase()} on your portal account.</p>;
-  const withActions = Boolean(onAction) && list.rows.some((r) => 'cells' in r && r.actions?.some((a) => ROW_ACTION.test(a)));
-  const cols = Math.max(list.headers.length, ...list.rows.map((r) => ('cells' in r ? r.cells.length : 0))) + (withActions ? 1 : 0);
+// Open windows, newest last: Escape closes only the top one, as on the portal.
+const modalStack: number[] = [];
+
+/** A pop-up window like the portal's: title, close (×), content scrolling inside. */
+function PortalModal({ title, onClose, level = 1, children }: { title: string; onClose: () => void; level?: number; children: React.ReactNode }) {
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const id = Math.random();
+    modalStack.push(id);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === id) closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      modalStack.splice(modalStack.indexOf(id), 1);
+    };
+  }, []);
+  return (
+    <div role="dialog" aria-modal="true" aria-label={title || 'Portal window'} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000 + level * 10, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: level > 1 ? '40px 16px' : '24px 16px', overflowY: 'auto' }}>
+      <div style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', width: level > 1 ? 'min(1240px, 100%)' : 'min(1720px, 100%)', boxShadow: '0 10px 40px rgba(0,0,0,0.35)' }}>
+        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 20px', borderBottom: title ? '1px solid var(--border-default)' : 'none' }}>
+          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 500 }}>{title}</h2>
+          <button type="button" aria-label="Close" onClick={onClose}
+            style={{ width: 42, height: 42, border: '2px solid var(--text-primary)', borderRadius: 8, background: 'transparent', color: 'inherit', fontSize: 24, lineHeight: 1, cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ padding: '14px 20px 20px' }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+type PortalRows = PortalList['rows'];
+
+/**
+ * A portal list as the portal shows it: "Search By (eFiling Number/CNR
+ * Number/Party Name)" with Search / Clear and First · Prev · pages · Next ·
+ * Last, "Show N entries", the table, "Showing a to b of n entries".
+ */
+function PortalListView({ label, headers, rows, pageSize: initialSize, onAction, busy }: {
+  label: string; headers: string[]; rows: PortalRows; pageSize: number;
+  onAction?: (cells: string[], action: string) => void; busy?: boolean;
+}) {
+  const [draft, setDraft] = useState('');
+  const [query, setQuery] = useState('');
+  const [size, setSize] = useState(initialSize);
+  const [page, setPage] = useState(0);
+  // Each data row with the group heading it sits under.
+  const items: Array<{ group: string | null; row: { cells: string[]; actions?: string[] } }> = [];
+  let group: string | null = null;
+  for (const r of rows) {
+    if ('group' in r) group = r.group;
+    else items.push({ group, row: r });
+  }
+  const q = query.trim().toLowerCase();
+  const found = q ? items.filter((it) => `${it.group ?? ''} ${it.row.cells.join(' ')}`.toLowerCase().includes(q)) : items;
+  const pages = Math.max(1, Math.ceil(found.length / size));
+  const p = Math.min(page, pages - 1);
+  const shown = found.slice(p * size, p * size + size);
+  const pageRows: PortalRows = [];
+  let last: string | null | undefined;
+  for (const it of shown) {
+    if (it.group && it.group !== last) pageRows.push({ group: it.group });
+    last = it.group;
+    pageRows.push(it.row);
+  }
+  const search = () => { setQuery(draft); setPage(0); };
+  const pager = (
+    <span className="row" style={{ border: '1px solid var(--border-default)', borderRadius: 4, overflow: 'hidden' }}>
+      {[['First', 0], ['Prev', p - 1]].map(([t, to]) => <button key={t} type="button" style={pagerBtn(false)} disabled={p === 0} onClick={() => setPage(to as number)}>{t}</button>)}
+      {Array.from({ length: pages }, (_, i) => i).filter((i) => Math.abs(i - p) < 3).map((i) => (
+        <button key={i} type="button" style={pagerBtn(i === p)} aria-current={i === p ? 'page' : undefined} onClick={() => setPage(i)}>{i + 1}</button>
+      ))}
+      {[['Next', p + 1], ['Last', pages - 1]].map(([t, to]) => <button key={t} type="button" style={pagerBtn(false)} disabled={p >= pages - 1} onClick={() => setPage(to as number)}>{t}</button>)}
+    </span>
+  );
+  const bar = (
+    <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <label className="body-sm" style={{ fontWeight: 700 }} htmlFor={`q-${label}`}>Search By (eFiling Number/CNR Number/Party Name)</label>
+      <input id={`q-${label}`} className="input" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') search(); }} style={{ width: 210 }} />
+      <button type="button" className="btn btn-ghost btn-sm" onClick={search}>Search</button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setDraft(''); setQuery(''); setPage(0); }}>Clear</button>
+      {pager}
+    </div>
+  );
+  return (
+    <div className="col" style={{ gap: 14 }}>
+      {bar}
+      <label className="body-sm" style={{ fontWeight: 700 }}>
+        Show{' '}
+        <select value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(0); }}>
+          {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+        </select>{' '}entries
+      </label>
+      {found.length ? <PortalTable headers={headers} rows={pageRows} onAction={onAction} busy={busy} />
+        : <p className="body-sm muted">{q ? 'No matching entries.' : `No ${label.toLowerCase()} on your portal account.`}</p>}
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span className="body-sm">{found.length ? `Showing ${p * size + 1} to ${p * size + shown.length} of ${found.length} entries` : 'Showing 0 entries'}</span>
+      </div>
+      {found.length > size ? bar : null}
+    </div>
+  );
+}
+
+const pagerBtn = (on: boolean): React.CSSProperties => ({
+  padding: '6px 14px', border: 'none', borderLeft: '1px solid var(--border-default)', cursor: 'pointer', fontWeight: 600,
+  background: on ? 'var(--bg-inverse)' : 'var(--bg-surface-2)', color: on ? 'var(--text-inverse)' : 'inherit',
+});
+
+/** The portal's table look: dark header row, bordered cells, each cell's lines kept, its View buttons where the portal has them. */
+function PortalTable({ headers, rows, onAction, busy }: { headers: string[]; rows: PortalRows; onAction?: (cells: string[], action: string) => void; busy?: boolean }) {
+  const cols = Math.max(headers.length, ...rows.map((r) => ('cells' in r ? r.cells.length : 0)));
+  const td: React.CSSProperties = { padding: '10px 8px', borderRight: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'pre-line', fontSize: 14 };
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table className="tbl" aria-label={list.label}>
-        {list.headers.length ? <thead><tr>{list.headers.map((h, i) => <th key={i}>{h}</th>)}{withActions ? <th>Open on portal</th> : null}</tr></thead> : null}
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        {headers.length ? (
+          <thead>
+            <tr>{headers.map((h, i) => <th key={i} style={{ ...td, background: 'var(--bg-inverse)', color: 'var(--text-inverse)', fontWeight: 700, fontSize: 15, verticalAlign: 'middle' }}>{h}</th>)}</tr>
+          </thead>
+        ) : null}
         <tbody>
-          {list.rows.map((r, i) => ('group' in r ? (
-            <tr key={i}><td colSpan={cols} style={{ fontWeight: 700, textAlign: 'center' }}>{r.group}</td></tr>
+          {rows.map((r, i) => ('group' in r ? (
+            <tr key={i}><td colSpan={cols} style={{ ...td, textAlign: 'left', fontWeight: 700, background: 'var(--bg-surface-2)' }}>{r.group}</td></tr>
           ) : (
-            <tr key={i}>
-              {r.cells.map((c, j) => <td key={j}>{c}</td>)}
-              {withActions ? (
-                <td>
-                  <span className="col" style={{ gap: 6 }}>
-                    {(r.actions ?? []).filter((a) => ROW_ACTION.test(a)).map((a) => (
-                      <button key={a} type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onAction!(r.cells, a)}>{a}</button>
-                    ))}
-                  </span>
-                </td>
-              ) : null}
+            <tr key={i} style={{ background: i % 2 ? undefined : 'var(--bg-surface-2)' }}>
+              {r.cells.map((c, j) => {
+                const act = onAction && r.actions?.find((a) => ROW_ACTION.test(a) && a === c.trim());
+                return (
+                  <td key={j} style={td}>
+                    {act ? (
+                      <button type="button" disabled={busy} onClick={() => onAction!(r.cells, act)}
+                        style={{ background: 'var(--bg-inverse)', color: 'var(--text-inverse)', border: 'none', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{act}</button>
+                    ) : c}
+                  </td>
+                );
+              })}
             </tr>
           )))}
         </tbody>
@@ -528,44 +666,44 @@ function PortalListTable({ list, onAction, busy }: { list: PortalList; onAction?
   );
 }
 
-/** What a row's button opened on the portal: its heading, and its tabs (Document, Application, Court Fee, Oath). */
-function PortalRowPanel({ title, view, loading, error, onRetry, onClose }: {
-  title: string; view?: PortalRowView; loading: boolean; error: string | null; onRetry: () => void; onClose: () => void;
+/** What a row's button opened on the portal: its heading lines and its tabs (Document, Application, Court Fee, Oath). */
+function PortalRowWindow({ action, view, loading, error, onRetry }: {
+  action: string; view?: PortalRowView; loading: boolean; error: string | null; onRetry: () => void;
 }) {
   const [tab, setTab] = useState(0);
   useEffect(() => { setTab(0); }, [view]);
   const section = view?.sections[tab];
+  if (loading) return <p className="body-sm muted">Opening {action} on filing.ecourts.gov.in… (the portal loads each part in turn)</p>;
+  if (error) return <p className="body-sm">{error} <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>Try again</button></p>;
+  if (!view) return null;
   return (
-    <section className="card col" style={{ gap: 10 }} aria-label={title}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <h3 className="heading-sm">{title}</h3>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
-      </div>
-      {loading ? <p className="body-sm muted">Opening it on filing.ecourts.gov.in…</p> : null}
-      {error ? (
-        <p className="body-sm">{error} <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>Try again</button></p>
+    <div className="col" style={{ gap: 14 }}>
+      {view.title.length ? (
+        <div className="col" style={{ gap: 4, textAlign: 'center' }}>
+          {view.title.map((t, i) => <span key={i} style={{ fontWeight: 700, fontSize: 17 }}>{t}</span>)}
+        </div>
       ) : null}
-      {view && !loading ? (
-        <>
-          {view.title.length ? (
-            <div className="col" style={{ gap: 2, textAlign: 'center' }}>
-              {view.title.map((t, i) => <span key={i} className="body-sm" style={{ fontWeight: 700 }}>{t}</span>)}
-            </div>
-          ) : null}
-          {view.sections.length > 1 ? (
-            <div className="row" role="tablist" style={{ gap: 6, flexWrap: 'wrap' }}>
-              {view.sections.map((s, i) => (
-                <button key={s.name} type="button" role="tab" aria-selected={tab === i} className={tab === i ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} onClick={() => setTab(i)}>{s.name}</button>
-              ))}
-            </div>
-          ) : null}
-          {section ? (
-            section.table && section.table.rows.length
-              ? <PortalListTable list={{ key: 'my_cases', label: section.name, total: null, error: null, ...section.table }} />
-              : <p className="body-sm muted">{section.text || `Nothing under ${section.name} on the portal.`}</p>
-          ) : null}
-        </>
+      {view.sections.length > 1 ? (
+        <div className="row" role="tablist" style={{ gap: 4, flexWrap: 'wrap', padding: 4, background: 'var(--bg-surface-2)', border: '1px solid var(--border-default)' }}>
+          {view.sections.map((s, i) => (
+            <button key={s.name} type="button" role="tab" aria-selected={tab === i} onClick={() => setTab(i)}
+              style={{ padding: '8px 18px', fontSize: 16, cursor: 'pointer', border: '1px solid var(--border-default)', borderRadius: 3,
+                background: tab === i ? 'var(--bg-inverse)' : 'var(--bg-surface)', color: tab === i ? 'var(--text-inverse)' : 'inherit' }}>{s.name}</button>
+          ))}
+        </div>
       ) : null}
-    </section>
+      {section ? (
+        section.table && section.table.rows.length
+          ? <PortalListView key={`${tab}-${section.name}`} label={section.name} headers={section.table.headers} rows={section.table.rows} pageSize={10} />
+          : <p className="body-sm muted">{section.text || `Nothing under ${section.name} on the portal.`}</p>
+      ) : null}
+    </div>
   );
 }
+
+const svgProps = { width: 30, height: 30, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
+const IconEdit = () => <svg {...svgProps}><path d="M11 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-6" /><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z" /></svg>;
+const IconCheck = () => <svg {...svgProps} strokeWidth={3.2}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
+const IconQuestion = () => <svg {...svgProps}><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.6-3 4.5" /><path d="M12 18.5h.01" /></svg>;
+const IconBriefcase = () => <svg {...svgProps}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></svg>;
+const IconFolder = () => <svg {...svgProps}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>;

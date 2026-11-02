@@ -877,6 +877,12 @@ async function htmlTable(page: Page, html: string): Promise<PortalTableData> {
       for (const e of [...k.querySelectorAll('table, script, style, .modal, .popup, [style*="display:none"], [style*="display: none"]')]) e.remove();
       return k;
     };
+    // A cell's lines as the portal shows them (case no / CNR / e-filing no ...).
+    const lines = (k: any) => {
+      for (const br of [...k.querySelectorAll('br')]) br.replaceWith('\n');
+      for (const b of [...k.querySelectorAll('div, p, li, tr')]) b.append('\n');
+      return String(k.textContent ?? '').split('\n').map((x: string) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+    };
     const head = table.tHead?.rows?.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
     const headers = head ? [...head.cells].map(txt) : [];
     const rows = ownRows(table).map((tr: any) => {
@@ -893,9 +899,10 @@ async function htmlTable(page: Page, html: string): Promise<PortalTableData> {
       return {
         cells: cells.map((c: any) => {
           // Select boxes (e.g. "Select GRN") -> their option texts.
-          const sel = c.querySelector('select');
+          const shown = visible(c);
+          const sel = shown.querySelector('select');
           if (sel) return [...sel.options].map((o: any) => txt(o)).filter((t: string) => t && !/^select/i.test(t)).join(', ');
-          return txt(visible(c));
+          return lines(shown);
         }),
         ...(actions.length ? { actions } : {}),
       };
@@ -1229,13 +1236,20 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
   // Find the row and the button; remember every table's state, then click.
   const clicked = await page.evaluate(({ match, action }) => {
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    // Same text as the list parser gave DifAi, whitespace-insensitive.
     const visibleTxt = (c: any) => {
       const k = c.cloneNode(true);
       for (const e of [...k.querySelectorAll('table, script, style, .modal, .popup, [style*="display:none"], [style*="display: none"]')]) e.remove();
+      for (const br of [...k.querySelectorAll('br')]) br.replaceWith(' ');
+      for (const b of [...k.querySelectorAll('div, p, li, tr')]) b.append(' ');
       return txt(k);
     };
     const body = document.getElementById('history_body') as any;
     const want = match.map((m: string) => String(m).replace(/\s+/g, ' ').trim());
+    // The list itself is never what a row button opens.
+    for (const t of [...body.querySelectorAll('table')] as any[]) {
+      if (!t.parentElement?.closest('table')) t.setAttribute('data-difai-list', '1');
+    }
     const tr = ([...body.querySelectorAll('tr')] as any[]).find((r) => {
       const cells = [...r.children].map(visibleTxt);
       return want.every((w: string, i: number) => cells[i] === w);
@@ -1256,7 +1270,7 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
   // Wait for a table that appeared or changed, and let it finish filling.
   const found = await page.waitForFunction(() => {
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
-    const changed = ([...document.querySelectorAll('table')] as any[]).filter((x) => x.getClientRects().length
+    const changed = ([...document.querySelectorAll('table:not([data-difai-list])')] as any[]).filter((x) => x.getClientRects().length
       && x.getAttribute('data-difai-before') !== `1:${txt(x).length}`
       && [...x.querySelectorAll('tbody tr')].some((r: any) => r.children.length > 1 || txt(r)));
     // A pop-up inside a row changes the list around it too: take the innermost.
@@ -1274,7 +1288,12 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
   const shape = await page.evaluate(() => {
     const table = document.querySelector('[data-difai-opened]') as any;
     table.removeAttribute('data-difai-opened');
-    const container = table.closest('.modal-content') ?? table.closest('.modal, .popup, [id^=dv_], [id^=ap_]') ?? table.parentElement;
+    let container = table.parentElement;
+    for (let c = table.parentElement; c && c !== document.body; c = c.parentElement) {
+      if (c.matches('td, th, [data-difai-list]') || c.querySelector('[data-difai-list]')) break;
+      container = c;
+      if (c.matches('.modal-content, .popup, [id^=dv_], [id^=ap_]')) break;
+    }
     container.setAttribute('data-difai-container', '1');
     // Heading lines: the text before the tabs / the first table.
     const stop = container.querySelector('.nav-tabs, [role=tablist], .dataTables_wrapper, table');
@@ -1370,8 +1389,8 @@ async function closePortalPopups(page: Page): Promise<void> {
   await page.evaluate(() => {
     const $ = (globalThis as any).jQuery;
     if ($) $('.modal').modal?.('hide');
-    for (const e of [...document.querySelectorAll('[data-difai-container],[data-difai-pane],[data-difai-tab]')]) {
-      e.removeAttribute('data-difai-container'); e.removeAttribute('data-difai-pane'); e.removeAttribute('data-difai-tab');
+    for (const e of [...document.querySelectorAll('[data-difai-container],[data-difai-pane],[data-difai-tab],[data-difai-list]')]) {
+      for (const a of ['data-difai-container', 'data-difai-pane', 'data-difai-tab', 'data-difai-list']) e.removeAttribute(a);
     }
   }).catch(() => {});
   await page.keyboard.press('Escape').catch(() => {});

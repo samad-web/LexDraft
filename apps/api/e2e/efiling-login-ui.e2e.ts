@@ -145,11 +145,25 @@ describe('eFiling login, then straight to the eFiling features', () => {
   it("the eFiling Dashboard is then the portal's own: its tiles, its numbers, its list", async () => {
     await page.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
     await page.getByText('From your account on filing.ecourts.gov.in').waitFor({ timeout: 60_000 });
-    for (const t of ['Draft Pleadings', 'Completed Pleadings', 'Draft IAs', 'Completed IAs', 'Objections', 'My Cases']) {
-      await page.locator('button.card', { hasText: t }).first().waitFor();
+    // The tiles, with the portal's numbers, then the Calendar and today's list.
+    await page.getByRole('button', { name: 'Draft Pleadings: 1' }).waitFor({ timeout: 60_000 });
+    for (const t of ['Completed Pleadings', 'Draft IAs', 'Completed IAs', 'Objections', 'My Cases']) {
+      await page.getByRole('button', { name: new RegExp(`^${t}: `) }).waitFor();
     }
-    await page.getByRole('cell', { name: 'O.S. - C202600019' }).waitFor({ timeout: 60_000 });
-    expect((await page.locator('button.card', { hasText: 'Draft Pleadings' }).first().innerText()).split('\n')[1]).toBe('1');
+    await page.getByRole('heading', { name: 'Calendar' }).waitFor();
+    await page.getByRole('heading', { name: /^Cases Listed Today - \d{2}-\d{2}-\d{4}$/ }).waitFor();
+    // A tile opens its list in a window, as on the portal: search, paging, the table.
+    await page.getByRole('button', { name: 'Draft Pleadings: 1' }).click();
+    const win = page.getByRole('dialog', { name: 'Draft Pleadings' });
+    await win.getByRole('cell', { name: 'O.S. - C202600019' }).waitFor({ timeout: 60_000 });
+    await win.getByText('Showing 1 to 1 of 1 entries').waitFor();
+    await win.getByLabel('Search By (eFiling Number/CNR Number/Party Name)').fill('nothing-like-this');
+    await win.getByRole('button', { name: 'Search', exact: true }).click();
+    await win.getByText('No matching entries.').waitFor();
+    await win.getByRole('button', { name: 'Clear' }).click();
+    await win.getByRole('cell', { name: 'O.S. - C202600019' }).waitFor();
+    await page.keyboard.press('Escape');
+    await win.waitFor({ state: 'detached' });
     if (process.env['E2E_SHOTS']) await page.screenshot({ path: `${process.env['E2E_SHOTS']}/efiling-portal-dashboard.png`, fullPage: true });
   });
 
