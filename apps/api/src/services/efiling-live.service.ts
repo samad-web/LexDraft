@@ -1456,7 +1456,7 @@ async function openPortalFileStep(sessionId: string, userId: string, key: Portal
     const tr = ([...root.querySelectorAll('tr')] as any[]).find((r) => r.getClientRects().length && want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}) === w));
     if (!tr) return 'row';
     const a = ([...tr.querySelectorAll('a, button, input[type=button]')] as any[])
-      .find((b) => (txt(b) || String(b.value ?? '').trim()) === link && !b.closest('.popup:not([data-difai-container]), [style*="display:none"]'));
+      .find((b) => (txt(b) || String(b.value ?? '').trim()) === link && b.getClientRects().length > 0);
     if (!a) return 'link';
     a.removeAttribute('target');
     a.click();
