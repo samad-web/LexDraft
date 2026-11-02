@@ -2014,6 +2014,168 @@ export async function openMyCaseHistory(sessionId: string, userId: string, cino:
 }
 
 /** Internals exposed for tests only. */
+// =============================================================================
+// Portal map (local setup tool): walk the portal's menus over the advocate's
+// own session and record each page's STRUCTURE - headings, tabs, field labels,
+// dropdown choices, buttons, table columns, scripts - so DifAi's screens can
+// be built exactly like the portal's. Only menu pages are opened; no button is
+// pressed, nothing is typed, no table contents or field values are kept.
+// =============================================================================
+
+export interface PortalPageMap {
+  menu: string;
+  item: string;
+  url: string;
+  title: string;
+  headings: string[];
+  tabs: string[];
+  fields: Array<{ label: string; id: string; name: string; tag: string; type: string; options?: string[] }>;
+  buttons: Array<{ text: string; id: string; onclick: string }>;
+  tables: Array<{ id: string; headers: string[]; rows: number }>;
+  links: Array<{ text: string; onclick: string }>;
+  scripts: string[];
+  error?: string;
+}
+
+export interface PortalMap {
+  takenAt: string;
+  dir: string;
+  menus: Array<{ menu: string; items: Array<{ text: string; href: string; onclick: string }> }>;
+  pages: PortalPageMap[];
+}
+
+// Never opened while mapping: anything that ends, removes or changes something.
+const MAP_SKIP = /log\s*out|sign\s*out|exit|delete|remove|discard|withdraw|cancel/i;
+
+async function readPageStructure(page: Page): Promise<Omit<PortalPageMap, 'menu' | 'item' | 'url'>> {
+  return page.evaluate(() => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const shown = (e: any) => !!e && e.getClientRects().length > 0;
+    const fnName = (s: string | null) => (s ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    const content = (document.querySelector('main, .content-wrapper, #content, .container-fluid, .container') ?? document.body) as any;
+    const labelFor = (el: any): string => {
+      if (el.id) {
+        const l = document.querySelector(`label[for="${(globalThis as any).CSS.escape(el.id)}"]`);
+        if (l) return txt(l);
+      }
+      const wrap = el.closest('label');
+      if (wrap) return txt(wrap);
+      // The nearest text before the field (portal forms often use a cell or div).
+      let p: any = el.parentElement;
+      for (let i = 0; i < 3 && p; i++, p = p.parentElement) {
+        const prev = p.previousElementSibling;
+        if (prev && txt(prev) && txt(prev).length < 80) return txt(prev);
+      }
+      return el.getAttribute('placeholder') ?? el.getAttribute('aria-label') ?? '';
+    };
+    const fields = ([...content.querySelectorAll('input, select, textarea')] as any[])
+      .filter((el) => el.type !== 'hidden' && shown(el))
+      .slice(0, 150)
+      .map((el) => ({
+        label: labelFor(el).slice(0, 120),
+        id: el.id ?? '',
+        name: el.getAttribute('name') ?? '',
+        tag: el.tagName.toLowerCase(),
+        type: el.getAttribute('type') ?? '',
+        // Choices only (no value typed or chosen is kept).
+        ...(el.tagName === 'SELECT' ? { options: [...el.options].slice(0, 40).map((o: any) => txt(o)).filter(Boolean) } : {}),
+      }));
+    const buttons = ([...content.querySelectorAll('button, input[type=button], input[type=submit], a.btn')] as any[])
+      .filter(shown).slice(0, 80)
+      .map((b) => ({ text: (txt(b) || String(b.value ?? '')).slice(0, 80), id: b.id ?? '', onclick: fnName(b.getAttribute('onclick')) }));
+    const tables = ([...content.querySelectorAll('table')] as any[]).filter((t) => !t.parentElement?.closest('table')).slice(0, 30)
+      .map((t) => ({ id: t.id ?? '', headers: [...t.querySelectorAll('thead th')].map(txt).slice(0, 30), rows: t.querySelectorAll('tbody tr').length }));
+    const tabs = ([...content.querySelectorAll('.nav-tabs a, .nav-tabs button, [role=tab], .nav-pills a')] as any[]).map(txt).filter(Boolean).slice(0, 40);
+    const headings = ([...content.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .panel-heading, .box-title')] as any[])
+      .filter(shown).map(txt).filter((t) => t && t.length < 120).slice(0, 60);
+    const links = ([...content.querySelectorAll('a[onclick]')] as any[]).filter(shown).slice(0, 60)
+      .map((a) => ({ text: txt(a).slice(0, 80), onclick: fnName(a.getAttribute('onclick')) }));
+    const scripts = ([...document.querySelectorAll('script[src]')] as any[]).map((s) => String(s.src));
+    return { title: document.title, headings, tabs, fields, buttons, tables, links, scripts };
+  });
+}
+
+async function mapPortalStep(sessionId: string, userId: string): Promise<PortalMap> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  const { page } = session;
+  const { mkdir, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dir = join(tmpdir(), 'difai-portal-map', new Date().toISOString().replace(/[:.]/g, '-'));
+  await mkdir(join(dir, 'js'), { recursive: true });
+  await closePortalPopups(page);
+  await ensureDashboard(session, true);
+
+  // The menu bar: each dropdown and its items, as the portal draws them.
+  const menus = await page.evaluate(() => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const out: Array<{ menu: string; items: Array<{ text: string; href: string; onclick: string }> }> = [];
+    for (const dd of [...document.querySelectorAll('.dropdown, .nav-item.dropdown, li.dropdown')] as any[]) {
+      const toggle = dd.querySelector('.dropdown-toggle, [data-toggle=dropdown], [data-bs-toggle=dropdown]') ?? dd.querySelector('a');
+      const items = ([...dd.querySelectorAll('.dropdown-menu a, .dropdown-menu button')] as any[])
+        .map((a) => ({ text: txt(a), href: String(a.getAttribute('href') ?? ''), onclick: String(a.getAttribute('onclick') ?? '').slice(0, 160) }))
+        .filter((a) => a.text);
+      if (toggle && items.length) out.push({ menu: txt(toggle), items });
+    }
+    return out;
+  });
+
+  const pages: PortalPageMap[] = [];
+  const scripts = new Set<string>();
+  const base = new URL(page.url());
+  for (const m of menus) {
+    for (const it of m.items) {
+      if (MAP_SKIP.test(it.text) || MAP_SKIP.test(it.href)) continue;
+      try {
+        await ensureDashboard(session, true);
+        const href = it.href && !/^(#|javascript:)/i.test(it.href) ? new URL(it.href, page.url()).toString() : '';
+        if (href && new URL(href).hostname === base.hostname) {
+          await page.goto(href, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        } else {
+          // A menu item that opens its page by script: click it like a person.
+          await page.evaluate(({ menu, text }) => {
+            const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+            for (const dd of [...document.querySelectorAll('.dropdown, .nav-item.dropdown, li.dropdown')] as any[]) {
+              const toggle = dd.querySelector('.dropdown-toggle, [data-toggle=dropdown], [data-bs-toggle=dropdown]') ?? dd.querySelector('a');
+              if (txt(toggle) !== menu) continue;
+              const a = ([...dd.querySelectorAll('.dropdown-menu a, .dropdown-menu button')] as any[]).find((x) => txt(x) === text);
+              if (a) { a.click(); return; }
+            }
+          }, { menu: m.menu, text: it.text });
+        }
+        await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+        await page.waitForTimeout(800);
+        if (await page.$('#user_name')) throw portalSessionEnded(session);
+        const s = await readPageStructure(page);
+        for (const src of s.scripts) scripts.add(src);
+        pages.push({ menu: m.menu, item: it.text, url: page.url(), ...s });
+      } catch (e) {
+        if (e instanceof EcourtsHttpError && e.status === 410) throw e;
+        pages.push({ menu: m.menu, item: it.text, url: page.url(), title: '', headings: [], tabs: [], fields: [], buttons: [], tables: [], links: [], scripts: [], error: (e as Error).message });
+      }
+    }
+  }
+  // The pages' own scripts (public code), for the exact requests they make.
+  for (const src of scripts) {
+    try {
+      const u = new URL(src);
+      if (u.hostname !== base.hostname || !/\.js$/i.test(u.pathname)) continue;
+      const body = await page.evaluate(async (x) => (await fetch(x, { credentials: 'include' })).text(), src);
+      await writeFile(join(dir, 'js', u.pathname.replace(/^\/+/, '').replace(/[\\/]/g, '_')), body);
+    } catch { /* one script missing is fine */ }
+  }
+  await ensureDashboard(session, true);
+  const map: PortalMap = { takenAt: new Date().toISOString(), dir, menus, pages };
+  await writeFile(join(dir, 'portal-map.json'), JSON.stringify(map, null, 2));
+  return map;
+}
+
+/** Map the portal's menus and pages (structure only) - a local setup tool. */
+export async function mapPortal(sessionId: string, userId: string) {
+  return queued(getSession(sessionId, userId), () => mapPortalStep(sessionId, userId), 60_000);
+}
+
 export const __testing = {
   portalPost,
   htmlTable,

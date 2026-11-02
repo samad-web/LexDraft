@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import * as efilingLive from '../services/efiling-live.service';
 import { efileCaseOnPortal, fillNewCaseOnPortal, submitPleadingOnPortal, uploadPleadingOnPortal } from '../services/efiling-portal-filing.service';
-import { BadRequestError, UnauthorizedError } from '../lib/errors';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { ALL_STEP_KEYS, PARTICULARS_EXTRA_KEYS, EFILING_PORTAL_STATES, EFILING_PORTAL_STATE_CODES, PORTAL_STEPS_BY_KIND, type PortalStepKey } from '../lib/efiling/types';
 import { requireFeature } from '../services/permissions.service';
 import { firmIdForUser } from '../services/tenant';
@@ -179,6 +179,24 @@ efilingRouter.get(
       if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
       const { sessionId } = req.params as unknown as { sessionId: string };
       res.json(await efilingLive.readPortalCounts(sessionId, req.user.id));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Local setup tool only: walks the portal's menus over the advocate's session
+// and saves each page's structure on this machine. Never on production.
+efilingRouter.post(
+  '/live/session/:sessionId/map',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      if (process.env['NODE_ENV'] === 'production') throw new NotFoundError('Not found');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const map = await efilingLive.mapPortal(sessionId, req.user.id);
+      res.json({ dir: map.dir, menus: map.menus.map((m) => ({ menu: m.menu, items: m.items.length })), pages: map.pages.length, failed: map.pages.filter((x) => x.error).length });
     } catch (err) {
       next(err);
     }

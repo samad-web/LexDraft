@@ -358,6 +358,13 @@ export function useOpenPortalFile(sessionId: string | null) {
   });
 }
 
+/** Local setup tool: map the portal's menus and pages (structure only) on this machine. */
+export function useMapPortal(sessionId: string | null) {
+  return useMutation({
+    mutationFn: () => api.post<{ dir: string; menus: Array<{ menu: string; items: number }>; pages: number; failed: number }>(`/efiling/live/session/${sessionId}/map`),
+  });
+}
+
 export function useEndEfilingSession() {
   return useMutation({
     mutationFn: (sessionId: string) => api.post<{ ok: true }>(`/efiling/live/session/${sessionId}/end`),

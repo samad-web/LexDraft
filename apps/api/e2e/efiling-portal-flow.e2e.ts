@@ -36,6 +36,7 @@ const fx = {
   /** The portal ended the session (same account logged in elsewhere). */
   signedOut: false,
   pdfServed: [] as string[],
+  mapped: [] as string[],
   /** My Cases keeps its cases in window globals (as the portal's my_cases.js does). */
   myCasesGlobals: true,
   /** The widget's own requests (portfolio/...), with what they sent. */
@@ -229,6 +230,9 @@ const TILES: Record<string, { route: string; field: string; html: string }> = {
 
 const dashboardPage = () => `<!doctype html><html><body>
 <input type="hidden" id="base_url" value="${ORIGIN}/pdedev"><input type="hidden" id="__csrf_magic" value="${fx.csrf}">
+<ul class="navbar"><li class="dropdown"><a class="dropdown-toggle" href="#">Pleadings</a><ul class="dropdown-menu">
+  <li><a href="${ORIGIN}/pdedev/?p=upload_pleading">Pleading Upload</a></li>
+  <li><a href="#" onclick="fx.deleted = 1">Delete Draft</a></li></ul></li></ul>
 <h3>Dashboard</h3>
 <!-- The real dashboard's tiles: pairs inside shared panels, label, icon, number. -->
 <div class="row panel"><div class="col tile"><span>Draft Pleadings</span><i class="fa"></i><span>1</span></div><div class="col tile"><span>Completed Pleadings</span><i class="fa"></i><span>2</span></div></div>
@@ -343,6 +347,16 @@ async function serve(route: Route): Promise<void> {
     fx.loggedOut = true;
     return route.fulfill({ contentType: 'text/html', body: '<html><body>Logged out</body></html>' });
   }
+  if (req.method() === 'GET' && p === 'upload_pleading') {
+    fx.mapped.push(p);
+    return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><script src="/pdedev/js/upload_pleading.js"></script></head><body><div class="container">
+<h3>Pleading Upload</h3><ul class="nav nav-tabs"><li><a href="#a">Pleading Upload</a></li><li><a href="#b">Pleading Index</a></li></ul>
+<label for="sel_pde_no">e-Filing Number</label><select id="sel_pde_no"><option>Select</option><option>ATN20250009438C202600002</option></select>
+<div>Document Title</div><div><input id="doc_file_name" name="doc_file_name" value="secret typed value"></div>
+<button id="add_btn" onclick="submitData()">Upload</button>
+<table id="tbl"><thead><tr><th>Sr.No.</th><th>Document</th></tr></thead><tbody><tr><td>1</td><td>PRIVATE CLIENT DOC</td></tr></tbody></table></div></body></html>` });
+  }
+  if (req.method() === 'GET' && url.pathname.endsWith('upload_pleading.js')) return route.fulfill({ contentType: 'text/javascript', body: 'function submitData(){ /* portal js */ }' });
   if (req.method() === 'GET' && p === 'dashboard') return route.fulfill({ contentType: 'text/html', body: fx.signedOut ? loginPage : dashboardPage() });
   if (req.method() === 'GET') return route.fulfill({ contentType: 'text/html', body: loginPage });
 
@@ -638,6 +652,31 @@ describe('eFiling portal dashboard (fixture portal)', () => {
       fx.myCasesGlobals = true;
     }
   }, 60_000);
+
+  it('maps the portal\'s menus (structure only): opens menu pages, never Delete, keeps no values or table contents', async () => {
+    const map = await live.mapPortal(sessionId, USER);
+    expect(map.menus).toEqual([{ menu: 'Pleadings', items: [
+      { text: 'Pleading Upload', href: `${ORIGIN}/pdedev/?p=upload_pleading`, onclick: '' },
+      { text: 'Delete Draft', href: '#', onclick: 'fx.deleted = 1' },
+    ] }]);
+    expect(map.pages.map((x) => x.item)).toEqual(['Pleading Upload']);
+    const pg = map.pages[0]!;
+    expect(pg.headings).toContain('Pleading Upload');
+    expect(pg.tabs).toEqual(['Pleading Upload', 'Pleading Index']);
+    expect(pg.fields).toEqual([
+      { label: 'e-Filing Number', id: 'sel_pde_no', name: '', tag: 'select', type: '', options: ['Select', 'ATN20250009438C202600002'] },
+      { label: 'Document Title', id: 'doc_file_name', name: 'doc_file_name', tag: 'input', type: '' },
+    ]);
+    expect(pg.buttons).toEqual([{ text: 'Upload', id: 'add_btn', onclick: 'submitData()' }]);
+    expect(pg.tables).toEqual([{ id: 'tbl', headers: ['Sr.No.', 'Document'], rows: 1 }]);
+    const saved = JSON.stringify(map);
+    expect(saved).not.toContain('secret typed value');
+    expect(saved).not.toContain('PRIVATE CLIENT DOC');
+    const { readFile, rm } = await import('node:fs/promises');
+    const { join } = await import('node:path');
+    expect(await readFile(join(map.dir, 'js', 'pdedev_js_upload_pleading.js'), 'utf8')).toContain('submitData');
+    await rm(map.dir, { recursive: true, force: true });
+  }, 120_000);
 
   it('clicking tiles quickly: each read waits its turn instead of failing', async () => {
     const [a, b, c] = await Promise.all([
