@@ -193,7 +193,10 @@ efilingRouter.post(
   async (req, res, next) => {
     try {
       if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
-      if (process.env['NODE_ENV'] === 'production') throw new NotFoundError('Not found');
+      // Never for advocates: refused in production and for any request that
+      // doesn't come from this machine (through nginx the host is the site's).
+      const local = ['localhost', '127.0.0.1', '::1'].includes(req.hostname);
+      if (process.env['NODE_ENV'] === 'production' || !local) throw new NotFoundError('Not found');
       const { sessionId } = req.params as unknown as { sessionId: string };
       const map = await efilingLive.mapPortal(sessionId, req.user.id);
       res.json({ dir: map.dir, menus: map.menus.map((m) => ({ menu: m.menu, items: m.items.length })), pages: map.pages.length, failed: map.pages.filter((x) => x.error).length });
