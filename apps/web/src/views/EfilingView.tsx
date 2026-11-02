@@ -24,6 +24,10 @@ import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPor
 import { PageHeader } from '@/components/PageHeader';
 import { PortalEpay } from '@/components/efiling/portal/PortalEpay';
 import { PortalApplications } from '@/components/efiling/portal/PortalApplications';
+import { PortalPleadings } from '@/components/efiling/portal/PortalPleadings';
+import { PortalVakalat } from '@/components/efiling/portal/PortalVakalat';
+import { PortalPortfolio } from '@/components/efiling/portal/PortalPortfolio';
+import { PortalCaseFiling } from '@/components/efiling/portal/PortalCaseFiling';
 import { CellWithLinks, PortalListView, PortalModal, PortalTable, ROW_ACTION, type PortalRows } from '@/components/efiling/PortalKit';
 
 // =============================================================================
@@ -39,21 +43,38 @@ import { CellWithLinks, PortalListView, PortalModal, PortalTable, ROW_ACTION, ty
 // Old links with ?tab=portal / ?tab=profile still work.
 // =============================================================================
 
-type Menu = PortalModule | 'filings' | 'profile' | 'portal';
+/** Screens that exist only on the portal: they open live once logged in. */
+type PortalOnly =
+  | 'add_partner' | 'accept_partnership' | 'revoke_partnership' | 'accept_revocation' | 'partners_report'
+  | 'fav_clients' | 'templates'
+  | 'search_cases' | 'planner' | 'export_cases' | 'my_cases' | 'import_cases';
+
+type Menu = PortalModule | PortalOnly | 'filings' | 'profile' | 'portal';
 
 type Item =
   | { kind: 'module'; id: Menu; label: string }
   | { kind: 'link'; to: string; label: string };
 
+// The portal's own menus and items, in its order (taken from the live portal).
 const MENUS: ReadonlyArray<{ id: string; label: string; items: ReadonlyArray<Item> }> = [
-  { id: 'partners', label: 'My Partners', items: [{ kind: 'link', to: '/app/members', label: 'My Partners' }] },
+  {
+    id: 'partners',
+    label: 'My Partners',
+    items: [
+      { kind: 'module', id: 'add_partner', label: 'Add Partners' },
+      { kind: 'module', id: 'accept_partnership', label: 'Accept Partnership' },
+      { kind: 'module', id: 'revoke_partnership', label: 'Revoke Partnership' },
+      { kind: 'module', id: 'accept_revocation', label: 'Accept Revocation' },
+      { kind: 'module', id: 'partners_report', label: 'My Partners Report' },
+    ],
+  },
   {
     id: 'case_filing',
     label: 'Case Filing',
     items: [
       { kind: 'module', id: 'new_case', label: 'New Case Filing' },
-      { kind: 'link', to: '/app/clients', label: 'Manage Favourite Clients' },
-      { kind: 'module', id: 'filings', label: 'All filings' },
+      { kind: 'module', id: 'fav_clients', label: 'Manage Favourite Clients' },
+      { kind: 'module', id: 'filings', label: 'Prepared in DifAi' },
     ],
   },
   {
@@ -69,7 +90,7 @@ const MENUS: ReadonlyArray<{ id: string; label: string; items: ReadonlyArray<Ite
     id: 'pleadings',
     label: 'Pleadings',
     items: [
-      { kind: 'link', to: '/app/draft', label: 'Use Template' },
+      { kind: 'module', id: 'templates', label: 'Use Template' },
       { kind: 'module', id: 'pleadings', label: 'Pleadings' },
       { kind: 'module', id: 'oath', label: 'Video Recording' },
     ],
@@ -90,17 +111,26 @@ const MENUS: ReadonlyArray<{ id: string; label: string; items: ReadonlyArray<Ite
       { kind: 'module', id: 'submitted_ias', label: 'Submitted Applications' },
     ],
   },
+  {
+    id: 'portfolio',
+    label: 'Portfolio',
+    items: [
+      { kind: 'module', id: 'search_cases', label: 'Search Cases' },
+      { kind: 'module', id: 'planner', label: 'Planner' },
+      { kind: 'module', id: 'export_cases', label: 'Export Cases' },
+      { kind: 'module', id: 'my_cases', label: 'My Cases' },
+      { kind: 'module', id: 'import_cases', label: 'Import Cases' },
+    ],
+  },
 ];
 
-/** The portal's Portfolio menu is a tile grid, not a list. */
-const PORTFOLIO: ReadonlyArray<{ label: string; to: string; icon: string }> = [
-  { label: 'Search Cases', to: '/app/ecourts', icon: '⌕' },
-  { label: 'My Cases', to: '/app/cases', icon: '▣' },
-  { label: 'Planner', to: '/app/calendar', icon: '▦' },
-  { label: 'Import Cases', to: '/app/ecourts', icon: '⤓' },
-  { label: 'Export Cases', to: '/app/ecourts', icon: '⤒' },
-  { label: 'Delete Cases', to: '/app/cases', icon: '✕' },
-];
+const PORTAL_ONLY_LABEL: Record<PortalOnly, string> = Object.fromEntries(
+  MENUS.flatMap((m) => m.items.flatMap((i) => (i.kind === 'module' ? [[i.id, i.label] as const] : []))),
+) as Record<PortalOnly, string>;
+const PORTAL_ONLY = new Set<string>([
+  'add_partner', 'accept_partnership', 'revoke_partnership', 'accept_revocation', 'partners_report',
+  'fav_clients', 'templates', 'search_cases', 'planner', 'export_cases', 'my_cases', 'import_cases',
+]);
 
 const ALL = new Set<string>([
   'dashboard', 'objections', 'profile', 'portal',
@@ -143,35 +173,6 @@ function MenuDropdown({ menu, active, onPick }: {
             {i.label}{i.kind === 'link' ? ' ↗' : ''}
           </button>
         ))}
-      </AnchoredMenu>
-    </>
-  );
-}
-
-function PortfolioDropdown() {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLButtonElement | null>(null);
-  return (
-    <>
-      <button ref={ref} type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} style={barBtn(false)}>
-        Portfolio <span aria-hidden style={{ fontSize: 10 }}>▾</span>
-      </button>
-      <AnchoredMenu anchor={ref.current} open={open} onClose={() => setOpen(false)} minWidth={300}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-          {PORTFOLIO.map((t) => (
-            <Link
-              key={t.label}
-              to={t.to}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="col"
-              style={{ alignItems: 'center', gap: 4, padding: '14px 8px', borderRadius: 8, background: 'var(--bg-inverse)', color: 'var(--text-inverse)', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}
-            >
-              <span aria-hidden style={{ fontSize: 18 }}>{t.icon}</span>
-              {t.label}
-            </Link>
-          ))}
-        </div>
       </AnchoredMenu>
     </>
   );
@@ -220,7 +221,7 @@ export function EfilingView() {
   const pick = (i: Item) => (i.kind === 'link' ? navigate(i.to) : go(i.id));
 
   // A filing opened from a list, a notification or a link: show it in full.
-  const showDetail = Boolean(filingId) && !['new_case', 'pleadings', 'oath', 'payments', 'wallet', 'applications', 'submitted_ias'].includes(m);
+  const showDetail = Boolean(filingId) && !['new_case', 'pleadings', 'oath', 'payments', 'wallet', 'applications', 'submitted_ias'].includes(m) && !PORTAL_ONLY.has(m);
 
   if (!connection && !offline) {
     return (
@@ -259,7 +260,6 @@ export function EfilingView() {
             Dashboard
           </button>
           {MENUS.map((menu) => <MenuDropdown key={menu.id} menu={menu} active={MENU_OF[m] === menu.id} onPick={pick} />)}
-          <PortfolioDropdown />
           <button type="button" aria-current={m === 'objections' ? 'page' : undefined} onClick={() => go('objections')} style={barBtn(m === 'objections')}>
             Objections
             {objectionCount > 0 ? <span className="badge badge-amber" style={{ fontSize: 10 }}>{objectionCount}</span> : null}
@@ -278,11 +278,34 @@ export function EfilingView() {
           <>
             {/* Logged in: the dashboard IS the portal's - its tiles, its numbers, its lists. */}
             {m === 'dashboard' && connection ? (
-              <PortalDashboard sessionId={connection.sessionId} preparedCount={(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length}
+              <PortalDashboard key="dash" sessionId={connection.sessionId} preparedCount={(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length}
                 onNewCase={() => go('new_case')} onPrepared={() => go('filings')} />
             ) : null}
+            {m === 'my_cases' && connection ? (
+              <PortalDashboard key="dash-my-cases" sessionId={connection.sessionId} initialOpen="my_cases" preparedCount={(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length}
+                onNewCase={() => go('new_case')} onPrepared={() => go('filings')} />
+            ) : null}
+            {/* Portal-only screens, live on the advocate's own portal session. */}
+            {connection && ['add_partner', 'accept_partnership', 'revoke_partnership', 'accept_revocation', 'partners_report'].includes(m) ? (
+              <PortalVakalat key={`p-${m}`} sessionId={connection.sessionId} view={m as 'add_partner'} />
+            ) : null}
+            {connection && m === 'fav_clients' ? <PortalCaseFiling key="p-clients" sessionId={connection.sessionId} view="clients" /> : null}
+            {connection && m === 'templates' ? <PortalPleadings key="p-templates" sessionId={connection.sessionId} view="templates" /> : null}
+            {connection && ['search_cases', 'planner', 'export_cases', 'import_cases'].includes(m) ? (
+              <PortalPortfolio key={`p-${m}`} sessionId={connection.sessionId} view={m} />
+            ) : null}
+            {!connection && PORTAL_ONLY.has(m) ? (
+              <section className="card col" style={{ gap: 10, maxWidth: 640 }}>
+                <h2 className="heading-md">{PORTAL_ONLY_LABEL[m as PortalOnly]}</h2>
+                <p className="body-sm">This screen is on the eFiling portal itself. Log in with your eFiling account to open it here.</p>
+                <span><button type="button" className="btn btn-primary btn-sm" onClick={() => setOffline(false)}>Log in to eFiling</button></span>
+              </section>
+            ) : null}
             {m === 'dashboard' && !connection ? <EfilingDashboard onOpen={open} onNav={(x) => go(x)} /> : null}
-            {m === 'new_case' ? (
+            {m === 'new_case' && connection && !caseParam && !filingId ? (
+              <PortalCaseFiling key="p-new-case" sessionId={connection.sessionId} view="new_case" />
+            ) : null}
+            {m === 'new_case' && !(connection && !caseParam && !filingId) ? (
               <NewCaseFiling
                 key={caseParam ?? 'new'}
                 filingId={filingId}
@@ -294,11 +317,11 @@ export function EfilingView() {
               />
             ) : null}
             {m === 'filings' ? <FilingsList onOpen={open} /> : null}
-            {m === 'vakalat' ? <VakalatModule view="assign" onOpen={(id) => go('filings', { filing: id })} /> : null}
-            {m === 'accept_offer' ? <VakalatModule view="accept" onOpen={(id) => go('filings', { filing: id })} /> : null}
-            {m === 'print_vakalat' ? <VakalatModule view="print" onOpen={(id) => go('filings', { filing: id })} /> : null}
-            {m === 'pleadings' ? <PleadingsModule initialFiling={filingId} /> : null}
-            {m === 'oath' ? <OathModule initialFiling={filingId} /> : null}
+            {m === 'vakalat' ? (connection ? <PortalVakalat key="p-vakalat" sessionId={connection.sessionId} view="vakalat" /> : <VakalatModule view="assign" onOpen={(id) => go('filings', { filing: id })} />) : null}
+            {m === 'accept_offer' ? (connection ? <PortalVakalat key="p-accept" sessionId={connection.sessionId} view="accept_offer" /> : <VakalatModule view="accept" onOpen={(id) => go('filings', { filing: id })} />) : null}
+            {m === 'print_vakalat' ? (connection ? <PortalVakalat key="p-print" sessionId={connection.sessionId} view="print_vakalat" /> : <VakalatModule view="print" onOpen={(id) => go('filings', { filing: id })} />) : null}
+            {m === 'pleadings' ? (connection ? <PortalPleadings key="p-pleadings" sessionId={connection.sessionId} view="pleadings" /> : <PleadingsModule initialFiling={filingId} />) : null}
+            {m === 'oath' ? (connection ? <PortalPleadings key="p-oath" sessionId={connection.sessionId} view="oath" /> : <OathModule initialFiling={filingId} />) : null}
             {/* Logged in: the portal's own screens; otherwise DifAi's preparation screens. */}
             {m === 'payments' ? (connection ? <PortalEpay key="p-payments" sessionId={connection.sessionId} view="payments" /> : <PaymentsModule key="payment" initialFiling={filingId} view="payment" />) : null}
             {m === 'wallet' ? (connection ? <PortalEpay key="p-wallet" sessionId={connection.sessionId} view="wallet" /> : <PaymentsModule key="wallet" initialFiling={filingId} view="wallet" />) : null}
@@ -344,14 +367,15 @@ function ConnectionBar({ connection, onLogOut, onLogIn, pending }: {
  * its list in a pop-up window with the portal's search and paging; a row's
  * View Documents / View Status opens a second window on top, tab by tab.
  */
-function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
+function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, initialOpen }: {
   sessionId: string;
+  initialOpen?: PortalList['key'];
   preparedCount: number;
   onNewCase: () => void;
   onPrepared: () => void;
 }) {
   const counts = usePortalCounts(sessionId);
-  const [open, setOpen] = useState<PortalList['key'] | null>(null);
+  const [open, setOpen] = useState<PortalList['key'] | null>(initialOpen ?? null);
   // My Cases is the portal's portfolio widget, not a list: read on its own.
   const list = usePortalList(sessionId, open === 'my_cases' ? null : open, !counts.isLoading);
   const myCases = usePortalMyCases(sessionId, open === 'my_cases' && !counts.isLoading);

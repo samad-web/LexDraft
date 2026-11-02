@@ -23,6 +23,10 @@ import { ecourtsRouter } from './ecourts.routes';
 import { efilingRouter } from './efiling.routes';
 import { efilingPortalEpayRouter } from './efiling-portal-epay.routes';
 import { efilingPortalApplicationsRouter } from './efiling-portal-applications.routes';
+import { efilingPortalPleadingsRouter } from './efiling-portal-pleadings.routes';
+import { efilingPortalVakalatRouter } from './efiling-portal-vakalat.routes';
+import { efilingPortalPortfolioRouter } from './efiling-portal-portfolio.routes';
+import { efilingPortalCaseFilingRouter } from './efiling-portal-casefiling.routes';
 import { landRecordsRouter } from './land-records.routes';
 import { judgesRouter } from './judges.routes';
 import { dashboardRouter } from './dashboard.routes';
@@ -179,6 +183,10 @@ apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingRouter);
 // The portal's own menus, live over each advocate's eFiling session.
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalEpayRouter);
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalApplicationsRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalPleadingsRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalVakalatRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalPortfolioRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalCaseFilingRouter);
 // Tamil Nadu Land Records eServices (patta / chitta / A-Register / FMB / TSLR).
 apiRouter.use('/land-records', requireAuth, requireActivePlan, landRecordsRouter);
 apiRouter.use('/judges',   requireAuth, requireActivePlan, judgesRouter);

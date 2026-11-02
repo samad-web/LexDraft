@@ -125,11 +125,43 @@ async function queued<T>(session: EfilingSession, fn: () => Promise<T>, waitMs =
 async function exclusive<T>(session: EfilingSession, fn: () => Promise<T>): Promise<T> {
   if (session.busy) throw new EcourtsHttpError(409, 'Still working on your last eFiling step - wait a moment.');
   session.busy = true;
+  const step = stepName();
+  const started = Date.now();
+  stepLog(session, step, 'start');
+  // A step still running after a minute and a half is logged with where the
+  // portal page is, so a hang can be told apart from a slow portal.
+  const watchdog = setInterval(() => stepLog(session, step, `still running ${Math.round((Date.now() - started) / 1000)}s at ${session.page.url()}`), 90_000);
   try {
-    return await fn();
+    const out = await fn();
+    stepLog(session, step, `done ${Date.now() - started}ms`);
+    return out;
+  } catch (e) {
+    stepLog(session, step, `failed ${Date.now() - started}ms: ${(e as Error).message}`);
+    throw e;
   } finally {
+    clearInterval(watchdog);
     session.busy = false;
   }
+}
+
+/** The exported function that started this step (from the call stack). */
+function stepName(): string {
+  const lines = String(new Error().stack ?? '').split('\n').slice(3);
+  for (const l of lines) {
+    const m = /at (?:async )?([\w.]+) /.exec(l);
+    if (m && !/(^|\.)(exclusive|queued|withPortalPage|stepName)$|^(Object|process)\b/.test(m[1]!)) return m[1]!.replace(/^Module\./, '');
+  }
+  return 'step';
+}
+
+/** Local runs only: one line per portal step in the OS temp folder (no values, no passwords). */
+function stepLog(session: EfilingSession, step: string, what: string): void {
+  if (process.env['NODE_ENV'] === 'production') return;
+  void import('node:fs/promises').then(async ({ appendFile }) => {
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    await appendFile(join(tmpdir(), 'difai-efiling-steps.log'), `${new Date().toISOString()} ${session.id.slice(0, 8)} ${step} ${what}\n`);
+  }).catch(() => {});
 }
 
 function touch(session: EfilingSession): void {
@@ -229,6 +261,11 @@ export async function startEfilingSession(
   if (contextHook) await contextHook(context);
   const page = await context.newPage();
   page.setDefaultTimeout(30000);
+  // Safety net: a portal alert/confirm that no step answers would freeze the
+  // page (and every later step). Close it after a few seconds - Cancel on a
+  // confirm, so nothing is ever agreed to by default. Steps that answer the
+  // portal's questions do so first; closing an answered one is a no-op.
+  page.on('dialog', (d) => { setTimeout(() => { d.dismiss().catch(() => {}); }, 3000); });
 
   const sessionId = randomUUID();
   const session: EfilingSession = {
