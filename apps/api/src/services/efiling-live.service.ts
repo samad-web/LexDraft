@@ -786,7 +786,7 @@ async function readPortalPageStep(sessionId: string, userId: string, what: Porta
   }
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
   // Bounced back to the login form: the portal ended the session.
-  if (await page.$('#user_name')) {
+  if (await onLoginForm(page)) {
     throw portalSessionEnded(session);
   }
   const snap = await snapshot(page);
@@ -972,7 +972,7 @@ async function ensureDashboard(session: EfilingSession, fresh = false): Promise<
   const landed = await page.waitForSelector('#efiling_activity, #draft_cases, #objections, #user_name', { timeout: 15_000 }).catch(() => null);
   // Bounced to the login form (or anywhere that isn't the dashboard while
   // the address says login): the portal ended the session.
-  if (await page.$('#user_name') || (!landed && /login|logout|session/i.test(page.url()))) {
+  if (await onLoginForm(page) || (!landed && /login|logout|session/i.test(page.url()))) {
     throw portalSessionEnded(session);
   }
   if (!landed) throw new EcourtsHttpError(502, "The eFiling portal didn't open your dashboard - it may be slow right now. Try Refresh.");
@@ -1103,7 +1103,7 @@ async function readPortalListsStep(sessionId: string, userId: string): Promise<P
   const { page } = session;
   if (!(await page.$('#__csrf_magic'))) {
     await readPortalPageStep(sessionId, userId, 'dashboard').catch(() => {});
-    if (!(await page.$('#__csrf_magic')) && (await page.$('#user_name'))) {
+    if (!(await page.$('#__csrf_magic')) && (await onLoginForm(page))) {
       throw portalSessionEnded(session);
     }
   }
@@ -1164,7 +1164,7 @@ export async function withPortalPage<T>(sessionId: string, userId: string, fn: (
   const session = getSession(sessionId, userId);
   return exclusive(session, async () => {
     if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
-    if (await session.page.$('#user_name')) {
+    if (await onLoginForm(session.page)) {
       throw portalSessionEnded(session);
     }
     return fn(session.page);
@@ -2033,6 +2033,8 @@ export interface PortalPageMap {
   buttons: Array<{ text: string; id: string; onclick: string }>;
   tables: Array<{ id: string; headers: string[]; rows: number }>;
   links: Array<{ text: string; onclick: string }>;
+  /** The page's captions in order (labels, legends, column heads). */
+  labels: string[];
   scripts: string[];
   error?: string;
 }
@@ -2052,7 +2054,10 @@ export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap,
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
     const shown = (e: any) => !!e && e.getClientRects().length > 0;
     const fnName = (s: string | null) => (s ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
-    const content = (document.querySelector('main, .content-wrapper, #content, .container-fluid, .container') ?? document.body) as any;
+    // The page itself: everything except the portal's header, menu bar and
+    // footer (the first ".container" on the portal is its header).
+    const content = document.body as any;
+    const chrome = (el: any) => !!el.closest('nav, header, footer, .navbar, .main-header, .main-footer, .dropdown-menu, #loadMe');
     const labelFor = (el: any): string => {
       if (el.id) {
         const l = document.querySelector(`label[for="${(globalThis as any).CSS.escape(el.id)}"]`);
@@ -2068,7 +2073,7 @@ export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap,
       }
       return el.getAttribute('placeholder') ?? el.getAttribute('aria-label') ?? '';
     };
-    const fields = ([...content.querySelectorAll('input, select, textarea')] as any[])
+    const fields = ([...content.querySelectorAll('input, select, textarea')] as any[]).filter((el) => !chrome(el))
       .filter((el) => el.type !== 'hidden' && shown(el))
       .slice(0, 150)
       .map((el) => ({
@@ -2080,23 +2085,25 @@ export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap,
         // Choices only (no value typed or chosen is kept).
         ...(el.tagName === 'SELECT' ? { options: [...el.options].slice(0, 40).map((o: any) => txt(o)).filter(Boolean) } : {}),
       }));
-    const buttons = ([...content.querySelectorAll('button, input[type=button], input[type=submit], a.btn')] as any[])
+    const buttons = ([...content.querySelectorAll('button, input[type=button], input[type=submit], a.btn')] as any[]).filter((el) => !chrome(el))
       .filter(shown).slice(0, 80)
       .map((b) => ({ text: (txt(b) || String(b.value ?? '')).slice(0, 80), id: b.id ?? '', onclick: fnName(b.getAttribute('onclick')) }));
-    const tables = ([...content.querySelectorAll('table')] as any[]).filter((t) => !t.parentElement?.closest('table')).slice(0, 30)
+    const tables = ([...content.querySelectorAll('table')] as any[]).filter((t) => !t.parentElement?.closest('table') && !chrome(t)).slice(0, 30)
       .map((t) => ({ id: t.id ?? '', headers: [...t.querySelectorAll('thead th')].map(txt).slice(0, 30), rows: t.querySelectorAll('tbody tr').length }));
-    const tabs = ([...content.querySelectorAll('.nav-tabs a, .nav-tabs button, [role=tab], .nav-pills a')] as any[]).map(txt).filter(Boolean).slice(0, 40);
-    const headings = ([...content.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .panel-heading, .box-title')] as any[])
+    const tabs = ([...content.querySelectorAll('.nav-tabs a, .nav-tabs button, [role=tab], .nav-pills a')] as any[]).filter((el) => !chrome(el)).map(txt).filter(Boolean).slice(0, 40);
+    const headings = ([...content.querySelectorAll('h1, h2, h3, h4, h5, legend, .card-header, .panel-heading, .box-title')] as any[]).filter((el) => !chrome(el))
       .filter(shown).map(txt).filter((t) => t && t.length < 120).slice(0, 60);
-    const links = ([...content.querySelectorAll('a[onclick]')] as any[]).filter(shown).slice(0, 60)
+    const links = ([...content.querySelectorAll('a[onclick]')] as any[]).filter((el) => !chrome(el)).filter(shown).slice(0, 60)
       .map((a) => ({ text: txt(a).slice(0, 80), onclick: fnName(a.getAttribute('onclick')) }));
+    const labels = ([...content.querySelectorAll('label, legend, .control-label, .form-label, th, .card-title, .modal-title')] as any[])
+      .filter((el) => !chrome(el) && shown(el)).map(txt).filter((t) => t && t.length < 120).slice(0, 200);
     const scripts = ([...document.querySelectorAll('script[src]')] as any[]).map((s) => String(s.src));
-    return { title: document.title, headings, tabs, fields, buttons, tables, links, scripts };
+    return { title: document.title, headings, tabs, fields, buttons, tables, links, labels, scripts };
   });
 }
 
 /** The portal's login form itself (a page merely having a user_name field is not it). */
-async function onLoginForm(page: Page): Promise<boolean> {
+export async function onLoginForm(page: Page): Promise<boolean> {
   return page.evaluate(() => !!document.querySelector('#user_name') && !!document.querySelector('#user_password')
     && !!document.querySelector('#captcha_image, #fcaptcha_code_mobile')).catch(() => false);
 }
@@ -2181,7 +2188,7 @@ async function mapPortalStep(sessionId: string, userId: string): Promise<PortalM
         pages.push({ menu: m.menu, item: it.text, url: page.url(), ...s });
       } catch (e) {
         if (e instanceof EcourtsHttpError && e.status === 410) throw e;
-        pages.push({ menu: m.menu, item: it.text, url: page.url(), title: '', headings: [], tabs: [], fields: [], buttons: [], tables: [], links: [], scripts: [], error: (e as Error).message });
+        pages.push({ menu: m.menu, item: it.text, url: page.url(), title: '', headings: [], tabs: [], fields: [], buttons: [], tables: [], links: [], labels: [], scripts: [], error: (e as Error).message });
       }
       await save();
     }

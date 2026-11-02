@@ -349,7 +349,7 @@ async function serve(route: Route): Promise<void> {
   }
   if (req.method() === 'GET' && p === 'upload_pleading') {
     fx.mapped.push(p);
-    return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><script src="/pdedev/js/upload_pleading.js"></script></head><body><div class="container">
+    return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head><script src="/pdedev/js/upload_pleading.js"></script></head><body><nav class="navbar"><div class="container"><select id="state_sel"><option>Tamil Nadu</option></select></div></nav><div class="container">
 <h3>Pleading Upload</h3><ul class="nav nav-tabs"><li><a href="#a">Pleading Upload</a></li><li><a href="#b">Pleading Index</a></li></ul>
 <label for="sel_pde_no">e-Filing Number</label><select id="sel_pde_no"><option>Select</option><option>ATN20250009438C202600002</option></select>
 <div>Document Title</div><div><input id="doc_file_name" name="doc_file_name" value="secret typed value"></div>
@@ -669,6 +669,7 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     ]);
     expect(pg.buttons).toEqual([{ text: 'Upload', id: 'add_btn', onclick: 'submitData()' }]);
     expect(pg.tables).toEqual([{ id: 'tbl', headers: ['Sr.No.', 'Document'], rows: 1 }]);
+    expect(pg.labels).toEqual(['e-Filing Number', 'Sr.No.', 'Document']);
     const saved = JSON.stringify(map);
     expect(saved).not.toContain('secret typed value');
     expect(saved).not.toContain('PRIVATE CLIENT DOC');

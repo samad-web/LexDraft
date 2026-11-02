@@ -22,6 +22,8 @@ import {
 } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
+import { PortalEpay } from '@/components/efiling/portal/PortalEpay';
+import { PortalApplications } from '@/components/efiling/portal/PortalApplications';
 import { CellWithLinks, PortalListView, PortalModal, PortalTable, ROW_ACTION, type PortalRows } from '@/components/efiling/PortalKit';
 
 // =============================================================================
@@ -297,10 +299,11 @@ export function EfilingView() {
             {m === 'print_vakalat' ? <VakalatModule view="print" onOpen={(id) => go('filings', { filing: id })} /> : null}
             {m === 'pleadings' ? <PleadingsModule initialFiling={filingId} /> : null}
             {m === 'oath' ? <OathModule initialFiling={filingId} /> : null}
-            {m === 'payments' ? <PaymentsModule key="payment" initialFiling={filingId} view="payment" /> : null}
-            {m === 'wallet' ? <PaymentsModule key="wallet" initialFiling={filingId} view="wallet" /> : null}
-            {m === 'applications' ? <ApplicationsModule key="filing" initialFiling={filingId} view="filing" onOpen={(id) => go('filings', { filing: id })} /> : null}
-            {m === 'submitted_ias' ? <ApplicationsModule key="submitted" initialFiling={filingId} view="submitted" onOpen={(id) => go('filings', { filing: id })} /> : null}
+            {/* Logged in: the portal's own screens; otherwise DifAi's preparation screens. */}
+            {m === 'payments' ? (connection ? <PortalEpay key="p-payments" sessionId={connection.sessionId} view="payments" /> : <PaymentsModule key="payment" initialFiling={filingId} view="payment" />) : null}
+            {m === 'wallet' ? (connection ? <PortalEpay key="p-wallet" sessionId={connection.sessionId} view="wallet" /> : <PaymentsModule key="wallet" initialFiling={filingId} view="wallet" />) : null}
+            {m === 'applications' ? (connection ? <PortalApplications key="p-apps" sessionId={connection.sessionId} view="applications" /> : <ApplicationsModule key="filing" initialFiling={filingId} view="filing" onOpen={(id) => go('filings', { filing: id })} />) : null}
+            {m === 'submitted_ias' ? (connection ? <PortalApplications key="p-submitted" sessionId={connection.sessionId} view="submitted_ias" /> : <ApplicationsModule key="submitted" initialFiling={filingId} view="submitted" onOpen={(id) => go('filings', { filing: id })} />) : null}
             {m === 'objections' ? <ObjectionsModule onOpen={(id) => go('filings', { filing: id })} /> : null}
             {m === 'profile' ? <ProfilePanel /> : null}
             {m === 'portal' ? <PortalLoginPanel /> : null}

@@ -21,6 +21,8 @@ import { researchRouter } from './research.routes';
 import { lawsRouter } from './laws.routes';
 import { ecourtsRouter } from './ecourts.routes';
 import { efilingRouter } from './efiling.routes';
+import { efilingPortalEpayRouter } from './efiling-portal-epay.routes';
+import { efilingPortalApplicationsRouter } from './efiling-portal-applications.routes';
 import { landRecordsRouter } from './land-records.routes';
 import { judgesRouter } from './judges.routes';
 import { dashboardRouter } from './dashboard.routes';
@@ -174,6 +176,9 @@ apiRouter.use('/research', requireAuth, requireActivePlan, researchRouter);
 apiRouter.use('/laws',     requireAuth, requireActivePlan, lawsRouter);
 apiRouter.use('/ecourts',  requireAuth, requireActivePlan, ecourtsRouter);
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingRouter);
+// The portal's own menus, live over each advocate's eFiling session.
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalEpayRouter);
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalApplicationsRouter);
 // Tamil Nadu Land Records eServices (patta / chitta / A-Register / FMB / TSLR).
 apiRouter.use('/land-records', requireAuth, requireActivePlan, landRecordsRouter);
 apiRouter.use('/judges',   requireAuth, requireActivePlan, judgesRouter);
