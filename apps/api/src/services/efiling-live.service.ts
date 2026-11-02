@@ -683,7 +683,7 @@ export interface PortalSnapshot {
 const DASHBOARD_TILES = ['Draft Pleadings', 'Completed Pleadings', 'Draft IAs', 'Completed IAs', 'Objections', 'My Cases'];
 
 /** Read the page the session is on: headings, links, tile counts, every visible control. Read-only. */
-async function snapshot(page: Page): Promise<PortalSnapshot> {
+export async function snapshot(page: Page): Promise<PortalSnapshot> {
   return page.evaluate((tiles: string[]) => {
     const vis = (e: any) => !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
     const txt = (e: any) => (e ? String(e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim() : '');
@@ -759,7 +759,7 @@ async function keepCapture(page: Page, what: string, snap: PortalSnapshot): Prom
 
 export type PortalPage = 'dashboard' | 'new_case';
 
-async function findLink(page: Page, pattern: RegExp): Promise<string | null> {
+export async function findLink(page: Page, pattern: RegExp): Promise<string | null> {
   const hrefs = (await page.evaluate(() =>
     [...document.querySelectorAll('a[href]')].map((x: any) => ({ text: String(x.textContent || ''), href: String(x.href) })),
   ).catch(() => [])) as Array<{ text: string; href: string }>;
@@ -813,7 +813,7 @@ export interface PortalReply {
 const queues = new WeakMap<Page, Promise<unknown>>();
 
 /** One portal request over the advocate's session (serialised per session). */
-async function portalPost(page: Page, route: string, postdata = ''): Promise<PortalReply> {
+export async function portalPost(page: Page, route: string, postdata = ''): Promise<PortalReply> {
   const prev = queues.get(page) ?? Promise.resolve();
   const run = prev.catch(() => {}).then(() => page.evaluate(
     ({ route, postdata }) => new Promise<{ httpStatus: number; text: string }>((resolve) => {
@@ -858,7 +858,7 @@ export interface PortalTableData {
 }
 
 /** The portal's server-rendered HTML tables -> rows (parsed in the page). */
-async function htmlTable(page: Page, html: string): Promise<PortalTableData> {
+export async function htmlTable(page: Page, html: string): Promise<PortalTableData> {
   return page.evaluate((h) => {
     const doc = new (globalThis as any).DOMParser().parseFromString(String(h), 'text/html');
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -1353,7 +1353,7 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
 }
 
 /** Wait until what's inside `sel` stops changing (the portal fills it by ajax). */
-async function settle(page: Page, sel: string): Promise<void> {
+export async function settle(page: Page, sel: string): Promise<void> {
   let last = -1;
   for (let i = 0; i < 12; i++) {
     const n = await page.evaluate((s) => String((document.querySelector(s) as any)?.textContent ?? '').length, sel).catch(() => 0);
@@ -1364,7 +1364,7 @@ async function settle(page: Page, sel: string): Promise<void> {
 }
 
 /** The biggest visible table inside `sel`, or its text when there is none. */
-async function readOpened(page: Page, sel: string): Promise<{ table: PortalTableData | null; text: string }> {
+export async function readOpened(page: Page, sel: string): Promise<{ table: PortalTableData | null; text: string }> {
   const got = await page.evaluate((s) => {
     const root = document.querySelector(s) as any;
     if (!root) return { html: '', text: '' };
@@ -1387,7 +1387,7 @@ async function readOpened(page: Page, sel: string): Promise<{ table: PortalTable
 }
 
 /** Close whatever the last step opened, as the advocate would. */
-async function closePortalPopups(page: Page): Promise<void> {
+export async function closePortalPopups(page: Page): Promise<void> {
   await page.evaluate(() => {
     const $ = (globalThis as any).jQuery;
     if ($) $('.modal').modal?.('hide');
@@ -2047,7 +2047,7 @@ export interface PortalMap {
 // Never opened while mapping: anything that ends, removes or changes something.
 const MAP_SKIP = /log\s*out|sign\s*out|exit|delete|remove|discard|withdraw|cancel/i;
 
-async function readPageStructure(page: Page): Promise<Omit<PortalPageMap, 'menu' | 'item' | 'url'>> {
+export async function readPageStructure(page: Page): Promise<Omit<PortalPageMap, 'menu' | 'item' | 'url'>> {
   return page.evaluate(() => {
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
     const shown = (e: any) => !!e && e.getClientRects().length > 0;
