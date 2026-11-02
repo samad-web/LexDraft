@@ -331,11 +331,17 @@ function installHelpers(): void {
       const cl = ([...c.querySelectorAll(CLICK)] as any[]).filter((e) => info.has(e)).map((e) => info.get(e));
       return { text, controls, clicks: cl };
     };
+    const plainCells = (r: any) => ([...r.cells] as any[]).filter((c) => !c.querySelector(CONTROL) && norm(c.textContent)).length;
     const readTable = (t: any) => {
       // The titles row (most plain-text cells); a row of search boxes under
       // it (the portal's per-column filters + Search) is kept as `filters`.
-      const headRows = t.tHead ? ([...t.tHead.rows] as any[]).filter(shown) : [];
-      const plain = (r: any) => ([...r.cells] as any[]).filter((c) => !c.querySelector(CONTROL) && norm(c.textContent)).length;
+      let headRows = t.tHead ? ([...t.tHead.rows] as any[]).filter(shown) : [];
+      if (!headRows.some((r: any) => plainCells(r))) {
+        const scrollHead = t.closest('.dataTables_wrapper')?.querySelector('.dataTables_scrollHead thead');
+        const firstTh = ([...t.rows] as any[]).find((r) => r.cells.length > 1 && [...r.cells].every((c: any) => c.tagName === 'TH'));
+        headRows = scrollHead ? ([...scrollHead.rows] as any[]) : firstTh ? [firstTh] : headRows;
+      }
+      const plain = plainCells;
       const headRow = [...headRows].sort((a, b) => plain(b) - plain(a))[0] ?? null;
       const headers = headRow ? ([...headRow.cells] as any[]).map((c) => {
         const i = c.querySelector('input');
@@ -344,7 +350,7 @@ function installHelpers(): void {
       const filterRow = headRows.find((r) => r !== headRow && r.querySelector(`${CONTROL}, ${CLICK}`));
       const filters = filterRow ? ([...filterRow.cells] as any[]).map((c, i) => cellOf(c, headers[i] ?? '')) : undefined;
       const own = (t.tBodies && t.tBodies.length ? ([...t.tBodies] as any[]).flatMap((b) => [...b.rows]) : [...t.rows]) as any[];
-      const rows = own.filter((r) => r.parentElement.tagName !== 'THEAD' && shown(r)).map((tr) => {
+      const rows = own.filter((r) => r.parentElement.tagName !== 'THEAD' && !headRows.includes(r) && shown(r)).map((tr) => {
         const cells = [...tr.cells] as any[];
         if (cells.length === 1 && Number(cells[0].getAttribute('colspan') || 1) > 1 && !cells[0].querySelector(`${CONTROL}, ${CLICK}`)) return { group: norm(cells[0].textContent) };
         return { cells: cells.map((c, i) => cellOf(c, headers[i] ?? '')) };
@@ -615,7 +621,17 @@ export async function openLiveScreen(page: Page, view: string, def: ScreenDef): 
     await portalIdle(page);
   }
   await markView(page, view, label);
-  return readLiveScreen(page, view, label);
+  // The portal may still be drawing (a calendar saying "Loading...", a page
+  // whose body arrives after its title): wait for it, then read; read again
+  // if nothing was there yet.
+  await page.waitForFunction(() => ![...document.querySelectorAll('body *')].some((e: any) => e.children.length === 0 && /^loading\.*$/i.test(String(e.textContent ?? '').trim()) && e.getClientRects().length), undefined, { timeout: 10_000, polling: 300 }).catch(() => {});
+  let screen = await readLiveScreen(page, view, label);
+  for (let i = 0; i < 3 && !screen.items.length; i++) {
+    await page.waitForTimeout(1200);
+    await portalIdle(page);
+    screen = await readLiveScreen(page, view, label);
+  }
+  return screen;
 }
 
 /** Set one field on the portal page the way a person does, so the portal's own handlers run. */

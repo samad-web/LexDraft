@@ -30,6 +30,6 @@ export default defineConfig({
     fileParallelism: false,
     // One browser drives ~30 full page loads per run; lift the per-IP and
     // per-user limits for the test API instance only.
-    env: { ...loadDotEnv(resolve(__dirname, '..', '.env')), NODE_ENV: 'test', API_IP_RATE_LIMIT: '100000', WRITE_RATE_LIMIT: '100000' },
+    env: { ...loadDotEnv(resolve(__dirname, '..', '.env')), NODE_ENV: 'test', API_IP_RATE_LIMIT: '100000', WRITE_RATE_LIMIT: '100000', EFILING_SELF_TEST: '0' },
   },
 });

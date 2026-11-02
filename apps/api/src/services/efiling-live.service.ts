@@ -934,9 +934,14 @@ export async function htmlTable(page: Page, html: string): Promise<PortalTableDa
       for (const b of [...k.querySelectorAll('div, p, li, tr')]) b.append('\n');
       return String(k.textContent ?? '').split('\n').map((x: string) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
     };
-    const head = table.tHead?.rows?.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
+    // Column titles: the table's head, else a first row made of <th> cells.
+    let head = table.tHead?.rows?.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
+    if (!head) {
+      const first = ownRows(table)[0];
+      if (first && first.cells.length > 1 && [...first.cells].every((c: any) => c.tagName === 'TH')) head = first;
+    }
     const headers = head ? [...head.cells].map(txt) : [];
-    const rows = ownRows(table).map((tr: any) => {
+    const rows = ownRows(table).filter((tr: any) => tr !== head).map((tr: any) => {
       const cells = [...tr.cells];
       if (cells.length === 1 && Number(cells[0].getAttribute('colspan') || 1) > 1) return { group: txt(visible(cells[0])) };
       const actions: string[] = [];
@@ -1278,12 +1283,7 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
   const { page } = session;
   await closePortalPopups(page);
   await ensureDashboard(session);
-  let opened = await clickTile(page, l.tile, true);
-  if (!opened) {
-    await ensureDashboard(session, true);
-    opened = await clickTile(page, l.tile, true);
-  }
-  if (!opened) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+  await openListInPage(session, l);
 
   // Find the row and the button; remember every table's state, then click.
   const clicked = await page.evaluate(({ match, action }) => {
@@ -1297,13 +1297,13 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
       return txt(k);
     };
     const body = document.getElementById('history_body') as any;
-    const want = match.map((m: string) => String(m).replace(/\s+/g, ' ').trim());
+    const want = match.map((m: string) => String(m).replace(/\s+/g, ''));
     // The list itself is never what a row button opens.
     for (const t of [...body.querySelectorAll('table')] as any[]) {
       if (!t.parentElement?.closest('table')) t.setAttribute('data-difai-list', '1');
     }
     const tr = ([...body.querySelectorAll('tr')] as any[]).find((r) => {
-      const cells = [...r.children].map(visibleTxt);
+      const cells = [...r.children].map((c) => visibleTxt(c).replace(/\s+/g, ''));
       return want.every((w: string, i: number) => cells[i] === w);
     });
     if (!tr) return 'row';
@@ -1420,10 +1420,12 @@ export async function readOpened(page: Page, sel: string): Promise<{ table: Port
     const root = document.querySelector(s) as any;
     if (!root) return { html: '', text: '' };
     // Outermost tables within what opened (it may itself sit inside a list row).
-    const tables = ([...root.querySelectorAll('table')] as any[]).filter((t) => {
+    const outer = ([...root.querySelectorAll('table')] as any[]).filter((t) => {
       const up = t.parentElement?.closest('table');
-      return t.getClientRects().length && !(up && root.contains(up));
+      return !(up && root.contains(up));
     });
+    const seen = outer.filter((t) => t.getClientRects().length);
+    const tables = seen.length ? seen : outer;
     const body = tables.sort((a, b) => b.querySelectorAll('tbody tr').length - a.querySelectorAll('tbody tr').length)[0];
     if (!body) return { html: '', text: String(root.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 500) };
     // DataTables with scrolling draws the header in a separate table.
@@ -1435,6 +1437,37 @@ export async function readOpened(page: Page, sel: string): Promise<{ table: Port
     return { html, text: '' };
   }, sel);
   return { table: got.html ? await htmlTable(page, got.html) : null, text: got.text };
+}
+
+/**
+ * Open a list in the portal's dashboard pop-up (#db_screen / #history_body)
+ * and leave it open. A dashboard tile is clicked; a list that is not a tile on
+ * this portal (eFiled Cases, Draft Cases live under Case Filing) gets the
+ * portal's own reply to the same request placed there, so its row buttons -
+ * which call the page's own functions - can be pressed.
+ */
+async function openListInPage(session: EfilingSession, l: (typeof PORTAL_LISTS)[number]): Promise<void> {
+  const { page } = session;
+  let opened = await clickTile(page, l.tile, true);
+  if (!opened) {
+    await ensureDashboard(session, true);
+    opened = await clickTile(page, l.tile, true);
+  }
+  if (opened) return;
+  const reply = await portalPost(page, l.route, l.postdata);
+  const html = reply.json && typeof reply.json[l.field] === 'string' ? (reply.json[l.field] as string) : '';
+  if (!html) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+  const shown = await page.evaluate((h) => {
+    const body = document.getElementById('history_body') as any;
+    if (!body) return false;
+    body.innerHTML = h;
+    const $ = (globalThis as any).jQuery;
+    if ($ && $('#db_screen').modal) $('#db_screen').modal('show');
+    else { const d = document.getElementById('db_screen') as any; if (d) d.style.display = 'block'; }
+    return true;
+  }, html);
+  if (!shown) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+  await page.waitForTimeout(400);
 }
 
 /** Close whatever the last step opened, as the advocate would. */
@@ -1481,14 +1514,15 @@ async function openPortalFileStep(sessionId: string, userId: string, key: Portal
   } else {
     await closePortalPopups(page);
     await ensureDashboard(session);
-    let opened = await clickTile(page, l.tile, true);
-    if (!opened) { await ensureDashboard(session, true); opened = await clickTile(page, l.tile, true); }
-    if (!opened) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+    await openListInPage(session, l);
   }
 
   // Everything already showing a document, so the new one can be told apart.
   await page.evaluate(() => {
-    for (const e of [...document.querySelectorAll('iframe, object, embed')] as any[]) e.setAttribute('data-difai-had', String(e.getAttribute('src') ?? e.getAttribute('data') ?? ''));
+    for (const e of [...document.querySelectorAll('iframe, object, embed')] as any[]) {
+      e.setAttribute('data-difai-had', '');
+      if (e.tagName === 'OBJECT') e.setAttribute('data', ''); else e.setAttribute('src', 'about:blank');
+    }
   });
   const popup = page.context().waitForEvent('page', { timeout: 25_000 }).catch(() => null);
   const download = page.waitForEvent('download', { timeout: 25_000 }).catch(() => null);
@@ -1503,8 +1537,8 @@ async function openPortalFileStep(sessionId: string, userId: string, key: Portal
     };
     const root = document.querySelector(scope) as any;
     if (!root) return 'row';
-    const want = row.map((m: string) => String(m).replace(/\s+/g, ' ').trim());
-    const tr = ([...root.querySelectorAll('tr')] as any[]).find((r) => r.getClientRects().length && want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}) === w));
+    const want = row.map((m: string) => String(m).replace(/\s+/g, ''));
+    const tr = ([...root.querySelectorAll('tr')] as any[]).find((r) => r.getClientRects().length && want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}).replace(/\s+/g, '') === w));
     if (!tr) return 'row';
     const a = ([...tr.querySelectorAll('a, button, input[type=button]')] as any[])
       .find((b) => (txt(b) || String(b.value ?? '').trim()) === link && b.getClientRects().length > 0);
