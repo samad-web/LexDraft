@@ -17,7 +17,7 @@ import {
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
 import {
-  useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenMyCaseHistory, useMapPortal, useOpenPortalFile, useOpenPortalRow, usePortalCounts, usePortalList, usePortalMyCases,
+  useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenMyCaseHistory, useOpenPortalFile, useOpenPortalRow, usePortalCounts, usePortalList, usePortalMyCases,
   type MyCase, type MyCasesFilter, type MyCasesGroup, type PortalBlock, type PortalFileRequest, type PortalList, type PortalMyCases, type PortalRowView,
 } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
@@ -409,7 +409,6 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
   const closeDrill = () => { setDrill(null); openRow.reset(); };
   // A document link (Acknowledgement, COMPLAINT ...): the PDF the portal shows.
   const openFile = useOpenPortalFile(sessionId);
-  const mapPortal = useMapPortal(sessionId);
   const [file, setFile] = useState<PortalFileRequest | null>(null);
   const showFile = (v: PortalFileRequest) => { setFile(v); openFile.mutate(v); };
   const closeFile = () => {
@@ -441,20 +440,10 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span className="body-sm muted">From your account on filing.ecourts.gov.in</span>
         <span className="row" style={{ gap: 8 }}>
-          {import.meta.env.DEV ? (
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => mapPortal.mutate()} disabled={mapPortal.isPending}
-              title="Local setup: opens every portal menu page and saves its layout (no values) on this computer">
-              {mapPortal.isPending ? 'Mapping the portal… (a few minutes)' : 'Map the portal'}
-            </button>
-          ) : null}
           <button type="button" className="btn btn-ghost btn-sm" onClick={refetch} disabled={isFetching}>{isFetching ? 'Reading…' : 'Refresh from portal'}</button>
           <button type="button" className="btn btn-primary btn-sm" onClick={onNewCase}>+ New Case Filing</button>
         </span>
       </div>
-      {mapPortal.data ? (
-        <p className="body-sm" role="status">Portal mapped: {mapPortal.data.pages} pages from {mapPortal.data.menus.map((m) => m.menu).join(', ')}{mapPortal.data.failed ? ` (${mapPortal.data.failed} could not open)` : ''}. Saved on this computer.</p>
-      ) : null}
-      {mapPortal.isError ? <p className="body-sm">{(mapPortal.error as Error)?.message || 'Mapping stopped.'}</p> : null}
       {counts.isError ? <p className="body-sm">{(counts.error as Error)?.message || 'Could not read the portal right now.'}</p> : null}
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
         {panel(<>{tile('draft_pleadings', 'Draft Pleadings', <IconEdit />)}{tile('completed_pleadings', 'Completed Pleadings', <IconCheck />)}</>)}
