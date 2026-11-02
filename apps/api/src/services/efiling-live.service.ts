@@ -1218,14 +1218,15 @@ export interface PortalRowView {
  * read what it opens - tab by tab when it has tabs. Done as a person would,
  * so it doesn't depend on the portal's internal function names.
  */
-async function openPortalRowActionStep(sessionId: string, userId: string, key: PortalListKey, match: string[], action: string): Promise<PortalRowView> {
+async function openPortalRowActionStep(sessionId: string, userId: string, key: PortalListKey, match: string[], action: string, opts: { keepOpen?: boolean; onlyTab?: string } = {}): Promise<PortalRowView> {
   const session = getSession(sessionId, userId);
   if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
   const l = PORTAL_LISTS.find((x) => x.key === key);
   if (!l) throw new EcourtsHttpError(400, 'Unknown eFiling list.');
   const deadline = Date.now() + 50_000;
-  await ensureDashboard(session);
   const { page } = session;
+  await closePortalPopups(page);
+  await ensureDashboard(session);
   let opened = await clickTile(page, l.tile, true);
   if (!opened) {
     await ensureDashboard(session, true);
@@ -1325,6 +1326,7 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
     sections.push({ name: action, ...(await readOpened(page, '[data-difai-container]')) });
   } else {
     for (const name of shape.tabs) {
+      if (opts.onlyTab && name !== opts.onlyTab) continue;
       if (Date.now() > deadline) { sections.push({ name, table: null, text: 'Not read - the portal is slow. Open it again.' }); continue; }
       const pane = await page.evaluate((name) => {
         const tab = ([...document.querySelectorAll('[data-difai-container] [data-difai-tab]')] as any[])
@@ -1346,7 +1348,7 @@ async function openPortalRowActionStep(sessionId: string, userId: string, key: P
       sections.push({ name, ...(await readOpened(page, where)) });
     }
   }
-  await closePortalPopups(page);
+  if (!opts.keepOpen) await closePortalPopups(page);
   return { title: shape.title, sections };
 }
 
@@ -1389,8 +1391,8 @@ async function closePortalPopups(page: Page): Promise<void> {
   await page.evaluate(() => {
     const $ = (globalThis as any).jQuery;
     if ($) $('.modal').modal?.('hide');
-    for (const e of [...document.querySelectorAll('[data-difai-container],[data-difai-pane],[data-difai-tab],[data-difai-list]')]) {
-      for (const a of ['data-difai-container', 'data-difai-pane', 'data-difai-tab', 'data-difai-list']) e.removeAttribute(a);
+    for (const e of [...document.querySelectorAll('[data-difai-container],[data-difai-pane],[data-difai-tab],[data-difai-list],[data-difai-had]')]) {
+      for (const a of ['data-difai-container', 'data-difai-pane', 'data-difai-tab', 'data-difai-list', 'data-difai-had']) e.removeAttribute(a);
     }
   }).catch(() => {});
   await page.keyboard.press('Escape').catch(() => {});
@@ -1398,6 +1400,129 @@ async function closePortalPopups(page: Page): Promise<void> {
 
 export async function readPortalCounts(sessionId: string, userId: string) {
   return queued(getSession(sessionId, userId), () => readPortalCountsStep(sessionId, userId));
+}
+export interface PortalFile {
+  name: string;
+  contentType: string;
+  body: Buffer;
+}
+
+/**
+ * A link that opens a document on the portal (Acknowledgement in a list row,
+ * COMPLAINT / VAKALAT ... under View Documents or View Status): click it there
+ * as the advocate would, catch the PDF the portal then shows (its viewer
+ * frame, a new tab or a download) and fetch it over the advocate's session.
+ */
+async function openPortalFileStep(sessionId: string, userId: string, key: PortalListKey, o: {
+  match: string[]; action?: string; tab?: string; docRow?: string[]; link: string;
+}): Promise<PortalFile> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  const l = PORTAL_LISTS.find((x) => x.key === key);
+  if (!l) throw new EcourtsHttpError(400, 'Unknown eFiling list.');
+  const { page } = session;
+  let scope = '#history_body';
+  let row = o.match;
+  if (o.action) {
+    await openPortalRowActionStep(sessionId, userId, key, o.match, o.action, { keepOpen: true, onlyTab: o.tab });
+    scope = (await page.$('[data-difai-pane]')) ? '[data-difai-pane]' : '[data-difai-container]';
+    row = o.docRow ?? [];
+  } else {
+    await closePortalPopups(page);
+    await ensureDashboard(session);
+    let opened = await clickTile(page, l.tile, true);
+    if (!opened) { await ensureDashboard(session, true); opened = await clickTile(page, l.tile, true); }
+    if (!opened) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+  }
+
+  // Everything already showing a document, so the new one can be told apart.
+  await page.evaluate(() => {
+    for (const e of [...document.querySelectorAll('iframe, object, embed')] as any[]) e.setAttribute('data-difai-had', String(e.getAttribute('src') ?? e.getAttribute('data') ?? ''));
+  });
+  const popup = page.context().waitForEvent('page', { timeout: 25_000 }).catch(() => null);
+  const download = page.waitForEvent('download', { timeout: 25_000 }).catch(() => null);
+  const clicked = await page.evaluate(({ scope, row, link }) => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const cellTxt = (c: any) => {
+      const k = c.cloneNode(true);
+      for (const e of [...k.querySelectorAll('table, script, style, .modal, .popup, [style*="display:none"], [style*="display: none"]')]) e.remove();
+      for (const br of [...k.querySelectorAll('br')]) br.replaceWith(' ');
+      for (const b of [...k.querySelectorAll('div, p, li, tr')]) b.append(' ');
+      return txt(k);
+    };
+    const root = document.querySelector(scope) as any;
+    if (!root) return 'row';
+    const want = row.map((m: string) => String(m).replace(/\s+/g, ' ').trim());
+    const tr = ([...root.querySelectorAll('tr')] as any[]).find((r) => r.getClientRects().length && want.every((w: string, i: number) => cellTxt(r.children[i] ?? {}) === w));
+    if (!tr) return 'row';
+    const a = ([...tr.querySelectorAll('a, button, input[type=button]')] as any[])
+      .find((b) => (txt(b) || String(b.value ?? '').trim()) === link && !b.closest('.popup:not([data-difai-container]), [style*="display:none"]'));
+    if (!a) return 'link';
+    a.removeAttribute('target');
+    a.click();
+    return 'ok';
+  }, { scope, row, link: o.link });
+  if (clicked === 'row') throw new EcourtsHttpError(409, 'That entry is no longer there on the portal - Refresh and try again.');
+  if (clicked === 'link') throw new EcourtsHttpError(409, `The portal has no "${o.link}" link there now.`);
+
+  // The portal's viewer frame gets the file's address; or a tab / download.
+  const framed = page.waitForFunction(() => {
+    const e = ([...document.querySelectorAll('iframe, object, embed')] as any[]).find((x) => {
+      const u = String(x.getAttribute('src') ?? x.getAttribute('data') ?? '');
+      return u && u !== 'about:blank' && u !== x.getAttribute('data-difai-had');
+    });
+    return e ? String(e.getAttribute('src') ?? e.getAttribute('data')) : false;
+  }, undefined, { timeout: 25_000, polling: 250 }).then((h) => h.jsonValue() as Promise<string>).catch(() => null);
+  const got = await Promise.race([
+    framed.then((u) => (u ? { url: u } : null)),
+    popup.then(async (p) => {
+      if (!p) return null;
+      await p.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {});
+      const u = p.url();
+      await p.close().catch(() => {});
+      return u && u !== 'about:blank' ? { url: u } : null;
+    }),
+    download.then(async (d) => (d ? { download: d } : null)),
+    new Promise<null>((r) => setTimeout(() => r(null), 26_000)),
+  ]);
+  try {
+    if (!got) throw new EcourtsHttpError(502, `The portal did not open "${o.link}". It may be slow - try again.`);
+    if ('download' in got && got.download) {
+      const path = await got.download.path();
+      if (!path) throw new EcourtsHttpError(502, 'The portal download did not finish.');
+      const { readFile } = await import('node:fs/promises');
+      return { name: got.download.suggestedFilename() || `${o.link}.pdf`, contentType: 'application/pdf', body: await readFile(path) };
+    }
+    let url = (got as { url: string }).url;
+    // A PDF.js viewer page: the document is its ?file=.
+    const viewer = /[?&]file=([^&#]+)/.exec(url);
+    if (/viewer\.html/i.test(url) && viewer) url = decodeURIComponent(viewer[1]!);
+    if (url.startsWith('data:')) {
+      const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(url);
+      if (!m) throw new EcourtsHttpError(502, 'The portal sent a document DifAi could not read.');
+      return { name: `${o.link}.pdf`, contentType: m[1] || 'application/pdf', body: m[2] ? Buffer.from(m[3]!, 'base64') : Buffer.from(decodeURIComponent(m[3]!)) };
+    }
+    const abs = url.startsWith('blob:') ? url : new URL(url, page.url()).toString();
+    if (!abs.startsWith('blob:') && new URL(abs).hostname !== new URL(page.url()).hostname) {
+      throw new EcourtsHttpError(502, 'The portal pointed the document somewhere else; DifAi did not follow it.');
+    }
+    // Fetched from the portal page itself, as its own viewer does.
+    const got2 = await page.evaluate(async (u) => {
+      const r = await fetch(u, { credentials: 'include' });
+      const buf = new Uint8Array(await r.arrayBuffer());
+      let s = '';
+      for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      return { status: r.status, type: r.headers.get('content-type') ?? '', b64: btoa(s) };
+    }, abs);
+    if (got2.status >= 400) throw new EcourtsHttpError(502, `The portal answered ${got2.status} for this document.`);
+    return { name: `${o.link}.pdf`, contentType: got2.type.split(';')[0] || 'application/pdf', body: Buffer.from(got2.b64, 'base64') };
+  } finally {
+    await closePortalPopups(page);
+  }
+}
+
+export async function openPortalFile(sessionId: string, userId: string, key: PortalListKey, o: { match: string[]; action?: string; tab?: string; docRow?: string[]; link: string }) {
+  return queued(getSession(sessionId, userId), () => openPortalFileStep(sessionId, userId, key, o));
 }
 export async function openPortalRowAction(sessionId: string, userId: string, key: PortalListKey, match: string[], action: string) {
   return queued(getSession(sessionId, userId), () => openPortalRowActionStep(sessionId, userId, key, match, action));

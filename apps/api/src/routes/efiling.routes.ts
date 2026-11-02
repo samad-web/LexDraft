@@ -187,6 +187,34 @@ efilingRouter.get(
 
 const PORTAL_LIST_KEYS = ['draft_cases', 'filed_cases', 'draft_pleadings', 'completed_pleadings', 'draft_ias', 'completed_ias', 'objections', 'my_cases'] as const;
 efilingRouter.post(
+  '/live/session/:sessionId/lists/:key/file',
+  validate({
+    params: z.object({ sessionId: z.string().uuid(), key: z.enum(PORTAL_LIST_KEYS) }),
+    body: z.object({
+      match: z.array(z.string().max(500)).min(1).max(3),
+      action: z.string().min(1).max(60).optional(),
+      tab: z.string().min(1).max(60).optional(),
+      docRow: z.array(z.string().max(500)).min(1).max(3).optional(),
+      link: z.string().min(1).max(80),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId, key } = req.params as unknown as { sessionId: string; key: (typeof PORTAL_LIST_KEYS)[number] };
+      const f = await efilingLive.openPortalFile(sessionId, req.user.id, key, req.body as { match: string[]; action?: string; tab?: string; docRow?: string[]; link: string });
+      const safe = f.name.replace(/[^\w .()-]+/g, '_').slice(0, 120) || 'document.pdf';
+      res.setHeader('Content-Type', f.contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${safe}"`);
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(f.body);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+efilingRouter.post(
   '/live/session/:sessionId/lists/:key/open',
   validate({
     params: z.object({ sessionId: z.string().uuid(), key: z.enum(PORTAL_LIST_KEYS) }),

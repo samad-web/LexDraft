@@ -16,7 +16,7 @@ import {
   type PortalModule,
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
-import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenPortalRow, usePortalCounts, usePortalList, type PortalList, type PortalRowView } from '@/hooks/useEfiling';
+import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenPortalFile, useOpenPortalRow, usePortalCounts, usePortalList, type PortalFileRequest, type PortalList, type PortalRowView } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -358,6 +358,15 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
     openRow.mutate(v);
   };
   const closeDrill = () => { setDrill(null); openRow.reset(); };
+  // A document link (Acknowledgement, COMPLAINT ...): the PDF the portal shows.
+  const openFile = useOpenPortalFile(sessionId);
+  const [file, setFile] = useState<PortalFileRequest | null>(null);
+  const showFile = (v: PortalFileRequest) => { setFile(v); openFile.mutate(v); };
+  const closeFile = () => {
+    if (openFile.data) URL.revokeObjectURL(openFile.data.url);
+    setFile(null);
+    openFile.reset();
+  };
   const tile = (k: PortalList['key'], label: string, icon: React.ReactNode) => {
     const n = counts.data?.counts?.[k];
     return (
@@ -424,7 +433,8 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
           {list.data && !list.isFetching ? (
             list.data.error && !list.data.rows.length
               ? <p className="body-sm">{list.data.error}</p>
-              : <PortalListView key={open} label={list.data.label} headers={list.data.headers} rows={list.data.rows} pageSize={25} onAction={onAction(open)} busy={openRow.isPending} />
+              : <PortalListView key={open} label={list.data.label} headers={list.data.headers} rows={list.data.rows} pageSize={25} onAction={onAction(open)} busy={openRow.isPending || openFile.isPending}
+                  onLink={(cells, link) => showFile({ key: open, match: cells.slice(0, 2), link })} />
           ) : null}
         </PortalModal>
       ) : null}
@@ -436,7 +446,27 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
             loading={openRow.isPending}
             error={openRow.isError ? ((openRow.error as Error)?.message || 'The portal did not answer.') : null}
             onRetry={() => openRow.mutate(drill)}
+            busy={openFile.isPending}
+            onLink={(tab, cells, link) => showFile({ key: drill.key, match: drill.match, action: drill.action, tab, docRow: cells.slice(0, 2), link })}
           />
+        </PortalModal>
+      ) : null}
+      {file ? (
+        <PortalModal level={3} title={file.link} onClose={closeFile}>
+          {openFile.isPending ? <p className="body-sm muted">Opening {file.link} on filing.ecourts.gov.in…</p> : null}
+          {openFile.isError ? (
+            <p className="body-sm">{(openFile.error as Error)?.message || 'The portal did not open this document.'}{' '}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => openFile.mutate(file)}>Try again</button></p>
+          ) : null}
+          {openFile.data ? (
+            <div className="col" style={{ gap: 10 }}>
+              <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                <a className="btn btn-ghost btn-sm" href={openFile.data.url} target="_blank" rel="noreferrer">Open in new tab</a>
+                <a className="btn btn-ghost btn-sm" href={openFile.data.url} download={openFile.data.name}>Download</a>
+              </span>
+              <iframe title={file.link} src={openFile.data.url} style={{ width: '100%', height: '78vh', border: '1px solid var(--border-default)' }} />
+            </div>
+          ) : null}
         </PortalModal>
       ) : null}
     </div>
@@ -560,9 +590,9 @@ type PortalRows = PortalList['rows'];
  * Number/Party Name)" with Search / Clear and First · Prev · pages · Next ·
  * Last, "Show N entries", the table, "Showing a to b of n entries".
  */
-function PortalListView({ label, headers, rows, pageSize: initialSize, onAction, busy }: {
+function PortalListView({ label, headers, rows, pageSize: initialSize, onAction, onLink, busy }: {
   label: string; headers: string[]; rows: PortalRows; pageSize: number;
-  onAction?: (cells: string[], action: string) => void; busy?: boolean;
+  onAction?: (cells: string[], action: string) => void; onLink?: (cells: string[], link: string) => void; busy?: boolean;
 }) {
   const [draft, setDraft] = useState('');
   const [query, setQuery] = useState('');
@@ -615,7 +645,7 @@ function PortalListView({ label, headers, rows, pageSize: initialSize, onAction,
           {[10, 25, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
         </select>{' '}entries
       </label>
-      {found.length ? <PortalTable headers={headers} rows={pageRows} onAction={onAction} busy={busy} />
+      {found.length ? <PortalTable headers={headers} rows={pageRows} onAction={onAction} onLink={onLink} busy={busy} />
         : <p className="body-sm muted">{q ? 'No matching entries.' : `No ${label.toLowerCase()} on your portal account.`}</p>}
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <span className="body-sm">{found.length ? `Showing ${p * size + 1} to ${p * size + shown.length} of ${found.length} entries` : 'Showing 0 entries'}</span>
@@ -631,7 +661,9 @@ const pagerBtn = (on: boolean): React.CSSProperties => ({
 });
 
 /** The portal's table look: dark header row, bordered cells, each cell's lines kept, its View buttons where the portal has them. */
-function PortalTable({ headers, rows, onAction, busy }: { headers: string[]; rows: PortalRows; onAction?: (cells: string[], action: string) => void; busy?: boolean }) {
+function PortalTable({ headers, rows, onAction, onLink, busy }: {
+  headers: string[]; rows: PortalRows; onAction?: (cells: string[], action: string) => void; onLink?: (cells: string[], link: string) => void; busy?: boolean;
+}) {
   const cols = Math.max(headers.length, ...rows.map((r) => ('cells' in r ? r.cells.length : 0)));
   const td: React.CSSProperties = { padding: '10px 8px', borderRight: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'pre-line', fontSize: 14 };
   return (
@@ -654,7 +686,7 @@ function PortalTable({ headers, rows, onAction, busy }: { headers: string[]; row
                     {act ? (
                       <button type="button" disabled={busy} onClick={() => onAction!(r.cells, act)}
                         style={{ background: 'var(--bg-inverse)', color: 'var(--text-inverse)', border: 'none', borderRadius: 4, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>{act}</button>
-                    ) : c}
+                    ) : onLink ? <CellWithLinks text={c} links={(r.actions ?? []).filter((a) => !ROW_ACTION.test(a))} onLink={(a) => onLink(r.cells, a)} busy={busy} /> : c}
                   </td>
                 );
               })}
@@ -667,8 +699,9 @@ function PortalTable({ headers, rows, onAction, busy }: { headers: string[]; row
 }
 
 /** What a row's button opened on the portal: its heading lines and its tabs (Document, Application, Court Fee, Oath). */
-function PortalRowWindow({ action, view, loading, error, onRetry }: {
+function PortalRowWindow({ action, view, loading, error, onRetry, onLink, busy }: {
   action: string; view?: PortalRowView; loading: boolean; error: string | null; onRetry: () => void;
+  onLink?: (tab: string | undefined, cells: string[], link: string) => void; busy?: boolean;
 }) {
   const [tab, setTab] = useState(0);
   useEffect(() => { setTab(0); }, [view]);
@@ -694,10 +727,35 @@ function PortalRowWindow({ action, view, loading, error, onRetry }: {
       ) : null}
       {section ? (
         section.table && section.table.rows.length
-          ? <PortalListView key={`${tab}-${section.name}`} label={section.name} headers={section.table.headers} rows={section.table.rows} pageSize={10} />
+          ? <PortalListView key={`${tab}-${section.name}`} label={section.name} headers={section.table.headers} rows={section.table.rows} pageSize={10} busy={busy}
+              onLink={onLink ? (cells, link) => onLink(view.sections.length > 1 ? section.name : undefined, cells, link) : undefined} />
           : <p className="body-sm muted">{section.text || `Nothing under ${section.name} on the portal.`}</p>
       ) : null}
     </div>
+  );
+}
+
+/** A cell's lines, with the portal's document links (Acknowledgement, COMPLAINT ...) clickable where they are. */
+function CellWithLinks({ text, links, onLink, busy }: { text: string; links: string[]; onLink: (link: string) => void; busy?: boolean }) {
+  if (!links.length) return <>{text}</>;
+  const lines = text.split('\n');
+  return (
+    <>
+      {lines.map((line, i) => {
+        const link = links.find((a) => line === a || line.startsWith(`${a} `));
+        return (
+          <span key={i} style={{ display: 'block' }}>
+            {link ? (
+              <>
+                <button type="button" disabled={busy} onClick={() => onLink(link)}
+                  style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, textDecoration: 'underline', color: 'inherit', cursor: 'pointer' }}>{link}</button>
+                {line.slice(link.length)}
+              </>
+            ) : line}
+          </span>
+        );
+      })}
+    </>
   );
 }
 

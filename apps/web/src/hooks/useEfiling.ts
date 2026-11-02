@@ -240,6 +240,39 @@ export function useOpenPortalRow(sessionId: string | null) {
   });
 }
 
+export interface PortalFileRequest {
+  key: PortalList['key'];
+  /** The list row (first two cells), as for useOpenPortalRow. */
+  match: string[];
+  /** Inside what a row's button opened (View Documents / View Status) ... */
+  action?: string;
+  tab?: string;
+  docRow?: string[];
+  /** ... the link to click: Acknowledgement, COMPLAINT, VAKALAT ... */
+  link: string;
+}
+
+/** Open a document link on the portal; resolves to a local URL of the PDF it showed. */
+export function useOpenPortalFile(sessionId: string | null) {
+  return useMutation({
+    mutationFn: async (v: PortalFileRequest) => {
+      const { key, ...body } = v;
+      try {
+        const r = await apiClient.post<Blob>(`/api/efiling/live/session/${sessionId}/lists/${key}/file`, body, { responseType: 'blob' });
+        return { url: URL.createObjectURL(r.data), name: `${v.link}.pdf`, type: r.data.type };
+      } catch (err) {
+        // The error came back as a Blob too: surface the server's message.
+        const data = (err as { response?: { data?: unknown } })?.response?.data;
+        if (data instanceof Blob) {
+          const msg = await data.text().then((t) => { try { return (JSON.parse(t) as { error?: string }).error; } catch { return undefined; } });
+          if (msg) throw new Error(msg);
+        }
+        throw err;
+      }
+    },
+  });
+}
+
 export function useEndEfilingSession() {
   return useMutation({
     mutationFn: (sessionId: string) => api.post<{ ok: true }>(`/efiling/live/session/${sessionId}/end`),

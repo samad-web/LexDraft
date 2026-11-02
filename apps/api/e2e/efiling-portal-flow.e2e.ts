@@ -35,6 +35,7 @@ const fx = {
   loggedOut: false,
   /** The portal ended the session (same account logged in elsewhere). */
   signedOut: false,
+  pdfServed: [] as string[],
 };
 
 const svg = (code: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="50"><rect width="150" height="50" fill="#fff"/><text x="12" y="34" font-size="26" font-family="monospace">${code}</text></svg>`;
@@ -98,7 +99,7 @@ const TILES: Record<string, { route: string; field: string; html: string }> = {
   filed_cases: { route: 'advocate_case_registration/getSubmittedPDE', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>E-Filing No</th></tr></thead><tbody></tbody></table>' },
   efiling_activity: { route: 'dashboard/fetchActivities', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>ePayments</th></tr></thead><tbody><tr><td>1</td><td>O.S. - C202600019</td><td><select><option>Select GRN</option><option>KL26GRN00012345 - 4320.00</option></select></td></tr></tbody></table>' },
   // As the real portal returns it (columns, buttons and links as on screen).
-  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table class="search"><tr><td>Search By (eFiling Number/CNR Number/Party Name)</td><td><input></td><td><button>Search</button></td><td><button>Clear</button></td></tr></table><table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#" onclick="return false">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn" id="btn-pop7" onclick="fxDocs(7)">View Documents</button><div class="popup" id="dv_challan7" style="display:none"><table id="example_pl7"><thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody><tr><td>0</td><td>stale</td><td></td><td></td><td></td><td></td></tr></tbody></table></div></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn" onclick="fxStatus()">View Status</button></td></tr></tbody></table>' },
+  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table class="search"><tr><td>Search By (eFiling Number/CNR Number/Party Name)</td><td><input></td><td><button>Search</button></td><td><button>Clear</button></td></tr></table><table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#" onclick="return fxAck()">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn" id="btn-pop7" onclick="fxDocs(7)">View Documents</button><div class="popup" id="dv_challan7" style="display:none"><table id="example_pl7"><thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody><tr><td>0</td><td>stale</td><td></td><td></td><td></td><td></td></tr></tbody></table></div></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn" onclick="fxStatus()">View Status</button></td></tr></tbody></table>' },
   draft_ia: { route: 'dashboard/fetchDraftIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   completed_ia: { route: 'dashboard/fetchCompletedIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   my_cases: { route: 'Portfolio_new/my_cases', field: 'html', html: '<table><thead><tr><th>Sr No</th><th>Cases</th><th>Party Name</th></tr></thead><tbody><tr><td>1</td><td>OS/57/2024</td><td>Ramesh Kumar Vs Suresh Babu</td></tr></tbody></table>' },
@@ -135,11 +136,26 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
     setTimeout(function () {
       document.getElementById('example_pl' + id).innerHTML = '<thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody>'
         + '<tr class="dtrg-group"><td colspan="6">Ambeth Arivukarasan Proprietor Thoorigai Prints</td></tr>'
-        + '<tr><td>1</td><td>COMPLAINT (ATN20250009438D202600001)</td><td>27-08-2026 15:00:56</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr>'
-        + '<tr><td>2</td><td>PROOF AFFIDAVIT (ATN20250009438D202600002)</td><td>27-08-2026 15:01:19</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr></tbody>';
+        + '<tr><td>1</td><td><a href="#" onclick="return fxPdf(1)">COMPLAINT</a> (ATN20250009438D202600001)</td><td>27-08-2026 15:00:56</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr>'
+        + '<tr><td>2</td><td><a href="#" onclick="return fxPdf(2)">PROOF AFFIDAVIT</a> (ATN20250009438D202600002)</td><td>27-08-2026 15:01:19</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr></tbody>';
       document.getElementById('dv_challan' + id).insertAdjacentHTML('afterbegin', '<div class="dataTables_length">Show <select><option>10</option><option>25</option><option>50</option><option>100</option></select> entries</div>');
       setTimeout(function () { document.getElementById('dv_challan' + id).style.display = 'block'; }, 400);
     }, 600);
+  }
+  function fxPdf(n) {
+    var box = document.getElementById('vw_doc_app_list_modal');
+    if (!box) { box = document.createElement('div'); box.id = 'vw_doc_app_list_modal'; box.className = 'modal'; document.body.appendChild(box); }
+    box.innerHTML = '<div id="pdfPreviewContainer">Loading document...</div>';
+    box.style.display = 'block';
+    setTimeout(function () { document.getElementById('pdfPreviewContainer').innerHTML = '<iframe class="pdf-frame" src="/pdedev/temp/ATN20250009438D20260000' + n + '.pdf"></iframe>'; }, 500);
+    return false;
+  }
+  function fxAck() {
+    setTimeout(function () {
+      var d = document.getElementById('dv_data') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'dv_data' }));
+      d.innerHTML = '<object id="myPdf" type="application/pdf" data="/pdedev/temp/ack_STC_4377_2026.pdf"></object>';
+    }, 500);
+    return false;
   }
   var FX_TABS = {
     st_doc: '<table><thead><tr><th>Sr.No.</th><th>Document</th><th>Status</th><th>Return For Rejection</th><th>Submitted On</th><th>Approved On</th></tr></thead><tbody><tr><td>1</td><td>COMPLAINT (ATN20250009438D202600001)</td><td>Approved</td><td></td><td>27-08-2026 15:09:56</td><td>27-08-2026 00:00:00</td></tr><tr><td>2</td><td>VAKALAT (ATN20250009438D202600003)</td><td>Approved</td><td></td><td>27-08-2026 15:09:56</td><td>27-08-2026 00:00:00</td></tr></tbody></table>',
@@ -185,6 +201,10 @@ async function serve(route: Route): Promise<void> {
     fx.lastCode = code;
     fx.codeBySrc.set(url.search.slice(1), code);
     return route.fulfill({ contentType: 'image/svg+xml', body: svg(code) });
+  }
+  if (req.method() === 'GET' && url.pathname.endsWith('.pdf')) {
+    fx.pdfServed.push(url.pathname);
+    return route.fulfill({ contentType: 'application/pdf', body: `%PDF-1.4 fixture ${url.pathname}` });
   }
   if (req.method() === 'GET' && p === 'login/logOut') {
     fx.loggedOut = true;
@@ -334,8 +354,8 @@ describe('eFiling portal dashboard (fixture portal)', () => {
       headers: ['Sr. No.', 'File Name', 'Uploaded On', 'Final Submitted On', 'Status', 'CIS Status'],
       rows: [
         { group: 'Ambeth Arivukarasan Proprietor Thoorigai Prints' },
-        { cells: ['1', 'COMPLAINT (ATN20250009438D202600001)', '27-08-2026 15:00:56', '27-08-2026 15:09:56', 'Submitted', 'Approved'] },
-        { cells: ['2', 'PROOF AFFIDAVIT (ATN20250009438D202600002)', '27-08-2026 15:01:19', '27-08-2026 15:09:56', 'Submitted', 'Approved'] },
+        { cells: ['1', 'COMPLAINT (ATN20250009438D202600001)', '27-08-2026 15:00:56', '27-08-2026 15:09:56', 'Submitted', 'Approved'], actions: ['COMPLAINT'] },
+        { cells: ['2', 'PROOF AFFIDAVIT (ATN20250009438D202600002)', '27-08-2026 15:01:19', '27-08-2026 15:09:56', 'Submitted', 'Approved'], actions: ['PROOF AFFIDAVIT'] },
       ],
     });
   }, 60_000);
@@ -353,6 +373,22 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(v.sections[2]!.table?.rows).toEqual([{ cells: ['1', 'TNCT2716H2608P694', '6600.00'] }]);
     expect(v.sections[3]).toMatchObject({ table: null, text: 'No oath recording.' });
   }, 60_000);
+
+  it('a document under View Documents opens as the PDF the portal shows (clicked there, fetched in the session)', async () => {
+    const row = ((await live.readPortalList(sessionId, USER, 'completed_pleadings')).rows[0] as { cells: string[] }).cells;
+    const v = await live.openPortalRowAction(sessionId, USER, 'completed_pleadings', row.slice(0, 2), 'View Documents');
+    const doc = v.sections[0]!.table!.rows[1] as { cells: string[]; actions?: string[] };
+    expect(doc.actions).toEqual(['COMPLAINT']);
+    const f = await live.openPortalFile(sessionId, USER, 'completed_pleadings', { match: row.slice(0, 2), action: 'View Documents', docRow: doc.cells.slice(0, 2), link: 'COMPLAINT' });
+    expect(f.contentType).toBe('application/pdf');
+    expect(f.body.toString()).toBe('%PDF-1.4 fixture /pdedev/temp/ATN20250009438D202600001.pdf');
+  }, 90_000);
+
+  it('Acknowledgement in the list row opens its PDF', async () => {
+    const row = ((await live.readPortalList(sessionId, USER, 'completed_pleadings')).rows[0] as { cells: string[] }).cells;
+    const f = await live.openPortalFile(sessionId, USER, 'completed_pleadings', { match: row.slice(0, 2), link: 'Acknowledgement' });
+    expect(f.body.toString()).toBe('%PDF-1.4 fixture /pdedev/temp/ack_STC_4377_2026.pdf');
+  }, 90_000);
 
   it('clicking tiles quickly: each read waits its turn instead of failing', async () => {
     const [a, b, c] = await Promise.all([
