@@ -51,7 +51,13 @@ export async function runSelfTest(sessionId: string, userId: string): Promise<vo
   const dir = join(tmpdir(), 'difai-efiling-selftest', new Date().toISOString().replace(/[:.]/g, '-'));
   await mkdir(dir, { recursive: true });
   const results: StepResult[] = [];
-  const save = () => writeFile(join(dir, 'report.json'), JSON.stringify({ sessionId: sessionId.slice(0, 8), results }, null, 2));
+  // The full result of each step (what the screens get), so DifAi's version of
+  // every screen can be drawn from real data and compared with the portal's.
+  const full: Array<{ step: string; data: unknown }> = [];
+  const save = () => Promise.all([
+    writeFile(join(dir, 'report.json'), JSON.stringify({ sessionId: sessionId.slice(0, 8), results }, null, 2)),
+    writeFile(join(dir, 'full.json'), JSON.stringify(full, (_k, v) => (v && v.type === 'Buffer' && Array.isArray(v.data) ? `<${v.data.length} bytes>` : v))),
+  ]);
   let n = 0;
 
   const step = async <T>(name: string, fn: () => Promise<T>, summarise: (x: T) => unknown = (x) => x): Promise<T | null> => {
@@ -62,6 +68,7 @@ export async function runSelfTest(sessionId: string, userId: string): Promise<vo
       out = await fn();
       r.ok = true;
       r.summary = trim(summarise(out));
+      full.push({ step: name, data: out });
     } catch (e) {
       r.error = `${(e as { status?: number }).status ?? ''} ${(e as Error).message}`.trim();
     }
