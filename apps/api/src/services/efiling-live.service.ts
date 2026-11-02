@@ -854,26 +854,51 @@ async function portalPost(page: Page, route: string, postdata = ''): Promise<Por
 export interface PortalTableData {
   headers: string[];
   /** Each row's cell text; a row spanning the table is a group heading. */
-  rows: Array<{ group: string } | { cells: string[] }>;
+  rows: Array<{ group: string } | { cells: string[]; actions?: string[] }>;
 }
 
 /** The portal's server-rendered HTML tables -> rows (parsed in the page). */
 async function htmlTable(page: Page, html: string): Promise<PortalTableData> {
   return page.evaluate((h) => {
     const doc = new (globalThis as any).DOMParser().parseFromString(String(h), 'text/html');
-    const table = doc.querySelector('table');
     const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const ownRows = (t: any) => [...(t.tBodies?.length ? [...t.tBodies].flatMap((b: any) => [...b.rows]) : [...t.rows])]
+      .filter((r: any) => !r.parentElement?.matches?.('thead'));
+    // The list itself: the portal's #example1, else the outermost table with
+    // the most rows. Rows of the pop-ups hidden inside each row (View
+    // Documents etc.) and the search bar's layout table are not the list.
+    const outer = [...doc.querySelectorAll('table')].filter((t: any) => !t.parentElement?.closest('table'));
+    const table = doc.querySelector('table#example1')
+      ?? outer.sort((a: any, b: any) => (b.querySelectorAll('thead th').length > 0 ? 1 : 0) - (a.querySelectorAll('thead th').length > 0 ? 1 : 0) || ownRows(b).length - ownRows(a).length)[0];
     if (!table) return { headers: [], rows: [] };
-    const headers = [...table.querySelectorAll('thead th')].map(txt);
-    const rows = [...table.querySelectorAll('tbody tr')].map((tr: any) => {
-      const cells = [...tr.children];
-      if (cells.length === 1 && Number(cells[0].getAttribute('colspan') || 1) > 1) return { group: txt(cells[0]) };
-      return { cells: cells.map((c: any) => {
-        // Select boxes (e.g. "Select GRN") -> their option texts.
-        const sel = c.querySelector('select');
-        if (sel) return [...sel.options].map((o: any) => txt(o)).filter((t: string) => t && !/^select/i.test(t)).join(', ');
-        return txt(c);
-      }) };
+    // A cell's visible text: no nested tables, hidden pop-ups, scripts.
+    const visible = (c: any) => {
+      const k = c.cloneNode(true);
+      for (const e of [...k.querySelectorAll('table, script, style, .modal, .popup, [style*="display:none"], [style*="display: none"]')]) e.remove();
+      return k;
+    };
+    const head = table.tHead?.rows?.length ? table.tHead.rows[table.tHead.rows.length - 1] : null;
+    const headers = head ? [...head.cells].map(txt) : [];
+    const rows = ownRows(table).map((tr: any) => {
+      const cells = [...tr.cells];
+      if (cells.length === 1 && Number(cells[0].getAttribute('colspan') || 1) > 1) return { group: txt(visible(cells[0])) };
+      const actions: string[] = [];
+      for (const c of cells) {
+        for (const b of [...visible(c).querySelectorAll('button, a, input[type=button]')] as any[]) {
+          const label = txt(b) || String(b.value ?? '').trim();
+          const clickable = b.tagName !== 'A' || b.getAttribute('onclick') || /^(#|javascript:)/i.test(b.getAttribute('href') ?? '#');
+          if (label && clickable && label.length < 40 && !actions.includes(label)) actions.push(label);
+        }
+      }
+      return {
+        cells: cells.map((c: any) => {
+          // Select boxes (e.g. "Select GRN") -> their option texts.
+          const sel = c.querySelector('select');
+          if (sel) return [...sel.options].map((o: any) => txt(o)).filter((t: string) => t && !/^select/i.test(t)).join(', ');
+          return txt(visible(c));
+        }),
+        ...(actions.length ? { actions } : {}),
+      };
     }).filter((r: any) => ('group' in r ? r.group : r.cells.some(Boolean)));
     return { headers, rows };
   }, html) as Promise<PortalTableData>;
@@ -899,7 +924,7 @@ const PORTAL_LISTS: ReadonlyArray<{ key: PortalListKey; label: string; tile: str
  * Click a dashboard tile the way the advocate would and read the list the
  * portal's own JS puts in #history_body. null when the tile isn't on this page.
  */
-async function clickTile(page: Page, tile: string): Promise<string | null> {
+async function clickTile(page: Page, tile: string, keepOpen = false): Promise<string | null> {
   const present = await page.evaluate((id) => {
     const el = document.getElementById(id);
     const body = document.getElementById('history_body');
@@ -915,6 +940,7 @@ async function clickTile(page: Page, tile: string): Promise<string | null> {
     { timeout: 20_000 },
   ).then(() => true).catch(() => false);
   const html = filled ? await page.evaluate(() => String((document.getElementById('history_body') as any).innerHTML)) : '';
+  if (keepOpen) return html;
   // Close the list again, as the advocate would.
   await page.evaluate(() => {
     const $ = (globalThis as any).jQuery;
@@ -981,6 +1007,12 @@ export interface PortalDashboardView {
   today: { title: string; table: PortalTableData | null; text: string };
 }
 
+/** Today in India as dd-mm-yyyy, like the portal's headings. */
+function istDate(): string {
+  const d = new Date(Date.now() + 330 * 60_000);
+  return `${String(d.getUTCDate()).padStart(2, '0')}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${d.getUTCFullYear()}`;
+}
+
 /** The portal dashboard's Calendar badges and "Cases Listed Today" box, as rendered. */
 async function readCalendarAndToday(page: Page): Promise<Omit<PortalDashboardView, 'counts'>> {
   const raw = await page.evaluate(() => {
@@ -1020,7 +1052,7 @@ async function readCalendarAndToday(page: Page): Promise<Omit<PortalDashboardVie
     };
   }).catch(() => ({ days: {}, month: null, year: null, title: '', tableHtml: '', text: '' }));
   const table = raw.tableHtml ? await htmlTable(page, raw.tableHtml) : null;
-  return { calendar: { month: raw.month, year: raw.year, days: raw.days }, today: { title: raw.title, table, text: raw.text } };
+  return { calendar: { month: raw.month, year: raw.year, days: raw.days }, today: { title: /\d{2}-\d{2}-\d{4}/.test(raw.title) ? raw.title : `Cases Listed Today - ${istDate()}`, table, text: raw.text } };
 }
 
 async function readPortalCountsStep(sessionId: string, userId: string): Promise<PortalDashboardView> {
@@ -1166,8 +1198,190 @@ export async function readPortalPage(sessionId: string, userId: string, what: Po
 export async function readPortalLists(sessionId: string, userId: string) {
   return exclusive(getSession(sessionId, userId), () => readPortalListsStep(sessionId, userId));
 }
+export interface PortalRowView {
+  /** The heading lines of what opened (case number, court, parties). */
+  title: string[];
+  /** One per tab (Document, Application, Court Fee, Oath), or just one. */
+  sections: Array<{ name: string; table: PortalTableData | null; text: string }>;
+}
+
+/**
+ * A button in one row of a dashboard list (View Documents, View Status ...):
+ * open the tile, click that same button in that same row on the portal, and
+ * read what it opens - tab by tab when it has tabs. Done as a person would,
+ * so it doesn't depend on the portal's internal function names.
+ */
+async function openPortalRowActionStep(sessionId: string, userId: string, key: PortalListKey, match: string[], action: string): Promise<PortalRowView> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  const l = PORTAL_LISTS.find((x) => x.key === key);
+  if (!l) throw new EcourtsHttpError(400, 'Unknown eFiling list.');
+  const deadline = Date.now() + 50_000;
+  await ensureDashboard(session);
+  const { page } = session;
+  let opened = await clickTile(page, l.tile, true);
+  if (!opened) {
+    await ensureDashboard(session, true);
+    opened = await clickTile(page, l.tile, true);
+  }
+  if (!opened) throw new EcourtsHttpError(502, `The portal did not open ${l.label}. Try again.`);
+
+  // Find the row and the button; remember every table's state, then click.
+  const clicked = await page.evaluate(({ match, action }) => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const visibleTxt = (c: any) => {
+      const k = c.cloneNode(true);
+      for (const e of [...k.querySelectorAll('table, script, style, .modal, .popup, [style*="display:none"], [style*="display: none"]')]) e.remove();
+      return txt(k);
+    };
+    const body = document.getElementById('history_body') as any;
+    const want = match.map((m: string) => String(m).replace(/\s+/g, ' ').trim());
+    const tr = ([...body.querySelectorAll('tr')] as any[]).find((r) => {
+      const cells = [...r.children].map(visibleTxt);
+      return want.every((w: string, i: number) => cells[i] === w);
+    });
+    if (!tr) return 'row';
+    const btn = ([...tr.querySelectorAll('button, a, input[type=button]')] as any[])
+      .find((b) => (txt(b) || String(b.value ?? '').trim()) === action && !b.closest('.popup, [style*="display:none"]'));
+    if (!btn) return 'button';
+    for (const t of [...document.querySelectorAll('table')] as any[]) {
+      t.setAttribute('data-difai-before', `${t.getClientRects().length ? 1 : 0}:${txt(t).length}`);
+    }
+    btn.click();
+    return 'ok';
+  }, { match, action });
+  if (clicked === 'row') throw new EcourtsHttpError(409, 'That row is no longer in this list on the portal - Refresh and try again.');
+  if (clicked === 'button') throw new EcourtsHttpError(409, `The portal has no "${action}" in that row now.`);
+
+  // Wait for a table that appeared or changed, and let it finish filling.
+  const found = await page.waitForFunction(() => {
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const changed = ([...document.querySelectorAll('table')] as any[]).filter((x) => x.getClientRects().length
+      && x.getAttribute('data-difai-before') !== `1:${txt(x).length}`
+      && [...x.querySelectorAll('tbody tr')].some((r: any) => r.children.length > 1 || txt(r)));
+    // A pop-up inside a row changes the list around it too: take the innermost.
+    const t = changed.find((x) => !changed.some((y) => y !== x && x.contains(y)));
+    if (!t) return false;
+    t.setAttribute('data-difai-opened', '1');
+    return true;
+  }, undefined, { timeout: Math.max(5_000, Math.min(20_000, deadline - Date.now())), polling: 250 }).then(() => true).catch(() => false);
+  if (!found) {
+    await closePortalPopups(page);
+    throw new EcourtsHttpError(502, `The portal did not show anything for "${action}". It may be slow - try again.`);
+  }
+  await settle(page, '[data-difai-opened]');
+
+  const shape = await page.evaluate(() => {
+    const table = document.querySelector('[data-difai-opened]') as any;
+    table.removeAttribute('data-difai-opened');
+    const container = table.closest('.modal-content') ?? table.closest('.modal, .popup, [id^=dv_], [id^=ap_]') ?? table.parentElement;
+    container.setAttribute('data-difai-container', '1');
+    // Heading lines: the text before the tabs / the first table.
+    const stop = container.querySelector('.nav-tabs, [role=tablist], .dataTables_wrapper, table');
+    let title: string[] = [];
+    if (stop) {
+      const range = document.createRange();
+      range.setStart(container, 0);
+      range.setEndBefore(stop);
+      const d = document.createElement('div');
+      d.style.cssText = 'position:absolute;left:-99999px;top:0';
+      d.appendChild(range.cloneContents());
+      document.body.appendChild(d);
+      title = String(d.innerText).split('\n').map((s) => s.replace(/\s+/g, ' ').trim()).filter((s) => s.length < 200 && /[A-Za-z0-9]/.test(s) && !/^close$/i.test(s));
+      d.remove();
+    }
+    const tabs = [...container.querySelectorAll('.nav-tabs a, .nav-tabs button, [role=tab], [data-toggle=tab], [data-bs-toggle=tab]')] as any[];
+    const seen = new Set<string>();
+    const names: string[] = [];
+    tabs.forEach((t, i) => {
+      t.setAttribute('data-difai-tab', String(i));
+      const n = String(t.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (n && !seen.has(n)) { seen.add(n); names.push(n); }
+    });
+    return { title: title.slice(0, 6), tabs: names };
+  });
+
+  const sections: PortalRowView['sections'] = [];
+  if (!shape.tabs.length) {
+    sections.push({ name: action, ...(await readOpened(page, '[data-difai-container]')) });
+  } else {
+    for (const name of shape.tabs) {
+      if (Date.now() > deadline) { sections.push({ name, table: null, text: 'Not read - the portal is slow. Open it again.' }); continue; }
+      const pane = await page.evaluate((name) => {
+        const tab = ([...document.querySelectorAll('[data-difai-container] [data-difai-tab]')] as any[])
+          .find((t) => String(t.textContent ?? '').replace(/\s+/g, ' ').trim() === name);
+        if (!tab) return null;
+        const id = (tab.getAttribute('href') ?? '').replace(/^[^#]*#?/, '') || (tab.getAttribute('data-target') ?? tab.getAttribute('data-bs-target') ?? '').replace(/^#/, '') || tab.getAttribute('aria-controls') || '';
+        for (const p of document.querySelectorAll('[data-difai-pane]')) p.removeAttribute('data-difai-pane');
+        tab.click();
+        const el = id ? document.getElementById(id) : null;
+        if (el) el.setAttribute('data-difai-pane', '1');
+        return el ? 'pane' : 'container';
+      }, name);
+      const where = pane === 'pane' ? '[data-difai-pane]' : '[data-difai-container]';
+      await page.waitForFunction((sel) => {
+        const p = document.querySelector(sel) as any;
+        return !!p && String(p.textContent ?? '').trim().length > 0;
+      }, where, { timeout: Math.max(1_000, Math.min(6_000, deadline - Date.now())), polling: 250 }).catch(() => {});
+      await settle(page, where);
+      sections.push({ name, ...(await readOpened(page, where)) });
+    }
+  }
+  await closePortalPopups(page);
+  return { title: shape.title, sections };
+}
+
+/** Wait until what's inside `sel` stops changing (the portal fills it by ajax). */
+async function settle(page: Page, sel: string): Promise<void> {
+  let last = -1;
+  for (let i = 0; i < 12; i++) {
+    const n = await page.evaluate((s) => String((document.querySelector(s) as any)?.textContent ?? '').length, sel).catch(() => 0);
+    if (n === last && n > 0) return;
+    last = n;
+    await page.waitForTimeout(300);
+  }
+}
+
+/** The biggest visible table inside `sel`, or its text when there is none. */
+async function readOpened(page: Page, sel: string): Promise<{ table: PortalTableData | null; text: string }> {
+  const got = await page.evaluate((s) => {
+    const root = document.querySelector(s) as any;
+    if (!root) return { html: '', text: '' };
+    // Outermost tables within what opened (it may itself sit inside a list row).
+    const tables = ([...root.querySelectorAll('table')] as any[]).filter((t) => {
+      const up = t.parentElement?.closest('table');
+      return t.getClientRects().length && !(up && root.contains(up));
+    });
+    const body = tables.sort((a, b) => b.querySelectorAll('tbody tr').length - a.querySelectorAll('tbody tr').length)[0];
+    if (!body) return { html: '', text: String(root.innerText ?? '').replace(/\s+/g, ' ').trim().slice(0, 500) };
+    // DataTables with scrolling draws the header in a separate table.
+    let html = String(body.outerHTML);
+    if (!body.querySelector('thead th')) {
+      const head = body.closest('.dataTables_wrapper')?.querySelector('.dataTables_scrollHead thead');
+      if (head) html = html.replace(/<table([^>]*)>/i, `<table$1>${head.outerHTML}`);
+    }
+    return { html, text: '' };
+  }, sel);
+  return { table: got.html ? await htmlTable(page, got.html) : null, text: got.text };
+}
+
+/** Close whatever the last step opened, as the advocate would. */
+async function closePortalPopups(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const $ = (globalThis as any).jQuery;
+    if ($) $('.modal').modal?.('hide');
+    for (const e of [...document.querySelectorAll('[data-difai-container],[data-difai-pane],[data-difai-tab]')]) {
+      e.removeAttribute('data-difai-container'); e.removeAttribute('data-difai-pane'); e.removeAttribute('data-difai-tab');
+    }
+  }).catch(() => {});
+  await page.keyboard.press('Escape').catch(() => {});
+}
+
 export async function readPortalCounts(sessionId: string, userId: string) {
   return queued(getSession(sessionId, userId), () => readPortalCountsStep(sessionId, userId));
+}
+export async function openPortalRowAction(sessionId: string, userId: string, key: PortalListKey, match: string[], action: string) {
+  return queued(getSession(sessionId, userId), () => openPortalRowActionStep(sessionId, userId, key, match, action));
 }
 export async function readPortalList(sessionId: string, userId: string, key: PortalListKey) {
   return queued(getSession(sessionId, userId), () => readPortalListStep(sessionId, userId, key));

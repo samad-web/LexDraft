@@ -107,7 +107,7 @@ export interface PortalList {
   label: string;
   total: number | null;
   headers: string[];
-  rows: Array<{ group: string } | { cells: string[] }>;
+  rows: Array<{ group: string } | { cells: string[]; actions?: string[] }>;
   error: string | null;
 }
 
@@ -223,6 +223,20 @@ export function usePortalList(sessionId: string | null, key: PortalList['key'] |
     // "Still working on your last eFiling step" (409): try again shortly.
     retry: (n, err) => n < 4 && httpStatus(err) === 409,
     retryDelay: 1500,
+  });
+}
+
+/** What a row's button (View Documents, View Status ...) opened on the portal. */
+export interface PortalRowView {
+  title: string[];
+  sections: Array<{ name: string; table: Pick<PortalList, 'headers' | 'rows'> | null; text: string }>;
+}
+
+/** Click a button in one row of a portal list and read what it opens. */
+export function useOpenPortalRow(sessionId: string | null) {
+  return useMutation({
+    mutationFn: (v: { key: PortalList['key']; match: string[]; action: string }) =>
+      api.post<PortalRowView>(`/efiling/live/session/${sessionId}/lists/${v.key}/open`, { match: v.match, action: v.action }),
   });
 }
 

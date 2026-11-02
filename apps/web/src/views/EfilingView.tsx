@@ -16,7 +16,7 @@ import {
   type PortalModule,
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
-import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, usePortalCounts, usePortalList, type PortalList } from '@/hooks/useEfiling';
+import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenPortalRow, usePortalCounts, usePortalList, type PortalList, type PortalRowView } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -353,6 +353,14 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
   const error = counts.error;
   const refetch = () => { void counts.refetch(); void list.refetch(); };
   const shown = list.data ?? null;
+  // A row's button (View Documents / View Status), done on the portal.
+  const openRow = useOpenPortalRow(sessionId);
+  const [drill, setDrill] = useState<{ key: PortalList['key']; match: string[]; action: string } | null>(null);
+  const onAction = (key: PortalList['key']) => (cells: string[], action: string) => {
+    const v = { key, match: cells.slice(0, 2), action };
+    setDrill(v);
+    openRow.mutate(v);
+  };
   const countOf = (k: PortalList['key']) => counts.data?.counts?.[k];
   const tile = (k: PortalList['key'], label: string) => {
     const n = countOf(k);
@@ -406,8 +414,18 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
         <h3 className="heading-sm">{shown?.label ?? LIST_LABEL[open]}</h3>
         {list.isLoading ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
         {list.isError ? <p className="body-sm">{(list.error as Error)?.message || 'Could not open this list on the portal.'}</p> : null}
-        {shown ? <PortalListTable list={shown} /> : null}
+        {shown ? <PortalListTable list={shown} onAction={onAction(shown.key)} busy={openRow.isPending} /> : null}
       </section>
+      {drill ? (
+        <PortalRowPanel
+          title={`${drill.action} · ${drill.match[1] ?? ''}`}
+          view={openRow.data}
+          loading={openRow.isPending}
+          error={openRow.isError ? ((openRow.error as Error)?.message || 'The portal did not answer.') : null}
+          onRetry={() => openRow.mutate(drill)}
+          onClose={() => { setDrill(null); openRow.reset(); }}
+        />
+      ) : null}
       <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
         {(['draft_cases', 'filed_cases'] as const).map((k) => {
           const l = open === k ? list.data : undefined;
@@ -475,22 +493,79 @@ const LIST_LABEL: Record<PortalList['key'], string> = {
   objections: 'Objections', my_cases: 'My Cases', draft_cases: 'Draft Cases', filed_cases: 'eFiled Cases',
 };
 
-function PortalListTable({ list }: { list: PortalList }) {
+// The portal's row buttons DifAi can open and read (not file downloads).
+const ROW_ACTION = /^view\b/i;
+
+function PortalListTable({ list, onAction, busy }: { list: PortalList; onAction?: (cells: string[], action: string) => void; busy?: boolean }) {
   if (list.error) return <p className="body-sm">{list.label}: {list.error}</p>;
   if (list.rows.length === 0) return <p className="body-sm muted">No {list.label.toLowerCase()} on your portal account.</p>;
-  const cols = Math.max(list.headers.length, ...list.rows.map((r) => ('cells' in r ? r.cells.length : 0)));
+  const withActions = Boolean(onAction) && list.rows.some((r) => 'cells' in r && r.actions?.some((a) => ROW_ACTION.test(a)));
+  const cols = Math.max(list.headers.length, ...list.rows.map((r) => ('cells' in r ? r.cells.length : 0))) + (withActions ? 1 : 0);
   return (
     <div style={{ overflowX: 'auto' }}>
       <table className="tbl" aria-label={list.label}>
-        {list.headers.length ? <thead><tr>{list.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead> : null}
+        {list.headers.length ? <thead><tr>{list.headers.map((h, i) => <th key={i}>{h}</th>)}{withActions ? <th>Open on portal</th> : null}</tr></thead> : null}
         <tbody>
           {list.rows.map((r, i) => ('group' in r ? (
             <tr key={i}><td colSpan={cols} style={{ fontWeight: 700, textAlign: 'center' }}>{r.group}</td></tr>
           ) : (
-            <tr key={i}>{r.cells.map((c, j) => <td key={j}>{c}</td>)}</tr>
+            <tr key={i}>
+              {r.cells.map((c, j) => <td key={j}>{c}</td>)}
+              {withActions ? (
+                <td>
+                  <span className="col" style={{ gap: 6 }}>
+                    {(r.actions ?? []).filter((a) => ROW_ACTION.test(a)).map((a) => (
+                      <button key={a} type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => onAction!(r.cells, a)}>{a}</button>
+                    ))}
+                  </span>
+                </td>
+              ) : null}
+            </tr>
           )))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** What a row's button opened on the portal: its heading, and its tabs (Document, Application, Court Fee, Oath). */
+function PortalRowPanel({ title, view, loading, error, onRetry, onClose }: {
+  title: string; view?: PortalRowView; loading: boolean; error: string | null; onRetry: () => void; onClose: () => void;
+}) {
+  const [tab, setTab] = useState(0);
+  useEffect(() => { setTab(0); }, [view]);
+  const section = view?.sections[tab];
+  return (
+    <section className="card col" style={{ gap: 10 }} aria-label={title}>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+        <h3 className="heading-sm">{title}</h3>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Close</button>
+      </div>
+      {loading ? <p className="body-sm muted">Opening it on filing.ecourts.gov.in…</p> : null}
+      {error ? (
+        <p className="body-sm">{error} <button type="button" className="btn btn-ghost btn-sm" onClick={onRetry}>Try again</button></p>
+      ) : null}
+      {view && !loading ? (
+        <>
+          {view.title.length ? (
+            <div className="col" style={{ gap: 2, textAlign: 'center' }}>
+              {view.title.map((t, i) => <span key={i} className="body-sm" style={{ fontWeight: 700 }}>{t}</span>)}
+            </div>
+          ) : null}
+          {view.sections.length > 1 ? (
+            <div className="row" role="tablist" style={{ gap: 6, flexWrap: 'wrap' }}>
+              {view.sections.map((s, i) => (
+                <button key={s.name} type="button" role="tab" aria-selected={tab === i} className={tab === i ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'} onClick={() => setTab(i)}>{s.name}</button>
+              ))}
+            </div>
+          ) : null}
+          {section ? (
+            section.table && section.table.rows.length
+              ? <PortalListTable list={{ key: 'my_cases', label: section.name, total: null, error: null, ...section.table }} />
+              : <p className="body-sm muted">{section.text || `Nothing under ${section.name} on the portal.`}</p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
   );
 }

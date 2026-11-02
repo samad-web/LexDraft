@@ -186,6 +186,24 @@ efilingRouter.get(
 );
 
 const PORTAL_LIST_KEYS = ['draft_cases', 'filed_cases', 'draft_pleadings', 'completed_pleadings', 'draft_ias', 'completed_ias', 'objections', 'my_cases'] as const;
+efilingRouter.post(
+  '/live/session/:sessionId/lists/:key/open',
+  validate({
+    params: z.object({ sessionId: z.string().uuid(), key: z.enum(PORTAL_LIST_KEYS) }),
+    body: z.object({ match: z.array(z.string().max(500)).min(1).max(3), action: z.string().min(1).max(60) }),
+  }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId, key } = req.params as unknown as { sessionId: string; key: (typeof PORTAL_LIST_KEYS)[number] };
+      const { match, action } = req.body as { match: string[]; action: string };
+      res.json(await efilingLive.openPortalRowAction(sessionId, req.user.id, key, match, action));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 efilingRouter.get(
   '/live/session/:sessionId/lists/:key',
   validate({ params: z.object({ sessionId: z.string().uuid(), key: z.enum(PORTAL_LIST_KEYS) }) }),

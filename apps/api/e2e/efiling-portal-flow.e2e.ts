@@ -98,7 +98,7 @@ const TILES: Record<string, { route: string; field: string; html: string }> = {
   filed_cases: { route: 'advocate_case_registration/getSubmittedPDE', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>E-Filing No</th></tr></thead><tbody></tbody></table>' },
   efiling_activity: { route: 'dashboard/fetchActivities', field: 'submitted_pde_list', html: '<table><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>ePayments</th></tr></thead><tbody><tr><td>1</td><td>O.S. - C202600019</td><td><select><option>Select GRN</option><option>KL26GRN00012345 - 4320.00</option></select></td></tr></tbody></table>' },
   // As the real portal returns it (columns, buttons and links as on screen).
-  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn">View Documents</button></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn">View Status</button></td></tr></tbody></table>' },
+  completed_pleading: { route: 'dashboard/fetchCompletedActivities', field: 'submitted_pde_list', html: '<table class="search"><tr><td>Search By (eFiling Number/CNR Number/Party Name)</td><td><input></td><td><button>Search</button></td><td><button>Clear</button></td></tr></table><table id="example1" class="table"><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th><th>Establishment</th><th>Cause Title</th><th>Upload Pleadings (Mandatory)</th><th>Oath Recording</th><th>ePayments</th><th>Application Submitted</th><th>Last Updated on</th><th>Status</th></tr></thead><tbody><tr><td>1</td><td><b>STC/4377/2026</b><br>(TNCH0C0121292026)<br>STC - ATN20250009438C202600002<br><span class="badge">Court Verified eFile Case</span><br><a href="#" onclick="return false">Acknowledgement</a></td><td>The Metropolitan Magistrates Courts, Saidapet, Chennai</td><td><a href="#">Ambeth Arivukarasan Proprietor Thoorigai Prints</a><br>Vs<br><a href="#">R Venkatesh Bhat Proprietor Ms Venki Publications</a></td><td><button class="btn" id="btn-pop7" onclick="fxDocs(7)">View Documents</button><div class="popup" id="dv_challan7" style="display:none"><table id="example_pl7"><thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody><tr><td>0</td><td>stale</td><td></td><td></td><td></td><td></td></tr></tbody></table></div></td><td>---</td><td>TNCT2716H2608P694 - 6600.00</td><td></td><td>27-08-2026 15:09:56</td><td><button class="btn" onclick="fxStatus()">View Status</button></td></tr></tbody></table>' },
   draft_ia: { route: 'dashboard/fetchDraftIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   completed_ia: { route: 'dashboard/fetchCompletedIA', field: 'submitted_pde_list', html: '<table><tbody></tbody></table>' },
   my_cases: { route: 'Portfolio_new/my_cases', field: 'html', html: '<table><thead><tr><th>Sr No</th><th>Cases</th><th>Party Name</th></tr></thead><tbody><tr><td>1</td><td>OS/57/2024</td><td>Ramesh Kumar Vs Suresh Babu</td></tr></tbody></table>' },
@@ -122,7 +122,40 @@ ${Object.keys(TILES).map((id) => `<a href="#" id="${id}">${id}</a>`).join(' ')}
 </tbody></table></div></div>
 <div class="today-box"><div class="box-title"><h4>Cases Listed Today - 31-10-2026</h4></div><div class="activeCasestbl">No Cases</div></div>
 <div id="db_screen"><div id="history_body"></div></div>
+<div class="modal" id="mod_status" style="display:none"><div class="modal-content">
+  <button class="close">×</button>
+  <div><b>STC/4377/2026</b></div><div><b>METROPOLITAN MAGISTRATE COURTS, SAIDAPET, CHENNAI</b></div>
+  <div><b>Ambeth Arivukarasan Proprietor Thoorigai Prints Vs R Venkatesh Bhat Proprietor Ms Venki Publications</b></div>
+  <ul class="nav nav-tabs"><li><a href="#st_doc" data-toggle="tab" onclick="fxTab('st_doc')">Document</a></li><li><a href="#st_app" data-toggle="tab" onclick="fxTab('st_app')">Application</a></li><li><a href="#st_fee" data-toggle="tab" onclick="fxTab('st_fee')">Court Fee</a></li><li><a href="#st_oath" data-toggle="tab" onclick="fxTab('st_oath')">Oath</a></li></ul>
+  <div class="tab-content"><div id="st_doc" class="tab-pane"></div><div id="st_app" class="tab-pane" style="display:none"></div><div id="st_fee" class="tab-pane" style="display:none"></div><div id="st_oath" class="tab-pane" style="display:none"></div></div>
+</div></div>
 <script>
+  // Like the portal's fetchPleadingData: fill the row's hidden pop-up, then show it.
+  function fxDocs(id) {
+    setTimeout(function () {
+      document.getElementById('example_pl' + id).innerHTML = '<thead><tr><th>Sr. No.</th><th>File Name</th><th>Uploaded On</th><th>Final Submitted On</th><th>Status</th><th>CIS Status</th></tr></thead><tbody>'
+        + '<tr class="dtrg-group"><td colspan="6">Ambeth Arivukarasan Proprietor Thoorigai Prints</td></tr>'
+        + '<tr><td>1</td><td>COMPLAINT (ATN20250009438D202600001)</td><td>27-08-2026 15:00:56</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr>'
+        + '<tr><td>2</td><td>PROOF AFFIDAVIT (ATN20250009438D202600002)</td><td>27-08-2026 15:01:19</td><td>27-08-2026 15:09:56</td><td>Submitted</td><td>Approved</td></tr></tbody>';
+      document.getElementById('dv_challan' + id).style.display = 'block';
+    }, 600);
+  }
+  var FX_TABS = {
+    st_doc: '<table><thead><tr><th>Sr.No.</th><th>Document</th><th>Status</th><th>Return For Rejection</th><th>Submitted On</th><th>Approved On</th></tr></thead><tbody><tr><td>1</td><td>COMPLAINT (ATN20250009438D202600001)</td><td>Approved</td><td></td><td>27-08-2026 15:09:56</td><td>27-08-2026 00:00:00</td></tr><tr><td>2</td><td>VAKALAT (ATN20250009438D202600003)</td><td>Approved</td><td></td><td>27-08-2026 15:09:56</td><td>27-08-2026 00:00:00</td></tr></tbody></table>',
+    st_app: '<p>No applications filed.</p>',
+    st_fee: '<table><thead><tr><th>Sr.No.</th><th>GRN</th><th>Amount</th></tr></thead><tbody><tr><td>1</td><td>TNCT2716H2608P694</td><td>6600.00</td></tr></tbody></table>',
+    st_oath: '<p>No oath recording.</p>'
+  };
+  // Each tab loads its own part, a moment after it is clicked.
+  function fxTab(id) {
+    ['st_doc', 'st_app', 'st_fee', 'st_oath'].forEach(function (t) { document.getElementById(t).style.display = t === id ? 'block' : 'none'; });
+    var pane = document.getElementById(id); pane.innerHTML = '';
+    setTimeout(function () { pane.innerHTML = FX_TABS[id]; }, 500);
+    return false;
+  }
+  function fxStatus() {
+    setTimeout(function () { document.getElementById('mod_status').style.display = 'block'; fxTab('st_doc'); }, 400);
+  }
   var TILES = ${JSON.stringify(Object.fromEntries(Object.entries(TILES).map(([k, v]) => [k, { route: v.route, field: v.field }])))};
   Object.keys(TILES).forEach(function (id) {
     document.getElementById(id).addEventListener('click', function (e) {
@@ -281,6 +314,43 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(row.cells[6]).toBe('TNCT2716H2608P694 - 6600.00');
     expect(row.cells[8]).toBe('27-08-2026 15:09:56');
   });
+
+  it('the list is the portal\'s main table only: no search bar, no rows of the hidden pop-ups; each row carries its buttons', async () => {
+    const l = await live.readPortalList(sessionId, USER, 'completed_pleadings');
+    expect(l.rows).toHaveLength(1);
+    const row = l.rows[0] as { cells: string[]; actions?: string[] };
+    expect(row.cells).toHaveLength(10);
+    expect(row.cells[4]).toBe('View Documents');
+    expect(row.actions).toEqual(['Acknowledgement', 'View Documents', 'View Status']);
+  });
+
+  it('View Documents: the row\'s own pop-up, grouped by party, as on the portal', async () => {
+    const row = ((await live.readPortalList(sessionId, USER, 'completed_pleadings')).rows[0] as { cells: string[] }).cells;
+    const v = await live.openPortalRowAction(sessionId, USER, 'completed_pleadings', row.slice(0, 2), 'View Documents');
+    expect(v.sections).toHaveLength(1);
+    expect(v.sections[0]!.table).toEqual({
+      headers: ['Sr. No.', 'File Name', 'Uploaded On', 'Final Submitted On', 'Status', 'CIS Status'],
+      rows: [
+        { group: 'Ambeth Arivukarasan Proprietor Thoorigai Prints' },
+        { cells: ['1', 'COMPLAINT (ATN20250009438D202600001)', '27-08-2026 15:00:56', '27-08-2026 15:09:56', 'Submitted', 'Approved'] },
+        { cells: ['2', 'PROOF AFFIDAVIT (ATN20250009438D202600002)', '27-08-2026 15:01:19', '27-08-2026 15:09:56', 'Submitted', 'Approved'] },
+      ],
+    });
+  }, 60_000);
+
+  it('View Status: the case heading and every tab (Document, Application, Court Fee, Oath), each read after it loads', async () => {
+    const row = ((await live.readPortalList(sessionId, USER, 'completed_pleadings')).rows[0] as { cells: string[] }).cells;
+    const v = await live.openPortalRowAction(sessionId, USER, 'completed_pleadings', row.slice(0, 2), 'View Status');
+    expect(v.title).toEqual(['STC/4377/2026', 'METROPOLITAN MAGISTRATE COURTS, SAIDAPET, CHENNAI', 'Ambeth Arivukarasan Proprietor Thoorigai Prints Vs R Venkatesh Bhat Proprietor Ms Venki Publications']);
+    expect(v.sections.map((x) => x.name)).toEqual(['Document', 'Application', 'Court Fee', 'Oath']);
+    expect(v.sections[0]!.table?.rows).toEqual([
+      { cells: ['1', 'COMPLAINT (ATN20250009438D202600001)', 'Approved', '', '27-08-2026 15:09:56', '27-08-2026 00:00:00'] },
+      { cells: ['2', 'VAKALAT (ATN20250009438D202600003)', 'Approved', '', '27-08-2026 15:09:56', '27-08-2026 00:00:00'] },
+    ]);
+    expect(v.sections[1]).toMatchObject({ table: null, text: 'No applications filed.' });
+    expect(v.sections[2]!.table?.rows).toEqual([{ cells: ['1', 'TNCT2716H2608P694', '6600.00'] }]);
+    expect(v.sections[3]).toMatchObject({ table: null, text: 'No oath recording.' });
+  }, 60_000);
 
   it('clicking tiles quickly: each read waits its turn instead of failing', async () => {
     const [a, b, c] = await Promise.all([
