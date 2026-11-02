@@ -425,7 +425,7 @@ export const efilingFilingsService = {
   },
 
   /** Record the case's CNR on the filing and connect the matter to eCourts. */
-  async attachCnr(id: string, firmId: string, cnr: string, source: 'advocate' | 'tracker', actorUserId?: string | null): Promise<EfilingFiling> {
+  async attachCnr(id: string, firmId: string, cnr: string, source: 'advocate' | 'tracker', actorUserId?: string | null, note?: string): Promise<EfilingFiling> {
     const sql = need();
     const filing = await load(sql, id, firmId);
     const { attachCnrAndQueue, normaliseCnr } = await import('./ecourts-link.service');
@@ -448,7 +448,7 @@ export const efilingFilingsService = {
     `;
     await recordFilingEvent(sql, {
       filingId: id, firmId, from: filing.status, to: 'registered',
-      note: source === 'tracker' ? `Found on eCourts: CNR ${clean}` : `CNR ${clean} entered`,
+      note: note ?? (source === 'tracker' ? `Found on eCourts: CNR ${clean}` : `CNR ${clean} entered`),
       source, actorUserId,
     });
     return load(sql, id, firmId);

@@ -27,6 +27,7 @@ import { efilingPortalPleadingsRouter } from './efiling-portal-pleadings.routes'
 import { efilingPortalVakalatRouter } from './efiling-portal-vakalat.routes';
 import { efilingPortalPortfolioRouter } from './efiling-portal-portfolio.routes';
 import { efilingPortalCaseFilingRouter } from './efiling-portal-casefiling.routes';
+import { efilingPortalSyncRouter } from './efiling-portal-sync.routes';
 import { landRecordsRouter } from './land-records.routes';
 import { judgesRouter } from './judges.routes';
 import { dashboardRouter } from './dashboard.routes';
@@ -187,6 +188,8 @@ apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalPleading
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalVakalatRouter);
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalPortfolioRouter);
 apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalCaseFilingRouter);
+// The portal saved into DifAi's matters (eFiling portal -> DifAi sync).
+apiRouter.use('/efiling',  requireAuth, requireActivePlan, efilingPortalSyncRouter);
 // Tamil Nadu Land Records eServices (patta / chitta / A-Register / FMB / TSLR).
 apiRouter.use('/land-records', requireAuth, requireActivePlan, landRecordsRouter);
 apiRouter.use('/judges',   requireAuth, requireActivePlan, judgesRouter);

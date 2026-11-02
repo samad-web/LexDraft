@@ -188,13 +188,24 @@ async function closeSession(sessionId: string): Promise<void> {
 }
 
 /**
- * The advocate is logged in on the portal. On a local DifAi with
- * EFILING_SELF_TEST=1, this also starts the read-only self-test of every
- * eFiling feature over this session (efiling-selftest.service.ts).
+ * The advocate is logged in on the portal. A few seconds later what they
+ * have there is saved into their DifAi matters, in the background
+ * (efiling-portal-sync.service.ts - read-only on the portal). On a local
+ * DifAi with EFILING_SELF_TEST=1, this also starts the read-only self-test of
+ * every eFiling feature over this session (efiling-selftest.service.ts).
  */
 function markLoggedIn(session: EfilingSession): void {
   session.authenticated = true;
-  if (process.env['EFILING_SELF_TEST'] !== '1' || process.env['NODE_ENV'] === 'production') return;
+  const selfTest = process.env['EFILING_SELF_TEST'] === '1' && process.env['NODE_ENV'] !== 'production';
+  // The self-test walks the portal on its own timing; it isn't mixed with a sync.
+  if (!selfTest) {
+    setTimeout(() => {
+      if (!sessions.has(session.id) || !session.authenticated) return;
+      void import('./efiling-portal-sync.service').then((m) => m.syncIfDue(session.id, session.userId, 0))
+        .catch((e) => logger.warn({ err: e }, 'efiling portal sync did not start'));
+    }, 3000);
+  }
+  if (!selfTest) return;
   setTimeout(() => {
     void import('./efiling-selftest.service').then((m) => m.runSelfTest(session.id, session.userId))
       .catch((e) => logger.warn({ err: e }, 'efiling self-test did not start'));

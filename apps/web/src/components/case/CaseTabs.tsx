@@ -3,6 +3,7 @@ import { EmptyState, Icon } from '@lexdraft/ui';
 import type { ReactNode } from 'react';
 import type { MatterTimelineEvent, Task } from '@lexdraft/types';
 import { FilingsList } from '@/components/efiling/FilingsList';
+import { CaseFilingHistory } from '@/components/efiling/CaseFilingHistory';
 import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { useLimitations } from '@/hooks/useLimitations';
 import { useCan } from '@/hooks/useFirmAdmin';
@@ -141,6 +142,9 @@ export function CaseFilingsTab({ caseId }: { caseId: string }) {
         <SectionHead title="eFiling" />
         <FilingsList caseId={caseId} onOpen={(id) => navigate(`/app/efiling?filing=${encodeURIComponent(id)}`)} />
       </section>
+      {/* Status, history, payments and saved documents of each filing - including
+          what DifAi read from filing.ecourts.gov.in (portal -> DifAi sync). */}
+      <CaseFilingHistory caseId={caseId} frame={(body) => <section className="card"><SectionHead title="Filing history" />{body}</section>} />
       {/* Interim applications, appeals, execution, review, bail - each with its
           own status lifecycle. */}
       <ApplicationsPanel caseId={caseId} />

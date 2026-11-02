@@ -649,6 +649,46 @@ export const notify = {
     }
   },
 
+  /** The registry raised an objection, seen on filing.ecourts.gov.in (efiling-portal-sync). */
+  async efilingObjection(
+    firmId: string,
+    info: { filingId: string; matterTitle: string; objections: string; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'amber',
+        icon: 'ecourts',
+        title: `Objection on eFiling: ${info.matterTitle}`,
+        body: `${info.objections.slice(0, 300)}. Cure it on filing.ecourts.gov.in and re-submit.`,
+        view: `efiling?filing=${info.filingId}`,
+        dedupeKey: `efiling-objection:${info.filingId}`,
+      });
+    }
+  },
+
+  /** The objection is no longer listed on filing.ecourts.gov.in. */
+  async efilingObjectionCleared(
+    firmId: string,
+    info: { filingId: string; matterTitle: string; ownerUserId?: string | null },
+  ): Promise<void> {
+    const recipients = await resolveCaseRecipients(firmId, info.ownerUserId);
+    for (const r of recipients) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'sage',
+        icon: 'ecourts',
+        title: `Objection cleared: ${info.matterTitle}`,
+        body: 'The eFiling portal no longer lists an objection on this filing. DifAi marked it re-filed.',
+        view: `efiling?filing=${info.filingId}`,
+        dedupeKey: `efiling-objection:${info.filingId}`,
+      });
+    }
+  },
+
   /**
    * After each 09:00 / 19:00 eFiling tracking run (and its retries): one
    * summary per advocate with open filings. Deduped per (slot, date).

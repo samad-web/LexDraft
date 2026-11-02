@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import * as efilingLive from '../services/efiling-live.service';
 import { efileCaseOnPortal, fillNewCaseOnPortal, submitPleadingOnPortal, uploadPleadingOnPortal } from '../services/efiling-portal-filing.service';
+import { syncIfDue } from '../services/efiling-portal-sync.service';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { ALL_STEP_KEYS, PARTICULARS_EXTRA_KEYS, EFILING_PORTAL_STATES, EFILING_PORTAL_STATE_CODES, PORTAL_STEPS_BY_KIND, type PortalStepKey } from '../lib/efiling/types';
 import { requireFeature } from '../services/permissions.service';
@@ -179,6 +180,9 @@ efilingRouter.get(
       if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
       const { sessionId } = req.params as unknown as { sessionId: string };
       res.json(await efilingLive.readPortalCounts(sessionId, req.user.id));
+      // The dashboard is in use: keep DifAi's matters in step with the portal
+      // (in the background, at most every 10 minutes).
+      syncIfDue(sessionId, req.user.id);
     } catch (err) {
       next(err);
     }

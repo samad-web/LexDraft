@@ -31,6 +31,8 @@ import { PortalVakalat } from '@/components/efiling/portal/PortalVakalat';
 import { PortalPortfolio } from '@/components/efiling/portal/PortalPortfolio';
 import { PortalCaseFiling } from '@/components/efiling/portal/PortalCaseFiling';
 import { CellWithLinks, PortalListView, PortalModal, PortalTable, ROW_ACTION, type PortalRows } from '@/components/efiling/PortalKit';
+import { PortalSyncWindow } from '@/components/efiling/PortalSync';
+import { syncMenuLabel, usePortalSync } from '@/hooks/efiling/sync';
 
 // =============================================================================
 // EfilingView - laid out like the eFiling 3.0 portal itself (official user
@@ -230,6 +232,9 @@ export function EfilingView() {
   // Text size and contrast, as the portal's A- A A+ bar sets them (this tab).
   const [zoom, setZoom] = useState(1);
   const [contrast, setContrast] = useState(false);
+  // Portal -> DifAi sync: its status sits in the advocate's name menu, its window is DifAi's own.
+  const sync = usePortalSync(connection?.sessionId ?? null);
+  const [syncOpen, setSyncOpen] = useState(false);
 
   const screens = (
     <>
@@ -340,6 +345,7 @@ export function EfilingView() {
           onSwitchState={switchState}
           userItems={[
             { label: 'My Profile', onPick: () => go('profile') },
+            { label: syncMenuLabel(sync.data), onPick: () => setSyncOpen(true) },
             { label: `Prepared in DifAi (${(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length})`, onPick: () => go('filings') },
             { label: `DifAi objection tracker${objectionCount ? ` (${objectionCount})` : ''}`, onPick: () => go('objections') },
             { label: 'Portal session', onPick: () => go('portal') },
@@ -349,6 +355,7 @@ export function EfilingView() {
         <section aria-label="eFiling" style={{ minWidth: 0, padding: '18px 6px 24px' }}>
           {showDetail ? <FilingDetail filingId={filingId!} onClose={() => go(m)} /> : screens}
         </section>
+        {syncOpen ? <PortalSyncWindow sessionId={connection.sessionId} onClose={() => setSyncOpen(false)} /> : null}
       </div>
     );
   }
