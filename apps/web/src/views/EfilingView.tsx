@@ -22,6 +22,8 @@ import {
 } from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
+import { PortalHeader, type ChromeMenu } from '@/components/efiling/PortalChrome';
+import '@/styles/efiling-portal.css';
 import { PortalEpay } from '@/components/efiling/portal/PortalEpay';
 import { PortalApplications } from '@/components/efiling/portal/PortalApplications';
 import { PortalPleadings } from '@/components/efiling/portal/PortalPleadings';
@@ -46,7 +48,7 @@ import { CellWithLinks, PortalListView, PortalModal, PortalTable, ROW_ACTION, ty
 /** Screens that exist only on the portal: they open live once logged in. */
 type PortalOnly =
   | 'add_partner' | 'accept_partnership' | 'revoke_partnership' | 'accept_revocation' | 'partners_report'
-  | 'fav_clients' | 'templates'
+  | 'fav_clients' | 'draft_cases' | 'filed_cases' | 'templates'
   | 'search_cases' | 'planner' | 'export_cases' | 'my_cases' | 'import_cases';
 
 type Menu = PortalModule | PortalOnly | 'filings' | 'profile' | 'portal';
@@ -74,6 +76,8 @@ const MENUS: ReadonlyArray<{ id: string; label: string; items: ReadonlyArray<Ite
     items: [
       { kind: 'module', id: 'new_case', label: 'New Case Filing' },
       { kind: 'module', id: 'fav_clients', label: 'Manage Favourite Clients' },
+      { kind: 'module', id: 'draft_cases', label: 'Draft Cases' },
+      { kind: 'module', id: 'filed_cases', label: 'eFiled Cases' },
       { kind: 'module', id: 'filings', label: 'Prepared in DifAi' },
     ],
   },
@@ -129,7 +133,7 @@ const PORTAL_ONLY_LABEL: Record<PortalOnly, string> = Object.fromEntries(
 ) as Record<PortalOnly, string>;
 const PORTAL_ONLY = new Set<string>([
   'add_partner', 'accept_partnership', 'revoke_partnership', 'accept_revocation', 'partners_report',
-  'fav_clients', 'templates', 'search_cases', 'planner', 'export_cases', 'my_cases', 'import_cases',
+  'fav_clients', 'draft_cases', 'filed_cases', 'templates', 'search_cases', 'planner', 'export_cases', 'my_cases', 'import_cases',
 ]);
 
 const ALL = new Set<string>([
@@ -223,59 +227,12 @@ export function EfilingView() {
   // A filing opened from a list, a notification or a link: show it in full.
   const showDetail = Boolean(filingId) && !['new_case', 'pleadings', 'oath', 'payments', 'wallet', 'applications', 'submitted_ias'].includes(m) && !PORTAL_ONLY.has(m);
 
-  if (!connection && !offline) {
-    return (
-      <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
-        <PageHeader title="eFiling" description="Log in with your own eFiling account to start, as on filing.ecourts.gov.in." />
-        <section className="card col" style={{ gap: 14, maxWidth: 640 }} aria-label="eFiling login">
-          <h2 className="heading-md">eFiling Services · Sign In</h2>
-          {ended ? <p className="body-sm" role="status">Your eFiling session ended - the portal allows one login per account, so opening it in another browser signs DifAi out. Log in again to continue.</p> : null}
-          {/* Logged in: the screen that was asked for (?m=, ?filing=) opens, else the Dashboard. */}
-          <PortalLoginPanel onConnected={() => setEnded(false)} />
-          <div className="row" style={{ gap: 8, alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: 12 }}>
-            <span className="body-sm muted" style={{ flex: 1 }}>No eFiling login handy? You can still prepare filings and log in later.</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without logging in</button>
-          </div>
-        </section>
-      </div>
-    );
-  }
+  // Text size and contrast, as the portal's A- A A+ bar sets them (this tab).
+  const [zoom, setZoom] = useState(1);
+  const [contrast, setContrast] = useState(false);
 
-  return (
-    <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
-      <PageHeader
-        title="eFiling"
-        description="Laid out like the eFiling 3.0 portal: prepare filings here, file on the portal, and track them until registered."
-      />
-
-      <ConnectionBar connection={connection} onLogOut={logOut} onLogIn={() => setOffline(false)} pending={endSession.isPending} />
-
-      <nav
-        aria-label="eFiling menu"
-        className="card row"
-        style={{ gap: 2, padding: 6, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
-      >
-        <div className="row" style={{ gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button type="button" aria-current={m === 'dashboard' ? 'page' : undefined} onClick={() => go('dashboard')} style={barBtn(m === 'dashboard')}>
-            Dashboard
-          </button>
-          {MENUS.map((menu) => <MenuDropdown key={menu.id} menu={menu} active={MENU_OF[m] === menu.id} onPick={pick} />)}
-          <button type="button" aria-current={m === 'objections' ? 'page' : undefined} onClick={() => go('objections')} style={barBtn(m === 'objections')}>
-            Objections
-            {objectionCount > 0 ? <span className="badge badge-amber" style={{ fontSize: 10 }}>{objectionCount}</span> : null}
-          </button>
-        </div>
-        <div className="row" style={{ gap: 2, flexWrap: 'wrap' }}>
-          <button type="button" aria-current={m === 'profile' ? 'page' : undefined} onClick={() => go('profile')} style={barBtn(m === 'profile')}>Advocate profile</button>
-          <button type="button" aria-current={m === 'portal' ? 'page' : undefined} onClick={() => go('portal')} style={barBtn(m === 'portal')}>Portal session</button>
-        </div>
-      </nav>
-
-      <section aria-label="eFiling" style={{ minWidth: 0 }}>
-        {showDetail ? (
-          <FilingDetail filingId={filingId!} onClose={() => go(m)} />
-        ) : (
-          <>
+  const screens = (
+    <>
             {/* Logged in: the dashboard IS the portal's - its tiles, its numbers, its lists. */}
             {m === 'dashboard' && connection ? (
               <PortalDashboard key="dash" sessionId={connection.sessionId} preparedCount={(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length}
@@ -289,6 +246,7 @@ export function EfilingView() {
             {connection && ['add_partner', 'accept_partnership', 'revoke_partnership', 'accept_revocation', 'partners_report'].includes(m) ? (
               <PortalVakalat key={`p-${m}`} sessionId={connection.sessionId} view={m as 'add_partner'} />
             ) : null}
+            {connection && (m === 'draft_cases' || m === 'filed_cases') ? <PortalCaseFiling key={`p-${m}`} sessionId={connection.sessionId} view={m} /> : null}
             {connection && m === 'fav_clients' ? <PortalCaseFiling key="p-clients" sessionId={connection.sessionId} view="clients" /> : null}
             {connection && m === 'templates' ? <PortalPleadings key="p-templates" sessionId={connection.sessionId} view="templates" /> : null}
             {connection && ['search_cases', 'planner', 'export_cases', 'import_cases'].includes(m) ? (
@@ -330,8 +288,103 @@ export function EfilingView() {
             {m === 'objections' ? <ObjectionsModule onOpen={(id) => go('filings', { filing: id })} /> : null}
             {m === 'profile' ? <ProfilePanel /> : null}
             {m === 'portal' ? <PortalLoginPanel /> : null}
-          </>
-        )}
+    </>
+  );
+
+  if (!connection && !offline) {
+    return (
+      <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
+        <PageHeader title="eFiling" description="Log in with your own eFiling account to start, as on filing.ecourts.gov.in." />
+        <section className="card col" style={{ gap: 14, maxWidth: 640 }} aria-label="eFiling login">
+          <h2 className="heading-md">eFiling Services · Sign In</h2>
+          {ended ? <p className="body-sm" role="status">Your eFiling session ended - the portal allows one login per account, so opening it in another browser signs DifAi out. Log in again to continue.</p> : null}
+          {/* Logged in: the screen that was asked for (?m=, ?filing=) opens, else the Dashboard. */}
+          <PortalLoginPanel onConnected={() => setEnded(false)} />
+          <div className="row" style={{ gap: 8, alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: 12 }}>
+            <span className="body-sm muted" style={{ flex: 1 }}>No eFiling login handy? You can still prepare filings and log in later.</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without logging in</button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  if (connection) {
+    // The portal's own menus (DifAi's "Prepared in DifAi" lives in the advocate's name menu).
+    const chromeMenus: ChromeMenu[] = MENUS.map((mn) => ({
+      id: mn.id,
+      label: mn.label,
+      items: mn.items.filter((i) => !(i.kind === 'module' && i.id === 'filings')).map((i) => ({ label: i.label, onPick: () => pick(i) })),
+    }));
+    const switchState = (st: { code: number; name: string }) => {
+      try {
+        const raw = localStorage.getItem('difai.efiling.lastLogin');
+        const last = raw ? JSON.parse(raw) : {};
+        localStorage.setItem('difai.efiling.lastLogin', JSON.stringify({ ...last, stateCode: String(st.code) }));
+      } catch { /* the login form just asks for the state */ }
+      logOut();
+    };
+    return (
+      <div className={`efp${contrast ? ' efp-hc' : ''}`} style={{ zoom }}>
+        <PortalHeader
+          menus={chromeMenus}
+          activeMenu={m === 'dashboard' ? null : (MENU_OF[m] ?? null)}
+          onDashboard={() => go('dashboard')}
+          username={connection.username}
+          stateName={connection.stateName}
+          zoom={zoom}
+          setZoom={setZoom}
+          contrast={contrast}
+          setContrast={setContrast}
+          onLogOut={logOut}
+          onSwitchState={switchState}
+          userItems={[
+            { label: 'My Profile', onPick: () => go('profile') },
+            { label: `Prepared in DifAi (${(filings ?? []).filter((f) => ['draft', 'ready'].includes(f.status)).length})`, onPick: () => go('filings') },
+            { label: `DifAi objection tracker${objectionCount ? ` (${objectionCount})` : ''}`, onPick: () => go('objections') },
+            { label: 'Portal session', onPick: () => go('portal') },
+            { label: 'Logout', onPick: logOut },
+          ]}
+        />
+        <section aria-label="eFiling" style={{ minWidth: 0, padding: '18px 6px 24px' }}>
+          {showDetail ? <FilingDetail filingId={filingId!} onClose={() => go(m)} /> : screens}
+        </section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
+      <PageHeader
+        title="eFiling"
+        description="Laid out like the eFiling 3.0 portal: prepare filings here, file on the portal, and track them until registered."
+      />
+
+      <ConnectionBar connection={connection} onLogOut={logOut} onLogIn={() => setOffline(false)} pending={endSession.isPending} />
+
+      <nav
+        aria-label="eFiling menu"
+        className="card row"
+        style={{ gap: 2, padding: 6, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}
+      >
+        <div className="row" style={{ gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="button" aria-current={m === 'dashboard' ? 'page' : undefined} onClick={() => go('dashboard')} style={barBtn(m === 'dashboard')}>
+            Dashboard
+          </button>
+          {MENUS.map((menu) => <MenuDropdown key={menu.id} menu={menu} active={MENU_OF[m] === menu.id} onPick={pick} />)}
+          <button type="button" aria-current={m === 'objections' ? 'page' : undefined} onClick={() => go('objections')} style={barBtn(m === 'objections')}>
+            Objections
+            {objectionCount > 0 ? <span className="badge badge-amber" style={{ fontSize: 10 }}>{objectionCount}</span> : null}
+          </button>
+        </div>
+        <div className="row" style={{ gap: 2, flexWrap: 'wrap' }}>
+          <button type="button" aria-current={m === 'profile' ? 'page' : undefined} onClick={() => go('profile')} style={barBtn(m === 'profile')}>Advocate profile</button>
+          <button type="button" aria-current={m === 'portal' ? 'page' : undefined} onClick={() => go('portal')} style={barBtn(m === 'portal')}>Portal session</button>
+        </div>
+      </nav>
+
+      <section aria-label="eFiling" style={{ minWidth: 0 }}>
+        {showDetail ? <FilingDetail filingId={filingId!} onClose={() => go(m)} /> : screens}
       </section>
     </div>
   );
@@ -424,7 +477,7 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
           flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8, padding: '12px 14px 16px', cursor: 'pointer',
           background: 'var(--bg-inverse)', color: 'var(--text-inverse)', border: 'none', borderRadius: 2, textAlign: 'left',
         }}>
-        <span style={{ alignSelf: 'center', textAlign: 'center', fontSize: 16, fontWeight: 600, flex: 1 }}>{label}</span>
+        <span style={{ alignSelf: 'center', textAlign: 'center', fontSize: 16, fontWeight: 500, flex: 1 }}>{label}</span>
         <span className="row" style={{ alignItems: 'center', gap: 18 }}>
           <span aria-hidden style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--text-inverse)', color: 'var(--bg-inverse)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>{icon}</span>
           <span style={{ fontSize: 40, fontWeight: 500, lineHeight: 1 }}>{isLoading ? '…' : n ?? '–'}</span>
@@ -433,16 +486,12 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
     );
   };
   const panel = (children: React.ReactNode) => (
-    <div className="row" style={{ gap: 14, padding: 12, border: '1px solid var(--border-default)', borderRadius: 4, flex: '1 1 300px', alignItems: 'stretch' }}>{children}</div>
+    <div className="row" style={{ gap: 30, padding: 12, border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)', borderRadius: 4, flex: '1 1 300px', alignItems: 'stretch' }}>{children}</div>
   );
   return (
     <div className="col" style={{ gap: 18 }} aria-label="Your eFiling dashboard">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span className="body-sm muted">From your account on filing.ecourts.gov.in</span>
-        <span className="row" style={{ gap: 8 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={refetch} disabled={isFetching}>{isFetching ? 'Reading…' : 'Refresh from portal'}</button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={onNewCase}>+ New Case Filing</button>
-        </span>
+      <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={refetch} disabled={isFetching} title="Read the dashboard again from filing.ecourts.gov.in">{isFetching ? 'Reading…' : '↻ Refresh'}</button>
       </div>
       {counts.isError ? <p className="body-sm">{(counts.error as Error)?.message || 'Could not read the portal right now.'}</p> : null}
       <div className="row" style={{ gap: 12, flexWrap: 'wrap', alignItems: 'stretch' }}>
@@ -453,26 +502,19 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared, init
       <div className="row" style={{ gap: 30, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <PortalCalendar calendar={counts.data?.calendar} loading={isLoading} />
         <section className="col" style={{ gap: 14, flex: '1 1 420px', minWidth: 0 }} aria-label="Cases Listed Today">
-          <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>{counts.data?.today?.title || `Cases Listed Today - ${todayDmy()}`}</h3>
+          <h3 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{counts.data?.today?.title || `Cases Listed Today - ${todayDmy()}`}</h3>
           <div style={{ border: '1px solid var(--border-default)', padding: 12, minHeight: 110 }}>
             {isLoading ? <p className="body-sm muted" style={{ textAlign: 'center' }}>Reading from filing.ecourts.gov.in…</p>
               : counts.data?.today?.table && counts.data.today.table.rows.length
                 ? <PortalTable rows={counts.data.today.table.rows} headers={counts.data.today.table.headers} />
                 : (
                   <div className="col" style={{ alignItems: 'center', gap: 6 }}>
-                    <span aria-hidden style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--bg-surface-2)', display: 'grid', placeItems: 'center' }}><IconFolder /></span>
+                    <span aria-hidden style={{ width: 68, height: 68, borderRadius: '50%', background: 'var(--bg-surface-2)', color: 'var(--text-primary)', display: 'grid', placeItems: 'center' }}><IconFolder /></span>
                     <span className="body-sm">{counts.data?.today?.text || 'No Cases'}</span>
                   </div>
                 )}
           </div>
         </section>
-      </div>
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span className="body-sm muted">Case Filing on the portal:</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen('draft_cases')}>Draft Cases</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen('filed_cases')}>eFiled Cases</button>
-        <span className="body-sm muted">·</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onPrepared}>Prepared in DifAi, not yet on the portal ({preparedCount})</button>
       </div>
 
       {open ? (
@@ -579,12 +621,12 @@ function PortalCalendar({ calendar, loading }: { calendar?: { month: number | nu
     ...Array.from({ length: total }, (_, i) => ({ d: i + 1, other: false })),
   ];
   for (let d = 1; cells.length % 7; d++) cells.push({ d, other: true });
-  const cell: React.CSSProperties = { border: '1px solid var(--border-default)', padding: '6px 6px', textAlign: 'right', position: 'relative', fontSize: 15 };
+  const cell: React.CSSProperties = { border: '1px solid var(--border-default)', background: 'var(--bg-surface)', color: 'var(--text-primary)', padding: '4px 6px', textAlign: 'right', position: 'relative', fontSize: 14 };
   return (
     <section className="col" style={{ gap: 14, flex: '0 1 450px', minWidth: 280 }} aria-label="Calendar">
       <h3 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Calendar</h3>
       <div style={{ border: '1px solid var(--border-default)', padding: 4 }}>
-        <div className="row" style={{ alignItems: 'center', gap: 6, padding: 6, background: 'var(--bg-surface-2)' }}>
+        <div className="row" style={{ alignItems: 'center', gap: 6, padding: 6, background: 'var(--bg-surface-2)', border: '1px solid var(--border-default)', borderRadius: 3 }}>
           <button type="button" aria-label="Previous month" onClick={() => shift(-1)} style={calArrow}>◀</button>
           <select aria-label="Month" value={m} onChange={(e) => setView({ m: Number(e.target.value), y })} style={{ flex: 1 }}>
             {MONTHS.map((n, i) => <option key={n} value={i}>{n}</option>)}
@@ -604,7 +646,7 @@ function PortalCalendar({ calendar, loading }: { calendar?: { month: number | nu
                   const n = c.other ? undefined : badges[String(c.d)];
                   return (
                     <td key={i} title={n ? `${n} case${n === 1 ? '' : 's'} listed` : undefined}
-                      style={{ ...cell, background: today ? 'var(--bg-surface-2)' : undefined, fontWeight: today || n ? 700 : 400, opacity: c.other ? 0.45 : 1, outline: today ? '2px solid var(--text-primary)' : undefined }}>
+                      style={{ ...cell, background: today ? 'var(--bg-surface-2)' : cell.background, outline: today ? '2px solid var(--text-primary)' : undefined, fontWeight: today || n ? 700 : 400, opacity: c.other ? 0.45 : 1 }}>
                       {n ? <span aria-label={`${n} cases`} style={{ position: 'absolute', top: 2, left: 3, minWidth: 16, height: 16, borderRadius: 8, fontSize: 10, lineHeight: '16px', textAlign: 'center', background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>{n}</span> : null}
                       {c.d}
                     </td>
@@ -620,7 +662,7 @@ function PortalCalendar({ calendar, loading }: { calendar?: { month: number | nu
   );
 }
 
-const calArrow: React.CSSProperties = { width: 26, height: 26, borderRadius: '50%', border: 'none', background: 'var(--bg-inverse)', color: 'var(--text-inverse)', fontSize: 10, cursor: 'pointer' };
+const calArrow: React.CSSProperties = { width: 22, height: 22, borderRadius: '50%', border: 'none', background: 'var(--bg-inverse)', color: 'var(--text-inverse)', fontSize: 9, cursor: 'pointer' };
 
 const LIST_LABEL: Record<PortalList['key'], string> = {
   draft_pleadings: 'Draft Pleadings', completed_pleadings: 'Completed Pleadings', draft_ias: 'Draft IAs', completed_ias: 'Completed IAs',

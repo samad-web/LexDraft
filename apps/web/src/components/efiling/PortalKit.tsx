@@ -35,7 +35,7 @@ export function PortalModal({ title, onClose, level = 1, children }: { title: st
       style={{ position: 'fixed', inset: 0, zIndex: 1000 + level * 10, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: level > 1 ? '40px 16px' : '24px 16px', overflowY: 'auto' }}>
       <div style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)', width: level > 1 ? 'min(1240px, 100%)' : 'min(1720px, 100%)', boxShadow: '0 10px 40px rgba(0,0,0,0.35)' }}>
         <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 20px', borderBottom: title ? '1px solid var(--border-default)' : 'none' }}>
-          <h2 style={{ margin: 0, fontSize: 26, fontWeight: 500 }}>{title}</h2>
+          <h2 className="efp-modal-title" style={{ margin: 0, fontSize: 26, fontWeight: 400 }}>{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose}
             style={{ width: 42, height: 42, border: '2px solid var(--text-primary)', borderRadius: 8, background: 'transparent', color: 'inherit', fontSize: 24, lineHeight: 1, cursor: 'pointer' }}>×</button>
         </div>

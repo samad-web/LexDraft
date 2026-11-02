@@ -169,15 +169,18 @@ describe('eFiling login, then straight to the eFiling features', () => {
     await page.getByRole('button', { name: 'Submit', exact: true }).click();
 
     // Straight into eFiling - the screen that was asked for, connected.
-    await page.getByText('Connected to filing.ecourts.gov.in as').waitFor({ timeout: 60_000 });
-    await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor();
+    // The portal's own header: eFiling Services, its menus, the advocate's name.
+    await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'eFiling Services' }).waitFor();
+    await page.getByText('adv@example.com').waitFor();
+    await page.getByRole('combobox', { name: 'Select State or High Court' }).waitFor();
     expect(new URL(page.url()).searchParams.get('m')).toBe('filings');
     expect(await page.getByRole('heading', { name: 'eFiling Services · Sign In' }).count()).toBe(0);
   });
 
   it("the eFiling Dashboard is then the portal's own: its tiles, its numbers, its list", async () => {
     await page.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
-    await page.getByText('From your account on filing.ecourts.gov.in').waitFor({ timeout: 60_000 });
+    await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 60_000 });
     // The tiles, with the portal's numbers, then the Calendar and today's list.
     await page.getByRole('button', { name: 'Draft Pleadings: 1' }).waitFor({ timeout: 60_000 });
     for (const t of ['Completed Pleadings', 'Draft IAs', 'Completed IAs', 'Objections', 'My Cases']) {

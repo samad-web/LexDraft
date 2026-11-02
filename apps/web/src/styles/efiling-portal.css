@@ -1,0 +1,18 @@
+/* =============================================================================
+   eFiling, logged in: laid out like filing.ecourts.gov.in (its header, menus,
+   tiles and windows) so advocates find every screen where the portal keeps it
+   - in DifAi's black and white, light and dark (user's rule).
+   ============================================================================= */
+.efp {
+  --efp-nav: #111111;
+  --efp-brand: #ffffff;
+  --efp-brand-text: #111111;
+  --efp-strip: var(--bg-surface-2);
+  --efp-btn: #ffffff;
+  --efp-btn-text: #111111;
+  --efp-today: var(--bg-surface-2);
+
+  font-family: 'Noto Sans', 'Segoe UI', Arial, sans-serif;
+  border: 1px solid var(--border-default);
+}
+.efp.efp-hc { filter: contrast(1.35); }
