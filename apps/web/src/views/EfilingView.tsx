@@ -16,7 +16,10 @@ import {
   type PortalModule,
 } from '@/components/efiling/PortalModules';
 import { AnchoredMenu } from '@/components/ecourts/app/AppUi';
-import { useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenPortalFile, useOpenPortalRow, usePortalCounts, usePortalList, type PortalFileRequest, type PortalList, type PortalRowView } from '@/hooks/useEfiling';
+import {
+  useEfilingFilings, useEfilingSessionStatus, useEndEfilingSession, useOpenMyCaseHistory, useOpenPortalFile, useOpenPortalRow, usePortalCounts, usePortalList, usePortalMyCases,
+  type MyCase, type MyCasesFilter, type MyCasesGroup, type PortalBlock, type PortalFileRequest, type PortalList, type PortalMyCases, type PortalRowView,
+} from '@/hooks/useEfiling';
 import { useEfilingPortalStore, type PortalConnection } from '@/store/efilingPortal';
 import { PageHeader } from '@/components/PageHeader';
 
@@ -345,10 +348,20 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
 }) {
   const counts = usePortalCounts(sessionId);
   const [open, setOpen] = useState<PortalList['key'] | null>(null);
-  const list = usePortalList(sessionId, open, !counts.isLoading);
+  // My Cases is the portal's portfolio widget, not a list: read on its own.
+  const list = usePortalList(sessionId, open === 'my_cases' ? null : open, !counts.isLoading);
+  const myCases = usePortalMyCases(sessionId, open === 'my_cases' && !counts.isLoading);
   const isLoading = counts.isLoading;
-  const isFetching = counts.isFetching || list.isFetching;
-  const refetch = () => { void counts.refetch(); if (open) void list.refetch(); };
+  const isFetching = counts.isFetching || list.isFetching || myCases.isFetching;
+  const refetch = () => { void counts.refetch(); if (open === 'my_cases') void myCases.refetch(); else if (open) void list.refetch(); };
+  // A case number in My Cases -> its case history; a hearing date in it -> Daily Status.
+  const history = useOpenMyCaseHistory(sessionId);
+  const daily = useOpenMyCaseHistory(sessionId);
+  const [historyOf, setHistoryOf] = useState<MyCase | null>(null);
+  const [dailyOf, setDailyOf] = useState<{ text: string; nth: number } | null>(null);
+  const openHistory = (c: MyCase) => { setHistoryOf(c); history.mutate({ cino: c.cino, court: c.court }); };
+  const closeDaily = () => { setDailyOf(null); daily.reset(); };
+  const closeHistory = () => { closeDaily(); setHistoryOf(null); history.reset(); };
   // A row's button (View Documents / View Status), done on the portal.
   const openRow = useOpenPortalRow(sessionId);
   const [drill, setDrill] = useState<{ key: PortalList['key']; match: string[]; action: string } | null>(null);
@@ -427,10 +440,19 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
       </div>
 
       {open ? (
-        <PortalModal title={LIST_LABEL[open]} onClose={() => { closeDrill(); setOpen(null); }}>
-          {list.isLoading || list.isFetching ? <p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
+        <PortalModal title={LIST_LABEL[open]} onClose={() => { closeDrill(); closeHistory(); setOpen(null); }}>
+          {open === 'my_cases' ? (
+            <MyCasesWindow
+              data={myCases.data}
+              loading={myCases.isLoading || myCases.isFetching}
+              error={myCases.isError ? ((myCases.error as Error)?.message || 'Could not open My Cases on the portal.') : null}
+              onCase={openHistory}
+              busy={history.isPending}
+            />
+          ) : null}
+          {open !== 'my_cases' && (list.isLoading || list.isFetching) ?<p className="body-sm muted">Opening {LIST_LABEL[open]} on filing.ecourts.gov.in…</p> : null}
           {list.isError ? <p className="body-sm">{(list.error as Error)?.message || 'Could not open this list on the portal.'}</p> : null}
-          {list.data && !list.isFetching ? (
+          {open !== 'my_cases' && list.data && !list.isFetching ? (
             list.data.error && !list.data.rows.length
               ? <p className="body-sm">{list.data.error}</p>
               : <PortalListView key={open} label={list.data.label} headers={list.data.headers} rows={list.data.rows} pageSize={25} onAction={onAction(open)} busy={openRow.isPending || openFile.isPending}
@@ -449,6 +471,29 @@ function PortalDashboard({ sessionId, preparedCount, onNewCase, onPrepared }: {
             busy={openFile.isPending}
             onLink={(tab, cells, link) => showFile({ key: drill.key, match: drill.match, action: drill.action, tab, docRow: cells.slice(0, 2), link })}
           />
+        </PortalModal>
+      ) : null}
+      {historyOf ? (
+        <PortalModal level={2} title={`${historyOf.caseNo}${historyOf.filing ? ' (F)' : ''}`} onClose={closeHistory}>
+          {history.isPending ? <p className="body-sm muted">Opening the case history on filing.ecourts.gov.in…</p> : null}
+          {history.isError ? (
+            <p className="body-sm">{(history.error as Error)?.message || 'The portal did not show this case history.'}{' '}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => openHistory(historyOf)}>Try again</button></p>
+          ) : null}
+          {history.data ? (
+            <PortalBlocks blocks={history.data.blocks} busy={daily.isPending}
+              onLink={(text, nth) => { setDailyOf({ text, nth }); daily.mutate({ cino: historyOf.cino, court: historyOf.court, link: { text, nth } }); }} />
+          ) : null}
+        </PortalModal>
+      ) : null}
+      {historyOf && dailyOf ? (
+        <PortalModal level={3} title="Daily Status" onClose={closeDaily}>
+          {daily.isPending ? <p className="body-sm muted">Opening {dailyOf.text} on filing.ecourts.gov.in…</p> : null}
+          {daily.isError ? (
+            <p className="body-sm">{(daily.error as Error)?.message || 'The portal did not show the Daily Status.'}{' '}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => daily.mutate({ cino: historyOf.cino, court: historyOf.court, link: dailyOf })}>Try again</button></p>
+          ) : null}
+          {daily.data ? <PortalBlocks blocks={daily.data.blocks} /> : null}
         </PortalModal>
       ) : null}
       {file ? (
@@ -735,6 +780,210 @@ function PortalRowWindow({ action, view, loading, error, onRetry, onLink, busy }
   );
 }
 
+/** yyyy-mm-dd -> dd-mm-yyyy, as the portal writes dates. */
+const dmy = (iso: string) => iso.split('-').reverse().join('-');
+
+/**
+ * The portal's My Cases widget (js/portfolio/my_cases.js): Date wise /
+ * District wise with the case count and "[Last refreshed on ...]", Search
+ * Keyword, the Pending / Disposed / Both tabs, then "District Court Cases" /
+ * "High Court Cases" with a collapsible panel per district (or per date),
+ * each holding a table per establishment. A case number opens its history.
+ */
+function MyCasesWindow({ data, loading, error, onCase, busy }: {
+  data?: PortalMyCases; loading: boolean; error: string | null; onCase: (c: MyCase) => void; busy?: boolean;
+}) {
+  // The portal starts District wise (sessionStorage DATEWISE unset) on Both (getData clicks #bothBtn).
+  const [datewise, setDatewise] = useState(false);
+  const [filter, setFilter] = useState<MyCasesFilter>('Both');
+  const [keyword, setKeyword] = useState('');
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  if (loading) return <p className="body-sm muted">Opening My Cases on filing.ecourts.gov.in…</p>;
+  if (error) return <p className="body-sm">{error}</p>;
+  if (!data) return null;
+  if (!data.cases.length) return <p className="body-sm">{data.message || 'No cases in My Cases on your portal account.'}</p>;
+
+  // Search Keyword: one case picked -> only that case, as getMyCasesFromCINO1 draws it.
+  const pick = (groups: MyCasesGroup[]): MyCasesGroup[] => {
+    if (!keyword) return groups;
+    return groups.flatMap((g) => {
+      const establishments = g.establishments.map((e) => ({ ...e, cases: e.cases.filter((i) => data.cases[i]!.cino === keyword) })).filter((e) => e.cases.length);
+      return establishments.length ? [{ ...g, count: establishments.reduce((n, e) => n + e.cases.length, 0), establishments }] : [];
+    });
+  };
+  const view = data.views[datewise ? 'date' : 'district'][filter];
+  const toggle = (k: string) => setOpenGroups((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const seg = (on: boolean): React.CSSProperties => ({
+    padding: '6px 14px', fontSize: 14, fontWeight: 600, cursor: 'pointer', border: '1px solid var(--text-primary)',
+    background: on ? 'var(--bg-inverse)' : 'var(--bg-surface)', color: on ? 'var(--text-inverse)' : 'inherit',
+  });
+  const options = [...data.cases].sort((a, b) => a.caseNo.localeCompare(b.caseNo));
+  const courts: Array<{ k: 'd' | 'h'; label: string }> = [{ k: 'd', label: 'District Court Cases' }, { k: 'h', label: 'High Court Cases' }];
+  return (
+    <div className="col" style={{ gap: 12 }} aria-label="My Cases">
+      <div className="row" style={{ gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span className="row" role="group" aria-label="Group cases">
+            <button type="button" aria-pressed={datewise} onClick={() => setDatewise(true)} style={{ ...seg(datewise), borderRadius: '4px 0 0 4px' }}>Date wise</button>
+            <button type="button" aria-pressed={!datewise} onClick={() => setDatewise(false)} style={{ ...seg(!datewise), borderRadius: '0 4px 4px 0', borderLeft: 'none' }}>District wise</button>
+          </span>
+          <span aria-label={`${data.count} cases`} style={{ minWidth: 22, padding: '2px 8px', borderRadius: 10, fontSize: 12, fontWeight: 700, textAlign: 'center', background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>{data.count}</span>
+          {data.lastRefreshed ? <span className="body-sm">[Last refreshed on {data.lastRefreshed}]</span> : null}
+        </div>
+        <label className="row body-sm" style={{ gap: 8, alignItems: 'center', fontWeight: 700 }}>
+          Search Keyword
+          <select value={keyword} onChange={(e) => setKeyword(e.target.value)} style={{ minWidth: 220, fontWeight: 400 }}>
+            <option value="">Select</option>
+            {options.map((c) => <option key={`${c.court}${c.cino}`} value={c.cino}>{c.caseNo}{c.filing ? ' (F)' : ''} - {c.petName} Vs {c.resName}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="row" role="tablist" aria-label="Pending / Disposed / Both" style={{ gap: 4 }}>
+        {(['Pending', 'Disposed', 'Both'] as const).map((f) => (
+          <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)} style={{ ...seg(filter === f), borderRadius: 4 }}>{f}</button>
+        ))}
+      </div>
+      {courts.map(({ k, label }) => {
+        // The band shows whenever that court list has cases (showHideDivsIfCasesExist).
+        if (!data.cases.some((c) => c.court === k)) return null;
+        const groups = pick(view[k]);
+        return (
+          <section key={k} className="col" style={{ gap: 6 }} aria-label={label}>
+            <h3 className="row" style={{ gap: 8, alignItems: 'center', margin: 0, padding: '8px 12px', fontSize: 17, fontWeight: 700, background: 'var(--bg-inverse)', color: 'var(--text-inverse)' }}>
+              <IconBank /> {label}
+            </h3>
+            {!groups.length ? <p className="body-sm muted" style={{ margin: '4px 0' }}>No {filter === 'Both' ? '' : `${filter.toLowerCase()} `}cases.</p> : null}
+            {groups.map((g) => {
+              const id = `${datewise ? 'date' : 'district'}:${k}:${g.title}`;
+              const expanded = openGroups.has(id) || !!keyword;
+              return (
+                <div key={id} className="col" style={{ gap: 0 }}>
+                  {g.divider ? <div style={{ fontWeight: 700, fontSize: 15, padding: '8px 2px 4px', borderBottom: '2px solid var(--text-primary)' }}>{g.divider}</div> : null}
+                  <button type="button" aria-expanded={expanded} onClick={() => toggle(id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '10px 12px', font: 'inherit', fontWeight: 700, fontSize: 15, cursor: 'pointer', border: '1px solid var(--border-default)', background: 'var(--bg-surface-2)', color: 'inherit' }}>
+                    <span aria-hidden style={{ fontSize: 11 }}>{expanded ? '▼' : '▶'}</span>
+                    {g.title} ({g.count})
+                  </button>
+                  {expanded ? (
+                    <div className="col" style={{ gap: 8, padding: 8, border: '1px solid var(--border-default)', borderTop: 'none' }}>
+                      {g.establishments.map((e) => (
+                        <div key={e.name} className="col" style={{ gap: 4 }}>
+                          <div style={{ fontWeight: 700, padding: '6px 10px', border: '1px solid var(--border-default)' }}>
+                            {e.name}({e.cases.length}){datewise && e.district ? `, ${e.district}` : ''}
+                          </div>
+                          <MyCasesTable cases={e.cases.map((i) => data.cases[i]!)} onCase={onCase} busy={busy} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One establishment's cases, with the portal's columns. */
+function MyCasesTable({ cases, onCase, busy }: { cases: MyCase[]; onCase: (c: MyCase) => void; busy?: boolean }) {
+  const td: React.CSSProperties = { padding: '8px', borderRight: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', verticalAlign: 'top', fontSize: 14 };
+  const tag: React.CSSProperties = { display: 'inline-block', marginTop: 4, padding: '1px 6px', borderRadius: 3, fontSize: 11, fontWeight: 700, border: '1px solid var(--text-primary)' };
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>{['Sr No', 'Case Number', 'Next/Disposal Date', 'Status', 'Cause Title', 'Representing', 'Registration Date'].map((h) => (
+            <th key={h} style={{ ...td, background: 'var(--bg-inverse)', color: 'var(--text-inverse)', textAlign: 'left' }}>{h}</th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {cases.map((c, i) => {
+            const when = c.decisionDate ?? c.nextDate;
+            return (
+              <tr key={`${c.court}${c.cino}`}>
+                <td style={td}>{i + 1}</td>
+                <td style={td}>
+                  <button type="button" disabled={busy} onClick={() => onCase(c)} title={`View case history of ${c.caseNo}`}
+                    style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, textDecoration: 'underline', color: 'inherit', cursor: 'pointer' }}>{c.caseNo}</button>
+                  {c.filing ? '  (F)' : ''}
+                  {c.ciCri ? <> <span style={{ ...tag, textTransform: 'uppercase' }}>{c.ciCri}</span></> : null}
+                  {c.purpose ? <div><span style={tag}>{c.purpose}</span></div> : null}
+                  {c.courtNoDesg ? <div>{c.courtNoDesg}</div> : null}
+                  {c.pdeNo ? <div style={{ fontWeight: 700 }}>({c.pdeNo})</div> : null}
+                  {c.underObjection ? <div style={{ fontWeight: 700 }}>Case Under Objection</div> : null}
+                  {c.notice ? <div style={{ fontWeight: 700 }}>⚠ {c.notice}</div> : null}
+                </td>
+                <td style={td}>{when ? dmy(when) : 'No Date'}</td>
+                <td style={td}><span style={{ ...tag, marginTop: 0, background: c.decisionDate ? 'var(--bg-inverse)' : 'transparent', color: c.decisionDate ? 'var(--text-inverse)' : 'inherit' }}>{c.decisionDate ? 'Disposed' : 'Pending'}</span></td>
+                <td style={td}>{c.petName}<div style={{ fontWeight: 700 }}>Vs</div>{c.resName}</td>
+                <td style={td}>
+                  {c.representing.names.length ? <div style={{ fontWeight: 700 }}>{c.representing.as}</div> : null}
+                  {c.representing.names.map((n, j) => <div key={j}>{j + 1}. {n}</div>)}
+                </td>
+                <td style={td}>{c.registrationDate ? dmy(c.registrationDate) : ''}{c.age ? <div>{c.age}</div> : null}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/**
+ * What the portal showed (case history, Daily Status) in its own order:
+ * headings, text and tables. Its links (a hearing's Business on Date) are
+ * clickable; `nth` says which of the links with that text it is.
+ */
+function PortalBlocks({ blocks, onLink, busy }: { blocks: PortalBlock[]; onLink?: (text: string, nth: number) => void; busy?: boolean }) {
+  // Every link in document order, to tell repeated texts apart.
+  const seen = new Map<string, number>();
+  const nthOf = new Map<string, number>();
+  blocks.forEach((b, bi) => {
+    const links = b.kind === 'text' ? (b.links ?? []).map((l) => [l, `${bi}:${l}`] as const)
+      : b.kind === 'table' ? (b.table?.rows ?? []).flatMap((r, ri) => ('cells' in r ? (r.actions ?? []).map((l) => [l, `${bi}:${ri}:${l}`] as const) : []))
+        : [];
+    for (const [l, key] of links) {
+      const n = seen.get(l) ?? 0;
+      nthOf.set(key, n);
+      seen.set(l, n + 1);
+    }
+  });
+  const linkBtn = (l: string, key: string) => (
+    <button type="button" disabled={busy || !onLink} onClick={() => onLink?.(l, nthOf.get(key) ?? 0)}
+      style={{ background: 'none', border: 'none', padding: 0, font: 'inherit', fontWeight: 700, textDecoration: 'underline', color: 'inherit', cursor: 'pointer' }}>{l}</button>
+  );
+  if (!blocks.length) return <p className="body-sm muted">The portal showed nothing here.</p>;
+  return (
+    <div className="col" style={{ gap: 10 }}>
+      {blocks.map((b, bi) => {
+        if (b.kind === 'heading') return <h3 key={bi} style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 700 }}>{b.text}</h3>;
+        if (b.kind === 'text') {
+          return (
+            <div key={bi} className="body-sm">
+              {(b.lines ?? []).map((line, i) => {
+                const l = onLink ? (b.links ?? []).find((x) => x === line) : undefined;
+                return <div key={i}>{l ? linkBtn(l, `${bi}:${l}`) : line}</div>;
+              })}
+            </div>
+          );
+        }
+        if (!b.table) return null;
+        const rows = b.table.rows;
+        return (
+          <PortalTable key={bi} headers={b.table.headers} rows={rows} busy={busy}
+            onLink={onLink ? (cells, link) => {
+              const ri = rows.findIndex((r) => 'cells' in r && r.cells === cells);
+              onLink(link, nthOf.get(`${bi}:${ri}:${link}`) ?? 0);
+            } : undefined} />
+        );
+      })}
+    </div>
+  );
+}
+
 /** A cell's lines, with the portal's document links (Acknowledgement, COMPLAINT ...) clickable where they are. */
 function CellWithLinks({ text, links, onLink, busy }: { text: string; links: string[]; onLink: (link: string) => void; busy?: boolean }) {
   if (!links.length) return <>{text}</>;
@@ -764,4 +1013,5 @@ const IconEdit = () => <svg {...svgProps}><path d="M11 4H5a2 2 0 0 0-2 2v13a2 2 
 const IconCheck = () => <svg {...svgProps} strokeWidth={3.2}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
 const IconQuestion = () => <svg {...svgProps}><path d="M9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.6-3 4.5" /><path d="M12 18.5h.01" /></svg>;
 const IconBriefcase = () => <svg {...svgProps}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" /><path d="M3 13h18" /></svg>;
+const IconBank = () => <svg {...svgProps} width={20} height={20}><path d="M3 10h18L12 4z" /><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8" /><path d="M3 20h18" /></svg>;
 const IconFolder = () => <svg {...svgProps}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>;

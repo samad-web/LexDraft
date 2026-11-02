@@ -240,6 +240,91 @@ export function useOpenPortalRow(sessionId: string | null) {
   });
 }
 
+// ---- My Cases: the portal's portfolio widget (shapes mirror efiling-live.service.ts) ----
+
+export interface MyCase {
+  cino: string;
+  /** 'd' District Court Cases, 'h' High Court Cases. */
+  court: 'd' | 'h';
+  caseNo: string;
+  /** Only a filing number yet: the portal adds "(F)". */
+  filing: boolean;
+  ciCri: string;
+  courtNoDesg: string;
+  pdeNo: string;
+  underObjection: boolean;
+  purpose: string;
+  stateCode: string;
+  stateName: string;
+  districtCode: string;
+  districtName: string;
+  establishmentCode: string;
+  establishmentName: string;
+  petName: string;
+  resName: string;
+  /** yyyy-mm-dd; null = Date Not Given. */
+  nextDate: string | null;
+  lastDate: string | null;
+  decisionDate: string | null;
+  registrationDate: string | null;
+  age: string;
+  representing: { as: string; names: string[] };
+  notice: string;
+}
+
+export interface MyCasesGroup {
+  title: string;
+  count: number;
+  /** Date wise: the month heading before this date. */
+  divider?: string;
+  establishments: Array<{ name: string; district: string; cases: number[] }>;
+}
+export type MyCasesFilter = 'Pending' | 'Disposed' | 'Both';
+export type MyCasesView = Record<'d' | 'h', MyCasesGroup[]>;
+
+export interface PortalMyCases {
+  count: number;
+  lastRefreshed: string;
+  cases: MyCase[];
+  views: Record<'district' | 'date', Record<MyCasesFilter, MyCasesView>>;
+  message: string | null;
+}
+
+/** The My Cases tile: the portal's widget, every Date wise / District wise and Pending / Disposed / Both view. */
+export function usePortalMyCases(sessionId: string | null, enabled: boolean) {
+  const read = usePortalRead(sessionId, () => api.get<PortalMyCases>(`/efiling/live/session/${sessionId}/my-cases`));
+  return useQuery({
+    queryKey: ['efiling', 'live', sessionId, 'my-cases'],
+    queryFn: read,
+    enabled: !!sessionId && enabled,
+    staleTime: 60 * 1000,
+    retry: (n, err) => n < 4 && httpStatus(err) === 409,
+    retryDelay: 1500,
+  });
+}
+
+/** What the portal shows in a box, in order: headings, text lines (with links) and tables. */
+export interface PortalBlock {
+  kind: 'heading' | 'text' | 'table';
+  text?: string;
+  lines?: string[];
+  links?: string[];
+  table?: Pick<PortalList, 'headers' | 'rows'>;
+}
+
+export interface MyCaseHistoryView {
+  name: string;
+  blocks: PortalBlock[];
+}
+
+/** A case in My Cases -> its case history; with `link` (nth link of that text in it) -> the Daily Status. */
+export function useOpenMyCaseHistory(sessionId: string | null) {
+  return useMutation({
+    mutationFn: (v: { cino: string; court: 'd' | 'h'; link?: { text: string; nth: number } }) =>
+      api.post<MyCaseHistoryView>(`/efiling/live/session/${sessionId}/my-cases/history`, v),
+  });
+}
+
 export interface PortalFileRequest {
   key: PortalList['key'];
   /** The list row (first two cells), as for useOpenPortalRow. */

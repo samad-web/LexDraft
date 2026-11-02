@@ -1531,11 +1531,494 @@ export async function readPortalList(sessionId: string, userId: string, key: Por
   return queued(getSession(sessionId, userId), () => readPortalListStep(sessionId, userId, key));
 }
 
+// ---- My Cases (the portal's portfolio widget) --------------------------------
+//
+// Not a list: the My Cases tile (dashboard.js openMyCases) loads
+// Portfolio_new/my_cases into #history_body, and that page's own script
+// (js/portfolio/my_cases.js) fetches portfolio/getMyCasesData/ ->
+// { mycases_dc, mycases_hc }, keeps them in the globals CNR_Numbers_ef /
+// CNR_Numbers_HC_ef (JSON) and draws them itself (populateDistrictAcordion)
+// into #ditrictsAccordion ("District Court Cases") / #hcAccordion ("High Court
+// Cases"): Date wise (#datewise) or District wise (#districtwise), Pending /
+// Disposed / Both (.pendingDisposed), then establishment panels holding the
+// case tables. Who the advocate represents comes from
+// portfolio/getRepresentingForCinos/ (global allCNRRepresentative). A case
+// number (.show_case_history_link / .show_filing_case_history_link) opens
+// portfolio/getCaseHistory/ or getFilingCaseHistory/ in #case_history; a
+// hearing date there (viewBusiness) opens the Daily Status in #show_business.
+// DifAi reads the same records the widget draws from and groups them with the
+// same rules, so every toggle shows what the portal would.
+
+export interface MyCase {
+  cino: string;
+  /** 'd' district court (#ditrictsAccordion), 'h' High Court (#hcAccordion). */
+  court: 'd' | 'h';
+  /** type/reg_no/reg_year, or type/fil_no/fil_year for a filing ("(F)"). */
+  caseNo: string;
+  filing: boolean;
+  /** "Civil" / "Criminal" badge. */
+  ciCri: string;
+  /** Court number - designation, under the case number. */
+  courtNoDesg: string;
+  pdeNo: string;
+  underObjection: boolean;
+  /** Stage badge: purpose code - purpose. */
+  purpose: string;
+  stateCode: string;
+  stateName: string;
+  districtCode: string;
+  districtName: string;
+  establishmentCode: string;
+  establishmentName: string;
+  petName: string;
+  resName: string;
+  /** yyyy-mm-dd; null = "Date Not Given" (the portal's 5000-01-01). */
+  nextDate: string | null;
+  lastDate: string | null;
+  decisionDate: string | null;
+  registrationDate: string | null;
+  /** "( 2 year(s) 3 month(s))" for a pending case, as the portal works it out. */
+  age: string;
+  /** Representing: Petitioner / Respondant (the portal's spelling) and the names. */
+  representing: { as: string; names: string[] };
+  /** "Unable to Check" / "Case Deleted" / "Case not Found" when the portal says so. */
+  notice: string;
+}
+
+export interface MyCasesEstablishment { name: string; district: string; cases: number[] }
+export interface MyCasesGroup {
+  /** "Chennai,Tamil Nadu" (District wise) or "23-10-2026" / "Disposed Cases" ... (Date wise). */
+  title: string;
+  count: number;
+  /** Date wise: the month heading the portal puts before this date ("October 2026"). */
+  divider?: string;
+  establishments: MyCasesEstablishment[];
+}
+export type MyCasesFilter = 'Pending' | 'Disposed' | 'Both';
+export type MyCasesView = Record<'d' | 'h', MyCasesGroup[]>;
+
+export interface PortalMyCases {
+  /** The badge beside Date wise / District wise. */
+  count: number;
+  /** "23-10-2026 20:06:41" from "[Last refreshed on ...]". */
+  lastRefreshed: string;
+  cases: MyCase[];
+  /** Every toggle the widget has, grouped as populateDistrictAcordion groups. */
+  views: Record<'district' | 'date', Record<MyCasesFilter, MyCasesView>>;
+  /** The portal's "no cases" text, when it shows that instead. */
+  message: string | null;
+}
+
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** yyyy-mm-dd -> dd-mm-yyyy, as the widget writes dates. */
+const dmy = (iso: string) => iso.split('-').reverse().join('-');
+
+/** Group like a plain JS object would: integer-like keys ascending first, then in insertion order. */
+function groupBy<T>(items: T[], key: (t: T) => string): Array<[string, T[]]> {
+  const m = new Map<string, T[]>();
+  for (const it of items) {
+    const k = key(it);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k)!.push(it);
+  }
+  const ints = [...m.keys()].filter((k) => /^(0|[1-9]\d*)$/.test(k)).sort((a, b) => Number(a) - Number(b));
+  return [...ints, ...[...m.keys()].filter((k) => !ints.includes(k))].map((k) => [k, m.get(k)!]);
+}
+
+/**
+ * populateDistrictAcordion (my_cases.js) for one court list: District wise =
+ * state -> district panels sorted by their title; Date wise = next date
+ * panels (a case heard today also under today, disposed today also under
+ * today) with "Disposed Cases", "Date Not Given", "Undated Cases" (next date
+ * already past) on top and a month heading before each new month. Each panel
+ * holds one table per establishment. `today` is dd-mm-yyyy.
+ */
+function groupMyCases(cases: MyCase[], court: 'd' | 'h', datewise: boolean, filter: MyCasesFilter, today: string): MyCasesGroup[] {
+  const idx = cases.map((c, i) => [c, i] as const).filter(([c]) => c.court === court);
+  const ests = (list: ReadonlyArray<readonly [MyCase, number]>): MyCasesEstablishment[] =>
+    groupBy([...list], ([c]) => c.establishmentCode).map(([, l]) => ({ name: l[0]![0].establishmentName, district: l[0]![0].districtName, cases: l.map(([, i]) => i) }));
+  if (!datewise) {
+    const shown = idx.filter(([c]) => (filter === 'Disposed' ? c.decisionDate !== null : filter === 'Pending' ? c.decisionDate === null : true));
+    const groups: MyCasesGroup[] = [];
+    for (const [, inState] of groupBy(shown, ([c]) => c.stateCode)) {
+      for (const [, l] of groupBy(inState, ([c]) => c.districtCode)) {
+        const first = l[0]![0];
+        groups.push({ title: `${first.districtName ? `${first.districtName},` : ''}${first.stateName}`, count: l.length, establishments: ests(l) });
+      }
+    }
+    // The widget sorts its panels by their heading text.
+    return groups.sort((a, b) => {
+      const x = `${a.title}  (${a.count})`;
+      const y = `${b.title}  (${b.count})`;
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+  }
+  const DISPOSED = 'Disposed Cases';
+  const NO_DATE = 'Date Not Given';
+  const UNDATED = 'Undated Cases';
+  const [td, tm, ty] = today.split('-').map(Number) as [number, number, number];
+  const todayTime = new Date(ty, tm - 1, td).getTime();
+  const by = new Map<string, Array<readonly [MyCase, number]>>();
+  const put = (k: string, e: readonly [MyCase, number]) => { if (!by.has(k)) by.set(k, []); by.get(k)!.push(e); };
+  for (const e of idx) {
+    const c = e[0];
+    if (c.decisionDate !== null) {
+      if (filter === 'Pending') continue;
+      put(DISPOSED, e);
+      if (dmy(c.decisionDate) === today) put(today, e);
+    } else if (c.nextDate === null) {
+      if (filter !== 'Disposed') put(NO_DATE, e);
+    } else if (filter !== 'Disposed') {
+      const [y, m, d] = c.nextDate.split('-').map(Number) as [number, number, number];
+      if (new Date(y, m - 1, d).getTime() < todayTime) put(UNDATED, e);
+      else if (c.lastDate && dmy(c.lastDate) === today) {
+        put(today, e);
+        if (dmy(c.nextDate) !== today) put(dmy(c.nextDate), e);
+      } else put(dmy(c.nextDate), e);
+    }
+  }
+  const time = (k: string) => { const [d, m, y] = k.split('-').map(Number) as [number, number, number]; return new Date(y, m - 1, d).getTime(); };
+  const dated = [...by.keys()].filter((k) => /^\d{2}-\d{2}-\d{4}$/.test(k)).sort((a, b) => time(a) - time(b));
+  const out: MyCasesGroup[] = [];
+  for (const k of [DISPOSED, NO_DATE, UNDATED]) {
+    const l = by.get(k);
+    if (l) out.push({ title: k, count: l.length, establishments: ests(l) });
+  }
+  let prev = '';
+  for (const k of dated) {
+    const l = by.get(k)!;
+    const month = k.slice(3);
+    const g: MyCasesGroup = { title: k, count: l.length, establishments: ests(l) };
+    if (month !== prev) {
+      g.divider = `${MONTH_NAMES[Number(k.slice(3, 5)) - 1]} ${k.slice(6)}`;
+      prev = month;
+    }
+    out.push(g);
+  }
+  return out;
+}
+
+function myCasesViews(cases: MyCase[], today: string): PortalMyCases['views'] {
+  const view = (datewise: boolean, f: MyCasesFilter): MyCasesView => ({ d: groupMyCases(cases, 'd', datewise, f, today), h: groupMyCases(cases, 'h', datewise, f, today) });
+  const all = (datewise: boolean) => ({ Pending: view(datewise, 'Pending'), Disposed: view(datewise, 'Disposed'), Both: view(datewise, 'Both') });
+  return { district: all(false), date: all(true) };
+}
+
+/** "( n year(s) m month(s))" since registration, worked out as my_cases.js does (its month index included). */
+function caseAge(registrationDate: string | null, decisionDate: string | null, today: string): string {
+  if (!registrationDate || decisionDate !== null) return '';
+  const [ry, rm, rd] = registrationDate.split('-').map(Number) as [number, number, number];
+  const [td, tm, ty] = today.split('-').map(Number) as [number, number, number];
+  // my_cases.js: new Date(y, m, d) - the month as written, not m - 1.
+  const day = Math.floor((new Date(ty, tm - 1, td).getTime() - new Date(ry, rm, rd).getTime()) / 86_400_000);
+  const years = Math.floor(day / 365);
+  const months = Math.round((day % 365) / 31);
+  let diff = years > 0 ? `( ${years} year(s)` : '';
+  if (months > 0) diff += `${years <= 0 ? '( ' : ' '}${months} month(s)`;
+  return diff ? `${diff})` : '';
+}
+
+/** One record of getMyCasesData (mycases_dc / mycases_hc) -> a DifAi row. */
+function toMyCase(o: Record<string, unknown>, court: 'd' | 'h', rep: Array<Record<string, unknown>>, today: string): MyCase {
+  const s = (v: unknown) => (v === null || v === undefined ? '' : String(v));
+  const date = (v: unknown) => {
+    const t = s(v).trim();
+    return /^\d{4}-\d{2}-\d{2}/.test(t) ? t.slice(0, 10) : null;
+  };
+  const type = s(o['type_name']);
+  const filing = !s(o['case_no']).trim();
+  const next = s(o['date_next_list']);
+  const ciCri = s(o['ci_cri']).toLowerCase();
+  const names: string[] = [];
+  let as = '';
+  for (const r of rep) {
+    const n = s(r['litigant_name']).trim();
+    if (!n) continue;
+    if (String(r['litigant_type']) === '1') { names.push(n); as = 'Petitioner'; } else if (String(r['litigant_type']) === '2') { names.push(n); as = 'Respondant'; }
+  }
+  const updated = o['updated'];
+  const registrationDate = date(o['registration_date']);
+  const decisionDate = date(o['date_of_decision']);
+  return {
+    cino: s(o['cino']),
+    court,
+    caseNo: filing ? `${type}/${s(o['fil_no'])}/${s(o['fil_year'])}` : `${type}/${s(o['reg_no'])}/${s(o['reg_year'])}`,
+    filing,
+    ciCri: ciCri === 'civil' ? 'Civil' : ciCri === 'criminal' ? 'Criminal' : '',
+    courtNoDesg: s(o['desgname']),
+    pdeNo: s(o['pde_no']).trim(),
+    underObjection: o['under_obj'] === 'Y',
+    purpose: o['purpose_cd'] && o['purpose_name'] ? `${s(o['purpose_cd'])}-${s(o['purpose_name'])}` : '',
+    stateCode: s(o['state_code']),
+    stateName: s(o['state_name']),
+    districtCode: s(o['district_code']),
+    districtName: s(o['district_name']),
+    establishmentCode: s(o['establishment_code']),
+    establishmentName: s(o['establishment_name']),
+    petName: s(o['pet_name']),
+    resName: s(o['res_name']),
+    nextDate: next === '5000-01-01' || next === 'Date Not Given' ? null : date(next),
+    lastDate: date(o['date_last_list']),
+    decisionDate,
+    registrationDate,
+    age: caseAge(registrationDate, decisionDate, today),
+    representing: { as, names },
+    notice: updated === false || updated === 'false' ? 'Unable to Check' : updated === 'falseDeleted' ? 'Case Deleted' : updated === 'falseRNF' ? 'Case not Found' : '',
+  };
+}
+
+/** Open the My Cases tile and wait for its script to have fetched the cases. */
+async function openMyCasesWidget(session: EfilingSession): Promise<void> {
+  const { page } = session;
+  await closePortalPopups(page);
+  await ensureDashboard(session);
+  let opened = await clickTile(page, 'my_cases', true);
+  if (!opened) {
+    await ensureDashboard(session, true);
+    opened = await clickTile(page, 'my_cases', true);
+  }
+  if (!opened) throw new EcourtsHttpError(502, 'The portal did not open My Cases. Try again.');
+  // getData() fills CNR_Numbers_ef / CNR_Numbers_HC_ef; or the widget says it has none.
+  await page.waitForFunction(() => {
+    const w = globalThis as any;
+    const none = document.getElementById('nocasestxt') as any;
+    return typeof w.CNR_Numbers_ef === 'string' || typeof w.CNR_Numbers_HC_ef === 'string'
+      || !!document.querySelector('#history_body .show_case_history_link, #history_body .show_filing_case_history_link')
+      || !!(none && none.getClientRects().length);
+  }, undefined, { timeout: 20_000, polling: 250 }).catch(() => {});
+  // Representing (getRepresentingForCinos -> allCNRRepresentative) arrives a moment later.
+  await page.waitForFunction(() => {
+    const w = globalThis as any;
+    const r = w.allCNRRepresentative;
+    return typeof w.CNR_Numbers_ef !== 'string' || (!!r && typeof r === 'object' && Object.keys(r).length > 0);
+  }, undefined, { timeout: 3_000, polling: 200 }).catch(() => {});
+  await settle(page, '#history_body');
+}
+
+async function readMyCasesStep(sessionId: string, userId: string): Promise<PortalMyCases> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  const { page } = session;
+  await openMyCasesWidget(session);
+  const raw = await page.evaluate(() => {
+    const w = globalThis as any;
+    const txt = (e: any) => String(e?.textContent ?? '').replace(/\s+/g, ' ').trim();
+    const list = (v: any): any[] | null => {
+      try {
+        const a = typeof v === 'string' ? JSON.parse(v) : v;
+        // updateResetFlag() stores some entries back as JSON strings.
+        return Array.isArray(a) ? a.map((x) => (typeof x === 'string' ? JSON.parse(x) : x)).filter((x) => x && typeof x === 'object') : null;
+      } catch { return null; }
+    };
+    const body = document.getElementById('history_body') as any;
+    const all = txt(body);
+    const refreshed = /Last\s+refreshed\s+on\s*:?\s*([0-9]{2}-[0-9]{2}-[0-9]{4}(?:\s+[0-9:]+)?)/i.exec(all);
+    const badge = Number(txt(document.getElementById('mycases_span_id')));
+    const none = document.getElementById('nocasestxt') as any;
+    const rep: Record<string, any[]> = {};
+    const r = w.allCNRRepresentative;
+    if (r && typeof r === 'object') for (const k of Object.keys(r)) if (Array.isArray(r[k])) rep[k] = r[k];
+    const dc = list(w.CNR_Numbers_ef) ?? list(w.cnrNumbersArray);
+    const hc = list(w.CNR_Numbers_HC_ef) ?? list(w.hccnrNumbersArray);
+    // Fallback: what the widget drew (case links carry cino / hcdc / state_code / case_no).
+    const drawn: any[] = [];
+    if (!dc && !hc) {
+      for (const a of [...body.querySelectorAll('.show_case_history_link, .show_filing_case_history_link')] as any[]) {
+        const tr = a.closest('tr');
+        const cells = tr ? [...tr.children].map((c: any) => c) : [];
+        const panel = a.closest('.panel-group-main1');
+        const head = txt(panel?.querySelector('.panel-title-a-main')).replace(/\s*\(\d+\)\s*$/, '');
+        const estA = a.closest('.card-body.context')?.closest('.collapse')?.previousElementSibling?.querySelector('a, h4') ?? null;
+        const est = txt(estA).replace(/\(\s*\d+\s*\)(,.*)?$/, '').trim();
+        const cal = cells[2]?.querySelector('time');
+        const day = txt(cal?.querySelector('.day'));
+        const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(txt(cal?.querySelector('.month')));
+        const yr = txt(cal?.querySelector('.year'));
+        const iso = /^\d+$/.test(day) && mon >= 0 && /^\d{4}$/.test(yr) ? `${yr}-${String(mon + 1).padStart(2, '0')}-${day.padStart(2, '0')}` : null;
+        const disposed = /disposed/i.test(txt(cells[3]));
+        const parties = String(cells[4]?.innerText ?? txt(cells[4])).split(/\n|\bVs\b/i).map((x: string) => x.trim()).filter(Boolean);
+        const [district, state] = head.includes(',') ? head.split(',') : ['', head];
+        const no = String(a.getAttribute('case_no') ?? txt(a)).trim();
+        const parts = no.split('/');
+        drawn.push({
+          court: a.getAttribute('hcdc') === 'H' || a.closest('#hcAccordion') ? 'h' : 'd',
+          o: {
+            cino: a.getAttribute('cino'), hc_dc: a.getAttribute('hcdc'), state_code: a.getAttribute('state_code') ?? state, state_name: state, district_code: district, district_name: district,
+            establishment_code: est, establishment_name: est, type_name: parts.slice(0, -2).join('/'), reg_no: parts[parts.length - 2], reg_year: parts[parts.length - 1],
+            fil_no: parts[parts.length - 2], fil_year: parts[parts.length - 1], case_no: a.classList.contains('show_filing_case_history_link') ? '' : no,
+            pet_name: parties[0] ?? '', res_name: parties[1] ?? '', date_next_list: disposed ? null : iso ?? '5000-01-01', date_of_decision: disposed ? iso ?? '0000-00-00' : null,
+          },
+        });
+      }
+    }
+    return {
+      dc, hc, rep, drawn,
+      refreshed: refreshed ? refreshed[1]!.trim() : '',
+      badge: Number.isFinite(badge) && txt(document.getElementById('mycases_span_id')) !== '' ? badge : null,
+      none: none && none.getClientRects().length ? txt(none) : '',
+    };
+  });
+  await closePortalPopups(page);
+  const today = istDate();
+  const cases: MyCase[] = [];
+  const seen = new Set<string>();
+  const add = (o: Record<string, unknown>, court: 'd' | 'h') => {
+    const c = toMyCase(o, court, raw.rep[String(o['cino'] ?? '')] ?? [], today);
+    // Date wise draws a case twice (today and its next date): once is enough here.
+    if (!c.cino || seen.has(`${court}:${c.cino}`)) return;
+    seen.add(`${court}:${c.cino}`);
+    cases.push(c);
+  };
+  for (const o of raw.dc ?? []) add(o, 'd');
+  for (const o of raw.hc ?? []) add(o, 'h');
+  for (const d of raw.drawn) add(d.o, d.court);
+  return {
+    count: raw.badge ?? cases.length,
+    lastRefreshed: raw.refreshed,
+    cases,
+    views: myCasesViews(cases, today),
+    message: cases.length ? null : raw.none || null,
+  };
+}
+
+/** What the portal shows inside a box, in order: headings, text lines (with their links) and tables. */
+export interface PortalBlock {
+  kind: 'heading' | 'text' | 'table';
+  text?: string;
+  lines?: string[];
+  links?: string[];
+  table?: PortalTableData;
+}
+
+async function readBlocks(page: Page, sel: string): Promise<PortalBlock[]> {
+  const raw = await page.evaluate((s) => {
+    const root = document.querySelector(s) as any;
+    if (!root) return [];
+    const out: Array<{ kind: string; text?: string; lines?: string[]; links?: string[]; html?: string }> = [];
+    const BLOCK = 'div,p,ul,ol,li,section,article,h1,h2,h3,h4,h5,h6,table,form,fieldset,center,header,footer,dl,dt,dd,hr';
+    const skip = (e: any) => e.matches('script,style,noscript,select,input,textarea,.modal:not(.show)')
+      || (globalThis as any).getComputedStyle(e).display === 'none';
+    const clickable = (b: any) => b.tagName !== 'A' || b.getAttribute('onclick') || /^(#|javascript:)/i.test(b.getAttribute('href') ?? '#');
+    let buf: any = null;
+    const flush = () => {
+      if (!buf) return;
+      const lines = String(buf.innerText ?? buf.textContent ?? '').split('\n').map((x: string) => x.replace(/\s+/g, ' ').trim()).filter(Boolean);
+      const links = [...buf.querySelectorAll('a, button')].filter(clickable).map((b: any) => String(b.textContent ?? '').replace(/\s+/g, ' ').trim()).filter((t: string) => t && t.length < 60);
+      if (lines.length) out.push({ kind: 'text', lines, links });
+      buf.remove();
+      buf = null;
+    };
+    const inline = (n: any) => {
+      if (!buf) {
+        buf = document.createElement('div');
+        buf.style.cssText = 'position:absolute;left:-99999px;top:0';
+        document.body.appendChild(buf);
+      }
+      buf.appendChild(n.cloneNode(true));
+    };
+    const walk = (el: any) => {
+      for (const n of [...el.childNodes] as any[]) {
+        if (n.nodeType === 3) { if (String(n.textContent).trim()) inline(n); continue; }
+        if (n.nodeType !== 1 || skip(n)) continue;
+        if (n.tagName === 'TABLE') { flush(); out.push({ kind: 'table', html: String(n.outerHTML) }); continue; }
+        if (/^H[1-6]$/.test(n.tagName)) { flush(); const t = String(n.textContent ?? '').replace(/\s+/g, ' ').trim(); if (t) out.push({ kind: 'heading', text: t }); continue; }
+        if (n.tagName === 'BR') { inline(n); continue; }
+        if (!n.matches(BLOCK)) { if (n.querySelector(BLOCK)) { flush(); walk(n); flush(); } else inline(n); continue; }
+        flush();
+        if (n.querySelector(BLOCK)) walk(n);
+        else inline(n);
+        flush();
+      }
+    };
+    walk(root);
+    flush();
+    return out;
+  }, sel);
+  const blocks: PortalBlock[] = [];
+  for (const b of raw) {
+    if (b.kind === 'table') {
+      const table = await htmlTable(page, b.html ?? '');
+      if (table.headers.length || table.rows.length) blocks.push({ kind: 'table', table });
+    } else if (b.kind === 'heading') blocks.push({ kind: 'heading', text: b.text ?? '' });
+    else blocks.push({ kind: 'text', lines: b.lines ?? [], links: b.links ?? [] });
+  }
+  return blocks;
+}
+
+export interface MyCaseHistoryView {
+  /** "Case History" or, for a hearing date, "Daily Status". */
+  name: string;
+  blocks: PortalBlock[];
+}
+
+/**
+ * A case number in My Cases: click that case's link in the widget, as the
+ * advocate would (the portal then loads getCaseHistory / getFilingCaseHistory
+ * into #case_history), and read it. With `link`, also click the nth link of
+ * that text inside the history (a Business on Date -> viewBusiness) and read
+ * the Daily Status it opens in #show_business.
+ */
+async function openMyCaseHistoryStep(sessionId: string, userId: string, cino: string, court: 'd' | 'h', link?: { text: string; nth: number }): Promise<MyCaseHistoryView> {
+  const session = getSession(sessionId, userId);
+  if (!session.authenticated) throw new EcourtsHttpError(410, 'Log in to eFiling first.');
+  const { page } = session;
+  try {
+    await openMyCasesWidget(session);
+    const clicked = await page.evaluate(({ cino, court }) => {
+      const links = ([...document.querySelectorAll('#history_body .show_case_history_link, #history_body .show_filing_case_history_link')] as any[])
+        .filter((a) => a.getAttribute('cino') === cino);
+      const a = links.find((x) => (x.closest('#hcAccordion') ? 'h' : 'd') === court) ?? links[0];
+      if (!a) return false;
+      const box = document.getElementById('case_history') as any;
+      if (box) box.innerHTML = '';
+      a.click();
+      return true;
+    }, { cino, court });
+    if (!clicked) throw new EcourtsHttpError(409, 'That case is no longer in My Cases on the portal - Refresh and try again.');
+    const shown = await page.waitForFunction(() => String((document.getElementById('case_history') as any)?.textContent ?? '').trim().length > 0, undefined, { timeout: 25_000, polling: 250 }).then(() => true).catch(() => false);
+    if (!shown) throw new EcourtsHttpError(502, 'The portal did not show this case history. It may be slow - try again.');
+    await settle(page, '#case_history');
+    if (!link) return { name: 'Case History', blocks: await readBlocks(page, '#case_history') };
+
+    const hit = await page.evaluate(({ text, nth }) => {
+      const same = ([...document.querySelectorAll('#case_history a, #case_history button')] as any[])
+        .filter((b) => String(b.textContent ?? '').replace(/\s+/g, ' ').trim() === text);
+      const b = same[nth];
+      if (!b) return false;
+      for (const id of ['show_business', 'show_business1']) { const e = document.getElementById(id) as any; if (e) e.innerHTML = ''; }
+      b.removeAttribute('target');
+      b.click();
+      return true;
+    }, link);
+    if (!hit) throw new EcourtsHttpError(409, `The portal has no "${link.text}" in this case history now.`);
+    const where = await page.waitForFunction(() => {
+      for (const id of ['show_business', 'show_business1']) {
+        if (String((document.getElementById(id) as any)?.textContent ?? '').trim()) return `#${id}`;
+      }
+      return false;
+    }, undefined, { timeout: 25_000, polling: 250 }).then((h) => h.jsonValue() as Promise<string>).catch(() => null);
+    if (!where) throw new EcourtsHttpError(502, `The portal did not show anything for "${link.text}". It may be slow - try again.`);
+    await settle(page, where);
+    return { name: 'Daily Status', blocks: await readBlocks(page, where) };
+  } finally {
+    await closePortalPopups(page);
+  }
+}
+
+export async function readMyCases(sessionId: string, userId: string) {
+  return queued(getSession(sessionId, userId), () => readMyCasesStep(sessionId, userId));
+}
+export async function openMyCaseHistory(sessionId: string, userId: string, cino: string, court: 'd' | 'h', link?: { text: string; nth: number }) {
+  return queued(getSession(sessionId, userId), () => openMyCaseHistoryStep(sessionId, userId, cino, court, link));
+}
+
 /** Internals exposed for tests only. */
 export const __testing = {
   portalPost,
   htmlTable,
   clickTile,
+  groupMyCases,
   setContextHook: (fn: typeof contextHook) => { contextHook = fn; },
   pageOf: (sessionId: string): Page | null => sessions.get(sessionId)?.page ?? null,
 };

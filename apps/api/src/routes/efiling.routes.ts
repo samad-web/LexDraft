@@ -246,6 +246,46 @@ efilingRouter.get(
   },
 );
 
+// My Cases: the portal's portfolio widget (Date wise / District wise,
+// Pending / Disposed / Both), read over the advocate's session.
+efilingRouter.get(
+  '/live/session/:sessionId/my-cases',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      res.json(await efilingLive.readMyCases(sessionId, req.user.id));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// A case number in My Cases -> its case history; with `link`, a hearing
+// date inside that history -> the Daily Status the portal shows for it.
+efilingRouter.post(
+  '/live/session/:sessionId/my-cases/history',
+  validate({
+    params: SessionIdParam,
+    body: z.object({
+      cino: z.string().min(1).max(40),
+      court: z.enum(['d', 'h']).default('d'),
+      link: z.object({ text: z.string().min(1).max(80), nth: z.number().int().min(0).max(500) }).optional(),
+    }),
+  }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const { cino, court, link } = req.body as { cino: string; court: 'd' | 'h'; link?: { text: string; nth: number } };
+      res.json(await efilingLive.openMyCaseHistory(sessionId, req.user.id, cino, court, link));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 // The advocate's own portal dashboard lists (read-only).
 efilingRouter.get(
   '/live/session/:sessionId/lists',

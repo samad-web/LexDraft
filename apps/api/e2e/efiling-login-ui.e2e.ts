@@ -32,6 +32,32 @@ const loginPage = `<!doctype html><html><body><form id="frm_login">
 <script>function go(){var x=new XMLHttpRequest();x.open('POST','/pdedev/?p=login/verify_login/');x.onload=function(){var o=JSON.parse(x.responseText);if(o.redirect_path){location.href=o.redirect_path;return;}document.querySelector('.alert-danger4').style.display='block';document.getElementById('msg-danger4').innerHTML=o.errorMsg;};x.send('fcaptcha_code='+document.getElementById('fcaptcha_code_mobile').value);}</script>
 </body></html>`;
 
+// My Cases as the portal has it: the tile loads Portfolio_new/my_cases, whose
+// own script fetches portfolio/getMyCasesData/ into the CNR_Numbers_ef globals
+// and draws the case links; a case link loads portfolio/getCaseHistory/.
+const NEXT = new Date(Date.now() + 330 * 60_000 + 7 * 86_400_000).toISOString().slice(0, 10);
+const MY_CASES_DC = [
+  { cino: 'TNCH0C0012342024', hc_dc: 'D', type_name: 'OS', case_no: '200100000572024', reg_no: '57', reg_year: '2024', fil_no: '', fil_year: '', pet_name: 'Ramesh Kumar', res_name: 'Suresh Babu', state_code: '10', state_name: 'Tamil Nadu', district_code: '2', district_name: 'Chennai', establishment_code: 'TNCH0C', establishment_name: 'City Civil Court, Chennai', desgname: '1-Principal Judge', date_next_list: NEXT, date_last_list: null, date_of_decision: null, registration_date: '2024-03-15', purpose_cd: '4', purpose_name: 'Hearing', ci_cri: 'civil', pde_no: '', under_obj: 'N', updated: true },
+  { cino: 'TNCH0D0045672020', hc_dc: 'D', type_name: 'CC', case_no: '201200000122020', reg_no: '12', reg_year: '2020', fil_no: '', fil_year: '', pet_name: 'State', res_name: 'Murugan', state_code: '10', state_name: 'Tamil Nadu', district_code: '2', district_name: 'Chennai', establishment_code: 'TNCH0D', establishment_name: 'Metropolitan Magistrate Court, Egmore', desgname: '3-Metropolitan Magistrate', date_next_list: null, date_last_list: null, date_of_decision: '2026-09-15', registration_date: '2020-01-10', purpose_cd: '', purpose_name: '', ci_cri: 'criminal', pde_no: '', under_obj: 'N', updated: true },
+];
+const MY_CASES_PAGE = `<div id="datewiseDistrictwiseDiv"><button id="datewise">Date wise</button><button id="districtwise">District wise</button><span id="mycases_span_id"></span> [Last refreshed on 23-10-2026 20:06:41]</div>
+<div id="ditrictsAccordion"></div><div id="hcAccordion"></div><div id="case_history_div" style="display:none"><div id="case_history"></div></div>
+<script>
+var CNR_Numbers_ef, CNR_Numbers_HC_ef; var allCNRRepresentative = [];
+(function () {
+  function post(u, b, cb) { var x = new XMLHttpRequest(); x.open('POST', '/pdedev/?p=' + u); x.onload = function () { cb(JSON.parse(x.responseText)); }; x.send(b); }
+  post('portfolio/getMyCasesData/', 'configuration=D', function (o) {
+    CNR_Numbers_ef = JSON.stringify(o.mycases_dc); CNR_Numbers_HC_ef = JSON.stringify(o.mycases_hc);
+    document.getElementById('mycases_span_id').innerHTML = o.mycases_dc.length;
+    document.getElementById('ditrictsAccordion').innerHTML = o.mycases_dc.map(function (c) { return '<a href="#" class="show_case_history_link" cino="' + c.cino + '" hcdc="D">' + c.type_name + '/' + c.reg_no + '/' + c.reg_year + '</a>'; }).join(' ');
+  });
+  if (!window.fxBound) window.fxBound = document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('.show_case_history_link'); if (!a) return; e.preventDefault();
+    post('portfolio/getCaseHistory/', 'cino1=' + a.getAttribute('cino'), function (o) { document.getElementById('case_history').innerHTML = o.option; document.getElementById('case_history_div').style.display = 'block'; });
+  }) || true;
+})();
+</script>`;
+
 async function serve(route: Route): Promise<void> {
   const req = route.request();
   const url = new URL(req.url());
@@ -42,14 +68,21 @@ async function serve(route: Route): Promise<void> {
   }
   if (req.method() === 'GET' && p === 'dashboard') {
     return route.fulfill({ contentType: 'text/html', body: `<html><body><h3>Dashboard</h3>
-<div class="tile">Draft Pleadings <span>1</span></div>
-<a href="#" id="efiling_activity">Draft Pleadings</a><div id="db_screen"><div id="history_body"></div></div>
+<div class="tile">Draft Pleadings <span>1</span></div><div class="tile">My Cases <span>2</span></div>
+<a href="#" id="efiling_activity">Draft Pleadings</a><a href="#" id="my_cases">My Cases</a><div id="db_screen"><div id="history_body"></div></div>
 <a href="https://filing.ecourts.gov.in/pdedev/?p=login/logOut">Logout</a>
-<script>document.getElementById('efiling_activity').addEventListener('click',function(e){e.preventDefault();var x=new XMLHttpRequest();x.open('POST','/pdedev/?p=dashboard/fetchActivities');x.onload=function(){document.getElementById('history_body').innerHTML=JSON.parse(x.responseText).submitted_pde_list;};x.send('');});</script>
+<script>document.getElementById('efiling_activity').addEventListener('click',function(e){e.preventDefault();var x=new XMLHttpRequest();x.open('POST','/pdedev/?p=dashboard/fetchActivities');x.onload=function(){document.getElementById('history_body').innerHTML=JSON.parse(x.responseText).submitted_pde_list;};x.send('');});
+document.getElementById('my_cases').addEventListener('click',function(e){e.preventDefault();var x=new XMLHttpRequest();x.open('POST','/pdedev/?p=Portfolio_new/my_cases');x.onload=function(){var b=document.getElementById('history_body');b.innerHTML=x.responseText;Array.prototype.forEach.call(b.querySelectorAll('script'),function(o){var s=document.createElement('script');s.text=o.text;o.parentNode.replaceChild(s,o);});};x.send('header_view=N');});</script>
 </body></html>` });
   }
   if (p === 'dashboard/fetchActivities') {
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ total_record: 1, submitted_pde_list: '<table><thead><tr><th>Sr.No.</th><th>e-Filing Number / Case Number</th></tr></thead><tbody><tr><td>1</td><td>O.S. - C202600019</td></tr></tbody></table>' }) });
+  }
+  if (p === 'Portfolio_new/my_cases') return route.fulfill({ contentType: 'text/html', body: MY_CASES_PAGE });
+  if (p === 'portfolio/getMyCasesData/') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ mycases_dc: MY_CASES_DC, mycases_hc: [] }) });
+  if (p === 'portfolio/getRepresentingForCinos/') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ existing_cases: [] }) });
+  if (p === 'portfolio/getCaseHistory/') {
+    return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ option: '<h2>City Civil Court, Chennai</h2><h3>Case Details</h3><table><tr><td>Case Type</td><td>OS - Original Suit</td></tr><tr><td>Registration Number</td><td>57/2024</td></tr></table>' }) });
   }
   if (req.method() === 'GET') return route.fulfill({ contentType: 'text/html', body: loginPage });
   if (p === 'login/verify_login/') {
@@ -165,6 +198,44 @@ describe('eFiling login, then straight to the eFiling features', () => {
     await page.keyboard.press('Escape');
     await win.waitFor({ state: 'detached' });
     if (process.env['E2E_SHOTS']) await page.screenshot({ path: `${process.env['E2E_SHOTS']}/efiling-portal-dashboard.png`, fullPage: true });
+  });
+
+  it("My Cases opens the portal's widget: District wise / Date wise, Pending / Disposed / Both, panels that expand to the cases, and a case's history", async () => {
+    await page.getByRole('button', { name: 'My Cases: 2' }).click();
+    const win = page.getByRole('dialog', { name: 'My Cases' });
+    await win.getByRole('heading', { name: 'District Court Cases' }).waitFor({ timeout: 60_000 });
+    await win.getByText('[Last refreshed on 23-10-2026 20:06:41]').waitFor();
+    expect(await win.getByRole('button', { name: 'District wise' }).getAttribute('aria-pressed')).toBe('true');
+    expect(await win.getByRole('tab', { name: 'Both' }).getAttribute('aria-selected')).toBe('true');
+    // District wise: one panel per district with its count; expanding it shows the establishments' tables.
+    const panel = win.getByRole('button', { name: 'Chennai,Tamil Nadu (2)' });
+    expect(await panel.getAttribute('aria-expanded')).toBe('false');
+    await panel.click();
+    await win.getByText('City Civil Court, Chennai(1)').waitFor();
+    await win.getByText('Metropolitan Magistrate Court, Egmore(1)').waitFor();
+    await win.getByRole('button', { name: 'OS/57/2024' }).waitFor();
+    await win.getByRole('tab', { name: 'Pending' }).click();
+    await win.getByRole('button', { name: 'Chennai,Tamil Nadu (1)' }).waitFor();
+    expect(await win.getByRole('button', { name: 'CC/12/2020' }).count()).toBe(0);
+    await win.getByRole('tab', { name: 'Disposed' }).click();
+    await win.getByRole('button', { name: 'CC/12/2020' }).waitFor();
+    // Date wise: the next date's panel under its month, disposed cases on their own.
+    await win.getByRole('tab', { name: 'Both' }).click();
+    await win.getByRole('button', { name: 'Date wise' }).click();
+    await win.getByRole('button', { name: 'Disposed Cases (1)' }).waitFor();
+    const next = NEXT.split('-').reverse().join('-');
+    await win.getByRole('button', { name: `${next} (1)` }).click();
+    await win.getByText('City Civil Court, Chennai(1), Chennai').waitFor();
+    // A case number opens its history from the portal, on top.
+    await win.getByRole('button', { name: 'OS/57/2024' }).click();
+    const hist = page.getByRole('dialog', { name: 'OS/57/2024' });
+    await hist.getByRole('heading', { name: 'Case Details' }).waitFor({ timeout: 60_000 });
+    await hist.getByRole('cell', { name: 'OS - Original Suit' }).waitFor();
+    if (process.env['E2E_SHOTS']) await page.screenshot({ path: `${process.env['E2E_SHOTS']}/efiling-my-cases-history.png`, fullPage: true });
+    await page.keyboard.press('Escape');
+    await hist.waitFor({ state: 'detached' });
+    await page.keyboard.press('Escape');
+    await win.waitFor({ state: 'detached' });
   });
 
   it('after "Log out of eFiling" the next login remembers state and username (never the password)', async () => {
