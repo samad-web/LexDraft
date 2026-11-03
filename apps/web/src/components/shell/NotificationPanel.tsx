@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from '@lexdraft/ui';
+import { BACK_EVENT } from '@/lib/back-event';
 import {
   useNotificationsStore,
   formatRelativeTime,
@@ -49,7 +51,24 @@ export function NotificationPanel({
     onClose();
   }
 
-  return (
+  // Escape (keyboard) and the Android back button close the panel.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onBack = (e: Event) => { e.preventDefault(); onClose(); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener(BACK_EVENT, onBack);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener(BACK_EVENT, onBack);
+    };
+  }, [onClose]);
+
+  // On phones the panel is a bottom sheet (position: fixed). Inside the top bar
+  // its backdrop-filter would make "fixed" mean "fixed to the top bar", so the
+  // sheet and its tap-to-close backdrop are rendered at the document root.
+  const sheet = window.matchMedia('(max-width: 640px)').matches;
+
+  const content = (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
       <div
@@ -235,4 +254,5 @@ export function NotificationPanel({
       </div>
     </>
   );
+  return sheet ? createPortal(content, document.body) : content;
 }

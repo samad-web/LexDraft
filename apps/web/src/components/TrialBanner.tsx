@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth';
+import { isNativeApp } from '@/lib/google';
 
 /**
  * App-wide trial countdown banner. Renders when the signed-in user's firm
@@ -31,6 +32,10 @@ export function TrialBanner(): JSX.Element | null {
   // trial never runs this long.
   const freePlan = !isDemo && daysLeft > 30;
   const urgency = expired ? 'critical' : daysLeft <= 3 ? 'warn' : 'soft';
+  // Android app: no purchase prompts (Play payments policy), and the free-plan
+  // strip is only an upsell, so it goes; trial countdowns stay as plain text.
+  const native = isNativeApp();
+  if (native && freePlan) return null;
 
   const label = isDemo
     ? expired
@@ -50,12 +55,16 @@ export function TrialBanner(): JSX.Element | null {
   return (
     <div role={urgency === 'critical' ? 'alert' : 'status'} className={`trial-banner trial-banner--${urgency}`}>
       <span className="trial-banner-label">{label}</span>
-      <span className="trial-banner-note">
-        {isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
-      </span>
-      <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>
-        {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
-      </button>
+      {!native && (
+        <>
+          <span className="trial-banner-note">
+            {isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
+          </span>
+          <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>
+            {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

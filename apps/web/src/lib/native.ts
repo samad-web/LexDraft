@@ -14,6 +14,8 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { useLockStore } from './app-lock';
+import { BACK_EVENT } from './back-event';
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -117,8 +119,26 @@ export function initNative(): void {
     true,
   );
 
+  // The WebView shrinks when the keyboard opens. Mark that on <html> so the
+  // bottom dock and floating buttons can step aside instead of covering the
+  // field being typed in.
+  let fullHeight = window.innerHeight;
+  const trackKeyboard = () => {
+    fullHeight = Math.max(fullHeight, window.innerHeight);
+    document.documentElement.classList.toggle('kb-open', window.innerHeight < fullHeight * 0.75);
+  };
+  window.addEventListener('resize', trackKeyboard);
+  window.addEventListener('orientationchange', () => {
+    fullHeight = 0;
+    setTimeout(trackKeyboard, 300);
+  });
+
   void App.addListener('backButton', ({ canGoBack }) => {
-    if (canGoBack) window.history.back();
+    // Back on the lock screen leaves the app; it must never reveal it.
+    if (useLockStore.getState().locked) void App.exitApp();
+    // An open overlay (e.g. the notifications sheet) closes itself instead.
+    else if (!window.dispatchEvent(new Event(BACK_EVENT, { cancelable: true }))) return;
+    else if (canGoBack) window.history.back();
     else void App.exitApp();
   });
 }

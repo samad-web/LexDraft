@@ -6,6 +6,8 @@ import { useSignOut } from '@/hooks/useAuth';
 import { useMfaStatus, useMfaDisable } from '@/hooks/useMfa';
 import { useConfirm } from '@/components/ConfirmDialog';
 import { useUIStore } from '@/store/ui';
+import { Capacitor } from '@capacitor/core';
+import { lockEnabled, setLockEnabled, useLockStore } from '@/lib/app-lock';
 import { MfaEnrollmentModal } from '@/components/MfaEnrollmentModal';
 import { PillNav } from '@/components/PillNav';
 import { PageHeader } from '@/components/PageHeader';
@@ -109,6 +111,8 @@ function AccountPanel() {
 
       <SecurityPanel />
 
+      {Capacitor.isNativePlatform() && <AppLockPanel />}
+
       <LanguagePreferencePanel />
 
       <SettingsRow
@@ -174,7 +178,9 @@ function TrialStatusPanel() {
       title="Plan status"
       description={isDemo
         ? 'This is a sandbox account so you can explore DifAi. Convert to a real account any time: your existing work carries over.'
-        : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
+        : Capacitor.isNativePlatform()
+          ? 'Your current plan and when it ends.'
+          : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}
     >
       <div>
         <div className="fm-figure">
@@ -193,15 +199,18 @@ function TrialStatusPanel() {
           <span className="fm-kv-value">{ends}</span>
         </div>
       </div>
-      <div className="fm-set-actions">
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => navigate('/#pricing')}
-        >
-          {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
-        </button>
-      </div>
+      {/* No purchase prompts in the Android app (Play payments policy). */}
+      {!Capacitor.isNativePlatform() && (
+        <div className="fm-set-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => navigate('/#pricing')}
+          >
+            {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
+          </button>
+        </div>
+      )}
     </SettingsRow>
   );
 }
@@ -269,6 +278,41 @@ function LanguagePreferencePanel() {
         <span className="fm-status-sub">
           Currently <strong style={{ color: 'var(--text-primary)' }}>{findLanguage(current).englishName}</strong>
         </span>
+      </div>
+    </SettingsRow>
+  );
+}
+
+// ---- App lock (Android build) ---------------------------------------------
+
+function AppLockPanel() {
+  const [on, setOn] = useState(lockEnabled);
+  const busy = useLockStore((s) => s.busy);
+  const insecure = useLockStore((s) => s.insecureDevice);
+  const showToast = useUIStore((s) => s.showToast);
+
+  const toggle = async () => {
+    if (await setLockEnabled(!on)) setOn(!on);
+    else showToast({ type: 'vermillion', text: 'App lock is still on' });
+  };
+
+  return (
+    <SettingsRow
+      eyebrow="This phone"
+      title="App lock"
+      description="Ask for your fingerprint, face or phone PIN when DifAi opens or returns after a minute away."
+    >
+      <div className="fm-status-line">
+        <span className={`fm-status-mark${on ? '' : ' is-off'}`} aria-hidden><Icon name={on ? 'check' : 'shield'} size={16} /></span>
+        <div>
+          <div className="fm-status-title">{on ? 'App lock is on' : 'App lock is off'}</div>
+          {insecure && <div className="fm-status-sub">This phone has no screen lock. Set one in Android settings to protect client data.</div>}
+        </div>
+      </div>
+      <div className="fm-set-actions">
+        <button type="button" className={on ? 'btn btn-sm btn-ghost' : 'btn btn-primary'} onClick={() => void toggle()} disabled={busy}>
+          {on ? 'Turn off app lock' : 'Turn on app lock'}
+        </button>
       </div>
     </SettingsRow>
   );

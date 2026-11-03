@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Modal } from './Modal';
+import { isNativeApp } from '@/lib/google';
 import { useUIStore, type CapPromptModel } from '@/store/ui';
 
 /**
@@ -16,7 +17,8 @@ export function CapExceededModal() {
   if (!cap) return null;
 
   const { title, description, primaryLabel } = describeCap(cap);
-  const upgradeTarget = cap.planTier === 'Firm' ? null : '/app/settings';
+  // No purchase prompts in the Android app (Play payments policy).
+  const upgradeTarget = cap.planTier === 'Firm' || isNativeApp() ? null : '/app/settings';
 
   return (
     <Modal

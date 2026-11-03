@@ -5104,3 +5104,70 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
 .cs-hero-fill { margin-left: 10px; }
 .cs-quick-card .cs-quick { grid-template-columns: minmax(0, 1fr); }
 .cs-quick-card .cs-quick > .btn { justify-content: flex-start; padding-left: 14px; }
+
+/* App lock (Android build) — full-screen, opaque, above every overlay. */
+.app-lock {
+  position: fixed; inset: 0; z-index: 2147483000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-4, 16px); padding: 24px;
+  background: var(--bg-base); color: var(--text-primary); text-align: center;
+}
+.app-lock-title { font-family: var(--font-serif); font-size: 26px; font-weight: 600; margin: 16px 0 0; }
+.app-lock-sub { color: var(--text-secondary); max-width: 32ch; margin: 0 0 8px; }
+
+/* Launch splash (Android build) — see build-docs/features/launch-splash.md.
+   Timeline: court lines draw 0–1.1s; D 0.15s; i 0.4s; dot drops 0.55s;
+   slide + fAi 0.9s; gavel 1.35s; "Powered by" 1.5s; fade at 2.4s. */
+.splash {
+  position: fixed; inset: 0; z-index: 2147483600;
+  background: var(--bg-base); color: var(--text-primary);
+  overflow: hidden; transition: opacity 300ms ease;
+}
+.splash.is-leaving { opacity: 0; }
+.splash-court {
+  position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 66%;
+  opacity: .22;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%);
+  mask-image: linear-gradient(to bottom, transparent, #000 35%);
+}
+/* 1.05, not 1: closed shapes otherwise keep a hairline gap where they start. */
+.splash-court [pathLength] { stroke-dasharray: 1.05; stroke-dashoffset: 1.05; animation: splash-draw 1.1s cubic-bezier(.4,0,.2,1) forwards; }
+.splash-fan { transform-box: fill-box; transform-origin: center; animation: splash-spin 1.1s linear infinite; }
+.splash-scales { transform-origin: 200px 82px; animation: splash-sway 2.4s ease-in-out infinite; }
+.splash-gavel { transform-origin: 248px 164px; animation: splash-gavel .32s ease-in 1.35s 1 both; }
+.splash-brand {
+  position: absolute; left: 0; right: 0; top: 22%;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.splash-word { width: min(58vw, 260px); height: auto; overflow: visible; }
+.splash-slide { animation: splash-slide .55s cubic-bezier(.2,.8,.2,1) .9s both; }
+.splash-d { animation: splash-in .45s cubic-bezier(.2,.8,.2,1) .15s both; transform-box: fill-box; transform-origin: center; }
+.splash-i { animation: splash-rise .35s ease-out .4s both; }
+.splash-dot { animation: splash-drop .45s cubic-bezier(.3,1.6,.5,1) .55s both; }
+.splash-rest > * { animation: splash-rise .4s ease-out both; }
+.splash-rest > :nth-child(1), .splash-rest > :nth-child(2) { animation-delay: 1s; }
+.splash-rest > :nth-child(3) { animation-delay: 1.08s; }
+.splash-rest > :nth-child(4), .splash-rest > :nth-child(5) { animation-delay: 1.16s; }
+.splash-by {
+  margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-tertiary); animation: splash-fade .5s ease-out 1.5s both;
+}
+.splash-by strong { color: var(--text-primary); font-weight: 600; }
+@keyframes splash-draw { to { stroke-dashoffset: 0; } }
+@keyframes splash-spin { to { transform: rotate(360deg); } }
+@keyframes splash-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes splash-gavel { 0%, 100% { transform: rotate(0); } 45% { transform: rotate(-28deg); } 75% { transform: rotate(6deg); } }
+/* "Di" alone is 330 of 758 units wide: start it centred. */
+@keyframes splash-slide { from { transform: translateX(214px); } to { transform: translateX(0); } }
+@keyframes splash-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
+@keyframes splash-rise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes splash-drop { from { opacity: 0; transform: translateY(-90px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes splash-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .splash *, .splash-court [pathLength] { animation: none !important; stroke-dashoffset: 0; }
+}
+
+/* Android app: keyboard open (lib/native.ts) — the dock and floating buttons
+   would otherwise sit on top of the field being typed in. */
+html.kb-open .mobile-nav,
+html.kb-open .fab { display: none !important; }

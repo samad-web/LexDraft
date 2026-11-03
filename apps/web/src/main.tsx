@@ -8,6 +8,9 @@ import { hydrateUIAttributes } from './store/ui';
 import { ConfirmProvider } from './components/ConfirmDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initNative } from './lib/native';
+import { initLock } from './lib/app-lock';
+import { AppLock } from './components/AppLock';
+import { Splash } from './components/Splash';
 import { uiFor } from './lib/chambers';
 import './styles/tokens.css';
 import './styles/globals.css';
@@ -22,6 +25,7 @@ import './styles/chambers/firm.css';
 hydrateUIAttributes();
 document.documentElement.dataset.ui = uiFor(window.location.pathname);
 initNative();
+initLock();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -36,7 +40,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         */}
         <ErrorBoundary>
           <ConfirmProvider>
-            <App />
+            <AppLock>
+              <App />
+            </AppLock>
+            <Splash />
           </ConfirmProvider>
         </ErrorBoundary>
       </BrowserRouter>

@@ -165,6 +165,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@aparajita/capacitor-biometric-auth':
+        specifier: 10.0.0
+        version: 10.0.0
       '@capacitor/android':
         specifier: ^8.5.3
         version: 8.5.3(@capacitor/core@8.5.3)
@@ -379,6 +382,10 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
+
+  '@aparajita/capacitor-biometric-auth@10.0.0':
+    resolution: {integrity: sha512-azjWaRucB8x1/gSzSTp/NxelaOZyg+m765gSzjwUkSQgg30RrZPmPq6pyLeeXVSZNDY3Rxf5Hj8obgZaXirCFQ==}
+    engines: {node: '>=20.0.0'}
 
   '@aws-crypto/crc32@5.2.0':
     resolution: {integrity: sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg==}
@@ -612,6 +619,11 @@ packages:
     resolution: {integrity: sha512-m1RkI8L83NJeppEKyRWioK3MDp2vjlA+QfUQcF8/xRlcXNC2HYxqoyYJ+K4M0EcVovy+g+4F24S05+bhK4Vgdg==}
     peerDependencies:
       '@capacitor/core': '>=8.0.0'
+
+  '@capacitor/ios@8.6.0':
+    resolution: {integrity: sha512-Y2PE4zoBqMrSTWoVMJmX2byBznjn6egmATzoEUJiGVbVubkNpAvkF/tl0SBKDyP67ngyedTx1tQq5IGYIhby1A==}
+    peerDependencies:
+      '@capacitor/core': ^8.6.0
 
   '@capacitor/share@8.0.3':
     resolution: {integrity: sha512-gnvZBV1NPu2B8vd1UKncR56G15ueHd0aZLqgDov++t3SmTBG9Q0VrAZ1VnHn5stxlmglVaTb4RwopMgbpLzroA==}
@@ -4058,6 +4070,13 @@ snapshots:
     optionalDependencies:
       zod: 3.25.76
 
+  '@aparajita/capacitor-biometric-auth@10.0.0':
+    dependencies:
+      '@capacitor/android': 8.5.3(@capacitor/core@8.5.3)
+      '@capacitor/app': 8.1.2(@capacitor/core@8.5.3)
+      '@capacitor/core': 8.5.3
+      '@capacitor/ios': 8.6.0(@capacitor/core@8.5.3)
+
   '@aws-crypto/crc32@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
@@ -4485,6 +4504,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.5.3
       '@capacitor/synapse': 1.0.4
+
+  '@capacitor/ios@8.6.0(@capacitor/core@8.5.3)':
+    dependencies:
+      '@capacitor/core': 8.5.3
 
   '@capacitor/share@8.0.3(@capacitor/core@8.5.3)':
     dependencies:

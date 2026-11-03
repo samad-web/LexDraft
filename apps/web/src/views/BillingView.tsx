@@ -5,6 +5,7 @@ import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse } from '@lexdraft/types';
 import { CycleToggle, PlanCards } from '@/components/PlanCards';
 import { useBilling, useStartCheckout } from '@/hooks/useBilling';
+import { isNativeApp } from '@/lib/google';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '-';
@@ -40,6 +41,7 @@ export function BillingView() {
   const checkout = useStartCheckout();
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [selected, setSelected] = useState<BillingPlanId | null>(null);
+  const native = isNativeApp();
 
   const current = data ? currentPlanId(data.current) : null;
   const paid = !!data?.current.subscribed && data.current.planStatus === 'active';
@@ -134,10 +136,13 @@ export function BillingView() {
               <div className="cm-current-v">
                 {data.current.billingCycle === 'annual' ? 'Yearly' : data.current.billingCycle === 'monthly' ? 'Monthly' : 'Not set up'}
               </div>
-              <div className="cm-current-note">UPI, cards and netbanking via Dodo Payments</div>
+              {!native && <div className="cm-current-note">UPI, cards and netbanking via Dodo Payments</div>}
             </div>
           </section>
 
+          {/* Android app: plan status only. No plan picker or checkout until Play
+              Billing exists (Play payments policy). */}
+          {!native && (<>
           <div className="cm-plans-head">
             <h2 className="cm-plans-title">Choose a plan</h2>
             <CycleToggle cycle={cycle} onChange={setCycle} />
@@ -178,6 +183,7 @@ export function BillingView() {
           {checkout.isError && (
             <div role="alert" className="cm-error-line"><Icon name="flag" size={13} /> {checkout.error.message}</div>
           )}
+          </>)}
         </>
       )}
     </div>
