@@ -1,0 +1,50 @@
+/* Draft composer rail tools: Review this draft, Ask this document, the
+   Redraft scope picker and the compose-status notice. Imported by those
+   components. Black and white only, existing tokens only; builds on the
+   .dc-card / .dw-* rail pieces in globals.css. The only colour is a real
+   .btn-danger, used solely for a button that names a mandatory issue. */
+
+/* ---------- Redraft scope ---------- */
+.dt-scope { display: flex; flex-direction: column; gap: 6px; }
+.dt-scope-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-secondary); }
+.dt-scope select.input { flex: 1 1 160px; min-width: 0; }
+.dt-num { width: 64px; flex: 0 0 64px; }
+.dt-scope-preview { font-size: 12px; color: var(--text-tertiary); line-height: 1.4; overflow-wrap: anywhere; }
+
+/* ---------- Review findings ---------- */
+.dt-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.dt-finding { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--border-subtle); }
+.dt-finding:first-child { border-top: 0; padding-top: 0; }
+.dt-finding.is-done { opacity: 0.55; }
+.dt-meta { display: flex; gap: 6px; flex-wrap: wrap; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+.dt-sev--mandatory { color: var(--text-primary); }
+.dt-issue { font-size: 13px; line-height: 1.5; color: var(--text-primary); margin: 0; overflow-wrap: anywhere; }
+.dt-fix { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); margin: 0; overflow-wrap: anywhere; }
+.dt-needs { font-size: 12.5px; line-height: 1.45; color: var(--text-primary); margin: 0; }
+.dt-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.dt-actions .btn { white-space: normal; text-align: left; }
+.dt-tally { display: flex; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-secondary); }
+.dt-tally strong { color: var(--text-primary); }
+
+/* ---------- Ask this document ---------- */
+.dt-file { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface); font-size: 12.5px; }
+.dt-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-primary); }
+.dt-qa { display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; }
+.dt-turn { display: flex; flex-direction: column; gap: 6px; }
+.dt-q { font-size: 13px; font-weight: 600; color: var(--text-primary); margin: 0; overflow-wrap: anywhere; }
+.dt-a { font-size: 13px; line-height: 1.5; color: var(--text-secondary); margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dt-a.is-missing { font-style: italic; }
+.dt-quote { margin: 0; padding: 4px 0 4px 10px; border-left: 2px solid var(--border-strong); font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); overflow-wrap: anywhere; }
+.dt-cite { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); }
+.dt-ask-row { display: flex; gap: 6px; align-items: flex-end; }
+.dt-ask-row textarea { flex: 1 1 auto; min-width: 0; resize: vertical; }
+
+/* ---------- Compose status ---------- */
+.dt-notice { margin: 0; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-surface-2); font-size: 13px; line-height: 1.5; color: var(--text-primary); overflow-wrap: anywhere; }
+.dt-auth a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.dt-auth-src { margin-left: 6px; font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; }
+
+@media (max-width: 640px) {
+  .dt-qa { max-height: none; }
+  .dt-actions .btn { flex: 1 1 100%; justify-content: center; }
+}

@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExtractionPatch } from '../intake-llm.service';
 
+// anthropic-client reads its key pool once at import; the attachment tests
+// set a key later, so without this they only passed with a real key in .env.
+vi.hoisted(() => {
+  process.env.ANTHROPIC_API_KEY ||= 'test-key';
+});
+
 // The orchestrator's guarantees, tested WITHOUT a live engine or LLM: we mock
 // the engine client (the authority on 422/refused/generated) and the intake LLM
 // (extract + phrase), and drive the loop across turns. The fact sheet uses its
@@ -103,7 +109,7 @@ const classifyQueue: Array<{ label: string | null; confidence: 'high' | 'medium'
 // Here we default to composed:false (the engine's own plain blocks unchanged)
 // so every existing test's assertions about `state.draft.blocks` keep holding;
 // a few dedicated tests below override this queue to prove the wiring.
-const composeQueue: Array<{ composed: boolean; blocks: Array<{ key: string; text: string }> }> = [];
+const composeQueue: Array<{ composed: boolean; blocks: Array<{ key: string; text: string }>; rejectedReason?: string }> = [];
 const composeCalls: Array<{ engineBlocks: Array<{ key: string; text: string }>; facts: Record<string, string> }> = [];
 vi.mock('../intake-compose.service', () => ({
   intakeCompose: {
@@ -114,7 +120,18 @@ vi.mock('../intake-compose.service', () => ({
       return { composed: false, blocks: args.engineBlocks, modelUsed: 'engine:template' };
     },
   },
+  composeNoticeFor: (r: { composed: boolean; rejectedReason?: string }) =>
+    (r.composed || !r.rejectedReason ? null : `plain draft: ${r.rejectedReason}`),
+  guideFor: () => 'guide',
 }));
+// Authority retrieval would query the statute corpus — no network/DB in tests.
+vi.mock('../../lib/compose-authorities', () => ({
+  gatherAuthorities: async () => [],
+  authoritiesBlock: () => '(none)',
+  guardRecalledCases: (paragraphs: string[]) => ({ paragraphs, flagged: 0, removed: [] }),
+}));
+vi.mock('../judgments.service', () => ({ judgmentsService: { forGrounds: async () => [] } }));
+vi.mock('../compose-outcomes.service', () => ({ composeOutcomesService: { record: () => {} }, reasonKindOf: () => 'unavailable' }));
 const classifyCalls: number[] = [];
 
 // The attachment path is FREE + LOCAL: images go to tesseract OCR, pdf/docx to
@@ -433,6 +450,15 @@ describe('intake COMPOSE — enrich the ALREADY-VALIDATED draft, never before', 
     // Falls back to exactly the engine's own block — never a partially-composed
     // or unverified text reaches the advocate.
     expect(state.draft?.blocks).toEqual([{ key: 'body', text: 'DRAFT' }]);
+  });
+
+  it('tells the advocate it is the plain draft, and why', async () => {
+    composeQueue.push({ composed: false, blocks: [{ key: 'body', text: 'DRAFT' }], rejectedReason: 'dropped from the skeleton: s.317(2)' });
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'generated' });
+    const state = await intakeService.start(DOC, 'Everything is here.', CTX);
+    expect(state.draft?.composeStatus).toBe('skeleton');
+    expect(state.draft?.composeNotice).toContain('s.317(2)');
   });
 });
 

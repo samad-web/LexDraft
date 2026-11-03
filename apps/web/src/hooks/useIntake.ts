@@ -11,7 +11,7 @@
 // See docs/conversational-intake-plan.md.
 // =============================================================================
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   IntakeState,
   IntakeStartRequest,
@@ -88,4 +88,16 @@ export function useIntakeAttach() {
   return useMutation<IntakeState, Error, IntakeAttachRequest>({
     mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/attach', req),
   });
+}
+
+/** What the in-flight draft is doing ("Planning the grounds"), polled while `active`. */
+export function useDraftProgress(active: boolean): string | null {
+  const q = useQuery({
+    queryKey: ['drafting', 'progress'],
+    queryFn: () => api.get<{ stage: string | null; label: string | null }>('/drafting/progress'),
+    enabled: active,
+    refetchInterval: active ? 1500 : false,
+    staleTime: 0,
+  });
+  return active ? q.data?.label ?? null : null;
 }

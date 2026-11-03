@@ -194,6 +194,33 @@ describe('engine-field-map — passthrough (non-s.138 doc types)', () => {
     expect('accused_address' in fields).toBe(false);
   });
 
+  it('the Phase-3 coverage types are routable via passthrough with a contract entry', () => {
+    const contract = engineDocContract as Record<string, { required?: string[] }>;
+    for (const [label, docType] of [
+      ['Quash Petition (s.528 BNSS)', 'quash_petition'],
+      ['Criminal Revision Petition', 'criminal_revision'],
+      ['Criminal Appeal (Against Conviction)', 'criminal_appeal'],
+      ['First Appeal (s.96 CPC)', 'civil_first_appeal'],
+      ['Civil Revision Petition', 'civil_revision'],
+      ['Eviction Petition (TN Rent Act 2017)', 'hrcp_eviction'],
+      ['Petition to Condone Delay (s.5 Limitation Act)', 'condone_delay_petition'],
+      ['Amendment Application (O.VI R.17 CPC)', 'amendment_ia'],
+      ['Counter Affidavit', 'counter_affidavit'],
+    ] as const) {
+      expect(LABEL_TO_ENGINE_DOC[label]).toBe(docType);
+      expect(isRoutable(docType)).toBe(true);
+      expect(contract[docType]?.required?.length ?? 0).toBeGreaterThan(0);
+    }
+    // contract-driven coercion: string -> int / bool / list for the eviction petition.
+    const { fields } = mapFormToEngine('hrcp_eviction', {
+      landlord_names: 'Lakshmi', tenant_names: 'Kumar', monthly_rent: '15,000',
+      grounds: 'arrears_of_rent', written_tenancy_agreement: 'No', place: 'Chennai',
+    });
+    expect(fields.monthly_rent).toBe(15000);
+    expect(Array.isArray(fields.grounds)).toBe(true);
+    expect(fields.written_tenancy_agreement).toBe(false);
+  });
+
   it('imported formats (contract `imported: true`) are routable under their engine title', () => {
     const imported = Object.entries(engineDocContract as Record<string, { title?: string; imported?: boolean }>)
       .filter(([, entry]) => entry.imported === true);

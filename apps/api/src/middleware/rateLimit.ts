@@ -1,3 +1,4 @@
+import { env } from '../env';
 import type { NextFunction, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { redis } from '../lib/redis';
@@ -81,7 +82,8 @@ export const mfaChallengeLimiter = signInLimiter;
 // normal usage, well below "expensive accident" territory.
 export const llmGenerationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 30,
+  // LLM_RATE_LIMIT_PER_HOUR: raised only for local QA runs (46-format suites).
+  limit: env.LLM_RATE_LIMIT_PER_HOUR,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator: (req) => req.user?.id ?? `ip:${req.ip}`,

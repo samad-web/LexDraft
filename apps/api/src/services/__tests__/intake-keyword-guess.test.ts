@@ -109,3 +109,35 @@ describe('the advocate names the document — writs and any library label', () =
     expect(guess('habeas corpus for my son detained illegally')).toBe('Writ Petition (Criminal)');
   });
 });
+
+describe('keywordGuessLabel — Phase-3 court documents', () => {
+  const labels = [
+    'Quash Petition (s.528 BNSS)', 'Criminal Revision Petition', 'Criminal Appeal (Against Conviction)',
+    'First Appeal (s.96 CPC)', 'Civil Revision Petition', 'Eviction Petition (TN Rent Act 2017)',
+    'Petition to Condone Delay (s.5 Limitation Act)', 'Amendment Application (O.VI R.17 CPC)', 'Counter Affidavit',
+    'Suit for Ejectment & Damages', 'Plaint (Money Recovery)',
+  ];
+  it.each([
+    ['quash the FIR against my client', 'Quash Petition (s.528 BNSS)'],
+    ['file a criminal revision against the dismissal', 'Criminal Revision Petition'],
+    ['appeal against the conviction by the sessions court', 'Criminal Appeal (Against Conviction)'],
+    ['first appeal against the decree of the munsif', 'First Appeal (s.96 CPC)'],
+    ['eviction petition before the rent court for arrears', 'Eviction Petition (TN Rent Act 2017)'],
+    ['petition to condone delay of 45 days', 'Petition to Condone Delay (s.5 Limitation Act)'],
+    ['amendment of plaint to add a prayer', 'Amendment Application (O.VI R.17 CPC)'],
+    ['counter affidavit in the writ', 'Counter Affidavit'],
+  ])('%s', (brief, label) => {
+    expect(keywordGuessLabel(brief, labels)).toBe(label);
+  });
+});
+
+describe('keywordGuessLabel — matrimonial', () => {
+  it.each([
+    ['Draft a joint first-motion petition for divorce by mutual consent under Section 13B(1)', 'Divorce by Mutual Consent (First Motion)'],
+    ['Draft the second-motion petition under Section 13B(2) for divorce', 'Divorce by Mutual Consent (Second Motion)'],
+    ['petition for restitution of conjugal rights, wife left without reason', 'Restitution of Conjugal Rights'],
+    ['divorce on the ground of cruelty', 'Divorce Petition (Contested)'],
+  ])('%s -> %s', (instruction, label) => {
+    expect(guess(instruction)).toBe(label);
+  });
+});

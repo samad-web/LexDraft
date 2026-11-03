@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '../../env';
 
+// anthropic-client reads its key pool once at import, before beforeEach runs;
+// without this the suite only passed on machines with a real key in .env.
+vi.hoisted(() => {
+  process.env.ANTHROPIC_API_KEY ||= 'test-key';
+});
+
 // intake-compose calls the raw Anthropic/xAI HTTP APIs directly (mirrors
 // intake-llm.service) — mock global fetch so no real network call happens and
 // every response is scripted per test.
@@ -34,7 +40,7 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor } from '../intake-compose.service';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
 // a numbered prayer, then the place line.
@@ -234,5 +240,261 @@ describe('numberBody — a numbered list lead-in', () => {
       '(a) The agreement.',
       '11. The Complainant craves leave.',
     ], 3).filter((p) => /^\d/.test(p)).map((p) => p.split('.')[0])).toEqual(['3', '4', '5', '6', '7']);
+  });
+});
+
+describe('intake-compose — deep mode (authorities, plan, repair)', () => {
+  const BNSS_480 = {
+    cite: 'Section 480 of the Bharatiya Nagarik Suraksha Sanhita, 2023',
+    heading: 'When bail may be taken in case of non-bailable offence',
+    actPattern: 'BNSS|Bharatiya Nagarik Suraksha Sanhita',
+    source: 'curated' as const,
+  };
+  const BODY_OK = [
+    '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+    '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+    '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+  ];
+
+  it('keeps a provision from the authority set when its Act is named, strips one from memory', async () => {
+    fetchQueue.push(anthropicReply([
+      ...BODY_OK,
+      '4. That this Court has power to enlarge the petitioner on bail under Section 480 of the Bharatiya Nagarik Suraksha Sanhita, 2023.',
+      '5. That Section 409 of the Indian Penal Code is not attracted.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      authorities: [BNSS_480], provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    const text = r.blocks.map((b) => b.text).join(' ');
+    expect(text).toContain('Section 480 of the Bharatiya Nagarik Suraksha Sanhita');
+    expect(text).not.toContain('Section 409');
+    // The authority reached the model.
+    expect(JSON.stringify(fetchCalls[0]!.body)).toContain('Section 480 of the Bharatiya Nagarik Suraksha Sanhita');
+  });
+
+  it('strips an authority number cited against the wrong Act', async () => {
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. That Section 480 of the Companies Act applies.'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      authorities: [BNSS_480], provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.blocks.map((b) => b.text).join(' ')).not.toContain('Companies Act');
+  });
+
+  it('plans the grounds first and writes from the plan', async () => {
+    fetchQueue.push(anthropicReply('{"grounds":[{"proposition":"Charge sheet filed; custody no longer needed","facts":["charge sheet filed"],"authority":"","answers":"tampering"}]}'));
+    fetchQueue.push(anthropicReply(BODY_OK.join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      plan: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(JSON.stringify(fetchCalls[1]!.body)).toContain('Charge sheet filed; custody no longer needed');
+  });
+
+  it('repairs a dropped particular instead of falling back to the skeleton', async () => {
+    fetchQueue.push(anthropicReply(BODY_OK.map((p) => p.replace(' and BNS s.317(2)', '')).join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply(BODY_OK.join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      repair: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.blocks.map((b) => b.text).join(' ')).toContain('317(2)');
+    expect(JSON.stringify(fetchCalls[2]!.body)).toContain('317(2)');
+  });
+
+  it('keeps a figure the advocate stated, but strips one from nowhere', async () => {
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. The petitioner repaid Rs. 75,000/- to the complainant. He later paid Rs. 9,99,000/- more.'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      account: 'He says he repaid Rs. 75,000 to the complainant.', provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    const text = r.blocks.map((b) => b.text).join(' ');
+    expect(text).toContain('75,000');
+    expect(text).not.toContain('9,99,000');
+  });
+
+  it('keeps the compose when only a [gap] marker was not carried', async () => {
+    const gapped = BAIL.map((b) => b.key === 'p6'
+      ? { ...b, text: '5. Investigation status: [charge sheet status to be provided].' } : b);
+    fetchQueue.push(anthropicReply(BODY_OK.join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: gapped, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+  });
+});
+
+describe('intake-compose — REPLY mode (written statement)', () => {
+  const WS = [
+    'WRITTEN STATEMENT ON BEHALF OF THE DEFENDANT',
+    'PRELIMINARY OBJECTIONS:',
+    '   1. The suit is barred by limitation.',
+    'ON MERITS:',
+    'Without prejudice to the preliminary objections stated above, the reply on merits is as under:',
+    '   1. The averments in paragraph 1 are admitted.',
+    '   2. The averments in paragraph 2 are denied.',
+    '   3. The averments in paragraph 3 are not admitted.',
+    'PRAYER:',
+    '(a) dismiss the suit of the plaintiff;',
+  ].map((text, i) => ({ key: `w${i}`, text }));
+
+  it('flags a dropped reply, a new admission and a softened denial', () => {
+    const body = WS.slice(5, 8).map((b) => b.text).join('\n');
+    expect(replyDrift(body, ['1. Admitted.', '2. Denied specifically.', '3. Not admitted.'])).toBeNull();
+    expect(replyDrift(body, ['1. Admitted.', '3. Not admitted.'])).toContain('dropped paragraph(s) 2');
+    expect(replyDrift(body, ['1. Admitted.', '2. The defendant admits the loan.', '3. Not admitted.'])).toContain('stance of paragraph 2');
+  });
+
+  it('composes only the para-wise reply and keeps the plaint numbering', async () => {
+    fetchQueue.push(anthropicReply([
+      '1. The averments in paragraph 1 of the plaint are admitted.',
+      '2. The averments in paragraph 2 of the plaint are denied. The defendant never borrowed from the plaintiff.',
+      '3. The averments in paragraph 3 of the plaint are not admitted, and the plaintiff is put to strict proof.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Written Statement', docType: 'written_statement', engineBlocks: WS, facts: {}, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    const texts = r.blocks.map((b) => b.text);
+    expect(texts[2]).toBe('   1. The suit is barred by limitation.'); // preliminary objections untouched
+    expect(texts.filter((t) => /^2\. /.test(t))[0]).toContain('never borrowed');
+    expect(texts.at(-1)).toBe('(a) dismiss the suit of the plaintiff;');
+  });
+});
+
+describe('composeNoticeFor', () => {
+  it('explains a fallback in plain words, and says nothing for a composed draft', () => {
+    expect(composeNoticeFor({ blocks: [], composed: true, modelUsed: 'x' })).toBeNull();
+    expect(composeNoticeFor({ blocks: [], composed: false, modelUsed: 'x', rejectedReason: 'dropped from the skeleton: s.317(2)' }))
+      .toContain('s.317(2)');
+  });
+});
+
+describe('intake-compose — a numbered party list in the cause title is not the body', () => {
+  const WRIT = [
+    'IN THE HIGH COURT OF MADRAS',
+    'Tmt. P. Revathi ... PETITIONER',
+    'VERSUS',
+    '1. The District Collector, Salem',
+    '2. The Tahsildar, Salem Taluk ... RESPONDENTS',
+    'MOST RESPECTFULLY SHOWETH:',
+    '1. The petitioner has the locus standi to maintain this petition.',
+    '2. [to be drafted]',
+    'PRAYER:',
+    '(a) issue a Writ of mandamus;',
+  ].map((text, i) => ({ key: `r${i}`, text }));
+
+  it('composes the body after SHOWETH and leaves the respondents untouched', async () => {
+    fetchQueue.push(anthropicReply('1. The petitioner has the locus standi to maintain this petition, being the lessee.\n\n2. The renewal application was kept pending without reasons.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Writ Petition', docType: 'writ_petition', engineBlocks: WRIT, facts: {}, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    const texts = r.blocks.map((b) => b.text);
+    expect(texts.slice(0, 6)).toEqual(WRIT.slice(0, 6).map((b) => b.text));
+    expect(r.splice?.start).toBe(6);
+    expect(texts).toContain('2. The renewal application was kept pending without reasons.');
+  });
+});
+
+describe('intake-compose — judgments come only from the corpus', () => {
+  const BODY_OK = [
+    '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+    '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+    '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+  ];
+  const VIJAY = {
+    cite: 'Vijay Singh @ Vijay Kr. Sharma v. The State of Bihar, 2024 INSC 735',
+    court: 'Supreme Court of India', decisionDate: '2024-09-25', paraNo: 32,
+    excerpt: 'Once the charge sheet is filed, continued custody serves no investigative purpose.',
+    url: 'https://indian-supreme-court-judgments.s3.amazonaws.com/x.pdf',
+  };
+
+  it('keeps a retrieved judgment, strips an invented one, and lists what was cited', async () => {
+    fetchQueue.push(anthropicReply('{"grounds":[{"proposition":"Charge sheet filed; custody serves no purpose","facts":[],"authority":"","answers":""}]}'));
+    fetchQueue.push(anthropicReply([
+      ...BODY_OK,
+      '4. That custody serves no purpose after the charge sheet, as held in Vijay Singh @ Vijay Kr. Sharma v. The State of Bihar, 2024 INSC 735.',
+      '5. That bail is the rule, as held in Sanjay Chandra v. CBI, (2012) 1 SCC 40.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    let asked: string[] = [];
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      plan: true, provider: 'anthropic',
+      findJudgments: async (g) => { asked = g; return [VIJAY]; },
+    });
+    expect(asked).toEqual(['Charge sheet filed; custody serves no purpose']);
+    expect(r.composed).toBe(true);
+    const text = r.blocks.map((b) => b.text).join(' ');
+    expect(text).toContain('2024 INSC 735');
+    expect(text).not.toContain('Sanjay Chandra');
+    expect(r.addedAuthorities?.map((a) => a.source)).toContain('judgment');
+    expect(JSON.stringify(fetchCalls[1]!.body)).toContain('JUDGMENT');
+  });
+});
+
+describe('unauthorisedCases — cases named without "v."', () => {
+  it('strips "held in Pranay Sethi" and "(supra)" but keeps statutory references', async () => {
+    const { unauthorisedCases } = await import('../../lib/compose-authorities');
+    const bad = unauthorisedCases([
+      'Compensation must follow the principles laid down in Pranay Sethi. The claim is under Section 166 of the Motor Vehicles Act.',
+      'The exceptions laid down in Alka Subhash Gadia apply. This is as held in Section 13 of the Act.',
+      'Rajnesh (supra) governs interim maintenance. The order in Crime No. 45 of 2025 is challenged.',
+    ], [], ['']);
+    expect(bad).toEqual([
+      'Compensation must follow the principles laid down in Pranay Sethi.',
+      'The exceptions laid down in Alka Subhash Gadia apply.',
+      'Rajnesh (supra) governs interim maintenance.',
+    ]);
+  });
+});
+
+describe('composeNoticeFor — reply-mode rejection', () => {
+  it('names the real cause, not "fact-check unavailable"', () => {
+    const n = composeNoticeFor({ blocks: [], composed: false, modelUsed: 'x', rejectedReason: 'reply changed the stance of paragraph 2' });
+    expect(n).toContain('changed the stance of paragraph 2');
+    expect(n).not.toContain('unavailable');
+  });
+});
+
+describe('gatherAuthorities — subject Acts', () => {
+  it('offers the TN Patta Pass Book Act for a patta matter, and not otherwise', async () => {
+    const { gatherAuthorities } = await import('../../lib/compose-authorities');
+    const withPatta = await gatherAuthorities({ docType: 'writ_petition', docLabel: 'Writ', facts: {}, account: 'applied for transfer of patta in his name' });
+    expect(withPatta.map((a) => a.cite)).toContain('the Tamil Nadu Patta Pass Book Act, 1983');
+    const without = await gatherAuthorities({ docType: 'writ_petition', docLabel: 'Writ', facts: {}, account: 'pension not paid' });
+    expect(without.map((a) => a.cite)).not.toContain('the Tamil Nadu Patta Pass Book Act, 1983');
+  });
+});
+
+describe('guardRecalledCases — the AI fallback path', () => {
+  it('removes an uncited case name and flags a cited one for verification', async () => {
+    const { guardRecalledCases } = await import('../../lib/compose-authorities');
+    const r = guardRecalledCases([
+      '13. Whitney Pex Mills v. Commissioner of Income Tax is relied on. An alternative remedy is not a bar.',
+      '14. The Petitioner relies on Whirlpool Corporation v. Registrar of Trade Marks, (1998) 8 SCC 1.',
+      '15. No case law here.',
+    ]);
+    expect(r.paragraphs[0]).toContain('[authority to be cited]');
+    expect(r.paragraphs[0]).not.toContain('Whitney');
+    expect(r.paragraphs[0]).toContain('An alternative remedy is not a bar.');
+    expect(r.paragraphs[1]).toContain('(1998) 8 SCC 1 [verify citation]');
+    expect(r.paragraphs[2]).toBe('15. No case law here.');
   });
 });

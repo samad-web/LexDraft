@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@lexdraft/ui';
 import type { IntakeState, IntakeAttachmentFile } from '@lexdraft/types';
 import {
+  useDraftProgress,
   useIntakeStart,
   useIntakeStartAuto,
   useIntakeStartFormat,
@@ -30,6 +31,7 @@ import { useUIStore } from '@/store/ui';
 import { DictateButton } from '../DictateButton';
 import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
+import { draftErrorMessage } from '../../lib/draft-error';
 
 /** Best-effort document type from a filename, so a repaired upload lands with a
  *  sensible type on the case (mirrors NewCaseModal's inferDocType). */
@@ -231,6 +233,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const repairRef = useRef<HTMLInputElement>(null);
 
   const busy = start.isPending || startAuto.isPending || startFormat.isPending || reply.isPending || attach.isPending || draftNow.isPending;
+  const progress = useDraftProgress(busy);
 
   useEffect(() => {
     if (!formatTouched) setFormatIdx(guessFormatIndex(prompt, files));
@@ -529,10 +532,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       } else if (status === 503 || code === 'engine_unavailable') {
         setError('The drafting engine isn’t reachable right now. Make sure the engine service is running, then try again.');
       } else {
-        setError(
-          (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-            ?? 'Could not draft from that. Add a little more detail and try again.',
-        );
+        setError(draftErrorMessage(err));
       }
     }
   };
@@ -776,7 +776,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       </div>
   );
 
-  const submitLabel = busy ? 'Drafting…' : 'Submit';
+  const submitLabel = busy ? `${progress ?? 'Drafting'}…` : 'Submit';
 
   if (inline) {
     // What makes a good brief, ticked off as the advocate types. With a matter
@@ -966,7 +966,9 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
 
         {busy && (
           <div className="dc-progress" aria-live="polite">
-            {formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…'}
+            {progress
+              ? `${progress}…`
+              : formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…'}
           </div>
         )}
         {error && <p className="dc-error" role="alert">{error}</p>}

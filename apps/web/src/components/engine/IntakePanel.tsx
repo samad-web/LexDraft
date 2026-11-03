@@ -34,6 +34,7 @@ import { RefusalMessage } from './RefusalMessage';
 import { ReviewBanner } from './ReviewBanner';
 import { DraftBlockText } from './DraftBlockText';
 import { FactSheetView } from './FactSheetView';
+import { ComposeStatusNotice } from '@/components/ComposeStatusNotice';
 
 interface Props {
   docLabel: string;
@@ -501,6 +502,8 @@ export function IntakePanel({
                 onSignOff={doSignOff}
                 signOffError={signOffError}
               />
+              {/* Skeleton fallback notice + authorities the composed body added. */}
+              <ComposeStatusNotice draft={state.draft} bare />
               <article className="intake__blocks" aria-label="Drafted document">
                 {state.draft.blocks.map((b) => (
                   <DraftBlockText key={b.key} blockKey={b.key} text={b.text} />

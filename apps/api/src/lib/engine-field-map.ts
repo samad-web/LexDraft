@@ -524,6 +524,11 @@ const ROUTABLE_DOC_TYPES: readonly string[] = [
   // court-issued instruments (the advocate prepares the draft; the doc carries a
   // [COURT ISSUES THIS] marker rendered by the engine template).
   'summons', 'court_notice', 'court_warrant',
+  // Phase 3 coverage — appeals, revisions, quash, rent court, s.5 condone-delay,
+  // O.VI R.17 amendment, counter affidavit (passthrough).
+  'quash_petition', 'criminal_revision', 'criminal_appeal', 'civil_first_appeal',
+  'civil_revision', 'hrcp_eviction', 'condone_delay_petition', 'amendment_ia',
+  'counter_affidavit',
 ];
 
 /**
@@ -657,6 +662,16 @@ export const LABEL_TO_ENGINE_DOC: Record<string, string> = {
   'Court Summons': 'summons',
   'Court Notice': 'court_notice',
   'Court Warrant / Order': 'court_warrant',
+  // Phase 3 coverage.
+  'Quash Petition (s.528 BNSS)': 'quash_petition',
+  'Criminal Revision Petition': 'criminal_revision',
+  'Criminal Appeal (Against Conviction)': 'criminal_appeal',
+  'First Appeal (s.96 CPC)': 'civil_first_appeal',
+  'Civil Revision Petition': 'civil_revision',
+  'Eviction Petition (TN Rent Act 2017)': 'hrcp_eviction',
+  'Petition to Condone Delay (s.5 Limitation Act)': 'condone_delay_petition',
+  'Amendment Application (O.VI R.17 CPC)': 'amendment_ia',
+  'Counter Affidavit': 'counter_affidavit',
 };
 
 // Imported formats are listed in the picker under their engine title; a title

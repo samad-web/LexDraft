@@ -19,7 +19,8 @@ import { env } from '../env';
 import { logger } from '../logger';
 import { withRetry } from '../lib/retry';
 import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
-import { anthropic, usageFrom, asRetryError } from '../lib/anthropic-client';
+import { withKeys, usageFrom, asRetryError } from '../lib/anthropic-client';
+import { claudeCodeComplete, devViaClaudeCode } from '../lib/claude-code-dev';
 import { grok, outputLimit, asRetryError as asGrokRetryError } from '../lib/grok-client';
 
 type Provider = 'xai' | 'anthropic' | 'none';
@@ -95,6 +96,10 @@ async function complete(provider: Provider, system: string, user: string, maxTok
 }
 
 async function callClaude(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
+  if (devViaClaudeCode()) {
+    // Development only: the developer's own Claude login, unmetered (zero usage).
+    return { text: (await claudeCodeComplete({ system, user, model })).text, stopReason: 'end_turn', tokensIn: 0, tokensOut: 0 };
+  }
   return withRetry(
     // Goes through the shared SDK client (auth, prompt-cache defaults, error
     // shaping) via anthropic() rather than claudeComplete(), because this site
@@ -105,12 +110,13 @@ async function callClaude(system: string, user: string, maxTokens: number, model
     async () => {
       let msg;
       try {
-        msg = await anthropic().messages.create({
+        // The key pool: an out-of-credit key gives way to the next one.
+        msg = await withKeys((c) => c.messages.create({
           model,
           max_tokens: maxTokens,
           system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: user }],
-        });
+        }));
       } catch (err) {
         // Reshape SDK API errors into HttpRetryError so withRetry() still
         // triggers on 429/5xx exactly as the raw-fetch path did.
@@ -321,7 +327,9 @@ HARD RULES — you are grounding, not guessing:
 
   const fieldLines = args.fields
     .map((f) => {
-      const opts = f.type === 'select' && f.options?.length ? `; one of: ${f.options.join(' | ')}` : '';
+      const opts = !f.options?.length ? ''
+        : f.type === 'select' ? `; one of: ${f.options.join(' | ')}`
+          : f.type === 'textarea' ? `; one per line, each EXACTLY one of: ${f.options.join(' | ')}` : '';
       const req = f.required ? '; required' : '; optional';
       return `- ${f.key} — ${f.label} [${f.type}${opts}${req}]`;
     })
@@ -419,6 +427,14 @@ function coerceValue(spec: IntakeFieldSpec, raw: unknown): string {
     case 'select': {
       if (!spec.options?.length) return s;
       return spec.options.find((o) => o.toLowerCase() === s.toLowerCase()) ?? '';
+    }
+    case 'textarea': {
+      // A multi-pick list keeps only the lines that are one of its options.
+      if (!spec.options?.length) return s;
+      return s.split('\n')
+        .map((l) => spec.options!.find((o) => o.toLowerCase() === l.trim().toLowerCase()))
+        .filter((o): o is string => Boolean(o))
+        .join('\n');
     }
     case 'date':
       // Accept strict ISO as-is; otherwise normalise the common Indian/ISO forms

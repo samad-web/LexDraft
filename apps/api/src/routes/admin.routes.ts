@@ -5,6 +5,7 @@ import { billingService } from '../services/billing.service';
 import { storage } from '../services/storage.service';
 import { db } from '../db/client';
 import { aiUsageReportService } from '../services/ai-usage-report.service';
+import { composeOutcomesService } from '../services/compose-outcomes.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
 import { auditService } from '../services/audit.service';
@@ -49,6 +50,19 @@ adminRouter.get('/ai-usage', async (req, res, next) => {
     const end = new Date();
     const start = new Date(end.getTime() - (days ?? 30) * 24 * 60 * 60 * 1000);
     res.json(await aiUsageReportService.report(start, end));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Drafting quality: per doc type, how often the drafted body reached the
+// advocate vs fell back to the plain skeleton, and why.
+adminRouter.get('/compose-quality', async (req, res, next) => {
+  try {
+    const { days } = AiUsageQuery.parse(req.query);
+    const end = new Date();
+    const start = new Date(end.getTime() - (days ?? 30) * 24 * 60 * 60 * 1000);
+    res.json(await composeOutcomesService.report(start, end));
   } catch (err) {
     next(err);
   }

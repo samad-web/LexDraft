@@ -29,7 +29,10 @@ import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { LiveDetailsPanel, missingDetailCount } from '@/components/engine/LiveDetailsPanel';
-import { DraftRevisePanel } from '@/components/DraftRevisePanel';
+import { DraftRevisePanel, type RedraftRequest } from '@/components/DraftRevisePanel';
+import { DraftReviewPanel } from '@/components/DraftReviewPanel';
+import { DocumentAskPanel } from '@/components/DocumentAskPanel';
+import { ComposeStatusNotice } from '@/components/ComposeStatusNotice';
 import { LawSidePanel } from '@/components/LawSidePanel';
 import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
@@ -58,6 +61,7 @@ import {
   type OpenItems,
 } from '@/lib/draft-blocks';
 import { ZoomPane } from '@/components/ZoomPane';
+import { draftErrorMessage } from '../lib/draft-error';
 
 const DEFAULT_DOC = 'Notice u/s 138 NI Act';
 
@@ -492,6 +496,8 @@ export function DraftingView() {
   // Draft first, then ask: after each new draft, what it still needs opens in a
   // popup on the right (the rail card holds the same fields once it's closed).
   const [askOpen, setAskOpen] = useState(false);
+  // A review finding's "Apply fix", handed to the Redraft card (same accept flow).
+  const [redraftRequest, setRedraftRequest] = useState<RedraftRequest | null>(null);
   useEffect(() => {
     if (!askOpen) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAskOpen(false); };
@@ -645,9 +651,7 @@ export function DraftingView() {
         showToast({ type: 'amber', text: msg });
       }
     } catch (err) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Could not draft from that. Try adding a little more detail.';
+      const msg = draftErrorMessage(err);
       setError(msg);
       showToast({ type: 'vermillion', text: msg });
     }
@@ -2036,6 +2040,17 @@ export function DraftingView() {
             />
           )}
 
+          {/* Engine draft whose body fell back to the plain skeleton: a calm
+              notice above the document (not an error — it needs more writing). */}
+          {hasOutput && !streaming && engineSession?.status === 'generated' && (
+            <>
+              <ComposeStatusNotice show="notice" bare draft={engineSession.draft} />
+              {engineSession.companionDraft && (
+                <ComposeStatusNotice show="notice" bare draft={engineSession.companionDraft} />
+              )}
+            </>
+          )}
+
           <div className="dw-paper-wrap draft-preview-card">
             {!output && !streaming && (
               <div key={docType} className="draft-empty-anim" style={{ padding: '40px 48px' }}>
@@ -2163,11 +2178,47 @@ export function DraftingView() {
                 </p>
               </section>
 
-              {/* REDRAFT — one-line instruction, proposed edits accepted by the advocate */}
+              {/* AUTHORITIES — engine drafts only: what the composed body cites
+                  beyond the engine skeleton, to check before filing. */}
+              {engineSession?.status === 'generated' && (
+                <>
+                  <ComposeStatusNotice
+                    show="authorities"
+                    draft={engineSession.draft}
+                    {...(engineSession.companionDraft ? { label: engineSession.docLabel } : {})}
+                  />
+                  {engineSession.companionDraft && (
+                    <ComposeStatusNotice
+                      show="authorities"
+                      draft={engineSession.companionDraft}
+                      label={engineSession.companionDraft.docLabel}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* REVIEW — senior-counsel critique; "Apply fix" goes through Redraft */}
+              {!isEditing && (
+                <DraftReviewPanel
+                  docType={activeDocType}
+                  paragraphs={draftParagraphs}
+                  onApplyFix={(fix) => setRedraftRequest({
+                    id: Date.now(),
+                    instruction: fix.instruction,
+                    ...(fix.focus ? { focus: fix.focus } : {}),
+                    source: 'review',
+                    label: fix.label,
+                  })}
+                />
+              )}
+
+              {/* REDRAFT — instruction on the whole draft, a section or a range;
+                  proposed edits accepted by the advocate */}
               {!isEditing && (
                 <DraftRevisePanel
                   docType={activeDocType}
                   paragraphs={draftParagraphs}
+                  request={redraftRequest}
                   onAccept={async (paras, layoutKept) => {
                     // Engine draft, untouched by hand: write the changed lines INTO the
                     // .docx and make that the draft, so the formatted preview, PDF and
@@ -2205,6 +2256,10 @@ export function DraftingView() {
                   }}
                 />
               )}
+
+              {/* ASK THIS DOCUMENT — questions on an uploaded FIR / order / pleading,
+                  answered only from it. Session-only, nothing stored. */}
+              <DocumentAskPanel />
 
               {/* RELATED LAW — grounded statute hits from the laws corpus. The panel
                   searches the trailing ~800 chars, so lead with the doc type and the

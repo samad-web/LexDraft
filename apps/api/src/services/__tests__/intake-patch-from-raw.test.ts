@@ -128,3 +128,17 @@ describe('patchFromRaw — cheque-number guard (the document-title-as-cheque-num
     }
   });
 });
+
+describe('patchFromRaw — multi-pick list fields', () => {
+  it('keeps only the allowed options of a list field (plaint territorial bases)', () => {
+    const specs: IntakeFieldSpec[] = [{
+      key: 'territorial_bases', label: 'Territorial bases', type: 'textarea', required: true,
+      options: ['defendant_resides', 'cause_of_action_part_arose'],
+    }];
+    const patch = patchFromRaw(
+      { fields: [{ key: 'territorial_bases', value: 'Defendant_resides\nthe defendant lives in Salem\ncause_of_action_part_arose', confidence: 'stated', source: 'x' }] },
+      specs, 'test',
+    );
+    expect(patch.fields.find((f) => f.key === 'territorial_bases')?.value).toBe('defendant_resides\ncause_of_action_part_arose');
+  });
+});

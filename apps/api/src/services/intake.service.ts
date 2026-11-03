@@ -56,7 +56,11 @@ import {
 import { formatReader } from './format-reader.service';
 import { enrichFormWithBns, type BnsConcordanceEntry } from '../lib/bns-enrichment';
 import { intakeLlm, MONTH_NAMES, type IntakeFieldSpec } from './intake-llm.service';
-import { intakeCompose } from './intake-compose.service';
+import { intakeCompose, composeNoticeFor, guideFor } from './intake-compose.service';
+import { authoritiesBlock, gatherAuthorities, guardRecalledCases } from '../lib/compose-authorities';
+import { composeOutcomesService, reasonKindOf } from './compose-outcomes.service';
+import { judgmentsService } from './judgments.service';
+import { draftProgress } from '../lib/draft-progress';
 import { COMPOSE_DOC_TYPES } from '../lib/compose-families';
 import { extractDeterministic } from './intake-extract-rules.service';
 import { extractText } from '../lib/text-extraction';
@@ -389,6 +393,21 @@ function labelFor(specs: IntakeFieldSpec[], key: string): string {
  * raw transcript or attachment text — because every value in `form` has
  * already passed through EXTRACT -> MERGE -> the engine's own validation.
  */
+const ACCOUNT_MAX_CHARS = 8000;
+
+/**
+ * The advocate's own account of the matter — what they narrated plus the text of
+ * documents they attached — for compose's NARRATIVE only. Compose takes every
+ * date, amount and number from the validated facts/skeleton, never from this
+ * (see the INTRODUCED check in intake-compose), so it adds detail, not particulars.
+ */
+function advocateAccount(state: StoredState): string {
+  const narrated = state.transcript.filter((t) => t.role === 'advocate').map((t) => t.text.trim()).filter(Boolean).join('\n');
+  const docs = state.sourceText.trim();
+  const text = [narrated, docs ? `[Attached documents]\n${docs}` : ''].filter(Boolean).join('\n\n');
+  return text.length > ACCOUNT_MAX_CHARS ? `${text.slice(0, ACCOUNT_MAX_CHARS)}…` : text;
+}
+
 function labelledFacts(specs: IntakeFieldSpec[], form: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(form)) {
@@ -688,6 +707,7 @@ export class IntakeError extends Error {}
  * blocked state is then returned unchanged).
  */
 async function aiFallbackDraft(
+  docType: string,
   docLabel: string,
   specs: IntakeFieldSpec[],
   state: StoredState,
@@ -727,7 +747,10 @@ async function aiFallbackDraft(
     `authority whose act is challenged, e.g. the Sub-Registrar who registered a cancellation,`,
     `with private beneficiaries as further respondents) and plead the legal basis.`,
     `Apply the settled law of the jurisdiction to the relief and grounds, citing only`,
-    `well-established statutes and leading judgments you are sure of.`,
+    `well-established statutes. Cite a judgment ONLY with its full reporter citation (e.g.`,
+    `(1998) 8 SCC 1) and only if you are certain of both name and citation; never name a case`,
+    `without its citation. Each will be checked by the advocate.`,
+    `Do not add a filing date or "Filed on" line: the Registry records filing.`,
     `Output plain text only: one paragraph per line, a blank line between paragraphs, no`,
     `markdown, no commentary before or after the document.`,
   ].join(' ');
@@ -737,6 +760,10 @@ async function aiFallbackDraft(
     `What the advocate wrote:\n${advocateSaid || '(nothing)'}`,
     state.sourceText ? `Attached documents (text):\n${state.sourceText.slice(0, 20_000)}` : '',
     notes.length ? `Points to address (leave placeholders for them):\n- ${notes.join('\n- ')}` : '',
+    // The same per-format essentials and governing provisions the engine path's compose gets.
+    `How this document is structured and what it must plead:\n${guideFor(docType)}`,
+    `Governing provisions (apply where the facts call for them):\n${authoritiesBlock(
+      await gatherAuthorities({ docType, docLabel, facts, account: advocateSaid }))}`,
   ].filter(Boolean).join('\n\n');
 
   try {
@@ -746,8 +773,13 @@ async function aiFallbackDraft(
     recordUsage(ctx, viaCompat
       ? { provider: 'xai', model: env.XAI_MODEL, ...out }
       : { provider: 'anthropic', model: env.ANTHROPIC_MODEL, ...out });
-    const lines = out.text.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim());
-    if (lines.length < 3) return null;
+    const raw = out.text.split(/\r?\n/).map((l) => l.trimEnd()).filter((l) => l.trim());
+    if (raw.length < 3) return null;
+    // Recalled case law has no corpus behind it: unverifiable names go, cited cases
+    // are flagged for the advocate (a fallback writ cited "Whitney Pex Mills v. CIT").
+    const guarded = guardRecalledCases(raw);
+    if (guarded.removed.length) logger.info({ docLabel, removed: guarded.removed }, 'intake fallback: uncited case names removed');
+    const lines = guarded.paragraphs;
     // A filing-style Word/PDF, not a "working copy": the engine lays the text out
     // in the house court format. Text-only only if that fails.
     let composed: { docxBase64: string; blocks: Array<{ key: string; text: string }> } | null = null;
@@ -1053,7 +1085,7 @@ export const intakeService = {
     });
     if (out.status === 'generated' && out.draft) return withFormatNotes({ ...out, draftedBy: 'engine' }, state);
     // Draft first, always — the engine's points become "Before filing" notes.
-    return withFormatNotes((await aiFallbackDraft(docLabel, specs, state, out, ctx)) ?? out, state);
+    return withFormatNotes((await aiFallbackDraft(doc.docType, docLabel, specs, state, out, ctx)) ?? out, state);
   },
 
   /**
@@ -1106,7 +1138,7 @@ export const intakeService = {
         phrase: false, bumpAsks: false, draftNow: true,
       });
       if (out.status === 'generated' && out.draft) return withFormatNotes({ ...out, draftedBy: 'engine' }, state);
-      return withFormatNotes((await aiFallbackDraft(docLabel, specs, state, out, ctx)) ?? out, state);
+      return withFormatNotes((await aiFallbackDraft(doc.docType, docLabel, specs, state, out, ctx)) ?? out, state);
     }
     return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, { phrase: true });
   },
@@ -1179,6 +1211,7 @@ export const intakeService = {
     // doubling input tokens and worsening output-JSON truncation.
     const transcriptText = renderTranscript(state.transcript.slice(0, -1));
     const useLlmExtract = !env.intakeDeterministic || isDocumentPaste(message);
+    draftProgress.set(ctx.userId, 'reading');
     const patch = useLlmExtract
       ? await intakeLlm.extract({
           docLabel,
@@ -1625,6 +1658,7 @@ export const intakeService = {
 
     let outcome: EngineDraftResult | null = null;
     let issues: IntakeIssue[] = [];
+    draftProgress.set(ctx.userId, 'engine');
     try {
       outcome = await draftForDoc(doc, matterId,fields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
     } catch (err) {
@@ -1916,33 +1950,53 @@ export const intakeService = {
     // GENERATED — the only success exit. Every fact is now engine-validated;
     // COMPOSE may enrich the prose (never invent facts — see intake-compose.service),
     // gated by a VERIFY fact-check that falls back to the plain engine draft on
-    // any rejection. This call is intentionally fed ONLY the engine's own block
-    // output + the validated form map — never state.transcript or the raw
-    // advocate message, so composition can never see unvalidated prose.
+    // any rejection. It rewrites the engine's own block output from the validated
+    // form map; in deep mode it also gets the advocate's account (narrative detail
+    // only — particulars are still checked against the validated facts) and the
+    // verified authority set it may cite.
     if (outcome?.outcome === 'generated') {
       let draft = toDraft(outcome);
       if (env.intakeComposeEnabled && composeAppliesTo(doc.docType)) {
+        const facts = labelledFacts(specs, state.form);
+        const deep = env.intakeComposeDeep
+          ? {
+            authorities: await gatherAuthorities({ docType: doc.docType, docLabel, facts, account: advocateAccount(state) }),
+            account: advocateAccount(state),
+            plan: true,
+            repair: true,
+            findJudgments: (grounds: string[]) => judgmentsService.forGrounds(grounds, { docType: docLabel, k: 5 }),
+          }
+          : {};
         const composeResult = await intakeCompose.compose({
           docLabel,
           docType: doc.docType,
           engineBlocks: outcome.blocks,
-          facts: labelledFacts(specs, state.form),
+          facts,
+          ...deep,
           ...(ctx.provider ? { provider: ctx.provider } : {}),
           onUsage: (u) => recordUsage(ctx, u),
+          onStage: (stage) => draftProgress.set(ctx.userId, stage),
         });
+        let usedComposed = false;
         if (composeResult.composed) {
           if (!draft.docxBase64) {
             draft = { ...draft, blocks: composeResult.blocks };
+            usedComposed = true;
           } else if (composeResult.splice) {
             // The preview PDF and the Word download come from the .docx, so the
             // composed body must be written INTO it — else the advocate would see
             // and file the bare skeleton. If the splice can't be done, keep the
             // plain engine draft whole rather than show text the file doesn't have.
             const { start, end, paragraphs } = composeResult.splice;
+            draftProgress.set(ctx.userId, 'word');
             const spliced = await engineClient.spliceLines(draft.docxBase64, start, end, paragraphs).catch((err) => {
               logger.warn({ err }, 'intake: splice of composed body failed');
               return null;
             });
+            if (!spliced) {
+              logger.warn({ docType: doc.docType, start, end, paragraphs: paragraphs.length, blocks: outcome.blocks.length },
+                'intake: engine refused the splice range — plain draft kept');
+            }
             // Blocks re-read from the spliced file carry its layout (align/bold).
             if (spliced) {
               draft = {
@@ -1950,8 +2004,50 @@ export const intakeService = {
                 blocks: spliced.blocks.length ? spliced.blocks : composeResult.blocks,
                 docxBase64: spliced.docxBase64,
               };
+              usedComposed = true;
+              // The verification's "paras 1 to N" recounted for the composed body.
+              const v = composeResult.verification;
+              const at = v ? spliced.blocks.findIndex((b) => b.text.trim() === v.from.trim()) : -1;
+              if (v && at !== -1) {
+                const fixed = await engineClient.spliceLines(spliced.docxBase64, at, at, [v.to]).catch((err) => {
+                  logger.warn({ err }, 'intake: verification recount splice failed');
+                  return null;
+                });
+                if (fixed) draft = { ...draft, blocks: fixed.blocks.length ? fixed.blocks : draft.blocks, docxBase64: fixed.docxBase64 };
+              }
             }
           }
+        }
+        // Tell the advocate which version they're looking at, and list any law the
+        // drafted body added so it's checked before filing.
+        const notice = usedComposed
+          ? null
+          : composeNoticeFor(composeResult)
+            ?? (composeResult.composed ? 'This is the plain draft: I couldn’t write the fuller body into the Word file. Try redrafting.' : null);
+        draft = {
+          ...draft,
+          composeStatus: usedComposed ? 'composed' : 'skeleton',
+          ...(notice ? { composeNotice: notice } : {}),
+          ...(usedComposed && composeResult.addedAuthorities?.length
+            ? {
+              addedAuthorities: composeResult.addedAuthorities.map((a) => ({
+                cite: a.cite, source: a.source, ...(a.url ? { url: a.url } : {}),
+              })),
+            }
+            : {}),
+        };
+        if (composeResult.stats) {
+          composeOutcomesService.record({
+            firmId: ctx.firmId,
+            docType: doc.docType,
+            status: usedComposed ? 'composed' : 'skeleton',
+            ...(usedComposed ? {} : { reasonKind: composeResult.composed ? 'splice' as const : reasonKindOf(composeResult.rejectedReason) }),
+            removedCount: composeResult.removedSentences?.length ?? 0,
+            authorities: composeResult.stats.authorities,
+            authoritiesCited: usedComposed ? composeResult.addedAuthorities?.length ?? 0 : 0,
+            planned: composeResult.stats.planned,
+            repaired: composeResult.stats.repaired,
+          });
         }
       }
       // A s.138 COMPLAINT pairs with a proof AFFIDAVIT (same facts, first-person
@@ -2224,6 +2320,20 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
     // "recall petition", "recall warrant", "recall the warrant", "s.70(2)".
     [/\brecall\s+petition\b|\brecall\s+(the\s+)?warrant\b|\b70\s*\(?2\)?\b/,
      'Recall Petition (s.70(2) CrPC)'],
+    // Phase-3 court documents. Delay / amendment / counter before the broad
+    // appeal & petition cues; rent-control eviction before the ejectment suit.
+    [/\bcondon\w*\s+(?:of\s+(?:the\s+)?)?delay\b|\bsection\s*5\s+(?:of\s+(?:the\s+)?)?limitation\b/,
+     'Petition to Condone Delay (s.5 Limitation Act)'],
+    [/\bamend(?:ment)?\b.*\b(?:plaint|written statement|pleading)\b|\border\s*(?:vi|6)\s*rule\s*17\b/,
+     'Amendment Application (O.VI R.17 CPC)'],
+    [/\bcounter\s+affidavit\b|\bcounter\b.*\bwrit\b/, 'Counter Affidavit'],
+    [/\bquash\w*\b|\b(?:section|sec\.?|s\.?|u\/s)\s*(?:528|482)\b/, 'Quash Petition (s.528 BNSS)'],
+    [/\bcriminal\s+revision\b|\bcrl\.?\s*r\.?\s*c\b/, 'Criminal Revision Petition'],
+    [/\bcivil\s+revision\b|\bc\.?\s*r\.?\s*p\b|\barticle\s*227\b/, 'Civil Revision Petition'],
+    [/\b(?:criminal|crl\.?)\s+appeal\b|\bappeal\b.*\bconvict/, 'Criminal Appeal (Against Conviction)'],
+    [/\bfirst\s+appeal\b|\bappeal\b.*\bdecree\b|\b(?:section|s\.?)\s*96\b/, 'First Appeal (s.96 CPC)'],
+    [/\brent\s+(?:control|court)\b|\brcop\b|\bhrcp\b|\brltop\b|\beviction\s+petition\b|\btenant\b.*\bevict/,
+     'Eviction Petition (TN Rent Act 2017)'],
     // COURT-ISSUED instruments (TN forms). Matched BEFORE the generic execution /
     // bail / notice cues, so "warrant of attachment in execution of the decree" is a
     // Court Warrant (not an Execution Application) and "court notice" is not a
@@ -2272,6 +2382,10 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
      'General Demand Notice'],
     [/\bplaint\b|civil suit|recovery of/, 'Plaint (Money Recovery)'],
     [/\bmaintenance\b/, 'Maintenance Petition'],
+    [/second motion|\b13-?b\s*\(2\)/, 'Divorce by Mutual Consent (Second Motion)'],
+    [/mutual consent|first motion|\b13-?b\b/, 'Divorce by Mutual Consent (First Motion)'],
+    [/restitution of conjugal/, 'Restitution of Conjugal Rights'],
+    [/judicial separation/, 'Judicial Separation Petition'],
     [/\bdivorce\b/, 'Divorce Petition (Contested)'],
     [/\bsale deed\b|\bsell\b.*property|\bsale of\b/, 'Sale Deed'],
     [/\blease\b|\btenanc/, 'Lease Deed'],
@@ -2371,7 +2485,15 @@ export function stripInjectedContext(text: string): string {
  * draft). Dates use a date-shaped marker so the engine's date validator passes
  * while the gap stays obvious.
  */
+/** Free-text fields that are ARGUMENT drawn from the facts, not facts themselves:
+ *  draft-now leaves them as the compose step's own gap so it writes them from the
+ *  advocate's story (H2H writ: "legal right ([legal right to be provided])" was
+ *  printed while the body already explained the right). Names, numbers, dates and
+ *  references stay "[… to be provided]" — only the advocate can supply those. */
+const NARRATIVE_FIELD = /(?:^|_)(legal_right|public_duty|prior_demand|alternative_remedy_basis|delay_explanation|grounds?|narrative|basis|explanation|reason|prosecution_case|apprehension|urgency|balance_of_convenience|prima_facie|irreparable)/;
+
 function placeholderFor(spec: IntakeFieldSpec): string {
+  if ((spec.type === 'text' || spec.type === 'textarea') && NARRATIVE_FIELD.test(spec.key)) return '[to be drafted]';
   const label = (spec.label || spec.key).toLowerCase();
   if (spec.type === 'date') return `[${label} — to be confirmed]`;
   if (spec.type === 'currency' || spec.type === 'number') return `[${label}]`;

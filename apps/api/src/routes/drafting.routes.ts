@@ -11,6 +11,14 @@ import {
   MAX_REVISE_CHARS,
   MAX_REVISE_PARAGRAPHS,
 } from '../services/draft-revise.service';
+import { draftReviewService, ReviewUnavailableError } from '../services/draft-review.service';
+import {
+  documentAskService,
+  DocumentReadError,
+  AskUnavailableError,
+  MAX_ASK_PAGES,
+  MAX_DOC_CHARS,
+} from '../services/document-ask.service';
 import { draftExtractService } from '../services/draft-extract.service';
 import { offenceKbService } from '../services/offence-kb.service';
 import { caseNotesService } from '../services/case-notes.service';
@@ -18,6 +26,7 @@ import { casesService } from '../services/cases.service';
 import { firmIdForUser } from '../services/tenant';
 import { firmFormatsService, isFirmFormatLabel } from '../services/firm-formats.service';
 import { requireFeature } from '../services/permissions.service';
+import { draftProgress } from '../lib/draft-progress';
 import {
   aiQuotaService,
   AiQuotaExceededError,
@@ -34,9 +43,8 @@ import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
 import { intakeService, IntakeError, IntakeUnavailableError, isAttachedFormatLabel, attachedFormatDocType } from '../services/intake.service';
-import { FormatReadError } from '../services/format-reader.service';
-import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
-import { llmGenerationLimiter } from '../middleware/rateLimit';
+import { FormatReadError } from '../services/format-reader.service';import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
+import { llmGenerationLimiter, perUserWriteLimit } from '../middleware/rateLimit';
 import { env } from '../env';
 import { logger } from '../logger';
 
@@ -531,7 +539,15 @@ const ReviseBody = z.object({
   instruction: z.string().min(3).max(2_000),
   paragraphs: z.array(z.string().max(20_000)).min(1).max(MAX_REVISE_PARAGRAPHS),
   focus: z.object({ from: z.number().int().min(0), to: z.number().int().min(0) }).optional(),
+  /** 'review' when the instruction is an AI-review fix (not trusted by the guard). */
+  source: z.enum(['advocate', 'review']).optional(),
   provider: z.enum(['xai', 'anthropic']).optional(),
+});
+
+// What the caller's in-flight draft is doing ("Planning the grounds"), for the
+// Draft screen's progress line. Cheap and unmetered: the screen polls it.
+draftingRouter.get('/progress', (req, res) => {
+  res.json(req.user?.id ? draftProgress.get(req.user.id) ?? { stage: null, label: null } : { stage: null, label: null });
 });
 
 draftingRouter.post('/revise', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
@@ -544,11 +560,12 @@ draftingRouter.post('/revise', requireFeature('drafting.ai'), llmGenerationLimit
     const userId = req.user?.id;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
-    const { provider, focus, ...rest } = parsed;
+    const { provider, focus, source, ...rest } = parsed;
     const result = await draftReviseService.revise(
       {
         ...rest,
         ...(provider ? { provider } : {}),
+        ...(source ? { source } : {}),
         ...(focus && focus.from <= focus.to ? { focus } : {}),
       },
       { firmId, userId },
@@ -557,6 +574,103 @@ draftingRouter.post('/revise', requireFeature('drafting.ai'), llmGenerationLimit
   } catch (err) {
     if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
     if (err instanceof ReviseUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
+    next(err);
+  }
+});
+
+// "Review this draft": a senior-counsel critique (findings with severity, the
+// paragraph, the issue, an optional fix). Read-only — a fix is applied only via
+// /revise with source:'review'. See draft-review.service for the no-invented-
+// facts checks.
+const ReviewBody = z.object({
+  docType: z.string().min(1).max(200),
+  paragraphs: z.array(z.string().max(20_000)).min(1).max(MAX_REVISE_PARAGRAPHS),
+  provider: z.enum(['xai', 'anthropic']).optional(),
+});
+
+draftingRouter.post('/review', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const parsed = ReviewBody.parse(req.body);
+    if (parsed.paragraphs.reduce((n, p) => n + p.length, 0) > MAX_REVISE_CHARS) {
+      res.status(413).json({ error: 'draft_too_long', code: 'draft_too_long' });
+      return;
+    }
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const firmId = await firmIdForUser(userId);
+    const { provider, ...rest } = parsed;
+    res.json(await draftReviewService.review({ ...rest, ...(provider ? { provider } : {}) }, { firmId, userId }));
+  } catch (err) {
+    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+    if (err instanceof ReviewUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
+    next(err);
+  }
+});
+
+// "Ask this document". Session-only: /document/read turns the upload into page
+// texts and returns them (nothing stored); the browser sends those pages back
+// with each question to /document/ask. Reading is local (pdf-parse / tesseract /
+// mammoth, no model) but OCR is heavy, so both have their own per-user limits —
+// separate from llmGenerationLimiter so questions don't eat the drafting hour.
+// /ask still checks the monthly AI quota like every model call.
+const MAX_ASK_FILE_BYTES = 8 * 1024 * 1024; // same cap as intake attachments
+const documentReadLimiter = perUserWriteLimit({ windowMs: 60 * 60 * 1000, limit: 20, name: 'document reads' });
+const documentAskLimiter = perUserWriteLimit({ windowMs: 60 * 60 * 1000, limit: 60, name: 'document questions' });
+
+const DocumentReadBody = z.object({
+  file: z.object({
+    fileName: z.string().min(1).max(400),
+    mime: z.string().max(200),
+    dataBase64: z.string().min(1).refine(
+      (b) => Buffer.byteLength(b, 'base64') <= MAX_ASK_FILE_BYTES,
+      `the file must be at most ${MAX_ASK_FILE_BYTES} bytes`,
+    ),
+  }),
+});
+
+draftingRouter.post('/document/read', requireFeature('drafting.ai'), documentReadLimiter, async (req, res, next) => {
+  try {
+    const parsed = DocumentReadBody.parse(req.body);
+    res.json(await documentAskService.read(parsed.file));
+  } catch (err) {
+    if (err instanceof DocumentReadError) { res.status(422).json({ error: err.message, code: 'document_unreadable' }); return; }
+    next(err);
+  }
+});
+
+const DocumentAskBody = z.object({
+  fileName: z.string().min(1).max(400),
+  pages: z
+    .array(z.object({ page: z.number().int().min(1).nullable(), text: z.string().max(MAX_DOC_CHARS) }))
+    .min(1)
+    .max(MAX_ASK_PAGES),
+  question: z.string().min(2).max(2_000),
+  history: z
+    .array(z.object({ question: z.string().max(2_000), answer: z.string().max(4_000) }))
+    .max(10)
+    .optional(),
+  provider: z.enum(['xai', 'anthropic']).optional(),
+});
+
+draftingRouter.post('/document/ask', requireFeature('drafting.ai'), documentAskLimiter, async (req, res, next) => {
+  try {
+    const parsed = DocumentAskBody.parse(req.body);
+    if (parsed.pages.reduce((n, p) => n + p.text.length, 0) > MAX_DOC_CHARS + 10_000) {
+      res.status(413).json({ error: 'document_too_long', code: 'document_too_long' });
+      return;
+    }
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const firmId = await firmIdForUser(userId);
+    const { provider, history, ...rest } = parsed;
+    const result = await documentAskService.ask(
+      { ...rest, ...(history ? { history } : {}), ...(provider ? { provider } : {}) },
+      { firmId, userId },
+    );
+    res.json(result);
+  } catch (err) {
+    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+    if (err instanceof AskUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
     next(err);
   }
 });
@@ -1200,6 +1314,7 @@ async function intakeSetup(
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
+  draftProgress.clear(userId); // a new request: no stale stage from the last one
   const firmId = await firmIdForUser(userId);
   // firmId is needed to resolve the firm's own formats; built-ins ignore it.
   if (!(await intakeService.routable(docLabel, firmId))) {

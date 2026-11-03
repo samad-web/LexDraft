@@ -5,7 +5,8 @@
 // absent: their wording IS the format.
 
 export type ComposeFamily =
-  | 's138_notice' | 'bail' | 'complaint' | 'suit' | 'writ' | 'family' | 'notice' | 'consumer' | 'mact' | 'generic';
+  | 's138_notice' | 'bail' | 'complaint' | 'suit' | 'writ' | 'family' | 'notice' | 'consumer' | 'mact'
+  | 'reply' | 'application' | 'quash' | 'appeal' | 'generic';
 
 export const COMPOSE_FAMILY: Record<string, ComposeFamily> = {
   s138_notice: 's138_notice',
@@ -16,10 +17,25 @@ export const COMPOSE_FAMILY: Record<string, ComposeFamily> = {
   writ_petition: 'writ', writ_criminal: 'writ', contempt_petition: 'writ', special_leave_petition: 'writ',
   maintenance: 'family', dv_application: 'family', divorce_contested: 'family',
   restitution_conjugal_rights: 'family', judicial_separation: 'family',
-  general_notice: 'notice', s106_notice: 'notice', s80_notice: 'notice', s138_reply: 'notice',
+  // s80_notice is statutory particulars (its wording is the format) — not composed.
+  general_notice: 'notice', s106_notice: 'notice', s138_reply: 'notice',
   consumer_complaint: 'consumer',
   mact_claim: 'mact',
-  transfer_petition: 'generic',
+  transfer_petition: 'generic', succession_grant: 'generic',
+  divorce_mutual_first: 'family', divorce_mutual_second: 'family',
+  // Para-wise replies: each paragraph keeps its number and admit/deny stance (see
+  // intake-compose REPLY mode) — a dropped reply is a deemed admission (O8 R5 CPC).
+  written_statement: 'reply', counter_affidavit: 'reply',
+  quash_petition: 'quash',
+  criminal_revision: 'appeal', criminal_appeal: 'appeal', civil_first_appeal: 'appeal', civil_revision: 'appeal',
+  hrcp_eviction: 'suit',
+  condone_delay_petition: 'application', amendment_ia: 'application',
+  // Short court applications: the reason pleaded properly, nothing padded.
+  // (Recall s.70(2), s.256, s.317 and the urgent petition are one-sentence court
+  // forms whose wording IS the format — not composed.)
+  o39_r2a_application: 'application', adjournment_petition: 'application',
+  surrender_petition: 'application', substituted_service: 'application', indigent_application: 'application',
+  execution_application: 'application', succession_certificate: 'application',
 };
 
 export const COMPOSE_DOC_TYPES = new Set(Object.keys(COMPOSE_FAMILY));

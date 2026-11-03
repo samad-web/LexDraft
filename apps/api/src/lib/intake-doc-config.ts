@@ -479,7 +479,8 @@ export function intakeSectionsFromDescribe(desc: EngineDescribe): IntakeSectionS
       required: f.required,
       engineKeys: [f.key], // passthrough: form key IS the engine key
     };
-    if (f.kind === 'enum' && f.enum_values) cfg.options = f.enum_values;
+    // A string_list with enum_values (plaint territorial_bases) is a multi-pick.
+    if ((f.kind === 'enum' || f.kind === 'string_list') && f.enum_values) cfg.options = f.enum_values;
     if (f.kind === 'bool') cfg.options = ['Yes', 'No'];
     return [cfg];
   });

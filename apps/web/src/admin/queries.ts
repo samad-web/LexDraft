@@ -18,6 +18,7 @@ import type {
 export const adminKeys = {
   stats: ['admin', 'stats'] as const,
   aiUsage: (days: number) => ['admin', 'ai-usage', days] as const,
+  composeQuality: (days: number) => ['admin', 'compose-quality', days] as const,
   firms: ['admin', 'firms'] as const,
   firm: (id: string) => ['admin', 'firm', id] as const,
   users: (q: object) => ['admin', 'users', q] as const,
@@ -34,6 +35,9 @@ export const usePlatformStats = () =>
 
 export const useAiUsage = (days: number) =>
   useQuery({ queryKey: adminKeys.aiUsage(days), queryFn: () => adminApi.aiUsage(days) });
+
+export const useComposeQuality = (days: number) =>
+  useQuery({ queryKey: adminKeys.composeQuality(days), queryFn: () => adminApi.composeQuality(days) });
 
 export const useFirms = () =>
   useQuery({ queryKey: adminKeys.firms, queryFn: adminApi.listFirms });

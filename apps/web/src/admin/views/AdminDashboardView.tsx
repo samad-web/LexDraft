@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Skeleton } from '@lexdraft/ui';
-import { usePlatformStats } from '../queries';
+import type { ComposeReasonKind } from '@lexdraft/types';
+import { useComposeQuality, usePlatformStats } from '../queries';
 
 function formatInr(paiseFreeRupees: number): string {
   if (paiseFreeRupees >= 10000000) return `₹${(paiseFreeRupees / 10000000).toFixed(2)}Cr`;
@@ -102,9 +103,76 @@ export function AdminDashboardView() {
               </table>
             )}
           </section>
+
+          <DraftingQuality />
         </>
       )}
     </div>
+  );
+}
+
+const REASON_LABELS: Record<ComposeReasonKind, string> = {
+  dropped: 'dropped a particular',
+  unlocated: 'untraceable claim',
+  reply_drift: 'reply changed',
+  empty: 'nothing survived',
+  unavailable: 'check unavailable',
+  splice: 'Word splice failed',
+};
+
+/** Per doc type: how often the drafted body reached the advocate (30 days). */
+function DraftingQuality() {
+  const { data } = useComposeQuality(30);
+  const rows = data?.rows ?? [];
+  return (
+    <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div
+        className="row"
+        style={{
+          padding: 'var(--space-5) var(--space-6)',
+          alignItems: 'center',
+          borderBottom: '1px solid var(--border-subtle)',
+        }}
+      >
+        <h2 className="heading-lg">Drafting quality (30d)</h2>
+      </div>
+      {rows.length === 0 ? (
+        <div className="muted" style={{ padding: 'var(--space-7)', textAlign: 'center' }}>
+          No drafts composed yet.
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Document type</th>
+                <th>Drafts</th>
+                <th>Full body</th>
+                <th>Fell back because</th>
+                <th>Repaired</th>
+                <th>Law cited / draft</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.docType}>
+                  <td className="mono" style={{ fontSize: 12 }}>{r.docType}</td>
+                  <td className="tabular">{r.total}</td>
+                  <td className="tabular">{Math.round(r.composedRate * 100)}%</td>
+                  <td className="body-sm">
+                    {Object.entries(r.byReason)
+                      .map(([k, n]) => `${REASON_LABELS[k as ComposeReasonKind]} ×${n}`)
+                      .join(' · ') || '—'}
+                  </td>
+                  <td className="tabular">{r.repaired}</td>
+                  <td className="tabular">{r.avgCited.toFixed(1)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 

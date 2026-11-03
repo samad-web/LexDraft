@@ -7,9 +7,10 @@ import { dirname, resolve } from 'node:path';
 // -> questions), and — ONLY AFTER the engine returns outcome:'generated' (every
 // fact validated, every hard-stop already passed) — compose (verified facts ->
 // richer prose). The engine still decides WHAT is true and WHETHER the matter
-// is legally sound; extract/phrase never draft; compose drafts, but ONLY from
-// the engine's own validated block output, NEVER from raw advocate prose, and
-// its output must pass a fact-check VERIFY pass before reaching the advocate.
+// is legally sound; extract/phrase never draft; compose drafts, but ONLY over
+// the engine's own validated block output (the advocate's own account may add
+// narrative detail, never a date, amount or number), and its output must pass
+// the particulars checks and a fact-check VERIFY pass before reaching the advocate.
 //
 // It must still NEVER reach the GENERAL model drafting pipeline (orchestrator /
 // agent / auto / chat), which extracts its OWN facts from raw prose with no
@@ -120,15 +121,20 @@ describe('intake path — model translates, never drafts', () => {
     expect(composeIdx).toBeGreaterThan(generatedIdx);
   });
 
-  it('compose input is the engine draft, never raw advocate prose or the transcript', () => {
+  it('compose drafts over the engine draft; every particular traces to what the advocate gave', () => {
     const src = readFileSync(ENTRY_POINTS[0]!, 'utf8');
-    // Whatever gets passed to compose must come from the engine's own draft
-    // object (toDraft/outcome.blocks), not `state.transcript` or the raw
-    // advocate `message` — this is what keeps compose from ever seeing
-    // unvalidated prose.
+    // The document compose rewrites is the engine's own output, and the raw
+    // current `message` is never passed. (Amended 2026-11: the advocate's own
+    // narration/attachments go in as `account`.)
     const call = src.slice(src.indexOf('intakeCompose.compose'), src.indexOf('intakeCompose.compose') + 400);
-    expect(call).not.toMatch(/state\.transcript/);
+    expect(call).toMatch(/engineBlocks:\s*outcome\.blocks/);
     expect(call).not.toMatch(/\bmessage\b/);
+    // ...and every date/amount/number in the composed body must trace to the
+    // skeleton, the validated facts or the advocate's own account — never to the
+    // model. (Amended 2026-11-03: dates the advocate typed came out as
+    // "[to be drafted]" when the account was not a source.)
+    const compose = readFileSync(ENTRY_POINTS[2]!, 'utf8');
+    expect(compose).toMatch(/introducedParticulars\(paragraphs\.join\('\\n'\), \[skeleton, factText, account \?\? ''\]\)/);
   });
 
   it('intake-compose runs a fact-check VERIFY pass and can reject unsupported claims', () => {

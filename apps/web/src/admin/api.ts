@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import type {
   AdminAiUsageResponse,
+  AdminComposeQualityResponse,
   AdminCreateFirmRequest,
   AdminCreateFirmResponse,
   AdminCreateTemplateRequest,
@@ -35,6 +36,8 @@ export const adminApi = {
   // ---- AI token usage ---------------------------------------------------
   aiUsage: (days?: number) =>
     api.get<AdminAiUsageResponse>('/admin/ai-usage', days ? { days } : {}),
+  composeQuality: (days?: number) =>
+    api.get<AdminComposeQualityResponse>('/admin/compose-quality', days ? { days } : {}),
 
   // ---- firms ------------------------------------------------------------
   listFirms: () => api.get<{ items: FirmSummary[] }>('/admin/firms').then((r) => r.items),
