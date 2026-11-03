@@ -31,7 +31,11 @@ export function db(): ReturnType<typeof postgres> | null {
     client = postgres(env.DATABASE_URL, {
       ssl: env.databaseSsl ? 'require' : false,
       max: 4,
-      idle_timeout: 10,
+      // Keep the 4 connections warm: a fresh Supabase connect can take 10-20s
+      // when the project is IO-throttled, and closing after 10s idle made the
+      // first click after every pause pay that cost. keep_alive (default 60s)
+      // stops idle sockets being silently dropped.
+      idle_timeout: 0,
       connect_timeout: 10,
       prepare: false,
       onnotice: () => undefined, // silence Postgres NOTICE noise

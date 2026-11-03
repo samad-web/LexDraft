@@ -64,14 +64,9 @@ export const dashboardTodayService = {
     const sql = db();
     if (!userId || !firmId || !sql) return emptyToday(todayIso);
 
-    const [{ features }, user] = await Promise.all([
-      resolveFeatures(userId),
-      authService.getById(userId),
-    ]);
-    const can = (f: string) => features.includes(f);
-
+    // Independent reads run together: each is a remote round trip.
     // ---- Hearings: today through +7 days, with the effective advocate. -----
-    const hearingRows = await sql<HearingRow[]>`
+    const hearingRowsP = sql<HearingRow[]>`
       select h.id, h.case_id, h.case_label, h.hearing_date, h.hearing_time,
              h.court, h.purpose, h.judge,
              a.assignee::text as assignee, au.name as advocate
@@ -92,22 +87,9 @@ export const dashboardTodayService = {
       order by h.hearing_date, h.hearing_time
       limit 300
     `;
-    const hearings: DayHearing[] = hearingRows.map((r) => ({
-      id: r.id,
-      caseId: r.case_id,
-      case: r.case_label,
-      date: dateOnly(r.hearing_date),
-      time: r.hearing_time,
-      court: r.court,
-      purpose: r.purpose,
-      judge: r.judge,
-      mine: r.assignee === userId,
-      unassigned: r.assignee === null,
-      advocate: r.advocate ?? null,
-    }));
 
     // ---- Attention + practice counts, one row. ------------------------------
-    const [counts] = await sql<Array<{
+    const countsP = sql<Array<{
       limitations: number; objections: number; no_next_date: number;
       reviews: number; client_messages: number; esign: number; overdue_tasks: number;
       active_matters: number; total_matters: number; overdue_inv_count: number; overdue_inv_total: number | string;
@@ -148,88 +130,109 @@ export const dashboardTodayService = {
         (select count(*) from leads
           where firm_id = ${firmId}::uuid and stage in ('new', 'qualified', 'proposal'))::int as open_leads
     `;
+
+    const [{ features }, user, hearingRows, [counts]] = await Promise.all([
+      resolveFeatures(userId),
+      authService.getById(userId),
+      hearingRowsP,
+      countsP,
+    ]);
+    const can = (f: string) => features.includes(f);
+
+    const hearings: DayHearing[] = hearingRows.map((r) => ({
+      id: r.id,
+      caseId: r.case_id,
+      case: r.case_label,
+      date: dateOnly(r.hearing_date),
+      time: r.hearing_time,
+      court: r.court,
+      purpose: r.purpose,
+      judge: r.judge,
+      mine: r.assignee === userId,
+      unassigned: r.assignee === null,
+      advocate: r.advocate ?? null,
+    }));
+
     const n = (v: number | string | null | undefined) => Number(v ?? 0);
 
     // ---- A few rows per attention group, only for non-empty groups. --------
-    const attention: AttentionGroup[] = [];
+    // Sample queries run in parallel; `slots` keeps the display order.
+    const slots: Array<Promise<AttentionGroup> | AttentionGroup> = [];
     const matterOk = can('matter.view');
 
     if (matterOk && n(counts?.limitations) > 0) {
-      const rows = await sql<Array<{ id: string; case_label: string; filing_type: string; deadline: string | Date }>>`
+      slots.push(sql<Array<{ id: string; case_label: string; filing_type: string; deadline: string | Date }>>`
         select id, case_label, filing_type, deadline from limitations
         where firm_id = ${firmId}::uuid
           and deadline between ${todayIso}::date and ${soonIso}::date
         order by deadline limit ${ATTENTION_SAMPLE}
-      `;
-      attention.push({
+      `.then((rows) => ({
         key: 'limitations', count: n(counts?.limitations), to: '/app/limitation', tone: 'danger',
         items: rows.map((r) => ({
           id: r.id, label: r.case_label, detail: `${r.filing_type} · due ${dateOnly(r.deadline)}`, to: '/app/limitation',
         })),
-      });
+      })));
     }
     if (matterOk && n(counts?.objections) > 0) {
-      const rows = await sql<Array<{ id: string; title: string; objections_raised_at: string | Date | null }>>`
+      slots.push(sql<Array<{ id: string; title: string; objections_raised_at: string | Date | null }>>`
         select id, title, objections_raised_at from efiling_filings
         where firm_id = ${firmId}::uuid and status = 'objected'
         order by objections_raised_at desc nulls last limit ${ATTENTION_SAMPLE}
-      `;
-      attention.push({
+      `.then((rows) => ({
         key: 'objections', count: n(counts?.objections), to: '/app/efiling?m=objections', tone: 'danger',
         items: rows.map((r) => ({
           id: r.id, label: r.title,
           detail: r.objections_raised_at ? `Objection raised ${dateOnly(r.objections_raised_at)}` : 'Objection raised',
           to: `/app/efiling?filing=${r.id}`,
         })),
-      });
+      })));
     }
     if (matterOk && n(counts?.overdue_tasks) > 0) {
-      const rows = await sql<Array<{ id: string; title: string; case_label: string; due_date: string | Date }>>`
+      slots.push(sql<Array<{ id: string; title: string; case_label: string; due_date: string | Date }>>`
         select id, title, case_label, due_date from tasks
         where firm_id = ${firmId}::uuid and column_name <> 'done'
           and due_date is not null and due_date < ${todayIso}::date
         order by due_date limit ${ATTENTION_SAMPLE}
-      `;
-      attention.push({
+      `.then((rows) => ({
         key: 'overdueTasks', count: n(counts?.overdue_tasks), to: '/app/tasks', tone: 'warning',
         items: rows.map((r) => ({
           id: r.id, label: r.title, detail: `${r.case_label} · was due ${dateOnly(r.due_date)}`, to: '/app/tasks',
         })),
-      });
+      })));
     }
     if (matterOk && n(counts?.no_next_date) > 0) {
-      const rows = await sql<Array<{ id: string; title: string; court: string }>>`
+      slots.push(sql<Array<{ id: string; title: string; court: string }>>`
         select id, title, court from cases
         where firm_id = ${firmId}::uuid and kind = 'matter' and deleted_at is null
           and status = 'Active'
           and (next_hearing is null or next_hearing < ${todayIso}::date)
         order by updated_at desc limit ${ATTENTION_SAMPLE}
-      `;
-      attention.push({
+      `.then((rows) => ({
         key: 'noNextDate', count: n(counts?.no_next_date), to: '/app/cases', tone: 'warning',
         items: rows.map((r) => ({ id: r.id, label: r.title, detail: r.court || undefined, to: `/app/cases/${r.id}` })),
-      });
+      })));
     }
     if (can('review.comment') && n(counts?.reviews) > 0) {
-      const rows = await sql<Array<{ id: string; title: string }>>`
+      slots.push(sql<Array<{ id: string; title: string }>>`
         select id, title from contract_reviews
         where firm_id = ${firmId}::uuid and assigned_to = ${userId}::uuid
           and (decision is null or decision = 'pending')
         order by created_at desc limit ${ATTENTION_SAMPLE}
-      `;
-      attention.push({
+      `.then((rows) => ({
         key: 'reviews', count: n(counts?.reviews), to: '/app/review-queue', tone: 'info',
         items: rows.map((r) => ({ id: r.id, label: r.title, to: '/app/review-queue' })),
-      });
+      })));
     }
     if (can('client.view') && n(counts?.client_messages) > 0) {
-      attention.push({
+      slots.push({
         key: 'clientMessages', count: n(counts?.client_messages), to: '/app/messages', tone: 'info', items: [],
       });
     }
     if (n(counts?.esign) > 0) {
-      attention.push({ key: 'esign', count: n(counts?.esign), to: '/app/documents', tone: 'info', items: [] });
+      slots.push({ key: 'esign', count: n(counts?.esign), to: '/app/documents', tone: 'info', items: [] });
     }
+
+    const attention = await Promise.all(slots);
 
     const billing = can('billing.view');
     return {

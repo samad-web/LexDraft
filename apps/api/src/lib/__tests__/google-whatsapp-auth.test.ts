@@ -11,8 +11,9 @@ describe('normalizePhone', () => {
     expect(normalizePhone('09876543210')).toBe('+919876543210');
     expect(normalizePhone('919876543210')).toBe('+919876543210');
   });
-  it('keeps an E.164 number', () => {
-    expect(normalizePhone('+44 7700 900123')).toBe('+447700900123');
+  it('keeps an Indian E.164 number, and refuses other countries (India-only sign-up)', () => {
+    expect(normalizePhone('+91 98765 43210')).toBe('+919876543210');
+    expect(() => normalizePhone('+44 7700 900123')).toThrow(/Indian/);
   });
   it('rejects junk', () => {
     expect(() => normalizePhone('12345')).toThrow();

@@ -5,7 +5,7 @@ import { PillNav } from '../components/PillNav';
 import { LandingHeader } from '../components/LandingHeader';
 import { LandingArt } from '../components/LandingArt';
 import { IntroModal } from '../components/IntroModal';
-import { readIntro, type IntroAnswers } from '../lib/intro';
+import { readIntro } from '../lib/intro';
 
 // Header offset for scrollTo targeting — matches scrollMarginTop on each section.
 const SCROLL_OFFSET = -90;
@@ -387,10 +387,8 @@ export function LandingView() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabId>('home');
   const [billing, setBilling] = useState<'annual' | 'monthly'>('annual');
-  // First-visit questions (practice size, name) personalise the page.
-  const [intro, setIntro] = useState<IntroAnswers>(() => readIntro());
-  const [showIntro, setShowIntro] = useState(() => !intro.name && !intro.dismissed);
-  const firstName = intro.name?.split(' ')[0];
+  // First-visit questions (practice size, name) prefill sign-up; the landing copy stays fixed.
+  const [showIntro, setShowIntro] = useState(() => { const i = readIntro(); return !i.name && !i.dismissed; });
   const scrollLockRef = useRef(false);
   const scrollLockTimer = useRef<number | null>(null);
   // Lenis instance driving momentum-based wheel/trackpad smoothing across the
@@ -594,7 +592,7 @@ export function LandingView() {
 
   return (
     <div style={pageStyle} className="lex-landing">
-      {showIntro && <IntroModal onDone={(a) => { setIntro(a); setShowIntro(false); }} />}
+      {showIntro && <IntroModal onDone={() => setShowIntro(false)} />}
       <LandingHeader
         tabs={NAV_TABS}
         activeTab={tab}
@@ -621,16 +619,14 @@ export function LandingView() {
               marginBottom: 24,
             }}
           >
-            {firstName
-              ? <>{firstName}, your {intro.size === 'firm' ? 'firm' : intro.size === 'team' ? 'chambers' : 'practice'} - run by DifAi.</>
-              : 'Practice management built for Indian advocates, not adapted for them.'}
+            Practice management built for Indian advocates, not adapted for them.
           </h1>
           <p className="lede" style={{ fontSize: 19, color: 'var(--text-secondary)', maxWidth: 640, marginBottom: 36 }}>
             Cases, drafting, billing, and research - unified under one calm, document-first interface. Indian-format templates with verified citations from central and state statutes.
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="btn btn-primary btn-lg" type="button" onClick={() => navigate(intro.size === 'firm' ? '/signup?intent=demo' : '/auth?signup=1')}>
-              {intro.size === 'firm' ? 'Book a demo' : intro.size === 'team' ? 'Start 14-day free trial' : 'Create your free account'}
+            <button className="btn btn-primary btn-lg" type="button" onClick={() => navigate('/auth?signup=1')}>
+              Create your free account
             </button>
             <button
               type="button"
