@@ -1,6 +1,11 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-03 — Judgments corpus code approved and committed (dbc14d2). Migration 0098 (and 0099) NOT applied to live DBs, JUDGMENTS_SEARCH not switched on in prod — those still need an explicit go. Uncommitted backlog cleared into per-feature commits.
+- 2026-11-03 — Android app shows no purchase UI (Upgrade/See plans buttons, plan picker, Dodo copy, free-plan strip) via `isNativeApp()`; Plan & Billing is status-only in the app. Reason: Play payments policy until Play Billing exists. User said "proceed" without picking between hide-all and "manage on website" text; hide-all chosen as the safer option — revisit when Play Billing ships.
+- 2026-11-03 — Mobile: stay on Capacitor (no Flutter/RN rewrite: ~50 screens would be duplicated and the live Play app re-done). Push via Google FCM, not OneSignal (no extra vendor holding client data). Release: build now, ship APK 2.1 only after Play approves 2.0.2; doesn't wait for Play Billing (no payment surface touched). Case "tags" dropped (no tag model exists).
+- 2026-11-03 — Drafting: the advocate's own account counts as a source of dates and amounts (it was excluded, so typed dates came out as "[to be drafted]"). Model-invented figures are still stripped.
+- 2026-11-03 — Drafting: the local INTAKE_MODEL is Sonnet 5.5, to match prod (it had been Haiku to save credit; the dev route via Claude Code costs no API credit).
 - 2026-11-03 — eFiling redesigned fully in DifAi's Chambers design; may reorganise menus/screens. Replaces 2026-11-02 "copy the portal's layout". Reason: user's choice after being shown the conflict with the earlier portal-copy request.
 - 2026-11-02 — eFiling stays black and white (user reversed the portal-colour request the same day).
 - 2026-11-02 — eFiling login = one-step Sign In with the captcha shown on load; a new Sign In never ends a live session until the new login succeeds; unused Sign In pages close after 3 min.
@@ -15,4 +20,5 @@
 - none. (eFiling redesign plan approved 2026-11-03.)
 
 ## Known issues
+- 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.
 - eFiling Overview tiles are still portal-style (light tiles in dark mode) until redesign step 2.

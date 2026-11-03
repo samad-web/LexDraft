@@ -48,3 +48,8 @@ apps/api/eng.traineddata
 
 # Local scratch/debug script for eyeballing PDF extraction output.
 apps/api/_verify_extract.mjs
+
+# Local test screenshots and Python caches
+apps/api/.e2e-shots/
+shots/
+__pycache__/

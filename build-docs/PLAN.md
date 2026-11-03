@@ -1,4 +1,43 @@
-# PLAN — eFiling redesign in DifAi's design (awaiting approval)
+# PLAN — Mobile app upgrade (approved 2026-11-03)
+
+## Goal and scope
+- Make the existing Capacitor Android app (Play 2.0.2, `in.sirahdigital.difai`) feel native and safe for client data: lock, push, offline reads, and three phone-first interactions.
+- Same web bundle, same API. Capacitor plugins only where the WebView can't do the job.
+- Out of scope: Flutter/RN rewrite (rejected 2026-11-03), iOS build, OneSignal, offline *editing*, case tags (no tag model exists), Play Billing (separate track), deploy.
+
+## Project memory that applies
+- Strictly black and white; red only as a button naming a mandatory issue → Limitation Ring is ink; red button only when ≤7 days.
+- No live DB changes without approval → migration 0100 (device tokens) is additive and needs a yes before it runs on Supabase/prod.
+- Play: 2.0.2 production is in review. Release decision (c): build now; ship APK 2.1 only after 2.0.2 is approved, so the review isn't reset. Nothing here touches payments, so it doesn't wait for Play Billing.
+- Android WebView: no Web Speech, no inline PDF; OneDrive locks android/app/build (Gradle output already moved).
+
+## Architecture (how it fits)
+- Web: `apps/web/src/lib/native.ts` stays the single native entry; new `lib/app-lock.ts` and `lib/push.ts` loaded only when `Capacitor.isNativePlatform()`.
+- Server: push rides the existing in-app feed. `notificationsStore.create()` (notifications.service.ts) → after insert, enqueue `push.send` (pg-boss) → FCM HTTP v1 to that user's device tokens. Every existing notification (eCourts sync summaries, co-counsel, eFiling) gets push for free.
+- Limitation alerts: new daily pg-boss cron (09:00 Asia/Kolkata) creates notifications at 90/30/7/1 days, `dedupe_key = limitation:<id>:<n>`.
+- Offline: TanStack Query cache persisted for an allow-list of read queries; cleared on sign-out.
+
+## Feature list (prioritised) — one doc each in `features/`
+1. **mobile-biometric-lock** — fingerprint/face/PIN gate on launch and resume.
+2. **mobile-push** — FCM device registration + server send; tap opens the right screen.
+3. **limitation-alerts** — 90/30/7/1-day notifications (needs 2 for the phone buzz).
+4. **mobile-offline-cache** — diary, case timelines, recent drafts readable offline.
+5. **limitation-ring** — dashboard ring widget.
+6. **case-swipe-actions** — swipe a case card to archive / add hearing.
+7. **draft-citation-sheet** — tap a citation in a draft → bottom sheet with the section text.
+8. **launch-splash** — DifAi + Powered by Sirah Digital over an ink courtroom (user request 2026-11-03). Built.
+
+## Build order
+1 → 2 → 3 → 4 → 5 → 6 → 7. 1 and 4 together protect cached data (no offline cache without the lock). Each: implement, tests, run, regressions, docs, commit `feat(<name>): …`, APK smoke test on a device.
+
+## Needs from you
+- Firebase: add Android app `in.sirahdigital.difai` to Cloud project difai-513007, download `google-services.json`, and create a service-account key for FCM send (stored as a server secret, never committed).
+- Approval for migration 0100 (`push_devices` table).
+- Git: there is still no repo here, so the per-feature commits can't happen until one exists.
+
+---
+
+# PLAN — eFiling redesign in DifAi's design (approved 2026-11-03)
 
 ## Goal and scope
 - Redesign the whole logged-in and logged-out eFiling experience (`/app/efiling`) in DifAi's Chambers design (`apps/web/src/styles/CHAMBERS.md`), organised the way an advocate works, not the way the portal's menus are laid out.
