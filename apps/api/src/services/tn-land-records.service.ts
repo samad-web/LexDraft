@@ -1156,10 +1156,16 @@ async function readResultPage(s: Session): Promise<LandResult> {
   const documentOnly = Boolean(s.pdf) && read.fields.length === 0 && read.sections.length === 0;
   if (!s.pdf) {
     try {
-      s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '12mm', bottom: '12mm', left: '10mm', right: '10mm' } });
+      // The government template as the site shows it: its emblem and QR
+      // loaded, laid out with its screen styles rather than print ones.
+      await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
+      await page.emulateMedia({ media: 'screen' });
+      s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', bottom: '8mm', left: '6mm', right: '6mm' } });
     } catch (err) {
       logger.warn({ err }, 'tn-land: pdf print failed');
       s.pdf = null;
+    } finally {
+      await page.emulateMedia({ media: null }).catch(() => {});
     }
   }
   s.result = {
@@ -1188,6 +1194,7 @@ async function readPopup(s: Session, popup: Page): Promise<LandResult> {
       await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
       // Collabland draws the sketch with script; give it a moment.
       await popup.waitForTimeout(800);
+      await popup.emulateMedia({ media: 'screen' });
       bytes = await popup.pdf({ format: 'A4', printBackground: true });
     }
   } catch (err) {

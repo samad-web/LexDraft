@@ -1,13 +1,17 @@
-import { useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { KvTable } from '@/components/ecourts/app/AppUi';
 import { useCases } from '@/hooks/useCases';
 import { useTitleReports } from '@/hooks/useTitleReports';
 import { fetchLandPdf, useSaveLandResult, type LandResult, type LandService } from '@/hooks/useLandRecords';
 import { triggerBlobDownload } from '@/lib/blob-download';
+import { ZoomPane } from '@/components/ZoomPane';
 import { Spinner, errorText } from './LandUi';
 
-// The result of a Land Records search, read off the site's result page as
-// plain text, plus the PDF of that page (or the sketch the site opened).
+const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
+
+// The result of a Land Records search, shown as the government's own document
+// (the site's result page printed as-is, or the PDF it served) so it reads
+// exactly like the original. The parsed text is only a fallback.
 // Filing puts the PDF in the matter's documents and/or a title report's
 // search trail (revenue search, with the document attached).
 
@@ -26,11 +30,33 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
   const [reportId, setReportId] = useState('');
   const [note, setNote] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [doc, setDoc] = useState<{ url: string; blob: Blob; filename: string } | null>(null);
+  const [docFailed, setDocFailed] = useState(false);
+
+  useEffect(() => {
+    if (!result.hasPdf) return;
+    let url: string | null = null;
+    let cancelled = false;
+    setDoc(null);
+    setDocFailed(false);
+    fetchLandPdf(sessionId).then(
+      ({ blob, filename }) => {
+        if (cancelled) return;
+        url = URL.createObjectURL(blob);
+        setDoc({ url, blob, filename });
+      },
+      () => { if (!cancelled) setDocFailed(true); },
+    );
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [sessionId, result]);
 
   const download = async (): Promise<void> => {
     setDownloading(true);
     try {
-      const { blob, filename } = await fetchLandPdf(sessionId);
+      const { blob, filename } = doc ?? await fetchLandPdf(sessionId);
       triggerBlobDownload(blob, filename);
     } catch (err) {
       setNote(errorText(err, 'The PDF is no longer available - search again.'));
@@ -52,32 +78,45 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
   };
 
   const empty = result.fields.length === 0 && result.sections.length === 0;
+  const parsed = (
+    <>
+      {result.fields.length > 0 ? <KvTable rows={result.fields.map((f) => [f.label, f.value] as const)} /> : null}
+      {result.sections.map((s, i) => (
+        <div key={i} className="col" style={{ gap: 6 }}>
+          {s.heading ? (
+            <div className="lr-section-bar">{s.heading}</div>
+          ) : null}
+          <div style={{ overflowX: 'auto' }}>
+            <table className="tbl">
+              {s.headers.some(Boolean) ? (
+                <thead><tr>{s.headers.map((h, j) => <th key={j}>{h}</th>)}</tr></thead>
+              ) : null}
+              <tbody>
+                {s.rows.map((r, j) => (
+                  <tr key={j}>{r.map((c, k) => <td key={k} style={{ whiteSpace: 'normal' }}>{c}</td>)}</tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      {empty ? <p className="body-md" style={{ margin: 0 }}>{result.text || 'Land Records returned no details.'}</p> : null}
+    </>
+  );
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="card col lr-card" style={{ gap: 16, padding: 18 }}>
         <span className="ct-eyebrow" style={{ textAlign: 'center' }}>Land Records · fetched live</span>
         <h2 className="lr-result-title">{result.title}</h2>
-        {result.fields.length > 0 ? <KvTable rows={result.fields.map((f) => [f.label, f.value] as const)} /> : null}
-        {result.sections.map((s, i) => (
-          <div key={i} className="col" style={{ gap: 6 }}>
-            {s.heading ? (
-              <div className="lr-section-bar">{s.heading}</div>
-            ) : null}
-            <div style={{ overflowX: 'auto' }}>
-              <table className="tbl">
-                {s.headers.some(Boolean) ? (
-                  <thead><tr>{s.headers.map((h, j) => <th key={j}>{h}</th>)}</tr></thead>
-                ) : null}
-                <tbody>
-                  {s.rows.map((r, j) => (
-                    <tr key={j}>{r.map((c, k) => <td key={k} style={{ whiteSpace: 'normal' }}>{c}</td>)}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ))}
-        {empty ? <p className="body-md" style={{ margin: 0 }}>{result.text || 'Land Records returned no details.'}</p> : null}
+        {!result.hasPdf || docFailed ? parsed : !doc ? (
+          <p className="body-md muted" role="status" style={{ margin: 0, textAlign: 'center' }}><Spinner size={12} /> Loading the government document…</p>
+        ) : (
+          <Suspense fallback={<p className="body-md muted" style={{ margin: 0, textAlign: 'center' }}>Loading the government document…</p>}>
+            <ZoomPane label={result.title}>
+              <PdfPages url={doc.url} pageClassName="lr-doc-page" aria-label={result.title} fallback={parsed} />
+            </ZoomPane>
+          </Suspense>
+        )}
       </div>
 
       <div className="card col lr-card" style={{ gap: 14, padding: 18 }}>

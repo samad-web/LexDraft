@@ -8,3 +8,4 @@
   - `E2E_SCHEME` / `E2E_WIDTH` added to efiling-login-ui for dark and phone shots.
 - 2026-11-03 - portal Sign In + review fixes: 189 passed, 1 skipped (preview, on request only); DB rollback clean.
   - New: a second Sign In leaves a live session alone (multi-advocate); one-step Sign In wrong captcha -> retry, duplicate login -> logged in (portal flow).
+- 2026-11-03 - Land Records government template: flow fixtures 11/11 (patta print now keeps a header the site's print CSS hides); mocked-API UI check: result shows the PDF page, not the parsed table.

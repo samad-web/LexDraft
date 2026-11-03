@@ -796,6 +796,7 @@
   font-weight: 600; font-size: 13.5px; letter-spacing: 0.01em;
 }
 [data-ui='chambers'] .ct-land .lr-result-title { font-family: var(--font-title); font-size: 22px; font-weight: 600; text-align: center; margin: 0; letter-spacing: -0.008em; }
+[data-ui='chambers'] .ct-land .lr-doc-page { border: 1px solid var(--border-strong); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
 [data-ui='chambers'] .ct-land .lr-card-title { font-family: var(--font-title); font-size: 19px; font-weight: 600; letter-spacing: -0.006em; margin: 0; }
 [data-ui='chambers'] .ct-land .lr-note { font-size: 13px; color: var(--text-tertiary); line-height: 1.55; margin: 0; }
 [data-ui='chambers'] .ct-land .lr-closed { border-top: 1px solid var(--border-subtle); padding-top: 12px; }

@@ -59,7 +59,10 @@ const otpForm = (opts: { action: string; sub: string; extraTop?: string; message
   }
 </script></body></html>`;
 
-const resultPage = `<!doctype html><html><body><section>
+// The print stylesheet hides the template's header, as government pages often
+// do - the saved document must still show the page the way the site does.
+const resultPage = `<!doctype html><html><head><style>@media print { .gov-head { display: none } }</style></head><body>
+<div class="gov-head">Government of Tamil Nadu</div><section>
 <h3>Chitta - Taluk Office</h3>
 <table><tr><td>District :</td><td>Chengalpattu</td></tr><tr><td>Patta Number :</td><td>1234</td></tr></table>
 <p>Owner Details</p>
@@ -80,6 +83,13 @@ async function open(path: string, routes: Record<string, (body: string) => strin
   const page = await ctx.newPage();
   await page.goto(`${FX}${path}`);
   return { ctx, page };
+}
+
+async function pdfText(pdf: Buffer): Promise<string> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(pdf) }).promise;
+  const page = await doc.getPage(1);
+  return (await page.getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join(' ');
 }
 
 async function code(p: Promise<unknown>): Promise<string> {
@@ -107,7 +117,11 @@ describe('OTP services follow the site', () => {
     if (out.status !== 'ok') return;
     expect(out.result.fields).toEqual(expect.arrayContaining([{ label: 'Patta Number', value: '1234' }]));
     expect(out.result.sections[0]?.rows).toHaveLength(2);
-    expect(landSessionPdf(id, USER).pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    const pdf = landSessionPdf(id, USER).pdf;
+    expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    const text = await pdfText(pdf);
+    expect(text).toContain('Government of Tamil Nadu');
+    expect(text).toContain('K. Ramesh');
     await ctx.close();
   });
 
