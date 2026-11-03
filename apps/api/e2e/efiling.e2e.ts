@@ -120,7 +120,25 @@ const shot = async (name: string) => {
   if (process.env['E2E_SHOTS']) await page.screenshot({ path: `${process.env['E2E_SHOTS']}/efiling-${name}.png`, fullPage: true });
 };
 
+// The Sign In opens the portal's login page (for its captcha) as soon as it
+// shows: answer it with a stand-in, so these tests never reach the real portal.
+const SIGN_IN_PAGE = `<!doctype html><html><body><form id="frm_login">
+<select id="selState"><option value="">Select State</option><option value="10">Tamil Nadu</option><option value="4">Kerala</option></select>
+<input type="radio" name="rdoUser" id="user_advocate"><input type="radio" name="rdoUser" id="user_person"><input type="radio" name="rdoUser" id="user_pleader"><input type="radio" name="rdoUser" id="user_clerk">
+<input id="user_name"><input type="password" id="user_password"><img id="captcha_image" src="/pdedev/securimage/securimage_show.php?a" width="150" height="50"><input id="fcaptcha_code_mobile">
+</form></body></html>`;
+
 beforeAll(async () => {
+  const live = await import('../src/services/efiling-live.service');
+  live.__testing.setContextHook(async (context) => {
+    await context.route('https://filing.ecourts.gov.in/**', (route) => {
+      const u = new URL(route.request().url());
+      if (u.pathname.endsWith('securimage_show.php')) {
+        return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="150" height="50"><rect width="150" height="50" fill="#fff"/><text x="10" y="32" font-size="24">AB12</text></svg>' });
+      }
+      return route.fulfill({ contentType: 'text/html', body: SIGN_IN_PAGE });
+    });
+  });
   raw = postgres(process.env['DATABASE_URL']!, { ssl: 'require', max: 1, prepare: false, onnotice: () => {} });
   for (const t of EFILING_TABLES) before[t] = (await raw.unsafe(`select count(*)::int as n from ${t}`))[0]!.n as number;
 
@@ -206,6 +224,7 @@ afterEach(async (ctx) => {
 });
 
 afterAll(async () => {
+  (await import('../src/services/efiling-live.service')).__testing.setContextHook(null);
   await browser?.close();
   await new Promise<void>((r) => (server ? server.close(() => r()) : r()));
   releaseTx?.();
@@ -705,9 +724,10 @@ describe('eFiling: every field and endpoint', () => {
       try { await route.fulfill({ response: await route.fetch({ url: `http://localhost:${PORT}${url.pathname}${url.search}` }) }); } catch { await route.abort().catch(() => {}); }
     });
     await gate.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
-    await gate.getByRole('heading', { name: 'eFiling Services · Sign In' }).waitFor();
-    // The real login form, before any eFiling screen.
-    await gate.locator('select').filter({ hasText: 'Select state' }).waitFor();
+    await gate.getByRole('heading', { name: 'Sign In', exact: true }).waitFor();
+    // The portal's own Sign In, before any eFiling screen - its captcha already there.
+    await gate.getByRole('combobox', { name: 'Select State' }).waitFor();
+    await gate.getByAltText('eFiling captcha').waitFor({ timeout: 60_000 });
     expect(await gate.getByRole('navigation', { name: 'eFiling menu' }).count()).toBe(0);
     await gate.getByRole('button', { name: 'Prepare without logging in' }).click();
     await gate.getByRole('navigation', { name: 'eFiling menu' }).waitFor();
@@ -715,12 +735,14 @@ describe('eFiling: every field and endpoint', () => {
     await gate.close();
   });
 
-  it('portal login tab loads the 30 portal states and user types', async () => {
+  it("portal login tab: the portal's Sign In - its states and its four user types", async () => {
     await page.goto(`${WEB}/app/efiling?m=portal`, { waitUntil: 'domcontentloaded' });
-    const states = page.locator('select').filter({ hasText: 'Select state' });
+    const states = page.getByRole('combobox', { name: 'Select State' });
     await states.waitFor();
-    expect(await states.locator('option').count()).toBe(31); // placeholder + 30
-    expect(await page.locator('select').filter({ hasText: 'Court Nominated Official' }).count()).toBe(1);
+    await pollFor(() => states.locator('option').count()).toBe(31); // Select State + 30
+    const types = page.getByRole('radiogroup', { name: 'User type' });
+    for (const t of ['Advocate', 'Litigant', 'Govt. Pleader', 'Clerk']) await types.getByLabel(t, { exact: true }).waitFor();
+    for (const t of ['Show Password', 'New User ? Register here', 'Forgot Password']) await page.getByText(t).first().waitFor();
   });
 });
 

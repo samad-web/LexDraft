@@ -111,6 +111,17 @@ describe('several advocates on eFiling at the same time', () => {
     expect(lb.find((l) => l.key === 'draft_cases')!.rows).toEqual([{ cells: ['1', 'Draft of advocate.b@example.com'] }]);
   });
 
+  it('opening a new Sign In (another tab) leaves the advocate\'s live session alone until that login succeeds', async () => {
+    const { sessionId: signIn } = await live.startEfilingSession(ADV_B, '', 'advocate');
+    expect(live.efilingSessionStatus(b, ADV_B).authenticated).toBe(true);
+    expect(live.efilingSessionStatus(signIn, ADV_B).authenticated).toBe(false);
+    // A second Sign In replaces the first, not-logged-in one.
+    const { sessionId: again } = await live.startEfilingSession(ADV_B, '', 'advocate');
+    expect(() => live.efilingSessionStatus(signIn, ADV_B)).toThrow(/expired/);
+    expect(live.efilingSessionStatus(b, ADV_B).authenticated).toBe(true);
+    await live.endEfilingSession(again, ADV_B);
+  });
+
   it('logging in again replaces only that advocate\'s own old session', async () => {
     const old = b;
     b = await login(ADV_B, 'advocate.b@example.com', '10');

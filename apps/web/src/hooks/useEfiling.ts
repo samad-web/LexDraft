@@ -22,17 +22,6 @@ export function useStartEfilingSession() {
   });
 }
 
-// The backend may transparently restart the session on a page crash (same
-// behaviour as the eCourts CNR flow) and return a different sessionId than
-// the one sent — always use the id the response hands back for subsequent
-// calls, not the one passed in.
-export function useSubmitEfilingCredentials() {
-  return useMutation({
-    mutationFn: ({ sessionId, username, password }: { sessionId: string; username: string; password: string }) =>
-      api.post<{ captchaImageBase64: string; sessionId: string }>(`/efiling/live/session/${sessionId}/login`, { username, password }),
-  });
-}
-
 export function useRefreshEfilingCaptcha() {
   return useMutation({
     mutationFn: (sessionId: string) =>
@@ -45,11 +34,18 @@ export type EfilingLoginCaptchaResult =
   | { retry: true; captchaImageBase64: string; reason: string }
   | { duplicateLogin: true; captchaImageBase64: string; reason: string };
 
-export function useSubmitEfilingLoginCaptcha() {
+/** The portal's Sign In in one step: state, user type, username, password and the captcha on screen. */
+export function useSubmitEfilingLogin() {
   return useMutation({
-    mutationFn: ({ sessionId, captchaCode }: { sessionId: string; captchaCode: string }) =>
-      api.post<EfilingLoginCaptchaResult>(`/efiling/live/session/${sessionId}/login/captcha`, { captchaCode }),
+    mutationFn: ({ sessionId, ...body }: { sessionId: string; state: string; userType: EfilingUserType; username: string; password: string; captchaCode: string }) =>
+      api.post<EfilingLoginCaptchaResult>(`/efiling/live/session/${sessionId}/login/submit`, body),
   });
+}
+
+/** The portal's audio captcha (the current code, read aloud) as a playable URL. */
+export async function fetchEfilingCaptchaAudio(sessionId: string): Promise<string> {
+  const r = await apiClient.get<Blob>(`/api/efiling/live/session/${sessionId}/login/captcha/audio`, { responseType: 'blob' });
+  return URL.createObjectURL(r.data);
 }
 
 // The advocate is already logged in elsewhere (eCourts allows only one

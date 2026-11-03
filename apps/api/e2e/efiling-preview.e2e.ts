@@ -209,14 +209,15 @@ const SCREENS = [
 describe.skipIf(!DIR)('DifAi eFiling screens from real portal data (preview)', () => {
   it('logs in (stand-in portal) and shows each screen', async () => {
     await page.goto(`${WEB}/app/efiling`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: 'eFiling Services · Sign In' }).waitFor({ timeout: 30_000 });
-    await page.locator('select').filter({ hasText: 'Select state' }).selectOption({ label: 'Tamil Nadu' });
-    await page.locator('label', { hasText: 'Bar Code / Email / Mobile / Unique Code' }).locator('input').fill('advocate@example.com');
-    await page.locator('label', { hasText: 'Password' }).locator('input').fill('Secret@123');
-    await page.getByRole('button', { name: /Log in to eFiling/ }).click();
+    // The portal's own Sign In: the captcha is already there; one Login.
+    await page.getByRole('heading', { name: 'Sign In', exact: true }).waitFor({ timeout: 30_000 });
     await page.getByAltText('eFiling captcha').waitFor({ timeout: 60_000 });
+    await page.getByRole('combobox', { name: 'Select State' }).selectOption({ label: 'Tamil Nadu' });
+    await page.getByRole('radio', { name: 'Advocate' }).check();
+    await page.getByRole('textbox', { name: 'Username' }).fill('advocate@example.com');
+    await page.getByLabel('Password', { exact: true }).fill('Secret@123');
     await page.getByPlaceholder('Captcha code').fill(fx.lastCode);
-    await page.getByRole('button', { name: 'Submit', exact: true }).click();
+    await page.getByRole('button', { name: 'Login', exact: true }).click();
     await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 60_000 });
     // EFILING_PREVIEW_ONLY=new_case,fav_clients ... shows just those screens.
     const only = (process.env['EFILING_PREVIEW_ONLY'] ?? '').split(',').map((x) => x.trim()).filter(Boolean);

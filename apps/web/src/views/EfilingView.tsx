@@ -299,18 +299,14 @@ export function EfilingView() {
 
   if (!connection && !offline) {
     return (
-      <div className="col" style={{ gap: 16, maxWidth: 1240 }}>
-        <PageHeader title="eFiling" description="Log in with your own eFiling account to start, as on filing.ecourts.gov.in." />
-        <section className="card col" style={{ gap: 14, maxWidth: 640 }} aria-label="eFiling login">
-          <h2 className="heading-md">eFiling Services · Sign In</h2>
-          {ended ? <p className="body-sm" role="status">Your eFiling session ended - the portal allows one login per account, so opening it in another browser signs DifAi out. Log in again to continue.</p> : null}
-          {/* Logged in: the screen that was asked for (?m=, ?filing=) opens, else the Dashboard. */}
-          <PortalLoginPanel onConnected={() => setEnded(false)} />
-          <div className="row" style={{ gap: 8, alignItems: 'center', borderTop: '1px solid var(--border-default)', paddingTop: 12 }}>
-            <span className="body-sm muted" style={{ flex: 1 }}>No eFiling login handy? You can still prepare filings and log in later.</span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without logging in</button>
-          </div>
-        </section>
+      <div className="col efp" style={{ gap: 12, border: 'none' }} aria-label="eFiling login">
+        {ended ? <p className="body-sm" role="status">Your eFiling session ended - the portal allows one login per account, so opening it in another browser signs DifAi out. Log in again to continue.</p> : null}
+        {/* The portal's own Sign In. Logged in: the screen that was asked for (?m=, ?filing=) opens, else the Dashboard. */}
+        <PortalLoginPanel onConnected={() => setEnded(false)} />
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <span className="body-sm muted" style={{ flex: 1 }}>No eFiling login handy? You can still prepare filings and log in later.</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without logging in</button>
+        </div>
       </div>
     );
   }

@@ -158,15 +158,16 @@ afterAll(async () => {
 describe('eFiling login, then straight to the eFiling features', () => {
   it('a requested eFiling screen asks for the portal login first, then opens that screen', async () => {
     await page.goto(`${WEB}/app/efiling?m=filings`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('heading', { name: 'eFiling Services · Sign In' }).waitFor({ timeout: 30_000 });
-    const states = page.locator('select').filter({ hasText: 'Select state' });
-    await states.selectOption({ label: 'Kerala' });
-    await page.locator('label', { hasText: 'Bar Code / Email / Mobile / Unique Code' }).locator('input').fill('adv@example.com');
-    await page.locator('label', { hasText: 'Password' }).locator('input').fill('Secret@123');
-    await page.getByRole('button', { name: /Log in to eFiling/ }).click();
+    // The portal's own Sign In: the captcha is already there; one Login.
+    await page.getByRole('heading', { name: 'Sign In', exact: true }).waitFor({ timeout: 30_000 });
     await page.getByAltText('eFiling captcha').waitFor({ timeout: 60_000 });
+    if (process.env['E2E_SHOTS']) await page.screenshot({ path: `${process.env['E2E_SHOTS']}/efiling-signin.png`, fullPage: true });
+    await page.getByRole('combobox', { name: 'Select State' }).selectOption({ label: 'Kerala' });
+    await page.getByRole('radio', { name: 'Advocate' }).check();
+    await page.getByRole('textbox', { name: 'Username' }).fill('adv@example.com');
+    await page.getByLabel('Password', { exact: true }).fill('Secret@123');
     await page.getByPlaceholder('Captcha code').fill(fx.lastCode);
-    await page.getByRole('button', { name: 'Submit', exact: true }).click();
+    await page.getByRole('button', { name: 'Login', exact: true }).click();
 
     // Straight into eFiling - the screen that was asked for, connected.
     // The portal's own header: eFiling Services, its menus, the advocate's name.
@@ -175,7 +176,7 @@ describe('eFiling login, then straight to the eFiling features', () => {
     await page.getByText('adv@example.com').waitFor();
     await page.getByRole('combobox', { name: 'Select State or High Court' }).waitFor();
     expect(new URL(page.url()).searchParams.get('m')).toBe('filings');
-    expect(await page.getByRole('heading', { name: 'eFiling Services · Sign In' }).count()).toBe(0);
+    expect(await page.getByRole('heading', { name: 'Sign In', exact: true }).count()).toBe(0);
   });
 
   it("the eFiling Dashboard is then the portal's own: its tiles, its numbers, its list", async () => {
@@ -243,9 +244,9 @@ describe('eFiling login, then straight to the eFiling features', () => {
 
   it('after "Log out of eFiling" the next login remembers state and username (never the password)', async () => {
     await page.getByRole('button', { name: 'Log out of eFiling' }).click();
-    await page.getByRole('heading', { name: 'eFiling Services · Sign In' }).waitFor({ timeout: 30_000 });
-    expect(await page.locator('select').filter({ hasText: 'Select state' }).inputValue()).not.toBe('');
-    expect(await page.locator('label', { hasText: 'Bar Code / Email / Mobile / Unique Code' }).locator('input').inputValue()).toBe('adv@example.com');
-    expect(await page.locator('label', { hasText: 'Password' }).locator('input').inputValue()).toBe('');
+    await page.getByRole('heading', { name: 'Sign In', exact: true }).waitFor({ timeout: 30_000 });
+    expect(await page.getByRole('combobox', { name: 'Select State' }).inputValue()).not.toBe('');
+    expect(await page.getByRole('textbox', { name: 'Username' }).inputValue()).toBe('adv@example.com');
+    expect(await page.getByLabel('Password', { exact: true }).inputValue()).toBe('');
   });
 });

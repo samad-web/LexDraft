@@ -806,4 +806,23 @@ describe('eFiling portal dashboard (fixture portal)', () => {
     expect(fx.loggedOut).toBe(true);
     sessionId = '';
   });
+
+  it("the portal's Sign In in one step: wrong captcha -> fresh image, the form refilled; right captcha while open elsewhere -> log out other session -> logged in", async () => {
+    fx.openElsewhere = true;
+    // The Sign In opens before a state is chosen; Login sends state, user type, username, password and code.
+    ({ sessionId } = await live.startEfilingSession(USER, '', 'advocate'));
+    const shown = (await live.refreshEfilingCaptcha(sessionId, USER)).captchaImageBase64;
+    expect(shown.length).toBeGreaterThan(500);
+    const login = (captchaCode: string) => live.submitEfilingLogin(sessionId, USER, { state: '4', userType: 'advocate', username: 'adv@example.com', password: PASSWORD, captchaCode });
+    const wrong = await login('WRONG1');
+    expect(wrong).toMatchObject({ retry: true });
+    const page = live.__testing.pageOf(sessionId)!;
+    expect(await page.inputValue('#selState')).toBe('4');
+    expect(await page.inputValue('#user_name')).toBe('adv@example.com');
+    const dup = await login(fx.lastCode);
+    expect(dup).toMatchObject({ duplicateLogin: true });
+    expect(await live.confirmDuplicateEfilingLogin(sessionId, USER, '', fx.lastCode)).toEqual({ status: 'authenticated' });
+    await live.endEfilingSession(sessionId, USER);
+    sessionId = '';
+  }, 120_000);
 });

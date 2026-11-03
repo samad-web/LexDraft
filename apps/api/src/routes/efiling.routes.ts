@@ -33,11 +33,14 @@ efilingRouter.get('/portal/states', (_req, res) => {
   res.json({ items: EFILING_PORTAL_STATES });
 });
 
+const PortalStateCode = z
+  .string()
+  .regex(/^\d{0,3}$/)
+  .refine((v) => v === '' || EFILING_PORTAL_STATE_CODES.has(Number(v)), 'This state is not available on the eFiling portal.');
+
 const StartSessionBody = z.object({
-  state: z
-    .string()
-    .regex(/^\d{1,3}$/)
-    .refine((v) => EFILING_PORTAL_STATE_CODES.has(Number(v)), 'This state is not available on the eFiling portal.'),
+  // Optional: the Sign In page (and its captcha) opens before a state is chosen.
+  state: PortalStateCode.optional().default(''),
   userType: z.enum(['advocate', 'litigant', 'pleader', 'clerk', 'gov_auth', 'insurance']),
 });
 
@@ -93,6 +96,47 @@ efilingRouter.post(
 );
 
 const LoginCaptchaBody = z.object({ captchaCode: z.string().min(1).max(20) });
+
+// The portal's Sign In form in one step (state, user type, username,
+// password and the captcha already on screen).
+const SignInBody = z.object({
+  state: PortalStateCode.refine((v) => v !== '', 'Please Select state'),
+  userType: z.enum(['advocate', 'litigant', 'pleader', 'clerk', 'gov_auth', 'insurance']),
+  username: z.string().min(1).max(100),
+  password: z.string().min(1).max(200),
+  captchaCode: z.string().min(1).max(20),
+});
+
+efilingRouter.post(
+  '/live/session/:sessionId/login/submit',
+  validate({ params: SessionIdParam, body: SignInBody }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      res.json(await efilingLive.submitEfilingLogin(sessionId, req.user.id, req.body as z.infer<typeof SignInBody>));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+efilingRouter.get(
+  '/live/session/:sessionId/login/captcha/audio',
+  validate({ params: SessionIdParam }),
+  async (req, res, next) => {
+    try {
+      if (!req.user?.id) throw new UnauthorizedError('Not authenticated');
+      const { sessionId } = req.params as unknown as { sessionId: string };
+      const a = await efilingLive.efilingCaptchaAudio(sessionId, req.user.id);
+      res.setHeader('Content-Type', a.contentType);
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(Buffer.from(a.audioBase64, 'base64'));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 efilingRouter.post(
   '/live/session/:sessionId/login/captcha',

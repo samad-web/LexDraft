@@ -45,6 +45,8 @@ const BASE = 'https://filing.ecourts.gov.in';
 const LOGIN_URL = `${BASE}/pdedev/`;
 // Kept alive by the eFiling screens while the advocate works in DifAi.
 const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
+// A Sign In page (opened on page load for its captcha) that nobody logs in on.
+const SIGN_IN_IDLE_MS = 3 * 60 * 1000;
 /** Advocates connected to the portal at once (EFILING_MAX_SESSIONS). */
 const MAX_SESSIONS = Number(process.env['EFILING_MAX_SESSIONS']) || 20;
 
@@ -167,7 +169,7 @@ function stepLog(session: EfilingSession, step: string, what: string): void {
 function touch(session: EfilingSession): void {
   session.lastUsed = Date.now();
   clearTimeout(session.idleTimer);
-  session.idleTimer = setTimeout(() => void closeSession(session.id), IDLE_TIMEOUT_MS);
+  session.idleTimer = setTimeout(() => void closeSession(session.id), session.authenticated ? IDLE_TIMEOUT_MS : SIGN_IN_IDLE_MS);
 }
 
 async function closeSession(sessionId: string): Promise<void> {
@@ -196,6 +198,9 @@ async function closeSession(sessionId: string): Promise<void> {
  */
 function markLoggedIn(session: EfilingSession): void {
   session.authenticated = true;
+  touch(session);
+  // The advocate's previous session (another tab) is replaced by this login.
+  for (const s of [...sessions.values()]) if (s.userId === session.userId && s.id !== session.id) void closeSession(s.id);
   const selfTest = process.env['EFILING_SELF_TEST'] === '1' && process.env['NODE_ENV'] !== 'production';
   // The self-test walks the portal on its own timing; it isn't mixed with a sync.
   if (!selfTest) {
@@ -244,8 +249,7 @@ export async function startEfilingSession(
   stateValue: string,
   userType: EfilingUserType,
 ): Promise<{ sessionId: string }> {
-  const existing = [...sessions.values()].find((s) => s.userId === userId);
-  if (existing) await closeSession(existing.id);
+  for (const s of [...sessions.values()]) if (s.userId === userId && !s.authenticated) await closeSession(s.id);
   // Each connected advocate holds a browser context on this server; cap them
   // so one busy hour can't slow the server for everyone (idle ones close
   // after IDLE_TIMEOUT_MS).
@@ -311,7 +315,9 @@ export async function startEfilingSession(
   try {
     await page.goto(LOGIN_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('#selState', { timeout: 20000 });
-    await page.selectOption('#selState', stateValue);
+    // The portal's Sign In shows its captcha before a state is chosen: the
+    // session can open first and take the state with the login (submitEfilingLogin).
+    if (stateValue) await page.selectOption('#selState', stateValue);
     await page.check(`#${EFILING_USER_TYPE_RADIO_ID[userType]}`);
   } catch {
     await closeSession(sessionId);
@@ -413,6 +419,40 @@ async function screenshotLoginCaptcha(page: Page): Promise<string> {
 async function refreshEfilingCaptchaStep(sessionId: string, userId: string): Promise<{ captchaImageBase64: string }> {
   const { page } = getSession(sessionId, userId);
   return { captchaImageBase64: await freshLoginCaptcha(page) };
+}
+
+/**
+ * The portal's Sign In in one go, as its own form submits it: state, user
+ * type, username and password set on the portal's login form, then the
+ * captcha the advocate read off the image already shown (no new image is
+ * fetched in between, or the code they typed would no longer be the valid one).
+ */
+async function submitEfilingLoginStep(sessionId: string, userId: string, o: {
+  state: string; userType: EfilingUserType; username: string; password: string; captchaCode: string;
+}): Promise<EfilingLoginResult> {
+  const session = getSession(sessionId, userId);
+  const { page } = session;
+  const current = await page.inputValue('#selState').catch(() => '');
+  if (o.state && current !== o.state) await page.selectOption('#selState', o.state);
+  await page.check(`#${EFILING_USER_TYPE_RADIO_ID[o.userType]}`).catch(() => {});
+  await page.fill('#user_name', o.username);
+  await page.fill('#user_password', o.password);
+  session.pendingLogin = { username: o.username, password: o.password };
+  return submitEfilingLoginCaptchaStep(sessionId, userId, o.captchaCode);
+}
+
+/** The portal's audio captcha (securimage_play.php): the CURRENT code read aloud; it does not change the code. */
+async function efilingCaptchaAudioStep(sessionId: string, userId: string): Promise<{ audioBase64: string; contentType: string }> {
+  const { page } = getSession(sessionId, userId);
+  const got = await page.evaluate(async () => {
+    const r = await fetch(`/pdedev/securimage/securimage_play.php?id=${Math.random().toString(16).slice(2)}`, { credentials: 'include' });
+    const buf = new Uint8Array(await r.arrayBuffer());
+    let s = '';
+    for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+    return { status: r.status, type: r.headers.get('content-type') ?? 'audio/wav', b64: btoa(s) };
+  });
+  if (got.status >= 400 || !got.b64) throw new EcourtsHttpError(502, 'The portal did not play the captcha audio. Try again.');
+  return { audioBase64: got.b64, contentType: got.type.split(';')[0] || 'audio/wav' };
 }
 
 export type EfilingLoginResult =
@@ -1256,6 +1296,14 @@ export async function submitEfilingCredentials(sessionId: string, userId: string
   return exclusive(getSession(sessionId, userId), () => submitEfilingCredentialsStep(sessionId, userId, username, password));
 }
 
+export async function submitEfilingLogin(sessionId: string, userId: string, o: {
+  state: string; userType: EfilingUserType; username: string; password: string; captchaCode: string;
+}) {
+  return exclusive(getSession(sessionId, userId), () => submitEfilingLoginStep(sessionId, userId, o));
+}
+export async function efilingCaptchaAudio(sessionId: string, userId: string) {
+  return exclusive(getSession(sessionId, userId), () => efilingCaptchaAudioStep(sessionId, userId));
+}
 export async function refreshEfilingCaptcha(sessionId: string, userId: string) {
   return exclusive(getSession(sessionId, userId), () => refreshEfilingCaptchaStep(sessionId, userId));
 }
