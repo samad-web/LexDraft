@@ -173,5 +173,6 @@ def test_cause_title_present_and_ordered(parts):
     prayer_idx = text.find("PRAYER")
     verif_idx = text.find("VERIFICATION")
     assert court_idx != -1, "cause title 'IN THE COURT OF' missing"
-    assert "BAIL APPLICATION NO." in text, "bail application number line missing"
+    # Madras/TN numbering (was the Delhi "BAIL APPLICATION NO.").
+    assert "Crl.M.P. No." in text, "bail petition number line missing"
     assert court_idx < prayer_idx < verif_idx, "blocks out of order (cause title → prayer → verification)"

@@ -14,6 +14,7 @@ from ...pipelines import plaint as pipeline
 from ...pipelines.plaint import Variant
 from ...rules import jurisdiction as jur
 from ...rules.limitation import Acknowledgement
+from ...verify.signoff import SLOT_PATTERN
 from . import Adapter, FieldSpec, ListFieldSpec, register
 
 
@@ -25,17 +26,28 @@ def _forum(v: str) -> jur.Forum:
     return jur.Forum(v)
 
 
-def _territorial(vs: List[str]) -> List[jur.TerritorialBasis]:
-    return [jur.TerritorialBasis(v) for v in vs]
+_BASES = tuple(b.value for b in jur.TerritorialBasis)
+
+
+def _territorial(vs: List[str]) -> List[Any]:
+    # A draft-now "[… to be provided]" gap stays text so the clause renders with a
+    # visible gap; anything else must be a real basis (ValueError -> 422).
+    return [v if SLOT_PATTERN.search(v) else jur.TerritorialBasis(v) for v in vs]
 
 
 def _ack(kw: Dict[str, Any]) -> Acknowledgement:
-    return Acknowledgement(**kw)
+    # s.18 Limitation Act: only a written, signed acknowledgement extends time. The
+    # free-text description is for the pleading, not the limitation rule (passing it
+    # through crashed the engine with a TypeError).
+    return Acknowledgement(date=kw["date"], in_writing=bool(kw.get("in_writing")),
+                           signed=bool(kw.get("signed")))
 
 
 _ACK_ITEM = (
     FieldSpec("date", "date"),
     FieldSpec("description", "string", required=False, default=""),
+    FieldSpec("in_writing", "bool", required=False, default=False),
+    FieldSpec("signed", "bool", required=False, default=False),
 )
 
 
@@ -54,7 +66,7 @@ ADAPTER = Adapter(
         FieldSpec("cause_of_action_place", "string"),
         FieldSpec("forum", "enum",
                   enum_values=tuple(f.value for f in jur.Forum), to_engine=_forum),
-        FieldSpec("territorial_bases", "string_list", to_engine=_territorial),
+        FieldSpec("territorial_bases", "string_list", enum_values=_BASES, to_engine=_territorial),
         FieldSpec("principal", "int"),
         FieldSpec("interest_amount", "int"),
         FieldSpec("claimed_total", "int"),

@@ -203,8 +203,16 @@ class TestRespondentOrdering:
 
 class TestImpugnedOrder:
     def test_missing_number_refused(self):
-        result = wp.build(**_base(impugned_order_number=""))
+        # certiorari quashes an order, so the order must be identified.
+        result = wp.build(**_base(writ_type=wp.WritType.CERTIORARI, impugned_order_number=""))
         assert result.refused is True
+
+    def test_mandamus_against_inaction_needs_no_order(self):
+        # no order was passed: the demand and refusal stand in its place.
+        result = wp.build(**_base(impugned_order_number="", impugned_order_date=None,
+                                  impugned_order_annexed=False))
+        assert result.refused is False
+        assert result.context["impugned_order_number"] == "N/A"
 
     def test_missing_date_refused(self):
         result = wp.build(**_base(impugned_order_date=None))

@@ -10,7 +10,7 @@ OOXML — not faked in runs:
   * A real word/numbering.xml multilevel definition (decimal 1. / (a) / (i)) that
     paragraphs reference via <w:numPr>, so numbering auto-renumbers and hangs.
   * Tab stops with DOTTED LEADERS for the cause-title signature lines
-    (....................... Applicant / Advocate for the Applicant).
+    (....................... Petitioner / Counsel for the Petitioner).
   * NAMED paragraph styles (CauseTitle, PartyBlock, GroundList, Prayer, Verification,
     SignatureLine) with inheritance — layout owned by styles, not run-by-run.
   * A HEADER carrying a right-aligned "Page X of Y" field.
@@ -212,21 +212,24 @@ def build(out_dir: Path) -> Path:
     ct = doc.add_paragraph(style="CauseTitle")
     ct.add_run("IN THE COURT OF {{ bail_court }}")
     y = doc.add_paragraph(style="CauseTitle")
-    y.add_run("BAIL APPLICATION NO. ______ OF {{ bail_year }}")
+    y.add_run("Crl.M.P. No. ______ of {{ bail_year }}")
+    c = doc.add_paragraph(style="CauseTitle")
+    c.add_run("(In Crime No. {{ fir_no }} on the file of the Inspector of Police, "
+              "{{ police_station }})")
 
-    doc.add_paragraph("IN THE MATTER OF:", style="PartyBlock")
-    doc.add_paragraph("{{ accused.name }}", style="PartyBlock")
-    doc.add_paragraph("{% if accused.parentage %}{{ accused.parentage }}{% endif %}", style="PartyBlock")
-    doc.add_paragraph("{{ accused.address }}", style="PartyBlock")
-    doc.add_paragraph("… Applicant / Accused", style="PartyBlock")
-    doc.add_paragraph("Versus", style="PartyBlock")
-    doc.add_paragraph("State, through {{ police_station }} Police Station", style="PartyBlock")
-    doc.add_paragraph("… Respondent", style="PartyBlock")
+    # Madras/TN party block: 'residing at', '-Vs-', State rep. by the Inspector.
+    doc.add_paragraph("{{ accused.name }}{% if accused.parentage %}, {{ accused.parentage }}"
+                      "{% endif %}, residing at {{ accused.address }}", style="PartyBlock")
+    doc.add_paragraph("… Petitioner/Accused", style="PartyBlock")
+    doc.add_paragraph("-Vs-", style="PartyBlock")
+    doc.add_paragraph("State rep. by the Inspector of Police, {{ police_station }}",
+                      style="PartyBlock")
+    doc.add_paragraph("… Respondent/Complainant", style="PartyBlock")
 
     # Enabling provision — the engine context supplies the resolved BNSS section
     # (regular_bail_section), never a hardcoded one.
     doc.add_paragraph(
-        "APPLICATION UNDER {{ regular_bail_section }} FOR GRANT OF BAIL",
+        "PETITION FILED UNDER {{ regular_bail_section }} FOR BAIL",
         style="SectionHeading",
     )
 
@@ -235,35 +238,40 @@ def build(out_dir: Path) -> Path:
 
     # Numbered grounds — REAL numbering (auto-renumbers, hangs). `sections` is a list
     # in the engine context; join it inline with the docxtpl/Jinja join filter.
-    _numbered(doc, num_id, "That the applicant is arrayed as an accused in FIR No. "
-                           "{{ fir_no }} registered at {{ police_station }} Police Station, "
-                           "{{ district }}, for offences under {{ sections | join(', ') }}.")
-    _numbered(doc, num_id, "That the applicant has been in judicial custody since "
+    _numbered(doc, num_id, "That the petitioner is arrayed as an accused in Crime No. "
+                           "{{ fir_no }} on the file of the Inspector of Police, "
+                           "{{ police_station }}, {{ district }}, for offences under "
+                           "{{ sections | join(', ') }}.")
+    _numbered(doc, num_id, "That the petitioner has been in judicial custody since "
                            "{{ custody_since }} ({{ custody_days }} days as on the date "
-                           "of this application).")
-    _numbered(doc, num_id, "That the investigation is "
-                           "{% if chargesheet_filed %}complete and the charge-sheet has been "
-                           "filed{% else %}still pending{% endif %}.")
-    _numbered(doc, num_id, "That the applicant undertakes to cooperate with the trial, will "
+                           "of this petition).")
+    # Never a stock "charge sheet filed": only from the field, else a gap.
+    _numbered(doc, num_id, "That {% if chargesheet_filed is none %}[whether the final "
+                           "report has been filed — to be confirmed]{% elif "
+                           "chargesheet_filed %}the final report (charge sheet) has been "
+                           "filed{% else %}the investigation is still pending{% endif %}.")
+    _numbered(doc, num_id, "That the petitioner undertakes to cooperate with the trial, will "
                            "not tamper with evidence or influence witnesses, and will not "
                            "abscond.")
-    _numbered(doc, num_id, "{% if is_successive %}That this is a successive bail application; "
+    _numbered(doc, num_id, "{% if is_successive %}That this is a successive bail petition; "
                            "the change in circumstances is: {{ change_of_circumstance }}."
-                           "{% else %}That this is the first bail application by the applicant "
-                           "before this Hon'ble Court.{% endif %}")
+                           "{% else %}That the petitioner has not filed any other bail "
+                           "petition in this crime before this Hon'ble Court or any other "
+                           "court. [confirm before filing]{% endif %}")
 
     # Prayer.
     doc.add_paragraph("PRAYER", style="SectionHeading")
     doc.add_paragraph(
-        "It is therefore most respectfully prayed that this Hon'ble Court may be pleased "
-        "to enlarge the applicant on bail in connection with FIR No. {{ fir_no }}, and pass "
-        "such further orders as this Hon'ble Court deems fit in the interest of justice.",
+        "It is therefore prayed that this Hon'ble Court may be pleased to enlarge the "
+        "petitioner on bail in Crime No. {{ fir_no }} on the file of the respondent "
+        "police, and pass such further or other orders as this Hon'ble Court may deem "
+        "fit and proper in the circumstances of the case, and thus render justice.",
         style="Prayer",
     )
 
     # Signature block with dotted-leader lines.
-    _leader_line(doc, "Applicant / Accused")
-    _leader_line(doc, "Advocate for the Applicant")
+    _leader_line(doc, "Petitioner/Accused")
+    _leader_line(doc, "Counsel for the Petitioner")
     doc.add_paragraph("Place: {{ place }}", style="PartyBlock")
     doc.add_paragraph("Date: ______", style="PartyBlock")
 
@@ -275,7 +283,7 @@ def build(out_dir: Path) -> Path:
         "concealed therefrom.",
         style="Verification",
     )
-    _leader_line(doc, "Applicant / Accused")
+    _leader_line(doc, "Petitioner/Accused")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "regular_bail.docx"

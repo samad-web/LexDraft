@@ -280,7 +280,10 @@ class Adapter:
                 issues.append(FieldIssue(spec.key, "required", "this field is required"))
                 return
             coerced = entries
-        kwargs[spec.engine_name] = spec.to_engine(coerced) if spec.to_engine else coerced
+        try:
+            kwargs[spec.engine_name] = spec.to_engine(coerced) if spec.to_engine else coerced
+        except ValueError as exc:  # an Enum(...) on a bad value: a 422, never a 500
+            issues.append(FieldIssue(spec.key, "enum", str(exc)))
 
     def _coerce_list(self, spec: ListFieldSpec, payload, kwargs, issues) -> None:
         required = spec.is_required(payload)
@@ -504,6 +507,17 @@ from . import appeal_record_cost_schedule as _appeal_record_cost_schedule  # noq
 from . import summons as _summons  # noqa: E402,F401
 from . import court_notice as _court_notice  # noqa: E402,F401
 from . import court_warrant as _court_warrant  # noqa: E402,F401
+# Phase 3 coverage — appeals, revisions, quash, rent court, s.5, O.VI R.17,
+# counter affidavit.
+from . import quash_petition as _quash_petition  # noqa: E402,F401
+from . import criminal_revision as _criminal_revision  # noqa: E402,F401
+from . import criminal_appeal as _criminal_appeal  # noqa: E402,F401
+from . import civil_first_appeal as _civil_first_appeal  # noqa: E402,F401
+from . import civil_revision as _civil_revision  # noqa: E402,F401
+from . import hrcp_eviction as _hrcp_eviction  # noqa: E402,F401
+from . import condone_delay_petition as _condone_delay_petition  # noqa: E402,F401
+from . import amendment_ia as _amendment_ia  # noqa: E402,F401
+from . import counter_affidavit as _counter_affidavit  # noqa: E402,F401
 # Imported formats (templates/imported/manifest.json) — data-driven, registered
 # LAST so they can never shadow a built-in doc type.
 from . import imported as _imported  # noqa: E402,F401

@@ -25,6 +25,10 @@ ADAPTER = Adapter(
         FieldSpec('place', 'string'),
         FieldSpec('petitioner_parentage', 'string', required=False, default=None),
         FieldSpec('petitioner_address', 'string', required=False, default=None),
+        FieldSpec('synopsis', 'string', required=False, default=''),
+        FieldSpec('list_of_dates', 'string_list', required=False, default=None),
+        FieldSpec('impugned_in_second_appeal', 'bool', required=False, default=False),
+        FieldSpec('substantial_questions_framed', 'string_list', required=False, default=None),
     ),
     slots=('brief_facts',),
 )

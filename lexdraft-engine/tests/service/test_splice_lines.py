@@ -72,7 +72,7 @@ def test_bad_ranges_return_none():
     assert splice_lines(SRC, 1, 2, ["   "]) is None
 
 
-def test_range_cutting_a_soft_broken_paragraph_returns_none():
+def test_range_cutting_a_soft_broken_paragraph_keeps_the_other_line():
     d = Document()
     d.add_paragraph("HEAD")
     p = d.add_paragraph()
@@ -82,8 +82,9 @@ def test_range_cutting_a_soft_broken_paragraph_returns_none():
     buf = io.BytesIO()
     d.save(buf)
     # Lines: 0 HEAD, 1 line one, 2 line two — replacing only line 1 would split it.
-    assert splice_lines(buf.getvalue(), 1, 1, ["x"]) is None
-    assert splice_lines(buf.getvalue(), 1, 2, ["x"]) is not None
+    assert _texts(splice_lines(buf.getvalue(), 1, 1, ["x"])) == ["HEAD", "x", "line two"]
+    assert _texts(splice_lines(buf.getvalue(), 2, 2, ["x"])) == ["HEAD", "line one", "x"]
+    assert _texts(splice_lines(buf.getvalue(), 1, 2, ["x"])) == ["HEAD", "x"]
 
 
 def test_body_never_inherits_a_bold_sub_heading():

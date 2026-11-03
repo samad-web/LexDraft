@@ -7,10 +7,11 @@ block, the ownership + tenancy recital, the termination with effect from the las
 day of the tenancy month, and the demand for vacant possession.
 
 Hard requirements (each refuses, no partial output):
-  - The tenancy-termination date must be given, and the notice must expire with the
-    end of a tenancy period (s.106 requires a clear 15 days' notice ending with the
-    month/year of the tenancy). We enforce the clear-15-days interval from the
-    notice date to the quit date.
+  - The tenancy-termination date must be given. Since the Transfer of Property
+    (Amendment) Act, 2002 (Act 3 of 2003), a month-to-month tenancy is terminable
+    by fifteen days' notice running from its receipt (s.106(1)-(2)), and the notice
+    need NOT expire with the end of a month of the tenancy. We enforce the
+    clear-15-days interval from the notice date to the quit date.
 """
 
 from __future__ import annotations

@@ -7,6 +7,7 @@ wrapper constructs the Party objects so the inbound contract stays flat/simple.
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, List
 
 from ...pipelines import writ_petition as pipeline
@@ -19,9 +20,23 @@ def _petitioner_party(name: str) -> Party:
     return Party(role=PartyRole.PETITIONER, serial=1, name=name)
 
 
+# A respondent named by a public office is the State / an Art.12 authority even
+# when the form left is_authority unset (it defaults False) — "The District
+# Collector, Salem" must never be refused as a private party.
+_PUBLIC_OFFICE = re.compile(
+    r"\b(?:district collector|collector|tahsildar|tehsildar|commissioner|"
+    r"secretary to (?:the )?government|government|govt|union of india|state of|"
+    r"inspector of police|superintendent of police|police station|station house officer|"
+    r"revenue divisional officer|village administrative officer|block development officer|"
+    r"magistrate|registrar|sub-registrar|panchayat|municipal|municipality|"
+    r"public works department|electricity board|transport corporation|tribunal)\b", re.I)
+
+
 def _respondent_party(kw: Dict[str, Any]) -> Party:
+    name = kw["name"]
+    is_authority = bool(kw.get("is_authority", False)) or bool(_PUBLIC_OFFICE.search(name))
     return Party(role=PartyRole.RESPONDENT, serial=int(kw.get("serial", 1)),
-                 name=kw["name"], is_authority=bool(kw.get("is_authority", False)))
+                 name=name, is_authority=is_authority)
 
 
 _RESPONDENT_ITEM = (
@@ -54,7 +69,7 @@ ADAPTER = Adapter(
         FieldSpec("prior_demand_and_refusal", "string", required=False, default=""),
         FieldSpec("quasi_judicial_order", "string", required=False, default=None),
         FieldSpec("public_office", "string", required=False, default=None),
-        FieldSpec("impugned_order_number", "string"),
+        FieldSpec("impugned_order_number", "string", required=False, default=""),  # blank = mandamus against inaction
         FieldSpec("impugned_order_date", "date", required=False, default=None),
         FieldSpec("impugned_order_annexed", "bool", required=False, default=False),
         FieldSpec("alternative_remedy_addressed", "bool"),
@@ -72,6 +87,8 @@ ADAPTER = Adapter(
         FieldSpec("facts_narrative", "string", required=False, default=""),
         FieldSpec("grounds_narrative", "string", required=False, default=""),
         FieldSpec("grounds_list", "string_list", required=False, default=None),
+        FieldSpec("relief_sought", "string", required=False, default=""),
+        FieldSpec("petitioner_description", "string", required=False, default=""),
     ),
     slots=("facts_narrative", "grounds_narrative"),
 )

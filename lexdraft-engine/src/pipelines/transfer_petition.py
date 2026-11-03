@@ -1,14 +1,18 @@
-"""Transfer Petition (Civil) under s.25 CPC — document pipeline (DPC book pp.31-35).
+"""Transfer Petition (Civil) under s.25 CPC / s.24 CPC — document pipeline (DPC
+book pp.31-35).
 
-Filed in the Supreme Court's original civil jurisdiction to transfer a case from a
-court in one State to a court in another State, in the interest of justice. The
+Inter-State: filed in the Supreme Court's original civil jurisdiction (s.25) to
+transfer a case from a court in one State to a court in another State, in the
+interest of justice. Intra-State (both courts in one State): the petition lies to
+the High Court under s.24 (in Madras: a Tr.C.M.P.), and the same template renders
+that variant. The
 book (pp.31-35) recites the case sought to be transferred, brief facts, grounds
 (loss of faith, threat, penury/inability to travel, interest of justice) and a
 declaration of no other similar transfer petition.
 
 Hard requirements (each refuses, no partial output):
-  - The case sought to be transferred and BOTH courts (from-court in one State,
-    to-court in another State) must be identified — s.25 only transfers inter-State.
+  - The case sought to be transferred and BOTH courts (with their States) must be
+    identified; the States decide s.25 (Supreme Court) or s.24 (High Court).
   - The grounds for transfer must be pleaded (a bare transfer prayer is refused).
 """
 
@@ -83,16 +87,9 @@ def build(
             fields=tuple(missing),
         )
 
-    # 2. s.25 transfers only BETWEEN States.
-    if from_state.strip().lower() == to_state.strip().lower():
-        return _refuse(
-            "s.25 CPC empowers the Supreme Court to transfer a case from a court in "
-            "one State to a court in another State; both courts are in "
-            f"{from_state}, so s.25 is not available (an intra-State transfer lies to "
-            "the High Court under s.24 CPC)",
-            code="transfer_petition_not_inter_state",
-            fields=("from_state", "to_state"),
-        )
+    # 2. s.25 transfers only BETWEEN States; within one State the petition lies
+    #    to the High Court under s.24 CPC.
+    is_intra_state = from_state.strip().lower() == to_state.strip().lower()
 
     # 3. grounds must be pleaded.
     if not grounds or not any(g.strip() for g in grounds):
@@ -117,6 +114,7 @@ def build(
                             else _LLM_SLOT_PLACEHOLDER,
         "grounds": [g for g in grounds if g.strip()],
         "no_other_transfer_petition": no_other_transfer_petition,
+        "is_intra_state": is_intra_state,
         "place": place,
     }
     return TransferPetitionResult(refused=False, context=context)

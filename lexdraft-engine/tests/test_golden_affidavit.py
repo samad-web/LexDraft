@@ -164,16 +164,16 @@ def _court_text() -> str:
 
 
 def test_court_affidavit_has_cause_title_and_parties():
-    """The full court format: DRAFT AFFIDAVIT title, court cause-title, SUIT NO / under-
-    order line, IN THE MATTER OF party block with PLAINTIFF / VERSUS / DEFENDANT."""
+    """The full court format: DRAFT AFFIDAVIT title, court cause-title, O.S. No. / under-
+    order line, party block with PLAINTIFF / -Vs- / DEFENDANT (Madras/TN layout)."""
     t = _court_text()
     assert "DRAFT AFFIDAVIT" in t
     assert "IN THE COURT OF DISTRICT JUDGE" in t
-    assert "SUIT NO. 123 OF 2026" in t
+    assert "O.S. No. 123 of 2026" in t  # Madras/TN (was the Delhi "SUIT NO.")
     assert "ORDER XXXVII" in t
-    assert "IN THE MATTER OF" in t
+    assert "IN THE MATTER OF" not in t
     assert "M/s ABC Pvt. Ltd." in t and "PLAINTIFF" in t
-    assert "VERSUS" in t
+    assert "-Vs-" in t
     assert "M/s XYZ Ltd." in t and "DEFENDANT" in t
 
 
@@ -181,7 +181,7 @@ def test_court_affidavit_has_affidavit_of_heading():
     t = _court_text()
     assert "AFFIDAVIT OF Sh. Rakesh Sharma" in t
     assert "AGED ABOUT 38 YEARS" in t
-    assert "R/o 12 Ring Road" in t
+    assert "RESIDING AT 12 Ring Road" in t
     assert "in the capacity of the director of M/s ABC Pvt. Ltd." in t
 
 

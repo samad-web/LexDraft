@@ -67,6 +67,9 @@ def build(
     # cause-title header (DPC book pp.63-66). Optional.
     petitioner_parentage: Optional[str] = None,
     petitioner_address: Optional[str] = None,
+    # Habeas corpus (detenu in custody): the detenu and the place of detention.
+    detenu_name: Optional[str] = None,
+    detention_place: Optional[str] = None,
 ) -> WritCriminalResult:
     """Assemble the criminal writ petition, or refuse."""
 
@@ -101,7 +104,8 @@ def build(
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
                        "address": petitioner_address},
         "respondents": list(respondents),
-        "high_court": high_court,
+        # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
+        "high_court": high_court or "Judicature at Madras",
         "petition_year": filing_date.year,
         "petition_date": filing_date.isoformat(),
         "impugned_order_ref": impugned_order_ref,
@@ -111,6 +115,12 @@ def build(
                       else _LLM_SLOT_PLACEHOLDER,
         "grounds": [g for g in grounds if g.strip()],
         "pre_execution_stage": pre_execution_stage,
+        # A detention order already executed (detenu in custody) is challenged by
+        # a Habeas Corpus Petition; only a pre-execution challenge is a writ
+        # petition (certiorari).
+        "is_habeas_corpus": not pre_execution_stage,
+        "detenu_name": detenu_name,
+        "detention_place": detention_place,
         "no_similar_petition": no_similar_petition,
         "place": place,
     }

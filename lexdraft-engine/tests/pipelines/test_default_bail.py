@@ -34,6 +34,10 @@ def _base(**over):
         place="Chennai",
     )
     kw.update(over)
+    # An offence before 1.7.2024 is charged under the IPC (Art. 20(1)); the router
+    # refuses BNS sections for it, so old-FIR tests get IPC unless they set sections.
+    if "sections" not in over and kw.get("offence_date") and kw["offence_date"] < date(2024, 7, 1):
+        kw["sections"] = ["IPC s.420"]
     return kw
 
 

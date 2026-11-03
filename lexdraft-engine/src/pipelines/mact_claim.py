@@ -27,6 +27,8 @@ from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
+from dateutil.relativedelta import relativedelta
+
 from ..rules import compensation_multiplier as cm
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
@@ -191,6 +193,10 @@ def build(
         "petition_year": filing_date.year if filing_date else None,
         "petition_date": filing_date.isoformat() if filing_date else None,
         "accident_date": accident_date,
+        # s.166(3) MV Act (inserted by the MV (Amendment) Act, 2019): the claim
+        # within six months of the accident. None = filing date unknown.
+        "within_six_months": (None if filing_date is None
+                              else filing_date <= accident_date + relativedelta(months=6)),
         "fir_ref": fir_ref,
         "vehicle": {"number": vehicle_number, "owner": owner, "driver": driver,
                     "insurer": insurer, "policy_no": policy_no},

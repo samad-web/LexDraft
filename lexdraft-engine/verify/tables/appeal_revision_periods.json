@@ -1,0 +1,19 @@
+{
+  "name": "appeal_revision_periods",
+  "description": "Limitation Act 1963 Schedule — periods (in days) for appeals and revisions consumed by the appeal / revision / condone-delay pipelines. Keyed by a stable remedy key.",
+  "source": {
+    "act": "Limitation Act 1963",
+    "section": "Schedule Arts. 115 (criminal appeals: death 30 days; other sentence to HC 60 days, to any other court 30 days), 116 (civil appeals: to HC 90 days, to any other court 30 days), 131 (revision under CPC / CrPC: 90 days)"
+  },
+  "values": {
+    "art115_death_sentence": 30,
+    "art115_high_court": 60,
+    "art115_other_court": 30,
+    "art116_high_court": 90,
+    "art116_other_court": 30,
+    "art131_revision": 90
+  },
+  "verified": false,
+  "reviewed_by": "",
+  "reviewed_on": ""
+}

@@ -240,9 +240,12 @@ def test_transfer_needs_both_courts():
     assert r.refused and r.refusal.code == "transfer_petition_courts_not_identified"
 
 
-def test_transfer_must_be_inter_state():
+def test_transfer_intra_state_is_s24_high_court_variant():
+    # Both courts in one State: no s.25 refusal — the petition lies to the High
+    # Court under s.24 CPC (Tr.C.M.P. in Madras) and renders that variant.
     r = tp.build(**_tp(to_state="Delhi"))
-    assert r.refused and r.refusal.code == "transfer_petition_not_inter_state"
+    assert not r.refused and r.context["is_intra_state"] is True
+    assert tp.build(**_tp()).context["is_intra_state"] is False
 
 
 def test_transfer_needs_grounds():
@@ -376,7 +379,7 @@ def _sg(**over):
         death_date=date(2023, 4, 1), deceased_last_residence="Chennai",
         will_date=date(2020, 1, 15), will_duly_executed=True,
         bequest_narrative="house to son",
-        relatives=[sg.Relative("Son", "P", "Chennai")],
+        relatives=[sg.Relative("Widow", "W", "Chennai")],
         petitioner_is_named_executor=True, petitioner_standing="",
         assets_schedule_ref="Sch-A", undertakes_further_court_fee=True,
         no_impediment=True, jurisdiction_basis="within jurisdiction",

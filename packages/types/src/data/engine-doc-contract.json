@@ -745,6 +745,112 @@
     ],
     "title": "Agreement for Sale"
   },
+  "amendment_ia": {
+    "all": [
+      "applicant_name",
+      "applicant_role",
+      "city",
+      "civil_court",
+      "due_diligence_explanation",
+      "filing_date",
+      "place",
+      "pleading",
+      "pleading_date",
+      "proposed_amendments",
+      "reasons_narrative",
+      "respondent_name",
+      "suit_ref",
+      "trial_commenced"
+    ],
+    "fields": [
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "plaint",
+          "written_statement"
+        ],
+        "key": "pleading",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "proposed_amendments",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "trial_commenced",
+        "kind": "bool",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "pleading_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "due_diligence_explanation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "civil_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "reasons_narrative",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "required": [
+      "applicant_name",
+      "applicant_role",
+      "filing_date",
+      "place",
+      "pleading",
+      "proposed_amendments",
+      "respondent_name",
+      "suit_ref",
+      "trial_commenced"
+    ],
+    "title": "Application to amend pleadings (O.VI R.17 CPC)"
+  },
   "anticipatory_bail": {
     "all": [
       "accused_name",
@@ -1431,6 +1537,290 @@
     ],
     "title": "Caveat u/s 148-A CPC"
   },
+  "civil_first_appeal": {
+    "all": [
+      "appellant_names",
+      "appellant_trial_role",
+      "condone_delay_application_filed",
+      "copy_applied_date",
+      "copy_ready_date",
+      "court_fee",
+      "court_name",
+      "decree_date",
+      "facts_narrative",
+      "filing_date",
+      "forum",
+      "grounds_list",
+      "grounds_narrative",
+      "is_consent_decree",
+      "judgment_date",
+      "place",
+      "respondent_names",
+      "suit_ref",
+      "trial_court",
+      "valuation"
+    ],
+    "fields": [
+      {
+        "enumValues": [
+          "high_court",
+          "district_court"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "appellant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "appellant_trial_role",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "suit_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "trial_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "decree_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "is_consent_decree",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "judgment_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "valuation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_fee",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "copy_applied_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "copy_ready_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "condone_delay_application_filed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
+    "required": [
+      "appellant_names",
+      "appellant_trial_role",
+      "decree_date",
+      "filing_date",
+      "forum",
+      "place",
+      "respondent_names",
+      "suit_ref",
+      "trial_court"
+    ],
+    "title": "First appeal u/s 96 & O.XLI CPC"
+  },
+  "civil_revision": {
+    "all": [
+      "appeal_lies",
+      "basis",
+      "condone_delay_petition_filed",
+      "copy_applied_date",
+      "copy_ready_date",
+      "court_name",
+      "crp_category",
+      "delay_explanation",
+      "facts_narrative",
+      "filing_date",
+      "grounds_list",
+      "grounds_narrative",
+      "impugned_order_date",
+      "impugned_order_ref",
+      "lower_court",
+      "order_would_finally_dispose",
+      "petitioner_names",
+      "place",
+      "proceeding_ref",
+      "respondent_names"
+    ],
+    "fields": [
+      {
+        "enumValues": [
+          "s115",
+          "art227"
+        ],
+        "key": "basis",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "petitioner_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "impugned_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "lower_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "proceeding_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "appeal_lies",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "order_would_finally_dispose",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "copy_applied_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "copy_ready_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "condone_delay_petition_filed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "delay_explanation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crp_category",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
+    "required": [
+      "basis",
+      "filing_date",
+      "impugned_order_date",
+      "impugned_order_ref",
+      "lower_court",
+      "petitioner_names",
+      "place",
+      "proceeding_ref",
+      "respondent_names"
+    ],
+    "title": "Civil revision petition (s.115 CPC / Art.227)"
+  },
   "coding_sheet": {
     "all": [
       "act_and_provision",
@@ -1579,6 +1969,135 @@
       "subject_matter"
     ],
     "title": "Registry Coding Sheet"
+  },
+  "condone_delay_petition": {
+    "all": [
+      "case_ref",
+      "copy_applied_date",
+      "copy_ready_date",
+      "court_name",
+      "delay_narrative",
+      "filing_date",
+      "impugned_order_date",
+      "impugned_order_ref",
+      "is_order_xxi_application",
+      "main_proceeding",
+      "main_proceeding_desc",
+      "period_days",
+      "petitioner_name",
+      "petitioner_role",
+      "place",
+      "respondent_names",
+      "sufficient_cause"
+    ],
+    "fields": [
+      {
+        "enumValues": [
+          "appeal",
+          "revision",
+          "review",
+          "application",
+          "suit"
+        ],
+        "key": "main_proceeding",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "main_proceeding_desc",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "period_days",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "sufficient_cause",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "is_order_xxi_application",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "copy_applied_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "copy_ready_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "petitioner_role",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "delay_narrative",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "required": [
+      "court_name",
+      "filing_date",
+      "impugned_order_date",
+      "impugned_order_ref",
+      "main_proceeding",
+      "main_proceeding_desc",
+      "period_days",
+      "petitioner_name",
+      "place",
+      "respondent_names",
+      "sufficient_cause"
+    ],
+    "title": "Petition to condone delay (s.5 Limitation Act)"
   },
   "consumer_complaint": {
     "all": [
@@ -1937,6 +2456,144 @@
     "required": [],
     "title": "Application for Certified Copies"
   },
+  "counter_affidavit": {
+    "all": [
+      "affirm_date",
+      "answering_respondent_serial",
+      "court_name",
+      "deponent_description",
+      "deponent_designation",
+      "deponent_name",
+      "jurisdiction_line",
+      "main_case_ref",
+      "para_replies",
+      "petition_para_count",
+      "petition_ref",
+      "petitioner_names",
+      "place",
+      "prayer_text",
+      "preliminary_objections",
+      "respondent_names"
+    ],
+    "fields": [
+      {
+        "key": "petition_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petitioner_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "answering_respondent_serial",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "deponent_name",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "petition_para_count",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "itemFields": [
+          {
+            "key": "para",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "enumValues": [
+              "admitted",
+              "denied",
+              "not_admitted"
+            ],
+            "key": "stance",
+            "kind": "enum",
+            "required": true
+          },
+          {
+            "key": "text",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "para_replies",
+        "kind": "list",
+        "minItems": 1,
+        "required": true
+      },
+      {
+        "key": "affirm_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "deponent_designation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "preliminary_objections",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "main_case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "jurisdiction_line",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prayer_text",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "required": [
+      "affirm_date",
+      "answering_respondent_serial",
+      "deponent_description",
+      "deponent_name",
+      "para_replies",
+      "petition_para_count",
+      "petition_ref",
+      "petitioner_names",
+      "place",
+      "respondent_names"
+    ],
+    "title": "Counter affidavit (para-wise reply)"
+  },
   "court_notice": {
     "all": [
       "addressee_name",
@@ -2121,6 +2778,350 @@
       "place"
     ],
     "title": "Court Warrant / Order"
+  },
+  "criminal_appeal": {
+    "all": [
+      "appeal_limited_to_sentence",
+      "appellant_in_custody",
+      "appellant_names",
+      "condone_delay_petition_filed",
+      "convicted_sections",
+      "copy_applied_date",
+      "copy_ready_date",
+      "court_name",
+      "death_sentence",
+      "facts_narrative",
+      "filing_date",
+      "forum",
+      "grounds_list",
+      "grounds_narrative",
+      "is_fresh_action",
+      "judgment_date",
+      "max_sentence_years",
+      "offence_date",
+      "place",
+      "pleaded_guilty",
+      "proceeding_start_date",
+      "respondent_names",
+      "sentence_text",
+      "suspension_petition_filed",
+      "trial_case_ref",
+      "trial_court",
+      "trial_court_level"
+    ],
+    "fields": [
+      {
+        "enumValues": [
+          "high_court",
+          "sessions"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "sessions",
+          "magistrate"
+        ],
+        "key": "trial_court_level",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "appellant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "trial_case_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "trial_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "judgment_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "convicted_sections",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "sentence_text",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "max_sentence_years",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "death_sentence",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "pleaded_guilty",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "appeal_limited_to_sentence",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "appellant_in_custody",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "copy_applied_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "copy_ready_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "condone_delay_petition_filed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "suspension_petition_filed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
+    "required": [
+      "appellant_names",
+      "convicted_sections",
+      "filing_date",
+      "forum",
+      "judgment_date",
+      "max_sentence_years",
+      "place",
+      "respondent_names",
+      "sentence_text",
+      "trial_case_ref",
+      "trial_court",
+      "trial_court_level"
+    ],
+    "title": "Criminal appeal against conviction (s.415 BNSS)"
+  },
+  "criminal_revision": {
+    "all": [
+      "appeal_lies",
+      "case_ref",
+      "condone_delay_petition_filed",
+      "copy_applied_date",
+      "copy_ready_date",
+      "court_name",
+      "facts_narrative",
+      "filing_date",
+      "forum",
+      "grounds_list",
+      "grounds_narrative",
+      "impugned_order_date",
+      "impugned_order_is_interlocutory",
+      "impugned_order_ref",
+      "is_fresh_action",
+      "lower_court",
+      "offence_date",
+      "petitioner_names",
+      "place",
+      "proceeding_start_date",
+      "respondent_names",
+      "revision_before_other_forum"
+    ],
+    "fields": [
+      {
+        "enumValues": [
+          "high_court",
+          "sessions"
+        ],
+        "key": "forum",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "petitioner_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "impugned_order_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "lower_court",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "case_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "impugned_order_is_interlocutory",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "revision_before_other_forum",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "appeal_lies",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "copy_applied_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "copy_ready_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "condone_delay_petition_filed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
+    "required": [
+      "filing_date",
+      "forum",
+      "impugned_order_date",
+      "impugned_order_ref",
+      "lower_court",
+      "petitioner_names",
+      "place",
+      "respondent_names"
+    ],
+    "title": "Criminal revision petition (ss.438/442 BNSS)"
   },
   "default_bail": {
     "all": [
@@ -3440,6 +4441,130 @@
     ],
     "title": "Gift Deed"
   },
+  "hrcp_eviction": {
+    "all": [
+      "arrears_amount",
+      "arrears_months",
+      "court_place",
+      "demand_notice_served_date",
+      "facts_narrative",
+      "filing_date",
+      "grounds",
+      "landlord_names",
+      "misuse_notice_date",
+      "monthly_rent",
+      "place",
+      "premises_description",
+      "purpose_of_letting",
+      "rent_court",
+      "tenancy_commencement",
+      "tenant_names",
+      "tenant_quit_notice_date",
+      "written_tenancy_agreement"
+    ],
+    "fields": [
+      {
+        "key": "landlord_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "tenant_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "premises_description",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "monthly_rent",
+        "kind": "int",
+        "required": true
+      },
+      {
+        "key": "grounds",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "tenancy_commencement",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "purpose_of_letting",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "written_tenancy_agreement",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "arrears_months",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "arrears_amount",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "demand_notice_served_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "misuse_notice_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "tenant_quit_notice_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "rent_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      }
+    ],
+    "required": [
+      "filing_date",
+      "grounds",
+      "landlord_names",
+      "monthly_rent",
+      "place",
+      "premises_description",
+      "tenant_names"
+    ],
+    "title": "Eviction petition before the Rent Court (TN Act 42 of 2017, s.21)"
+  },
   "indigent_application": {
     "all": [
       "applicant_address",
@@ -3451,6 +4576,7 @@
       "indigency_particulars",
       "indigency_pleaded",
       "place",
+      "property_schedule",
       "respondent_address",
       "respondent_name",
       "respondent_parentage",
@@ -3526,6 +4652,11 @@
       {
         "key": "city",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "property_schedule",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -3673,6 +4804,7 @@
   "judicial_separation": {
     "all": [
       "city",
+      "custody_sought",
       "family_court",
       "filing_date",
       "ground",
@@ -3807,6 +4939,11 @@
       },
       {
         "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "custody_sought",
         "kind": "string",
         "required": false
       }
@@ -4131,16 +5268,6 @@
     "title": "MACT claim petition (s.166 MV Act)"
   },
   "madras_hc_original_side_suit_summons": {
-    "title": "Summons to Defendant in Civil Suit (Madras High Court, Original Side) with Concise Statement of Claim",
-    "required": [
-      "advocate",
-      "case_ref",
-      "claim_statement",
-      "defendant_name",
-      "plaintiff_name",
-      "presentation_date",
-      "recipient_address"
-    ],
     "all": [
       "advocate",
       "advocate_chamber",
@@ -4247,7 +5374,17 @@
         "required": false
       }
     ],
-    "imported": true
+    "imported": true,
+    "required": [
+      "advocate",
+      "case_ref",
+      "claim_statement",
+      "defendant_name",
+      "plaintiff_name",
+      "presentation_date",
+      "recipient_address"
+    ],
+    "title": "Summons to Defendant in Civil Suit (Madras High Court, Original Side) with Concise Statement of Claim"
   },
   "maintenance": {
     "all": [
@@ -5043,6 +6180,12 @@
         "required": true
       },
       {
+        "enumValues": [
+          "defendant_resides",
+          "defendant_carries_on_business",
+          "cause_of_action_wholly_arose",
+          "cause_of_action_part_arose"
+        ],
         "key": "territorial_bases",
         "kind": "string_list",
         "required": true
@@ -5097,6 +6240,16 @@
           {
             "key": "description",
             "kind": "string",
+            "required": false
+          },
+          {
+            "key": "in_writing",
+            "kind": "bool",
+            "required": false
+          },
+          {
+            "key": "signed",
+            "kind": "bool",
             "required": false
           }
         ],
@@ -5528,6 +6681,165 @@
     "required": [],
     "title": "Process Memo"
   },
+  "quash_petition": {
+    "all": [
+      "bench",
+      "compromise_memo_annexed",
+      "de_facto_complainant_is_respondent",
+      "facts_narrative",
+      "filing_date",
+      "grounds_list",
+      "grounds_narrative",
+      "high_court",
+      "is_fresh_action",
+      "offence_date",
+      "petitioner_names",
+      "place",
+      "prior_revision_dismissed",
+      "proceeding_forum",
+      "proceeding_ref",
+      "proceeding_start_date",
+      "quash_basis",
+      "respondent_names",
+      "sections",
+      "special_circumstances",
+      "stay_sought",
+      "target"
+    ],
+    "fields": [
+      {
+        "key": "petitioner_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "fir",
+          "final_report",
+          "private_complaint",
+          "proceedings"
+        ],
+        "key": "target",
+        "kind": "enum",
+        "required": true
+      },
+      {
+        "key": "proceeding_ref",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "proceeding_forum",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "key": "sections",
+        "kind": "string_list",
+        "required": true
+      },
+      {
+        "key": "offence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": true
+      },
+      {
+        "key": "place",
+        "kind": "string",
+        "required": true
+      },
+      {
+        "enumValues": [
+          "merits",
+          "compromise"
+        ],
+        "key": "quash_basis",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "is_fresh_action",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "proceeding_start_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "de_facto_complainant_is_respondent",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "compromise_memo_annexed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "prior_revision_dismissed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "special_circumstances",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "stay_sought",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "high_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "bench",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "facts_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "grounds_list",
+        "kind": "string_list",
+        "required": false
+      }
+    ],
+    "required": [
+      "filing_date",
+      "petitioner_names",
+      "place",
+      "proceeding_forum",
+      "proceeding_ref",
+      "respondent_names",
+      "sections",
+      "target"
+    ],
+    "title": "Quash petition u/s 528 BNSS (s.482 CrPC)"
+  },
   "recall_petition": {
     "all": [
       "accused_name",
@@ -5770,7 +7082,7 @@
       {
         "key": "chargesheet_filed",
         "kind": "bool",
-        "required": true
+        "required": false
       },
       {
         "enumValues": [
@@ -5862,7 +7174,6 @@
       "address",
       "age",
       "as_on",
-      "chargesheet_filed",
       "court_level",
       "custody_since",
       "district",
@@ -7276,8 +8587,10 @@
       "grounds",
       "impugned_case_ref",
       "impugned_court",
+      "impugned_in_second_appeal",
       "impugned_judgment_date",
       "interim_relief_sought",
+      "list_of_dates",
       "no_other_slp",
       "petitioner_address",
       "petitioner_name",
@@ -7285,7 +8598,9 @@
       "place",
       "questions_of_law",
       "respondents",
-      "slp_kind"
+      "slp_kind",
+      "substantial_questions_framed",
+      "synopsis"
     ],
     "fields": [
       {
@@ -7370,6 +8685,26 @@
       {
         "key": "petitioner_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "synopsis",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "list_of_dates",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "impugned_in_second_appeal",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "substantial_questions_framed",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -8059,6 +9394,12 @@
         "required": true
       },
       {
+        "enumValues": [
+          "defendant_resides",
+          "defendant_carries_on_business",
+          "cause_of_action_wholly_arose",
+          "cause_of_action_part_arose"
+        ],
         "key": "territorial_bases",
         "kind": "string_list",
         "required": true
@@ -8113,6 +9454,16 @@
           {
             "key": "description",
             "kind": "string",
+            "required": false
+          },
+          {
+            "key": "in_writing",
+            "kind": "bool",
+            "required": false
+          },
+          {
+            "key": "signed",
+            "kind": "bool",
             "required": false
           }
         ],
@@ -8757,22 +10108,22 @@
         ],
         "key": "kind",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "executant_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "party_role",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "advocates",
         "kind": "string_list",
-        "required": true
+        "required": false
       },
       {
         "key": "case_ref",
@@ -8782,7 +10133,7 @@
       {
         "key": "place",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "execution_date",
@@ -8856,13 +10207,7 @@
         "required": false
       }
     ],
-    "required": [
-      "advocates",
-      "executant_name",
-      "kind",
-      "party_role",
-      "place"
-    ],
+    "required": [],
     "title": "Vakalatnama"
   },
   "will": {
@@ -8962,6 +10307,8 @@
   },
   "writ_criminal": {
     "all": [
+      "detention_place",
+      "detenu_name",
       "facts_narrative",
       "filing_date",
       "grounds",
@@ -9047,6 +10394,16 @@
         "key": "petitioner_address",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "detenu_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "detention_place",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -9084,12 +10441,14 @@
       "legal_right",
       "month",
       "no_similar_petition",
+      "petitioner_description",
       "petitioner_name",
       "place",
       "prior_demand_and_refusal",
       "public_duty",
       "public_office",
       "quasi_judicial_order",
+      "relief_sought",
       "respondents",
       "writ_type",
       "year"
@@ -9173,7 +10532,7 @@
       {
         "key": "impugned_order_number",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "impugned_order_date",
@@ -9259,6 +10618,16 @@
         "key": "grounds_list",
         "kind": "string_list",
         "required": false
+      },
+      {
+        "key": "relief_sought",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_description",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -9267,7 +10636,6 @@
       "court_place",
       "day",
       "filing_date",
-      "impugned_order_number",
       "month",
       "no_similar_petition",
       "petitioner_name",

@@ -27,6 +27,7 @@ ALL_NAMES = [
     "bail_bars",
     "code_appointed_day",
     "limitation_article_periods",
+    "appeal_revision_periods",
 ]
 
 

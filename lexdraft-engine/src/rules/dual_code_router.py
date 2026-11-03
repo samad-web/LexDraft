@@ -29,10 +29,12 @@ Acts (BNS s.358; BNSS s.531; General Clauses Act s.6).
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
-from typing import Optional
+from typing import Optional, Sequence
 
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
@@ -84,6 +86,8 @@ def route(
     offence_date: Optional[date],
     proceeding_start_date: Optional[date],
     is_fresh_action: bool,
+    filing_date: Optional[date] = None,
+    sections: Optional[Sequence[str]] = None,
 ) -> RouteResult:
     """Resolve the substantive and procedural frameworks, or refuse."""
 
@@ -98,16 +102,38 @@ def route(
     substantive = (
         Substantive.BNS if offence_date >= APPOINTED_DAY else Substantive.IPC
     )
+    # The sections charged must belong to the Code in force on the offence date
+    # (Art. 20(1)): a January-2024 offence is IPC, never "BNS 318".
+    cited = {m.group(1).upper() for s_ in (sections or ()) for m in [re.match(r"\s*(BNS|IPC)\b", s_, re.I)] if m}
+    wrong = "BNS" if substantive is Substantive.IPC else "IPC"
+    if wrong in cited:
+        right = "IPC" if wrong == "BNS" else "BNS"
+        return _refuse(
+            f"the offence date {offence_date} is {'before' if right == 'IPC' else 'on or after'} "
+            f"1 July 2024, so the offence is charged under the {right}; the sections given "
+            f"({', '.join(sections or ())}) are {wrong} sections",
+            code="code_framework_sections_wrong_code",
+            fields=("sections", "offence_date"),
+        )
 
     # --- procedural axis ---
     if is_fresh_action:
         # Freshness dominates: BNSS even on old facts. Start date irrelevant, and
         # a missing start date is EXPECTED (a fresh action has no prior proceeding).
-        procedural = Procedural.BNSS
-        computation = (
-            f"offence {offence_date} -> substantive {substantive.value}; "
-            f"fresh action -> procedural bnss (freshness dominates)"
-        )
+        # But a fresh action FILED before the appointed day was a CrPC proceeding
+        # (a March 2024 bail application cites s.437/439 CrPC, not BNSS).
+        if filing_date is not None and filing_date < APPOINTED_DAY:
+            procedural = Procedural.CRPC
+            computation = (
+                f"offence {offence_date} -> substantive {substantive.value}; "
+                f"fresh action filed {filing_date} (before the appointed day) -> procedural crpc"
+            )
+        else:
+            procedural = Procedural.BNSS
+            computation = (
+                f"offence {offence_date} -> substantive {substantive.value}; "
+                f"fresh action -> procedural bnss (freshness dominates)"
+            )
         return RouteResult(refused=False, substantive=substantive,
                            procedural=procedural, computation=computation)
 

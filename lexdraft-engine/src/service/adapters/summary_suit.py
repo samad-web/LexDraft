@@ -6,16 +6,23 @@ from ...rules import jurisdiction as jur
 from ...rules.limitation import Acknowledgement
 from ...pipelines import summary_suit as pipeline
 from . import Adapter, FieldSpec, ListFieldSpec, register
+from .plaint import _BASES, _territorial
 
 
 _ACK_ITEM = (
     FieldSpec("date", "date"),
     FieldSpec("description", "string", required=False, default=""),
+    FieldSpec("in_writing", "bool", required=False, default=False),
+    FieldSpec("signed", "bool", required=False, default=False),
 )
 
 
 def _ack(kw: Dict[str, Any]) -> Acknowledgement:
-    return Acknowledgement(**kw)
+    # s.18 Limitation Act: only a written, signed acknowledgement extends time. The
+    # free-text description is for the pleading, not the limitation rule (passing it
+    # through crashed the engine with a TypeError).
+    return Acknowledgement(date=kw["date"], in_writing=bool(kw.get("in_writing")),
+                           signed=bool(kw.get("signed")))
 
 
 ADAPTER = Adapter(
@@ -30,7 +37,7 @@ ADAPTER = Adapter(
         FieldSpec('cause_of_action_date', 'date'),
         FieldSpec('cause_of_action_place', 'string'),
         FieldSpec('forum', 'enum', enum_values=tuple(f.value for f in jur.Forum), to_engine=jur.Forum),
-        FieldSpec('territorial_bases', 'string_list', to_engine=lambda vs: [jur.TerritorialBasis(v) for v in vs]),
+        FieldSpec('territorial_bases', 'string_list', enum_values=_BASES, to_engine=_territorial),
         FieldSpec('principal', 'int'),
         FieldSpec('interest_amount', 'int'),
         FieldSpec('claimed_total', 'int'),

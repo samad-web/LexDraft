@@ -47,7 +47,7 @@ ADAPTER = Adapter(
         FieldSpec("custody_since", "date"),
         FieldSpec("as_on", "date"),
         FieldSpec("prison", "string"),
-        FieldSpec("chargesheet_filed", "bool"),
+        FieldSpec("chargesheet_filed", "bool", required=False, default=None),
         FieldSpec("special_statute", "enum",
                   enum_values=tuple(s.value for s in bars.Statute),
                   required=False, default=None, to_engine=_statute),

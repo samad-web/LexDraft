@@ -22,6 +22,7 @@ ADAPTER = Adapter(
         FieldSpec('respondent_address', 'string', required=False, default=None),
         FieldSpec('civil_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
+        FieldSpec('property_schedule', 'string_list', required=False, default=None),
     ),
     slots=(),
 )

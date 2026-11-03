@@ -58,6 +58,24 @@ class TerritorialBasis(Enum):
     CAUSE_PART_AROSE = "cause_of_action_part_arose"
 
 
+# The s.20 CPC wording each basis is pleaded in (the plaint printed the raw codes).
+_BASIS_TEXT = {
+    TerritorialBasis.DEFENDANT_RESIDES:
+        "the defendant actually and voluntarily resides within the local limits of this Court",
+    TerritorialBasis.DEFENDANT_BUSINESS:
+        "the defendant carries on business within the local limits of this Court",
+    TerritorialBasis.CAUSE_WHOLLY_AROSE:
+        "the cause of action arose wholly within the local limits of this Court",
+    TerritorialBasis.CAUSE_PART_AROSE:
+        "the cause of action arose in part within the local limits of this Court",
+}
+
+
+def basis_text(b) -> str:
+    """Pleaded wording for a basis; a draft-now "[… to be provided]" gap passes as is."""
+    return _BASIS_TEXT[b] if isinstance(b, TerritorialBasis) else str(b)
+
+
 @dataclass(frozen=True)
 class PecuniaryResult:
     refused: bool

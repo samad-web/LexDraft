@@ -125,12 +125,11 @@ def build(out_dir: Path) -> Path:
         "{% if court_district %} (DISTRICT {{ court_district }}){% endif %}",
         style="CauseTitle")
     doc.add_paragraph(
-        "{% if suit_no %}SUIT NO. {{ suit_no }} OF {{ suit_year }}{% endif %}",
+        "{% if suit_no %}O.S. No. {{ suit_no }} of {{ suit_year }}{% endif %}",
         style="CauseTitle")
     doc.add_paragraph(
         "{% if suit_under %}({{ suit_under }}){% endif %}", style="CauseTitle")
     doc.add_paragraph("", style="PartyBlock")
-    doc.add_paragraph("IN THE MATTER OF:", style="PartyBlock")
     # When has_court is set but a party NAME wasn't supplied, emit a visible
     # [plaintiff name] / [defendant name] gap marker rather than a blank line, so
     # the advocate sees an obvious placeholder to fill (never a silently empty
@@ -141,18 +140,18 @@ def build(out_dir: Path) -> Path:
         "{% if plaintiff_description %}{{ plaintiff_description }}{% endif %}",
         style="PartyBlock")
     doc.add_paragraph("… PLAINTIFF", style="PartyTag")
-    doc.add_paragraph("VERSUS", style="Centered")
+    doc.add_paragraph("-Vs-", style="Centered")
     doc.add_paragraph("{{ defendant_name or '[defendant name]' }}", style="PartyBlock")
     doc.add_paragraph(
         "{% if defendant_description %}{{ defendant_description }}{% endif %}",
         style="PartyBlock")
     doc.add_paragraph("… DEFENDANT", style="PartyTag")
     doc.add_paragraph("", style="PartyBlock")
-    # "AFFIDAVIT OF <name>, <S/o> <parent>, AGED ABOUT <age> YEARS, R/o <address>
+    # "AFFIDAVIT OF <name>, <S/o> <parent>, AGED ABOUT <age> YEARS, RESIDING AT <address>
     #  [, in the capacity of <capacity>]."
     doc.add_paragraph(
         "AFFIDAVIT OF {{ deponent_name }}, {{ parentage_type }} {{ parentage_name }}, "
-        "AGED ABOUT {{ age }} YEARS, R/o {{ address }}"
+        "AGED ABOUT {{ age }} YEARS, RESIDING AT {{ address }}"
         "{% if deponent_capacity %}, in the capacity of {{ deponent_capacity }}{% endif %}.",
         style="AffOf")
     doc.add_paragraph("{% endif %}")

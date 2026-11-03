@@ -20,6 +20,8 @@ slots ("[to be drafted]"). This layer calls no LLM.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -95,7 +97,9 @@ def build(
     custody_since: date,
     as_on: date,
     prison: str,
-    chargesheet_filed: bool,
+    # None = not known: the template asks the advocate to confirm rather than
+    # asserting that the charge sheet has (or has not) been filed.
+    chargesheet_filed: Optional[bool],
     # special statute / bars
     special_statute: Optional[bars.Statute],
     bail_bar_addressed: bool,
@@ -122,7 +126,7 @@ def build(
     routed = router.route(
         offence_date=offence_date,
         proceeding_start_date=proceeding_start_date,
-        is_fresh_action=is_fresh_action,
+        is_fresh_action=is_fresh_action, filing_date=application_date, sections=sections,
     )
     if routed.refused:
         return _refuse_delegated(routed.reason, routed.refusal)
@@ -166,7 +170,10 @@ def build(
                 fields=("parity_claims",),
             )
 
-    # 4. custody days recomputed now.
+    # 4. custody days recomputed now — "as on" never after the application's own
+    #    date (a reviewer caught "778 days as on 2026" in an application of 2024).
+    if application_date and as_on > application_date:
+        as_on = application_date
     custody_days = cc.days_in_custody(custody_start=custody_since, as_on=as_on)
 
     _app_date = application_date or as_on
@@ -179,13 +186,12 @@ def build(
         "district": district,
         # cause-title header fields (derived; render only when present).
         "city": district,
-        "bail_court": bail_court,
+        "bail_court": _forum(bail_court, court_level),
         "bail_year": _app_date.year,
         "bail_date": _app_date.isoformat(),
         "sections": list(sections),
         "code_framework": code_framework,
-        "regular_bail_section": sections_map.get("regular_bail",
-                                                 sections_map["default_bail"]),
+        "regular_bail_section": _bail_section(sections_map, bail_court or court_level),
         "unverified_marker": _reg.marker_for(*_CONSUMED_TABLES),
         "custody_since": custody_since,
         "as_on": as_on,
@@ -211,3 +217,27 @@ def build(
         "place": place,
     }
     return RegularBailDoc(refused=False, context=context)
+
+def _forum(bail_court, court_level):
+    """The court the application is addressed to: the named bail court, else a
+    court_level that names a court ("Principal Sessions Judge, Tiruvallur"); None
+    leaves the template's default (Metropolitan Magistrate) cause title."""
+    if bail_court:
+        return bail_court
+    if court_level and re.search(r"judge|court|magistrate", court_level, re.I):
+        return court_level
+    # A bare level code: title the Sessions Court so it matches the s.483 cited.
+    if court_level and court_level.strip().lower() in ("sessions", "session", "sessions_court"):
+        return "THE PRINCIPAL SESSIONS JUDGE"
+    return None
+
+def _bail_section(sections_map, forum):
+    """The regular-bail provision for the forum (the bail court, else court_level —
+    a court name or a level code such as "sessions").
+    A Magistrate grants bail under s.480 BNSS (s.437 CrPC); s.483 BNSS (s.439
+    CrPC) is the Sessions Court / High Court power. No forum = the template's
+    default Magistrate cause title."""
+    f = (forum or "magistrate").lower()
+    if "magistrate" in f and "sessions" not in f and "high court" not in f:
+        return sections_map.get("regular_bail_magistrate", sections_map["regular_bail"])
+    return sections_map.get("regular_bail", sections_map["default_bail"])

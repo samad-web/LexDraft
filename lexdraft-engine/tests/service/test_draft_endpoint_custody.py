@@ -9,7 +9,7 @@ from src.verify.tables import UNVERIFIED_MARKER
 FIELDS = dict(
     accused_name="X", age=30, occupation="driver", address="Chennai",
     fir_no="45/2024", police_station="E4", district="Chennai",
-    sections=["BNS 318"], offence_date="2024-01-01", is_fresh_action=True,
+    sections=["IPC 420"], offence_date="2024-01-01", is_fresh_action=True,
     custody_since="2024-01-02", as_on="2024-03-10",
     prison="Puzhal", chargesheet_filed=False, court_level="sessions",
     place="Chennai",

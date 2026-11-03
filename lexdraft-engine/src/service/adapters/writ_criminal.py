@@ -22,6 +22,8 @@ ADAPTER = Adapter(
         FieldSpec('high_court', 'string', required=False, default=None),
         FieldSpec('petitioner_parentage', 'string', required=False, default=None),
         FieldSpec('petitioner_address', 'string', required=False, default=None),
+        FieldSpec('detenu_name', 'string', required=False, default=None),
+        FieldSpec('detention_place', 'string', required=False, default=None),
     ),
     slots=('facts_narrative',),
 )

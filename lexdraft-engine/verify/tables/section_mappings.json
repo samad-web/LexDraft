@@ -3,20 +3,34 @@
   "description": "BNSS <-> CrPC section equivalences per document remedy. Keyed by framework ('bnss' | 'crpc'), then by remedy key, to the section label the document cites.",
   "source": {
     "act": "Bharatiya Nagarik Suraksha Sanhita 2023 / Code of Criminal Procedure 1973",
-    "section": "s.187(3)/s.167(2) (default bail); s.482/s.438 (anticipatory); s.483/s.439 (regular); s.144/s.125 (maintenance)"
+    "section": "s.187(3)/s.167(2) (default bail); s.482/s.438 (anticipatory); s.480/s.437 (regular, Magistrate); s.483/s.439 (regular, Sessions/High Court); s.144/s.125 (maintenance); s.528/s.482 (quash); ss.438+442/ss.397+401 (HC revision); ss.438+440/ss.397+399 (Sessions revision); s.415(2)/s.374(2), s.415(3)/s.374(3) (appeal against conviction); s.430/s.389 (suspension of sentence)"
   },
   "values": {
     "bnss": {
       "default_bail": "Section 187(3) BNSS",
       "anticipatory_bail": "Section 482 BNSS",
       "regular_bail": "Section 483 BNSS",
-      "maintenance": "Section 144 BNSS"
+      "regular_bail_magistrate": "Section 480 BNSS",
+      "maintenance": "Section 144 BNSS",
+      "quash_petition": "Section 528 BNSS",
+      "criminal_revision_high_court": "Sections 438 and 442 BNSS",
+      "criminal_revision_sessions": "Sections 438 and 440 BNSS",
+      "criminal_appeal_high_court": "Section 415(2) BNSS",
+      "criminal_appeal_sessions": "Section 415(3) BNSS",
+      "suspension_of_sentence": "Section 430 BNSS"
     },
     "crpc": {
       "default_bail": "Section 167(2) CrPC",
       "anticipatory_bail": "Section 438 CrPC",
       "regular_bail": "Section 439 CrPC",
-      "maintenance": "Section 125 CrPC"
+      "regular_bail_magistrate": "Section 437 CrPC",
+      "maintenance": "Section 125 CrPC",
+      "quash_petition": "Section 482 CrPC",
+      "criminal_revision_high_court": "Sections 397 and 401 CrPC",
+      "criminal_revision_sessions": "Sections 397 and 399 CrPC",
+      "criminal_appeal_high_court": "Section 374(2) CrPC",
+      "criminal_appeal_sessions": "Section 374(3) CrPC",
+      "suspension_of_sentence": "Section 389 CrPC"
     }
   },
   "verified": false,

@@ -82,7 +82,7 @@ def build(
     routed = router.route(
         offence_date=offence_date,
         proceeding_start_date=proceeding_start_date,
-        is_fresh_action=is_fresh_action,
+        is_fresh_action=is_fresh_action, filing_date=application_date, sections=sections,
     )
     if routed.refused:
         return DefaultBailDoc(refused=True, reason=routed.reason, context=None,

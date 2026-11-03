@@ -125,6 +125,10 @@ def build(
                       "address": plaintiff_address},
         "defendant": {"name": defendant_name, "parentage": defendant_parentage,
                       "address": defendant_address},
+        # The shared civil cause title loops over `defendants`; without it the
+        # defendant line printed blank.
+        "defendants": [{"name": defendant_name, "parentage": defendant_parentage,
+                      "address": defendant_address}],
         "civil_court": civil_court,
         "city": city,
         "case_year": filing_date.year,

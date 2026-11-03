@@ -30,6 +30,7 @@ ADAPTER = Adapter(
         FieldSpec('respondent_address', 'string', required=False, default=None),
         FieldSpec('family_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
+        FieldSpec('custody_sought', 'string', required=False, default=None),
     ),
     slots=('ground_narrative',),
 )

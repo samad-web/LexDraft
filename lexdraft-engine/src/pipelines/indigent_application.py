@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 
@@ -62,6 +62,9 @@ def build(
     respondent_address: Optional[str] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    # O.XXXIII R.2: schedule of the applicant's movable/immovable property with
+    # estimated value (rendered as a gap when not given).
+    property_schedule: Optional[Sequence[str]] = None,
 ) -> IndigentResult:
     """Assemble the indigent-person application, or refuse."""
 
@@ -97,6 +100,7 @@ def build(
         "suit_ref": suit_ref,
         "indigency_particulars": indigency_particulars,
         "undertakes_to_pay_if_decreed": undertakes_to_pay_if_decreed,
+        "property_schedule": [i for i in (property_schedule or []) if i.strip()],
         "place": place,
     }
     return IndigentResult(refused=False, context=context)

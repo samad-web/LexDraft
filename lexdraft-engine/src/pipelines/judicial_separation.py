@@ -87,6 +87,8 @@ def build(
     respondent_address: Optional[str] = None,
     family_court: Optional[str] = None,
     city: Optional[str] = None,
+    # s.26 HMA: custody of a minor child (e.g. "the minor son, R. Arjun, aged 4").
+    custody_sought: Optional[str] = None,
 ) -> JudicialSeparationResult:
     """Assemble the s.10 HMA judicial-separation petition, or refuse."""
 
@@ -157,6 +159,7 @@ def build(
         "last_resided_together": last_resided_together,
         "jurisdiction_basis": jurisdiction_basis,
         "has_matrimonial_verification": True,
+        "custody_sought": (custody_sought or "").strip(),
         "place": place,
     }
     return JudicialSeparationResult(refused=False, context=context)

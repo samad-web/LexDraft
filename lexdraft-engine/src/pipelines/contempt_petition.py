@@ -129,7 +129,8 @@ def build(
         "petitioner_addresses": list(petitioner_addresses)
                                 if petitioner_addresses else [],
         "respondents": list(respondents),
-        "high_court": high_court,
+        # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
+        "high_court": high_court or "Judicature at Madras",
         "petition_year": filing_date.year,
         "petition_date": filing_date.isoformat(),
         "parent_case_ref": parent_case_ref,

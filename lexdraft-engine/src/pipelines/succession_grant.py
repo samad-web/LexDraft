@@ -145,6 +145,18 @@ def build(
             code="succession_grant_relatives_not_listed", fields=("relatives",),
         )
 
+    # 4a. the relatives are arrayed as respondents in the cause title; the petitioner
+    #     may be listed among them ("Son (Petitioner)") but is never his own respondent.
+    norm = lambda n: " ".join(n.lower().replace(".", " ").split())
+    respondents = [r for r in relatives
+                   if norm(r.name) != norm(petitioner_name) and "petitioner" not in r.relation.lower()]
+    if not respondents:
+        return _refuse(
+            "the only relative listed is the petitioner; set out the other next-of-kin "
+            "of the deceased, to be made respondents and cited",
+            code="succession_grant_no_kin_to_cite", fields=("relatives",),
+        )
+
     context: Dict[str, Any] = {
         "grant_kind": grant_kind.value,
         "grant_label": ("Probate" if grant_kind is GrantKind.PROBATE
@@ -160,7 +172,7 @@ def build(
         "bequest_slot": bequest_narrative if bequest_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "relatives": [{"relation": r.relation, "name": r.name, "address": r.address}
-                      for r in relatives],
+                      for r in respondents],
         "petitioner_is_named_executor": petitioner_is_named_executor,
         "petitioner_standing": petitioner_standing,
         "assets_schedule_ref": assets_schedule_ref,

@@ -191,6 +191,22 @@ def build(
                         f"{principal + interest_amount}; claimed total {claimed_total}",
         )
 
+    # 4a. interest can't exceed simple interest at the stated rate for the period
+    #     the suit covers (cause of action -> filing). Claiming LESS is the plaintiff's
+    #     choice; claiming more than has accrued is a defective plaint.
+    if interest_amount and interest_rate and cause_of_action_date and filing_date > cause_of_action_date:
+        days = (filing_date - cause_of_action_date).days
+        accrued = principal * interest_rate / 100 * days / 365
+        if interest_amount > accrued * 1.01 + 1:
+            return _refuse(
+                f"interest claimed (Rs. {interest_amount}) exceeds simple interest at "
+                f"{interest_rate}% on Rs. {principal} for {days} days (Rs. {round(accrued)})",
+                code="plaint_interest_exceeds_accrued",
+                fields=("interest_amount", "interest_rate", "principal"),
+                computation=f"{principal} x {interest_rate}% x {days}/365 = {accrued:.2f}; "
+                            f"claimed {interest_amount}",
+            )
+
     # 5. interest — contractual needs a document ref; else statutory fallback.
     if interest_is_contractual and interest_document_ref and interest_document_ref.strip():
         interest_basis = "contractual"
@@ -247,8 +263,8 @@ def build(
         # jurisdiction (both limbs)
         "forum": forum.value,
         "pecuniary_basis": f"the suit is valued at Rs. {claimed_total}/-, within "
-                           f"the pecuniary jurisdiction of the {forum.value}",
-        "territorial_bases": [b.value for b in ter.bases],
+                           "the pecuniary jurisdiction of this Hon'ble Court",
+        "territorial_bases": [jur.basis_text(b) for b in ter.bases],
         # account statement
         "principal": principal,
         "interest_amount": interest_amount,

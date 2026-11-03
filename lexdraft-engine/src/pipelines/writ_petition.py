@@ -149,6 +149,11 @@ def build(
     facts_narrative: str,
     grounds_narrative: str,
     grounds_list: Optional[Sequence[str]] = None,
+    # Optional: the specific relief a mandamus directs ("sanction and disburse the
+    # petitioner's pension"), and the petitioner's parentage/age/address for the
+    # memo of parties and the supporting affidavit.
+    relief_sought: str = "",
+    petitioner_description: str = "",
 ) -> WritResult:
     """Assemble the Article 226 writ petition, or refuse.
 
@@ -183,8 +188,14 @@ def build(
                        fields=("respondents",))
 
     # 4. impugned order: number AND date, annexed. (quo warranto is office-based,
-    #    but where an order is impugned it must be fully identified.)
-    if writ_type is not WritType.QUO_WARRANTO:
+    #    but where an order is impugned it must be fully identified.) A mandamus
+    #    against INACTION has no order — the demand and refusal (checked above)
+    #    stands in its place, and the template reads "the action complained of".
+    against_inaction = (writ_type is WritType.MANDAMUS
+                        and impugned_order_number.strip().upper() in ("", "N/A", "NA", "NIL", "NONE"))
+    if against_inaction:
+        impugned_order_number = "N/A"
+    if writ_type is not WritType.QUO_WARRANTO and not against_inaction:
         if not impugned_order_number.strip():
             return _refuse("the impugned order must be identified by its number",
                            code="writ_impugned_order_no_number",
@@ -270,5 +281,7 @@ def build(
         "grounds_slot": grounds_narrative if grounds_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "place": place,
+        "relief_sought": relief_sought.strip().rstrip("."),
+        "petitioner_description": petitioner_description.strip().rstrip("."),
     }
     return WritResult(refused=False, context=context)

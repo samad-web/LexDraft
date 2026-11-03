@@ -98,8 +98,10 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
     Reused paragraphs keep their own style and first-run formatting; extra ones are
     clones of the last paragraph in the range; surplus ones are removed. A paragraph
     Word numbers automatically has any typed "1." prefix stripped so it isn't
-    numbered twice. Returns None when the range is out of bounds or cuts through a
-    multi-line paragraph — the caller then keeps the plain engine draft.
+    numbered twice. A range edge inside a multi-line paragraph (a field value with a
+    newline) takes the whole paragraph, keeping its out-of-range lines as their own
+    paragraphs. Returns None when the range is out of bounds — the caller then keeps
+    the plain engine draft.
     """
     doc = Document(io.BytesIO(docx_bytes))
     targets = _targets(doc)
@@ -109,17 +111,21 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
         return None
 
     # Map the line range onto whole paragraphs.
-    picked, line = [], 0
+    picked, head, tail, line = [], [], [], 0
     for p, n in targets:
         first, last = line, line + n - 1
         line += n
         if last < start or first > end:
             continue
-        if first < start or last > end:
-            return None  # range splits a soft-broken paragraph
+        lines = [l for l in p.text.split("\n") if l.strip()]
+        if first < start:
+            head = lines[:start - first]
+        if last > end:
+            tail = lines[end - first + 1:]
         picked.append(p)
     if not picked:
         return None
+    new = head + new + tail
 
     # Blank spacer paragraphs BETWEEN the replaced ones belonged to the old
     # skeleton's layout; left in place they show as gaps inside the new body.

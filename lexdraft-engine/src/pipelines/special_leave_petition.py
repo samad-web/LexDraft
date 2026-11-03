@@ -82,6 +82,13 @@ def build(
     # cause-title header. Optional.
     petitioner_parentage: Optional[str] = None,
     petitioner_address: Optional[str] = None,
+    # Synopsis and List of Dates (rendered as a gap when absent).
+    synopsis: str = "",
+    list_of_dates: Optional[Sequence[str]] = None,
+    # SLP against a judgment in a Second Appeal: the s.100 CPC substantial
+    # questions of law the High Court formulated (a gap when not given).
+    impugned_in_second_appeal: bool = False,
+    substantial_questions_framed: Optional[Sequence[str]] = None,
 ) -> SLPResult:
     """Assemble the Special Leave Petition, or refuse."""
 
@@ -148,6 +155,11 @@ def build(
         "brief_facts_slot": brief_facts if brief_facts.strip()
                             else _LLM_SLOT_PLACEHOLDER,
         "interim_relief_sought": interim_relief_sought,
+        "synopsis": synopsis.strip(),
+        "list_of_dates": [d for d in (list_of_dates or []) if d.strip()],
+        "impugned_in_second_appeal": impugned_in_second_appeal,
+        "substantial_questions_framed": [q for q in (substantial_questions_framed or [])
+                                         if q.strip()],
         "place": place,
     }
     return SLPResult(refused=False, context=context)

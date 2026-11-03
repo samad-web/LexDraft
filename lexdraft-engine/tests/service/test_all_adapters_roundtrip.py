@@ -46,19 +46,19 @@ PAYLOADS = {
     "regular_bail": dict(
         accused_name="X", age=30, occupation="driver", address="Chennai",
         fir_no="45/2024", police_station="E4", district="Chennai",
-        sections=["BNS 318"], offence_date="2024-01-01", is_fresh_action=True,
+        sections=["IPC 420"], offence_date="2024-01-01", is_fresh_action=True,
         custody_since="2024-01-02", as_on="2024-03-10",
         prison="Puzhal", chargesheet_filed=False, court_level="sessions",
         place="Chennai"),
     "anticipatory_bail": dict(
         accused_name="X", age=20, occupation="director", address="Chennai",
         fir_no="45/2024", police_station="E4", district="Chennai",
-        sections=["BNS 318"], offence_date="2024-01-01", is_fresh_action=True,
+        sections=["IPC 420"], offence_date="2024-01-01", is_fresh_action=True,
         apprehension_basis="false FIR", place="Chennai"),
     "default_bail": dict(
         accused_name="X", age=34, occupation="driver", address="Chennai",
         fir_no="123/2024", police_station="E4", district="Chennai",
-        sections=["BNS 318"], offence_date="2024-01-01", is_fresh_action=True,
+        sections=["IPC 420"], offence_date="2024-01-01", is_fresh_action=True,
         first_remand_date="2024-01-02",
         offence_max_punishment_years=7, as_on="2024-03-10",
         application_ts="2024-03-05T10:00:00", chargesheet_filed_ts=None,
@@ -218,7 +218,7 @@ PAYLOADS = {
         grant_kind="probate", petitioner_name="Ramesh", deceased_name="Krishnan",
         death_date="2023-04-01", deceased_last_residence="Chennai",
         will_date="2020-01-15", will_duly_executed=True,
-        relatives=[dict(relation="Son", name="Ramesh", address="Chennai")],
+        relatives=[dict(relation="Widow", name="Lakshmi", address="Chennai")],
         petitioner_is_named_executor=True, assets_schedule_ref="Sch-A",
         undertakes_further_court_fee=True, no_impediment=True,
         jurisdiction_basis="fixed abode here", filing_date="2024-01-01",
@@ -458,6 +458,59 @@ PAYLOADS = {
         place="Chennai", decree_or_order_ref="O.S. No. 12 of 2026",
         decree_or_order_date="2026-06-01",
         property_schedule="House and ground at 5 Main Street", addressed_to="The Judgment-Debtor"),
+    # Phase 3 coverage.
+    "quash_petition": dict(
+        petitioner_names=["Ravi"], respondent_names=["State rep. by Inspector of Police, E4 PS"],
+        target="fir", proceeding_ref="Crime No. 45 of 2025",
+        proceeding_forum="E4 Police Station, Chennai", sections=["BNS 318(4)"],
+        offence_date="2025-01-10", filing_date="2025-06-01", place="Chennai"),
+    "criminal_revision": dict(
+        forum="high_court", petitioner_names=["Ravi"], respondent_names=["State"],
+        impugned_order_ref="order dismissing the discharge petition",
+        impugned_order_date="2025-05-01", lower_court="Principal Sessions Judge, Chennai",
+        offence_date="2025-01-10", filing_date="2025-06-01", place="Chennai"),
+    "criminal_appeal": dict(
+        forum="high_court", trial_court_level="sessions", appellant_names=["Ravi"],
+        respondent_names=["State"], trial_case_ref="S.C. No. 12 of 2024",
+        trial_court="Principal Sessions Judge, Chennai", judgment_date="2025-05-01",
+        convicted_sections=["BNS 109"], sentence_text="rigorous imprisonment for 10 years",
+        max_sentence_years=10, offence_date="2024-08-01", filing_date="2025-06-01",
+        place="Chennai"),
+    "civil_first_appeal": dict(
+        forum="district_court", appellant_names=["Ramesh"], respondent_names=["Suresh"],
+        appellant_trial_role="defendant", suit_ref="O.S. No. 100 of 2022",
+        trial_court="District Munsif Court, Tambaram", decree_date="2025-05-01",
+        filing_date="2025-05-20", place="Chennai"),
+    "civil_revision": dict(
+        basis="art227", petitioner_names=["Ramesh"], respondent_names=["Suresh"],
+        impugned_order_ref="order dismissing I.A. No. 5 of 2025",
+        impugned_order_date="2025-05-01", lower_court="District Munsif Court, Tambaram",
+        proceeding_ref="O.S. No. 100 of 2022", filing_date="2025-06-01", place="Chennai"),
+    "hrcp_eviction": dict(
+        landlord_names=["Lakshmi"], tenant_names=["Kumar"],
+        premises_description="Door No. 12, North Street, Mylapore, Chennai",
+        monthly_rent=15000, grounds=["arrears_of_rent"], arrears_months=3,
+        demand_notice_served_date="2025-04-01", filing_date="2025-06-01", place="Chennai"),
+    "condone_delay_petition": dict(
+        main_proceeding="appeal", main_proceeding_desc="A.S. No. ___ of 2025",
+        petitioner_name="Ramesh", respondent_names=["Suresh"],
+        court_name="THE PRINCIPAL DISTRICT JUDGE, CHENGALPATTU",
+        impugned_order_ref="judgment and decree in O.S. No. 100 of 2022",
+        impugned_order_date="2025-01-01", period_days=30, filing_date="2025-03-01",
+        sufficient_cause="the appellant was hospitalised", place="Chennai"),
+    "amendment_ia": dict(
+        applicant_name="Ramesh", applicant_role="plaintiff", respondent_name="Suresh",
+        suit_ref="O.S. No. 100 of 2022", pleading="plaint",
+        proposed_amendments=["Insert para 7A after para 7: ..."], trial_commenced=False,
+        filing_date="2025-06-01", place="Chennai"),
+    "counter_affidavit": dict(
+        petition_ref="W.P. No. 100 of 2025", petitioner_names=["Ravi"],
+        respondent_names=["State of Tamil Nadu", "District Collector"],
+        answering_respondent_serial=2, deponent_name="K. Mohan",
+        deponent_description="son of Kannan, aged 50 years",
+        petition_para_count=2,
+        para_replies=[dict(para=1, stance="admitted"), dict(para=2, stance="denied")],
+        affirm_date="2025-06-01", place="Chennai"),
 }
 
 # Imported formats (templates/imported/) carry their own sample payload in the manifest.
