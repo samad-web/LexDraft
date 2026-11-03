@@ -59,7 +59,7 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
   const connect = useEfilingPortalStore((s) => s.connect);
   const disconnect = useEfilingPortalStore((s) => s.disconnect);
   // The portal's own state list, not eCourts'.
-  const { data: states, isLoading: statesLoading } = useEfilingPortalStates();
+  const { data: states, isLoading: statesLoading, isError: statesFailed } = useEfilingPortalStates();
 
   // State, user type and username are remembered on this browser; the
   // password never is.
@@ -232,12 +232,11 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
   // Login waits only for itself; the captcha loads on its own.
   const busy = submitLogin.isPending || confirmDuplicateLogin.isPending;
 
-  const captchaRow = (
-    <div className="col" style={{ gap: 8 }}>
-     <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-      <span style={{ flexShrink: 0, width: 120, height: 44, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: '#ffffff', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+  const captchaImg = (
+    <div className="row" style={{ gap: 4, alignItems: 'center' }}>
+      <span style={{ flexShrink: 0, width: 120, height: 40, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: '#ffffff', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
         {captchaImage
-          ? <img src={`data:image/png;base64,${captchaImage}`} alt="eFiling captcha" style={{ width: 116, height: 40, objectFit: 'contain' }} />
+          ? <img src={`data:image/png;base64,${captchaImage}`} alt="eFiling captcha" style={{ width: 116, height: 36, objectFit: 'contain' }} />
           : <span className="body-sm muted">{loadingCaptcha ? 'Loading…' : ''}</span>}
       </span>
       <button type="button" className="btn btn-ghost btn-sm" aria-label="Play captcha audio" title="Hear the code" onClick={() => { void playCaptcha(); }} disabled={!captchaImage || loadingCaptcha}>
@@ -246,11 +245,12 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
       <button type="button" className="btn btn-ghost btn-sm" aria-label="Refresh captcha" title="New code" onClick={() => { void newCaptcha(); }} disabled={loadingCaptcha || busy}>
         New code
       </button>
-     </div>
-      <input className="input" aria-label="Captcha code" placeholder="Captcha code" value={captchaCode} onChange={(e) => setCaptchaCode(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') void (step === 'duplicate-login' ? confirmDuplicate() : logIn()); }}
-        autoComplete="off" />
     </div>
+  );
+  const captchaInput = (
+    <input className="input" aria-label="Captcha code" placeholder="Captcha code" value={captchaCode} onChange={(e) => setCaptchaCode(e.target.value)}
+      onKeyDown={(e) => { if (e.key === 'Enter') void (step === 'duplicate-login' ? confirmDuplicate() : logIn()); }}
+      autoComplete="off" />
   );
 
   if (step === 'authenticated') {
@@ -266,17 +266,17 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
   }
 
   return (
-    <section className="card col" aria-label="Sign In" style={{ gap: 18, width: '100%', maxWidth: 520, margin: '0 auto', padding: 'clamp(16px, 5vw, 28px)' }}>
-      <div className="col" style={{ gap: 4 }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-title)', fontSize: 26, fontWeight: 600 }}>Sign In</h2>
+    <section className="card col" aria-label="Sign In" style={{ gap: 14, width: '100%', maxWidth: 760, margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
+      <div className="row" style={{ gap: '4px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-title)', fontSize: 22, fontWeight: 600 }}>Sign In</h2>
         <p className="body-sm muted" style={{ margin: 0 }}>Your filing.ecourts.gov.in account. Fields marked with * are mandatory.</p>
       </div>
 
       {step === 'duplicate-login' ? (
-        <div className="col" style={{ gap: 12 }}>
-          <p className="body-sm" role="alert">{message || 'User already login.'}</p>
-          <p className="body-sm muted">This account is open somewhere else. Enter the new code to log that session out and continue here.</p>
-          {captchaRow}
+        <div className="col" style={{ gap: 10 }}>
+          <p className="body-sm" role="alert" style={{ margin: 0 }}>{message || 'User already login.'}</p>
+          <p className="body-sm muted" style={{ margin: 0 }}>This account is open somewhere else. Enter the new code to log that session out and continue here.</p>
+          <div style={grid}>{captchaImg}{captchaInput}</div>
           <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-sm" onClick={logOut}>Cancel</button>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => { void confirmDuplicate(); }} disabled={busy || !captchaCode}>
@@ -286,54 +286,67 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
         </div>
       ) : (
         <form className="col" style={{ gap: 14 }} onSubmit={(e) => { e.preventDefault(); void logIn(); }} autoComplete="off">
-          <label className="col" style={{ gap: 6 }}>
-            <span className="field-label">State *</span>
-            <select className="input" aria-label="Select State" value={stateCode} onChange={(e) => setStateCode(e.target.value)} disabled={statesLoading}>
-              <option value="">{statesLoading ? 'Loading…' : 'Select State'}</option>
-              {states?.map((s) => <option key={s.code} value={String(s.code)}>{s.name}</option>)}
-            </select>
-          </label>
-          <div className="col" style={{ gap: 6 }}>
-            <span className="field-label">Sign in as</span>
-            <span className="row" role="radiogroup" aria-label="User type" style={{ gap: 6, flexWrap: 'wrap' }}>
-              {USER_TYPES.map((t) => (
-                <label key={t.value} className={`chip${userType === t.value ? ' chip-on' : ''}`} style={{ cursor: 'pointer', gap: 6, ...(userType === t.value ? { background: 'var(--bg-inverse)', color: 'var(--text-inverse)', borderColor: 'var(--bg-inverse)' } : {}) }}>
-                  <input type="radio" name="efiling-user-type" checked={userType === t.value} onChange={() => setUserType(t.value)} style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} /> {t.label}
+          <div style={grid}>
+            <label className="col" style={{ gap: 6 }}>
+              <span className="field-label">State *</span>
+              <select className="input" aria-label="Select State" value={stateCode} onChange={(e) => setStateCode(e.target.value)} disabled={statesLoading}>
+                <option value="">{statesLoading ? 'Loading…' : statesFailed ? "Couldn't load states - reload the page" : 'Select State'}</option>
+                {states?.map((s) => <option key={s.code} value={String(s.code)}>{s.name}</option>)}
+              </select>
+            </label>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="field-label">Sign in as</span>
+              <span className="row" role="radiogroup" aria-label="User type" style={{ gap: 6, flexWrap: 'wrap' }}>
+                {USER_TYPES.map((t) => (
+                  <label key={t.value} className={`chip${userType === t.value ? ' chip-on' : ''}`} style={{ cursor: 'pointer', gap: 6, ...(userType === t.value ? { background: 'var(--bg-inverse)', color: 'var(--text-inverse)', borderColor: 'var(--bg-inverse)' } : {}) }}>
+                    <input type="radio" name="efiling-user-type" checked={userType === t.value} onChange={() => setUserType(t.value)} style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} /> {t.label}
+                  </label>
+                ))}
+              </span>
+            </div>
+            <label className="col" style={{ gap: 6 }}>
+              <span className="field-label">Username * <span className="muted" style={hint}>(not case sensitive)</span></span>
+              <input className="input" aria-label="Username" value={username} onChange={(e) => setUsername(e.target.value)} name="efiling-portal-username" autoComplete="off" />
+            </label>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="row" style={{ gap: 8, justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap' }}>
+                <span className="field-label">Password * <span className="muted" style={hint}>(case sensitive)</span></span>
+                <label className="row body-sm" style={{ gap: 6, alignItems: 'center' }}>
+                  <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} /> Show Password
                 </label>
-              ))}
-            </span>
-          </div>
-          <label className="col" style={{ gap: 6 }}>
-            <span className="field-label">Username * <span className="muted" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(not case sensitive)</span></span>
-            <input className="input" aria-label="Username" value={username} onChange={(e) => setUsername(e.target.value)} name="efiling-portal-username" autoComplete="off" />
-          </label>
-          <label className="col" style={{ gap: 6 }}>
-            <span className="field-label">Password * <span className="muted" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(case sensitive)</span></span>
-            <input className="input" aria-label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-              name="efiling-portal-password" autoComplete="new-password" data-lpignore="true" data-1p-ignore="true" />
-          </label>
-          <label className="row body-sm" style={{ gap: 8, alignItems: 'center' }}>
-            <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} /> Show Password
-          </label>
-          <div className="col" style={{ gap: 6 }}>
-            <span className="field-label">Captcha *</span>
-            {captchaRow}
+              </span>
+              <input className="input" aria-label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+                name="efiling-portal-password" autoComplete="new-password" data-lpignore="true" data-1p-ignore="true" />
+            </div>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="field-label">Captcha *</span>
+              {captchaImg}
+            </div>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="field-label">Enter the code *</span>
+              {captchaInput}
+            </div>
           </div>
           {message ? <p className="body-sm" role="alert" style={{ margin: 0, fontWeight: 600 }}>{message}</p> : null}
-          <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-            <button type="button" className="btn btn-sm" onClick={resetForm} disabled={busy}>Reset</button>
-            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{submitLogin.isPending ? 'Signing in…' : 'Login'}</button>
-          </span>
-          <span className="row body-sm" style={{ gap: 16, justifyContent: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-            <a href={`${PORTAL}?p=registration`} target="_blank" rel="noreferrer">New User ? Register here ↗</a>
-            <a href={PORTAL} target="_blank" rel="noreferrer" title="Opens filing.ecourts.gov.in, where Forgot Password is">Forgot Password ↗</a>
-          </span>
+          <div className="row" style={{ gap: '8px 16px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+            <span className="row body-sm" style={{ gap: 16, flexWrap: 'wrap' }}>
+              <a href={`${PORTAL}?p=registration`} target="_blank" rel="noreferrer">New User ? Register here ↗</a>
+              <a href={PORTAL} target="_blank" rel="noreferrer" title="Opens filing.ecourts.gov.in, where Forgot Password is">Forgot Password ↗</a>
+            </span>
+            <span className="row" style={{ gap: 8 }}>
+              <button type="button" className="btn btn-sm" onClick={resetForm} disabled={busy}>Reset</button>
+              <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{submitLogin.isPending ? 'Signing in…' : 'Login'}</button>
+            </span>
+          </div>
           <p className="body-sm muted" style={{ margin: 0 }}>
-            Your username and password go straight to filing.ecourts.gov.in; DifAi doesn't store them. The portal allows one login per account,
-            so signing in here ends your eFiling login elsewhere.
+            DifAi doesn't store your username or password; they go straight to filing.ecourts.gov.in. One login per account: signing in here ends your eFiling login elsewhere.
           </p>
         </form>
       )}
     </section>
   );
 }
+
+// Two columns on desktop, one on a phone.
+const grid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px 20px', alignItems: 'end' };
+const hint: React.CSSProperties = { fontWeight: 400, textTransform: 'none', letterSpacing: 0 };

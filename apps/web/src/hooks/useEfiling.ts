@@ -382,6 +382,9 @@ export function useEfilingPortalStates() {
     queryFn: () => api.get<{ items: PortalState[] }>('/efiling/portal/states'),
     select: (r) => r.items,
     staleTime: Infinity,
+    // A failed load (API restarting, network blip) left Sign In with an empty State list for good.
+    retry: (failures) => failures < 30,
+    retryDelay: 2000,
   });
 }
 
