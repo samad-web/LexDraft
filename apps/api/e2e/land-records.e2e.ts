@@ -434,10 +434,12 @@ describe('Land Records UI', () => {
     const survey = page.getByRole('textbox', { name: 'Survey Number' });
     await survey.fill('685');
     await survey.press('Enter');
-    await page.waitForFunction(() => [...document.querySelectorAll('select')].some((s) => [...s.options].some((o) => o.value === '10')), undefined, { timeout: 60_000 });
+    // Watch the Sub Division list itself (district codes also include '10').
+    const subdiv = sel('Sub Division Number');
+    await expect.poll(() => subdiv.locator('option[value="10"]').count(), { timeout: 60_000 }).toBe(1);
     time('UI recovery after API restart: sub divisions back', Date.now() - t0);
     expect(await page.getByText(/session has expired/i).count()).toBe(0);
-    await page.locator('select').last().selectOption('10');
+    await subdiv.selectOption('10');
     await page.getByLabel('Mobile No(10 digit)').fill('9876543210');
     await expect.poll(() => page.getByRole('button', { name: 'Get OTP' }).isEnabled(), { timeout: 5000 }).toBe(true);
   });

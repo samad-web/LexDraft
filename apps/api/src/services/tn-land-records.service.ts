@@ -270,10 +270,10 @@ async function readOptions(page: Page, selector: string): Promise<LandOption[]> 
 }
 
 /** Wait until a select has real options (the site fills them by AJAX). */
-async function waitForOptions(page: Page, selector: string, what: string): Promise<LandOption[]> {
+async function waitForOptions(page: Page, selector: string, what: string, timeout = STEP_TIMEOUT_MS): Promise<LandOption[]> {
   try {
     await page.waitForFunction((sel) => [...(document.querySelectorAll(`${sel} option`) as Iterable<{ value: string; textContent: string }>)]
-      .some((o) => o.value && o.value !== '00' && !/please select|--select/i.test(o.textContent)), selector, { timeout: STEP_TIMEOUT_MS });
+      .some((o) => o.value && o.value !== '00' && !/please select|--select/i.test(o.textContent)), selector, { timeout });
   } catch {
     return [];
   }
@@ -501,36 +501,26 @@ export async function startLandSession(userId: string, service: LandService): Pr
   page.once('crash', () => void closeSession(session.id));
 
   try {
-    const link = page.locator(`a[href^="${cfg.href}"]`).first();
-    if (await link.count() === 0) throw new LandRecordsError(502, 'The Land Records home page no longer lists this service.');
-    // Menu links open in the same tab; drop any target so the session keeps one page.
-    await link.evaluate((a: { removeAttribute: (n: string) => void }) => a.removeAttribute('target'));
     // Lift the home-page filter BEFORE leaving the home page, letting any
     // request still inside it finish ('wait'). Lifting it after the click
-    // with 'ignoreErrors' stranded the service page's own script requests
-    // (common.js -> no otpgenerate) about two opens in three (2026-11-03).
+    // with 'ignoreErrors' stranded the service page's own script requests.
     await context.unrouteAll({ behavior: 'wait' });
-    await Promise.all([
-      page.waitForURL((u) => u.pathname.endsWith(cfg.href.split('/').pop()!), { timeout: 45_000, waitUntil: 'domcontentloaded' }),
-      link.evaluate((a: { click: () => void }) => a.click()),
-    ]);
-    // The site's handlers come from scripts that may still be loading.
-    if (cfg.gate === 'otp') {
-      await page.waitForFunction(() => typeof window.otpgenerate === 'function', undefined, { timeout: STEP_TIMEOUT_MS })
-        .catch(async () => {
-          const seen = await page.evaluate(() => ({ url: document.location.href.replace(/rno=[^&]+/, 'rno=…'), ready: document.readyState, text: (document.body?.innerText ?? '').replace(/\s+/g, ' ').slice(0, 160) })).catch(() => null);
-          logger.warn({ service, seen }, 'tn-land: service page has no OTP script');
-          throw new LandRecordsError(502, 'The Land Records page did not finish loading - try again.');
-        });
-    }
-    const invalid = await page.evaluate(() => /INVALID ACCESS TO THE SITE/i.test(document.body?.innerText ?? ''));
-    if (invalid) throw new LandRecordsError(502, 'Land Records refused the visit. Try again in a minute.');
-
-    const districts = cfg.form === 'appid' || cfg.form === 'refno'
-      ? []
-      : await waitForOptions(page, SELECT_ID.district, 'district');
-    if (cfg.form !== 'appid' && cfg.form !== 'refno' && districts.length === 0) {
-      throw new LandRecordsError(502, 'Land Records did not load its district list - try again.');
+    // The site sometimes serves the service page with its own scripts cut off
+    // (no district list, no otpgenerate - seen 2026-11-03, even in a plain
+    // browser). Do what a person does: go Home and click the service again.
+    // A refresh would not do - the menu link's token is single use.
+    let districts: LandOption[] = [];
+    for (let attempt = 1; ; attempt++) {
+      if (superseded()) throw new LandRecordsError(409, SUPERSEDED);
+      try {
+        districts = await followMenuLink(page, cfg, attempt > 1);
+        break;
+      } catch (err) {
+        const broken = err instanceof LandRecordsError && err.code === 'PAGE_BROKEN';
+        if (!broken || attempt === OPEN_ATTEMPTS) throw err;
+        logger.info({ service, attempt }, 'tn-land: service page loaded broken - opening it again from Home');
+        await page.waitForTimeout(1_000 * attempt);
+      }
     }
     const out: LandSessionStart = { sessionId: session.id, service, title: cfg.title, gate: cfg.gate, form: cfg.form, districts };
     if (cfg.gate === 'captcha') out.captchaImage = await captchaImage(page);
@@ -542,6 +532,42 @@ export async function startLandSession(userId: string, service: LandService): Pr
     logger.warn({ err, service }, 'tn-land: page load failed');
     throw new LandRecordsError(502, 'Could not reach Land Records (eservices.tn.gov.in) right now. Try again in a few minutes.');
   }
+}
+
+const OPEN_ATTEMPTS = 3;
+/** A healthy service page is ready in 1-2 s; a broken one never gets there. */
+const PAGE_READY_MS = 10_000;
+
+/**
+ * From the site's home page, click the service's menu link and wait until
+ * the page is usable (its scripts ran, district list filled). Throws
+ * PAGE_BROKEN for a page that loaded with its scripts cut off.
+ */
+async function followMenuLink(page: Page, cfg: ServiceConfig, again: boolean): Promise<LandOption[]> {
+  if (again) await page.goto(`${BASE}/index.html`, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+  const link = page.locator(`a[href^="${cfg.href}"]`).first();
+  try {
+    await link.waitFor({ state: 'attached', timeout: STEP_TIMEOUT_MS });
+  } catch {
+    throw new LandRecordsError(502, 'The Land Records home page no longer lists this service.');
+  }
+  // Menu links open in the same tab; drop any target so the session keeps one page.
+  await link.evaluate((a: { removeAttribute: (n: string) => void }) => a.removeAttribute('target'));
+  await Promise.all([
+    page.waitForURL((u) => u.pathname.endsWith(cfg.href.split('/').pop()!), { timeout: 45_000, waitUntil: 'domcontentloaded' }),
+    link.evaluate((a: { click: () => void }) => a.click()),
+  ]);
+  const invalid = await page.evaluate(() => /INVALID ACCESS TO THE SITE/i.test(document.body?.innerText ?? ''));
+  if (invalid) throw new LandRecordsError(502, 'Land Records refused the visit. Try again in a minute.', 'PAGE_BROKEN');
+  // The site's handlers come from scripts that may still be loading.
+  if (cfg.gate === 'otp') {
+    const ok = await page.waitForFunction(() => typeof window.otpgenerate === 'function', undefined, { timeout: PAGE_READY_MS }).then(() => true, () => false);
+    if (!ok) throw new LandRecordsError(502, 'Land Records is not responding properly right now - try again in a few minutes.', 'PAGE_BROKEN');
+  }
+  if (cfg.form === 'appid' || cfg.form === 'refno') return [];
+  const districts = await waitForOptions(page, SELECT_ID.district, 'district', PAGE_READY_MS);
+  if (districts.length === 0) throw new LandRecordsError(502, 'Land Records did not load its district list - try again in a few minutes.', 'PAGE_BROKEN');
+  return districts;
 }
 
 /** Which list follows each pick, per form shape. */
