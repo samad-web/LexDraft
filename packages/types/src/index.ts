@@ -814,6 +814,15 @@ export interface IntakeDraft {
   signals: { review_banner: string; unverified_marker: string };
   unfilledSlots: string[];
   docxBase64: string | null;
+  /** How the body was written: 'composed' = full drafted prose; 'skeleton' =
+   *  the engine's plain draft because drafting failed a check (see composeNotice). */
+  composeStatus?: 'composed' | 'skeleton';
+  /** Plain-language note for the advocate when the body fell back to the
+   *  skeleton (e.g. "Two paragraphs need facts: …"). Absent when composed cleanly. */
+  composeNotice?: string;
+  /** Provisions/judgments the drafted body cites beyond the engine skeleton —
+   *  listed for the advocate to check before filing. */
+  addedAuthorities?: Array<{ cite: string; source: 'curated' | 'statute-db' | 'judgment'; url?: string }>;
 }
 
 /** Start a new intake conversation from the advocate's opening description. */
@@ -902,7 +911,21 @@ export interface ResearchAnswer {
     court: string;
     citation: string;
     excerpt: string;
+    /** Judgment corpus id (judgments.id) — set on real, retrieved citations. */
+    id?: string;
+    /** Source PDF of the judgment. */
+    url?: string | null;
+    /** The judgment's own paragraph number the excerpt is from. */
+    paraNo?: number;
+    decisionDate?: string | null;
+    /** The "[S1]" marker the answer uses for this citation. */
+    marker?: string;
   }>;
+  /** 'judgments' = synthesised from the real judgment corpus; 'demo' = canned. */
+  source?: 'judgments' | 'demo';
+  /** Citations the model wrote that are NOT in the retrieved set — stripped
+   *  from the answer. Surfaced so the advocate knows something was removed. */
+  removedCitations?: string[];
 }
 
 export interface ApiError {
@@ -1403,6 +1426,23 @@ export interface AiUsageTrendPoint {
 }
 
 /** Full payload for GET /admin/ai-usage. */
+/** Drafting quality per doc type (compose_outcomes): drafted body vs plain skeleton. */
+export type ComposeReasonKind = 'dropped' | 'unlocated' | 'reply_drift' | 'empty' | 'unavailable' | 'splice';
+export interface ComposeQualityRow {
+  docType: string;
+  total: number;
+  composed: number;
+  /** composed / total, 0..1 */
+  composedRate: number;
+  byReason: Partial<Record<ComposeReasonKind, number>>;
+  avgRemoved: number;
+  avgCited: number;
+  repaired: number;
+}
+export interface AdminComposeQualityResponse {
+  rows: ComposeQualityRow[];
+}
+
 export interface AdminAiUsageResponse {
   /** Inclusive start / exclusive end of the window, ISO-8601. */
   rangeStart: string;

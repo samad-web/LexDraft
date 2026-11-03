@@ -17,7 +17,9 @@
 // =============================================================================
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import net from 'node:net';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,6 +49,54 @@ function enginePython() {
     ? join(engineDir, '.venv', 'Scripts', 'python.exe')
     : join(engineDir, '.venv', 'bin', 'python');
   return existsSync(p) ? p : null;
+}
+
+// --- 0. One stack only ---------------------------------------------------------
+// Two `pnpm dev` stacks (e.g. a second terminal or editor session) fought over
+// :4000 — each API crash-looped on EADDRINUSE and dropped in-flight requests.
+// Refuse to start a second copy rather than half-start one.
+const PORTS = { 8099: 'engine', 8001: 'embeddings', 4000: 'api', 5173: 'web' };
+// Probe the hosts the services really bind (engine/embeddings 127.0.0.1, Vite ::1):
+// a bare listen(port) on '::' did not collide with them and missed 3 of 4.
+function portBusyOn(port, host) {
+  return new Promise((done) => {
+    const probe = net.createServer();
+    probe.once('error', (err) => done(err.code === 'EADDRINUSE'));
+    probe.once('listening', () => probe.close(() => done(false)));
+    probe.listen(port, host);
+  });
+}
+async function portBusy(port) {
+  for (const host of ['127.0.0.1', '::1', '::']) if (await portBusyOn(port, host)) return true;
+  return false;
+}
+// A lock file first: two launches in the same second both saw free ports
+// before either bound one. 'wx' creates it atomically or fails.
+const lockPath = join(os.tmpdir(), 'difai-dev-stack.lock');
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+try {
+  writeFileSync(lockPath, String(process.pid), { flag: 'wx' });
+} catch {
+  const holder = Number(readFileSync(lockPath, 'utf8'));
+  if (holder && holder !== process.pid && alive(holder)) {
+    console.error(`[dev] ✗ another dev stack is already running (pid ${holder}). Stop it first, then run \`pnpm dev\` again.`);
+    process.exit(1);
+  }
+  writeFileSync(lockPath, String(process.pid)); // stale lock from a crashed run
+}
+process.on('exit', () => { try { if (Number(readFileSync(lockPath, 'utf8')) === process.pid) unlinkSync(lockPath); } catch { /* gone */ } });
+
+const busy = [];
+for (const [port, name] of Object.entries(PORTS)) {
+  if (await portBusy(Number(port))) busy.push(`${name} :${port}`);
+}
+if (busy.length) {
+  console.error(
+    `[dev] ✗ already running: ${busy.join(', ')}.\n`
+    + '        Another dev stack is up. Stop it first (close its terminal, or end the\n'
+    + '        node/python processes on those ports), then run `pnpm dev` again.',
+  );
+  process.exit(1);
 }
 
 const children = [];
@@ -131,6 +181,30 @@ if (isWin && monorepo.toLowerCase().includes('onedrive')) {
   childEnv.CHOKIDAR_USEPOLLING ??= '1';
   childEnv.CHOKIDAR_INTERVAL ??= '1000';
 }
+// --- 1b. The embedding service (judgment + statute search by meaning) ----------
+// tools/embed-server (bge-m3). Its venv lives OUTSIDE OneDrive (torch is thousands
+// of files): %LOCALAPPDATA%\difai-embed\.venv, or DIFAI_EMBED_PYTHON. Absent =
+// keyword-only search, exactly as before.
+const embedPy = process.env.DIFAI_EMBED_PYTHON
+  ?? (isWin
+    ? join(process.env.LOCALAPPDATA ?? '', 'difai-embed', '.venv', 'Scripts', 'python.exe')
+    : join(process.env.HOME ?? '', '.difai-embed', '.venv', 'bin', 'python'));
+if (existsSync(embedPy)) {
+  const embed = spawn(
+    embedPy,
+    ['-m', 'uvicorn', 'server:app', '--host', '127.0.0.1', '--port', '8001'],
+    { cwd: join(monorepo, 'tools', 'embed-server'), env: { ...process.env }, stdio: 'inherit', shell: false },
+  );
+  embed.on('exit', (code) => {
+    if (!shuttingDown) console.warn(`[dev] ⚠  embeddings exited (code ${code}); search falls back to keywords.`);
+  });
+  children.push(embed);
+  childEnv.EMBED_SERVICE_URL ??= 'http://127.0.0.1:8001';
+  console.log('[dev] ✓ embeddings starting on http://127.0.0.1:8001 (first request loads the model)');
+} else {
+  console.warn('[dev] ⚠  embeddings venv not found — judgment/statute search is keyword-only. See tools/embed-server/README.md.');
+}
+
 const pathKey = Object.keys(childEnv).find((k) => k.toLowerCase() === 'path') ?? 'PATH';
 childEnv[pathKey] = `${nodeDir}${isWin ? ';' : ':'}${childEnv[pathKey] ?? ''}`;
 

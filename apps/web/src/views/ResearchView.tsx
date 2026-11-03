@@ -509,12 +509,23 @@ export function ResearchView() {
                         <span>{c.court}</span>
                         <span aria-hidden>·</span>
                         <strong>{c.citation}</strong>
+                        {c.decisionDate && (<><span aria-hidden>·</span><span>{c.decisionDate}</span></>)}
+                        {c.paraNo ? (<><span aria-hidden>·</span><span>para {c.paraNo}</span></>) : null}
                       </div>
                       {c.excerpt && <p className="ai-authority-excerpt">{c.excerpt}</p>}
+                      {c.url && /^https?:\/\//.test(c.url) && (
+                        <a className="body-sm" href={c.url} target="_blank" rel="noreferrer">Read the judgment ↗</a>
+                      )}
                     </div>
                   </li>
                 ))}
               </ol>
+              {ask.data.source === 'judgments' && (
+                <p className="body-sm muted">
+                  Judgments from the Indian Supreme Court and High Court Judgments open datasets
+                  (Dattam Labs, CC-BY-4.0).
+                </p>
+              )}
             </section>
           )}
 

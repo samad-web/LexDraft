@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { introducedParticulars, lostParticulars, particularsOf, stripSentences } from '../draft-guards';
+import { introducedParticulars, lostParticulars, misnamedActs, particularsOf, stripSentences, unauthorisedCitations } from '../draft-guards';
 
 describe('particularsOf — format-independent keys', () => {
   it('treats different spellings of the same amount, date and section as equal', () => {
@@ -27,6 +27,10 @@ describe('particularsOf — format-independent keys', () => {
 describe('lostParticulars / introducedParticulars', () => {
   const skeleton = '4. The petitioner was taken into custody on 2024-09-16 and has been in custody for 96 days. 3. The offence is registered under BNS s.303(2), BNS s.317(2).';
 
+  it('never demands the draft-now sentinel "Rs. 0" be kept', () => {
+    expect(lostParticulars('damages at Rs. 0/- per day and arrears of Rs. 48,000', 'damages at Rs. 20,000 per month and arrears of Rs. 48,000')).toEqual([]);
+  });
+
   it('flags a section or date the composed text dropped', () => {
     const lost = lostParticulars(skeleton, 'He was arrested on 16.09.2024 under Section 303(2) and has been in custody for 96 days.');
     expect(lost.map((p) => p.raw)).toEqual(['s.317(2)']);
@@ -53,5 +57,70 @@ describe('stripSentences', () => {
     const r = stripSentences(['6. He lives in Paris.', '7. He is innocent.'], ['Paris', 'London']);
     expect(r.paragraphs).toEqual(['7. He is innocent.']);
     expect(r.unresolved).toEqual(['London']);
+  });
+});
+
+describe('draft-guards — Act-abbreviation sections and misnamed Acts', () => {
+  it('reads "BNS 318(4)" as a section, but not "BNSS 2023" as one', () => {
+    expect(particularsOf('registered under BNS 318(4) and IPC 420').filter((p) => p.kind === 'section').map((p) => p.key))
+      .toEqual(['318(4)', '420']);
+    expect(particularsOf('under the BNSS 2023').filter((p) => p.kind === 'section')).toEqual([]);
+  });
+  it('flags an Act expanded as another', () => {
+    expect(misnamedActs(['The offence is under Section 318(4) of the Bharatiya Nagarik Suraksha Sanhita, 2023 (BNS). It is cheating.']))
+      .toEqual(['The offence is under Section 318(4) of the Bharatiya Nagarik Suraksha Sanhita, 2023 (BNS).']);
+    expect(misnamedActs(['Section 318(4) of the Bharatiya Nyaya Sanhita, 2023 (BNS).'])).toEqual([]);
+  });
+});
+
+describe('draft-guards — case names keep their sentence', () => {
+  it('does not end a sentence at "Ors." / "Anr." inside a case name', () => {
+    const s = stripSentences(
+      ['As held in Dev Gupta v. PEC University of Technology and Ors. that a reason is required, the order fails. Next point.'],
+      ['a reason is required'],
+    );
+    expect(s.paragraphs).toEqual(['Next point.']);
+  });
+});
+
+describe('draft-guards — CPC Orders and Rules', () => {
+  it('reads "Order XXXIX Rules 1 and 2" and "O.39 R.1 & 2" as the same provision', () => {
+    const a = particularsOf('under Order XXXIX Rules 1 and 2 CPC').filter((p) => p.kind === 'order').map((p) => p.key);
+    const b = particularsOf('under O.39 R.1 & 2').filter((p) => p.kind === 'order').map((p) => p.key);
+    expect(a).toEqual(['39:1,2']);
+    expect(b).toEqual(a);
+  });
+  it('strips an Order the skeleton and authorities do not carry', () => {
+    const bad = unauthorisedCitations(['The plaint complies with Order VII Rule 1 CPC. The suit is within Order XX Rule 12.'],
+      [''], [{ cite: 'Order VII Rule 1 of the Code of Civil Procedure, 1908', actPattern: 'CPC|Code of Civil Procedure' }]);
+    expect(bad).toEqual(['The suit is within Order XX Rule 12.']);
+  });
+});
+
+describe('stripSentences — leave the averment slot, not a hole', () => {
+  it('puts one marker where sentences were removed, keeping the ground letter', () => {
+    const s = stripSentences(
+      ['B. The cause of action arose on 21.02.2024 on default. It is invented. The court has jurisdiction.', '7. Fine paragraph.'],
+      ['21.02.2024', 'It is invented'], '[to be drafted]',
+    );
+    expect(s.paragraphs).toEqual(['B. [to be drafted] The court has jurisdiction.', '7. Fine paragraph.']);
+    expect(s.removed).toHaveLength(2);
+  });
+});
+
+describe('lostParticulars — a precise clause keeps its parent', () => {
+  it('treats Section 13(1)(ia) as keeping s.13(1), but not the reverse', () => {
+    expect(lostParticulars('divorce under s.13(1)', 'divorce under Section 13(1)(ia)')).toEqual([]);
+    expect(lostParticulars('cruelty under s.13(1)(ia)', 'divorce under Section 13(1)').map((p) => p.key)).toEqual(['13(1)(ia)']);
+  });
+});
+
+describe('draft-guards — Order/Rule in any case', () => {
+  it('reads an engine title "ORDER XVII RULE 1" as the same provision as "Order XVII Rule 1"', () => {
+    const key = (t: string) => particularsOf(t).filter((p) => p.kind === 'order').map((p) => p.key);
+    expect(key('PETITION UNDER ORDER XVII RULE 1 OF THE CODE')).toEqual(['17:1']);
+    expect(key('under Order XVII Rule 1 of the Code')).toEqual(['17:1']);
+    expect(unauthorisedCitations(['The petition is under Order XVII Rule 1 of the Code of Civil Procedure.'],
+      ['PETITION FOR ADJOURNMENT UNDER ORDER XVII RULE 1'], [])).toEqual([]);
   });
 });

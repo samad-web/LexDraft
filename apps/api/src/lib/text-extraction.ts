@@ -29,9 +29,9 @@ export type ExtractionResult =
 // pieces. Anything longer is truncated with a marker.
 const MAX_CHARS = 64_000;
 
-function truncate(text: string): string {
-  if (text.length <= MAX_CHARS) return text;
-  return `${text.slice(0, MAX_CHARS)}\n\n[... truncated, original file is ${text.length} characters]`;
+function truncateTo(text: string, max = MAX_CHARS): string {
+  if (text.length <= max) return text;
+  return `${text.slice(0, max)}\n\n[... truncated, original file is ${text.length} characters]`;
 }
 
 function normalizeWhitespace(text: string): string {
@@ -71,8 +71,11 @@ export async function extractText(input: {
   body: Buffer;
   mime: string;
   fileName: string;
+  /** Override the 64k-char cap (the judgment ingester keeps whole judgments). */
+  maxChars?: number;
 }): Promise<ExtractionResult> {
   const ext = extByName(input.fileName);
+  const truncate = (text: string) => truncateTo(text, input.maxChars);
 
   try {
     if (looksLikeMime(input.mime, ['text/plain', 'text/markdown']) || ext === 'txt' || ext === 'md') {

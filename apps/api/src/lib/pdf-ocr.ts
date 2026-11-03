@@ -31,7 +31,10 @@ async function getWorker(): Promise<Worker> {
   return workerPromise;
 }
 
-export type PdfOcrResult = { ok: true; text: string; pages: number } | { ok: false; error: string };
+export type PdfOcrResult =
+  /** pageTexts[i] is page i+1's text ('' when OCR read nothing), for callers that cite pages. */
+  | { ok: true; text: string; pages: number; pageTexts: string[] }
+  | { ok: false; error: string };
 
 /** Rasterise a PDF and OCR each page. Returns the concatenated page text. */
 export async function ocrPdf(buffer: Buffer): Promise<PdfOcrResult> {
@@ -51,6 +54,7 @@ export async function ocrPdf(buffer: Buffer): Promise<PdfOcrResult> {
     const worker = await getWorker();
     const pageCount = Math.min(doc.numPages, MAX_OCR_PAGES);
     const parts: string[] = [];
+    const pageTexts: string[] = [];
     for (let n = 1; n <= pageCount; n += 1) {
       const page = await doc.getPage(n);
       const viewport = page.getViewport({ scale: RENDER_SCALE });
@@ -60,6 +64,7 @@ export async function ocrPdf(buffer: Buffer): Promise<PdfOcrResult> {
       await page.render({ canvasContext: ctx, viewport, canvas } as never).promise;
       const png = canvas.toBuffer('image/png');
       const { data } = await worker.recognize(png);
+      pageTexts.push(data.text ?? '');
       if (data.text?.trim()) parts.push(data.text);
     }
     if (doc.numPages > MAX_OCR_PAGES) {
@@ -67,7 +72,7 @@ export async function ocrPdf(buffer: Buffer): Promise<PdfOcrResult> {
     }
     const text = parts.join('\n\n');
     if (!text.trim()) return { ok: false, error: 'OCR produced no text' };
-    return { ok: true, text, pages: pageCount };
+    return { ok: true, text, pages: pageCount, pageTexts };
   } catch (err) {
     logger.warn({ err }, 'pdf-ocr failed');
     return { ok: false, error: (err as Error)?.message ?? 'pdf OCR failed' };

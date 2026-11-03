@@ -19,6 +19,19 @@ const Schema = z.object({
   // preferring xAI when both are configured.
   LLM_PROVIDER: z.enum(['auto', 'anthropic', 'xai', 'none']).default('auto'),
   ANTHROPIC_API_KEY: z.string().optional().default(''),
+  /** Extra Anthropic keys, comma-separated, tried in order after ANTHROPIC_API_KEY
+   *  when a key is out of credit / revoked (anthropic-client key pool). */
+  ANTHROPIC_API_KEYS: z.string().optional().default(''),
+  /** When every Anthropic key fails for credit / auth / outage, answer from the
+   *  xAI/OpenAI slot instead of failing the request. 'false' = fail as before. */
+  LLM_FAILOVER: z.enum(['true', 'false']).default('true'),
+  /** DEVELOPMENT ONLY: answer Claude calls through the local Claude Code CLI on the
+   *  developer's own Claude login (Agent SDK / `claude -p`) instead of the API key,
+   *  for testing without API credit. Ignored when NODE_ENV=production — a product
+   *  serving users must use an API key. */
+  LLM_DEV_VIA_CLAUDE_CODE: z.enum(['true', 'false']).default('false'),
+  /** Path to the claude CLI (default: `claude` on PATH). */
+  CLAUDE_CODE_BIN: z.string().optional().default('claude'),
   ANTHROPIC_MODEL: z.string().default('claude-sonnet-5-5'),
   /** Model that reads an uploaded drafting format (scan / PDF / Word) into an
    *  engine template spec. Accuracy matters more than cost here: it runs once per
@@ -56,6 +69,8 @@ const Schema = z.object({
   STORAGE_SIGNING_SECRET: z.string().optional().default(''),
   /** Per-user write rate limit (writes per WINDOW). */
   WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(120),
+  /** AI drafting calls per user per hour (cost guard). Keep 30 in production. */
+  LLM_RATE_LIMIT_PER_HOUR: z.coerce.number().int().positive().default(30),
   WRITE_RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
 
   /** Optional Redis URL for cross-replica rate limiting + cache fanout. When
@@ -110,6 +125,13 @@ const Schema = z.object({
    *  skeleton; set 'false' for ONLY the engine's plain deterministic draft
    *  (e.g. a fully offline / no-LLM-key deployment). */
   INTAKE_COMPOSE: z.enum(['true', 'false']).default('true'),
+  /** COMPOSE depth: plan the grounds before writing (argued documents), feed the
+   *  advocate's own account + verified authorities, and redraft once on a failed
+   *  check before falling back. 'false' = the single-pass compose. */
+  INTAKE_COMPOSE_DEEP: z.enum(['true', 'false']).default('true'),
+  /** 'false' turns judgment search off (drafting and Research continue without
+   *  case law) — for when the corpus DB is short of IO. */
+  JUDGMENTS_SEARCH: z.enum(['true', 'false']).default('true'),
 
   /** SMTP wiring for transactional email (invitations, password resets,
    *  hearing reminders, etc.). When SMTP_HOST is blank, `email.send` logs to
@@ -345,6 +367,8 @@ export const env = {
    *  in any environment (it never fabricates; it just extracts less). */
   intakeDeterministic: parsed.data.INTAKE_DETERMINISTIC === 'true',
   intakeComposeEnabled: parsed.data.INTAKE_COMPOSE === 'true',
+  intakeComposeDeep: parsed.data.INTAKE_COMPOSE_DEEP === 'true',
+  judgmentsSearch: parsed.data.JUDGMENTS_SEARCH === 'true',
   /** The FAST provider/model the conversational intake extractor+classifier use,
    *  when configured (else they fall back to the drafting provider/model). Keeps
    *  intake responsive without downgrading the heavy General-AI drafting model. */
