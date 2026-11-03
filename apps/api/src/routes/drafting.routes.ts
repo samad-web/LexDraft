@@ -43,7 +43,9 @@ import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
 import { intakeService, IntakeError, IntakeUnavailableError, isAttachedFormatLabel, attachedFormatDocType } from '../services/intake.service';
-import { FormatReadError } from '../services/format-reader.service';import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
+import { FormatReadError } from '../services/format-reader.service';
+import { AiUnavailableError } from '../lib/anthropic-client';
+import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
 import { llmGenerationLimiter, perUserWriteLimit } from '../middleware/rateLimit';
 import { env } from '../env';
 import { logger } from '../logger';
@@ -1330,6 +1332,11 @@ async function intakeSetup(
 
 /** Map an engine-unavailable / intake error to a response; returns true if handled. */
 function handleIntakeError(err: unknown, res: Response): boolean {
+  // No AI credit / bad key: say so, rather than a draft that looks like "missing facts".
+  if (err instanceof AiUnavailableError) {
+    res.status(503).json({ error: 'ai_unavailable', message: err.message });
+    return true;
+  }
   if (err instanceof EngineDisabledError) {
     res.status(503).json({ error: 'engine_unavailable' });
     return true;

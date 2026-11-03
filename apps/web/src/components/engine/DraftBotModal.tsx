@@ -33,6 +33,10 @@ import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
 import { draftErrorMessage } from '../../lib/draft-error';
 
+// Focus the composer on open only with a mouse; on phones that pops the
+// keyboard over half the screen before the advocate has read anything.
+const AUTOFOCUS_COMPOSER = window.matchMedia('(pointer: fine)').matches;
+
 /** Best-effort document type from a filename, so a repaired upload lands with a
  *  sensible type on the case (mirrors NewCaseModal's inferDocType). */
 function inferDocType(name: string): string {
@@ -219,6 +223,11 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const [language, setLanguage] = useState<string>(LANGUAGES[0]);
   const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  // On phones the message can land under the bottom dock; bring it into view.
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [error]);
   // The state behind an "I still need X" — its fields are offered as inputs.
   const [needs, setNeeds] = useState<IntakeState | null>(null);
   const [needsLang, setNeedsLang] = useState<'EN' | 'HI' | 'TA'>('EN');
@@ -529,8 +538,10 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
         );
       } else if (!docLabel && status === 422 && code === 'doc_type_unclear') {
         setError('I couldn’t tell which document you need. Just name it in your words (e.g. “a s.138 notice”, “a plaint”), then Submit.');
+      } else if (code === 'ai_unavailable') {
+        setError('AI drafting is temporarily unavailable on DifAi. Your text is fine — please try again later.');
       } else if (status === 503 || code === 'engine_unavailable') {
-        setError('The drafting engine isn’t reachable right now. Make sure the engine service is running, then try again.');
+        setError('The drafting engine isn’t reachable right now. Please try again in a few minutes.');
       } else {
         setError(draftErrorMessage(err));
       }
@@ -680,7 +691,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           }
           rows={6}
           disabled={busy}
-          autoFocus
+          autoFocus={AUTOFOCUS_COMPOSER}
         />
 
         {/* Prompt-strength meter, like DraftBot's "Weak Prompt" hint. With a case
@@ -763,7 +774,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </label>
         </div>
 
-        {error && <p className="draftbot-modal__error" role="alert">{error}</p>}
+        {error && <p ref={errorRef} className="draftbot-modal__error" role="alert">{error}</p>}
         {needs && (
           <NeededFieldsPanel
             key={`${needs.matterId}:${needs.version}`}
@@ -869,7 +880,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             }
             rows={7}
             disabled={busy}
-            autoFocus
+            autoFocus={AUTOFOCUS_COMPOSER}
             aria-label="Describe the document and the facts"
           />
           <div className="dc-input-bar">
@@ -971,7 +982,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
               : formatFile ? 'Reading your format, then drafting the full document in it…' : 'Reading the facts and drafting the full document…'}
           </div>
         )}
-        {error && <p className="dc-error" role="alert">{error}</p>}
+        {error && <p ref={errorRef} className="dc-error" role="alert">{error}</p>}
         {needs && (
           <NeededFieldsPanel
             key={`${needs.matterId}:${needs.version}`}

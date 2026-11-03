@@ -264,6 +264,11 @@ async function fromJudgments(query: string, ctx: ResearchContext | null): Promis
 }
 
 export const researchService = {
+  /** True when ask() returns an answer rather than the 501 below. */
+  async canAsk(): Promise<boolean> {
+    return (await judgmentsService.configured()) || env.RESEARCH_PROVIDER === 'demo';
+  },
+
   async ask(query: string, ctx: ResearchContext | null = null): Promise<ResearchAnswer> {
     if (await judgmentsService.configured()) return fromJudgments(query, ctx);
 

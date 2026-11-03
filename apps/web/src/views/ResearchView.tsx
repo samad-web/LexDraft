@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
-import { useAskResearch } from '@/hooks/useResearch';
+import { useAskResearch, useResearchStatus } from '@/hooks/useResearch';
 import {
   useLawsSearch,
   useSignedPdfUrl,
@@ -44,6 +44,12 @@ export function ResearchView() {
   const showToast = useUIStore((s) => s.showToast);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'corpus' ? 'corpus' : 'ask');
+  // No answer backend on this deployment: lead with statute search and drop
+  // the Ask tab, rather than a question box that only says "not configured".
+  const canAsk = useResearchStatus().data?.ask !== false;
+  useEffect(() => {
+    if (!canAsk) setMode('corpus');
+  }, [canAsk]);
   const [query, setQuery] = useState<string>(searchParams.get('q') ?? '');
   const [followUp, setFollowUp] = useState<string>('');
 
@@ -191,7 +197,8 @@ export function ResearchView() {
         }
       />
 
-      {/* Mode switcher */}
+      {/* Mode switcher (only when there is a choice) */}
+      {canAsk && (
       <div className="ai-seg" role="tablist" aria-label="Research mode">
         <button
           type="button"
@@ -212,6 +219,7 @@ export function ResearchView() {
           <Icon name="search" size={14} /> Search statutes
         </button>
       </div>
+      )}
 
       <form
         onSubmit={onSubmit}

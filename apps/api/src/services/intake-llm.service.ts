@@ -19,7 +19,7 @@ import { env } from '../env';
 import { logger } from '../logger';
 import { withRetry } from '../lib/retry';
 import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
-import { withKeys, usageFrom, asRetryError } from '../lib/anthropic-client';
+import { withKeys, usageFrom, asRetryError, isAccountFailure, AiUnavailableError } from '../lib/anthropic-client';
 import { claudeCodeComplete, devViaClaudeCode } from '../lib/claude-code-dev';
 import { grok, outputLimit, asRetryError as asGrokRetryError } from '../lib/grok-client';
 
@@ -681,6 +681,8 @@ export const intakeLlm = {
         });
       } catch (err) {
         logger.warn({ err, attempt }, 'intake extract LLM failed');
+        // No credit / bad key: an empty extraction would read as "facts missing".
+        if (isAccountFailure(err)) throw new AiUnavailableError();
         continue; // network/API error — try the next attempt, else fall through to empty
       }
 
@@ -847,6 +849,7 @@ Rules:
       return { label: null, confidence: 'low' };
     } catch (err) {
       logger.warn({ err }, 'intake classifyDocType LLM failed; caller will ask for the format');
+      if (isAccountFailure(err)) throw new AiUnavailableError();
       return { label: null, confidence: 'low' };
     }
   },

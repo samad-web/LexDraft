@@ -53,6 +53,22 @@ export function isKeyFailure(err: unknown): boolean {
   return err.status === 400 && /credit balance|billing|quota/i.test(err.message);
 }
 
+/** Every key failed at account level (no credit, bad key): retrying, or
+ *  carrying on with an empty result, can't help. Callers surface it instead. */
+export class AiUnavailableError extends Error {
+  constructor() {
+    super('AI drafting is temporarily unavailable');
+    this.name = 'AiUnavailableError';
+  }
+}
+
+/** isKeyFailure, for errors already reshaped by asRetryError (what callers see). */
+export function isAccountFailure(err: unknown): boolean {
+  if (!(err instanceof HttpRetryError)) return isKeyFailure(err);
+  if (err.status === 401 || err.status === 403) return true;
+  return err.status === 400 && /credit balance|billing|quota/i.test(err.message);
+}
+
 const failoverOn = () => env.LLM_FAILOVER === 'true' && Boolean(env.XAI_API_KEY);
 
 /** The first live key's client (callers that only need "a" client). */

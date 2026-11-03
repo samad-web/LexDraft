@@ -26,6 +26,16 @@ function respondQuotaExceeded(res: Response, status: QuotaStatus): Response {
 
 export const researchRouter: Router = Router();
 
+// Whether Ask Lex.AI can answer here, so the screen can lead with statute
+// search instead of a question box that only replies 'not configured'.
+researchRouter.get('/status', requireFeature('research.basic'), async (_req, res, next) => {
+  try {
+    res.json({ ask: await researchService.canAsk() });
+  } catch (err) {
+    next(err);
+  }
+});
+
 researchRouter.get('/', requireFeature('research.basic'), async (req, res, next) => {
   try {
     const { q } = Ask.parse(req.query);
