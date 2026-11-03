@@ -1,5 +1,7 @@
 # Changelog
 
+- Dictate works in the Android app (device speech recogniser via Capacitor plugin; website unchanged). 2.1-preview.3.
+
 - Mobile fixes (2.1-preview.2, not committed: no git): notifications sheet portalled to body on phones + closes on Android back/Esc (was stuck under the blurred top bar); Draft composer no autofocus on touch; dock + FABs hide while the keyboard is open (lib/native.ts kb-open); no purchase UI in the Android app (Play policy); fontScale in configChanges so a font change no longer restarts the app.
 - Launch splash (not committed: no git): Di grows into DifAi, "Powered by Sirah Digital", over an ink courtroom line drawing (fans turning, scales swaying, gavel tap); ~2.4 s, tap to skip, reduced motion respected; app lock prompt waits for it.
 - Mobile app lock (not committed yet, no git): fingerprint/face/phone PIN on cold start and after 60 s away (Android build only); Settings → App lock (turning off needs an unlock); back on the lock screen exits; recents thumbnail hidden on Android 13+. Plugin @aparajita/capacitor-biometric-auth 10.

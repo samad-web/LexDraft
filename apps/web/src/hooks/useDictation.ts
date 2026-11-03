@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 
 // Minimal Web Speech API surface — progressive enhancement. Browsers that lack
 // it report `supported: false` and the hook no-ops.
@@ -23,6 +24,35 @@ function getRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
     webkitSpeechRecognition?: new () => SpeechRecognitionLike;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/**
+ * Android app: the device recogniser returns one phrase per start(), so keep
+ * restarting until the advocate taps stop (wantRef cleared). A silence
+ * timeout ("no match") just restarts; repeated other failures give up rather
+ * than loop. Exported for tests.
+ */
+export async function listenNative(
+  lang: string,
+  wantRef: { current: boolean },
+  onResult: (text: string) => void,
+): Promise<void> {
+  const { SpeechRecognition } = await import('@capacitor-community/speech-recognition');
+  const perm = await SpeechRecognition.requestPermissions().catch(() => null);
+  if (perm?.speechRecognition !== 'granted') return;
+  let failures = 0;
+  while (wantRef.current && failures < 3) {
+    try {
+      const { matches } = await SpeechRecognition.start({
+        language: lang, maxResults: 1, partialResults: false, popup: false,
+      });
+      failures = 0;
+      const text = matches?.[0]?.trim();
+      if (text && wantRef.current) onResult(text);
+    } catch (err) {
+      if (!/no match|didn't understand|speech timeout/i.test(String((err as Error)?.message ?? err))) failures += 1;
+    }
+  }
 }
 
 export interface Dictation {
@@ -50,7 +80,10 @@ export function useDictation(lang = 'en-IN'): Dictation {
   const recRef = useRef<SpeechRecognitionLike | null>(null);
   // True while the advocate wants to keep listening; cleared only by stop().
   const wantRef = useRef(false);
-  const supported = getRecognitionCtor() !== null;
+  // The Android WebView has no Web Speech API; the app uses the device's own
+  // recogniser through a Capacitor plugin instead.
+  const native = Capacitor.isNativePlatform();
+  const supported = native || getRecognitionCtor() !== null;
 
   const stop = useCallback(() => {
     wantRef.current = false;
@@ -58,7 +91,8 @@ export function useDictation(lang = 'en-IN'): Dictation {
     recRef.current = null;
     setListening(false);
     try { rec?.stop(); } catch { /* already stopped */ }
-  }, []);
+    if (native) void import('@capacitor-community/speech-recognition').then(({ SpeechRecognition }) => SpeechRecognition.stop()).catch(() => {});
+  }, [native]);
 
   // Stop any in-flight recognition when the consumer unmounts.
   useEffect(() => () => {
@@ -68,6 +102,16 @@ export function useDictation(lang = 'en-IN'): Dictation {
 
   const start = useCallback(
     (onResult: (text: string) => void) => {
+      if (native) {
+        stop();
+        wantRef.current = true;
+        setListening(true);
+        void listenNative(lang, wantRef, onResult).finally(() => {
+          wantRef.current = false;
+          setListening(false);
+        });
+        return;
+      }
       const Ctor = getRecognitionCtor();
       if (!Ctor) return;
       // Only one session at a time - end any previous one first.
@@ -115,7 +159,7 @@ export function useDictation(lang = 'en-IN'): Dictation {
         stop();
       }
     },
-    [lang, stop],
+    [lang, native, stop],
   );
 
   const toggle = useCallback(

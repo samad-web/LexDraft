@@ -1,5 +1,8 @@
 # Testing
 
+## Dictate in the Android app — 2026-11-03
+- User report: Dictate showed "Listening" but no text (WebView has no Web Speech API). Fix: useDictation uses the device recogniser via @capacitor-community/speech-recognition 7.0.1 on native; restarts per phrase until stop; silence keeps listening; mic refused exits; 3 real failures give up. Tests lib/__tests__/dictation-native.test.ts 4/4; web 70/70; tsc clean. 2.1-preview.3 (versionCode 12) installed; on-device speech check pending (user).
+
 ## W1 root cause + fixes — 2026-11-03
 - Prod API log: `Claude API 400: Your credit balance is too low` on every intake extract → empty extraction → engine "not generated", no missing list → misleading "I need a little more". AI drafting was down for all users. Needs Anthropic credit top-up (user).
 - Fix (uncommitted, see below): `isAccountFailure` + `AiUnavailableError` (lib/anthropic-client.ts); intake extract/classify rethrow on account failure; drafting routes → 503 `ai_unavailable`; app shows "AI drafting is temporarily unavailable"; draft error scrolls into view (was under the dock). Test: lib/__tests__/account-failure.test.ts 3/3; API intake/drafting/research/anthropic 200/200; web 66/66.
