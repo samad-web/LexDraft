@@ -710,7 +710,7 @@ describe('eFiling: every field and endpoint', () => {
     });
   });
 
-  it('eFiling starts with the portal login; "Prepare without logging in" opens the screens', async () => {
+  it('eFiling starts with the portal login; "Prepare without signing in" opens the screens', async () => {
     const ctx = page.context();
     const gate = await ctx.newPage();
     await gate.addInitScript(() => {
@@ -729,9 +729,9 @@ describe('eFiling: every field and endpoint', () => {
     await gate.getByRole('combobox', { name: 'Select State' }).waitFor();
     await gate.getByAltText('eFiling captcha').waitFor({ timeout: 60_000 });
     expect(await gate.getByRole('navigation', { name: 'eFiling menu' }).count()).toBe(0);
-    await gate.getByRole('button', { name: 'Prepare without logging in' }).click();
+    await gate.getByRole('button', { name: 'Prepare without signing in' }).click();
     await gate.getByRole('navigation', { name: 'eFiling menu' }).waitFor();
-    await gate.getByText('Not connected to the eFiling portal').waitFor();
+    await gate.getByText('Not connected - preparing filings in DifAi').waitFor();
     await gate.close();
   });
 
@@ -762,9 +762,6 @@ describe('eFiling laid out like the portal', () => {
     expect((await tile('Completed IAs').innerText()).split('\n')[1]).toBe('1');
     expect((await tile('Objections').innerText()).split('\n')[1]).toBe('0');
     await shot('dashboard');
-    await page.getByRole('button', { name: /Case Filing/ }).first().click();
-    await shot('menu-case-filing');
-    await page.keyboard.press('Escape');
     await tile('Completed IAs').click();
     await pollFor(async () => page.getByRole('button', { name: 'Open', exact: true }).count()).toBe(1);
   });
@@ -790,10 +787,10 @@ describe('eFiling laid out like the portal', () => {
 
     // The portal's tabs, unnumbered: Legal Heir because the case has one,
     // MVC because the case type is M.A.C.T.
-    const tabNames = (await page.getByRole('tab').allInnerTexts()).map((t) => t.replace(/[^A-Za-z -]/g, '').trim());
+    const tabNames = (await page.locator('.efiling > section').getByRole('tab').allInnerTexts()).map((t) => t.replace(/[^A-Za-z -]/g, '').trim());
     expect(tabNames).toEqual(['Initial Inputs', 'Litigant', 'Legal Heir', 'Fact Details', 'Case Details', 'MVC', 'e-File']);
 
-    await page.getByRole('tab', { name: 'Litigant', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Litigant', exact: true }).click();
     await page.getByText('Note: This tab is compulsary').waitFor();
     await page.getByRole('note', { name: 'Case summary' }).getByText('Munsiff Court, Chengannur').waitFor();
     await page.getByRole('button', { name: /View Previous Parties \(\d+\)/ }).click();
@@ -809,7 +806,7 @@ describe('eFiling laid out like the portal', () => {
     await heir.getByRole('button', { name: 'Save', exact: true }).click();
     await page.getByText('· legal heir of Suresh Babu').waitFor();
 
-    await page.getByRole('tab', { name: 'Fact Details', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Fact Details', exact: true }).click();
     await pollFor(async () => fieldIn(page, 'Fact').inputValue()).toBe('Lease agreement signed.');
     await page.getByRole('button', { name: 'Next', exact: true }).last().click(); // Case Details
     await pollFor(async () => fieldIn(page, 'Prayer').inputValue()).toBe('Decree for Rs. 2,40,000 with interest');
@@ -851,12 +848,12 @@ describe('eFiling laid out like the portal', () => {
     await page.getByText(/Bundle: 5 pages/).waitFor();
     await page.getByLabel('Upload pleadings status').selectOption('done');
 
-    await page.getByRole('tab', { name: 'Indexing', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Indexing', exact: true }).click();
     const rows = page.locator('table.tbl tbody tr');
     await pollFor(async () => rows.allInnerTexts()).toEqual(['1\tPlaint\t2 - 4', '2\tVakalatnama\t5 - 5']);
     await page.getByLabel('Index the documents status').selectOption('done');
 
-    await page.getByRole('tab', { name: 'Pleading eSign', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Pleading eSign', exact: true }).click();
     await page.getByRole('cell', { name: 'OTP to 9876543210' }).waitFor();
     await page.getByLabel('eSign status').selectOption('done');
 
@@ -913,16 +910,16 @@ describe('eFiling laid out like the portal', () => {
     await fieldIn(page, 'New application in matter').selectOption(caseId);
     await fieldIn(page, 'Application').fill('E2E IA for appointment of commissioner');
     await page.getByRole('button', { name: '+ New application' }).click();
-    await page.getByRole('tab', { name: 'Applications', exact: true }).waitFor();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Applications', exact: true }).waitFor();
     await pollFor(async () => fieldIn(page, 'Filing').inputValue()).toMatch(/[0-9a-f-]{36}/);
     const iaId = await fieldIn(page, 'Filing').inputValue();
     await page.getByLabel('Add the application status').selectOption('done');
     await page.getByRole('button', { name: 'Added on the portal' }).click();
     await pollFor(async () => (await getFiling(iaId)).status).toBe('efiled');
 
-    await page.getByRole('tab', { name: 'Pay Fees', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Pay Fees', exact: true }).click();
     await page.getByLabel('Pay the IA fee status').selectOption('not_applicable');
-    await page.getByRole('tab', { name: 'Authentication', exact: true }).click();
+    await page.locator('.efiling > section').getByRole('tab', { name: 'Authentication', exact: true }).click();
     await page.getByLabel('Advocate authentication status').selectOption('done');
     await page.getByLabel('Litigant authentication status').selectOption('done');
     await pollFor(async () => (await getFiling(iaId)).steps).toMatchObject({ ia_auth_advocate: 'done', ia_auth_litigant: 'done' });

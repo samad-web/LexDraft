@@ -12,4 +12,7 @@
 - Deploy only when the user says "deploy".
 
 ## Open questions
-- eFiling redesign navigation (build-docs/features/efiling-redesign.md) — awaiting approval.
+- none. (eFiling redesign plan approved 2026-11-03.)
+
+## Known issues
+- eFiling Overview tiles are still portal-style (light tiles in dark mode) until redesign step 2.

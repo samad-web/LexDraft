@@ -11,18 +11,17 @@ import {
 } from '@/hooks/useEfiling';
 import { errMsg } from './format';
 import { useEfilingPortalStore } from '@/store/efilingPortal';
-import { PortalButton, PortalInput, PortalSelect, Star } from './PortalForm';
 
 // =============================================================================
 // PortalLoginPanel - the eFiling portal's own Sign In (filing.ecourts.gov.in/
-// pdedev/), in DifAi's black and white, working over a server-side browser
+// pdedev/), as a DifAi card, working over a server-side browser
 // session on the real login page (efiling-live.service.ts):
 //
 //   Sign In / Fields marked with * are mandatory.
 //   *Select State   ○ Advocate ○ Litigant ○ Govt. Pleader ○ Clerk
 //   *Username (Username is not case sensitive)
 //   *Password (Password is case sensitive)   ☐ Show Password
-//   [captcha] 🔊 ⟳ [code]      (Login) (Reset)
+//   [captcha] Listen · New code [code]      (Reset) (Login)
 //   New User ? Register here   Forgot Password
 //
 // As on the portal the captcha is there from the start, and Login sends state,
@@ -54,8 +53,6 @@ const USER_TYPES: { value: EfilingUserType; label: string }[] = [
   { value: 'clerk', label: 'Clerk' },
 ];
 
-const label: React.CSSProperties = { fontWeight: 700, fontSize: 16 };
-const hint: React.CSSProperties = { fontWeight: 400, fontStyle: 'italic' };
 
 export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } = {}) {
   const connection = useEfilingPortalStore((s) => s.connection);
@@ -236,111 +233,107 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
   const busy = submitLogin.isPending || confirmDuplicateLogin.isPending;
 
   const captchaRow = (
-    <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ width: 112, height: 42, border: '1px solid var(--border-default)', background: '#ffffff', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
+    <div className="col" style={{ gap: 8 }}>
+     <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+      <span style={{ flexShrink: 0, width: 120, height: 44, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-sm)', background: '#ffffff', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
         {captchaImage
-          ? <img src={`data:image/png;base64,${captchaImage}`} alt="eFiling captcha" style={{ width: 112, height: 40, objectFit: 'contain' }} />
+          ? <img src={`data:image/png;base64,${captchaImage}`} alt="eFiling captcha" style={{ width: 116, height: 40, objectFit: 'contain' }} />
           : <span className="body-sm muted">{loadingCaptcha ? 'Loading…' : ''}</span>}
       </span>
-      <button type="button" aria-label="Play captcha audio" title="Play captcha audio" onClick={() => { void playCaptcha(); }} disabled={!captchaImage || loadingCaptcha}
-        style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 22, padding: '0 4px', color: 'var(--text-primary)' }}>🔊</button>
-      <button type="button" aria-label="Refresh captcha" title="Refresh captcha" onClick={() => { void newCaptcha(); }} disabled={loadingCaptcha || busy}
-        style={{ width: 40, height: 40, border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: 4, cursor: 'pointer', fontSize: 18, color: 'var(--text-primary)' }}>⟳</button>
-      <PortalInput aria-label="Captcha code" placeholder="Captcha code" value={captchaCode} onChange={(e) => setCaptchaCode(e.target.value)}
+      <button type="button" className="btn btn-ghost btn-sm" aria-label="Play captcha audio" title="Hear the code" onClick={() => { void playCaptcha(); }} disabled={!captchaImage || loadingCaptcha}>
+        Listen
+      </button>
+      <button type="button" className="btn btn-ghost btn-sm" aria-label="Refresh captcha" title="New code" onClick={() => { void newCaptcha(); }} disabled={loadingCaptcha || busy}>
+        New code
+      </button>
+     </div>
+      <input className="input" aria-label="Captcha code" placeholder="Captcha code" value={captchaCode} onChange={(e) => setCaptchaCode(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') void (step === 'duplicate-login' ? confirmDuplicate() : logIn()); }}
-        style={{ width: 180, height: 40 }} autoComplete="off" />
+        autoComplete="off" />
     </div>
   );
 
   if (step === 'authenticated') {
     return (
-      <div className="col" style={{ gap: 8, padding: 16, background: 'var(--bg-surface-2)', borderRadius: 8, maxWidth: 560 }}>
+      <div className="card col" style={{ gap: 8, maxWidth: 560 }}>
         <p className="body-sm">Connected to eFiling{connection?.username ? ` as ${connection.username}` : ''}{connection?.stateName ? ` · ${connection.stateName}` : ''}.</p>
         <p className="body-sm muted">Every eFiling screen in DifAi works over this session while you work here.</p>
         <div className="row" style={{ gap: 8 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={logOut} disabled={endSession.isPending}>Log out of eFiling</button>
+          <button type="button" className="btn btn-sm" onClick={logOut} disabled={endSession.isPending}>Log out of eFiling</button>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(0, 2fr)', border: '1px solid var(--border-default)' }}>
-      <section className="col" aria-label="Sign In" style={{ gap: 12, padding: '18px 28px 24px', background: 'var(--bg-surface-2)' }}>
-        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>Sign In</h2>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Fields marked with * are mandatory.</p>
+    <section className="card col" aria-label="Sign In" style={{ gap: 18, width: '100%', maxWidth: 520, margin: '0 auto', padding: 'clamp(16px, 5vw, 28px)' }}>
+      <div className="col" style={{ gap: 4 }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-title)', fontSize: 26, fontWeight: 600 }}>Sign In</h2>
+        <p className="body-sm muted" style={{ margin: 0 }}>Your filing.ecourts.gov.in account. Fields marked with * are mandatory.</p>
+      </div>
 
-        {step === 'duplicate-login' ? (
-          <div className="col" style={{ gap: 10 }}>
-            <p className="body-sm" role="alert">{message || 'User already login.'}</p>
-            <p className="body-sm">Enter the code below to log out the other session and continue here.</p>
-            {captchaRow}
-            <span className="row" style={{ gap: 8, justifyContent: 'center' }}>
-              <PortalButton onClick={() => { void confirmDuplicate(); }} disabled={busy || !captchaCode}>{confirmDuplicateLogin.isPending ? 'Logging in…' : 'Logout and Login'}</PortalButton>
-              <PortalButton outline onClick={logOut}>Cancel</PortalButton>
-            </span>
-          </div>
-        ) : (
-          <form className="col" style={{ gap: 12 }} onSubmit={(e) => { e.preventDefault(); void logIn(); }} autoComplete="off">
-            <label className="col" style={{ gap: 6 }}>
-              <span style={label}><Star />Select State</span>
-              <PortalSelect aria-label="Select State" value={stateCode} onChange={(e) => setStateCode(e.target.value)} disabled={statesLoading} style={{ height: 40, maxWidth: 320 }}>
-                <option value="">{statesLoading ? 'Loading…' : 'Select State'}</option>
-                {states?.map((s) => <option key={s.code} value={String(s.code)}>{s.name}</option>)}
-              </PortalSelect>
-            </label>
-            <span className="row" role="radiogroup" aria-label="User type" style={{ gap: 16, flexWrap: 'wrap' }}>
+      {step === 'duplicate-login' ? (
+        <div className="col" style={{ gap: 12 }}>
+          <p className="body-sm" role="alert">{message || 'User already login.'}</p>
+          <p className="body-sm muted">This account is open somewhere else. Enter the new code to log that session out and continue here.</p>
+          {captchaRow}
+          <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-sm" onClick={logOut}>Cancel</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => { void confirmDuplicate(); }} disabled={busy || !captchaCode}>
+              {confirmDuplicateLogin.isPending ? 'Signing in…' : 'Log out other session and continue'}
+            </button>
+          </span>
+        </div>
+      ) : (
+        <form className="col" style={{ gap: 14 }} onSubmit={(e) => { e.preventDefault(); void logIn(); }} autoComplete="off">
+          <label className="col" style={{ gap: 6 }}>
+            <span className="field-label">State *</span>
+            <select className="input" aria-label="Select State" value={stateCode} onChange={(e) => setStateCode(e.target.value)} disabled={statesLoading}>
+              <option value="">{statesLoading ? 'Loading…' : 'Select State'}</option>
+              {states?.map((s) => <option key={s.code} value={String(s.code)}>{s.name}</option>)}
+            </select>
+          </label>
+          <div className="col" style={{ gap: 6 }}>
+            <span className="field-label">Sign in as</span>
+            <span className="row" role="radiogroup" aria-label="User type" style={{ gap: 6, flexWrap: 'wrap' }}>
               {USER_TYPES.map((t) => (
-                <label key={t.value} className="row" style={{ gap: 6, alignItems: 'center', fontWeight: 700, fontSize: 16 }}>
-                  <input type="radio" name="efiling-user-type" checked={userType === t.value} onChange={() => setUserType(t.value)} /> {t.label}
+                <label key={t.value} className={`chip${userType === t.value ? ' chip-on' : ''}`} style={{ cursor: 'pointer', gap: 6, ...(userType === t.value ? { background: 'var(--bg-inverse)', color: 'var(--text-inverse)', borderColor: 'var(--bg-inverse)' } : {}) }}>
+                  <input type="radio" name="efiling-user-type" checked={userType === t.value} onChange={() => setUserType(t.value)} style={{ position: 'absolute', opacity: 0, width: 1, height: 1 }} /> {t.label}
                 </label>
               ))}
             </span>
-            <label className="col" style={{ gap: 6 }}>
-              <span style={label}><Star />Username <span style={hint}>(Username is not case sensitive)</span></span>
-              <PortalInput aria-label="Username" value={username} onChange={(e) => setUsername(e.target.value)} name="efiling-portal-username" autoComplete="off" style={{ height: 40, maxWidth: 320 }} />
-            </label>
-            <label className="col" style={{ gap: 6 }}>
-              <span style={label}><Star />Password <span style={hint}>(Password is case sensitive)</span></span>
-              <PortalInput aria-label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-                name="efiling-portal-password" autoComplete="new-password" data-lpignore="true" data-1p-ignore="true" style={{ height: 40, maxWidth: 320 }} />
-            </label>
-            <label className="row" style={{ gap: 8, alignItems: 'center', fontSize: 16 }}>
-              <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} style={{ width: 20, height: 20 }} /> Show Password
-            </label>
+          </div>
+          <label className="col" style={{ gap: 6 }}>
+            <span className="field-label">Username * <span className="muted" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(not case sensitive)</span></span>
+            <input className="input" aria-label="Username" value={username} onChange={(e) => setUsername(e.target.value)} name="efiling-portal-username" autoComplete="off" />
+          </label>
+          <label className="col" style={{ gap: 6 }}>
+            <span className="field-label">Password * <span className="muted" style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(case sensitive)</span></span>
+            <input className="input" aria-label="Password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
+              name="efiling-portal-password" autoComplete="new-password" data-lpignore="true" data-1p-ignore="true" />
+          </label>
+          <label className="row body-sm" style={{ gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} /> Show Password
+          </label>
+          <div className="col" style={{ gap: 6 }}>
+            <span className="field-label">Captcha *</span>
             {captchaRow}
-            {message ? <p className="body-sm" role="alert" style={{ margin: 0, fontWeight: 700 }}>{message}</p> : null}
-            <span className="row" style={{ gap: 6, justifyContent: 'center' }}>
-              <PortalButton type="submit" disabled={busy}>{submitLogin.isPending ? 'Logging in…' : 'Login'}</PortalButton>
-              <PortalButton onClick={resetForm} disabled={busy}>Reset</PortalButton>
-            </span>
-            <span className="col" style={{ gap: 6, alignItems: 'center' }}>
-              <a href={`${PORTAL}?p=registration`} target="_blank" rel="noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>New User ? Register here</a>
-              <a href={PORTAL} target="_blank" rel="noreferrer" title="Opens filing.ecourts.gov.in, where Forgot Password is" style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}>Forgot Password</a>
-            </span>
-          </form>
-        )}
-      </section>
-      <section className="col" aria-label="About e-Filing" style={{ gap: 12, padding: '18px 28px' }}>
-        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 700 }}>About e-Filing</h2>
-        <p style={{ margin: 0, fontSize: 16, lineHeight: 1.7, textAlign: 'justify' }}>
-          e-Filing system is a complete end to end solution developed for online filing of plaints, written statements, replies and
-          various applications related to cases. Both Civil and Criminal cases can be filed before any High Court or District Court of
-          the country. It is designed in Bilingual (English and local language) to reach wider group covering advocates/litigants.
-        </p>
-        <h2 style={{ margin: '12px 0 0', fontSize: 30, fontWeight: 700 }}>e-Filing system provides several benefits</h2>
-        <ul style={{ margin: 0, paddingLeft: 22, fontSize: 16, lineHeight: 1.8, listStyle: 'disc' }}>
-          <li>Save time, money, travel of advocates and clients</li>
-          <li>Obviate the need to physically visit the court</li>
-          <li>Reduce the need of meetings between clients and advocates</li>
-          <li>Automatic digitization of case records</li>
-          <li>Positive impact on environment by reducing paper footprint</li>
-        </ul>
-        <p className="body-sm muted" style={{ marginTop: 'auto' }}>
-          Your username and password go straight to filing.ecourts.gov.in to open your own session; DifAi doesn't store them.
-          The portal allows one login per account, so logging in here ends your eFiling login elsewhere.
-        </p>
-      </section>
-    </div>
+          </div>
+          {message ? <p className="body-sm" role="alert" style={{ margin: 0, fontWeight: 600 }}>{message}</p> : null}
+          <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-sm" onClick={resetForm} disabled={busy}>Reset</button>
+            <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>{submitLogin.isPending ? 'Signing in…' : 'Login'}</button>
+          </span>
+          <span className="row body-sm" style={{ gap: 16, justifyContent: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+            <a href={`${PORTAL}?p=registration`} target="_blank" rel="noreferrer">New User ? Register here ↗</a>
+            <a href={PORTAL} target="_blank" rel="noreferrer" title="Opens filing.ecourts.gov.in, where Forgot Password is">Forgot Password ↗</a>
+          </span>
+          <p className="body-sm muted" style={{ margin: 0 }}>
+            Your username and password go straight to filing.ecourts.gov.in; DifAi doesn't store them. The portal allows one login per account,
+            so signing in here ends your eFiling login elsewhere.
+          </p>
+        </form>
+      )}
+    </section>
   );
 }

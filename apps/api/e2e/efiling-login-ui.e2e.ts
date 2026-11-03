@@ -127,7 +127,8 @@ beforeAll(async () => {
 
   browser = await chromium.launch({ headless: true });
   const me = await (await fetch(`http://localhost:${PORT}/api/auth/me`, { headers: { authorization: `Bearer ${token}` } })).json();
-  const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  // E2E_SCHEME=dark / E2E_WIDTH=360 for the dark and phone screenshots.
+  const ctx = await browser.newContext({ viewport: { width: Number(process.env['E2E_WIDTH'] ?? 1440), height: 1000 }, colorScheme: process.env['E2E_SCHEME'] === 'dark' ? 'dark' : 'light' });
   await ctx.addInitScript(([t, usr]) => {
     localStorage.setItem('lexdraft-auth', JSON.stringify({ state: { user: usr, token: t, actAs: null, previousSession: null }, version: 0 }));
   }, [token, (me as { user?: unknown }).user ?? me] as const);
@@ -170,11 +171,10 @@ describe('eFiling login, then straight to the eFiling features', () => {
     await page.getByRole('button', { name: 'Login', exact: true }).click();
 
     // Straight into eFiling - the screen that was asked for, connected.
-    // The portal's own header: eFiling Services, its menus, the advocate's name.
+    // DifAi's header: connected as the advocate, the sections, the screen's tab.
     await page.getByRole('navigation', { name: 'eFiling menu' }).waitFor({ timeout: 60_000 });
-    await page.getByRole('button', { name: 'eFiling Services' }).waitFor();
     await page.getByText('adv@example.com').waitFor();
-    await page.getByRole('combobox', { name: 'Select State or High Court' }).waitFor();
+    await page.getByRole('tab', { name: 'Prepared in DifAi', selected: true }).waitFor();
     expect(new URL(page.url()).searchParams.get('m')).toBe('filings');
     expect(await page.getByRole('heading', { name: 'Sign In', exact: true }).count()).toBe(0);
   });
