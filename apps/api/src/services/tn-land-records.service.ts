@@ -505,16 +505,23 @@ export async function startLandSession(userId: string, service: LandService): Pr
     if (await link.count() === 0) throw new LandRecordsError(502, 'The Land Records home page no longer lists this service.');
     // Menu links open in the same tab; drop any target so the session keeps one page.
     await link.evaluate((a: { removeAttribute: (n: string) => void }) => a.removeAttribute('target'));
+    // Lift the home-page filter BEFORE leaving the home page, letting any
+    // request still inside it finish ('wait'). Lifting it after the click
+    // with 'ignoreErrors' stranded the service page's own script requests
+    // (common.js -> no otpgenerate) about two opens in three (2026-11-03).
+    await context.unrouteAll({ behavior: 'wait' });
     await Promise.all([
       page.waitForURL((u) => u.pathname.endsWith(cfg.href.split('/').pop()!), { timeout: 45_000, waitUntil: 'domcontentloaded' }),
       link.evaluate((a: { click: () => void }) => a.click()),
     ]);
-    // Service pages load in full from here on.
-    await context.unrouteAll({ behavior: 'ignoreErrors' }).catch(() => {});
     // The site's handlers come from scripts that may still be loading.
     if (cfg.gate === 'otp') {
       await page.waitForFunction(() => typeof window.otpgenerate === 'function', undefined, { timeout: STEP_TIMEOUT_MS })
-        .catch(() => { throw new LandRecordsError(502, 'The Land Records page did not finish loading - try again.'); });
+        .catch(async () => {
+          const seen = await page.evaluate(() => ({ url: document.location.href.replace(/rno=[^&]+/, 'rno=…'), ready: document.readyState, text: (document.body?.innerText ?? '').replace(/\s+/g, ' ').slice(0, 160) })).catch(() => null);
+          logger.warn({ service, seen }, 'tn-land: service page has no OTP script');
+          throw new LandRecordsError(502, 'The Land Records page did not finish loading - try again.');
+        });
     }
     const invalid = await page.evaluate(() => /INVALID ACCESS TO THE SITE/i.test(document.body?.innerText ?? ''));
     if (invalid) throw new LandRecordsError(502, 'Land Records refused the visit. Try again in a minute.');
@@ -1228,6 +1235,8 @@ export const __testing = {
       subdiv: document.getElementById('subdivNo')?.value ?? '',
     }));
   },
+  /** Forget every live session, as an API restart does (e2e: recovery). */
+  dropAllSessions: async () => { for (const id of [...sessions.keys()]) await closeSession(id); },
   /** Give a live session a result + PDF without the OTP (e2e: filing flow). */
   setSessionResult: (sessionId: string, result: LandResult, pdf: Buffer, summary: Record<string, string>) => {
     const s = sessions.get(sessionId);

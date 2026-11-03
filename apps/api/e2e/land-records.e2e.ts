@@ -414,6 +414,34 @@ describe('Land Records UI', () => {
     await page.getByRole('button', { name: /All services/ }).click();
   });
 
+  it('a search lost to an API restart recovers by itself: sub divisions still load, Get OTP enabled', async () => {
+    // Reported 2026-11-03: the dev API restarted mid-search -> "This Land
+    // Records session has expired" and an empty Sub Division list.
+    await page.goto(`${WEB}/app/land-records?service=patta`, { waitUntil: 'domcontentloaded' });
+    const sel = (label: string) => page.locator('label', { has: page.locator('span', { hasText: new RegExp(`^${label}\\*?$`) }) }).locator('select');
+    const waitOptions = (i: number) => page.waitForFunction((n) => (document.querySelectorAll('select')[n]?.options.length ?? 0) > 1, i, { timeout: 60_000 });
+    await waitOptions(0);
+    await sel('District').selectOption({ label: 'Tenkasi' });
+    await waitOptions(1);
+    await sel('Taluk').selectOption({ label: 'Shencottai' });
+    await waitOptions(2);
+    await sel('Village').selectOption({ label: 'Panpoli' });
+    await page.getByLabel('Natham').check();
+    // The API "restarts": every open search is gone.
+    const { __testing } = await import('../src/services/tn-land-records.service');
+    await __testing.dropAllSessions();
+    const t0 = Date.now();
+    const survey = page.getByRole('textbox', { name: 'Survey Number' });
+    await survey.fill('685');
+    await survey.press('Enter');
+    await page.waitForFunction(() => [...document.querySelectorAll('select')].some((s) => [...s.options].some((o) => o.value === '10')), undefined, { timeout: 60_000 });
+    time('UI recovery after API restart: sub divisions back', Date.now() - t0);
+    expect(await page.getByText(/session has expired/i).count()).toBe(0);
+    await page.locator('select').last().selectOption('10');
+    await page.getByLabel('Mobile No(10 digit)').fill('9876543210');
+    await expect.poll(() => page.getByRole('button', { name: 'Get OTP' }).isEnabled(), { timeout: 5000 }).toBe(true);
+  });
+
   it('my applications: follow from the UI, then close', async () => {
     await page.goto(`${WEB}/app/land-records?tab=applications`, { waitUntil: 'domcontentloaded' });
     await page.getByPlaceholder('eg:-0000/0000/00/000000').fill('2026/0412/05/009999');

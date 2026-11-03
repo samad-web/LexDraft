@@ -164,6 +164,44 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   const gate = session?.gate ?? meta.gate;
   const order = form === 'urban' ? URBAN_ORDER : RURAL_ORDER;
 
+  /** 404 = the server no longer has this search: the API restarted (every
+   *  dev save, every deploy) or it sat idle. Not the advocate's problem. */
+  const isGone = (err: unknown): boolean => (err as { response?: { status?: number } })?.response?.status === 404;
+
+  /** Open a fresh search on the site and replay the picks made so far, so a
+   *  lost search carries on instead of failing ("session has expired"). */
+  const revive = async (replay: Picks): Promise<string> => {
+    const mine = attempt.current;
+    setMessage('Reconnecting to Land Records…');
+    const s = await start.mutateAsync(service);
+    if (mine !== attempt.current) { end.mutate(s.sessionId); throw new Error('Left the screen.'); }
+    sessionRef.current = s.sessionId;
+    setSession(s);
+    setCaptchaImg(s.captchaImage ?? null);
+    loadedSurvey.current = null;
+    const fresh: Lists = { district: s.districts };
+    for (const f of order) {
+      const v = replay[f];
+      if (!v) break;
+      const r = await select.mutateAsync({ sessionId: s.sessionId, field: f, value: v });
+      if (r.next) fresh[r.next] = r.options;
+    }
+    setLists((l) => ({ ...l, ...fresh }));
+    setMessage(null);
+    return s.sessionId;
+  };
+
+  /** Run a step on the current search; if the search is gone, revive it once and retry. */
+  const withSession = async <T,>(step: (sessionId: string) => Promise<T>, replay: Picks): Promise<T> => {
+    if (!sessionRef.current) return step(await revive(replay));
+    try {
+      return await step(sessionRef.current);
+    } catch (err) {
+      if (!isGone(err)) throw err;
+      return step(await revive(replay));
+    }
+  };
+
   const pick = (field: LandListField, value: string): void => {
     if (!session) return;
     // Clear everything after this field, as the site does.
@@ -186,17 +224,16 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
     setOtpSent(null);
     setMessage(null);
     if (!value) return;
-    select.mutate(
-      { sessionId: session.sessionId, field, value },
-      {
-        onSuccess: (r) => {
-          if (r.next) setLists((l) => ({ ...l, [r.next!]: r.options }));
-          if (r.askLandType !== undefined) setAskLandType(r.askLandType);
-          if (r.next && r.options.length === 0) setMessage(r.message ?? 'Land Records lists nothing for this selection.');
-          else if (r.message) setMessage(r.message);
-        },
-        onError: (err) => fail(err, 'Land Records did not load the next list.'),
+    const before: Picks = {};
+    for (const f of order.slice(0, order.indexOf(field))) before[f] = picks[f];
+    withSession((id) => select.mutateAsync({ sessionId: id, field, value }), before).then(
+      (r) => {
+        if (r.next) setLists((l) => ({ ...l, [r.next!]: r.options }));
+        if (r.askLandType !== undefined) setAskLandType(r.askLandType);
+        if (r.next && r.options.length === 0) setMessage(r.message ?? 'Land Records lists nothing for this selection.');
+        else if (r.message) setMessage(r.message);
       },
+      (err) => fail(err, 'Land Records did not load the next list.'),
     );
   };
 
@@ -209,15 +246,13 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
     if (loadedSurvey.current === key && lists.subdiv) return;
     loadedSurvey.current = key;
     setPicks((p) => ({ ...p, subdiv: '' }));
-    subdivs.mutate(
-      { sessionId: session.sessionId, surveyNo: surveyNo.trim(), landType: landType || undefined },
-      {
-        onSuccess: (r) => {
-          setLists((l) => ({ ...l, subdiv: r.options }));
-          setMessage(r.options.length === 0 ? (r.message ?? 'No sub divisions for this Survey Number.') : r.message ?? null);
-        },
-        onError: (err) => { loadedSurvey.current = null; fail(err, 'Land Records did not load the sub divisions.'); },
+    withSession((id) => subdivs.mutateAsync({ sessionId: id, surveyNo: surveyNo.trim(), landType: landType || undefined }), picks).then(
+      (r) => {
+        loadedSurvey.current = key;
+        setLists((l) => ({ ...l, subdiv: r.options }));
+        setMessage(r.options.length === 0 ? (r.message ?? 'No sub divisions for this Survey Number.') : r.message ?? null);
       },
+      (err) => { loadedSurvey.current = null; fail(err, 'Land Records did not load the sub divisions.'); },
     );
   };
 
@@ -256,9 +291,24 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
     if (!session || !ready || !/^[6-9]\d{9}$/.test(mobile)) return;
     saveMobile(mobile);
     setMessage(null);
-    sendOtp.mutate(
-      { sessionId: session.sessionId, mobile, fields: fields() },
-      { onSuccess: (r) => { setOtpSent(r.message); setOtp(''); setOtpSentAt(Date.now()); setNow(Date.now()); }, onError: (err) => fail(err, 'Land Records did not send the OTP.') },
+    // A revived search gets the survey typed again by the server (fillForm).
+    withSession((id) => sendOtp.mutateAsync({ sessionId: id, mobile, fields: fields() }), picks).then(
+      (r) => { setOtpSent(r.message); setOtp(''); setOtpSentAt(Date.now()); setNow(Date.now()); },
+      (err) => fail(err, 'Land Records did not send the OTP.'),
+    );
+  };
+
+  /** The search was lost after the OTP / captcha was issued: that code belongs
+   *  to the old visit, so revive and ask for a new one instead of failing. */
+  const reviveForNewCode = (what: 'otp' | 'captcha'): void => {
+    revive(picks).then(
+      () => {
+        setOtpSent(null); setOtp(''); setOtpSentAt(null); setOtpCaptcha(false); setCaptcha('');
+        setMessage(what === 'otp'
+          ? 'Land Records restarted this search - tap Get OTP again.'
+          : 'Land Records restarted this search - enter the new authentication value.');
+      },
+      (err) => fail(err, 'Could not reconnect to Land Records.'),
     );
   };
 
@@ -276,7 +326,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
           if (r.status === 'ok') setResult(r.result);
           else { setOtpCaptcha(true); setCaptchaImg(r.captchaImage); setCaptcha(''); }
         },
-        onError: (err) => fail(err, 'The OTP was not accepted.'),
+        onError: (err) => (isGone(err) ? reviveForNewCode('otp') : fail(err, 'The OTP was not accepted.')),
         onSettled: () => { verifying.current = false; },
       },
     );
@@ -307,7 +357,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
           setCaptcha('');
           if (r.status === 'retry') { setCaptchaImg(r.captchaImage); setMessage(r.reason); } else setResult(r.result);
         },
-        onError: (err) => fail(err, 'Land Records did not answer.'),
+        onError: (err) => (isGone(err) ? reviveForNewCode(otpCaptcha ? 'otp' : 'captcha') : fail(err, 'Land Records did not answer.')),
       },
     );
   };
@@ -316,7 +366,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
     if (!session) return;
     refreshCaptcha.mutate(session.sessionId, {
       onSuccess: (r) => setCaptchaImg(r.captchaImage),
-      onError: (err) => fail(err, 'Could not load a new captcha.'),
+      onError: (err) => (isGone(err) ? reviveForNewCode(otpCaptcha ? 'otp' : 'captcha') : fail(err, 'Could not load a new captcha.')),
     });
   };
 
