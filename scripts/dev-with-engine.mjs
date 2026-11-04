@@ -99,6 +99,21 @@ if (busy.length) {
   process.exit(1);
 }
 
+// --- 0b. Self-hosted local Postgres (only if .env points at it) ---------------
+// Local dev moved off Supabase on 2026-11-04 to %LOCALAPPDATA%\difai-pg (conda-forge
+// PostgreSQL 16 + pgvector, port 5433). It doesn't start after a reboot, so start
+// it here. Detached on purpose: the database outlives the dev stack.
+const dbUrl = readEnvVar(join(monorepo, 'apps', 'api', '.env'), 'DATABASE_URL') ?? '';
+const pgRoot = join(process.env.LOCALAPPDATA ?? '', 'difai-pg');
+const pgCtl = join(pgRoot, 'env', 'Library', 'bin', 'pg_ctl.exe');
+if (isWin && /@localhost:5433\//.test(dbUrl) && existsSync(pgCtl) && !(await portBusy(5433))) {
+  spawn(pgCtl, ['start', '-D', join(pgRoot, 'data'), '-l', join(pgRoot, 'postgres.log')], {
+    detached: true, stdio: 'ignore', windowsHide: true,
+  }).unref();
+  for (let i = 0; i < 30 && !(await portBusy(5433)); i += 1) await new Promise((r) => setTimeout(r, 500));
+  console.log((await portBusy(5433)) ? '[dev] ✓ local Postgres :5433 started' : '[dev] ⚠ local Postgres did not start; see difai-pg/postgres.log');
+}
+
 const children = [];
 let shuttingDown = false;
 
