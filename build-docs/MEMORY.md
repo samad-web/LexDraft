@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-04 — Android app loads the live site (server.url, "server driven UI", user's choice) so web deploys reach Play users without a release. Trade-offs shown to the user and accepted: a bad deploy hits every phone at once with no rollback; no offline use (offline.html only); one forced sign-out on 2.2. Rejected: Capgo live updates (recommended), Play-only releases. Blocks mobile-offline-cache. Rule: ship a new native plugin in a Play release before web code calls it.
 - 2026-11-03 — Judgments corpus code approved and committed (dbc14d2). Migration 0098 (and 0099) NOT applied to live DBs, JUDGMENTS_SEARCH not switched on in prod — those still need an explicit go. Uncommitted backlog cleared into per-feature commits.
 - 2026-11-03 — Android app shows no purchase UI (Upgrade/See plans buttons, plan picker, Dodo copy, free-plan strip) via `isNativeApp()`; Plan & Billing is status-only in the app. Reason: Play payments policy until Play Billing exists. User said "proceed" without picking between hide-all and "manage on website" text; hide-all chosen as the safer option — revisit when Play Billing ships.
 - 2026-11-03 — Mobile: stay on Capacitor (no Flutter/RN rewrite: ~50 screens would be duplicated and the live Play app re-done). Push via Google FCM, not OneSignal (no extra vendor holding client data). Release: build now, ship APK 2.1 only after Play approves 2.0.2; doesn't wait for Play Billing (no payment surface touched). Case "tags" dropped (no tag model exists).

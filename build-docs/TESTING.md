@@ -1,5 +1,12 @@
 # Testing
 
+## Mobile live web (2.2, versionCode 13) — 2026-11-04, Samsung via adb
+- Pass: 2.2 opens the live site; the launch splash plays (Powered by Sirah Digital, courtroom), then the current welcome screen (no landing page).
+- Pass: airplane mode → bundled offline.html "Can't reach DifAi / Try again".
+- Pass: Play API access: `scripts/play-publish.mjs --status` lists tracks; 2.2 uploaded to internal, then production.
+- Found: the phone's Play install was still 2.0.2 (Play-signed); a sideloaded build can't be updated by Play, so testers must uninstall first.
+- Not run on device: Google sign-in, app lock, dictation, PDF download (unchanged native code; same web bundle as 2.1-preview.3).
+
 ## Dictate in the Android app — 2026-11-03
 - User report: Dictate showed "Listening" but no text (WebView has no Web Speech API). Fix: useDictation uses the device recogniser via @capacitor-community/speech-recognition 7.0.1 on native; restarts per phrase until stop; silence keeps listening; mic refused exits; 3 real failures give up. Tests lib/__tests__/dictation-native.test.ts 4/4; web 70/70; tsc clean. 2.1-preview.3 (versionCode 12) installed; on-device speech check pending (user).
 

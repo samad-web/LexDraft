@@ -1,5 +1,6 @@
 # Changelog
 
+- Android app 2.2 (code 13) loads https://difai.sirahdigital.in, so web deploys update the app on next open; offline/unreachable shows a bundled "Try again" page.
 - Dictate works in the Android app (device speech recogniser via Capacitor plugin; website unchanged). 2.1-preview.3.
 
 - Mobile fixes (2.1-preview.2, not committed: no git): notifications sheet portalled to body on phones + closes on Android back/Esc (was stuck under the blurred top bar); Draft composer no autofocus on touch; dock + FABs hide while the keyboard is open (lib/native.ts kb-open); no purchase UI in the Android app (Play policy); fontScale in configChanges so a font change no longer restarts the app.
