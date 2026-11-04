@@ -82,6 +82,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#3.4",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 7,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#3.4",
+        "note": "round-6 review: period counted with the remand day as day 1: last day and accrual date both stated"
       }
     ],
     "anticipatory_bail.docx": [
@@ -207,6 +213,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#4.2",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 5,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#4.2",
+        "note": "round-6 review: supporting affidavit drafted in full"
       }
     ],
     "plaint.docx": [
@@ -238,6 +250,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#4.1",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 6,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#4.1",
+        "note": "round-6 review: interest/total computed and the working printed; s.34 CPC interest prayer"
       }
     ],
     "summary_suit.docx": [
@@ -263,6 +281,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#4.1-O37",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 5,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#4.1-O37",
+        "note": "round-6 review: interest/total computed and the working printed"
       }
     ],
     "writ_petition.docx": [
@@ -325,6 +349,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#6.3",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; interim maintenance under the second proviso to s.144(1) BNSS"
+      },
+      {
+        "version": 5,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#6.3",
+        "note": "round-6 review: Family Court jurisdiction: s.7(2)(a) Family Courts Act"
       }
     ],
     "dv_application.docx": [
@@ -344,6 +374,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#6.4",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#6.4",
+        "note": "round-6 review: every respondent listed; prayer letters each order sought (ss.18-22, s.23)"
       }
     ],
     "consumer_complaint.docx": [
@@ -369,6 +405,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#7.1",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 5,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#7.1",
+        "note": "round-6 review: supporting affidavit drafted in full (to the Commission)"
       }
     ],
     "mact_claim.docx": [
@@ -388,6 +430,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#7.2",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; s.166(3) six-month limitation averment"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#7.2",
+        "note": "round-6 review: loss of dependency printed head by head (future prospects, personal-expense deduction, multiplier)"
       }
     ],
     "divorce_contested.docx": [
@@ -426,6 +474,12 @@
         "effective_from": "2026-11-03",
         "spec": "format-specs-p0.md#6.2-first",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-04",
+        "spec": "format-specs-p0.md#6.2-first",
+        "note": "round-6 review: joint affidavit of both petitioners drafted in full"
       }
     ],
     "divorce_mutual_second.docx": [
@@ -453,6 +507,12 @@
         "effective_from": "2026-11-02",
         "spec": "bnss-528 (Crl.O.P. u/s 528 BNSS / s.482 CrPC)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "bnss-528 (Crl.O.P. u/s 528 BNSS / s.482 CrPC)",
+        "note": "round-6 review: _hc_heading (Madras / Madurai Bench); State rep. by the Inspector of Police arrayed in a police case"
       }
     ],
     "criminal_revision.docx": [
@@ -461,6 +521,12 @@
         "effective_from": "2026-11-02",
         "spec": "bnss-438-442 (Crl.R.C. / Crl.R.P.)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "bnss-438-442 (Crl.R.C. / Crl.R.P.)",
+        "note": "round-6 review: HC title + (CRIMINAL REVISIONAL JURISDICTION); NI Act ss.138/139 and acquittal prayer on a conviction; optional suspension petition"
       }
     ],
     "criminal_appeal.docx": [
@@ -469,6 +535,12 @@
         "effective_from": "2026-11-02",
         "spec": "bnss-415 (Crl.A. against conviction)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "bnss-415 (Crl.A. against conviction)",
+        "note": "round-6 review: HC title via _court_heading + (CRIMINAL APPELLATE JURISDICTION); State arrayed; optional s.430 BNSS suspension petition"
       }
     ],
     "civil_first_appeal.docx": [
@@ -477,6 +549,12 @@
         "effective_from": "2026-11-02",
         "spec": "cpc-96-o41 (A.S. memorandum of appeal)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "cpc-96-o41 (A.S. memorandum of appeal)",
+        "note": "round-6 review: HC-aware court heading (_court_heading)"
       }
     ],
     "civil_revision.docx": [
@@ -485,6 +563,12 @@
         "effective_from": "2026-11-02",
         "spec": "cpc-115-art227 (C.R.P.)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "cpc-115-art227 (C.R.P.)",
+        "note": "round-6 review: HC-aware court heading; Art.227 paragraph states the supervisory basis only"
       }
     ],
     "hrcp_eviction.docx": [
@@ -493,6 +577,12 @@
         "effective_from": "2026-11-02",
         "spec": "tn-rrrlt-21 (R.L.T.O.P., TN Act 42 of 2017 s.21(2))",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-rrrlt-21 (R.L.T.O.P., TN Act 42 of 2017 s.21(2))",
+        "note": "round-6 review: ground particulars printed under the mapped s.21(2) clause; arrears prayer"
       }
     ],
     "condone_delay_petition.docx": [
@@ -501,6 +591,12 @@
         "effective_from": "2026-11-02",
         "spec": "lim-5 (s.5 Limitation Act)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "lim-5 (s.5 Limitation Act)",
+        "note": "round-6 review: copy time excluded only when applied for within limitation; court heading with THE"
       }
     ],
     "amendment_ia.docx": [
@@ -509,6 +605,12 @@
         "effective_from": "2026-11-02",
         "spec": "cpc-o6r17 (I.A. to amend pleadings)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "cpc-o6r17 (I.A. to amend pleadings)",
+        "note": "round-6 review: supporting affidavit in full; every respondent listed (respondent_names); court line via _court_expr"
       }
     ],
     "counter_affidavit.docx": [
@@ -517,6 +619,12 @@
         "effective_from": "2026-11-02",
         "spec": "mhc-counter (para-wise counter affidavit)",
         "note": "Phase 3 coverage — generated skeleton; advocate review pending"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "mhc-counter (para-wise counter affidavit)",
+        "note": "round-6 review: HC-aware court heading (_court_heading)"
       }
     ],
     "ejectment.docx": [
@@ -531,6 +639,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-nomenclature",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-11-04",
+        "spec": "tn-nomenclature",
+        "note": "round-6 review: arrears of rent and damages for use and occupation computed; lettered prayers incl. future mesne profits (O.XX R.12)"
       }
     ],
     "indigent_application.docx": [
@@ -545,6 +659,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-nomenclature",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; O.XXXIII: the petition is the plaint (R.8) + R.2 property schedule"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-11-04",
+        "spec": "tn-nomenclature",
+        "note": "round-6 review: petitioner's own assets schedule; suit property schedule; plaint particulars; several respondents"
       }
     ],
     "o39_r2a_application.docx": [
@@ -559,6 +679,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-nomenclature",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-11-04",
+        "spec": "tn-nomenclature",
+        "note": "round-6 review: supporting affidavit in full; prayer matches the breach (removal of construction / status quo ante; detention up to three months)"
       }
     ],
     "permanent_injunction.docx": [
@@ -587,6 +713,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-nomenclature",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-11-04",
+        "spec": "tn-nomenclature",
+        "note": "round-6 review: optional prayers: alternative refund of earnest money with interest (s.22(1)(b) SRA); injunction against alienation"
       }
     ],
     "written_statement.docx": [
@@ -617,6 +749,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; contemnor named personally; prayer under ss.10-12 Contempt of Courts Act + compliance"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: supporting affidavit drafted in full"
       }
     ],
     "execution_application.docx": [
@@ -625,6 +763,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; O.XXI R.11(2) particulars (a)-(j) incl. interest and mode of assistance"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: interest under the decree computed to the date of the petition; total due with costs"
       }
     ],
     "judicial_separation.docx": [
@@ -633,6 +777,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; no stock 'certified copy filed'; s.19 HMA incl. (iii-a); optional s.26 custody prayer"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: clean s.26 HMA custody prayer"
       }
     ],
     "restitution_conjugal_rights.docx": [
@@ -657,6 +807,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: letterhead 'Dated:' is the reply's own date (reply_date / today), never the notice date"
       }
     ],
     "special_leave_petition.docx": [
@@ -665,6 +821,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; synopsis and list of dates, limitation statement, s.100 CPC second-appeal reference"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: supporting affidavit drafted in full"
       }
     ],
     "succession_certificate.docx": [
@@ -681,6 +843,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: probate under s.276 Indian Succession Act; deceased_gender (his/her, testator/testatrix)"
       }
     ],
     "transfer_petition.docx": [
@@ -689,6 +857,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; intra-State s.24 CPC Tr.C.M.P. (High Court) variant"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-04",
+        "spec": "tn-layout",
+        "note": "round-6 review: supporting affidavit drafted in full (shared TN affidavit helper)"
       }
     ],
     "will.docx": [
@@ -705,6 +879,22 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'; Habeas Corpus Petition (H.C.P.) variant when the detenu is in custody"
+      }
+    ],
+    "surrender_petition.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-04",
+        "spec": "tn-forms",
+        "note": "round-6 review: court name from the field (_court_expr); State rep. by the Inspector of Police as respondent"
+      }
+    ],
+    "substituted_service.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-04",
+        "spec": "tn-forms",
+        "note": "round-6 review: court name from the field (_court_expr)"
       }
     ]
   }

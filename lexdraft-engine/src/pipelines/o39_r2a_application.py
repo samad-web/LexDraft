@@ -65,6 +65,10 @@ def build(
     # cause-title header (DPC book pp.19-20). Optional.
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    # the construction raised in breach (e.g. "the brick wall about 5 feet high
+    # raised across the common passage"): the prayer then seeks its removal and
+    # the restoration of the status quo, instead of restoration of possession.
+    construction_to_remove: Optional[str] = None,
 ) -> O39R2AResult:
     """Assemble the O39 R2-A application, or refuse."""
 
@@ -98,6 +102,7 @@ def build(
     context: Dict[str, Any] = {
         "applicant": {"name": applicant_name},
         "respondent": {"name": respondent_name},
+        "construction_to_remove": (construction_to_remove or "").strip(),
         "civil_court": civil_court,
         "city": city,
         "case_year": filing_date.year,

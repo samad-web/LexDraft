@@ -759,6 +759,7 @@
       "proposed_amendments",
       "reasons_narrative",
       "respondent_name",
+      "respondent_names",
       "suit_ref",
       "trial_commenced"
     ],
@@ -835,6 +836,11 @@
       {
         "key": "reasons_narrative",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -1710,7 +1716,7 @@
         ],
         "key": "basis",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "petitioner_names",
@@ -1809,7 +1815,6 @@
       }
     ],
     "required": [
-      "basis",
       "filing_date",
       "impugned_order_date",
       "impugned_order_ref",
@@ -2789,7 +2794,9 @@
       "copy_applied_date",
       "copy_ready_date",
       "court_name",
+      "crime_no",
       "death_sentence",
+      "draft_suspension_petition",
       "facts_narrative",
       "filing_date",
       "forum",
@@ -2801,6 +2808,8 @@
       "offence_date",
       "place",
       "pleaded_guilty",
+      "police_station",
+      "private_complaint",
       "proceeding_start_date",
       "respondent_names",
       "sentence_text",
@@ -2952,6 +2961,26 @@
         "key": "grounds_list",
         "kind": "string_list",
         "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "private_complaint",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "draft_suspension_petition",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [
@@ -2975,9 +3004,11 @@
       "appeal_lies",
       "case_ref",
       "condone_delay_petition_filed",
+      "convicted_sections",
       "copy_applied_date",
       "copy_ready_date",
       "court_name",
+      "draft_suspension_petition",
       "facts_narrative",
       "filing_date",
       "forum",
@@ -2993,7 +3024,8 @@
       "place",
       "proceeding_start_date",
       "respondent_names",
-      "revision_before_other_forum"
+      "revision_before_other_forum",
+      "sentence_text"
     ],
     "fields": [
       {
@@ -3108,6 +3140,21 @@
       {
         "key": "grounds_list",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "convicted_sections",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "sentence_text",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "draft_suspension_petition",
+        "kind": "bool",
         "required": false
       }
     ],
@@ -3595,7 +3642,11 @@
       "marriage_date",
       "marriage_place",
       "party_a",
+      "party_a_address",
+      "party_a_age",
       "party_b",
+      "party_b_address",
+      "party_b_age",
       "place",
       "settlement_custody",
       "settlement_maintenance",
@@ -3666,6 +3717,26 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "party_a_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "party_a_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "party_b_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "party_b_address",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -3714,7 +3785,7 @@
       {
         "key": "second_motion_date",
         "kind": "date",
-        "required": true
+        "required": false
       },
       {
         "key": "settlement_implemented",
@@ -3747,7 +3818,6 @@
       "party_a",
       "party_b",
       "place",
-      "second_motion_date",
       "settlement_implemented"
     ],
     "title": "Divorce by mutual consent \u2014 second motion (s.13B(2))"
@@ -3766,6 +3836,7 @@
       "place",
       "reliefs",
       "respondent_name",
+      "respondent_names",
       "shared_household_particulars",
       "shared_household_pleaded"
     ],
@@ -3883,6 +3954,11 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": false
       }
     ],
     "required": [
@@ -3899,18 +3975,22 @@
   "ejectment": {
     "all": [
       "annual_rent",
+      "arrears_from_date",
+      "arrears_months",
       "cause_of_action_date",
       "cause_of_action_place",
       "city",
       "civil_court",
       "court_fee",
       "damages_rate_per_day",
+      "damages_rate_per_month",
       "defendant_address",
       "defendant_name",
       "filing_date",
       "jurisdiction_basis",
       "lease_expiry_date",
       "lease_ref",
+      "monthly_rent",
       "outside_rent_control",
       "place",
       "plaintiff_address",
@@ -3965,7 +4045,7 @@
       {
         "key": "damages_rate_per_day",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "wrongful_occupation_since",
@@ -3975,7 +4055,7 @@
       {
         "key": "annual_rent",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "court_fee",
@@ -4031,14 +4111,32 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "monthly_rent",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "arrears_from_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "arrears_months",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "damages_rate_per_month",
+        "kind": "int",
+        "required": false
       }
     ],
     "required": [
-      "annual_rent",
       "cause_of_action_date",
       "cause_of_action_place",
       "court_fee",
-      "damages_rate_per_day",
       "defendant_name",
       "filing_date",
       "jurisdiction_basis",
@@ -4060,16 +4158,19 @@
       "costs_amount",
       "decree_date",
       "decree_holder_name",
+      "decree_interest_rate",
       "decretal_amount",
       "execution_against",
       "execution_court",
       "filing_date",
+      "interest_from_date",
       "interest_note",
       "judgment_debtor_name",
       "mode_of_assistance",
       "payment_received",
       "place",
       "police_station",
+      "post_decree_interest_rate",
       "prior_applications",
       "suit_no"
     ],
@@ -4157,6 +4258,21 @@
       {
         "key": "police_station",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "decree_interest_rate",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "interest_from_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "post_decree_interest_rate",
+        "kind": "int",
         "required": false
       }
     ],
@@ -4570,17 +4686,23 @@
       "applicant_address",
       "applicant_name",
       "applicant_parentage",
+      "cause_of_action",
       "city",
       "civil_court",
       "filing_date",
       "indigency_particulars",
       "indigency_pleaded",
+      "petitioner_assets",
       "place",
       "property_schedule",
+      "relief_claimed",
       "respondent_address",
       "respondent_name",
+      "respondent_names",
       "respondent_parentage",
+      "suit_property_schedule",
       "suit_ref",
+      "suit_valuation",
       "undertakes_to_pay_if_decreed"
     ],
     "fields": [
@@ -4657,6 +4779,36 @@
       {
         "key": "property_schedule",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "petitioner_assets",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "suit_property_schedule",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "respondent_names",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "relief_claimed",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "cause_of_action",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "suit_valuation",
+        "kind": "int",
         "required": false
       }
     ],
@@ -4850,7 +5002,7 @@
       {
         "key": "marriage_registered",
         "kind": "bool",
-        "required": true
+        "required": false
       },
       {
         "enumValues": [
@@ -4956,7 +5108,6 @@
       "last_resided_together",
       "marriage_date",
       "marriage_place",
-      "marriage_registered",
       "no_collusion",
       "no_condonation",
       "no_connivance",
@@ -5791,6 +5942,7 @@
       "applicant_name",
       "city",
       "civil_court",
+      "construction_to_remove",
       "disobedience_date",
       "disobedience_narrative",
       "filing_date",
@@ -5859,6 +6011,11 @@
       },
       {
         "key": "city",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "construction_to_remove",
         "kind": "string",
         "required": false
       }
@@ -6115,8 +6272,10 @@
       "forum",
       "interest_amount",
       "interest_document_ref",
+      "interest_from_date",
       "interest_is_contractual",
       "interest_rate",
+      "interest_tranches",
       "is_commercial_suit",
       "is_government_defendant",
       "limitation_article",
@@ -6198,12 +6357,12 @@
       {
         "key": "interest_amount",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "claimed_total",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "interest_rate",
@@ -6332,16 +6491,37 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "interest_from_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "amount",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "key": "from_date",
+            "kind": "date",
+            "required": true
+          }
+        ],
+        "key": "interest_tranches",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
       }
     ],
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
-      "claimed_total",
       "defendant_names",
       "filing_date",
       "forum",
-      "interest_amount",
       "interest_is_contractual",
       "interest_rate",
       "limitation_article",
@@ -6685,6 +6865,7 @@
     "all": [
       "bench",
       "compromise_memo_annexed",
+      "crime_no",
       "de_facto_complainant_is_respondent",
       "facts_narrative",
       "filing_date",
@@ -6695,6 +6876,7 @@
       "offence_date",
       "petitioner_names",
       "place",
+      "police_station",
       "prior_revision_dismissed",
       "proceeding_forum",
       "proceeding_ref",
@@ -6825,6 +7007,16 @@
       {
         "key": "grounds_list",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_no",
+        "kind": "string",
         "required": false
       }
     ],
@@ -7323,7 +7515,7 @@
       {
         "key": "marriage_registered",
         "kind": "bool",
-        "required": true
+        "required": false
       },
       {
         "key": "withdrawal_date",
@@ -7402,7 +7594,6 @@
       "last_resided_together",
       "marriage_date",
       "marriage_place",
-      "marriage_registered",
       "no_collusion",
       "no_undue_delay",
       "petitioner_name",
@@ -8073,7 +8264,8 @@
       "liability_denied",
       "notice_date",
       "opposing_advocate",
-      "place"
+      "place",
+      "reply_date"
     ],
     "fields": [
       {
@@ -8134,6 +8326,11 @@
       {
         "key": "client_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "reply_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -8727,6 +8924,7 @@
     "all": [
       "agreement_date",
       "agreement_ref",
+      "alternative_refund",
       "balance_amount",
       "cause_of_action_date",
       "cause_of_action_place",
@@ -8738,12 +8936,14 @@
       "defendant_parentage",
       "earnest_paid",
       "filing_date",
+      "injunction_against_alienation",
       "notice_ref",
       "place",
       "plaintiff_address",
       "plaintiff_name",
       "plaintiff_parentage",
       "readiness_and_willingness",
+      "refund_interest_rate",
       "refusal_narrative",
       "suit_property",
       "total_consideration"
@@ -8858,6 +9058,21 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "alternative_refund",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "refund_interest_rate",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "injunction_against_alienation",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [
@@ -8884,6 +9099,7 @@
       "affix_court_notice_board",
       "affix_last_known_residence",
       "case_ref",
+      "court_name",
       "court_place",
       "deponent_address",
       "deponent_age",
@@ -8971,6 +9187,11 @@
       {
         "key": "affix_last_known_residence",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
         "required": false
       }
     ],
@@ -9149,6 +9370,7 @@
       "bequest_narrative",
       "city",
       "death_date",
+      "deceased_gender",
       "deceased_last_residence",
       "deceased_name",
       "filing_date",
@@ -9294,6 +9516,15 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female"
+        ],
+        "key": "deceased_gender",
+        "kind": "enum",
+        "required": false
       }
     ],
     "required": [
@@ -9331,8 +9562,10 @@
       "instrument_ref",
       "interest_amount",
       "interest_document_ref",
+      "interest_from_date",
       "interest_is_contractual",
       "interest_rate",
+      "interest_tranches",
       "limitation_article",
       "limitation_trigger_date",
       "place",
@@ -9412,12 +9645,12 @@
       {
         "key": "interest_amount",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "claimed_total",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "interest_rate",
@@ -9511,18 +9744,39 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "interest_from_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "amount",
+            "kind": "int",
+            "required": true
+          },
+          {
+            "key": "from_date",
+            "kind": "date",
+            "required": true
+          }
+        ],
+        "key": "interest_tranches",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
       }
     ],
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
       "claim_basis",
-      "claimed_total",
       "defendant_names",
       "filing_date",
       "forum",
       "instrument_ref",
-      "interest_amount",
       "interest_is_contractual",
       "interest_rate",
       "limitation_article",
@@ -9830,6 +10084,7 @@
       "accused_name",
       "case_ref",
       "complainant_name",
+      "court_name",
       "court_place",
       "crime_no",
       "identification_marks",
@@ -9897,6 +10152,11 @@
       },
       {
         "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
         "kind": "string",
         "required": false
       }
@@ -10321,6 +10581,7 @@
       "petitioner_name",
       "petitioner_parentage",
       "place",
+      "police_station",
       "pre_execution_stage",
       "respondents"
     ],
@@ -10402,6 +10663,11 @@
       },
       {
         "key": "detention_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
         "kind": "string",
         "required": false
       }

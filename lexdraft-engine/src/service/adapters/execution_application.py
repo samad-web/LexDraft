@@ -25,6 +25,9 @@ ADAPTER = Adapter(
         FieldSpec('filing_date', 'date'),
         FieldSpec('place', 'string'),
         FieldSpec('police_station', 'string', required=False, default=None),
+        FieldSpec('decree_interest_rate', 'int', required=False, default=None),
+        FieldSpec('interest_from_date', 'date', required=False, default=None),
+        FieldSpec('post_decree_interest_rate', 'int', required=False, default=None),
     ),
     slots=(),
 )

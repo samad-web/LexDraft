@@ -138,6 +138,7 @@ def build(
         "period_days": period.period_days,
         "period_statute": period.statute,
         "accrual_date": period.accrual_date,
+        "period_last_day": period.last_day,
         "extension_procedure": period.extension_procedure,
         "extendable_to": period.extendable_to,
         "chargesheet_not_filed_in_period": chargesheet_filed_ts is None,

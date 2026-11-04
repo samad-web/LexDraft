@@ -27,6 +27,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..rules import court_fee as cf
+from ..rules import interest as intr
 from ..rules import jurisdiction as jur
 from ..rules import limitation as lim
 from ..rules.limitation import Acknowledgement  # re-export for callers
@@ -110,8 +111,8 @@ def build(
     forum: jur.Forum,
     territorial_bases: Sequence[jur.TerritorialBasis],
     principal: int,
-    interest_amount: int,
-    claimed_total: int,
+    interest_amount: Optional[int],
+    claimed_total: Optional[int],
     interest_rate: float,
     interest_is_contractual: bool,
     interest_document_ref: Optional[str],
@@ -134,6 +135,10 @@ def build(
     defendant_addresses: Optional[Sequence[str]] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    # interest runs from this date (default: the cause of action), or each sum
+    # from its own date — [(amount, from_date), ...] — e.g. two invoices.
+    interest_from_date: Optional[date] = None,
+    interest_tranches: Optional[Sequence[tuple]] = None,
 ) -> PlaintResult:
     """Assemble the plaint, or refuse."""
 
@@ -150,6 +155,13 @@ def build(
             code="plaint_cause_of_action_place_missing",
             fields=("cause_of_action_place",),
         )
+
+    # 1a. missing interest / total are computed, never left blank or zero:
+    #     simple interest at the stated rate up to the date of the plaint.
+    tranches = [(int(a), d) for a, d in (interest_tranches or []) if a and d]
+    interest_amount, claimed_total, interest_working = intr.fill_claim(
+        principal, interest_amount, claimed_total, interest_rate,
+        interest_from_date or cause_of_action_date, filing_date, tranches)
 
     # 2. jurisdiction — both limbs, expressly. Delegated refusals carry their
     # own coded Refusal; surface it without restating the code.
@@ -194,8 +206,10 @@ def build(
     # 4a. interest can't exceed simple interest at the stated rate for the period
     #     the suit covers (cause of action -> filing). Claiming LESS is the plaintiff's
     #     choice; claiming more than has accrued is a defective plaint.
-    if interest_amount and interest_rate and cause_of_action_date and filing_date > cause_of_action_date:
-        days = (filing_date - cause_of_action_date).days
+    accrual_start = interest_from_date or cause_of_action_date
+    if (interest_amount and interest_rate and not interest_working and not tranches
+            and filing_date > accrual_start):
+        days = (filing_date - accrual_start).days
         accrued = principal * interest_rate / 100 * days / 365
         if interest_amount > accrued * 1.01 + 1:
             return _refuse(
@@ -268,6 +282,7 @@ def build(
         # account statement
         "principal": principal,
         "interest_amount": interest_amount,
+        "interest_working": interest_working,
         "claimed_total": claimed_total,
         "interest_rate": interest_rate,
         "interest_basis": interest_basis,

@@ -17,9 +17,10 @@ Hard requirements (each refuses, no partial output):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Sequence
 
+from ..rules import interest as intr
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "ejectment.docx"
@@ -62,9 +63,9 @@ def build(
     s106_notice_ref: str,
     s106_notice_served_date: Optional[date],
     tenancy_end_date: Optional[date],
-    damages_rate_per_day: int,
+    damages_rate_per_day: Optional[int],
     wrongful_occupation_since: Optional[date],
-    annual_rent: int,
+    annual_rent: Optional[int],
     court_fee: int,
     cause_of_action_date: Optional[date],
     cause_of_action_place: str,
@@ -77,6 +78,12 @@ def build(
     defendant_address: Optional[str] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    # arrears of rent (monthly rent x months unpaid) and damages for use and
+    # occupation at a monthly rate — each computed and printed. Optional.
+    monthly_rent: Optional[int] = None,
+    arrears_from_date: Optional[date] = None,
+    arrears_months: Optional[int] = None,
+    damages_rate_per_month: Optional[int] = None,
 ) -> EjectmentResult:
     """Assemble the ejectment-and-damages suit, or refuse."""
 
@@ -125,6 +132,23 @@ def build(
             fields=("cause_of_action_place",),
         )
 
+    # 4. the money claims, computed — never "Rs. 0/-".
+    if not annual_rent and monthly_rent:
+        annual_rent = monthly_rent * 12
+    arrears = None
+    if monthly_rent and (arrears_from_date or arrears_months):
+        arrears = intr.arrears_of_rent(monthly_rent, arrears_from_date or tenancy_end_date,
+                                       tenancy_end_date, arrears_months)
+    damages_from = wrongful_occupation_since or (tenancy_end_date + timedelta(days=1))
+    if damages_rate_per_day:
+        rate, per = damages_rate_per_day, "day"
+    elif damages_rate_per_month:
+        rate, per = damages_rate_per_month, "month"
+    else:
+        rate, per = None, None
+    past_damages = (intr.damages_for_period(rate, per, damages_from, filing_date)
+                    if rate and filing_date > damages_from else None)
+
     context: Dict[str, Any] = {
         "plaintiffs": list(plaintiff_names),
         "plaintiff_address": plaintiff_address,
@@ -142,6 +166,12 @@ def build(
         "tenancy_end_date": tenancy_end_date,
         "clear_days": clear_days,
         "damages_rate_per_day": damages_rate_per_day,
+        "damages_rate": rate,
+        "damages_per": per,
+        "damages_from": damages_from,
+        "arrears": {"amount": arrears.amount, "working": arrears.text} if arrears else None,
+        "past_damages": ({"amount": past_damages.amount, "working": past_damages.text}
+                         if past_damages else None),
         "wrongful_occupation_since": wrongful_occupation_since,
         "annual_rent": annual_rent,
         "court_fee": court_fee,

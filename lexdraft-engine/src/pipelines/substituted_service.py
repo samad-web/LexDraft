@@ -73,6 +73,7 @@ def build(
     filing_date: Optional[date] = None,
     affix_court_notice_board: bool = True,
     affix_last_known_residence: bool = True,
+    court_name: Optional[str] = None,
 ) -> SubstitutedServiceResult:
     """Assemble the O.5 R.20 petition for substituted service, or refuse."""
 
@@ -114,6 +115,7 @@ def build(
         "filing_date": filing_date.isoformat() if filing_date else None,
         "case_year": filing_date.year if filing_date else None,
         "court_place": court_place,
+        "court_name": court_name,
         "place": place,
     }
     return SubstitutedServiceResult(refused=False, context=context)

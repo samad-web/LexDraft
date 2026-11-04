@@ -266,6 +266,7 @@ def test_golden_s138_reply(tmp_path):
     r = n.build(
         advocate="B. Gupta", client="Suresh",
         opposing_advocate="A. Menon", notice_date=date(2015, 6, 9),
+        reply_date=date(2015, 6, 20),
         defence_narrative="the cheque in question was handed over blank as security "
                           "and was to be used only upon my client's instructions "
                           "after the goods were sold; your client has misused it",

@@ -43,6 +43,17 @@ def _ack(kw: Dict[str, Any]) -> Acknowledgement:
                            signed=bool(kw.get("signed")))
 
 
+_TRANCHE_ITEM = (
+    FieldSpec("amount", "int"),
+    FieldSpec("from_date", "date"),
+)
+
+
+def _tranche(kw: Dict[str, Any]):
+    # a sum and the date interest on it runs from (e.g. an invoice and its date)
+    return (kw["amount"], kw["from_date"])
+
+
 _ACK_ITEM = (
     FieldSpec("date", "date"),
     FieldSpec("description", "string", required=False, default=""),
@@ -68,8 +79,8 @@ ADAPTER = Adapter(
                   enum_values=tuple(f.value for f in jur.Forum), to_engine=_forum),
         FieldSpec("territorial_bases", "string_list", enum_values=_BASES, to_engine=_territorial),
         FieldSpec("principal", "int"),
-        FieldSpec("interest_amount", "int"),
-        FieldSpec("claimed_total", "int"),
+        FieldSpec("interest_amount", "int", required=False, default=None),
+        FieldSpec("claimed_total", "int", required=False, default=None),
         FieldSpec("interest_rate", "int"),   # percent; int is fine for the form
         FieldSpec("interest_is_contractual", "bool"),
         FieldSpec("interest_document_ref", "string", required=False, default=None),
@@ -93,6 +104,8 @@ ADAPTER = Adapter(
         FieldSpec("defendant_addresses", "string_list", required=False, default=None),
         FieldSpec("civil_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
+        FieldSpec("interest_from_date", "date", required=False, default=None),
+        ListFieldSpec("interest_tranches", _TRANCHE_ITEM, _tranche, required=False),
     ),
     slots=("transaction_narrative", "performance_narrative", "default_narrative",
            "notice_narrative"),

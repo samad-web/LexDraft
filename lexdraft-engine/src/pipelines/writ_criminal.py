@@ -16,6 +16,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -50,6 +51,43 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+_TN_STATE = ("The State of Tamil Nadu, rep. by the Additional Chief Secretary to "
+             "Government, Home, Prohibition and Excise Department, Secretariat, "
+             "Chennai-600 009")
+_STATE = "The State, rep. by its Secretary to Government, Home Department"
+
+
+def _array_state(respondents: Sequence[str], high_court: Optional[str],
+                 police_station: Optional[str],
+                 detention_place: Optional[str]) -> List[str]:
+    """A detention writ arrays the State (the detaining Government) first, then
+    the prison holding the detenu and the sponsoring police station. A bare 'The
+    Government ...' respondent IS the State and takes its proper description; a
+    respondent already naming the State is kept as given."""
+    names = [r.strip() for r in respondents
+             if r.strip() and not r.strip().startswith("[")]
+    hc = (high_court or "madras").lower()
+    state = _TN_STATE if any(k in hc for k in ("madras", "chennai", "madurai",
+                                               "tamil nadu")) else _STATE
+    # the Union (a central detention) or any named Government is already the State
+    if not any(re.search(r"\bstate\b|government of|secretary|union of india", n, re.I)
+               for n in names):
+        bare = [i for i, n in enumerate(names)
+                if re.match(r"the government\b(?! of)", n, re.I)]
+        if bare:
+            names.pop(bare[0])
+        names.insert(0, state)
+    low = " ".join(names).lower()
+    if detention_place and detention_place.strip() and "superintendent" not in low:
+        names.append(f"The Superintendent of Prison, {detention_place.strip()}")
+    ps = (police_station or "").strip()
+    if ps and ps.lower() not in low:
+        if "police station" not in ps.lower():
+            ps += " Police Station"
+        names.append(f"The Inspector of Police, {ps} (sponsoring authority)")
+    return names
+
+
 def build(
     *,
     petitioner_name: str,
@@ -70,6 +108,8 @@ def build(
     # Habeas corpus (detenu in custody): the detenu and the place of detention.
     detenu_name: Optional[str] = None,
     detention_place: Optional[str] = None,
+    # the sponsoring police station (preventive detention). Optional.
+    police_station: Optional[str] = None,
 ) -> WritCriminalResult:
     """Assemble the criminal writ petition, or refuse."""
 
@@ -103,7 +143,8 @@ def build(
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
                        "address": petitioner_address},
-        "respondents": list(respondents),
+        "respondents": _array_state(respondents, high_court, police_station,
+                                    None if pre_execution_stage else detention_place),
         # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
         "high_court": high_court or "Judicature at Madras",
         "petition_year": filing_date.year,

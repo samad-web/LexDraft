@@ -315,16 +315,24 @@ function serviceDateSentinel(
  *  petition plead "in custody for 1 days". */
 const AS_ON_KEY = /^as_on$|^as_on_date$|^as_of$|computed_on/i;
 
+/** The document's OWN date (the day it is signed) is today, like "as on" — a
+ *  stand-in from another date dated an s.138 notice with the cheque date. In a
+ *  reply, notice_date is the opponent's notice, so only notices take it. */
+const SELF_DATE_KEY = /^(petition|filing|complaint|application|slp)_date$/;
+const NOTICE_DOCS = new Set(['s138_notice', 'general_notice', 's106_notice']);
+
 /** Value for ONE missing required date during draft-now: today for an "as on"
- *  anchor (a real value, not a gap), else the marked stand-in, which is recorded
- *  in `synthetic` so the rendered text shows "[DATE TO BE CONFIRMED]" for it. */
+ *  anchor or the document's own date (real values, not gaps), else the marked
+ *  stand-in, recorded in `synthetic` so the text shows "[DATE TO BE CONFIRMED]". */
 export function fillMissingDate(
   formKey: string,
   base: string,
   form: Record<string, string>,
   synthetic: Set<string>,
+  docType?: string,
 ): string {
-  if (AS_ON_KEY.test(formKey)) return todayIso();
+  if (AS_ON_KEY.test(formKey) || SELF_DATE_KEY.test(formKey)) return todayIso();
+  if (formKey === 'notice_date' && docType && NOTICE_DOCS.has(docType)) return todayIso();
   const sv = serviceDateSentinel(formKey, base, form);
   synthetic.add(sv);
   return sv;
@@ -1744,7 +1752,7 @@ export const intakeService = {
           const yesOpt = spec.options!.find((o) => /^yes$/i.test(o)) ?? 'Yes';
           placeholders[iss.field] = yesOpt;
         } else if (spec.type === 'date' && sentinelDate) {
-          placeholders[iss.field] = fillMissingDate(iss.field, sentinelDate, state.form, syntheticDateValues);
+          placeholders[iss.field] = fillMissingDate(iss.field, sentinelDate, state.form, syntheticDateValues, doc.docType);
         } else if (spec.type === 'number' || spec.type === 'currency') {
           // A bracketed "[age]" is NOT an integer — the engine 422s on it, which used
           // to make draft-now fall back to the blocking form for any doc with a required
@@ -1829,14 +1837,14 @@ export const intakeService = {
                 // heuristic, else a bracket marker, so the loop can still make progress.
                 if (!spec) {
                   if (/date|as_on/i.test(formKey)) {
-                    bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues);
+                    bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues, doc.docType);
                   } else {
                     bypassed[formKey] = `[${formKey.replace(/_/g, ' ')} to be provided]`;
                   }
                   progressed = true;
                   continue;
                 }
-                if (spec.type === 'date') { bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues); }
+                if (spec.type === 'date') { bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues, doc.docType); }
                 else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; syntheticNumberFields.push(formKey); }
                 else { bypassed[formKey] = placeholderFor(spec); }
                 progressed = true;
@@ -1914,13 +1922,13 @@ export const intakeService = {
           if (cur0.trim()) continue; // non-bool already set — not the blocker
           if (!spec) {
             if (/date|as_on/i.test(formKey)) {
-              bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues);
+              bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues, doc.docType);
             } else {
               bypassed[formKey] = `[${formKey.replace(/_/g, ' ')} to be provided]`;
             }
             progressed = true; continue;
           }
-          if (spec.type === 'date') { bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues); }
+          if (spec.type === 'date') { bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues, doc.docType); }
           else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; }
           else { bypassed[formKey] = placeholderFor(spec); }
           progressed = true;

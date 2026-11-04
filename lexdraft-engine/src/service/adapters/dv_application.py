@@ -52,6 +52,7 @@ ADAPTER = Adapter(
         FieldSpec("magistrate_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("respondent_names", "string_list", required=False, default=None),
     ),
     slots=("incidents_narrative",),
 )

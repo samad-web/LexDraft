@@ -22,7 +22,9 @@ MOST RESPECTFULLY SHOWETH:
 6. Victim: aged 35, permanent salaried, annual income Rs. 300000/-.
 7. COMPUTATION [figures unverified — pending advocate review]:
 
-   Multiplicand Rs. 300000/- x multiplier 16 = loss of dependency Rs. 4800000/-.
+   (i) Annual income Rs. 300000/- plus future prospects at 50% (Rs. 150000/-) = Rs. 450000/-.
+   (ii) Less one-third towards the personal expenses of the deceased (3 dependants): Rs. 150000/-, leaving the multiplicand of Rs. 300000/- per annum.
+   (iii) Multiplier for the age of 35 years: 16. Loss of dependency: Rs. 300000/- x 16 = Rs. 4800000/-.
    Conventional heads:
 
      - loss of estate: Rs. 15000/-.

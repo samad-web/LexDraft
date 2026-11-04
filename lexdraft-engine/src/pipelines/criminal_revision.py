@@ -115,6 +115,11 @@ def build(
     facts_narrative: str = "",
     grounds_narrative: str = "",
     grounds_list: Optional[Sequence[str]] = None,
+    # a revision against a conviction (e.g. affirmed in appeal): the offences and
+    # the sentence, so the prayer seeks acquittal. Optional.
+    convicted_sections: Optional[Sequence[str]] = None,
+    sentence_text: Optional[str] = None,
+    draft_suspension_petition: bool = False,
 ) -> CriminalRevisionResult:
     """Assemble the criminal revision petition, or refuse."""
 
@@ -207,6 +212,10 @@ def build(
                      if forum is RevisionForum.HIGH_COURT
                      else "THE COURT OF THE PRINCIPAL SESSIONS JUDGE")
     case_label = ("CRL.R.C." if forum is RevisionForum.HIGH_COURT else "CRL.R.P.")
+    secs = [s for s in (convicted_sections or []) if s.strip()]
+    # a cheque-dishonour conviction: s.138 of the Negotiable Instruments Act
+    ni_act = any(re.search(r"\b138\b", s) and re.search(r"\bN\.?\s?I\b|negotiable", s, re.I)
+                 for s in secs)
 
     context: Dict[str, Any] = {
         "forum": forum.value,
@@ -216,6 +225,23 @@ def build(
         "petition_date": filing_date.isoformat(),
         "petitioners": [p for p in petitioner_names if p.strip()],
         "respondents": [r for r in respondent_names if r.strip()],
+        "convicted_sections": secs,
+        "against_conviction": bool(secs),
+        "ni_act": ni_act,
+        "suspension": {
+            "draft": draft_suspension_petition,
+            "year": filing_date.year,
+            # revisional power includes the appellate power to suspend
+            "section": (sections_map["suspension_of_sentence"] + " read with "
+                        + ("Section 442 BNSS" if code_framework == "bnss"
+                           else "Section 401 CrPC")),
+            "main_label": case_label,
+            "proceeding": "revision",
+            "order_ref": f"{impugned_order_ref} dated "
+                         f"{impugned_order_date.isoformat()}",
+            "court": lower_court,
+            "sentence": sentence_text,
+        },
         "code_framework": code_framework,
         "act_short": act_short,
         "section_label": section_label,

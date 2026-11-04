@@ -74,6 +74,12 @@ def build(
     defendant_address: Optional[str] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    # optional prayers: in the alternative, refund of the earnest money with
+    # interest (s.22(1)(b) SRA must be specifically claimed); a permanent
+    # injunction restraining alienation of the suit property.
+    alternative_refund: bool = False,
+    refund_interest_rate: Optional[int] = None,
+    injunction_against_alienation: bool = False,
 ) -> SpecificPerformanceResult:
     """Assemble the specific-performance suit, or refuse."""
 
@@ -139,6 +145,9 @@ def build(
         "agreement_ref": agreement_ref,
         "total_consideration": total_consideration,
         "earnest_paid": earnest_paid,
+        "alternative_refund": alternative_refund,
+        "refund_interest_rate": refund_interest_rate,
+        "injunction_against_alienation": injunction_against_alienation,
         "balance_amount": balance_amount,
         "refusal_slot": refusal_narrative if refusal_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,

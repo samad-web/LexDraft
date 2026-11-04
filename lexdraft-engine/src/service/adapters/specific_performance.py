@@ -30,6 +30,10 @@ ADAPTER = Adapter(
         FieldSpec('defendant_address', 'string', required=False, default=None),
         FieldSpec('civil_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
+        FieldSpec('alternative_refund', 'bool', required=False, default=False),
+        FieldSpec('refund_interest_rate', 'int', required=False, default=None),
+        FieldSpec('injunction_against_alienation', 'bool', required=False,
+                  default=False),
     ),
     slots=('refusal_narrative',),
 )

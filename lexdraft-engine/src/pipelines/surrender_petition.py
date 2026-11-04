@@ -23,6 +23,7 @@ from datetime import date
 from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._state_party import bare_crime_no, state_respondent
 
 TEMPLATE = "surrender_petition.docx"
 SPEC = "tn-surrender"
@@ -50,6 +51,18 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _state_line(state_rep_by: Optional[str], police_station: Optional[str]) -> str:
+    """'State rep. by the Inspector of Police, X Police Station' — from a full
+    description when given (adding the station it omits), else built."""
+    rep_by = (state_rep_by or "").strip()
+    if rep_by.lower() in ("", "state", "the state"):
+        return state_respondent(police_station)
+    ps = (police_station or "").strip()
+    if ps and ps.lower() not in rep_by.lower():
+        rep_by += f", {ps}" + ("" if "police station" in ps.lower() else " Police Station")
+    return rep_by
+
+
 def build(
     *,
     accused_name: str,
@@ -64,6 +77,7 @@ def build(
     police_station: Optional[str] = None,
     petition_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    court_name: Optional[str] = None,
 ) -> SurrenderPetitionResult:
     """Assemble the surrender petition, or refuse."""
 
@@ -98,13 +112,15 @@ def build(
     context: Dict[str, Any] = {
         "accused_name": accused_name,
         "offence_section": offence_section,
-        "crime_no": crime_no,
+        "crime_no": bare_crime_no(crime_no),
         "identification_marks": [m for m in identification_marks if m.strip()],
         "case_ref": case_ref,
         "place": place,
         "accused_address": accused_address,
         "complainant_name": complainant_name,
-        "state_rep_by": state_rep_by,
+        # a crime number is a police case: the State is the respondent
+        "state_rep_by": _state_line(state_rep_by, police_station),
+        "court_name": court_name,
         "police_station": police_station,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,
         "court_place": court_place,

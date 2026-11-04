@@ -81,6 +81,14 @@ class DefaultBailPeriod:
     extension_procedure: Optional[str] = None
     extendable_to: Optional[int] = None
 
+    @property
+    def last_day(self) -> date:
+        """The last (60th / 90th) day of the period. The date of first remand is
+        COUNTED as day 1 (State of M.P. v. Rustam; Ravi Prakash Singh v. State of
+        Bihar, SC 2023), so the period ends on remand + period - 1 and the right
+        accrues the next day, `accrual_date`."""
+        return self.accrual_date - timedelta(days=1)
+
 
 def default_bail_period(
     *,

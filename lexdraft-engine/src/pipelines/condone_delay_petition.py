@@ -169,6 +169,7 @@ def build(
         "period_days": period_days,
         "copy_applied_date": copy_applied_date.isoformat() if copy_applied_date else None,
         "copy_ready_date": copy_ready_date.isoformat() if copy_ready_date else None,
+        "copy_excluded": win.copy_excluded,
         "limitation_expiry": win.expiry.isoformat(),
         "delay_days": win.delay_days,
         "sufficient_cause": sufficient_cause,

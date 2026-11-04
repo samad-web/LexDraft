@@ -61,6 +61,7 @@ def build(
     advocate_phone: Optional[str] = None,
     dispatch_line: Optional[str] = None,
     client_address: Optional[str] = None,
+    reply_date: Optional[date] = None,
 ) -> S138ReplyResult:
     """Assemble the reply to a s.138 legal notice, or refuse."""
 
@@ -87,6 +88,8 @@ def build(
         "client_address": client_address,
         "opposing_advocate": opposing_advocate,
         "notice_date": notice_date,
+        # the reply's own date: as given, else the day it is drawn
+        "reply_date": reply_date or date.today(),
         "defence_slot": defence_narrative,
         "liability_denied": liability_denied,
         "cheque_in_discharge_denied": cheque_in_discharge_denied,

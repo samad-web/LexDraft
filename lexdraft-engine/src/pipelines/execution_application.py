@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
 
+from ..rules import interest as intr
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "execution_application.docx"
@@ -67,6 +68,12 @@ def build(
     filing_date: date,
     place: str,
     police_station: Optional[str] = None,
+    # interest under the decree: rate (% p.a.) from a date (e.g. the plaint) up to
+    # the decree, and a post-decree rate if different. Computed to the date of
+    # this petition. Optional.
+    decree_interest_rate: Optional[float] = None,
+    interest_from_date: Optional[date] = None,
+    post_decree_interest_rate: Optional[float] = None,
 ) -> ExecutionResult:
     """Assemble the execution application, or refuse."""
 
@@ -99,6 +106,18 @@ def build(
             fields=("certified_copy_attached",),
         )
 
+    interest_due, interest_working = None, []
+    start = interest_from_date or decree_date
+    if decree_interest_rate and start and filing_date > start:
+        post = post_decree_interest_rate
+        if post is not None and decree_date and start < decree_date < filing_date:
+            parts = [intr.simple(decretal_amount, decree_interest_rate, start, decree_date),
+                     intr.simple(decretal_amount, post, decree_date, filing_date)]
+        else:
+            parts = [intr.simple(decretal_amount, decree_interest_rate, start, filing_date)]
+        interest_due = sum(p.amount for p in parts)
+        interest_working = [p.text for p in parts]
+
     context: Dict[str, Any] = {
         "decree_holder": {"name": decree_holder_name},
         "judgment_debtor": {"name": judgment_debtor_name},
@@ -113,6 +132,10 @@ def build(
         "prior_applications": prior_applications or "Nil",
         "decretal_amount": decretal_amount,
         "interest_note": interest_note,
+        "interest_due": interest_due,
+        "interest_working": interest_working,
+        "total_due": (decretal_amount + (interest_due or 0) + (costs_amount or 0)
+                      if interest_due is not None else None),
         "costs_amount": costs_amount,
         "execution_against": execution_against,
         "mode_of_assistance": mode_of_assistance,

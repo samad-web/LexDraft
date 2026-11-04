@@ -12,7 +12,7 @@ ADAPTER = Adapter(
         FieldSpec('respondent_name', 'string'),
         FieldSpec('marriage_date', 'date'),
         FieldSpec('marriage_place', 'string'),
-        FieldSpec('marriage_registered', 'bool'),
+        FieldSpec('marriage_registered', 'bool', required=False, default=False),
         FieldSpec('withdrawal_date', 'date'),
         FieldSpec('withdrawal_narrative', 'string'),
         FieldSpec('no_collusion', 'bool'),

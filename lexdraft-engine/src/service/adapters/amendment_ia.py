@@ -24,6 +24,7 @@ ADAPTER = Adapter(
         FieldSpec('civil_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
         FieldSpec('reasons_narrative', 'string', required=False, default=''),
+        FieldSpec('respondent_names', 'string_list', required=False, default=None),
     ),
     slots=('reasons_narrative',),
 )

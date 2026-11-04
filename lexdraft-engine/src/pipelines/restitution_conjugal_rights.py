@@ -56,7 +56,8 @@ def build(
     respondent_name: str,
     marriage_date: Optional[date],
     marriage_place: str,
-    marriage_registered: bool,
+    # printed ONLY when affirmatively given; never assumed
+    marriage_registered: bool = False,
     withdrawal_date: Optional[date],
     withdrawal_narrative: str,
     no_collusion: bool,

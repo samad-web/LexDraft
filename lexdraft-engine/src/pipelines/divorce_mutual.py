@@ -89,6 +89,11 @@ def build_first_motion(
     # cause-title header (DPC book). Optional.
     family_court: Optional[str] = None,
     city: Optional[str] = None,
+    # deponent particulars for the joint affidavit. Optional.
+    party_a_age: Optional[int] = None,
+    party_a_address: Optional[str] = None,
+    party_b_age: Optional[int] = None,
+    party_b_address: Optional[str] = None,
 ) -> MotionResult:
     """Assemble the first-motion petition, or refuse."""
 
@@ -130,6 +135,10 @@ def build_first_motion(
         "party_a": party_a,
         "party_b": party_b,
         "deponents": [party_a, party_b],
+        "party_a_age": party_a_age,
+        "party_a_address": party_a_address,
+        "party_b_age": party_b_age,
+        "party_b_address": party_b_address,
         # cause-title header fields (render only when present).
         "family_court": family_court,
         "city": city,
@@ -159,7 +168,7 @@ def build_second_motion(
     party_a: str,
     party_b: str,
     first_motion_order_date: date,
-    second_motion_date: date,
+    second_motion_date: Optional[date],
     settlement_implemented: bool,
     waiver_sought: bool,
     place: str,
@@ -168,6 +177,11 @@ def build_second_motion(
     city: Optional[str] = None,
 ) -> MotionResult:
     """Assemble the second-motion petition, or refuse."""
+
+    # The petition's own date: the second-motion date, else the day it is drawn —
+    # never the first-motion order date (a past event).
+    if second_motion_date is None:
+        second_motion_date = date.today()
 
     six_months = first_motion_order_date + relativedelta(months=6)
     eighteen_months = first_motion_order_date + relativedelta(months=18)

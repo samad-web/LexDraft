@@ -25,6 +25,7 @@ ADAPTER = Adapter(
         FieldSpec("filing_date", "date", required=False, default=None),
         FieldSpec("affix_court_notice_board", "bool", required=False, default=True),
         FieldSpec("affix_last_known_residence", "bool", required=False, default=True),
+        FieldSpec("court_name", "string", required=False, default=None),
     ),
     slots=(),
 )

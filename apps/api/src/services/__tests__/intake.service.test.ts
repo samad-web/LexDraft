@@ -837,6 +837,19 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     expect(synthetic.size).toBe(0);
   });
 
+  it("dates a notice or petition today, but never a reply with the opponent's notice date", async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const today = new Date().toISOString().slice(0, 10);
+    const synthetic = new Set<string>();
+    // r6: an s.138 notice came out dated with the cheque date (the stand-in).
+    expect(fillMissingDate('notice_date', '2026-09-01', { cheque_date: '2026-09-01' }, synthetic, 's138_notice')).toBe(today);
+    expect(fillMissingDate('petition_date', '2026-09-01', {}, synthetic, 'quash_petition')).toBe(today);
+    expect(synthetic.size).toBe(0);
+    // In a reply (or an s.138 complaint) notice_date is a past event: still a marked stand-in.
+    expect(fillMissingDate('notice_date', '2026-09-01', {}, synthetic, 's138_complaint')).toBe('2026-09-01');
+    expect([...synthetic]).toEqual(['2026-09-01']);
+  });
+
   it('keeps the marked stand-in for any other missing date', async () => {
     const { fillMissingDate } = await import('../intake.service');
     const synthetic = new Set<string>();

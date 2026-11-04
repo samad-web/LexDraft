@@ -39,6 +39,7 @@ class AppealWindow:
     expiry: date
     delay_days: int          # 0 when filed within time
     computation: str
+    copy_excluded: bool = False   # s.12(2) copy time was excluded
 
     @property
     def in_time(self) -> bool:
@@ -56,13 +57,24 @@ def window(
 ) -> AppealWindow:
     """Compute the last day and the delay (if any). Raises
     lim.LimitationInputError on inconsistent copy dates."""
+    note = ""
+    if copy_applied is not None and copy_ready is not None:
+        # s.12(2) excludes copy time only when the copy was applied for within
+        # the period: an application made after expiry cannot revive it.
+        base = lim.compute(accrual_date=order_date, period_days=period_days,
+                           proceeding_class=proceeding_class)
+        if copy_applied > base.expiry_date:
+            note = (f"; copy applied {copy_applied}, after the period expired on "
+                    f"{base.expiry_date}: no s.12(2) exclusion")
+            copy_applied = copy_ready = None
     res = lim.compute(
         accrual_date=order_date, period_days=period_days,
         proceeding_class=proceeding_class,
         copy_applied=copy_applied, copy_ready=copy_ready,
     )
     delay = max(0, (filing_date - res.expiry_date).days)
-    computation = (f"{res.computation}; period {period_days} days; last day "
+    computation = (f"{res.computation}{note}; period {period_days} days; last day "
                    f"{res.expiry_date}; filed {filing_date}; delay {delay} days")
     return AppealWindow(expiry=res.expiry_date, delay_days=delay,
-                        computation=computation)
+                        computation=computation,
+                        copy_excluded=copy_applied is not None)

@@ -120,12 +120,17 @@ def _court_issues_banner(doc):
                "pleading]{% endif %}")
 
 
-def _tn_court_line(doc, *, prefix="IN THE COURT OF"):
+def _tn_court_line(doc, *, prefix="IN THE COURT OF", smart=False):
     """The generalised procedural court line + case reference shared by the TN
-    forms. Court name/place are placeholders so the template serves any state."""
-    _line(doc, "{% if court_name %}" + prefix + " {{ court_name }}"
-               "{% else %}" + prefix + " ______{% endif %}"
-               "{% if court_place %} AT {{ court_place }}{% endif %}")
+    forms. Court name/place are placeholders so the template serves any state.
+    `smart` reads a free-text court name through _court_expr ('Additional
+    Subordinate Court' -> 'IN THE ADDITIONAL SUBORDINATE COURT, KUMBAKONAM')."""
+    if smart:
+        _line(doc, _court_expr("court_name", prefix + " ______", "court_place"))
+    else:
+        _line(doc, "{% if court_name %}" + prefix + " {{ court_name }}"
+                   "{% else %}" + prefix + " ______{% endif %}"
+                   "{% if court_place %} AT {{ court_place }}{% endif %}")
     _line(doc, "{{ case_ref }}")
     _line(doc)
 
@@ -204,6 +209,97 @@ def _sign_off(doc, role, counsel, date_expr):
     _line(doc, "Date:  {% if " + date_expr + " %}{{ " + date_expr + " }}"
                "{% else %}____________{% endif %}                Counsel for the "
                + counsel)
+
+
+def _deponent_desc(age=None, parentage=None, address=None, desc=None):
+    """', aged about 40 years, S/o X, residing at Y' from whichever context
+    expressions exist, else a fill-in gap. `desc` is a single free-text
+    description expression used in place of the three."""
+    if desc:
+        return ("{% if " + desc + " %}, {{ " + desc + " }}{% else %}, [age, "
+                "parentage and address of the deponent to be provided]{% endif %}")
+    parts, known = "", []
+    if age:
+        parts += "{% if " + age + " %}, aged about {{ " + age + " }} years{% endif %}"
+        known.append(age)
+    if parentage:
+        parts += "{% if " + parentage + " %}, {{ " + parentage + " }}{% endif %}"
+        known.append(parentage)
+    if address:
+        parts += ("{% if " + address + " %}, residing at {{ " + address
+                  + " }}{% endif %}")
+        known.append(address)
+    gap = ", [age, parentage and address of the deponent to be provided]"
+    if not known:
+        return gap
+    return parts + "{% if not (" + " or ".join(known) + ") %}" + gap + "{% endif %}"
+
+
+def _supporting_affidavit(doc, title, deponents, *, role="petitioner",
+                          pleading="petition", place="place", forum="Court"):
+    """TN supporting affidavit (the writ_petition pattern, shared): deponent
+    description, 'solemnly affirm', adoption of the pleading's averments,
+    verification and the jurat before an Advocate / Notary.
+
+    `deponents` is a list of (name_expr, desc_jinja) — name_expr a context
+    expression, desc_jinja from _deponent_desc. Two or more make a JOINT
+    affidavit ("We, 1. …, 2. …")."""
+    joint = len(deponents) > 1
+    _line(doc)
+    _center(doc, title, bold=True)
+    if joint:
+        who = "We, " + ", and ".join(
+            f"{i}. {{{{ {n} }}}}{d}" for i, (n, d) in enumerate(deponents, 1))
+        _line(doc, who + ", do hereby jointly and solemnly affirm and sincerely "
+                         "state as follows:")
+        _line(doc, f"1. We are the {role}s herein and as such we are well "
+                   "acquainted with the facts of the case. We are competent to "
+                   "swear to this affidavit.")
+        _line(doc, f"2. The facts stated in the accompanying {pleading} are true to "
+                   "our knowledge, information and belief, and we adopt them as "
+                   "part of this affidavit.")
+        _line(doc, f"3. For the reasons stated therein, we pray that this Hon'ble "
+                   f"{forum} may be pleased to grant the relief prayed for in the "
+                   f"{pleading}, and thus render justice.")
+        _line(doc)
+        _line(doc, "VERIFICATION: We, the deponents above named, verify that the "
+                   "contents of this affidavit are true and correct to our "
+                   "knowledge, information and belief, and that nothing material "
+                   "has been concealed.")
+        _line(doc)
+        _line(doc, "Solemnly affirmed at {{ " + place + " }} on this the ____ day "
+                   "of ____________, 20____, and signed their names in my "
+                   "presence.")
+        sig = "                    ".join(
+            f"DEPONENT NO. {i}" for i in range(1, len(deponents) + 1))
+    else:
+        (n, d), = deponents
+        _line(doc, "I, {{ " + n + " }}" + d + ", do hereby solemnly affirm and "
+                   "sincerely state as follows:")
+        _line(doc, f"1. I am the {role} herein and as such I am well acquainted "
+                   "with the facts of the case. I am competent to swear to this "
+                   "affidavit.")
+        _line(doc, f"2. The facts stated in the accompanying {pleading} are true to "
+                   "my knowledge, information and belief, and I adopt them as part "
+                   "of this affidavit.")
+        _line(doc, f"3. For the reasons stated therein, I pray that this Hon'ble "
+                   f"{forum} may be pleased to grant the relief prayed for in the "
+                   f"{pleading}, and thus render justice.")
+        _line(doc)
+        _line(doc, "VERIFICATION: I, the deponent above named, verify that the "
+                   "contents of this affidavit are true and correct to my "
+                   "knowledge, information and belief, and that nothing material "
+                   "has been concealed.")
+        _line(doc)
+        _line(doc, "Solemnly affirmed at {{ " + place + " }} on this the ____ day "
+                   "of ____________, 20____, and signed his/her name in my "
+                   "presence.")
+        sig = "DEPONENT"
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    p.add_run(sig)
+    _line(doc, "BEFORE ME,")
+    _line(doc, "ADVOCATE / NOTARY PUBLIC")
 
 
 # --------------------------------------------------------------------------
@@ -556,8 +652,10 @@ def build_default_bail():
     _line(doc,
           "3. The petitioner was first remanded to custody on "
           "{{ first_remand_date }} and has, as on {{ as_on }}, completed "
-          "{{ custody_days }} days in custody. The statutory period expired on "
-          "{{ accrual_date }}.")
+          "{{ custody_days }} days in custody. Counting the date of first remand as "
+          "the first day, the statutory period of {{ period_days }} days expired "
+          "on {{ period_last_day }}, and the right to be released on default bail "
+          "accrued on {{ accrual_date }}.")
     _line(doc,
           "4. The final report (charge sheet) has not been filed within the "
           "statutory period of {{ period_days }} days.")
@@ -1004,9 +1102,9 @@ def build_injunction():
           "first instance{% endif %}, and pass such further or other orders as this Hon'ble Court may deem fit and proper in the circumstances of the case, and thus render justice.")
     _line(doc)
     _sign_off(doc, "PETITIONER", "Petitioner", "application_date")
-    _line(doc)
-    _line(doc, "[NOTE: This application must be supported by an Affidavit "
-               "verifying the facts stated herein.]")
+    _supporting_affidavit(
+        doc, "AFFIDAVIT FILED IN SUPPORT OF THE PETITION",
+        [("applicant.name", _deponent_desc())], pleading="petition")
     _save(doc, "injunction.docx")
 
 
@@ -1065,7 +1163,8 @@ def build_plaint():
           "annum vide {{ interest_document_ref }}{% endif %}), total claimed "
           "Rs. {{ claimed_total }}/-."
           "{% if interest_fallback_note %} ({{ interest_fallback_note }}.)"
-          "{% endif %}")
+          "{% endif %}"
+          "{% if interest_working %} Interest is computed as simple interest: {% for w in interest_working %}{{ w }}{% if not loop.last %}; {% endif %}{% endfor %}.{% endif %}")
     _line(doc, "9. {{ notice_slot }}")                             # LLM
     _line(doc,
           "10. CAUSE OF ACTION: the cause of action arose on "
@@ -1099,8 +1198,14 @@ def build_plaint():
           "be pleased to:")
     _line(doc, "(a) decree the suit for Rs. {{ claimed_total }}/- in favour of the "
                "plaintiff and against the defendant(s);")
-    _line(doc, "(b) award interest and costs of the suit; and")
-    _line(doc, "(c) pass such further or other orders as this Hon'ble Court may "
+    _line(doc, "(b) award pendente lite interest on the principal sum of "
+               "Rs. {{ principal }}/-{% if interest_rate %} at {{ '%g'|format(interest_rate) }}% "
+               "per annum{% endif %} from the date of the plaint till the date of "
+               "decree, and future interest from the date of decree till "
+               "realisation at such rate as this Hon'ble Court may deem fit under "
+               "Section 34 of the Code of Civil Procedure, 1908;")
+    _line(doc, "(c) award the costs of the suit; and")
+    _line(doc, "(d) pass such further or other orders as this Hon'ble Court may "
                "deem fit and proper in the circumstances of the case, and thus "
                "render justice.")
     _line(doc)
@@ -1147,7 +1252,7 @@ def build_summary_suit():
     _line(doc,
           "6. ACCOUNT STATEMENT: principal Rs. {{ principal }}/-, interest "
           "Rs. {{ interest_amount }}/- ({{ interest_basis }}), total claimed "
-          "Rs. {{ claimed_total }}/-."
+          "Rs. {{ claimed_total }}/-.{% if interest_working %} Interest is computed as simple interest: {% for w in interest_working %}{{ w }}{% if not loop.last %}; {% endif %}{% endfor %}.{% endif %}"
           "{% if interest_fallback_note %} ({{ interest_fallback_note }}.)"
           "{% endif %}")
     _line(doc,
@@ -1400,7 +1505,13 @@ def build_maintenance():
     _line(doc, "6A. The petitioner has not remarried.")
     _line(doc, "{% endif %}")
     _line(doc, "7. Standard of living during cohabitation is as set out herein.")
-    _line(doc, "8. JURISDICTION: {{ jurisdiction_basis }}.")
+    _line(doc, "8. JURISDICTION: {{ jurisdiction_basis }}."
+               "{% if 'FAMILY' in (magistrate_court or '')|upper %} This Hon'ble "
+               "Family Court exercises the jurisdiction of a Magistrate of the first "
+               "class under Chapter IX of the Code of Criminal Procedure, 1973"
+               "{% if 'BNSS' in maintenance_section %} (now Chapter X of the "
+               "Bharatiya Nagarik Suraksha Sanhita, 2023){% endif %}, conferred by "
+               "Section 7(2)(a) of the Family Courts Act, 1984.{% endif %}")
     _line(doc,
           "9. The petitioner's affidavit of assets and liabilities "
           "(Rajnesh v. Neha) is filed herewith.")
@@ -1444,8 +1555,10 @@ def build_dv_application():
           "                          ... Petitioner/Aggrieved Person")
     _center(doc, "-Vs-")
     _line(doc,
-          "{{ respondent.name }}"
-          "                          ... Respondent")
+          "{% for r in respondents %}{% if respondents|length > 1 %}{{ loop.index }}. "
+          "{% endif %}{{ r }}{% if not loop.last %}\n{% endif %}{% endfor %}"
+          "                          ... Respondent{% if respondents|length > 1 %}s"
+          "{% endif %}")
     _line(doc)
     _center(doc, "PETITION FILED UNDER SECTION 12 OF THE PROTECTION OF WOMEN FROM "
                  "DOMESTIC VIOLENCE ACT, 2005", bold=True)
@@ -1453,8 +1566,11 @@ def build_dv_application():
     _line(doc, "MOST RESPECTFULLY SHOWETH:")
     _line(doc, "1. The aggrieved person is {{ aggrieved.name }}.")
     _line(doc,
-          "2. The respondent is {{ respondent.name }}. The domestic relationship is "
-          "established: {{ domestic_relationship_basis }}.")
+          "2. The respondent{% if respondents|length > 1 %}s are "
+          "{% for r in respondents %}({{ loop.index }}) {{ r }}{% if not loop.last %}"
+          "; {% endif %}{% endfor %}{% else %} is {{ respondents[0] }}{% endif %}. "
+          "The domestic relationship is established: "
+          "{{ domestic_relationship_basis }}.")
     _line(doc, "{% if shared_household_pleaded %}")
     _line(doc, "3. SHARED HOUSEHOLD: {{ shared_household_particulars }}.")
     _line(doc, "{% endif %}")
@@ -1474,15 +1590,17 @@ def build_dv_application():
     _line(doc, "PRAYER:")
     _line(doc,
           "It is therefore prayed that this Hon'ble Court may be pleased to:")
+    _line(doc, "{% for p in relief_prayers %}")
+    _line(doc, "({{ 'abcdefgh'[loop.index0] }}) {{ p }};")
+    _line(doc, "{% endfor %}")
     _line(doc,
-          "(a) grant the reliefs set out in para 5 above under the relevant "
-          "provisions of the Protection of Women from Domestic Violence Act, 2005;")
+          "({{ 'abcdefgh'[relief_prayers|length] }}) grant interim and ex parte "
+          "relief under Section 23 of the Protection of Women from Domestic Violence "
+          "Act, 2005 pending disposal of this petition; and")
     _line(doc,
-          "(b) grant interim and ex parte relief under s.23 of the said Act pending "
-          "disposal of this petition; and")
-    _line(doc,
-          "(c) pass such further or other orders as this Hon'ble Court may deem fit "
-          "and proper in the circumstances of the case, and thus render justice.")
+          "({{ 'abcdefgh'[relief_prayers|length + 1] }}) pass such further or other "
+          "orders as this Hon'ble Court may deem fit and proper in the circumstances "
+          "of the case, and thus render justice.")
     _line(doc)
     _sign_off(doc, "PETITIONER / AGGRIEVED PERSON", "Petitioner",
               "application_date")
@@ -1562,8 +1680,12 @@ def build_consumer_complaint():
     _line(doc)
     _sign_off(doc, "COMPLAINANT", "Complainant", "complaint_date")
     _line(doc)
-    _line(doc, "[NOTE: This complaint must be supported by an Affidavit and an "
-               "evidence affidavit, and accompanied by the prescribed fee.]")
+    _line(doc, "[NOTE: The evidence affidavit is filed separately; the complaint is "
+               "to be accompanied by the prescribed fee.]")
+    _supporting_affidavit(doc, "AFFIDAVIT FILED IN SUPPORT OF THE COMPLAINT",
+                          [("complainant.name", _deponent_desc())],
+                          role="complainant", pleading="complaint",
+                          forum="Commission")
     _save(doc, "consumer_complaint.docx")
 
 
@@ -1620,8 +1742,20 @@ def build_mact_claim():
     _line(doc, "7. COMPUTATION {{ unverified_marker }}:")
     _line(doc, "{% if computation.kind == 'death' %}")
     _line(doc,
-          "   Multiplicand Rs. {{ computation.multiplicand }}/- x multiplier "
-          "{{ computation.multiplier }} = loss of dependency Rs. "
+          "   (i) Annual income Rs. {{ computation.annual_income }}/- plus future "
+          "prospects at {{ computation.future_prospects_pct }}% (Rs. "
+          "{{ computation.future_prospects }}/-) = Rs. "
+          "{{ computation.enhanced_income }}/-.")
+    _line(doc,
+          "   (ii) Less {{ computation.deduction_label }} towards the personal "
+          "expenses of the deceased ({{ victim.dependants }} dependant"
+          "{% if victim.dependants != 1 %}s{% endif %}): Rs. "
+          "{{ computation.deduction }}/-, leaving the multiplicand of Rs. "
+          "{{ computation.multiplicand }}/- per annum.")
+    _line(doc,
+          "   (iii) Multiplier for the age of {{ victim.age }} years: "
+          "{{ computation.multiplier }}. Loss of dependency: Rs. "
+          "{{ computation.multiplicand }}/- x {{ computation.multiplier }} = Rs. "
           "{{ computation.loss_of_dependency }}/-.")
     _line(doc, "   Conventional heads:")
     _line(doc, "{% for h in computation.conventional_heads %}")
@@ -1824,9 +1958,10 @@ def build_divorce_mutual_first():
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     p.add_run("PETITIONER NO. 1                    PETITIONER NO. 2")
-    _line(doc)
-    _line(doc, "[NOTE: This joint petition must be supported by a joint Affidavit "
-               "of both parties.]")
+    _supporting_affidavit(
+        doc, "JOINT AFFIDAVIT OF THE PETITIONERS FILED IN SUPPORT OF THE PETITION",
+        [("party_a", _deponent_desc(age="party_a_age", address="party_a_address")),
+         ("party_b", _deponent_desc(age="party_b_age", address="party_b_address"))])
     _save(doc, "divorce_mutual_first.docx")
 
 
@@ -2063,9 +2198,24 @@ def build_specific_performance():
           "(a) pass a decree of specific performance of the agreement in favour of "
           "the plaintiff and against the defendant, directing the defendant to "
           "execute the sale deed and hand over possession of the suit property to the "
-          "plaintiff;")
-    _line(doc, "(b) award the costs of the suit; and")
-    _prayer_closer(doc, "c")
+          "plaintiff;{% set L = namespace(i=1) %}")
+    _line(doc, "{% if alternative_refund %}({{ 'abcdefgh'[L.i] }}) in the "
+               "alternative, if specific performance is refused, pass a decree "
+               "directing the defendant to refund the earnest money of "
+               "Rs. {{ earnest_paid }}/- to the plaintiff"
+               "{% if refund_interest_rate %} with interest at "
+               "{{ refund_interest_rate }}% per annum from {{ agreement_date }} till "
+               "the date of realisation{% endif %} (Section 22(1)(b) of the "
+               "Specific Relief Act, 1963);{% set L.i = L.i + 1 %}{% endif %}")
+    _line(doc, "{% if injunction_against_alienation %}({{ 'abcdefgh'[L.i] }}) grant "
+               "a permanent injunction restraining the defendant, his men, agents and "
+               "anyone claiming under him from alienating, encumbering or otherwise "
+               "dealing with the suit property in favour of any third party;"
+               "{% set L.i = L.i + 1 %}{% endif %}")
+    _line(doc, "({{ 'abcdefgh'[L.i] }}) award the costs of the suit; and")
+    _line(doc, "({{ 'abcdefgh'[L.i + 1] }}) pass such further or other orders as "
+               "this Hon'ble Court may deem fit and proper in the circumstances of "
+               "the case, and thus render justice.")
     _line(doc)
     _signature_block(doc, "PLAINTIFF", "suit_date")
     _line(doc)
@@ -2128,10 +2278,16 @@ def build_ejectment():
           "of Property Act.")
     _line(doc,
           "5. That the defendant, having neither vacated the premises nor shown any "
-          "intention to vacate, is in wrongful use and occupation "
-          "{% if wrongful_occupation_since %}since {{ wrongful_occupation_since }} "
-          "{% endif %}at Rs. {{ damages_rate_per_day }}/- per day, the prevailing "
-          "rate for such premises.")
+          "intention to vacate, is in wrongful use and occupation since "
+          "{{ damages_from }}, and is liable to pay damages for use and occupation "
+          "at {% if damages_rate %}Rs. {{ damages_rate }}/- per {{ damages_per }}{% else %}[rate of damages to be provided]{% endif %}, the prevailing rate for such premises."
+          "{% if past_damages %} The damages up to the date of the plaint are: "
+          "{{ past_damages.working }}.{% endif %}")
+    _line(doc, "{% if arrears %}")
+    _line(doc,
+          "5A. That the defendant has not paid the rent, and the arrears of rent up "
+          "to the termination of the tenancy are: {{ arrears.working }}.")
+    _line(doc, "{% endif %}")
     _line(doc, "{% if outside_rent_control %}")
     _line(doc,
           "6. That the suit premises are not governed by the Rent Control Act, and "
@@ -2144,7 +2300,9 @@ def build_ejectment():
           "8. That this Hon'ble Court has jurisdiction: {{ jurisdiction_basis }}.")
     _line(doc,
           "9. That the court fee has been calculated ad valorem on the annual rent of "
-          "Rs. {{ annual_rent }}/-, on which a court fee of Rs. {{ court_fee }}/- is "
+          "Rs. {% if annual_rent %}{{ annual_rent }}{% else %}______{% endif %}/-"
+          "{% if arrears or past_damages %} and on the arrears and damages claimed"
+          "{% endif %}, on which a court fee of Rs. {{ court_fee }}/- is "
           "paid; the plaintiff(s) undertake to pay any additional court fee found "
           "due.")
     _line(doc)
@@ -2155,11 +2313,23 @@ def build_ejectment():
     _line(doc,
           "(a) pass a decree for ejectment against the defendant and in favour of the "
           "plaintiff(s);")
-    _line(doc,
-          "(b) pass a decree for damages at Rs. {{ damages_rate_per_day }}/- per day "
-          "for the wrongful use and occupation of the premises by the defendant;")
-    _line(doc, "(c) award the costs of the suit; and")
-    _prayer_closer(doc, "d")
+    _line(doc, "{% set L = namespace(i=1) %}{% if arrears %}"
+               "({{ 'abcdefgh'[L.i] }}) pass a decree for Rs. {{ arrears.amount }}/- "
+               "towards arrears of rent;{% set L.i = L.i + 1 %}{% endif %}")
+    _line(doc, "{% if past_damages %}({{ 'abcdefgh'[L.i] }}) pass a decree for "
+               "Rs. {{ past_damages.amount }}/- towards damages for use and "
+               "occupation from {{ damages_from }} to the date of the plaint;"
+               "{% set L.i = L.i + 1 %}{% endif %}")
+    _line(doc, "({{ 'abcdefgh'[L.i] }}) direct an enquiry into, and pass a decree "
+               "for, future damages for use and occupation at {% if damages_rate %}Rs. {{ damages_rate }}/- per {{ damages_per }}{% else %}[rate of damages to be provided]{% endif %} "
+               "from {% if past_damages %}the date of the plaint{% else %}"
+               "{{ damages_from }}{% endif %} till the date of delivery of vacant "
+               "possession (Order XX Rule 12 of the Code of Civil Procedure, 1908);"
+               "{% set L.i = L.i + 1 %}")
+    _line(doc, "({{ 'abcdefgh'[L.i] }}) award the costs of the suit; and")
+    _line(doc, "({{ 'abcdefgh'[L.i + 1] }}) pass such further or other orders as "
+               "this Hon'ble Court may deem fit and proper in the circumstances of "
+               "the case, and thus render justice.")
     _line(doc)
     _signature_block(doc, "PLAINTIFF(S)", "suit_date", "Plaintiff(s)")
     _line(doc)
@@ -2194,10 +2364,13 @@ def build_indigent_application():
           "{% endif %}.                          ... Petitioner/Plaintiff")
     _center(doc, "-Vs-")
     _line(doc,
+          "{% if respondents|length > 1 %}{% for r in respondents %}{{ loop.index }}. "
+          "{{ r }}{% if not loop.last %}\n{% endif %}{% endfor %}{% else %}"
           "{{ respondent.name }}{% if respondent.parentage %}, "
           "{{ respondent.parentage }}{% endif %}{% if respondent.address %}, residing "
-          "at {{ respondent.address }}{% endif %}."
-          "                          ... Respondent/Defendant")
+          "at {{ respondent.address }}{% endif %}.{% endif %}"
+          "                          ... Respondent{% if respondents|length > 1 %}s"
+          "{% endif %}/Defendant{% if respondents|length > 1 %}s{% endif %}")
     _line(doc)
     _center(doc, "PETITION FILED UNDER ORDER XXXIII RULES 1 AND 2 OF THE CODE OF "
                  "CIVIL PROCEDURE, 1908 FOR PERMISSION TO SUE AS AN INDIGENT PERSON",
@@ -2216,13 +2389,23 @@ def build_indigent_application():
           "2. The facts constituting the cause of action, the jurisdiction of this "
           "Hon'ble Court, the valuation of the suit and the relief claimed are as "
           "stated in this petition.")
+    _line(doc, "{% if relief_claimed %}")
+    _line(doc, "2A. RELIEF CLAIMED IN THE SUIT: {{ relief_claimed }}.")
+    _line(doc, "{% endif %}")
+    _line(doc, "{% if cause_of_action %}")
+    _line(doc, "2B. CAUSE OF ACTION: {{ cause_of_action }}.")
+    _line(doc, "{% endif %}")
+    _line(doc, "{% if suit_valuation %}")
+    _line(doc, "2C. VALUATION: the suit is valued at Rs. {{ suit_valuation }}/- for "
+               "the purposes of jurisdiction and court fee.")
+    _line(doc, "{% endif %}")
     _line(doc,
           "3. That the petitioner is an indigent person: {{ indigency_particulars }}. "
           "The petitioner is therefore unable to pay the requisite court fee as "
           "required by law.")
     _line(doc,
           "4. That the petitioner undertakes to pay the entire court fee if the suit "
-          "is decreed in his favour.")
+          "is decreed in the petitioner's favour.")
     _line(doc,
           "5. That there are sufficient reasons for granting the petitioner "
           "permission to institute the present suit as an indigent person.")
@@ -2246,6 +2429,11 @@ def build_indigent_application():
                "{% endfor %}{% else %}[The petitioner's movable and immovable property, "
                "with its estimated value, to be listed; state 'Nil' if none.]"
                "{% endif %}")
+    _line(doc, "{% if suit_property_schedule %}")
+    _line(doc, "SCHEDULE OF THE SUIT PROPERTY:")
+    _line(doc, "{% for item in suit_property_schedule %}{{ loop.index }}. {{ item }}"
+               "{% if not loop.last %}\n{% endif %}{% endfor %}")
+    _line(doc, "{% endif %}")
     _line(doc)
     _line(doc, "VERIFICATION:")
     _line(doc,
@@ -2309,18 +2497,24 @@ def build_o39_r2a_application():
           "It is, therefore, most respectfully prayed that this Hon'ble Court may be "
           "pleased to:")
     _line(doc,
-          "(a) take appropriate action under Order XXXIX Rule 2-A CPC against the "
-          "respondent/defendant, attaching his property and detaining him in civil "
-          "imprisonment;")
+          "(a) order the attachment of the property of the respondent/defendant and "
+          "his detention in the civil prison for a term not exceeding three months "
+          "under Order XXXIX Rule 2-A CPC for the disobedience of the injunction "
+          "order dated {{ injunction_order_date }};")
     _line(doc,
-          "(b) direct restoration of possession of the suit property to the "
-          "petitioner/plaintiff; and")
+          "{% if construction_to_remove %}(b) direct the respondent/defendant to "
+          "remove {{ construction_to_remove }}, put up in breach of the said order, "
+          "at his own cost within a time fixed by this Hon'ble Court and to restore "
+          "the status quo ante, and in default, permit the petitioner/plaintiff to "
+          "remove it through the process of this Hon'ble Court at the cost of the "
+          "respondent/defendant; and{% else %}(b) direct restoration of the status "
+          "quo ante as it stood on the date of the injunction order; and"
+          "{% endif %}")
     _prayer_closer(doc, "c")
     _line(doc)
     _sign_off(doc, "PETITIONER", "Petitioner", "application_date")
-    _line(doc)
-    _line(doc, "[NOTE: An affidavit, duly attested by an oath commissioner, in "
-               "support of this application is to be attached.]")
+    _supporting_affidavit(doc, "AFFIDAVIT FILED IN SUPPORT OF THE PETITION",
+                          [("applicant.name", _deponent_desc())])
     _save(doc, "o39_r2a_application.docx")
 
 
@@ -2449,8 +2643,10 @@ def build_transfer_petition():
           "and pass such further or other orders as this Hon'ble Court may deem fit and proper in the circumstances of the case, and thus render justice.")
     _line(doc)
     _sign_off(doc, "PETITIONER", "Petitioner", "petition_date")
-    _line(doc)
-    _line(doc, "[NOTE: To be supported by an affidavit.]")
+    _supporting_affidavit(
+        doc, "AFFIDAVIT FILED IN SUPPORT OF THE TRANSFER PETITION",
+        [("petitioner.name", _deponent_desc(parentage="petitioner.parentage",
+                                            address="petitioner.address"))])
     _save(doc, "transfer_petition.docx")
 
 
@@ -2493,7 +2689,12 @@ def build_execution_application():
                "{{ prior_applications }}")
     _line(doc, "(g) The amount with interest due upon the decree, or other relief "
                "granted thereby: principal Rs. {{ decretal_amount }}/-; interest: "
-               "{% if interest_note %}{{ interest_note }}{% else %}[rate, period and "
+               "{% if interest_due is not none %}Rs. {{ interest_due }}/- ("
+               "{% for w in interest_working %}{{ w }}{% if not loop.last %}; "
+               "{% endif %}{% endfor %}){% if interest_note %}, {{ interest_note }}"
+               "{% endif %}; total due with costs: Rs. {{ total_due }}/-, besides "
+               "further interest till realisation"
+               "{% elif interest_note %}{{ interest_note }}{% else %}[rate, period and "
                "amount of interest due as on the date of this petition to be "
                "provided]{% endif %}")
     _line(doc, "(h) The amount of the costs, if any, awarded: Rs. {{ costs_amount }}/-")
@@ -2641,8 +2842,10 @@ def build_judicial_separation():
           "(a) grant a decree of judicial separation under s.10 of the Hindu Marriage "
           "Act, 1955 in favour of the petitioner;")
     _line(doc,
-          "{% if custody_sought %}(b) grant custody of {{ custody_sought }} to the "
-          "petitioner under Section 26 of the Hindu Marriage Act, 1955; and\n(c)"
+          "{% if custody_sought %}(b) pass an order under Section 26 of the Hindu "
+          "Marriage Act, 1955 granting the petitioner the custody of "
+          "{{ custody_sought }}, with such provision for the maintenance and "
+          "education of the minor as this Hon'ble Court may deem just; and\n(c)"
           "{% else %}(b){% endif %} pass such further or other orders as this "
           "Hon'ble Court may deem fit and proper in the circumstances of the case, "
           "and thus render justice.")
@@ -2675,18 +2878,21 @@ def build_succession_grant():
                "{% if not loop.last %}\n{% endif %}{% endfor %}"
                "                          ... Respondents")
     _line(doc)
-    _center(doc, "PETITION FILED UNDER THE INDIAN SUCCESSION ACT, 1925 FOR GRANT OF "
-                 "{{ grant_label|upper }}", bold=True)
+    _center(doc, "{% if is_probate %}PETITION FILED UNDER SECTION 276 OF THE INDIAN "
+                 "SUCCESSION ACT, 1925 FOR GRANT OF PROBATE{% else %}PETITION FILED "
+                 "UNDER THE INDIAN SUCCESSION ACT, 1925 FOR GRANT OF "
+                 "{{ grant_label|upper }}{% endif %}", bold=True)
     _line(doc)
     _line(doc, "MOST RESPECTFULLY SHOWETH:")
     _line(doc,
           "1. That this petition is filed for the grant of {{ grant_label|lower }} in "
           "respect of the estate of the deceased Late {{ deceased_name }}, who at the "
-          "time of his death on {{ death_date }} was residing at "
+          "time of death on {{ death_date }} was residing at "
           "{{ deceased_last_residence }}.")
     _line(doc,
-          "2. That during his lifetime the deceased bequeathed his estate by his last "
-          "will and testament dated {{ will_date }}, made in a sound state of mind; "
+          "2. That during {{ pron }} lifetime the deceased bequeathed the estate by "
+          "a last will and testament dated {{ will_date }}, made in a sound state "
+          "of mind; "
           "the original will is annexed.")
     _line(doc,
           "3. That the said will was duly made by the deceased in the presence of the "
@@ -2706,7 +2912,7 @@ def build_succession_grant():
                "assets.")
     _line(doc, "{% if undertakes_further_court_fee %}")
     _line(doc, "8. That the petitioner undertakes to pay the court fees payable in "
-               "respect of any other properties coming to his hands.")
+               "respect of any other properties coming to the petitioner's hands.")
     _line(doc, "{% endif %}")
     _line(doc, "{% if no_impediment %}")
     _line(doc, "9. That there is no legal impediment to the grant of "
@@ -2748,10 +2954,10 @@ def build_succession_grant():
     _line(doc)
     _line(doc, "VERIFICATION (WITNESSES TO THE WILL):")
     _line(doc,
-          "We, the witnesses to the last will and testament of the testator, declare "
-          "that we were present and saw the testator affix his signature on the will "
-          "annexed, and we acknowledge the same to be his last will and testament in "
-          "our presence.")
+          "We, the witnesses to the last will and testament of the {{ testator }}, "
+          "declare that we were present and saw the {{ testator }} affix "
+          "{{ pron }} signature on the will annexed, and we acknowledge the same to "
+          "be {{ pron }} last will and testament in our presence.")
     _line(doc)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -3030,8 +3236,11 @@ def build_special_leave_petition():
                "Petitioner")
     _line(doc, "Date:  {% if slp_date %}{{ slp_date }}{% else %}____________"
                "{% endif %}")
-    _line(doc)
-    _line(doc, "[NOTE: To be supported by an affidavit.]")
+    _supporting_affidavit(
+        doc, "AFFIDAVIT IN SUPPORT OF THE SPECIAL LEAVE PETITION",
+        [("petitioner.name", _deponent_desc(parentage="petitioner.parentage",
+                                            address="petitioner.address"))],
+        pleading="special leave petition")
     _save(doc, "special_leave_petition.docx")
 
 
@@ -3098,8 +3307,11 @@ def build_contempt_petition():
     _line(doc)
     _sign_off(doc, "PETITIONER", "Petitioner", "petition_date")
     _line(doc)
-    _line(doc, "[NOTE: The petition must be supported by an affidavit; each "
-               "contemnor is to be named personally, with designation.]")
+    _line(doc, "[NOTE: Each contemnor is to be named personally, with designation.]")
+    _supporting_affidavit(
+        doc, "AFFIDAVIT FILED IN SUPPORT OF THE CONTEMPT PETITION",
+        [("petitioners[0]",
+          _deponent_desc(address="(petitioner_addresses or [None])[0]"))])
     _save(doc, "contempt_petition.docx")
 
 
@@ -3107,7 +3319,7 @@ def build_contempt_petition():
 # BATCH 4 — conveyancing deeds + notices from the DPC book (Part B).
 # ==========================================================================
 
-def _advocate_letterhead(doc):
+def _advocate_letterhead(doc, date_key="notice_date"):
     """Advocate letterhead + REGD A/D block shared by the notice letters
     (book pp.127-133)."""
     _line(doc, "{{ advocate }}")
@@ -3119,7 +3331,7 @@ def _advocate_letterhead(doc):
                "REGD A/D / U.P.C.{% endif %}")
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    p.add_run("Dated: {{ notice_date }}")
+    p.add_run("Dated: {{ " + date_key + " }}")
     _line(doc)
 
 
@@ -3811,7 +4023,8 @@ def build_s138_reply():
     _center(doc, "REPLY TO LEGAL NOTICE UNDER SECTION 138 OF THE NEGOTIABLE "
                  "INSTRUMENTS ACT, 1881", bold=True)
     _line(doc)
-    _advocate_letterhead(doc)
+    # the reply's own date — never the date of the notice being replied to
+    _advocate_letterhead(doc, "reply_date")
     _line(doc, "To,")
     _line(doc, "{{ opposing_advocate }}, Advocate")
     _line(doc)
@@ -4325,7 +4538,7 @@ def build_substituted_service():
     _center(doc, "PETITION UNDER ORDER V RULE 20 OF THE CODE OF CIVIL PROCEDURE, "
                  "1908", bold=True)
     _line(doc)
-    _tn_court_line(doc)
+    _tn_court_line(doc, smart=True)
     _line(doc, "{{ petitioner_name }}"
                "                          ... Petitioner/Plaintiff")
     _center(doc, "Versus")
@@ -4499,15 +4712,11 @@ def build_surrender_petition():
     _review_banner(doc)
     _center(doc, "SURRENDER PETITION", bold=True)
     _line(doc)
-    _tn_court_line(doc)
+    _tn_court_line(doc, smart=True)
     _line(doc, "{{ accused_name }}"
                "                          ... Petitioner/Accused")
-    _line(doc, "{% if complainant_name or state_rep_by %}Versus{% endif %}")
-    _line(doc, "{% if state_rep_by %}{{ state_rep_by }}"
-               "{% if police_station %}, {{ police_station }} Police Station"
-               "{% endif %}                          ... Respondent/Complainant"
-               "{% elif complainant_name %}{{ complainant_name }}"
-               "                          ... Respondent/Complainant{% endif %}")
+    _line(doc, "Versus")
+    _line(doc, "{{ state_rep_by }}                          ... Respondent/Complainant")
     _line(doc, "{% if crime_no %}(Crime No. {{ crime_no }}){% endif %}")
     _line(doc)
     _line(doc,
@@ -4957,11 +5166,22 @@ def _lettered_grounds(doc, number):
     _line(doc, "{% endif %}")
 
 
-def _court_heading(doc, key):
+def _court_heading(doc, key, jurisdiction=None):
     """'IN THE HIGH COURT …' / 'IN THE COURT OF THE …' — a bare designation
-    ('THE PRINCIPAL DISTRICT JUDGE') gets 'THE COURT OF' prefixed."""
-    _center(doc, "{% if 'COURT' in " + key + "|upper %}IN {{ " + key + "|upper }}"
-                 "{% else %}IN THE COURT OF {{ " + key + "|upper }}{% endif %}",
+    ('THE PRINCIPAL DISTRICT JUDGE') gets 'THE COURT OF' prefixed. A High Court
+    name takes the _hc_expr form ('Madurai Bench of the Madras High Court' ->
+    'IN THE HIGH COURT OF JUDICATURE AT MADRAS' + '(MADURAI BENCH)'), and the
+    optional jurisdiction line ('(CRIMINAL APPELLATE JURISDICTION)')."""
+    _center(doc, "{% if 'HIGH COURT' in (" + key + " or '')|upper %}"
+                 + _hc_expr(key)
+                 + "{% if 'MADURAI' in _h %}\n(MADURAI BENCH){% endif %}"
+                 + ("\n" + jurisdiction if jurisdiction else "")
+                 + "{% elif 'COURT' in " + key + "|upper %}IN "
+                 "{% if not (" + key + "|upper).startswith('THE ') %}THE {% endif %}"
+                 "{{ " + key + "|upper }}"
+                 "{% else %}IN THE COURT OF "
+                 "{% if not (" + key + "|upper).startswith('THE ') %}THE {% endif %}"
+                 "{{ " + key + "|upper }}{% endif %}",
             bold=True)
 
 
@@ -4970,11 +5190,64 @@ def _plural(list_key, many, one):
             + "{% endif %}")
 
 
+def _suspension_petition(doc, parties_key, role):
+    """Companion petition to suspend the sentence pending an appeal / revision
+    (s.430 BNSS / s.389 CrPC), rendered only when `suspension.draft` is set. The
+    pipeline fills `suspension` (section, main_label, proceeding, order_ref,
+    court, sentence)."""
+    _line(doc, "{% if suspension.draft %}")
+    _line(doc)
+    _court_heading(doc, "court_name")
+    _center(doc, "CRL.M.P. No. ______ of {{ suspension.year }}")
+    _center(doc, "in")
+    _center(doc, "{{ suspension.main_label }} No. ______ of {{ suspension.year }}")
+    _party_block(doc, parties_key, "PETITIONER")
+    _center(doc, "Vs.")
+    _party_block(doc, "respondents", "RESPONDENT")
+    _line(doc)
+    _center(doc, "PETITION UNDER {{ suspension.section|upper }}", bold=True)
+    _line(doc, "MOST RESPECTFULLY SHOWETH:")
+    _line(doc,
+          "1. The petitioner" + _plural(parties_key, "s have", " has")
+          + " preferred the accompanying {{ suspension.proceeding }} against "
+          "{{ suspension.order_ref }} of {{ suspension.court }}"
+          "{% if suspension.sentence %}, by which the petitioner"
+          + _plural(parties_key, "s were", " was")
+          + " sentenced to {{ suspension.sentence }}{% endif %}. The facts and "
+          "grounds stated in the {{ suspension.proceeding }} may be read as part of "
+          "this petition.")
+    _line(doc,
+          "2. The {{ suspension.proceeding }} raises substantial and arguable "
+          "grounds, and is not likely to be heard and disposed of in the near "
+          "future. If the sentence is not suspended, the petitioner"
+          + _plural(parties_key, "s", "")
+          + " would have undergone it before the {{ suspension.proceeding }} is "
+          "heard, rendering the {{ suspension.proceeding }} infructuous.")
+    _line(doc,
+          "3. The petitioner" + _plural(parties_key, "s undertake", " undertakes")
+          + " to abide by any condition this Hon'ble Court may impose and to appear "
+          "whenever required.")
+    _line(doc, "PRAYER:")
+    _line(doc,
+          "It is, therefore, prayed that this Hon'ble Court may be pleased to "
+          "suspend the sentence imposed by {{ suspension.order_ref }} of "
+          "{{ suspension.court }}, pending disposal of the "
+          "{{ suspension.proceeding }}, and release the petitioner"
+          + _plural(parties_key, "s", "")
+          + " on bail, and pass such further or other orders as this Hon'ble Court "
+          "may deem fit and proper in the circumstances of the case, and thus "
+          "render justice.")
+    _line(doc, "Place: {{ place }}")
+    _line(doc, "Date:  ____________                Counsel for the Petitioner"
+          + _plural(parties_key, "s", ""))
+    _line(doc, "{% endif %}")
+
+
 def build_quash_petition():
     doc = Document()
     _review_banner(doc)
-    _court_heading(doc, "high_court")
-    _center(doc, "{% if bench %}({{ bench }}){% endif %}")
+    _hc_heading(doc, "(high_court or '') ~ ' ' ~ (bench or '')",
+                "(CRIMINAL JURISDICTION)")
     _line(doc)
     _center(doc, "CRL.O.P. No. ______ of {{ petition_year }}")
     _line(doc)
@@ -5052,7 +5325,7 @@ def build_quash_petition():
 def build_criminal_revision():
     doc = Document()
     _review_banner(doc)
-    _court_heading(doc, "court_name")
+    _court_heading(doc, "court_name", "(CRIMINAL REVISIONAL JURISDICTION)")
     _line(doc)
     _center(doc, "{{ case_label }} No. ______ of {{ petition_year }}")
     _line(doc)
@@ -5074,6 +5347,18 @@ def build_criminal_revision():
           "{{ impugned_order_date }} passed by {{ lower_court }}"
           "{% if case_ref %} in {{ case_ref }}{% endif %}, which is not an "
           "interlocutory order.")
+    _line(doc, "{% if ni_act %}")
+    _line(doc,
+          "1A. The petitioner stands convicted for the offence under Section 138 of "
+          "the Negotiable Instruments Act, 1881. The presumption under Section 139 "
+          "of that Act is rebuttable, and the accused may rebut it on a "
+          "preponderance of probabilities, including from the materials brought "
+          "out by the complainant himself.")
+    _line(doc, "{% elif against_conviction %}")
+    _line(doc,
+          "1A. The petitioner stands convicted for the offences under "
+          "{{ convicted_sections|join(', ') }}.")
+    _line(doc, "{% endif %}")
     _line(doc,
           "2. The address of the petitioner for the service of all notices and "
           "processes is that of the counsel, M/s. ________________, Advocates.")
@@ -5102,7 +5387,12 @@ def build_criminal_revision():
           "It is, therefore, most respectfully prayed that this Hon'ble Court may be "
           "pleased to call for the records relating to {{ impugned_order_ref }} "
           "dated {{ impugned_order_date }} passed by {{ lower_court }}"
-          "{% if case_ref %} in {{ case_ref }}{% endif %}, set aside the same, and "
+          "{% if case_ref %} in {{ case_ref }}{% endif %}, set aside the same"
+          "{% if against_conviction %} and the conviction and sentence "
+          "thereby imposed or confirmed, and acquit the petitioner of the "
+          "offence{% if convicted_sections|length > 1 %}s{% endif %} under "
+          "{% if ni_act %}Section 138 of the Negotiable Instruments Act, 1881"
+          "{% else %}{{ convicted_sections|join(', ') }}{% endif %}{% endif %}, and "
           "pass such other and further orders as this Hon'ble Court may deem fit "
           "and proper in the circumstances of the case, and thus render justice.")
     _line(doc)
@@ -5112,13 +5402,14 @@ def build_criminal_revision():
     _line(doc)
     _line(doc, "[NOTE: The certified copy of the impugned order is to be filed "
                "along with this revision.]")
+    _suspension_petition(doc, "petitioners", "PETITIONER")
     _save(doc, "criminal_revision.docx")
 
 
 def build_criminal_appeal():
     doc = Document()
     _review_banner(doc)
-    _court_heading(doc, "court_name")
+    _court_heading(doc, "court_name", "(CRIMINAL APPELLATE JURISDICTION)")
     _line(doc)
     _center(doc, "CRL.A. No. ______ of {{ appeal_year }}")
     _line(doc)
@@ -5178,9 +5469,10 @@ def build_criminal_appeal():
           + " of all the charges, and pass such other and further orders as this "
           "Hon'ble Court may deem fit and proper in the circumstances of the case, "
           "and thus render justice.")
-    _line(doc, "{% if suspension_petition_filed %}[NOTE: A separate petition under "
-               "{{ suspension_section }} is filed to suspend the sentence and "
-               "release the appellant on bail pending the appeal.]{% endif %}")
+    _line(doc, "{% if suspension_petition_filed and not suspension.draft %}[NOTE: A "
+               "separate petition under {{ suspension_section }} is filed to suspend "
+               "the sentence and release the appellant on bail pending the appeal.]"
+               "{% endif %}")
     _line(doc)
     _line(doc, "Place: {{ place }}")
     _line(doc, "Date:  {% if appeal_date %}{{ appeal_date }}{% else %}"
@@ -5190,6 +5482,7 @@ def build_criminal_appeal():
                "judgment appealed against.{% if appellant_in_custody %} An appellant "
                "in jail may present it through the officer in charge of the jail."
                "{% endif %}]")
+    _suspension_petition(doc, "appellants", "APPELLANT")
     _save(doc, "criminal_appeal.docx")
 
 
@@ -5300,10 +5593,12 @@ def build_civil_revision():
           "the proceedings.")
     _line(doc, "{% else %}")
     _line(doc,
-          "4. The impugned order calls for the exercise of this Hon'ble Court's "
-          "power of superintendence under Article 227 of the Constitution of India, "
-          "the court below having acted beyond its jurisdiction or in flagrant "
-          "disregard of the law.")
+          "4. The impugned order is an order made in the course of the proceeding. "
+          "The petitioner invokes the power of superintendence of this Hon'ble "
+          "Court under Article 227 of the Constitution of India over the court "
+          "below, which, in passing the impugned order, has acted beyond its "
+          "jurisdiction or in flagrant disregard of the law, occasioning a failure "
+          "of justice.")
     _line(doc, "{% endif %}")
     _lettered_grounds(doc, "5")
     _line(doc, "{% if delay_explanation %}")
@@ -5376,6 +5671,7 @@ def build_hrcp_eviction():
           "ground(s) under Section 21(2) of the Act:")
     _line(doc, "{% for g in grounds %}")
     _line(doc, "   ({{ loop.index }}) Clause {{ g.clause }}: {{ g.text }}."
+               "{% if g.particulars %} Particulars: {{ g.particulars }}.{% endif %}"
                "{% if g.verify %} {{ g.verify }}{% endif %}")
     _line(doc, "{% endfor %}")
     _line(doc, "{% if demand_notice_served_date %}")
@@ -5407,7 +5703,10 @@ def build_hrcp_eviction():
           "It is, therefore, prayed that this Hon'ble Rent Court may be pleased to "
           "order the respondent to deliver vacant possession of the petition "
           "premises to the petitioner under Section 21(2) {{ clauses }} of "
-          "{{ act }}, direct the respondent to pay the costs of this petition, and "
+          "{{ act }}, {% if arrears_amount %}direct the respondent to pay the "
+          "arrears of rent of Rs. {{ arrears_amount }}/-"
+          "{% if arrears_months %} for {{ arrears_months }} months{% endif %}, "
+          "{% endif %}direct the respondent to pay the costs of this petition, and "
           "pass such other and further orders as this Hon'ble Court may deem fit "
           "and proper, and thus render justice.")
     _line(doc)
@@ -5448,9 +5747,13 @@ def build_condone_delay_petition():
     _line(doc,
           "2. The period of limitation prescribed for the {{ main_proceeding }} is "
           "{{ period_days }} days from the date of the order"
-          "{% if copy_applied_date %}, excluding the time requisite for obtaining "
+          "{% if copy_excluded %}, excluding the time requisite for obtaining "
           "the copy (applied for on {{ copy_applied_date }} and made ready on "
-          "{{ copy_ready_date }}){% endif %}. The last day for filing was "
+          "{{ copy_ready_date }}){% endif %}. "
+          "{% if copy_applied_date and not copy_excluded %}The certified copy was "
+          "applied for only on {{ copy_applied_date }}, after the period had "
+          "expired, so the time taken to obtain it is not excluded under Section "
+          "12(2). {% endif %}The last day for filing was "
           "{{ limitation_expiry }}. There is thus a delay of {{ delay_days }} days.")
     _line(doc, "3. The delay was caused because {{ sufficient_cause }}.")
     _line(doc, "4. {{ delay_slot }}")                                 # LLM
@@ -5479,10 +5782,9 @@ def build_condone_delay_petition():
 def build_amendment_ia():
     doc = Document()
     _review_banner(doc)
-    _center(doc,
-            "IN THE COURT OF {% if civil_court %}{{ civil_court }}{% else %}"
-            "THE PRINCIPAL DISTRICT MUNSIF{% endif %}"
-            "{% if city %}, {{ city }}{% endif %}", bold=True)
+    _center(doc, _court_expr("civil_court",
+                             "IN THE COURT OF THE PRINCIPAL DISTRICT MUNSIF", "city"),
+            bold=True)
     _line(doc)
     _center(doc, "I.A. No. ______ of {{ application_year }}")
     _center(doc, "in")
@@ -5491,8 +5793,12 @@ def build_amendment_ia():
     _line(doc, "{{ applicant.name }}"
                "                          ... PETITIONER / {{ applicant.role|upper }}")
     _center(doc, "Vs.")
-    _line(doc, "{{ respondent.name }}"
-               "                          ... RESPONDENT / {{ respondent.role|upper }}")
+    _line(doc, "{% for r in respondents %}{% if respondents|length > 1 %}"
+               "{{ loop.index }}. {% endif %}{{ r }}{% if not loop.last %}\n"
+               "{% endif %}{% endfor %}"
+               "                          ... RESPONDENT{% if respondents|length > 1 %}S"
+               "{% endif %} / {{ respondent.role|upper }}"
+               "{% if respondents|length > 1 %}S{% endif %}")
     _line(doc)
     _center(doc, "PETITION UNDER ORDER VI RULE 17 READ WITH SECTION 151 OF THE CODE "
                  "OF CIVIL PROCEDURE, 1908", bold=True)
@@ -5533,8 +5839,8 @@ def build_amendment_ia():
     _line(doc, "Place: {{ place }}")
     _line(doc, "Date:  {% if application_date %}{{ application_date }}{% else %}"
                "____________{% endif %}                Counsel for the Petitioner")
-    _line(doc)
-    _line(doc, "[NOTE: To be supported by the petitioner's affidavit.]")
+    _supporting_affidavit(doc, "AFFIDAVIT FILED IN SUPPORT OF THE PETITION",
+                          [("applicant.name", _deponent_desc())])
     _save(doc, "amendment_ia.docx")
 
 

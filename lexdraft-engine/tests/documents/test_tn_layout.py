@@ -223,8 +223,11 @@ def test_rcr_and_js_no_stock_certified_copy_and_s19():
 
 def test_judicial_separation_custody_prayer_s26_when_sought():
     t = _draft("judicial_separation", custody_sought="the minor son, R. Arjun, aged 4")
-    assert "(b) grant custody of the minor son, R. Arjun, aged 4 to the petitioner " \
-           "under Section 26 of the Hindu Marriage Act, 1955" in t
+    assert "(b) pass an order under Section 26 of the Hindu Marriage Act, 1955 " \
+           "granting the petitioner the custody of the minor son, R. Arjun, aged 4" in t
+    # a field that already says "Custody of ..." is not doubled
+    t2 = _draft("judicial_separation", custody_sought="Custody of the minor daughter")
+    assert "custody of the minor daughter" in t2 and "custody of Custody" not in t2
     assert "(iii-a)" in t
     assert "Section 26" not in _draft("judicial_separation")
 

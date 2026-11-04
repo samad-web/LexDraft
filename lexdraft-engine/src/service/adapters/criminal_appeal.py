@@ -38,6 +38,10 @@ ADAPTER = Adapter(
         FieldSpec('facts_narrative', 'string', required=False, default=''),
         FieldSpec('grounds_narrative', 'string', required=False, default=''),
         FieldSpec('grounds_list', 'string_list', required=False, default=None),
+        FieldSpec('police_station', 'string', required=False, default=None),
+        FieldSpec('crime_no', 'string', required=False, default=None),
+        FieldSpec('private_complaint', 'bool', required=False, default=False),
+        FieldSpec('draft_suspension_petition', 'bool', required=False, default=False),
     ),
     slots=('facts_narrative', 'grounds_narrative'),
 )

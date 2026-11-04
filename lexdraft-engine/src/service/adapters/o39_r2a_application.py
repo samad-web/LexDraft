@@ -20,6 +20,7 @@ ADAPTER = Adapter(
         FieldSpec('place', 'string'),
         FieldSpec('civil_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
+        FieldSpec('construction_to_remove', 'string', required=False, default=None),
     ),
     slots=('disobedience_narrative',),
 )

@@ -23,6 +23,7 @@ LLM slot at paragraph 2 (accident narrative) only.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from fractions import Fraction
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
@@ -43,6 +44,10 @@ _CONSUMED_TABLES = (
 )
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+
+# the personal-expenses deduction as pleaded ("less one-third ...")
+_FRACTION_WORDS = {Fraction(1, 2): "one-half", Fraction(1, 3): "one-third",
+                   Fraction(1, 4): "one-fourth", Fraction(1, 5): "one-fifth"}
 
 
 class ClaimKind(Enum):
@@ -129,6 +134,14 @@ def build(
         )
         computation: Dict[str, Any] = {
             "kind": "death",
+            "annual_income": victim_annual_income,
+            "future_prospects_pct": round(d.future_prospects_pct * 100),
+            "future_prospects": round(d.enhanced_income - victim_annual_income),
+            "enhanced_income": round(d.enhanced_income),
+            "deduction_label": _FRACTION_WORDS.get(
+                Fraction(d.deduction_fraction).limit_denominator(10),
+                f"{round(d.deduction_fraction * 100)}%"),
+            "deduction": round(d.enhanced_income * d.deduction_fraction),
             "multiplicand": round(d.multiplicand),
             "multiplier": d.multiplier,
             "loss_of_dependency": round(d.loss_of_dependency),

@@ -9,8 +9,9 @@ ADAPTER = Adapter(
     title='Civil revision petition (s.115 CPC / Art.227)', build=pipeline.build,
     template='civil_revision.docx',
     fields=(
+        # optional: inferred from order_would_finally_dispose when absent
         FieldSpec('basis', 'enum', enum_values=tuple(b.value for b in RevisionBasis),
-                  to_engine=RevisionBasis),
+                  to_engine=RevisionBasis, required=False, default=None),
         FieldSpec('petitioner_names', 'string_list'),
         FieldSpec('respondent_names', 'string_list'),
         FieldSpec('impugned_order_ref', 'string'),

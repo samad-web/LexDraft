@@ -49,6 +49,7 @@ from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
 from . import _code_framework as cf
+from ._state_party import with_state
 from .writ_petition import _letter
 
 TEMPLATE = "criminal_appeal.docx"
@@ -126,6 +127,14 @@ def build(
     facts_narrative: str = "",
     grounds_narrative: str = "",
     grounds_list: Optional[Sequence[str]] = None,
+    # the State is arrayed in a police case (rep. by the Inspector of Police of
+    # the investigating station); a private-complaint case is between the parties.
+    police_station: Optional[str] = None,
+    crime_no: Optional[str] = None,
+    private_complaint: bool = False,
+    # append the companion s.430 BNSS / s.389 CrPC petition to suspend the
+    # sentence. Optional.
+    draft_suspension_petition: bool = False,
 ) -> CriminalAppealResult:
     """Assemble the criminal appeal against conviction, or refuse."""
 
@@ -233,7 +242,20 @@ def build(
         "appeal_year": filing_date.year,
         "appeal_date": filing_date.isoformat(),
         "appellants": [a for a in appellant_names if a.strip()],
-        "respondents": [r for r in respondent_names if r.strip()],
+        "respondents": ([r for r in respondent_names if r.strip()]
+                        if private_complaint else
+                        with_state(respondent_names, police_station, crime_no)),
+        "suspension": {
+            "draft": draft_suspension_petition,
+            "year": filing_date.year,
+            "section": sections_map["suspension_of_sentence"],
+            "main_label": "CRL.A." if forum is AppealForum.HIGH_COURT else "Crl.A.",
+            "proceeding": "appeal",
+            "order_ref": f"the judgment dated {judgment_date.isoformat()} in "
+                         f"{trial_case_ref}",
+            "court": trial_court,
+            "sentence": sentence_text,
+        },
         "code_framework": code_framework,
         "section_label": sections_map[key],
         "suspension_section": sections_map["suspension_of_sentence"],

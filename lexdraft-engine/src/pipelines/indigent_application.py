@@ -65,6 +65,16 @@ def build(
     # O.XXXIII R.2: schedule of the applicant's movable/immovable property with
     # estimated value (rendered as a gap when not given).
     property_schedule: Optional[Sequence[str]] = None,
+    # The application IS the plaint (O.XXXIII R.2, R.8): its plaint particulars.
+    # `petitioner_assets` is the PETITIONER's own property (preferred over the
+    # older `property_schedule`); `suit_property_schedule` is the property sued
+    # for. All optional.
+    petitioner_assets: Optional[Sequence[str]] = None,
+    suit_property_schedule: Optional[Sequence[str]] = None,
+    respondent_names: Optional[Sequence[str]] = None,
+    relief_claimed: Optional[str] = None,
+    cause_of_action: Optional[str] = None,
+    suit_valuation: Optional[int] = None,
 ) -> IndigentResult:
     """Assemble the indigent-person application, or refuse."""
 
@@ -100,7 +110,15 @@ def build(
         "suit_ref": suit_ref,
         "indigency_particulars": indigency_particulars,
         "undertakes_to_pay_if_decreed": undertakes_to_pay_if_decreed,
-        "property_schedule": [i for i in (property_schedule or []) if i.strip()],
+        "property_schedule": [i for i in (petitioner_assets or property_schedule
+                                          or []) if i.strip()],
+        "suit_property_schedule": [i for i in (suit_property_schedule or [])
+                                   if i.strip()],
+        "respondents": [n for n in (respondent_names or []) if n.strip()]
+                       or [respondent_name],
+        "relief_claimed": relief_claimed,
+        "cause_of_action": cause_of_action,
+        "suit_valuation": suit_valuation,
         "place": place,
     }
     return IndigentResult(refused=False, context=context)

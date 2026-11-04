@@ -44,6 +44,7 @@ LLM slot: the facts narrative (para 4).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -105,6 +106,41 @@ GROUNDS: Dict[str, tuple] = {
 }
 
 
+# Common free-text phrasings of a ground -> its s.21(2) clause key. First match
+# wins; the free text itself is kept as the particulars of that ground.
+_PHRASES = (
+    ("tenant_notice_to_quit", r"notice to quit|quit notice"),
+    ("refuses_rent_under_s8", r"section 8|s\.\s?8\b|revised rent|fair rent"),
+    ("arrears_of_rent", r"arrear|default in (the )?payment|non[- ]?payment|"
+                        r"not paid (the )?rent|unpaid rent|wilful default"),
+    ("parted_with_possession", r"sub-?let|parted with|sub-?tenan|"
+                               r"transferred possession"),
+    ("structural_change", r"structural|permanent structure"),
+    ("misuse", r"misuse|nuisance"),
+    ("change_of_land_use", r"land use"),
+    ("repairs_rebuilding", r"repair|rebuild|re-build|demoli|reconstruct|"
+                           r"additions?|alterations?"),
+    ("own_occupation", r"own (use|occupation|business|residence)|bona ?fide|"
+                       r"personal (use|occupation)|requirement of|required by the "
+                       r"landlord|for (his|her|the landlord'?s) (son|daughter|wife|"
+                       r"husband|family)|member of (his|her) family"),
+    ("no_written_agreement", r"no (written )?(tenancy )?agreement|"
+                             r"section 4\(2\)|not registered"),
+)
+
+
+def classify_ground(text: str) -> Optional[str]:
+    """The s.21(2) ground key for a known key or a common free-text phrasing
+    ('Default in payment of rent ...' -> 'arrears_of_rent'); None if unknown."""
+    t = text.strip()
+    if t in GROUNDS:
+        return t
+    for key, pat in _PHRASES:
+        if re.search(pat, t, re.I):
+            return key
+    return None
+
+
 @dataclass(frozen=True)
 class HrcpEvictionResult:
     refused: bool
@@ -151,7 +187,14 @@ def build(
 ) -> HrcpEvictionResult:
     """Assemble the Rent Court eviction petition under s.21(2), or refuse."""
 
-    keys = [g.strip() for g in grounds if g and g.strip()]
+    raw = [g.strip() for g in grounds if g and g.strip()]
+    keys, particulars = [], {}
+    for g in raw:
+        k = classify_ground(g) or g
+        if k not in keys:
+            keys.append(k)
+        if k in GROUNDS and g != k:
+            particulars.setdefault(k, []).append(g.rstrip("."))
     if not keys:
         return _refuse(
             "an eviction petition must plead at least one ground under Section 21(2) "
@@ -220,7 +263,8 @@ def build(
     pleaded: List[Dict[str, str]] = []
     for k in keys:
         clause, text, verify = GROUNDS[k]
-        pleaded.append({"key": k, "clause": clause, "text": text, "verify": verify})
+        pleaded.append({"key": k, "clause": clause, "text": text, "verify": verify,
+                        "particulars": "; ".join(particulars.get(k, []))})
     clauses = ", ".join(g["clause"] for g in pleaded)
 
     context: Dict[str, Any] = {

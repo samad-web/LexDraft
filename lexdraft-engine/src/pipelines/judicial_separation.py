@@ -17,6 +17,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -69,7 +70,8 @@ def build(
     respondent_name: str,
     marriage_date: Optional[date],
     marriage_place: str,
-    marriage_registered: bool,
+    # printed ONLY when affirmatively given; never assumed
+    marriage_registered: bool = False,
     ground: Ground,
     ground_narrative: str,
     no_condonation: bool,
@@ -159,7 +161,10 @@ def build(
         "last_resided_together": last_resided_together,
         "jurisdiction_basis": jurisdiction_basis,
         "has_matrimonial_verification": True,
-        "custody_sought": (custody_sought or "").strip(),
+        # "Custody of the minor daughter" -> "the minor daughter" (the clause
+        # supplies "custody of")
+        "custody_sought": re.sub(r"^\s*(the\s+)?custody\s+of\s+", "",
+                                 (custody_sought or "").strip(), flags=re.I),
         "place": place,
     }
     return JudicialSeparationResult(refused=False, context=context)

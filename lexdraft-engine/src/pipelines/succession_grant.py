@@ -34,6 +34,11 @@ SPEC = "dpc-50-55"
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 
 
+_PRON = {"male": "his", "m": "his", "female": "her", "f": "her"}
+_TESTATOR = {"male": "testator", "m": "testator", "female": "testatrix",
+             "f": "testatrix"}
+
+
 class GrantKind(Enum):
     PROBATE = "probate"
     LETTERS_OF_ADMINISTRATION = "letters_of_administration"
@@ -92,6 +97,8 @@ def build(
     petitioner_address: Optional[str] = None,
     grant_court: Optional[str] = None,
     city: Optional[str] = None,
+    # 'male' / 'female': his/her, testator/testatrix. Unknown -> both forms.
+    deceased_gender: Optional[str] = None,
 ) -> SuccessionGrantResult:
     """Assemble the probate / letters-of-administration petition, or refuse."""
 
@@ -165,6 +172,9 @@ def build(
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
                        "address": petitioner_address},
         "deceased_name": deceased_name,
+        "pron": _PRON.get((deceased_gender or "").strip().lower(), "his/her"),
+        "testator": _TESTATOR.get((deceased_gender or "").strip().lower(),
+                                  "testator/testatrix"),
         "death_date": death_date,
         "deceased_last_residence": deceased_last_residence,
         "will_date": will_date,

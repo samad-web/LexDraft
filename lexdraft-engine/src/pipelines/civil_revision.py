@@ -91,7 +91,7 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
 
 def build(
     *,
-    basis: RevisionBasis,
+    basis: Optional[RevisionBasis],
     petitioner_names: Sequence[str],
     respondent_names: Sequence[str],
     impugned_order_ref: str,
@@ -113,6 +113,12 @@ def build(
     grounds_list: Optional[Sequence[str]] = None,
 ) -> CivilRevisionResult:
     """Assemble the civil revision petition, or refuse."""
+
+    # No basis given: an order that would not finally dispose of the suit (an
+    # interlocutory order) is revisable only under Article 227; otherwise s.115.
+    if basis is None:
+        basis = (RevisionBasis.S115 if order_would_finally_dispose and not appeal_lies
+                 else RevisionBasis.ART227)
 
     missing = [f for f, v in (("impugned_order_ref", impugned_order_ref),
                               ("lower_court", lower_court),

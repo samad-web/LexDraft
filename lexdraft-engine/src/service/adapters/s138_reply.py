@@ -25,6 +25,7 @@ ADAPTER = Adapter(
         FieldSpec("advocate_phone", "string", required=False, default=None),
         FieldSpec("dispatch_line", "string", required=False, default=None),
         FieldSpec("client_address", "string", required=False, default=None),
+        FieldSpec("reply_date", "date", required=False, default=None),
     ),
     slots=("defence_narrative",),
 )

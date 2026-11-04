@@ -41,6 +41,7 @@ from ..rules import dual_code_router as router
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _code_framework as cf
+from ._state_party import with_state
 from .writ_petition import _letter
 
 TEMPLATE = "quash_petition.docx"
@@ -122,6 +123,10 @@ def build(
     facts_narrative: str = "",
     grounds_narrative: str = "",
     grounds_list: Optional[Sequence[str]] = None,
+    # the investigating police station / crime number, when the proceeding is not
+    # itself the FIR (a final report / C.C. on a police report). Optional.
+    police_station: Optional[str] = None,
+    crime_no: Optional[str] = None,
 ) -> QuashPetitionResult:
     """Assemble the s.528 BNSS / s.482 CrPC quash petition, or refuse."""
 
@@ -149,6 +154,8 @@ def build(
 
     # 2. the offences alleged.
     secs = [s for s in sections if s.strip()]
+    # a "[… to be provided]" gap never sits beside real sections
+    secs = [s for s in secs if not s.strip().startswith("[")] or secs
     if not secs:
         return _refuse(
             "the offences alleged in the impugned proceeding (sections and Act) "
@@ -192,6 +199,13 @@ def build(
     target_label = _TARGET_LABEL[target]
     petitioners = [p for p in petitioner_names if p.strip()]
     respondents = [r for r in respondent_names if r.strip()]
+    # a police case arrays the State (rep. by the Inspector of Police) as R1; a
+    # private complaint is between the parties alone.
+    if target != QuashTarget.PRIVATE_COMPLAINT:
+        if target == QuashTarget.FIR:
+            police_station = police_station or proceeding_forum
+            crime_no = crime_no or proceeding_ref
+        respondents = with_state(respondents, police_station, crime_no)
 
     context: Dict[str, Any] = {
         "high_court": high_court,

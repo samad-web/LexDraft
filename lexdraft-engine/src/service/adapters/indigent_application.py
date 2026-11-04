@@ -23,6 +23,12 @@ ADAPTER = Adapter(
         FieldSpec('civil_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
         FieldSpec('property_schedule', 'string_list', required=False, default=None),
+        FieldSpec('petitioner_assets', 'string_list', required=False, default=None),
+        FieldSpec('suit_property_schedule', 'string_list', required=False, default=None),
+        FieldSpec('respondent_names', 'string_list', required=False, default=None),
+        FieldSpec('relief_claimed', 'string', required=False, default=None),
+        FieldSpec('cause_of_action', 'string', required=False, default=None),
+        FieldSpec('suit_valuation', 'int', required=False, default=None),
     ),
     slots=(),
 )

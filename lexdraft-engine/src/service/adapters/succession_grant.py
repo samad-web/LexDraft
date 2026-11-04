@@ -47,6 +47,8 @@ ADAPTER = Adapter(
         FieldSpec("petitioner_address", "string", required=False, default=None),
         FieldSpec("grant_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
+        FieldSpec("deceased_gender", "enum", enum_values=("male", "female"),
+                  required=False, default=None),
     ),
     slots=("bequest_narrative",),
 )

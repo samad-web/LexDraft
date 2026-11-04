@@ -41,6 +41,23 @@ class ReliefHead(Enum):
     COMPENSATION_22 = "s.22 compensation"
 
 
+# The operative words of each order, for the lettered prayer ({rs} = respondent/s).
+_PRAYER_LEAD = {
+    ReliefHead.PROTECTION_18: "pass a protection order under Section 18 of the Act "
+                              "prohibiting the {rs} from committing any act of "
+                              "domestic violence against the aggrieved person",
+    ReliefHead.RESIDENCE_19: "pass a residence order under Section 19 of the Act "
+                             "restraining the {rs} from dispossessing the aggrieved "
+                             "person from the shared household",
+    ReliefHead.MONETARY_20: "direct the {rs} to pay monetary relief under Section 20 "
+                            "of the Act",
+    ReliefHead.CUSTODY_21: "grant temporary custody of the child to the aggrieved "
+                           "person under Section 21 of the Act",
+    ReliefHead.COMPENSATION_22: "direct the {rs} to pay compensation and damages "
+                                "under Section 22 of the Act",
+}
+
+
 @dataclass(frozen=True)
 class AbuseIncident:
     category: AbuseCategory
@@ -101,6 +118,8 @@ def build(
     magistrate_court: Optional[str] = None,
     city: Optional[str] = None,
     filing_date: Optional[date] = None,
+    # every respondent (husband, mother-in-law, ...) when more than one. Optional.
+    respondent_names: Optional[Sequence[str]] = None,
 ) -> DvResult:
     """Assemble the DV s.12 application, or refuse."""
 
@@ -139,9 +158,19 @@ def build(
                 code="dv_relief_head_unsupported", fields=("reliefs",),
             )
 
+    respondents = [n.strip() for n in (respondent_names or []) if n.strip()]
+    if respondent_name.strip() and respondent_name.strip() not in respondents:
+        respondents.insert(0, respondent_name.strip())
+    rs = "respondents" if len(respondents) > 1 else "respondent"
+
     context: Dict[str, Any] = {
         "aggrieved": {"name": aggrieved_name},
         "respondent": {"name": respondent_name},
+        "respondents": respondents,
+        # one lettered prayer clause per order sought (ss.18-22)
+        "relief_prayers": [_PRAYER_LEAD[r.head].format(rs=rs) + (
+            f": {r.averment.strip().rstrip('.')}" if r.averment.strip() else "")
+            for r in reliefs],
         # cause-title header fields (render only when present).
         "magistrate_court": magistrate_court,
         "city": city,

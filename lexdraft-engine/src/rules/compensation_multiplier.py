@@ -134,6 +134,10 @@ class DeathResult:
     total: float
     enhancement_note: str
     unverified: bool = TABLES_ARE_VERIFY
+    # the working, printed head by head in the claim petition
+    future_prospects_pct: float = 0.0
+    enhanced_income: float = 0.0
+    deduction_fraction: float = 0.0
 
 
 def compute_death(
@@ -167,6 +171,9 @@ def compute_death(
         conventional_total=conventional_total,
         total=loss_of_dependency + conventional_total,
         enhancement_note=_ENHANCEMENT_NOTE,
+        future_prospects_pct=pct,
+        enhanced_income=enhanced_income,
+        deduction_fraction=frac,
     )
 
 
