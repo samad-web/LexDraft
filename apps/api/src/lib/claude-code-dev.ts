@@ -14,8 +14,8 @@
 // =============================================================================
 
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env } from '../env';
 import { anthropicUsage, type NormalizedUsage } from './llm-usage';
@@ -33,6 +33,20 @@ interface CliResult {
 
 const TIMEOUT_MS = 10 * 60 * 1000;
 
+/** CLAUDE_CODE_BIN, or - when a VS Code extension update moved it - the newest
+ *  installed extension's binary, so testing doesn't break on every update. */
+export function claudeBin(configured = env.CLAUDE_CODE_BIN, extDir = join(homedir(), '.vscode', 'extensions')): string {
+  if (existsSync(configured)) return configured;
+  let dirs: string[] = [];
+  try { dirs = readdirSync(extDir).filter((d) => d.startsWith('anthropic.claude-code-')); } catch { /* no VS Code */ }
+  dirs.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+  for (const d of dirs) {
+    const bin = join(extDir, d, 'resources', 'native-binary', process.platform === 'win32' ? 'claude.exe' : 'claude');
+    if (existsSync(bin)) return bin;
+  }
+  return configured;
+}
+
 export async function claudeCodeComplete(opts: {
   system: string;
   user: string;
@@ -45,7 +59,7 @@ export async function claudeCodeComplete(opts: {
   delete childEnv.ANTHROPIC_API_KEY;
   try {
     const stdout = await new Promise<string>((resolve, reject) => {
-      const child = spawn(env.CLAUDE_CODE_BIN, [
+      const child = spawn(claudeBin(), [
         '-p', '--model', opts.model,
         '--system-prompt-file', systemFile,
         '--tools', '',

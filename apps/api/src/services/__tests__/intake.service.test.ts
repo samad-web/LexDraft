@@ -876,6 +876,25 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     expect(synthetic.size).toBe(0);
   });
 
+  it('MACT: a claimed total that differs from the computation is dropped for the computed one, with a note', async () => {
+    const { dropMismatchedClaim } = await import('../intake.service');
+    const refusal = {
+      code: 'mact_claim_claimed_total_mismatch', severity: 'hard', reason: 'x', pipeline: 'mact_claim', spec: '',
+      computation: 'claimed=8500000; computed=8710000', fields_implicated: ['claimed_total'], remedy_hint: '',
+    };
+    const form: Record<string, string> = { claimed_total: '8500000', victim_age: '34' };
+    expect(dropMismatchedClaim(refusal, form)).toContain('Rs. 87,10,000');
+    expect(form).toEqual({ claimed_total: '8710000', victim_age: '34' });
+    // Already the computed figure: nothing to do (no loop).
+    expect(dropMismatchedClaim(refusal, form)).toBeNull();
+    // Any other refusal leaves the form alone.
+    expect(dropMismatchedClaim({ ...refusal, code: 'other' }, { claimed_total: '1' })).toBeNull();
+    // A stand-in 0 (claim not extracted) also takes the computed figure.
+    const blank: Record<string, string> = { claimed_total: '0' };
+    expect(dropMismatchedClaim(refusal, blank)).toContain('Rs. 87,10,000');
+    expect(blank.claimed_total).toBe('8710000');
+  });
+
   it('keeps the marked stand-in for any other missing date', async () => {
     const { fillMissingDate } = await import('../intake.service');
     const synthetic = new Set<string>();

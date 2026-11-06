@@ -27,3 +27,6 @@ Every format should read like a Madras/TN filing an advocate would sign. The ben
 ## Acceptance criteria
 - Each of the 46 suite briefs drafts through the engine path, or through the guided fallback.
 - A senior-advocate grade of "Competes" or "Close" for every format, re-graded after each round.
+
+## Decisions
+- 2026-11-06 (user): MACT claimed total != engine computation -> plead the computed total (just compensation) and tell the advocate the figure they gave; the engine's strict rule stays for non-draft-now callers.

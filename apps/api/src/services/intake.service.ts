@@ -40,6 +40,7 @@ import {
   EngineValidationError,
   EngineDisabledError,
   type EngineDraftResult,
+  type EngineRefusal,
   type EngineBundleDoc,
 } from './engine-client.service';
 import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
@@ -342,6 +343,19 @@ export function fillMissingDate(
   const sv = serviceDateSentinel(formKey, base, form);
   synthetic.add(sv);
   return sv;
+}
+
+/** MACT: the engine refuses when the advocate's claimed total differs from its own
+ *  computation. Plead the computed compensation (tribunals award "just compensation"
+ *  on it; user's choice 2026-11-06) and tell the advocate. Sets the claim to the computed figure; returns the note, or null. */
+export function dropMismatchedClaim(refusal: EngineRefusal, bypassed: Record<string, string>): string | null {
+  const computed = /computed=(\d+)/.exec(refusal.computation ?? '')?.[1];
+  if (refusal.code !== 'mact_claim_claimed_total_mismatch' || !computed || bypassed.claimed_total === computed) return null;
+  const rs = (v: string | undefined) => (v && /^\d+$/.test(v) ? Number(v).toLocaleString('en-IN') : v ?? '');
+  const given = bypassed.claimed_total;
+  bypassed.claimed_total = computed;
+  if (!given || given === '0') return `The petition claims the computed compensation of Rs. ${rs(computed)}. Change the figure in the editor if you want a different claim.`;
+  return `You gave a claim of Rs. ${rs(given)}; the petition claims the computed compensation of Rs. ${rs(computed)} instead. Change the figure in the editor if you want your own.`;
 }
 
 // ---- source-authority ordering (P0: notice/cheque beats summary agreement) ---
@@ -1832,6 +1846,8 @@ export const intakeService = {
             // Bound the loop: a doc can chain a few hard-stops, never dozens.
             for (let guard = 0; guard < 8 && cur.outcome === 'refused' && progressed; guard++) {
               progressed = false;
+              const claimNote = dropMismatchedClaim(cur.refusal, bypassed);
+              if (claimNote) { state.form.claimed_total = bypassed.claimed_total!; preface.push(claimNote); progressed = true; }
               for (const engKey of cur.refusal.fields_implicated ?? []) {
                 const formKey = formKeyForEngineKey(doc.sections, engKey);
                 const spec = specs.find((f) => f.key === formKey);
@@ -1983,8 +1999,10 @@ export const intakeService = {
       let cur: EngineDraftResult = outcome;
       let progressed = true;
       for (let guard = 0; guard < 8 && cur.outcome === 'refused' && progressed; guard++) {
-        logger.info({ docType: doc.docType, reason: cur.refusal.reason, fields: cur.refusal.fields_implicated }, 'intake: draft-now bypass refused');
+        logger.info({ docType: doc.docType, reason: cur.refusal.reason, fields: cur.refusal.fields_implicated}, 'intake: draft-now bypass refused');
         progressed = false;
+        const claimNote = dropMismatchedClaim(cur.refusal, bypassed);
+        if (claimNote) { state.form.claimed_total = bypassed.claimed_total!; state.transcript.push({ role: 'assistant', kind: 'note', text: claimNote }); progressed = true; }
         for (const engKey of cur.refusal.fields_implicated ?? []) {
           const formKey = formKeyForEngineKey(doc.sections, engKey);
           const spec = specs.find((f) => f.key === formKey);
