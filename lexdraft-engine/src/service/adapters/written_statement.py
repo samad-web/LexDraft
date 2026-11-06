@@ -8,6 +8,7 @@ from ...pipelines import written_statement as pipeline
 from ...pipelines.written_statement import (MeritReply, PreliminaryObjection,
                                             Stance)
 from . import Adapter, FieldSpec, ListFieldSpec, register
+from ..blank import _INT_SENTINEL
 
 
 _OBJECTION_ITEM = (
@@ -32,9 +33,28 @@ def _reply(kw: Dict[str, Any]) -> MeritReply:
     return MeritReply(**kw)
 
 
+def _build(**kw: Any):
+    """Service path: a plaint paragraph the advocate did not answer is pleaded
+    "not admitted" (strict proof) instead of being deemed admitted (O.VIII R.5),
+    and an unknown paragraph count is the highest paragraph answered."""
+    replies = list(kw["merit_replies"])
+    n = kw["plaint_para_count"] or 0
+    if n <= 0 and replies:
+        n = max(r.plaint_para for r in replies)
+    if n == _INT_SENTINEL:  # a blank form, not a real pleading: nothing to fill
+        return pipeline.build(**kw)
+    have = {r.plaint_para for r in replies}
+    replies += [MeritReply(plaint_para=i, stance=Stance.NOT_ADMITTED, text=(
+        f"The averments in paragraph {i} of the plaint are not admitted, save as "
+        "expressly admitted herein, and the plaintiff is put to strict proof of the same."))
+        for i in range(1, n + 1) if i not in have]
+    replies.sort(key=lambda r: r.plaint_para)
+    return pipeline.build(**{**kw, "plaint_para_count": n, "merit_replies": replies})
+
+
 ADAPTER = Adapter(
     doc_type="written_statement", spec="dpc-27-29",
-    title="Written statement on behalf of the defendant", build=pipeline.build,
+    title="Written statement on behalf of the defendant", build=_build,
     template="written_statement.docx",
     fields=(
         FieldSpec("plaintiff_name", "string"),

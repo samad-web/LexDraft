@@ -6,6 +6,7 @@ from typing import Any, Dict
 from ...pipelines import counter_affidavit as pipeline
 from ...pipelines.counter_affidavit import ParaReply, Stance
 from . import Adapter, FieldSpec, ListFieldSpec, register
+from ..blank import _INT_SENTINEL
 
 _REPLY_ITEM = (
     FieldSpec('para', 'int'),
@@ -21,9 +22,25 @@ def _reply(kw: Dict[str, Any]) -> ParaReply:
     return ParaReply(**kw)
 
 
+def _build(**kw: Any):
+    """Service path: a petition paragraph left unanswered is pleaded "not
+    admitted" rather than taken as admitted; an unknown count is the highest
+    paragraph answered."""
+    replies = list(kw['para_replies'])
+    n = kw['petition_para_count'] or 0
+    if n <= 0 and replies:
+        n = max(r.para for r in replies)
+    if n == _INT_SENTINEL:  # a blank form, not a real pleading: nothing to fill
+        return pipeline.build(**kw)
+    have = {r.para for r in replies}
+    replies += [ParaReply(para=i, stance=Stance.NOT_ADMITTED) for i in range(1, n + 1) if i not in have]
+    replies.sort(key=lambda r: r.para)
+    return pipeline.build(**{**kw, 'petition_para_count': n, 'para_replies': replies})
+
+
 ADAPTER = Adapter(
     doc_type='counter_affidavit', spec='mhc-counter',
-    title='Counter affidavit (para-wise reply)', build=pipeline.build,
+    title='Counter affidavit (para-wise reply)', build=_build,
     template='counter_affidavit.docx',
     fields=(
         FieldSpec('petition_ref', 'string'),

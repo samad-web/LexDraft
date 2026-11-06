@@ -318,7 +318,7 @@ const AS_ON_KEY = /^as_on$|^as_on_date$|^as_of$|computed_on/i;
 /** The document's OWN date (the day it is signed) is today, like "as on" — a
  *  stand-in from another date dated an s.138 notice with the cheque date. In a
  *  reply, notice_date is the opponent's notice, so only notices take it. */
-const SELF_DATE_KEY = /^(petition|filing|complaint|application|slp)_date$/;
+const SELF_DATE_KEY = /^(petition|filing|complaint|application|slp|first_motion|second_motion|reply)_date$/;
 const NOTICE_DOCS = new Set(['s138_notice', 'general_notice', 's106_notice']);
 
 /** Value for ONE missing required date during draft-now: today for an "as on"
@@ -333,6 +333,12 @@ export function fillMissingDate(
 ): string {
   if (AS_ON_KEY.test(formKey) || SELF_DATE_KEY.test(formKey)) return todayIso();
   if (formKey === 'notice_date' && docType && NOTICE_DOCS.has(docType)) return todayIso();
+  // s.106 TPA: a missing quit date is the notice date + clear 15 days, not a stand-in that voids the notice.
+  if (formKey === 'quit_date') {
+    const d = new Date(`${/^\d{4}-\d{2}-\d{2}$/.test(form.notice_date ?? '') ? form.notice_date : todayIso()}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 16);
+    return d.toISOString().slice(0, 10);
+  }
   const sv = serviceDateSentinel(formKey, base, form);
   synthetic.add(sv);
   return sv;
@@ -1665,6 +1671,7 @@ export const intakeService = {
     let draftedFields: Record<string, unknown> = fields;
 
     let outcome: EngineDraftResult | null = null;
+    let bypassTried = false; // the placeholder retry already sent the pre-filled form
     let issues: IntakeIssue[] = [];
     draftProgress.set(ctx.userId, 'engine');
     try {
@@ -1768,6 +1775,19 @@ export const intakeService = {
         }
       }
       if (Object.keys(placeholders).length > 0) {
+        // BNSS routing (bail, s.144 maintenance) needs a fresh-proceeding flag and an offence date.
+        if (specs.some((s) => s.key === 'is_fresh_action')) {
+          if (!placeholders.is_fresh_action && specs.some((s) => s.key === 'is_fresh_action')) {
+            placeholders.is_fresh_action = 'Yes';
+          }
+          if (!placeholders.offence_date && specs.some((s) => s.key === 'offence_date')) {
+            placeholders.offence_date = fillMissingDate('offence_date', sentinelDate, state.form, syntheticDateValues, doc.docType);
+          }
+          if (!placeholders.apprehension_basis && specs.some((s) => s.key === 'apprehension_basis')) {
+            const advText = state.transcript.filter((t) => t.role === 'advocate').map((t) => t.text).join('\n').trim();
+            if (advText) placeholders.apprehension_basis = advText;
+          }
+        }
         const merged = { ...state.form, ...placeholders };
         const { fields: filledFields } = mapForDoc(doc,merged, {});
         try {
@@ -1805,6 +1825,7 @@ export const intakeService = {
           // The rendered document carries clearly-marked gaps for every synthesised
           // value, so nothing is asserted as fact — it is the advocate's to confirm.
           else if (retry.outcome === 'refused') {
+            bypassTried = true;
             let cur: EngineDraftResult = retry;
             const bypassed = { ...merged };
             let progressed = true;
@@ -1854,7 +1875,31 @@ export const intakeService = {
               try {
                 cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
               } catch (err) {
-                if (err instanceof EngineValidationError) { progressed = false; break; }
+                if (err instanceof EngineValidationError) {
+                  const newIssues = translateIssues(err.issues, doc.sections);
+                  let filledAny = false;
+                  for (const iss of newIssues) {
+                    if ((bypassed[iss.field] ?? '').trim()) continue;
+                    const sp = specs.find((f) => f.key === iss.field);
+                    if (!sp) continue;
+                    if (sp.type === 'select' && sp.options?.every((o) => /^(yes|no)$/i.test(o))) {
+                      bypassed[iss.field] = sp.options.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+                    } else if (sp.type === 'date') {
+                      bypassed[iss.field] = fillMissingDate(iss.field, sentinelDate, state.form, syntheticDateValues, doc.docType);
+                    } else if (sp.type === 'number' || sp.type === 'currency') {
+                      bypassed[iss.field] = '0';
+                      syntheticNumberFields.push(iss.field);
+                    } else {
+                      bypassed[iss.field] = placeholderFor(sp);
+                    }
+                    filledAny = true;
+                  }
+                  if (filledAny) {
+                    progressed = true;
+                    continue;
+                  }
+                  break;
+                }
                 throw err;
               }
             }
@@ -1875,6 +1920,7 @@ export const intakeService = {
             // Still 422 even with placeholders (e.g. a date field with no cheque
             // date to fall back on). Keep the remaining issues so the loop asks
             // for just those — better than a dead draft-now.
+            logger.info({ docType: doc.docType, issues: err.issues }, 'intake: draft-now placeholder retry still 422');
             issues = translateIssues(err.issues, doc.sections);
           } else {
             throw err;
@@ -1902,10 +1948,42 @@ export const intakeService = {
         return todayIso();
       })();
       const syntheticDateValues = new Set<string>();
+      const syntheticNumberFields: string[] = [];
       const bypassed: Record<string, string> = { ...state.form };
+
+      // Fill placeholders for all required fields so the bypass call doesn't 422
+      for (const spec of specs) {
+        if (spec.required && !(bypassed[spec.key] ?? '').trim()) {
+          const isBool = spec.type === 'select' && spec.options?.length === 2 && spec.options.every((o) => /^(yes|no)$/i.test(o));
+          if (isBool) {
+            bypassed[spec.key] = spec.options!.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+          } else if (spec.type === 'date') {
+            bypassed[spec.key] = fillMissingDate(spec.key, sentinelDate, state.form, syntheticDateValues, doc.docType);
+          } else if (spec.type === 'number' || spec.type === 'currency') {
+            bypassed[spec.key] = '0';
+            syntheticNumberFields.push(spec.key);
+          } else {
+            bypassed[spec.key] = placeholderFor(spec);
+          }
+        }
+      }
+      // BNSS routing (bail, s.144 maintenance) needs a fresh-proceeding flag and an offence date.
+      if (specs.some((s) => s.key === 'is_fresh_action')) {
+        if (!bypassed.is_fresh_action && specs.some((s) => s.key === 'is_fresh_action')) {
+          bypassed.is_fresh_action = 'Yes';
+        }
+        if (!bypassed.offence_date && specs.some((s) => s.key === 'offence_date')) {
+          bypassed.offence_date = fillMissingDate('offence_date', sentinelDate, state.form, syntheticDateValues, doc.docType);
+        }
+        if (!bypassed.apprehension_basis && specs.some((s) => s.key === 'apprehension_basis')) {
+          const advText = state.transcript.filter((t) => t.role === 'advocate').map((t) => t.text).join('\n').trim();
+          if (advText) bypassed.apprehension_basis = advText;
+        }
+      }
       let cur: EngineDraftResult = outcome;
       let progressed = true;
       for (let guard = 0; guard < 8 && cur.outcome === 'refused' && progressed; guard++) {
+        logger.info({ docType: doc.docType, reason: cur.refusal.reason, fields: cur.refusal.fields_implicated }, 'intake: draft-now bypass refused');
         progressed = false;
         for (const engKey of cur.refusal.fields_implicated ?? []) {
           const formKey = formKeyForEngineKey(doc.sections, engKey);
@@ -1929,27 +2007,64 @@ export const intakeService = {
             progressed = true; continue;
           }
           if (spec.type === 'date') { bypassed[formKey] = fillMissingDate(formKey, sentinelDate, state.form, syntheticDateValues, doc.docType); }
-          else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; }
+          else if (spec.type === 'number' || spec.type === 'currency') { bypassed[formKey] = '0'; syntheticNumberFields.push(formKey); }
           else { bypassed[formKey] = placeholderFor(spec); }
           progressed = true;
         }
+        // The pre-fill above (required gaps, bail defaults) has not been sent yet: send it once.
+        if (!progressed && guard === 0 && !bypassTried) progressed = Object.keys(bypassed).some((k) => bypassed[k] !== state.form[k]);
         if (!progressed) break;
         const { fields: bypassFields } = mapForDoc(doc,bypassed, {});
         try {
           cur = await draftForDoc(doc, matterId,bypassFields, { render: true, slots, language: ctx.language, allowPlaceholders: opts.draftNow === true });
         } catch (err) {
-          if (err instanceof EngineValidationError) { break; }
+          if (err instanceof EngineValidationError) {
+            const newIssues = translateIssues(err.issues, doc.sections);
+            let filledAny = false;
+            for (const iss of newIssues) {
+              if ((bypassed[iss.field] ?? '').trim()) continue;
+              const sp = specs.find((f) => f.key === iss.field);
+              if (!sp) continue;
+              if (sp.type === 'select' && sp.options?.every((o) => /^(yes|no)$/i.test(o))) {
+                bypassed[iss.field] = sp.options.find((o) => /^yes$/i.test(o)) ?? 'Yes';
+              } else if (sp.type === 'date') {
+                bypassed[iss.field] = fillMissingDate(iss.field, sentinelDate, state.form, syntheticDateValues, doc.docType);
+              } else if (sp.type === 'number' || sp.type === 'currency') {
+                bypassed[iss.field] = '0';
+                syntheticNumberFields.push(iss.field);
+              } else {
+                bypassed[iss.field] = placeholderFor(sp);
+              }
+              filledAny = true;
+            }
+            if (filledAny) {
+              progressed = true;
+              continue;
+            }
+            logger.info({ docType: doc.docType, issues: err.issues }, 'intake: draft-now bypass 422 with nothing left to fill');
+            break;
+          }
           throw err;
         }
       }
       if (cur.outcome === 'generated') {
-        outcome = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
+        let marked = syntheticDateValues.size ? markSyntheticDates(cur, syntheticDateValues) : cur;
+        if (syntheticNumberFields.includes('age')) {
+          marked = {
+            ...marked,
+            blocks: marked.blocks.map((b) => ({
+              ...b,
+              text: b.text.replace(/\baged\s+0\s+years\b/gi, 'aged [age to be provided] years'),
+            })),
+          };
+        }
+        outcome = marked;
         draftedFields = mapForDoc(doc,bypassed, {}).fields;
         issues = [];
         state.transcript.push({
           role: 'assistant',
           kind: 'note',
-          text: 'I drafted the whole document now. Facts the document legally needs but I couldn’t find — including the notice delivery date — are left as clearly-marked [placeholders] for you to confirm in the editor.',
+          text: 'I drafted the whole document now. Facts the document legally needs but I couldn’t find — including any required dates — are left as clearly-marked [placeholders] for you to confirm in the editor.',
         });
       }
       // else: could not bypass — the standing refusal is surfaced below as-is.

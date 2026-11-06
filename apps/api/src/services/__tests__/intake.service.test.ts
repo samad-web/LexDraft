@@ -809,6 +809,21 @@ describe('intake DRAFT NOW — fill gaps with placeholders, never fabricate, hon
     expect(drafted.draftNotes?.[0]).toContain('presented after its validity');
   });
 
+  it('a first-call refusal on a field the gap pre-fill supplies re-drafts on the engine (r7 anticipatory bail)', async () => {
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    const state = await intakeService.start(DOC, 'A cheque bounced.', CTX);
+    engineQueue.push({ kind: 'refused', refusal: {
+      code: 'x_place_missing', severity: 'HARD', reason: 'place is needed.', computation: null,
+      pipeline: 's138_notice', spec: '1', fields_implicated: ['place'], remedy_hint: 'none',
+    } });
+    engineQueue.push({ kind: 'generated' });
+    const drafted = await intakeService.draftNow(state.matterId, DOC, CTX);
+    expect(drafted.status).toBe('generated');
+    expect(drafted.draftedBy).not.toBe('ai');
+    expect(String(draftCalls.at(-1)?.place ?? '')).not.toBe('');
+  });
+
   it('if the draft-first fallback is unavailable, the hard-stop is returned as before', async () => {
     extractQueue.push(patch([{ key: 'cheque_date', value: '2020-01-01', confidence: 'stated', source: 'old' }]));
     engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
@@ -848,6 +863,17 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     // In a reply (or an s.138 complaint) notice_date is a past event: still a marked stand-in.
     expect(fillMissingDate('notice_date', '2026-09-01', {}, synthetic, 's138_complaint')).toBe('2026-09-01');
     expect([...synthetic]).toEqual(['2026-09-01']);
+  });
+
+  it('dates a mutual-consent motion today and gives an s.106 quit date clear 15 days', async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const today = new Date().toISOString().slice(0, 10);
+    const synthetic = new Set<string>();
+    // r7: first_motion_date took the marriage date, so "one year apart" failed.
+    expect(fillMissingDate('first_motion_date', '2017-08-25', {}, synthetic, 'divorce_mutual_first')).toBe(today);
+    // r7: the quit date took the notice date (0 days' notice: an invalid s.106 notice).
+    expect(fillMissingDate('quit_date', '2026-11-05', { notice_date: '2026-11-05' }, synthetic, 's106_notice')).toBe('2026-11-21');
+    expect(synthetic.size).toBe(0);
   });
 
   it('keeps the marked stand-in for any other missing date', async () => {

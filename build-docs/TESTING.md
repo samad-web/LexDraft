@@ -43,6 +43,11 @@
 
 
 ## Drafting quality (suite of 46 briefs; scratchpad suite.mjs)
+- 2026-11-05 - r7 (6 drafts in flight, worker pool; AI via Claude Code, no API credit): all 46 drafted in ~15 min. 33 engine+composed, 3 plain engine, 10 AI fallback.
+  - Root causes of the 10 fallbacks: draft-now never re-sent its own pre-filled gaps (anticipatory bail, maintenance); a missing motion/quit date took the first date on record (mutual first motion, s.106); WS/counter with unanswered paras or no para count; extractor did not derive counts/categories the brief fixes (consumer purpose, MACT employment).
+  - After fixes, re-runs r7b-r7e: 7 of the 10 now draft on the engine and compose (anticipatory bail, mutual first, s.106, counter affidavit, maintenance, consumer); WS and contested divorce draft on the engine but compose was rejected (plain draft). Still AI fallback: HRCP (demand-notice service date not extracted), MACT (claimed total != computed total; decision pending).
+  - Tests: API 691 passed, 4 skipped (new: motion/quit date fill; first-call refusal re-drafts on the engine - fails without the fix). Engine: tests/service/test_para_reply_gaps.py (2), both copies.
+  - Regression found by the full engine suite: the blank (empty-format) counter affidavit / WS hung, because the gap-fill wrote 99,999 "not admitted" paragraphs for the blank's int sentinel. Fix: skip the gap-fill for the sentinel; test_blank_and_lawe_library passes.
 - 2026-11-03 - r6 (Madras layouts + fixes; judgment search off) graded 44: 6 Competes / 18 Close / 20 Not yet.
   - Competes: anticipatory bail, counter affidavit, contested divorce, permanent injunction, succession certificate, s138 complaint.
   - Top defects: engine-route "[to be drafted]" holes and prayers that miss reliefs; wrong Date line; computable sums left blank; State or co-respondents missing; affidavits only noted.
