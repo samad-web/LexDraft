@@ -23,6 +23,7 @@ from ..rules import dual_code_router as router
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal
 from . import _code_framework as cf
+from ._state_party import bare_crime_no
 
 TEMPLATE = "default_bail.docx"
 SPEC = "3.4"
@@ -125,7 +126,7 @@ def build(
         "bail_year": (application_date.year if application_date
                       else first_remand_date.year),
         "bail_date": application_date.isoformat() if application_date else None,
-        "fir_no": fir_no,
+        "fir_no": bare_crime_no(fir_no),  # template prints its own "Crime No."
         "police_station": police_station,
         "district": district,
         "sections": list(sections),

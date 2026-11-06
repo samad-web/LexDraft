@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..factsheet import Party
 from ..components import cause_title as ct
 from ..components import verification as ver
+from ..components.prayer import relief_clause
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "writ_petition.docx"
@@ -281,7 +282,7 @@ def build(
         "grounds_slot": grounds_narrative if grounds_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "place": place,
-        "relief_sought": relief_sought.strip().rstrip("."),
+        "relief_sought": relief_clause(relief_sought),
         "petitioner_description": petitioner_description.strip().rstrip("."),
     }
     return WritResult(refused=False, context=context)

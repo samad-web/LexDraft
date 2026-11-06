@@ -10,6 +10,7 @@ Standard closers are appended by code, keyed on the proceeding kind.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
@@ -100,3 +101,19 @@ def build(
         "closer": _CLOSERS[proceeding],
     }
     return PrayerResult(refused=False, reliefs=tuple(reliefs), context=context)
+
+
+_RELIEF_LEAD = re.compile(
+    r"^\s*(?:(?:a|an)\s+(?:writ|order|direction)\s+(?:of\s+\w+\s+)?(?:to|directing)\s+the\s+respondents?\s+to\s+"
+    r"|direct(?:ing)?\s+the\s+respondents?\s+to\s+|to\s+)",
+    re.I)
+
+
+def relief_clause(text: str) -> str:
+    """Free-text relief as it must read after "pleased to ..." / "directing the
+    respondents to ...": "To dismiss I.A. 5." -> "dismiss I.A. 5"; "A direction
+    to the respondent to issue patta." -> "issue patta". Acronyms keep their case."""
+    t = _RELIEF_LEAD.sub("", (text or "").strip()).rstrip(" .,;")
+    if t[:1].isupper() and not t[1:2].isupper():
+        t = t[0].lower() + t[1:]
+    return t

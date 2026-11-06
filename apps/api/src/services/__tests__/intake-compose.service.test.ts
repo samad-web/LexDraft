@@ -312,6 +312,20 @@ describe('intake-compose — deep mode (authorities, plan, repair)', () => {
     expect(JSON.stringify(fetchCalls[2]!.body)).toContain('317(2)');
   });
 
+  it('asks once to fill or name a "[to be drafted]" gap left in a passing draft (r7)', async () => {
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. Grounds: [to be drafted]'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. The petitioner has been in custody for 96 days and is a lorry driver with a fixed abode.'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      repair: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.blocks.map((b) => b.text).join(' ')).not.toContain('[to be drafted]');
+    expect(JSON.stringify(fetchCalls[2]!.body)).toContain('Replace EVERY');
+  });
+
   it('keeps a figure the advocate stated, but strips one from nowhere', async () => {
     fetchQueue.push(anthropicReply([...BODY_OK, '4. The petitioner repaid Rs. 75,000/- to the complainant. He later paid Rs. 9,99,000/- more.'].join('\n\n')));
     fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));

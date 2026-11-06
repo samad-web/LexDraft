@@ -833,18 +833,23 @@ export async function composeAndVerify(args: {
       logger.warn({ err }, 'intake-compose: repair call failed');
     }
   }
-  // RESTATE: a passing draft whose checks cut sentences shows "[to be drafted]" holes
-  // mid-paragraph (suite r6: the top defect a reviewer marked). Ask once for those
-  // points restated without the untraced detail; keep it only if fewer are cut.
-  if (checked.ok && checked.removed.length && args.repair && !stats.repaired) {
+  // RESTATE: a passing draft can still show "[to be drafted]" holes - sentences the
+  // checks cut, or skeleton parts the model left (suite r7: 30 of 46 drafts, the top
+  // defect reviewers marked). Ask once for each hole drafted from the facts, or named
+  // as the exact missing particular; keep it only if it passes with fewer holes.
+  const holes = (c: Checked) => (c.ok ? c.removed.length + c.paragraphs.join('\n').split(GAP).length - 1 : Infinity);
+  if (checked.ok && holes(checked) > 0 && args.repair && !stats.repaired) {
     args.onStage?.('repairing');
+    const cut = checked.removed.length
+      ? `These sentences were cut because each states a date, amount, provision or claim found in none of the Facts, the skeleton, the advocate's account or the Authorities:\n- ${checked.removed.join('\n- ')}\nKeep each point, stated without the untraced detail (or drop the point if nothing is left of it).\n`
+      : '';
     try {
       const result = await complete(provider, system,
-        `${user}\n\n# Your previous draft\n${composedText}\n\n# Correction\nThese sentences were cut because each states a date, amount, provision or claim found in none of the Facts, the skeleton, the advocate's account or the Authorities:\n- ${checked.removed.join('\n- ')}\nKeep each point, stated without the untraced detail (or drop the point if nothing is left of it). Return the whole corrected body, following the hard rules.`,
+        `${user}\n\n# Your previous draft\n${checked.paragraphs.join('\n\n')}\n\n# Correction\n${cut}Replace EVERY "${GAP}" in your draft: draft that part from the Facts and the advocate's account where they support it; where they genuinely do not, write the specific missing particular in brackets instead, e.g. "[date of service of the notice to be provided]". Never leave "${GAP}" anywhere. Return the whole corrected body, following the hard rules.`,
         8000);
       usage(result);
       const again = result.text.trim() ? await check(result.text.trim()) : null;
-      if (again?.ok && again.removed.length < checked.removed.length) {
+      if (again?.ok && holes(again) < holes(checked)) {
         checked = again;
         stats.repaired = true;
       }

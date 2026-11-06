@@ -32,6 +32,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ..components.prayer import relief_clause
 
 TEMPLATE = "counter_affidavit.docx"
 SPEC = "mhc-counter"
@@ -174,7 +175,7 @@ def build(
         "deponent_designation": deponent_designation,
         "preliminary_objections": [o for o in preliminary_objections if o.strip()],
         "para_replies": replies,
-        "prayer_text": prayer_text.strip() or "dismiss the petition",
+        "prayer_text": relief_clause(prayer_text) or "dismiss the petition",
         "place": place,
     }
     return CounterAffidavitResult(refused=False, context=context)

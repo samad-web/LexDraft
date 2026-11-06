@@ -39,3 +39,15 @@ def test_counter_affidavit_fills_the_unanswered_paragraph():
         "petition_para_count": 3, "para_replies": [{"para": 2, "stance": "denied", "text": "Denied."}],
         "affirm_date": "2026-11-05", "place": "Coimbatore"}}))
     assert "paragraph 1 are not admitted" in text and "paragraph 3 are not admitted" in text
+
+
+def test_bail_does_not_double_the_crime_no_prefix():
+    """r7: the extractor returned "Crime No. 233 of 2026"; the draft read "Crime No. Crime No."."""
+    r = client.post("/v1/draft/anticipatory_bail", json={"matter": MATTER, "fields": {
+        "accused_name": "N. Suresh Babu", "age": 41, "occupation": "trader", "address": "Coimbatore",
+        "fir_no": "Crime No. 233 of 2026", "police_station": "CCB", "district": "Coimbatore",
+        "sections": ["BNS 316(2)"], "bail_court": "Principal Sessions Judge, Coimbatore", "place": "Coimbatore",
+        "already_arrested": False, "is_fresh_action": True, "offence_date": "2026-10-01",
+        "apprehension_basis": "called for enquiry"}})
+    text = _text(r)
+    assert "Crime No. 233 of 2026" in text and "Crime No. Crime No." not in text
