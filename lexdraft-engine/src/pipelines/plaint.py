@@ -38,6 +38,7 @@ from ..rules import limitation as lim
 from ..rules.limitation import Acknowledgement  # re-export for callers
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
+from ..verify.signoff import SLOT_PATTERN
 
 TEMPLATE = "plaint.docx"
 SPEC = "4.1"
@@ -126,6 +127,39 @@ CLAIM_ARTICLES = {
                          "the loan is made"),
 }
 ARTICLE_GAP = "[limitation article to be provided]"
+
+# Commercial Courts Act, 2015: a commercial dispute (s.2(1)(c)) of a specified value
+# of Rs. 3,00,000 or more (s.2(1)(i), as amended in 2018) goes to a Commercial Court.
+SPECIFIED_VALUE = 300000
+S12A_GAP = ("[particulars of the s.12A pre-institution mediation (non-starter or failure "
+            "report of the Legal Services Authority) to be provided]")
+
+
+def commercial_basis(variant: "Variant", defendant_names: Sequence[str],
+                     claim_for: Optional[str], value: int) -> Optional[str]:
+    """Why the suit is a commercial dispute, or None. Shortcut: only the sale of goods
+    between business entities is recognised; other s.2(1)(c) heads need the flag."""
+    firms = variant in (Variant.PARTNERSHIP, Variant.COMPANY) and defendant_names and all(
+        _ENTITY.search(n or "") for n in defendant_names)
+    if not (firms and claim_for == "price_of_goods_sold" and value >= SPECIFIED_VALUE):
+        return None
+    return ("The dispute arises out of an ordinary transaction of merchants and traders, "
+            "namely the sale and supply of goods between business entities, and is a "
+            "commercial dispute within Section 2(1)(c)(i) of the Commercial Courts Act, "
+            f"2015, of a specified value of Rs. {value}/-, which is not less than "
+            "Rs. 3,00,000/-.")
+
+
+def commercial_court(forum: jur.Forum, city: Optional[str]) -> tuple:
+    """(heading, case-number prefix) for a commercial suit in Tamil Nadu."""
+    if forum is jur.Forum.HIGH_COURT_OS:
+        return ("IN THE HIGH COURT OF JUDICATURE AT MADRAS (ORDINARY ORIGINAL CIVIL "
+                "JURISDICTION) (COMMERCIAL DIVISION)", "C.S. (Comm. Div.)")
+    c = (city or "").strip()
+    if forum is jur.Forum.CITY_CIVIL_COURT or c.lower() == "chennai":
+        return "IN THE COMMERCIAL COURT AT CHENNAI", "C.O.S."
+    where = c.upper() if c and not c.startswith("[") else "[district to be provided]"
+    return f"IN THE COURT OF THE PRINCIPAL DISTRICT JUDGE (COMMERCIAL COURT), {where}", "C.O.S."
 RATE_DOC_GAP = "[document fixing the agreed rate of interest to be provided]"
 
 
@@ -168,6 +202,7 @@ def build(
     place: str,
     # cause-title header (DPC book). Optional.
     plaintiff_parentage: Optional[str] = None,
+    plaintiff_representative: Optional[str] = None,
     plaintiff_address: Optional[str] = None,
     defendant_addresses: Optional[Sequence[str]] = None,
     civil_court: Optional[str] = None,
@@ -213,6 +248,15 @@ def build(
     # 2. jurisdiction — both limbs, expressly. Delegated refusals carry their
     # own coded Refusal; surface it without restating the code.
     forum, civil_court, city = jur.original_side_forum(forum, claimed_total, civil_court, city)
+    # 2a. a commercial dispute of a specified value -> Commercial Court, s.12A, O.VI R.15A.
+    basis = commercial_basis(variant, defendant_names, claim_for, claimed_total)
+    if basis and not is_commercial_suit:
+        is_commercial_suit, s12a_ref = True, (s12a_ref or "").strip() or S12A_GAP
+    heading, case_prefix = commercial_court(forum, city) if is_commercial_suit else (None, None)
+    # the cause of action arises where both parties carry on business, when they share the city
+    if SLOT_PATTERN.search(cause_of_action_place or "") and city and not city.strip().startswith("[")             and all(city.lower() in (a or "").lower()
+                    for a in [plaintiff_address, *(defendant_addresses or [])]):
+        cause_of_action_place = city.strip()
     pec =jur.check_pecuniary(value=claimed_total, forum=forum)
     if pec.refused:
         return _refuse_delegated(pec.reason, pec.computation, pec.refusal)
@@ -306,6 +350,7 @@ def build(
         "variant": variant.value,
         "plaintiff": {"name": plaintiff_name, "parentage": plaintiff_parentage,
                       "address": plaintiff_address,
+                      "representative": plaintiff_representative,
                       "address_lead": address_lead(
                           plaintiff_name, variant in (Variant.PARTNERSHIP, Variant.COMPANY))},
         "defendants": [
@@ -367,6 +412,9 @@ def build(
         "s80_notice_ref": s80_notice_ref,
         "is_commercial_suit": is_commercial_suit,
         "s12a_ref": s12a_ref,
+        "commercial_basis": basis,
+        "commercial_heading": heading,
+        "commercial_case_no": case_prefix,
         "has_verification": True,
         "has_statement_of_truth": bool(is_commercial_suit),
         # LLM slots (paras 3, 5, 6, 9)
