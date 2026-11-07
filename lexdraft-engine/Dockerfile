@@ -33,6 +33,10 @@ USER engine
 # container recreation (it's a compliance record, not disposable state).
 VOLUME ["/app/verify"]
 
+# Engine worker processes (uvicorn reads WEB_CONCURRENCY). Stateless: sign-offs are
+# re-read from verify/ on every check, so workers never disagree. Override per
+# server with `docker run -e WEB_CONCURRENCY=<cores - 1>`; each worker holds its own RAM.
+ENV WEB_CONCURRENCY=2
 EXPOSE 8099
 
 CMD ["uvicorn", "src.service.app:app", "--host", "0.0.0.0", "--port", "8099"]
