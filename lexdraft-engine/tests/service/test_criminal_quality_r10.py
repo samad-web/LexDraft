@@ -79,3 +79,41 @@ def test_surrender_petition_pre_bnss_crime_cites_the_crpc():
                                                     "crime_registered_date": "2024-03-02"}))
     assert "Section 167 of the Code of Criminal Procedure, 1973" in text
     assert "Section 437 of the said Code" in text and "Suraksha" not in text
+
+
+# --- criminal_appeal --------------------------------------------------------------
+
+_APPEAL = {
+    "forum": "high_court", "trial_court_level": "sessions", "appellant_names": ["S. Murugesan"],
+    "respondent_names": ["State"], "trial_case_ref": "S.C. No. 112 of 2023",
+    "trial_court": "III Additional District and Sessions Court, Tiruchirappalli",
+    "judgment_date": "2026-10-20", "convicted_sections": ["Section 304 Part II IPC"],
+    "sentence_text": "five years' rigorous imprisonment and a fine of Rs. 10,000",
+    "max_sentence_years": 5, "offence_date": "2022-04-14", "filing_date": "2026-11-07",
+    "place": "Chennai", "appellant_in_custody": True,
+    "court_name": "High Court of Madras", "draft_suspension_petition": True,
+    "custody_since": "2026-10-20",
+}
+
+
+def test_criminal_appeal_tiruchirappalli_case_keeps_the_madurai_bench_heading():
+    """r10: a Tiruchirappalli appeal named "Madras High Court" lost the Madurai Bench."""
+    text = "\n".join(_draft("criminal_appeal", _APPEAL))
+    assert "IN THE HIGH COURT OF JUDICATURE AT MADRAS\n(MADURAI BENCH)" in text
+    assert "CRL.A.(MD) No. ______ of 2026" in text and "CRL.M.P.(MD) No." in text
+    # a Chennai trial court stays at the principal seat
+    chennai = "\n".join(_draft("criminal_appeal", {**_APPEAL, "trial_court": "I Additional Sessions Court, Chennai"}))
+    assert "MADURAI" not in chennai and "CRL.A. No." in chennai
+
+
+def test_criminal_appeal_suspension_petition_has_custody_grounds_affidavit_and_alternative_prayer():
+    """r10: the s.430 BNSS petition was thin, had no affidavit, and the appeal no
+    alternative prayer to reduce the sentence."""
+    text = "\n".join(_draft("criminal_appeal", _APPEAL))
+    assert "acquit the appellant of all the charges, or, in the alternative, reduce the sentence" in text
+    assert "The sentence imposed is imprisonment for a fixed term." in text
+    assert "has been in custody since" in text and "fair chance of success" in text
+    aff = text[text.index("\nAFFIDAVIT\n"):]
+    assert aff.count("I have been in custody since") == 1
+    assert "I, S. Murugesan, [age, parentage and address of the deponent], do hereby solemnly affirm" in aff
+    assert "BEFORE ME" in aff

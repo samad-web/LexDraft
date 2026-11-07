@@ -42,6 +42,8 @@ ADAPTER = Adapter(
         FieldSpec('crime_no', 'string', required=False, default=None),
         FieldSpec('private_complaint', 'bool', required=False, default=False),
         FieldSpec('draft_suspension_petition', 'bool', required=False, default=False),
+        FieldSpec('custody_since', 'date', required=False, default=None),
+        FieldSpec('deponent_description', 'string', required=False, default=None),
     ),
     slots=('facts_narrative', 'grounds_narrative'),
 )

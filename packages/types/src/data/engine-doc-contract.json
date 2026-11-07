@@ -2795,7 +2795,9 @@
       "copy_ready_date",
       "court_name",
       "crime_no",
+      "custody_since",
       "death_sentence",
+      "deponent_description",
       "draft_suspension_petition",
       "facts_narrative",
       "filing_date",
@@ -2980,6 +2982,16 @@
       {
         "key": "draft_suspension_petition",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "custody_since",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
         "required": false
       }
     ],
