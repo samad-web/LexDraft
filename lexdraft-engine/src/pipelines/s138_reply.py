@@ -47,6 +47,12 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _one_paragraph(text: str) -> str:
+    """Join a one-per-line narrative into one paragraph, each line a sentence."""
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    return " ".join(ln if ln[-1] in ".;:!?" else ln + "." for ln in lines)
+
+
 def build(
     *,
     advocate: str,
@@ -62,6 +68,10 @@ def build(
     dispatch_line: Optional[str] = None,
     client_address: Optional[str] = None,
     reply_date: Optional[date] = None,
+    # the cheques the drawer demands back (e.g. "both the signed blank cheques,
+    # including Cheque No. 204517") and the days allowed to return them.
+    cheques_to_return: Optional[str] = None,
+    return_within_days: int = 7,
 ) -> S138ReplyResult:
     """Assemble the reply to a s.138 legal notice, or refuse."""
 
@@ -90,7 +100,12 @@ def build(
         "notice_date": notice_date,
         # the reply's own date: as given, else the day it is drawn
         "reply_date": reply_date or date.today(),
-        "defence_slot": defence_narrative,
+        # one paragraph: a one-per-line textarea rendered as separate lines broke
+        # the lettered A-D block, so compose rewrote only A-B and the brief's lines
+        # plus orphan "C."/"D." reached the reply verbatim (suite r10).
+        "defence_slot": _one_paragraph(defence_narrative),
+        "cheques_to_return": (cheques_to_return or "").strip() or None,
+        "return_within_days": return_within_days if return_within_days > 0 else 7,
         "liability_denied": liability_denied,
         "cheque_in_discharge_denied": cheque_in_discharge_denied,
         "place": place,

@@ -26,6 +26,8 @@ ADAPTER = Adapter(
         FieldSpec("dispatch_line", "string", required=False, default=None),
         FieldSpec("client_address", "string", required=False, default=None),
         FieldSpec("reply_date", "date", required=False, default=None),
+        FieldSpec("cheques_to_return", "string", required=False, default=None),
+        FieldSpec("return_within_days", "int", required=False, default=7),
     ),
     slots=("defence_narrative",),
 )
