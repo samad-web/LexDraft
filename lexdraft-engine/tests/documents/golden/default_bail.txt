@@ -11,10 +11,10 @@ State rep. by the Inspector of Police, E4 Abiramapuram, Chennai. (Crime No. 123/
 PETITION FILED UNDER SECTION 187(3) OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023 FOR DEFAULT BAIL
 
 MOST RESPECTFULLY SHOWETH:
-1. The petitioner, Murugan, aged 34, driver, residing at 5 East Street, Chennai 600042, is the accused in Crime No. 123/2024 on the file of the Inspector of Police, E4 Abiramapuram, Chennai.
-2. The offence is registered under BNS s.318. The applicable statutory period for filing the final report is 60 days (CrPC s.167(2)).
+1. The petitioner, Murugan, aged 34 years, driver, residing at 5 East Street, Chennai 600042, is the accused in Crime No. 123/2024 on the file of the Inspector of Police, E4 Abiramapuram, Chennai.
+2. The offence is registered under BNS s.318. The applicable statutory period for filing the final report is 60 days (Section 187(3) BNSS).
 3. The petitioner was first remanded to custody on 2024-01-02 and has, as on 2024-03-10, completed 69 days in custody. Counting the date of first remand as the first day, the statutory period of 60 days expired on 2024-03-01, and the right to be released on default bail accrued on 2024-03-02.
-4. The final report (charge sheet) has not been filed within the statutory period of 60 days.
+4. The final report (charge sheet) has not been filed within the statutory period of 60 days, and no final report has been filed even as on the date of this petition.
 5. The indefeasible right to be released on default bail has accrued to the petitioner, who is ready and willing to furnish bail as this Hon'ble Court may direct.
 
 PRAYER:
@@ -24,4 +24,15 @@ PETITIONER
 Place: Chennai
 Date:  ____________                Counsel for the Petitioner
 
-Note: To be supported by affidavit of a relative of the accused and Vakalatnama duly attested by Jail Authorities.
+AFFIDAVIT
+I, [name, age, parentage and address of the deponent], do hereby solemnly affirm and sincerely state as follows:
+1. I am the [relationship] of the petitioner, Murugan, who is in judicial custody, and as such I am well acquainted with the facts of the case. I swear to this affidavit on behalf of the petitioner.
+2. The petitioner is the accused in Crime No. 123/2024 on the file of the Inspector of Police, E4 Abiramapuram, registered under BNS s.318. The petitioner was first remanded to judicial custody on 2024-01-02 and has been in custody ever since.
+3. The statutory period of 60 days for filing the final report expired on 2024-03-01. No final report has been filed even as on the date of this affidavit, and the right to be released on default bail under Section 187(3) BNSS has accrued to the petitioner.
+4. The petitioner is ready and willing to furnish bail and to abide by any condition this Hon'ble Court may impose.
+5. The facts stated in the accompanying petition are true and correct to the best of my knowledge, information and belief, and I pray that this Hon'ble Court may be pleased to enlarge the petitioner on default bail.
+Solemnly affirmed at Chennai on this ____ day of ____________ 2024 and signed in my presence.
+BEFORE ME		DEPONENT
+ADVOCATE, CHENNAI
+
+Note: Vakalatnama to be duly attested by the Jail Authorities.

@@ -30,6 +30,7 @@ TEMPLATE = "s256_condone_absence.docx"
 _PROPRIETOR = re.compile(r"\b(?:the\s+)?(?:proprietor|partner|director),?\s+"
                          r"((?:mr|mrs|ms|thiru|tmt|selvi)\.?\s+[^,]+?),?(?=\s+(?:was|is|had|could)\b)",
                          re.I)
+_MEDICAL = re.compile(r"unwell|\bill\b|illness|fever|hospital|treatment|medical|surgery", re.I)
 _TRAVEL = re.compile(r"travel|journey|train|flight|abroad|out of station", re.I)
 SPEC = "tn-s256"
 
@@ -100,6 +101,7 @@ def build(
                     else reason)
     docs = [d for d in documents if d.strip()]
     proof = (", ".join(docs) if docs
+             else "[the medical certificate]" if _MEDICAL.search(reason)
              else "[copies of the travel tickets]" if _TRAVEL.search(reason)
              else "[proof of the reason for the absence]")
     context: Dict[str, Any] = {

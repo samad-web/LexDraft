@@ -89,7 +89,8 @@ class TestPeriodAndCustody:
         result = db.build(**_base())
         assert result.refused is False
         assert result.context["period_days"] == 60
-        assert result.context["period_statute"] == "CrPC s.167(2)"
+        # a BNSS case (offence 1.8.2024) cites the BNSS section, not the CrPC label (r12)
+        assert result.context["period_statute"] == "Section 187(3) BNSS"
 
     def test_custody_recomputed_from_as_on(self):
         """Custody days come from custody_computation at generation time — moving

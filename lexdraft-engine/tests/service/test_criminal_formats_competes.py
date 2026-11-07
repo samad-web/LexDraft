@@ -282,3 +282,8 @@ def test_writ_criminal_hcp_opening_does_not_repeat_order_date():
     text = _draft("writ_criminal", HCP)
     first = next(line for line in text.splitlines() if "by the present petition" in line)
     assert first.count("12.09.2026") == 1 and "dated 12.09.2026 passed by the second respondent" in first
+
+
+def test_s256_condone_absence_illness_proof_is_medical_not_tickets():
+    text = _draft("s256_condone_absence", {**S256, "absence_reason": "he was unwell and unable to travel"})
+    assert "files herewith [the medical certificate] in proof" in text and "tickets" not in text
