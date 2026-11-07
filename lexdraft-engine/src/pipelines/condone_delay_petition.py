@@ -28,17 +28,38 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+import re
 from enum import Enum
 from typing import Any, Dict, Optional, Sequence
 
 from ..rules import limitation as lim
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
+from .conveyancing import party
 
 TEMPLATE = "condone_delay_petition.docx"
 SPEC = "lim-5"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+
+# an appeal from the decree in an original suit: Art. 116 fixes the period
+_DECREE = re.compile(r"\bO\.\s?S\.|\bdecree\b|\boriginal suit\b", re.I)
+_LEAD_WORD = re.compile(r"^(?:Appeal|Revision|Review|Application|Petition)\b")
+_PRONOUN_LEAD = re.compile(r"^(?:Her|His|Their|The|She|He|They|Its)\b")
+
+
+def _impugned(ref: str, decree_appeal: bool) -> str:
+    """'O.S. No. 73 of 2023, ...' -> 'the judgment and decree in O.S. No. 73 of 2023, ...'."""
+    ref = ref.strip()
+    if re.match(r"(?i)(the\s+)?(judgment|decree|order|award)\b", ref):
+        return ref
+    return ("the judgment and decree in " if decree_appeal else "the order in ") + ref
+
+
+def _mid_sentence(text: str, pattern: re.Pattern) -> str:
+    """'Her earlier counsel ...' reads 'her earlier counsel ...' after 'because'."""
+    text = text.strip().rstrip(".")
+    return text[:1].lower() + text[1:] if pattern.match(text) else text
 
 
 class MainProceeding(Enum):
@@ -133,6 +154,16 @@ def build(
             code="condone_delay_petition_particulars_missing", fields=tuple(missing),
         )
 
+    # Art. 116 is the only period for an appeal from a decree under the CPC: 90 days to
+    # the High Court, 30 days to any other court. A different figure (e.g. the delay
+    # itself, read as the period) is replaced, never pleaded.
+    decree_appeal = (main_proceeding is MainProceeding.APPEAL
+                     and bool(_DECREE.search(f"{impugned_order_ref} {main_proceeding_desc}")))
+    article = None
+    if decree_appeal:
+        hc = "high court" in court_name.lower()
+        period_days = aw.period("art116_high_court" if hc else "art116_other_court")
+        article = "Article 116(a)" if hc else "Article 116(b)"
     try:
         win = aw.window(order_date=impugned_order_date, filing_date=filing_date,
                         period_days=period_days,
@@ -166,6 +197,17 @@ def build(
         "respondents": [r for r in respondent_names if r.strip()],
         "main_proceeding": main_proceeding.value,
         "main_proceeding_desc": main_proceeding_desc,
+        # "Appeal against ..." reads "the appeal against ..." inside a sentence
+        "proceeding_in_text": ("the " + _mid_sentence(main_proceeding_desc, _LEAD_WORD)
+                               if _LEAD_WORD.match(main_proceeding_desc.strip())
+                               else main_proceeding_desc.strip()),
+        "decree_appeal": decree_appeal,
+        "impugned_in_text": _impugned(impugned_order_ref, decree_appeal),
+        # the description already names the order ("appeal against ... O.S. No. 73 of 2023")
+        "desc_names_order": bool((m := re.search(r"No\.\s*\d+\s+of\s+\d{4}", impugned_order_ref))
+                                 and m.group(0) in main_proceeding_desc),
+        "period_article": article,
+        "deponent_his": party(petitioner_name)["his"],
         "impugned_order_ref": impugned_order_ref,
         "impugned_order_date": impugned_order_date.isoformat(),
         "period_days": period_days,
@@ -174,11 +216,14 @@ def build(
         "copy_excluded": win.copy_excluded,
         "limitation_expiry": win.expiry.isoformat(),
         "delay_days": win.delay_days,
-        "sufficient_cause": sufficient_cause,
+        "sufficient_cause": _mid_sentence(sufficient_cause, _PRONOUN_LEAD),
         "delay_slot": delay_narrative if delay_narrative.strip()
                       else _LLM_SLOT_PLACEHOLDER,
         "place": place,
-        "supporting_documents": supporting_documents.strip(),
+        # the affidavit cannot annex itself
+        "supporting_documents": "; ".join(
+            d.strip() for d in re.split(r";", supporting_documents)
+            if d.strip() and not re.match(r"(?i)affidavit\b", d.strip())),
         "computation": win.computation,
     }
     return CondoneDelayResult(refused=False, context=context)

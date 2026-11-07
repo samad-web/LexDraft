@@ -30,6 +30,7 @@ from ..rules import jurisdiction as jur
 from ..rules import limitation as lim
 from ..rules.limitation import Acknowledgement
 from ..verify import tables as _reg
+from ..verify.signoff import SLOT_PATTERN
 from ..verify.refusals import Refusal, Severity
 from .plaint import (_ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS, ARTICLE_GAP,
                      address_lead, interest_basis_text)
@@ -205,7 +206,13 @@ def build(
 
     # 3. limitation — reuse the module (s.18 restart). On a bill or note payable
     #    on demand, Art. 35 runs from the date of the instrument.
-    on_instrument = claim_basis in (ClaimBasis.BILL_OF_EXCHANGE, ClaimBasis.PROMISSORY_NOTE)
+    #    A loan agreement backed by a cheque is still a suit on the cheque, and a
+    #    "[... to be provided]" article is no article.
+    on_instrument = (claim_basis in (ClaimBasis.BILL_OF_EXCHANGE, ClaimBasis.PROMISSORY_NOTE)
+                     or any(rx.search(instrument_ref or "") for b, rx in _BASIS_WORDS
+                            if b is not ClaimBasis.WRITTEN_CONTRACT))
+    if SLOT_PATTERN.search(limitation_article or ""):
+        limitation_article = None
     limitation_article = ((limitation_article or "").strip()
                           or (_ARTICLE_35[0] if on_instrument else ARTICLE_GAP))
     article_desc = _ARTICLE_35[1] if limitation_article == "35" else None

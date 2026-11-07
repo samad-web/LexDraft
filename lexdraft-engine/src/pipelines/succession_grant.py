@@ -34,6 +34,7 @@ SPEC = "dpc-50-55"
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 
 
+_HONORIFICS = {"mr", "mrs", "ms", "dr", "thiru", "tmt", "smt", "shri", "sri", "selvi", "late"}
 _PRON = {"male": "his", "m": "his", "female": "her", "f": "her"}
 _TESTATOR = {"male": "testator", "m": "testator", "female": "testatrix",
              "f": "testatrix"}
@@ -104,6 +105,8 @@ def build(
     # the will's attesting witnesses, and the one who verifies / swears (s.281 ISA).
     attesting_witnesses: Optional[Sequence[str]] = None,
     deposing_witness: Optional[str] = None,
+    # the whole estate's value as the brief states it; fills the one unvalued asset.
+    estate_value: Optional[int] = None,
 ) -> SuccessionGrantResult:
     """Assemble the probate / letters-of-administration petition, or refuse."""
 
@@ -159,7 +162,9 @@ def build(
 
     # 4a. the relatives are arrayed as respondents in the cause title; the petitioner
     #     may be listed among them ("Son (Petitioner)") but is never his own respondent.
-    norm = lambda n: " ".join(n.lower().replace(".", " ").split())
+    # "Mr. V. Narayanan" and "V. Narayanan" are one person: honorifics don't count
+    norm = lambda n: " ".join(t for t in n.lower().replace(".", " ").split()
+                              if t not in _HONORIFICS)
     respondents = [r for r in relatives
                    if norm(r.name) != norm(petitioner_name) and "petitioner" not in r.relation.lower()]
     if not respondents:
@@ -173,6 +178,17 @@ def build(
     # One witness verifies (s.281 needs at least one, "when procurable"); with
     # only one listed, that is the one.
     deposing = (deposing_witness or "").strip() or (witnesses[0] if len(witnesses) == 1 else None)
+
+    # an asset valued 0 is unvalued, never "Rs. 0"; when it is the only one and the
+    # brief gives the whole estate, it is the balance (marked as estimated).
+    schedule = [{"description": a["description"], "value": a["value"] or None, "note": ""}
+                for a in (assets or [])]
+    unvalued = [a for a in schedule if a["value"] is None]
+    known = sum(a["value"] for a in schedule if a["value"])
+    if len(unvalued) == 1 and estate_value and estate_value > known:
+        unvalued[0]["value"] = estate_value - known
+        unvalued[0]["note"] = (f" (estimated, being the balance of the whole estate of about "
+                               f"Rs. {estate_value}/-)")
 
     context: Dict[str, Any] = {
         "grant_kind": grant_kind.value,
@@ -204,9 +220,9 @@ def build(
         "case_year": filing_date.year,
         "petition_date": filing_date.isoformat(),
         "has_witness_verification": True,
-        "assets": [{"description": a["description"], "value": a["value"]}
-                   for a in (assets or [])],
-        "assets_total": sum(a["value"] for a in (assets or [])),
+        "assets": schedule,
+        "assets_total": sum(a["value"] or 0 for a in schedule),
+        "assets_unvalued": any(a["value"] is None for a in schedule),
         "deposing_witness": deposing,
         "other_witnesses": [w for w in witnesses if norm(w) != norm(deposing or "")],
         "place": place,

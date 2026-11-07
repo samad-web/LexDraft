@@ -142,9 +142,7 @@ def build(
     # Class I status; an unstated law stays a marked gap (never assumed).
     law = (law_of_succession or "").strip()
     if not law:
-        law_text = ("[the personal law of the deceased to be provided — if a Hindu: the "
-                    "Hindu Succession Act, 1956, the petitioner and the respondents being "
-                    "his heirs in Class I of the Schedule to that Act]")
+        law_text = "[the personal law governing succession to the deceased to be provided]"
     elif re.fullmatch(r"(a\s+)?hindu\.?", law, re.I) or "hindu succession act" in law.lower():
         law_text = ("the Hindu Succession Act, 1956, he being a Hindu; the petitioner and "
                     "the respondents are his heirs in Class I of the Schedule to that Act")

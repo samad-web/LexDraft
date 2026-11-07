@@ -106,6 +106,8 @@ ADAPTER = Adapter(
         FieldSpec("place", "string"),
         # optional cause-title header fields
         FieldSpec("plaintiff_parentage", "string", required=False, default=None),
+        # who signs for a firm/company plaintiff, e.g. "Mr. G. Venkatesh, managing partner"
+        FieldSpec("plaintiff_representative", "string", required=False, default=None),
         FieldSpec("plaintiff_address", "string", required=False, default=None),
         FieldSpec("defendant_addresses", "string_list", required=False, default=None),
         FieldSpec("civil_court", "string", required=False, default=None),

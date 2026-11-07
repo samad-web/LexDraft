@@ -540,6 +540,29 @@ def build_sale_deed(
 # 6. LEASE DEED (pp.112-115)
 # ==========================================================================
 
+_LABEL_PURPOSE = re.compile(r"^\s*(commercial|residential|non-residential|business)\s*"
+                            r"(?:\(\s*([^)]+?)\s*\))?\s*(?:purposes?|use)?\s*$", re.I)
+
+
+def lease_purpose_phrase(purpose: str) -> str:
+    """A form label ("Commercial (shop)") reads "for use as a commercial shop";
+    a stated purpose ("running a mobile phone shop") reads "for the purpose of ..."."""
+    p = (purpose or "").strip().rstrip(".")
+    if not p:
+        return "for the purpose of [purpose of the lease to be provided]"
+    m = _LABEL_PURPOSE.match(p)
+    if m:
+        kind = m.group(1).lower()
+        return f"for use as a {kind} {m.group(2).lower()}" if m.group(2) else f"for {kind} use"
+    return p if re.match(r"(?i)for\b", p) else f"for the purpose of {p}"
+
+
+def _mid(description: str) -> str:
+    """'Aged 70 years' / 'Represented by ...' read mid-sentence after the name."""
+    d = (description or "").strip()
+    return d[:1].lower() + d[1:] if re.match(r"(Aged|Represented|Residing|Having)\b", d) else d
+
+
 def build_lease_deed(
     *,
     lessor_name: str,
@@ -603,8 +626,9 @@ def build_lease_deed(
         "This lease does not exceed one year; registration is not compulsory under "
         "s.17(1)(d) of the Registration Act, 1908.")
     ctx = _base_ctx("LEASE DEED", execution_date, place,
-                    lessor=party(lessor_name, lessor_description, lessor_gender),
-                    lessee=party(lessee_name, lessee_description, lessee_gender),
+                    lessor=party(lessor_name, _mid(lessor_description), lessor_gender),
+                    lessee=party(lessee_name, _mid(lessee_description), lessee_gender),
+                    lease_for=lease_purpose_phrase(lease_purpose),
                     property_desc=property_desc, term_months=term_months, term=term,
                     commencement_date=(commencement_date.isoformat()
                                        if commencement_date else

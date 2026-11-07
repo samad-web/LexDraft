@@ -30,6 +30,27 @@ _SHARE_WORDS = {"half": Fraction(1, 2), "one-half": Fraction(1, 2), "one-third":
                 "quarter": Fraction(1, 4), "one-fifth": Fraction(1, 5)}
 
 
+_NUMBER_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "2": 2, "3": 3, "4": 4, "5": 5}
+_KIN = re.compile(r"\b(brother|sister|son|daughter|child|heir|nephew|niece)(?:s|ren)?\b", re.I)
+_DESCRIBED = re.compile(r"^\s*(?:her|his|their|the)\b|\b(?:two|three|four|five|[2-5])\s+(?:\w+\s+)?"
+                        r"(?:brother|sister|son|daughter|child|heir|nephew|niece)", re.I)
+
+
+def respondents_from_description(text: str) -> list:
+    """"Her late husband's two brothers" is a description, not a name: one
+    respondent per person, each a name gap with the relation."""
+    kin = _KIN.search(text or "")
+    if not (kin and _DESCRIBED.search(text)):
+        return [text]
+    count = next((v for w, v in _NUMBER_WORDS.items()
+                  if re.search(rf"\b{w}\b", text, re.I)), 1)
+    owner = re.sub(r"\b(?:two|three|four|five|\d)\b", "", text[:kin.start()], flags=re.I)
+    owner = re.sub(r"^\s*(?:her|his|their)\b", "the petitioner's", owner.strip(), flags=re.I)
+    owner = re.sub(r"'s\s*$", "", owner.strip()).strip()
+    relation = kin.group(1).lower() + (f" of {owner}" if owner else "")
+    return [f"[name of respondent to be provided], {relation}"] * count
+
+
 def share_fraction(share: Optional[str]) -> Optional[Fraction]:
     """'1/3' or 'one-third share' -> Fraction(1, 3); None when not a share."""
     s = (share or "").lower()
@@ -127,6 +148,7 @@ def build(
     names = [n for n in (respondent_names or []) if n.strip() and not SLOT_PATTERN.search(n)]
     if not names and respondent_name.strip() and not SLOT_PATTERN.search(respondent_name):
         names = [respondent_name]
+    names = [m for n in names for m in respondents_from_description(n)]
     for i in range(len(names), max(respondent_count or 0, 1)):
         names.append(f"[name of respondent {i + 1} to be provided]")
 
