@@ -6,8 +6,8 @@ M.C.O.P. No. ______ of ______
 2. Minor A
 3. Minor B                          ... Petitioners
 -Vs-
-1. R. Owner (owner of the vehicle)
-2. S. Driver (driver of the vehicle)
+1. S. Driver (driver of the vehicle)
+2. R. Owner (owner of the vehicle)
 3. XYZ General Insurance (insurer of the vehicle)                          ... Respondents
 
 CLAIM PETITION FILED UNDER SECTION 166 OF THE MOTOR VEHICLES ACT, 1988
@@ -17,7 +17,7 @@ MOST RESPECTFULLY SHOWETH:
 2. [to be drafted]
 3. The accident on 2024-03-01 was caused by the rash and negligent driving of the offending vehicle.
 4. FIR and police proceedings: Crime No. 45/2024, B1 Traffic Police Station.
-5. Vehicle TN01AB1234; owner R. Owner; driver S. Driver; insurer XYZ General Insurance (policy POL-99887).
+5. Vehicle TN01AB1234; driver S. Driver (1st respondent); owner R. Owner (2nd respondent); insurer XYZ General Insurance (policy POL-99887) (3rd respondent).
 
 6. Victim: aged 35, permanent salaried, annual income Rs. 300000/-.
 7. COMPUTATION [figures unverified — pending advocate review]:
@@ -27,21 +27,21 @@ MOST RESPECTFULLY SHOWETH:
    (iii) Multiplier for the age of 35 years: 16. Loss of dependency: Rs. 300000/- x 16 = Rs. 4800000/-.
    Conventional heads:
 
-     - loss of estate: Rs. 15000/-.
+     - loss of estate: Rs. 18150/-.
 
-     - loss of consortium: Rs. 40000/-.
+     - loss of consortium (Rs. 48400 to each of the 3 claimants): Rs. 145200/-.
 
-     - funeral expenses: Rs. 15000/-.
+     - funeral expenses: Rs. 18150/-.
 
    (conventional heads are subject to periodic enhancement (Pranay Sethi: by 10% every three years) — VERIFY the current figures.)
 
-   TOTAL Rs. 4870000/-.
+   TOTAL Rs. 4981500/-.
 8. JURISDICTION: the accident occurred within this Tribunal's jurisdiction (s.166(2) MV Act).
 9. LIMITATION: [that this petition is filed within six months of the accident on 2024-03-01, as required by Section 166(3) of the Motor Vehicles Act, 1988 (inserted by the Motor Vehicles (Amendment) Act, 2019) — to be confirmed]
 
 PRAYER:
 It is therefore prayed that this Hon'ble Tribunal may be pleased to:
-(a) award compensation of Rs. 4870000/- [figures unverified — pending advocate review] to the petitioner(s), jointly and severally against the respondents;
+(a) award compensation of Rs. 4981500/- [figures unverified — pending advocate review] to the petitioner(s), jointly and severally against the respondents;
 (b) award interest on the said amount from the date of the petition till realisation, and the costs of this petition; and
 (c) pass such further or other orders as this Hon'ble Tribunal may deem fit and proper in the circumstances of the case, and thus render justice.
 

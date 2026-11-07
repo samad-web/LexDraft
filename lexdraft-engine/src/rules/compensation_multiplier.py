@@ -21,6 +21,8 @@ multiplier produces a wrong claim amount that reads as authoritative.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
+from fractions import Fraction
 from enum import Enum
 from typing import List, Optional, Tuple
 
@@ -114,6 +116,36 @@ def personal_expense_fraction(dependants: int) -> float:
     raise CompensationInputError(f"no deduction band for {dependants} dependants")
 
 
+# National Insurance Co. v. Pranay Sethi, (2017) 16 SCC 680, decided 31.10.2017:
+# the conventional heads "should be enhanced at the rate of 10% in every three years".
+PRANAY_SETHI_DATE = date(2017, 10, 31)
+
+
+def conventional_heads(*, as_of: Optional[date] = None,
+                       consortium_claimants: int = 1) -> List["ConventionalHead"]:
+    """The Pranay Sethi heads, compounded 10% per completed three-year period from
+    the judgment to `as_of` (None -> the base figures), with consortium to each
+    claimant (Magma General Insurance v. Nanu Ram, (2018) 18 SCC 130: spousal,
+    parental and filial consortium)."""
+    periods = 0
+    if as_of is not None and as_of > PRANAY_SETHI_DATE:
+        years = as_of.year - PRANAY_SETHI_DATE.year - (
+            (as_of.month, as_of.day) < (PRANAY_SETHI_DATE.month, PRANAY_SETHI_DATE.day))
+        periods = years // 3
+    factor = Fraction(11, 10) ** periods
+    heads = []
+    for name, base in CONVENTIONAL_HEADS.items():
+        amount = round(base * factor)
+        if name == "loss_of_consortium" and consortium_claimants > 1:
+            heads.append(ConventionalHead(
+                name=f"loss_of_consortium (Rs. {amount} to each of the "
+                     f"{consortium_claimants} claimants)",
+                amount=amount * consortium_claimants))
+        else:
+            heads.append(ConventionalHead(name=name, amount=amount))
+    return heads
+
+
 # --------------------------------------------------------------------------
 # Death computation.
 # --------------------------------------------------------------------------
@@ -146,8 +178,12 @@ def compute_death(
     annual_income: int,
     dependants: int,
     employment: Employment,
+    as_of: Optional[date] = None,
+    consortium_claimants: int = 1,
 ) -> DeathResult:
-    """Death compensation (Sarla Verma multiplier + Pranay Sethi prospects/heads)."""
+    """Death compensation (Sarla Verma multiplier + Pranay Sethi prospects/heads).
+    `as_of` applies the Pranay Sethi 10%-every-three-years enhancement; each of
+    `consortium_claimants` gets consortium (Magma v. Nanu Ram)."""
     if annual_income < 0:
         raise CompensationInputError("annual income must be non-negative")
 
@@ -160,7 +196,7 @@ def compute_death(
     multiplier = multiplier_for_age(age)
     loss_of_dependency = multiplicand * multiplier
 
-    heads = [ConventionalHead(name=k, amount=v) for k, v in CONVENTIONAL_HEADS.items()]
+    heads = conventional_heads(as_of=as_of, consortium_claimants=consortium_claimants)
     conventional_total = sum(h.amount for h in heads)
 
     return DeathResult(

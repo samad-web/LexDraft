@@ -50,6 +50,47 @@ def test_dv_application_cause_title_lists_each_respondent_once_with_addresses():
     assert "Mrs. J. Anitha, aged about 32 years, residing at No. 15, Kilpauk" in head
 
 
+_MACT = {
+    "claim_kind": "death",
+    "claimants": ["Mrs. K. Priya (31), wife", "K. Arjun (6), son", "Mrs. S. Lakshmi (60), mother"],
+    "accident_date": "2026-05-12", "rash_negligent_pleaded": True,
+    "fir_ref": "Crime No. 188 of 2026, Pallavaram Traffic Investigation police",
+    "vehicle_number": "TN-22-AK-9032", "owner": "Mr. R. Shankar", "driver": "Driver of lorry TN-22-AK-9032",
+    "insurer": "United India Insurance Co. Ltd.", "policy_no": "0412/31/26/9988",
+    "policy_valid_on_accident": True, "victim_age": 34, "victim_annual_income": 540000,
+    "income_proof_present": True, "employment": "permanent_salaried", "dependants": 3,
+    "treatment_expenses": 0, "attendant_expenses": 0,
+    "jurisdiction_basis": "the petitioners reside at Chennai",
+    "accident_place": "GST Road near Pallavaram",
+    "place": "Chennai", "tribunal_place": "Chennai", "filing_date": "2026-11-07",
+}
+
+
+def test_mact_claim_respondents_driver_owner_insurer_in_brief_order():
+    head = _text("mact_claim", _MACT).split("CLAIM PETITION FILED")[0]
+    assert head.index("(driver of the vehicle)") < head.index("(owner of the vehicle)") \
+        < head.index("(insurer of the vehicle)")
+    assert "1. Driver of lorry TN-22-AK-9032 (driver" in head and "2. Mr. R. Shankar (owner" in head
+
+
+def test_mact_claim_consortium_to_each_claimant_with_pranay_sethi_enhancement():
+    # filed 07.11.2026: three completed three-year periods since 31.10.2017 ->
+    # 15,000 / 40,000 x 1.1^3 = 19,965 / 53,240 (Pranay Sethi); consortium to each
+    # of the three claimants (Magma v. Nanu Ram).
+    text = _text("mact_claim", _MACT)
+    assert "loss of estate: Rs. 19,965/-" in text
+    assert "Rs. 1,59,720/-" in text and "3 claimants" in text
+    assert "funeral expenses: Rs. 19,965/-" in text
+    assert "Rs. 88,39,650/-" in text  # 86,40,000 + 1,99,650
+
+
+def test_mact_claim_minor_son_sues_by_mother_as_next_friend_and_place_pleaded():
+    text = _text("mact_claim", _MACT)
+    assert "K. Arjun (6), son, minor, represented by his mother and next friend, the 1st petitioner" in text
+    assert "The accident occurred at GST Road near Pallavaram, within the jurisdiction of this Tribunal" in text
+    assert "Section 166(2) of the Motor Vehicles Act, 1988" in text
+
+
 def test_dv_application_prayer_not_colon_joined_and_no_stray_slot_marker():
     text = _text("dv_application", _DV)
     prayer = text.split("PRAYER:")[1]
