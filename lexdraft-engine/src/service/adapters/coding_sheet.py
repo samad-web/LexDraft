@@ -33,6 +33,11 @@ ADAPTER = Adapter(
         FieldSpec("detaining_authority", "string", required=False, default=None),
         FieldSpec("order_violated", "string", required=False, default=None),
         FieldSpec("senior_citizen", "bool", required=False, default=False),
+        FieldSpec("petitioner_address", "string", required=False, default=None),
+        # One entry per respondent, in order (R1, R2 ...), each with its address.
+        FieldSpec("respondents", "string_list", required=False, default=()),
+        FieldSpec("counsel_enrolment_no", "string", required=False, default=None),
+        FieldSpec("nature_of_relief", "string", required=False, default=None),
     ),
     slots=(),
 )

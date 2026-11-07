@@ -1028,6 +1028,8 @@
       "court_place",
       "court_type",
       "documents",
+      "lower_court",
+      "lower_court_case",
       "on_behalf_of",
       "place"
     ],
@@ -1102,6 +1104,16 @@
       },
       {
         "key": "counsel_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "lower_court_case",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "lower_court",
         "kind": "string",
         "required": false
       }
@@ -1469,6 +1481,7 @@
     "all": [
       "apprehended_proceeding",
       "caveator_address",
+      "caveator_age",
       "caveator_name",
       "caveator_parentage",
       "copy_served_on_petitioner",
@@ -1541,6 +1554,11 @@
       {
         "key": "caveator_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "caveator_age",
+        "kind": "int",
         "required": false
       },
       {
@@ -1861,6 +1879,7 @@
       "act_and_provision",
       "case_type",
       "connected_case",
+      "counsel_enrolment_no",
       "court_fee",
       "court_place",
       "crime_no",
@@ -1868,12 +1887,15 @@
       "in_jail",
       "is_hcp",
       "lower_court_details",
+      "nature_of_relief",
       "order_violated",
+      "petitioner_address",
       "petitioner_counsel",
       "petitioner_name",
       "police_station",
       "respondent_counsel",
       "respondent_name",
+      "respondents",
       "senior_citizen",
       "side",
       "subject_category_code",
@@ -1992,6 +2014,26 @@
       {
         "key": "senior_citizen",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "counsel_enrolment_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "nature_of_relief",
+        "kind": "string",
         "required": false
       }
     ],
@@ -8768,8 +8810,10 @@
       "advocate_phone",
       "cause_of_action",
       "client",
+      "client_title",
       "dispatch_line",
       "government_body",
+      "illegality_ground",
       "notice_date",
       "place",
       "plaintiff_name_description",
@@ -8833,6 +8877,16 @@
       },
       {
         "key": "dispatch_line",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "client_title",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "illegality_ground",
         "kind": "string",
         "required": false
       }
@@ -10711,6 +10765,7 @@
       "court_name",
       "court_place",
       "enrolment_no",
+      "executant_age",
       "executant_name",
       "execution_date",
       "kind",
@@ -10804,6 +10859,11 @@
       {
         "key": "party_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "executant_age",
+        "kind": "int",
         "required": false
       },
       {

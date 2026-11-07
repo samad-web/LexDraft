@@ -15,6 +15,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -23,6 +24,7 @@ from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "s80_notice.docx"
 SPEC = "dpc-128-129"
+_SUIT_THREAT = re.compile(r"\bsuit\b.*\b(will|shall)\s+be\s+(filed|instituted)\b|\bfailing\b.*\bsuit\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,8 @@ def build(
     advocate_chamber: Optional[str] = None,
     advocate_phone: Optional[str] = None,
     dispatch_line: Optional[str] = None,
+    client_title: Optional[str] = None,
+    illegality_ground: Optional[str] = None,
 ) -> S80NoticeResult:
     """Assemble the s.80 CPC notice, or refuse."""
 
@@ -94,7 +98,12 @@ def build(
         "government_body": government_body,
         "plaintiff_name_description": plaintiff_name_description,
         "cause_of_action": cause_of_action,
-        "reliefs": [r for r in reliefs if r.strip()],
+        # The template's own two-month demand says a suit follows; a relief that only
+        # threatens the suit would say it twice.
+        "reliefs": [r for r in reliefs if r.strip() and not _SUIT_THREAT.search(r)]
+                   or [r for r in reliefs if r.strip()],
+        "client_title": (client_title or "").strip().rstrip("."),
+        "illegality_ground": (illegality_ground or "").strip().rstrip("."),
         "notice_date": notice_date,
         "place": place,
     }

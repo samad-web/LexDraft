@@ -1,6 +1,6 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
+IN THE HIGH COURT OF JUDICATURE AT MADRAS
 CODING SHEET
-Chennai
 CRIMINAL SIDE
 (party portion to be completed by the filing party; case number and dates are completed by the Registry)
 
@@ -8,12 +8,14 @@ CRIMINAL SIDE
 
 
 Petitioner / Appellant: Vijay
-Respondent: State
+Respondent(s):
+R1: State
 
 
 
 Act and provision(s) of law involved: Article 226
 Subject-matter / brief: habeas corpus
+
 
 
 

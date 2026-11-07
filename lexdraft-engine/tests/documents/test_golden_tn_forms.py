@@ -137,7 +137,9 @@ def test_golden_vakalatnama_civil(tmp_path):
     # 2-column advocate/party details block (unlike criminal/small-causes).
     assert r.context["date_style"] == "dated_at"
     assert r.context["show_details_block"] is False
-    assert r.context["advocate_sign_label"] == "Advocate for"
+    # 2026-11-07: the advocate signs "Advocate for Plaintiff" (the party), not
+    # "Advocate for <his own name>" as this test used to pin.
+    assert r.context["advocate_sign_label"] == "Advocate for Plaintiff"
     # Civil advocate form has NO title on page 1 (the appoint clause follows the
     # parties directly; the VAKALAT title shows only on the page-2 backing sheet).
     assert r.context["show_page1_title"] is False
@@ -156,7 +158,7 @@ def test_golden_vakalatnama_civil(tmp_path):
     assert "Dated at Chennai this" in txt
     assert "read out and explained" in txt
     assert "ACCEPTED : The address for service of the said Advocate is :" in txt
-    assert "Advocate for S. Iyer" in txt
+    assert "S. Iyer\nAdvocate for Plaintiff" in txt and "Advocate for S. Iyer" not in txt
     assert "depute other counsel" in txt.lower()
     # Stacked party labels (Plaintiff / Petitioner & Defendant / Respondent).
     assert "... Plaintiff / Petitioner" in txt

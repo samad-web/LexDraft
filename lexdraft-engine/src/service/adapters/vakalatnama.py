@@ -45,6 +45,7 @@ ADAPTER = Adapter(
         FieldSpec("advocate_email", "string", required=False, default=None),
         FieldSpec("party_contact", "string", required=False, default=None),
         FieldSpec("party_address", "string", required=False, default=None),
+        FieldSpec("executant_age", "int", required=False, default=None),
         FieldSpec("state_language", "string", required=False, default=None),
         # Court-specific format: CRIMINAL / SMALL_CAUSES / CIVIL (defaults GENERIC).
         FieldSpec("court_kind", "enum",
