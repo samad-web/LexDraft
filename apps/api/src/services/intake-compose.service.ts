@@ -247,6 +247,7 @@ const META_TALK = /\b(?:please confirm|let me know|I have (?:removed|kept|restor
 
 /** "contents of paras 1 to 12" in a verification. */
 const PARAS_RANGE = /(\bpara(?:graph)?s?\.?\s+(?:no\.?\s*)?1\s+to\s+)(\d+)/i;
+const LEGAL_RANGE = /\bpara(?:graph)?s?\.?\s+\d+\s+to\s+\d+(?:,\s*if any,)?\s+are\s+true\s+on\s+legal\s+advice/i;
 
 /** "MOST RESPECTFULLY SHOWETH:" — the line a pleading's body follows. */
 const SHOWETH = /\bSH[OE]WETH\b/i;
@@ -364,7 +365,7 @@ const MUST_PLEAD: Record<string, string> = {
   maintenance: '- The wife (or child / parent) is unable to maintain herself; the respondent has sufficient means and has neglected or refused to maintain.\n- She lives separately for sufficient reason (e.g. she was driven out), and is not living in adultery or separately by mutual consent — plead these facts in words; cite no sub-section and never the CrPC for them (r12: that sentence was cut, leaving a gap).\n- Never name a case (no "Rajnesh v. Neha") unless it is in the Authorities list.\n- Maintenance is claimed from the date of the application (not from an earlier date of neglect).\n- Interim maintenance only in the prayer\'s words: "the second proviso to sub-section (1) of Section 144" — never "proviso to Section 144(2)". Each petitioner\'s monthly figure separately, as the skeleton gives it.',
   // 2026-11-07: the composer wrote "Section 13(1)(ia)" against a skeleton that said
   // only "s.13(1)", so the guard stripped it and the compose fell back every time.
-  divorce_contested: '- The ground by its clause exactly as the skeleton writes it (e.g. "Section 13(1)(ia) of the Hindu Marriage Act, 1955") — never a bare "Section 13" / "Section 13(1)", never "(i-a)".\n- Each instance with its date as the skeleton gives it; that there is no collusion, connivance or condonation; the jurisdiction fact under Section 19.',
+  divorce_contested: '- The ground by its clause exactly as the skeleton writes it (e.g. "Section 13(1)(ia) of the Hindu Marriage Act, 1955") — never a bare "Section 13" / "Section 13(1)", never "(i-a)".\n- Each instance with its date as the skeleton gives it; that there is no collusion, connivance or condonation; the jurisdiction fact under Section 19.\n- No judgment named or paraphrased ("as observed by the Supreme Court in …") unless it is in the Authorities list; argue cruelty from the instances themselves (r12: a cut case name left "in Smt. [gap]").',
   divorce_mutual_first: '- Living separately for one year or more immediately before presentation; that they have not been able to live together; that they have mutually agreed the marriage be dissolved — Section 13B(1).\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
   divorce_mutual_second: '- The second motion is moved not earlier than six months and not later than eighteen months after the PRESENTATION of the first-motion petition — Section 13B(2); consent continues.\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
   succession_certificate: '- The personal law and the heirs exactly as the skeleton states; every other heir is a respondent. Describe each heir by relation to the deceased ("the son of the deceased"; a widow petitioner\'s children are "their children", never "her other children").',
@@ -921,7 +922,9 @@ export async function composeAndVerify(args: {
   const newTail = tail.map((t) => {
     const m = PARAS_RANGE.exec(t);
     if (!m || !lastPara || Number(m[2]) === lastPara) return t;
-    const to = t.replace(PARAS_RANGE, `$1${lastPara}`);
+    // A second, legal-advice range numbers the skeleton's paragraphs, not the composed
+    // ones (r12: "paras 1 to 14 … and paras 10 to 11 … on legal advice" overlapped).
+    const to = t.replace(PARAS_RANGE, `$1${lastPara}`).replace(LEGAL_RANGE, 'the legal submissions therein are true on legal advice');
     recounted.push({ from: t, to });
     return to;
   });

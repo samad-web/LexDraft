@@ -133,6 +133,24 @@ describe('intake-compose — body-only composition', () => {
     ]);
   });
 
+  it('test_divorce_contested_verification_ranges_overlap: drops the skeleton-numbered legal-advice range (r12)', async () => {
+    const blocks = [...BAIL,
+      'Verified at Coimbatore that the contents of paras 1 to 9 are true to my knowledge and paras 10 to 11, if any, are true on legal advice received and believed to be true.',
+    ].map((b, i) => (typeof b === 'string' ? { key: `v${i}`, text: b } : b));
+    fetchQueue.push(anthropicReply([
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Divorce', docType: 'regular_bail', engineBlocks: blocks, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.verification?.map((v) => v.to)).toEqual([
+      'Verified at Coimbatore that the contents of paras 1 to 4 are true to my knowledge and the legal submissions therein are true on legal advice received and believed to be true.',
+    ]);
+  });
+
   it('rejects a composition that drops a section from the skeleton', async () => {
     fetchQueue.push(anthropicReply('1. The petitioner, Dinesh Kumar, is a lorry driver.\n\n2. The offence is under BNS s.303(2).\n\n3. Arrested on 2024-09-16, in custody 96 days as on 2024-12-20.'));
     fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
