@@ -52,6 +52,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from dateutil.relativedelta import relativedelta
 
 from ..verify.refusals import Refusal, Severity
+from .conveyancing import party
 
 TEMPLATE = "hrcp_eviction.docx"
 SPEC = "tn-rrrlt-21"
@@ -121,7 +122,7 @@ _PHRASES = (
     ("repairs_rebuilding", r"repair|rebuild|re-build|demoli|reconstruct|"
                            r"additions?|alterations?"),
     ("own_occupation", r"own (use|occupation|business|residence)|bona ?fide|"
-                       r"personal (use|occupation)|requirement of|required by the "
+                       r"personal (use|occupation)|requirement (of|for)|required by the "
                        r"landlord|for (his|her|the landlord'?s) (son|daughter|wife|"
                        r"husband|family)|member of (his|her) family"),
     ("no_written_agreement", r"no (written )?(tenancy )?agreement|"
@@ -271,6 +272,10 @@ def build(
         pleaded.append({"key": k, "clause": clause, "text": text, "verify": verify,
                         "particulars": "; ".join(particulars.get(k, []))})
     clauses = ", ".join(g["clause"] for g in pleaded)
+    cl = [g["clause"] for g in pleaded]
+    clauses_text = (f"clause {cl[0]}" if len(cl) == 1
+                    else "clauses " + ", ".join(cl[:-1]) + " and " + cl[-1]) + " of Section 21(2)"
+    deponent = next((n for n in landlord_names if n.strip()), "[name of the deponent to be provided]")
 
     context: Dict[str, Any] = {
         "act": ACT,
@@ -288,6 +293,12 @@ def build(
         "written_tenancy_agreement": written_tenancy_agreement,
         "grounds": pleaded,
         "clauses": clauses,
+        "clauses_text": clauses_text,
+        # a clause whose amendment status is unconfirmed is flagged once, for the
+        # advocate, after the pleading -- never inside the ground itself
+        "verify_notes": [g["verify"] for g in pleaded if g["verify"]],
+        "deponent": deponent,
+        "deponent_his": party(deponent)["his"],
         "arrears_months": arrears_months,
         "arrears_amount": arrears_amount,
         "demand_notice_served_date": (demand_notice_served_date.isoformat()

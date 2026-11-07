@@ -150,3 +150,42 @@ def test_indigent_application_a_real_name_with_son_of_is_kept():
     text = _text("indigent_application", {**INDIGENT, "respondent_name": "Mr. K. Raman, son of Krishnan, aged 45",
                                           "respondent_count": 1})
     assert "Mr. K. Raman, son of Krishnan, aged 45" in text
+
+
+# ---- hrcp_eviction: Sundaram v. Rafiq, Big Bazaar Street, Tiruchirappalli ----
+
+HRCP = {
+    "landlord_names": ["Mr. G. Sundaram"], "tenant_names": ["Mr. A. Rafiq"],
+    "premises_description": "Ground-floor shop at No. 22, Big Bazaar Street, Tiruchirappalli",
+    "monthly_rent": 15000, "filing_date": "2026-11-07", "place": "Tiruchirappalli",
+    "grounds": ["Default in payment of rent from May 2026",
+                "Requirement for the son's hardware business"],
+    "tenancy_commencement": "2022-01-01", "purpose_of_letting": "a mobile phone shop",
+    "written_tenancy_agreement": True, "arrears_months": 7, "arrears_amount": 105000,
+    "demand_notice_date": "2026-08-10", "rent_court": "Rent Court, Tiruchirappalli",
+    "court_place": "Tiruchirappalli",
+}
+
+
+def test_hrcp_eviction_heading_names_the_city_once():
+    text = _text("hrcp_eviction", HRCP)
+    assert "BEFORE THE RENT COURT, TIRUCHIRAPPALLI\n" in text
+    assert text.count("TIRUCHIRAPPALLI, TIRUCHIRAPPALLI") == 0
+
+
+def test_hrcp_eviction_clause_g_verify_note_not_inside_the_ground():
+    text = _text("hrcp_eviction", HRCP)
+    grounds = text.split("following ground(s)")[1].split("PRAYER:")[0]
+    assert "Clause (g):" in grounds and "verify" not in grounds.lower()
+    assert "under clauses (b) and (g) of Section 21(2) of the Tamil Nadu" in text
+    # the unconfirmed amendment is flagged once, after the affidavit
+    assert "[verify: clause (g)" in text.split("ADVOCATE / NOTARY PUBLIC")[-1]
+
+
+def test_hrcp_eviction_has_verification_and_affidavit():
+    text = _text("hrcp_eviction", HRCP)
+    assert "VERIFICATION\nI, Mr. G. Sundaram, the petitioner, do hereby verify" in text
+    aff = text.split("AFFIDAVIT OF THE PETITIONER IN SUPPORT OF THE PETITION")[1]
+    assert "clause (b), because the tenant has not paid the arrears" in aff
+    assert "Rs. 1,05,000/-" in aff and "signed his name in my presence" in aff
+    assert "DEPONENT" in aff
