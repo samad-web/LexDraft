@@ -3037,7 +3037,9 @@
       "proceeding_start_date",
       "respondent_names",
       "revision_before_other_forum",
-      "sentence_text"
+      "sentence_text",
+      "trial_court",
+      "trial_judgment_date"
     ],
     "fields": [
       {
@@ -3167,6 +3169,16 @@
       {
         "key": "draft_suspension_petition",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "trial_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "trial_judgment_date",
+        "kind": "date",
         "required": false
       }
     ],

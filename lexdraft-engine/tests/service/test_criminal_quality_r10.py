@@ -117,3 +117,36 @@ def test_criminal_appeal_suspension_petition_has_custody_grounds_affidavit_and_a
     assert aff.count("I have been in custody since") == 1
     assert "I, S. Murugesan, [age, parentage and address of the deponent], do hereby solemnly affirm" in aff
     assert "BEFORE ME" in aff
+
+
+# --- criminal_revision ------------------------------------------------------------
+
+_REVISION = {
+    "forum": "high_court", "petitioner_names": ["Mr. R. Kathiresan"],
+    "respondent_names": ["[respondent names to be provided]"],
+    "impugned_order_ref": "C.A. No. 22 of 2025", "impugned_order_date": "2026-09-30",
+    "lower_court": "Additional District and Sessions Court, Srivilliputhur",
+    "case_ref": "S.T.C. No. 340 of 2021", "filing_date": "2026-11-07", "place": "Madurai",
+    "offence_date": "2021-01-15",
+    "convicted_sections": ["Dishonour of a cheque for Rs. 4,00,000"],
+    "sentence_text": "six months' simple imprisonment and compensation of Rs. 4,00,000",
+    "court_name": "High Court of Madras", "trial_court": "Judicial Magistrate No. I, Sivakasi",
+}
+
+
+def test_criminal_revision_ni_act_conviction_cites_section_138_not_the_offence_name():
+    """r10: the prayer read "acquit ... of the offence under Dishonour of a cheque",
+    and Sections 138/139 NI Act were never recited."""
+    text = "\n".join(_draft("criminal_revision", _REVISION))
+    assert "under Dishonour of a cheque" not in text
+    assert "1A. The petitioner stands convicted for the offence under Section 138 of the Negotiable Instruments Act, 1881" in text
+    assert "presumption under Section 139" in text
+    assert "CRL.R.C.(MD) No. ______ of 2026" in text
+
+
+def test_criminal_revision_prayer_sets_aside_both_judgments_and_acquits():
+    text = "\n".join(_draft("criminal_revision", _REVISION))
+    assert ("set aside the same as well as the judgment of conviction and sentence dated "
+            "[date of the trial court's judgment] passed by Judicial Magistrate No. I, Sivakasi in "
+            "S.T.C. No. 340 of 2021, and acquit the petitioner of the offence under Section 138 "
+            "of the Negotiable Instruments Act, 1881") in text
