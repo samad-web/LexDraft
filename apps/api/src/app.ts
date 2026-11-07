@@ -3,13 +3,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
-import rateLimit from 'express-rate-limit';
 import { env } from './env';
 import { logger } from './logger';
 import { apiRouter } from './routes';
 import { uploadsRouter } from './routes/uploads.routes';
 import { errorHandler, notFound } from './middleware/error';
-import { perUserWriteLimit } from './middleware/rateLimit';
+import { apiIpLimiter, perUserWriteLimit } from './middleware/rateLimit';
 import { requestId } from './middleware/requestId';
 
 export function createApp(): express.Express {
@@ -61,14 +60,7 @@ export function createApp(): express.Express {
   }));
   app.use(express.urlencoded({ extended: false, limit: '16mb' }));
 
-  // IP-level coarse limiter - stops anonymous floods. API_IP_RATE_LIMIT lets
-  // a test harness (e2e/) raise it; production keeps the default.
-  app.use('/api', rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: Number(process.env['API_IP_RATE_LIMIT']) || 600,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-  }));
+  app.use('/api', apiIpLimiter());
   // Per-user write limiter - bounds a compromised account's blast radius.
   app.use('/api', perUserWriteLimit({
     windowMs: env.WRITE_RATE_LIMIT_WINDOW_MS,

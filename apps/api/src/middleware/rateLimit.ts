@@ -9,6 +9,20 @@ interface Bucket {
   resetAt: number;
 }
 
+// IP-level coarse limiter on all of /api - stops anonymous floods.
+// API_IP_RATE_LIMIT lets a test harness (e2e/) raise it; production keeps the default.
+// The drafting progress poll (a GET every 1.5 s while a draft runs, auth-gated, no
+// work done) is not counted: ~10 advocates behind one office IP would exhaust 600.
+export function apiIpLimiter(limit = Number(process.env['API_IP_RATE_LIMIT']) || 600) {
+  return rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    skip: (req) => req.method === 'GET' && req.path === '/drafting/progress',
+  });
+}
+
 // Narrow limiter for sign-in / sign-up. Keyed by IP because there's no
 // authenticated user yet at this point. 10 attempts per 15 minutes makes
 // online password-guessing impractical without locking out a real user who

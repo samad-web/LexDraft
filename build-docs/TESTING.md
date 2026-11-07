@@ -69,3 +69,7 @@
 - 2026-11-03 - portal Sign In + review fixes: 189 passed, 1 skipped (preview, on request only); DB rollback clean.
   - New: a second Sign In leaves a live session alone (multi-advocate); one-step Sign In wrong captcha -> retry, duplicate login -> logged in (portal flow).
 - 2026-11-03 - Land Records government template: flow fixtures 11/11 (patta print now keeps a header the site's print CSS hides); mocked-API UI check: result shows the PDF page, not the parsed table.
+
+## Drafting efficiency (features/drafting-efficiency.md) — 2026-11-07
+- apps/api/src/middleware/__tests__/rateLimit.test.ts → apiIpLimiter: 3 new tests (polls don't consume the IP budget; polls answer after it is spent; only GET on the exact path is exempt). 7/7 pass.
+- Mutation check: with the `skip` removed, 2 of the 3 fail (the third guards the other direction).

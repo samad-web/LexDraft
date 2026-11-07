@@ -9,7 +9,9 @@ vi.mock('../../lib/redis', () => ({
   redis: vi.fn(async () => null),
 }));
 
-import { perUserWriteLimit } from '../rateLimit';
+import express from 'express';
+import type { AddressInfo } from 'node:net';
+import { apiIpLimiter, perUserWriteLimit } from '../rateLimit';
 
 /** The limiter decides inside an async IIFE (it awaits the Redis check before
  *  calling next()/status()). Flush the microtask queue so the decision has run
@@ -92,5 +94,51 @@ describe('perUserWriteLimit', () => {
     expect(next).toHaveBeenCalledWith();
     expect(blocked).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(429);
+  });
+});
+
+// drafting-efficiency: the progress poll must not spend the shared office IP budget.
+describe('apiIpLimiter', () => {
+  async function withServer(run: (get: (path: string, method?: string) => Promise<number>) => Promise<void>) {
+    const app = express();
+    app.use('/api', apiIpLimiter(2));
+    app.get('/api/drafting/progress', (_req, res) => { res.json({ stage: null }); });
+    app.get('/api/cases', (_req, res) => { res.json([]); });
+    app.post('/api/drafting/progress', (_req, res) => { res.json({}); });
+    const server = app.listen(0);
+    const { port } = server.address() as AddressInfo;
+    try {
+      await run(async (path, method = 'GET') => (await fetch(`http://127.0.0.1:${port}${path}`, { method })).status);
+    } finally {
+      server.close();
+    }
+  }
+
+  it('progress polls do not consume the IP budget', async () => {
+    await withServer(async (get) => {
+      for (let i = 0; i < 5; i++) expect(await get('/api/drafting/progress')).toBe(200);
+      expect(await get('/api/cases')).toBe(200);
+      expect(await get('/api/cases')).toBe(200);
+      expect(await get('/api/cases')).toBe(429);
+    });
+  });
+
+  it('progress polls still answer after the budget is spent', async () => {
+    await withServer(async (get) => {
+      await get('/api/cases');
+      await get('/api/cases');
+      expect(await get('/api/cases')).toBe(429);
+      expect(await get('/api/drafting/progress')).toBe(200);
+    });
+  });
+
+  it('only GET on the exact progress path is exempt', async () => {
+    await withServer(async (get) => {
+      const post = (p: string) => get(p, 'POST');
+      expect(await post('/api/drafting/progress')).toBe(200);
+      expect(await post('/api/drafting/progress')).toBe(200);
+      expect(await post('/api/drafting/progress')).toBe(429);
+      expect(await get('/api/drafting/progress-x')).toBe(429);
+    });
   });
 });
