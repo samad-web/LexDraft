@@ -109,3 +109,44 @@ def test_summary_suit_order_xxxvii_rule_2_inscription_and_averments():
     assert "O.S. No. ______ of 2026\n(Under Order XXXVII of the Code of Civil Procedure, 1908)" in head
     assert "as required by Order XXXVII Rule 2(1)(a)" in text
     assert "No relief which does not fall within the ambit of Order XXXVII Rule 1" in text
+
+
+# ---- indigent_application: Selvi v. her late husband's two brothers ----
+
+INDIGENT = {
+    "applicant_name": "Mrs. V. Selvi", "respondent_name": "Her late husband's two brothers",
+    "indigency_pleaded": True, "undertakes_to_pay_if_decreed": True,
+    "indigency_particulars": "she earns about Rs. 6,000 a month and owns nothing except "
+                             "household articles and jewellery worth about Rs. 15,000",
+    "filing_date": "2026-11-07", "place": "Kallakurichi", "civil_court": "Subordinate Court",
+    "city": "Kallakurichi", "applicant_address": "Sankarapuram, Kallakurichi District",
+    "respondent_count": 2, "property_value": 1800000, "share_claimed": "one-third",
+    "relief_claimed": "partition and separate possession of the plaintiff's one-third share",
+    "suit_property_schedule": ["About 3 acres of dry land at Sankarapuram village",
+                               "A tiled house at Sankarapuram village"],
+}
+
+
+def test_indigent_application_respondents_are_r1_r2_name_gaps_not_a_description():
+    text = _text("indigent_application", INDIGENT)
+    head = text.split("PETITION FILED UNDER")[0]
+    assert ("1. [name of respondent to be provided], brother of the petitioner's late husband\n"
+            "2. [name of respondent to be provided], brother of the petitioner's late husband") in head
+    assert "Her late husband's two brothers" not in text
+
+
+def test_indigent_application_annexes_the_proposed_plaint():
+    text = _text("indigent_application", INDIGENT)
+    plaint = text.split("ANNEXURE: THE PROPOSED PLAINT")[1]
+    assert "O.S. No. ______ of 2026" in plaint and "... Defendants" in plaint
+    assert "PLAINT FILED UNDER ORDER VII RULE 1 READ WITH ORDER XXXIII" in plaint
+    assert "Rs. 6,00,000/- for the purposes of jurisdiction and court fee" in plaint
+    assert "(a) for partition and separate possession of the plaintiff's one-third share" in plaint
+    assert "2. A tiled house at Sankarapuram village" in plaint
+    assert "VERIFICATION:" in plaint
+
+
+def test_indigent_application_a_real_name_with_son_of_is_kept():
+    text = _text("indigent_application", {**INDIGENT, "respondent_name": "Mr. K. Raman, son of Krishnan, aged 45",
+                                          "respondent_count": 1})
+    assert "Mr. K. Raman, son of Krishnan, aged 45" in text
