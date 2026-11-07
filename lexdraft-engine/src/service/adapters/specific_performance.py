@@ -21,7 +21,8 @@ ADAPTER = Adapter(
         FieldSpec('notice_ref', 'string'),
         FieldSpec('cause_of_action_date', 'date'),
         FieldSpec('cause_of_action_place', 'string'),
-        FieldSpec('court_fee', 'int'),
+        # computed (s.45(a) TN CF & SV Act, on the consideration) when not given
+        FieldSpec('court_fee', 'int', required=False, default=None),
         FieldSpec('filing_date', 'date'),
         FieldSpec('place', 'string'),
         FieldSpec('plaintiff_parentage', 'string', required=False, default=None),
@@ -34,6 +35,7 @@ ADAPTER = Adapter(
         FieldSpec('refund_interest_rate', 'int', required=False, default=None),
         FieldSpec('injunction_against_alienation', 'bool', required=False,
                   default=False),
+        FieldSpec('performance_date', 'date', required=False, default=None),
     ),
     slots=('refusal_narrative',),
 )

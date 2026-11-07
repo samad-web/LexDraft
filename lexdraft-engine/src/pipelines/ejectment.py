@@ -5,7 +5,9 @@ The landlord sues a tenant who holds over after a s.106 TPA notice terminating
 the month-to-month tenancy. The book's suit pleads the lease, its expiry, the
 s.106 notice + its valid service (clear 15 days), the wrongful occupation and the
 damages rate, cause of action, jurisdiction (premises outside Rent Control), and
-court fee ad valorem on the annual rent.
+the valuation: s.50 TN Court Fees and Suits Valuation Act 1955 (the rent for the
+year before the plaint) for possession, plus the arrears and damages claimed.
+A vacant site is outside the TN 2017 Tenancy Act, which governs buildings.
 
 Hard requirements (each refuses, no partial output):
   - A s.106 TPA notice terminating the tenancy must be pleaded, with its service
@@ -16,11 +18,14 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Sequence
 
+from ..rules import court_fee as cf
 from ..rules import interest as intr
+from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "ejectment.docx"
@@ -28,6 +33,10 @@ SPEC = "dpc-22-24"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 _NOTICE_CLEAR_DAYS = 15  # s.106 TPA: clear 15 days' notice
+_VACANT = re.compile(r"\b(?:vacant|open)\s+(?:site|land|plot)\b", re.I)
+_S16_BASIS = ("the suit property is situate within the local limits of this Hon'ble "
+              "Court, and a suit for the recovery of immovable property lies here under "
+              "Section 16 of the Code of Civil Procedure, 1908")
 
 
 @dataclass(frozen=True)
@@ -59,17 +68,17 @@ def build(
     defendant_name: str,
     suit_premises: str,
     lease_ref: str,
-    lease_expiry_date: Optional[date],
+    lease_expiry_date: Optional[date],  # None: month to month from the start
     s106_notice_ref: str,
     s106_notice_served_date: Optional[date],
     tenancy_end_date: Optional[date],
     damages_rate_per_day: Optional[int],
     wrongful_occupation_since: Optional[date],
     annual_rent: Optional[int],
-    court_fee: int,
+    court_fee: Optional[int],
     cause_of_action_date: Optional[date],
     cause_of_action_place: str,
-    jurisdiction_basis: str,
+    jurisdiction_basis: Optional[str],
     filing_date: date,
     place: str,
     outside_rent_control: bool = True,
@@ -149,6 +158,17 @@ def build(
     past_damages = (intr.damages_for_period(rate, per, damages_from, filing_date)
                     if rate and filing_date > damages_from else None)
 
+    # 5. valuation: s.50 TN CF & SV Act (a year's rent) for possession, plus the
+    #    arrears and damages claimed; the fee is computed unless the advocate gave it.
+    valuation_total, fee_computed = None, False
+    if annual_rent:
+        valuation_total = (annual_rent + (arrears.amount if arrears else 0)
+                           + (past_damages.amount if past_damages else 0))
+        if not court_fee:
+            fee_computed = True
+            court_fee = cf.compute(reliefs=[cf.Relief(kind=cf.ReliefKind.MONEY,
+                                                      value=valuation_total)]).fee
+
     context: Dict[str, Any] = {
         "plaintiffs": list(plaintiff_names),
         "plaintiff_address": plaintiff_address,
@@ -174,11 +194,16 @@ def build(
                          if past_damages else None),
         "wrongful_occupation_since": wrongful_occupation_since,
         "annual_rent": annual_rent,
-        "court_fee": court_fee,
+        "court_fee": court_fee or None,
+        "valuation_total": valuation_total,
+        # the engine's fee uses the VERIFY slab table; an advocate's own figure doesn't
+        "unverified_marker": (_reg.marker_for("court_fee_ad_valorem_slabs")
+                              if fee_computed else ""),
         "outside_rent_control": outside_rent_control,
+        "vacant_land": bool(_VACANT.search(suit_premises or "")),
         "cause_of_action_date": cause_of_action_date,
         "cause_of_action_place": cause_of_action_place,
-        "jurisdiction_basis": jurisdiction_basis,
+        "jurisdiction_basis": (jurisdiction_basis or "").strip() or _S16_BASIS,
         "has_verification": True,
         "place": place,
     }

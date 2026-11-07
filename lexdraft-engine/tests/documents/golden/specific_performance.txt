@@ -1,4 +1,5 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
+
 IN THE COURT OF THE SUBORDINATE JUDGE, CHENNAI
 O.S. No. ______ of 2024
 
@@ -17,9 +18,9 @@ MOST RESPECTFULLY SHOWETH:
 6. That the plaintiff finally issued a legal notice (legal notice dated 01-12-2023) calling upon the defendant to perform his part of the agreement by executing the sale deed, to which the defendant failed to comply.
 7. That the plaintiff is ready and willing to perform his part of the agreement by paying the balance amount (s.16(c) of the Specific Relief Act, 1963).
 8. That the cause of action arose on 2023-09-01 at Chennai and is still subsisting as the defendant has refused to perform his part of the agreement.
-9. That the suit is within the period of limitation.
-10. That this Hon'ble Court has jurisdiction to entertain this suit as the cause of action arose within its territorial jurisdiction.
-11. That the requisite court fee of Rs. 50000/- has been paid.
+9. That the suit is within time under Article 54 of the Schedule to the Limitation Act, 1963, which allows three years from the date fixed for performance or, where no such date is fixed, from the date the plaintiff has notice that performance is refused; the plaintiff had notice of the refusal on 2023-09-01, and the period expires on 2026-09-01.
+10. That this Hon'ble Court has territorial jurisdiction under Section 16 of the Code of Civil Procedure, 1908, as the suit property is situate within its local limits, and pecuniary jurisdiction, the suit being valued at Rs. 5000000/-.
+11. That the suit is valued under Section 45(a) of the Tamil Nadu Court Fees and Suits Valuation Act, 1955 on the amount of the consideration, Rs. 5000000/-, and court fee of Rs. 50000/- is paid.
 
 PRAYER:
 It is, therefore, most respectfully prayed that this Hon'ble Court may be pleased to:

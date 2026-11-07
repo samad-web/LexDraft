@@ -139,6 +139,22 @@ def check_pecuniary(*, value: int, forum: Forum) -> PecuniaryResult:
     )
 
 
+# The Madras High Court's ordinary original civil jurisdiction begins above
+# Rs. 1 crore; a suit up to that value lies in the City Civil Court, Chennai.
+# VERIFY with the pecuniary-limits table (2026-11-07 senior review).
+HC_ORIGINAL_SIDE_FLOOR = 10_000_000
+
+
+def original_side_forum(forum: Forum, value: int, civil_court: Optional[str],
+                        city: Optional[str]):
+    """(forum, civil_court, city) for the suit: a High Court Original Side suit of
+    Rs. 1 crore or less is drafted for the City Civil Court, Chennai."""
+    on_hc = forum is Forum.HIGH_COURT_OS or "high court" in (civil_court or "").lower()
+    if on_hc and value <= HC_ORIGINAL_SIDE_FLOOR:
+        return Forum.CITY_CIVIL_COURT, "City Civil Court", "Chennai"
+    return forum, civil_court, city
+
+
 def check_territorial(*, bases: List[TerritorialBasis]) -> TerritorialResult:
     """Whether at least one s.20 CPC territorial basis is pleaded. Multiple bases
     are fine; none is a refusal."""

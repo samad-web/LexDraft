@@ -11,6 +11,11 @@ Hard requirements (each refuses, no partial output):
   - The plaintiff's readiness and willingness to perform must be pleaded (a suit
     silent on it is defective — s.16(c) SRA).
   - Cause of action needs a date AND place.
+  - Limitation (Art. 54): three years from the date fixed for performance, or,
+    where none is fixed, from notice of refusal (the cause of action).
+
+The suit is valued on the consideration (s.45(a) TN Court Fees and Suits
+Valuation Act 1955); the fee is computed when not given.
 """
 
 from __future__ import annotations
@@ -19,6 +24,9 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
 
+from ..rules import court_fee as cf
+from ..rules import limitation as lim
+from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "specific_performance.docx"
@@ -64,7 +72,7 @@ def build(
     notice_ref: str,
     cause_of_action_date: Optional[date],
     cause_of_action_place: str,
-    court_fee: int,
+    court_fee: Optional[int],
     filing_date: date,
     place: str,
     # cause-title header (DPC book pp.25-26). Optional.
@@ -80,6 +88,8 @@ def build(
     alternative_refund: bool = False,
     refund_interest_rate: Optional[int] = None,
     injunction_against_alienation: bool = False,
+    # the date fixed by the agreement for completing the sale (Art. 54).
+    performance_date: Optional[date] = None,
 ) -> SpecificPerformanceResult:
     """Assemble the specific-performance suit, or refuse."""
 
@@ -126,6 +136,26 @@ def build(
             fields=("cause_of_action_place",),
         )
 
+    # 5. limitation — Art. 54: from the date fixed, else from notice of refusal.
+    lim_result = lim.compute(accrual_date=performance_date or cause_of_action_date,
+                             period_years=3, proceeding_class=lim.ProceedingClass.SUIT)
+    if not lim.is_within_time(lim_result, filing_date=filing_date):
+        return _refuse(
+            f"suit is barred by limitation: Article 54 (three years) from "
+            f"{performance_date or cause_of_action_date} expired on "
+            f"{lim_result.expiry_date}; filing on {filing_date} is out of time",
+            code="specific_performance_limitation_time_barred",
+            fields=("performance_date", "cause_of_action_date", "filing_date"),
+        )
+
+    # 6. court fee — s.45(a): on the consideration; plus the injunction relief.
+    fee_computed = not court_fee
+    if fee_computed:
+        reliefs = [cf.Relief(kind=cf.ReliefKind.MONEY, value=total_consideration)]
+        if injunction_against_alienation:
+            reliefs.append(cf.Relief(kind=cf.ReliefKind.INJUNCTION_FIXED))
+        court_fee = cf.compute(reliefs=reliefs).fee
+
     context: Dict[str, Any] = {
         "plaintiff": {"name": plaintiff_name, "parentage": plaintiff_parentage,
                       "address": plaintiff_address},
@@ -155,6 +185,10 @@ def build(
         "cause_of_action_date": cause_of_action_date,
         "cause_of_action_place": cause_of_action_place,
         "court_fee": court_fee,
+        "unverified_marker": (_reg.marker_for("court_fee_ad_valorem_slabs",
+                                              "court_fee_fixed_fees") if fee_computed else ""),
+        "performance_date": performance_date,
+        "limitation_expiry": lim_result.expiry_date,
         "has_verification": True,
         "place": place,
     }

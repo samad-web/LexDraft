@@ -19,6 +19,7 @@ plaint and reuse the same rules modules.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
@@ -30,7 +31,8 @@ from ..rules import limitation as lim
 from ..rules.limitation import Acknowledgement
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
-from .plaint import _ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS
+from .plaint import (_ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS, ARTICLE_GAP,
+                     address_lead, interest_basis_text)
 
 TEMPLATE = "summary_suit.docx"
 SPEC = "4.1"
@@ -52,6 +54,17 @@ _INSTRUMENT_BASES = {
     ClaimBasis.PROMISSORY_NOTE,
     ClaimBasis.WRITTEN_CONTRACT,
 }
+# The instrument named in instrument_ref fixes the basis when none is given.
+_BASIS_WORDS = (
+    (ClaimBasis.BILL_OF_EXCHANGE, re.compile(r"\bcheque|bill of exchange|hundi", re.I)),
+    (ClaimBasis.PROMISSORY_NOTE, re.compile(r"promissory|pro-?note", re.I)),
+    (ClaimBasis.WRITTEN_CONTRACT, re.compile(r"agreement|contract|deed", re.I)),
+)
+# Art. 35: a bill of exchange or promissory note payable on demand (a cheque is one).
+_ARTICLE_35 = ("35", "on a bill of exchange or promissory note payable on demand, "
+                     "three years from the date of the bill or note")
+_BASIS_GAP = "[claim basis under Order XXXVII Rule 1(2) to be provided]"
+
 _IN_SCOPE = {
     ClaimBasis.WRITTEN_CONTRACT,
     ClaimBasis.BILL_OF_EXCHANGE,
@@ -105,7 +118,7 @@ def build(
     *,
     plaintiff_name: str,
     defendant_names: Sequence[str],
-    claim_basis: ClaimBasis,
+    claim_basis: Optional[ClaimBasis],
     instrument_ref: str,
     cause_of_action_date: Optional[date],
     cause_of_action_place: str,
@@ -117,8 +130,8 @@ def build(
     interest_rate: float,
     interest_is_contractual: bool,
     interest_document_ref: Optional[str],
-    limitation_article: str,
-    limitation_trigger_date: date,
+    limitation_article: Optional[str],
+    limitation_trigger_date: Optional[date],
     acknowledgements: Sequence[Acknowledgement],
     filing_date: date,
     transaction_narrative: str,
@@ -133,11 +146,17 @@ def build(
     # from its own date — [(amount, from_date), ...] — e.g. two invoices.
     interest_from_date: Optional[date] = None,
     interest_tranches: Optional[Sequence[tuple]] = None,
+    # the date of the bill / note (a cheque's date): Art. 35 runs from it.
+    instrument_date: Optional[date] = None,
 ) -> SummarySuitResult:
     """Assemble the O37 summary suit plaint, or refuse."""
 
+    if claim_basis is None:
+        claim_basis = next((b for b, rx in _BASIS_WORDS if rx.search(instrument_ref or "")),
+                           None)
+
     # 0. O37 scope — the claim must be within Order XXXVII Rule 1(2).
-    if claim_basis not in _IN_SCOPE:
+    if claim_basis is not None and claim_basis not in _IN_SCOPE:
         return _refuse(
             "the claim does not fall within the scope of Order XXXVII (written "
             "contract, bill of exchange, promissory note, or a liquidated demand "
@@ -176,6 +195,7 @@ def build(
 
     # 2. jurisdiction — both limbs. Delegated refusals carry their own coded
     # Refusal; surface it without restating the code.
+    forum, civil_court, city = jur.original_side_forum(forum, claimed_total, civil_court, city)
     pec = jur.check_pecuniary(value=claimed_total, forum=forum)
     if pec.refused:
         return _refuse_delegated(pec.reason, pec.computation, pec.refusal)
@@ -183,7 +203,15 @@ def build(
     if ter.refused:
         return _refuse_delegated(ter.reason, None, ter.refusal)
 
-    # 3. limitation — reuse the module (s.18 restart).
+    # 3. limitation — reuse the module (s.18 restart). On a bill or note payable
+    #    on demand, Art. 35 runs from the date of the instrument.
+    on_instrument = claim_basis in (ClaimBasis.BILL_OF_EXCHANGE, ClaimBasis.PROMISSORY_NOTE)
+    limitation_article = ((limitation_article or "").strip()
+                          or (_ARTICLE_35[0] if on_instrument else ARTICLE_GAP))
+    article_desc = _ARTICLE_35[1] if limitation_article == "35" else None
+    if limitation_trigger_date is None:
+        limitation_trigger_date = ((instrument_date if limitation_article == "35" else None)
+                                   or cause_of_action_date)
     period_years = _ARTICLE_PERIOD_YEARS.get(limitation_article, _DEFAULT_ARTICLE_YEARS)
     lim_result = lim.compute(
         accrual_date=limitation_trigger_date,
@@ -231,29 +259,22 @@ def build(
                             f"claimed {interest_amount}",
             )
 
-    # 5. interest basis (same rule as the ordinary plaint).
-    if interest_is_contractual and interest_document_ref and interest_document_ref.strip():
-        interest_basis = "contractual"
-        interest_fallback_note = None
-    else:
-        interest_basis = "statutory"
-        interest_fallback_note = (
-            "the contractual rate is not supported by a document reference; "
-            "interest is therefore claimed at the statutory rate"
-            if interest_is_contractual else None
-        )
+    # 5. interest basis (same rule as the ordinary plaint: agreed stays agreed).
+    interest_basis = "contractual" if interest_is_contractual else "claimed"
 
     # 6. court fee.
     fee = cf.compute(reliefs=[cf.Relief(kind=cf.ReliefKind.MONEY, value=claimed_total)])
 
     context: Dict[str, Any] = {
         "plaintiff": {"name": plaintiff_name, "parentage": plaintiff_parentage,
-                      "address": plaintiff_address},
+                      "address": plaintiff_address,
+                      "address_lead": address_lead(plaintiff_name)},
         "defendants": [
             {"name": n,
              "address": (defendant_addresses[i]
                          if defendant_addresses and i < len(defendant_addresses)
-                         else None)}
+                         else None),
+             "address_lead": address_lead(n)}
             for i, n in enumerate(defendant_names)
         ],
         "civil_court": civil_court,
@@ -261,7 +282,7 @@ def build(
         "case_year": filing_date.year,
         "plaint_date": filing_date.isoformat(),
         "knowledge_para_last": 11,
-        "claim_basis": claim_basis.value.replace("_", " "),
+        "claim_basis": claim_basis.value.replace("_", " ") if claim_basis else _BASIS_GAP,
         "instrument_ref": instrument_ref,
         # O37 structural averments
         "under_order_37": True,
@@ -283,12 +304,16 @@ def build(
         "claimed_total": claimed_total,
         "interest_rate": interest_rate,
         "interest_basis": interest_basis,
+        "interest_basis_text": interest_basis_text(interest_rate, interest_is_contractual,
+                                                   interest_document_ref),
         "interest_document_ref": interest_document_ref,
-        "interest_fallback_note": interest_fallback_note,
+        "interest_fallback_note": None,
         # limitation
         "limitation_article": limitation_article,
+        "limitation_article_desc": article_desc,
         "limitation_trigger_date": limitation_trigger_date,
-        "limitation_expiry": lim_result.expiry_date,
+        "limitation_expiry": (lim_result.expiry_date
+                              if limitation_article != ARTICLE_GAP else None),
         "limitation_restarted": lim_result.acknowledgement_applied,
         # court fee
         "court_fee": fee.fee,

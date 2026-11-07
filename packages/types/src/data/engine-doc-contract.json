@@ -4025,7 +4025,7 @@
       {
         "key": "lease_expiry_date",
         "kind": "date",
-        "required": true
+        "required": false
       },
       {
         "key": "s106_notice_ref",
@@ -4060,7 +4060,7 @@
       {
         "key": "court_fee",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "cause_of_action_date",
@@ -4075,7 +4075,7 @@
       {
         "key": "jurisdiction_basis",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "filing_date",
@@ -4136,11 +4136,8 @@
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
-      "court_fee",
       "defendant_name",
       "filing_date",
-      "jurisdiction_basis",
-      "lease_expiry_date",
       "lease_ref",
       "place",
       "plaintiff_names",
@@ -6264,6 +6261,7 @@
       "cause_of_action_place",
       "city",
       "civil_court",
+      "claim_for",
       "claimed_total",
       "default_narrative",
       "defendant_addresses",
@@ -6278,6 +6276,7 @@
       "interest_tranches",
       "is_commercial_suit",
       "is_government_defendant",
+      "legal_notice_served_date",
       "limitation_article",
       "limitation_trigger_date",
       "notice_narrative",
@@ -6319,7 +6318,7 @@
       {
         "key": "cause_of_action_date",
         "kind": "date",
-        "required": true
+        "required": false
       },
       {
         "key": "cause_of_action_place",
@@ -6382,12 +6381,27 @@
       {
         "key": "limitation_article",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "limitation_trigger_date",
         "kind": "date",
-        "required": true
+        "required": false
+      },
+      {
+        "enumValues": [
+          "price_of_goods_sold",
+          "money_lent",
+          "other"
+        ],
+        "key": "claim_for",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "legal_notice_served_date",
+        "kind": "date",
+        "required": false
       },
       {
         "itemFields": [
@@ -6517,15 +6531,12 @@
       }
     ],
     "required": [
-      "cause_of_action_date",
       "cause_of_action_place",
       "defendant_names",
       "filing_date",
       "forum",
       "interest_is_contractual",
       "interest_rate",
-      "limitation_article",
-      "limitation_trigger_date",
       "place",
       "plaintiff_name",
       "principal",
@@ -8938,6 +8949,7 @@
       "filing_date",
       "injunction_against_alienation",
       "notice_ref",
+      "performance_date",
       "place",
       "plaintiff_address",
       "plaintiff_name",
@@ -9017,7 +9029,7 @@
       {
         "key": "court_fee",
         "kind": "int",
-        "required": true
+        "required": false
       },
       {
         "key": "filing_date",
@@ -9073,6 +9085,11 @@
         "key": "injunction_against_alienation",
         "kind": "bool",
         "required": false
+      },
+      {
+        "key": "performance_date",
+        "kind": "date",
+        "required": false
       }
     ],
     "required": [
@@ -9081,7 +9098,6 @@
       "balance_amount",
       "cause_of_action_date",
       "cause_of_action_place",
-      "court_fee",
       "defendant_name",
       "earnest_paid",
       "filing_date",
@@ -9559,6 +9575,7 @@
       "defendant_names",
       "filing_date",
       "forum",
+      "instrument_date",
       "instrument_ref",
       "interest_amount",
       "interest_document_ref",
@@ -9597,7 +9614,7 @@
         ],
         "key": "claim_basis",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "instrument_ref",
@@ -9670,12 +9687,17 @@
       {
         "key": "limitation_article",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "limitation_trigger_date",
         "kind": "date",
-        "required": true
+        "required": false
+      },
+      {
+        "key": "instrument_date",
+        "kind": "date",
+        "required": false
       },
       {
         "itemFields": [
@@ -9772,15 +9794,12 @@
     "required": [
       "cause_of_action_date",
       "cause_of_action_place",
-      "claim_basis",
       "defendant_names",
       "filing_date",
       "forum",
       "instrument_ref",
       "interest_is_contractual",
       "interest_rate",
-      "limitation_article",
-      "limitation_trigger_date",
       "place",
       "plaintiff_name",
       "principal",

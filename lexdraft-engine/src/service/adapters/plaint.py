@@ -73,7 +73,9 @@ ADAPTER = Adapter(
         FieldSpec("defendant_names", "string_list"),
         FieldSpec("variant", "enum",
                   enum_values=tuple(v.value for v in Variant), to_engine=_variant),
-        FieldSpec("cause_of_action_date", "date"),
+        # invoices (interest_tranches) fix the cause of action when none is given
+        FieldSpec("cause_of_action_date", "date", required=False, default=None,
+                  requires_when=lambda p: not p.get("interest_tranches")),
         FieldSpec("cause_of_action_place", "string"),
         FieldSpec("forum", "enum",
                   enum_values=tuple(f.value for f in jur.Forum), to_engine=_forum),
@@ -84,8 +86,12 @@ ADAPTER = Adapter(
         FieldSpec("interest_rate", "int"),   # percent; int is fine for the form
         FieldSpec("interest_is_contractual", "bool"),
         FieldSpec("interest_document_ref", "string", required=False, default=None),
-        FieldSpec("limitation_article", "string"),
-        FieldSpec("limitation_trigger_date", "date"),
+        # derived from claim_for / the cause of action when not given
+        FieldSpec("limitation_article", "string", required=False, default=None),
+        FieldSpec("limitation_trigger_date", "date", required=False, default=None),
+        FieldSpec("claim_for", "enum", required=False, default=None,
+                  enum_values=tuple(pipeline.CLAIM_ARTICLES) + ("other",)),
+        FieldSpec("legal_notice_served_date", "date", required=False, default=None),
         ListFieldSpec("acknowledgements", _ACK_ITEM, _ack, required=False),
         FieldSpec("filing_date", "date"),
         FieldSpec("is_government_defendant", "bool", required=False, default=False),

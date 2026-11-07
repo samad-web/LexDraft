@@ -7,8 +7,8 @@ reimplemented). Enforces:
   - Limitation: article + trigger + computation; s.18 acknowledgements restart
     (delegated to the limitation module).
   - Arithmetic recomputed: principal + interest == claimed total, else refuse.
-  - Contractual interest rate needs a document reference; without one, fall back
-    to statutory and say so in the pleading.
+  - Contractual interest is pleaded as agreed; a missing document reference is a
+    visible gap (2026-11-07: no longer relabelled "statutory").
   - Government defendant -> s.80 CPC notice averment mandatory.
   - Commercial suit -> s.12A mediation certificate/exemption + statement of truth.
   - LLM slots at paragraphs 3, 5, 6, 9 only.
@@ -183,20 +183,22 @@ class TestInterest:
         assert result.context["interest_basis"] == "contractual"
         assert result.context["interest_document_ref"]
 
-    def test_contractual_without_document_ref_falls_back_to_statutory(self):
-        """Contractual rate claimed but no document reference -> fall back to
-        statutory and SAY SO in the pleading (does not refuse)."""
+    # 2026-11-07 (senior review): this used to pin a fall-back to "statutory",
+    # which pleaded an agreed 18% as statutory interest — self-contradictory. The
+    # agreed rate is now pleaded as agreed with the missing document as a gap.
+    def test_contractual_without_document_ref_keeps_agreed_rate_with_gap(self):
         result = pl.build(**_base(interest_is_contractual=True,
                                   interest_document_ref=None))
         assert result.refused is False
-        assert result.context["interest_basis"] == "statutory"
-        assert result.context["interest_fallback_note"]  # explains the fallback
+        assert result.context["interest_basis"] == "contractual"
+        assert pl.RATE_DOC_GAP in result.context["interest_basis_text"]
 
-    def test_statutory_interest_ok(self):
+    def test_non_contractual_interest_is_not_called_statutory(self):
         result = pl.build(**_base(interest_is_contractual=False,
                                   interest_document_ref=None))
         assert result.refused is False
-        assert result.context["interest_basis"] == "statutory"
+        assert result.context["interest_basis"] == "claimed"
+        assert result.context["interest_basis_text"] == "at 18% per annum"
 
 
 # --------------------------------------------------------------------------

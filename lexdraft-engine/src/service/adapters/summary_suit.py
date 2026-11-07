@@ -43,7 +43,9 @@ ADAPTER = Adapter(
     fields=(
         FieldSpec('plaintiff_name', 'string'),
         FieldSpec('defendant_names', 'string_list'),
-        FieldSpec('claim_basis', 'enum', enum_values=tuple(c.value for c in ClaimBasis), to_engine=ClaimBasis),
+        # derived from the instrument named in instrument_ref when not given
+        FieldSpec('claim_basis', 'enum', enum_values=tuple(c.value for c in ClaimBasis),
+                  to_engine=ClaimBasis, required=False, default=None),
         FieldSpec('instrument_ref', 'string'),
         FieldSpec('cause_of_action_date', 'date'),
         FieldSpec('cause_of_action_place', 'string'),
@@ -55,8 +57,10 @@ ADAPTER = Adapter(
         FieldSpec('interest_rate', 'int'),
         FieldSpec('interest_is_contractual', 'bool'),
         FieldSpec('interest_document_ref', 'string', required=False, default=None),
-        FieldSpec('limitation_article', 'string'),
-        FieldSpec('limitation_trigger_date', 'date'),
+        # Art. 35 from instrument_date on a bill / note; else a visible gap
+        FieldSpec('limitation_article', 'string', required=False, default=None),
+        FieldSpec('limitation_trigger_date', 'date', required=False, default=None),
+        FieldSpec('instrument_date', 'date', required=False, default=None),
         ListFieldSpec('acknowledgements', _ACK_ITEM, _ack, required=False),
         FieldSpec('filing_date', 'date'),
         FieldSpec('transaction_narrative', 'string', required=False, default=''),

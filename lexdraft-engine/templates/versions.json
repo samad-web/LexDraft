@@ -256,6 +256,12 @@
         "effective_from": "2026-11-04",
         "spec": "format-specs-p0.md#4.1",
         "note": "round-6 review: interest/total computed and the working printed; s.34 CPC interest prayer"
+      },
+      {
+        "version": 7,
+        "effective_from": "2026-11-07",
+        "spec": "format-specs-p0.md#4.1",
+        "note": "2026-11-07 senior review: firms 'having its place of business at'; agreed interest never 'statutory'; cause of action from invoice/notice dates; Article 14 from delivery"
       }
     ],
     "summary_suit.docx": [
@@ -287,6 +293,12 @@
         "effective_from": "2026-11-04",
         "spec": "format-specs-p0.md#4.1-O37",
         "note": "round-6 review: interest/total computed and the working printed"
+      },
+      {
+        "version": 6,
+        "effective_from": "2026-11-07",
+        "spec": "format-specs-p0.md#4.1-O37",
+        "note": "2026-11-07 senior review: claim basis from the instrument; Article 35 from the bill/cheque date; agreed interest never 'statutory'; s.34 CPC interest prayer; under Rs. 1 crore drafted for the City Civil Court"
       }
     ],
     "writ_petition.docx": [
@@ -645,6 +657,12 @@
         "effective_from": "2026-11-04",
         "spec": "tn-nomenclature",
         "note": "round-6 review: arrears of rent and damages for use and occupation computed; lettered prayers incl. future mesne profits (O.XX R.12)"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-07",
+        "spec": "tn-nomenclature",
+        "note": "2026-11-07 senior review: s.50 TN CF & SV Act valuation with arrears and damages, fee computed; vacant site outside the TN 2017 Tenancy Act; s.16 CPC jurisdiction; no invented lease expiry"
       }
     ],
     "indigent_application.docx": [
@@ -719,6 +737,12 @@
         "effective_from": "2026-11-04",
         "spec": "tn-nomenclature",
         "note": "round-6 review: optional prayers: alternative refund of earnest money with interest (s.22(1)(b) SRA); injunction against alienation"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-07",
+        "spec": "tn-nomenclature",
+        "note": "2026-11-07 senior review: Article 54 limitation; s.45(a) valuation on the consideration, fee computed; s.16 CPC jurisdiction; interest on the alternative refund"
       }
     ],
     "written_statement.docx": [
