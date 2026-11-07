@@ -94,6 +94,9 @@ def build_first_motion(
     party_a_address: Optional[str] = None,
     party_b_age: Optional[int] = None,
     party_b_address: Optional[str] = None,
+    # True = the advocate confirms no other proceeding between the parties is
+    # pending; otherwise the averment carries a confirm-before-filing marker.
+    no_other_proceedings: Optional[bool] = None,
 ) -> MotionResult:
     """Assemble the first-motion petition, or refuse."""
 
@@ -154,6 +157,7 @@ def build_first_motion(
             "property": settlement.property,
         },
         "joint_affidavit": joint_affidavit,
+        "no_other_proceedings": no_other_proceedings,
         "place": place,
     }
     return MotionResult(refused=False, context=context)
@@ -175,6 +179,10 @@ def build_second_motion(
     # cause-title header (DPC book). Optional.
     family_court: Optional[str] = None,
     city: Optional[str] = None,
+    # the number the first-motion petition already bears (H.M.O.P. / F.C.O.P.);
+    # the second motion is moved in that same proceeding.
+    first_motion_case_no: Optional[str] = None,
+    no_other_proceedings: Optional[bool] = None,
 ) -> MotionResult:
     """Assemble the second-motion petition, or refuse."""
 
@@ -229,6 +237,8 @@ def build_second_motion(
         "second_motion_date": second_motion_date,
         "settlement_implemented": settlement_implemented,
         "waiver_attached": waiver_attached,
+        "first_motion_case_no": (first_motion_case_no or "").strip() or None,
+        "no_other_proceedings": no_other_proceedings,
         "place": place,
     }
     return MotionResult(refused=False, context=context)

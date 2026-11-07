@@ -52,6 +52,11 @@ ADAPTER = Adapter(
         FieldSpec("grounds_narrative", "string", required=False, default=""),
         FieldSpec("family_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
+        FieldSpec("petitioner_age", "int", required=False, default=None),
+        FieldSpec("petitioner_address", "string", required=False, default=None),
+        FieldSpec("respondent_age", "int", required=False, default=None),
+        FieldSpec("respondent_address", "string", required=False, default=None),
+        FieldSpec("matrimonial_home", "string", required=False, default=None),
     ),
     slots=("grounds_narrative",),
 )

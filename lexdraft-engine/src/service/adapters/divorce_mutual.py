@@ -47,6 +47,7 @@ register(Adapter(
         FieldSpec("party_a_address", "string", required=False, default=None),
         FieldSpec("party_b_age", "int", required=False, default=None),
         FieldSpec("party_b_address", "string", required=False, default=None),
+        FieldSpec("no_other_proceedings", "bool", required=False, default=None),
     ),
     slots=(),
 ))
@@ -66,6 +67,8 @@ register(Adapter(
         FieldSpec("place", "string"),
         FieldSpec("family_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
+        FieldSpec("first_motion_case_no", "string", required=False, default=None),
+        FieldSpec("no_other_proceedings", "bool", required=False, default=None),
     ),
     slots=(),
 ))

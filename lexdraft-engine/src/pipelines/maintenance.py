@@ -108,6 +108,16 @@ def build(
     magistrate_court: Optional[str] = None,
     city: Optional[str] = None,
     filing_date: Optional[date] = None,
+    # a wife's petition joined by her minor child (petitioner No. 2), each with
+    # her / its own monthly quantum and its own prayer. Optional.
+    child_name: Optional[str] = None,
+    child_quantum: Optional[int] = None,
+    # parties' particulars and the marriage. Optional.
+    petitioner_age: Optional[int] = None,
+    petitioner_address: Optional[str] = None,
+    respondent_address: Optional[str] = None,
+    marriage_date: Optional[date] = None,
+    marriage_place: Optional[str] = None,
 ) -> MaintenanceResult:
     """Assemble the maintenance petition, or refuse."""
 
@@ -157,7 +167,8 @@ def build(
             )
 
     # 4. adult child -> only if unable due to abnormality.
-    if relationship is Relationship.CHILD and child_age is not None:
+    is_child_claim = relationship is Relationship.CHILD or bool(child_name and child_name.strip())
+    if is_child_claim and child_age is not None:
         if child_age >= _ADULT_AGE and not child_unable_due_to_abnormality:
             return _refuse(
                 f"a child aged {child_age} (>= {_ADULT_AGE}) is maintainable only if "
@@ -182,9 +193,24 @@ def build(
             fields=("quantum_basis",),
         )
 
+    child = None
+    if child_name and child_name.strip():
+        if not child_quantum or child_quantum <= 0:
+            return _refuse(
+                "the minor child is joined as a petitioner; a positive monthly "
+                "quantum must be sought for the child as well",
+                code="maintenance_child_quantum_non_positive",
+                fields=("child_quantum",),
+            )
+        child = {"name": child_name.strip(), "quantum": child_quantum}
+
     context: Dict[str, Any] = {
-        "petitioner": {"name": petitioner_name},
-        "respondent": {"name": respondent_name},
+        "petitioner": {"name": petitioner_name, "age": petitioner_age,
+                       "address": petitioner_address},
+        "respondent": {"name": respondent_name, "address": respondent_address},
+        "child": child,
+        "marriage_date": marriage_date,
+        "marriage_place": marriage_place,
         # cause-title header fields (render only when present).
         "magistrate_court": magistrate_court,
         "city": city,

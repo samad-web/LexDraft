@@ -16,6 +16,12 @@ _RELATIVE_ITEM = (
 )
 
 
+_ASSET_ITEM = (
+    FieldSpec("description", "string"),
+    FieldSpec("value", "int"),
+)
+
+
 def _relative(kw: Dict[str, Any]) -> Relative:
     return Relative(**kw)
 
@@ -37,7 +43,8 @@ ADAPTER = Adapter(
         ListFieldSpec("relatives", _RELATIVE_ITEM, _relative, min_items=1),
         FieldSpec("petitioner_is_named_executor", "bool"),
         FieldSpec("petitioner_standing", "string", required=False, default=""),
-        FieldSpec("assets_schedule_ref", "string"),
+        # optional now that Schedule-A itself is drawn from `assets`.
+        FieldSpec("assets_schedule_ref", "string", required=False, default=""),
         FieldSpec("undertakes_further_court_fee", "bool"),
         FieldSpec("no_impediment", "bool"),
         FieldSpec("jurisdiction_basis", "string"),
@@ -49,6 +56,9 @@ ADAPTER = Adapter(
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("deceased_gender", "enum", enum_values=("male", "female"),
                   required=False, default=None),
+        ListFieldSpec("assets", _ASSET_ITEM, dict, required=False),
+        FieldSpec("attesting_witnesses", "string_list", required=False, default=None),
+        FieldSpec("deposing_witness", "string", required=False, default=None),
     ),
     slots=("bequest_narrative",),
 )

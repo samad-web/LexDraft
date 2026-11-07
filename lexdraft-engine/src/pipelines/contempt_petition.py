@@ -19,6 +19,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any, Dict, List, Optional, Sequence
@@ -53,6 +54,22 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
                         computation=computation, pipeline="contempt_petition",
                         spec=SPEC, fields=fields, remedy_hint=remedy_hint),
     )
+
+
+_HONORIFIC = r"(?:(?:mr|mrs|ms|smt|thiru|tmt|dr)\.?\s+)?"
+
+
+def _address_only(address: str, name: str) -> str:
+    """r10: "Mr. V. Ramasamy of Ganapathy, Coimbatore" came in as the address and
+    printed "residing at Mr. V. Ramasamy, Ganapathy". Drop a leading copy of the
+    party's own name (and a joining "of" / comma)."""
+    bare = re.sub("^" + _HONORIFIC, "", name.strip(), flags=re.I)
+    if not bare:
+        return address
+    words = r"[\s.]*".join(re.escape(w) for w in re.split(r"[\s.]+", bare) if w)
+    m = re.match(rf"\s*{_HONORIFIC}{words}\.?\s*(?:,|\bof\b|\bresiding at\b)?\s*",
+                 address, re.I)
+    return address[m.end():] if m and address[m.end():].strip() else address
 
 
 def build(
@@ -126,8 +143,9 @@ def build(
 
     context: Dict[str, Any] = {
         "petitioners": list(petitioner_names),
-        "petitioner_addresses": list(petitioner_addresses)
-                                if petitioner_addresses else [],
+        "petitioner_addresses": [
+            _address_only(a, petitioner_names[i] if i < len(petitioner_names) else "")
+            for i, a in enumerate(petitioner_addresses or [])],
         "respondents": list(respondents),
         # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
         "high_court": high_court or "Judicature at Madras",

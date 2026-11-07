@@ -162,8 +162,13 @@ class TestAbuseIncidents:
 
 class TestLlmSlot:
     def test_incidents_narrative_named_when_empty(self):
-        result = dv.build(**_base(incidents_narrative=""))
+        # 2026-11-07: the marker stands only when no incident is listed either (QA r10:
+        # a stray "[to be drafted]" survived beside the listed incidents).
+        result = dv.build(**_base(incidents_narrative="", incidents=[]))
         assert result.context["incidents_slot"] == "[to be drafted]"
+        result = dv.build(**_base(incidents_narrative=""))
+        assert result.context["incidents_slot"] == ("" if result.context["incidents"]
+                                                    else "[to be drafted]")
 
     def test_prewritten_narrative_accepted(self):
         result = dv.build(**_base(incidents_narrative="On 01-03-2024 ..."))

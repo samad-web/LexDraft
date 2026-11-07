@@ -24,6 +24,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -85,6 +86,9 @@ def build(
     grant_court: Optional[str] = None,
     city: Optional[str] = None,
     respondent_name: Optional[str] = None,
+    # the other heirs arrayed as respondents: dicts of relation / name / address /
+    # consented (a missing name or address renders as a marked gap). Optional.
+    respondents: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> SuccessionCertificateResult:
     """Assemble the s.372 succession-certificate petition, or refuse."""
 
@@ -133,6 +137,24 @@ def build(
         )
 
     total_value = sum(s.value for s in securities)
+
+    # The personal law: a Hindu deceased is pleaded with the Act and the heirs'
+    # Class I status; an unstated law stays a marked gap (never assumed).
+    law = (law_of_succession or "").strip()
+    if not law:
+        law_text = ("[the personal law of the deceased to be provided — if a Hindu: the "
+                    "Hindu Succession Act, 1956, the petitioner and the respondents being "
+                    "his heirs in Class I of the Schedule to that Act]")
+    elif re.fullmatch(r"(a\s+)?hindu\.?", law, re.I) or "hindu succession act" in law.lower():
+        law_text = ("the Hindu Succession Act, 1956, he being a Hindu; the petitioner and "
+                    "the respondents are his heirs in Class I of the Schedule to that Act")
+    else:
+        law_text = law
+    heirs = [{"relation": (r.get("relation") or "").strip(),
+              "name": (r.get("name") or "").strip(),
+              "address": (r.get("address") or "").strip(),
+              "consented": bool(r.get("consented"))}
+             for r in (respondents or []) if (r.get("relation") or r.get("name"))]
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
                        "address": petitioner_address},
@@ -144,7 +166,8 @@ def build(
         "deceased_name": deceased_name,
         "death_date": death_date,
         "deceased_residence": deceased_residence,
-        "law_of_succession": law_of_succession,
+        "law_of_succession": law_text,
+        "heirs": heirs,
         "diligent_search_no_will": diligent_search_no_will,
         "next_of_kin": next_of_kin,
         "petitioner_relation": petitioner_relation,

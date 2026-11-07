@@ -22,6 +22,7 @@ LLM slot at paragraph 2 (accident narrative) only.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from fractions import Fraction
 from datetime import date
@@ -85,6 +86,31 @@ def _refuse(
     )
 
 
+_MINOR = re.compile(r"\bminor\b|\((\d{1,2})\)")
+
+
+def _with_next_friend(claimants: Sequence[str]) -> List[str]:
+    """A minor claimant sues by a next friend (O.XXXII CPC): name the mother when
+    the 1st claimant is the deceased's wife and the minor is the deceased's child."""
+    out = []
+    first = claimants[0].lower() if claimants else ""
+    for i, c in enumerate(claimants):
+        m = _MINOR.search(c)
+        minor = m and (m.group(1) is None or int(m.group(1)) < 18)
+        if not minor or i == 0 or "next friend" in c.lower() or "guardian" in c.lower():
+            out.append(c)
+            continue
+        low = c.lower()
+        child = re.search(r"\b(son|daughter)\b", low)
+        if child and re.search(r"\bwife\b", first):
+            pron = "his" if child.group(1) == "son" else "her"
+            out.append(f"{c}, minor, represented by {pron} mother and next friend, "
+                       f"the 1st petitioner")
+        else:
+            out.append(f"{c}, minor, represented by [guardian / next friend to be named]")
+    return out
+
+
 def build(
     *,
     claim_kind: ClaimKind,
@@ -114,6 +140,8 @@ def build(
     # cause-title header (DPC book). Optional.
     tribunal_place: Optional[str] = None,
     filing_date: Optional[date] = None,
+    # where the accident happened — the s.166(2) MV Act jurisdiction fact. Optional.
+    accident_place: Optional[str] = None,
 ) -> MactResult:
     """Assemble the MACT claim petition, or refuse."""
 
@@ -131,6 +159,11 @@ def build(
         d = cm.compute_death(
             age=victim_age, annual_income=victim_annual_income,
             dependants=dependants, employment=employment,
+            # heads as revised on the date of filing (accident date if undated).
+            as_of=filing_date or accident_date,
+            # shortcut: every claimant is counted for consortium (spouse, child,
+            # parent per Magma); a sibling claimant would need excluding by hand.
+            consortium_claimants=max(1, len(claimants)),
         )
         computation: Dict[str, Any] = {
             "kind": "death",
@@ -200,7 +233,8 @@ def build(
 
     context: Dict[str, Any] = {
         "claim_kind": claim_kind.value,
-        "claimants": list(claimants),
+        "claimants": _with_next_friend(claimants),
+        "accident_place": (accident_place or "").strip() or None,
         # cause-title header fields (render only when present).
         "tribunal_place": tribunal_place,
         "petition_year": filing_date.year if filing_date else None,

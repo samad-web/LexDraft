@@ -266,5 +266,12 @@ class TestJurisdiction:
 
 class TestLlmSlot:
     def test_grounds_narrative_named_when_empty(self):
+        # 2026-11-07: a cruelty petition WITH dated instances no longer leaves an
+        # empty "[to be drafted]" para (QA: it survived into the filed draft); it
+        # opens with the s.13(1)(ia) averment. Other grounds keep the slot marker.
         result = dc.build(**_base(grounds_narrative=""))
+        assert "treated the petitioner with cruelty" in result.context["grounds_slot"]
+        result = dc.build(**_base(grounds_narrative="", ground=dc.Ground.ADULTERY,
+                                  adultery_instance="on 01.01.2024 at Chennai",
+                                  co_respondent_joined=True))
         assert result.context["grounds_slot"] == "[to be drafted]"

@@ -25,8 +25,11 @@ from src.rules import compensation_multiplier as cm
 
 
 def _death_total():
+    # 2026-11-07: the pipeline now enhances the heads to the filing (here accident)
+    # date per Pranay Sethi and gives consortium to each of the 3 claimants (Magma).
     r = cm.compute_death(age=35, annual_income=300000, dependants=3,
-                         employment=cm.Employment.PERMANENT_SALARIED)
+                         employment=cm.Employment.PERMANENT_SALARIED,
+                         as_of=date(2024, 3, 1), consortium_claimants=3)
     return r.total
 
 
