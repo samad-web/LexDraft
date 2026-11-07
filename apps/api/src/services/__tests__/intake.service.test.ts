@@ -970,6 +970,24 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
   });
 });
 
+describe('intake — a matter opens only for its own firm (audit 2026-11-07)', () => {
+  it('another firm, or another solo user, cannot load, edit or draft it by id', async () => {
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    const state = await intakeService.start(DOC, 'A cheque bounced.', CTX);
+    const other = { firmId: 'firm2', userId: 'user2' };
+    await expect(intakeService.load(state.matterId, DOC, other)).rejects.toThrow(/no intake/);
+    await expect(intakeService.edit(state.matterId, DOC, { place: 'Chennai' }, other)).rejects.toThrow(/no intake/);
+    await expect(intakeService.draftNow(state.matterId, DOC, other)).rejects.toThrow(/no intake/);
+    await expect(intakeService.load(state.matterId, DOC, { firmId: null, userId: 'user2' })).rejects.toThrow(/no intake/);
+    // ...nor add a version to it (POST /engine/ensure-matter writes through revise).
+    await expect(factSheetService.revise(state.matterId, { place: 'X' }, other)).rejects.toThrow(/no fact sheet/);
+    // A teammate in the same firm still can.
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    await expect(intakeService.load(state.matterId, DOC, { firmId: 'firm1', userId: 'user3' })).resolves.toBeTruthy();
+  });
+});
+
 describe('intake loop — auto-detect the format (startAuto)', () => {
   it('classifies the opening brief and runs intake for the detected label', async () => {
     classifyQueue.push({ label: 'Notice u/s 138 NI Act', confidence: 'high' });

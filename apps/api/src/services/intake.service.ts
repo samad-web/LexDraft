@@ -35,7 +35,7 @@ import type {
 } from '@lexdraft/types';
 import { logger } from '../logger';
 import { withRetry } from '../lib/retry';
-import { factSheetService, type Ctx } from './factsheet.service';
+import { factSheetService, ownsSheet, type Ctx, type FactSheet } from './factsheet.service';
 import {
   engineClient,
   EngineValidationError,
@@ -731,6 +731,12 @@ async function resolveDoc(
   return null;
 }
 
+/** Every intake read by matter id goes through this (audit 2026-11-07). */
+async function ownedSheet(matterId: string, ctx: Ctx): Promise<FactSheet | null> {
+  const sheet = await factSheetService.getCurrent(matterId);
+  return sheet && ownsSheet(sheet, ctx) ? sheet : null;
+}
+
 interface RunCtx extends Ctx {
   provider?: 'xai' | 'anthropic';
   /** Output language for the RENDERED document ('EN' default, 'TA' → Tamil).
@@ -1110,7 +1116,7 @@ export const intakeService = {
     const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
-    const current = await factSheetService.getCurrent(matterId);
+    const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
     // If the last read FAILED and nothing is on record, a "Draft now" would fill
@@ -1150,7 +1156,7 @@ export const intakeService = {
     const specs = fieldSpecs(doc.sections);
     const allowed = new Set(specs.map((f) => f.key));
 
-    const current = await factSheetService.getCurrent(matterId);
+    const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
 
@@ -1194,7 +1200,7 @@ export const intakeService = {
     const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
-    const current = await factSheetService.getCurrent(matterId);
+    const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
     // Passive reload: re-check the engine outcome and re-render, but make NO
@@ -1216,7 +1222,7 @@ export const intakeService = {
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
-    const current = await factSheetService.getCurrent(matterId);
+    const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
 
@@ -1431,7 +1437,7 @@ export const intakeService = {
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
     const specs = fieldSpecs(doc.sections);
 
-    const current = await factSheetService.getCurrent(matterId);
+    const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
 

@@ -259,6 +259,18 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+/** Secrets still set to the repo's "change-me-..." placeholders. The tracked
+ *  .env files are public on GitHub, so a token signed with one can be forged
+ *  (audit 2026-11-07: prod once ran on the placeholder JWT secret). */
+export function placeholderSecrets(e: { JWT_SECRET?: string; STORAGE_SIGNING_SECRET?: string }): string[] {
+  return (['JWT_SECRET', 'STORAGE_SIGNING_SECRET'] as const).filter((k) => /^change[-_ ]?me/i.test(e[k] ?? ''));
+}
+if (parsed.data!.NODE_ENV === 'production' && placeholderSecrets(parsed.data!).length) {
+  // eslint-disable-next-line no-console
+  console.error(`Refusing to start: ${placeholderSecrets(parsed.data!).join(', ')} still the repo placeholder; set a real random secret.`);
+  process.exit(1);
+}
+
 // FIELD_ENCRYPTION_KEY must decode to exactly 32 bytes (AES-256) when set -
 // a truncated/garbled key would otherwise fail at the first encrypt/decrypt
 // call deep inside a request instead of at boot.

@@ -19,6 +19,7 @@
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/client';
 import { logger } from '../logger';
+import { NotFoundError } from '../lib/errors';
 
 export interface FactSheet {
   /** The matter identity — stable across every version (the engine's matter_id). */
@@ -71,6 +72,13 @@ export interface Ctx {
   userId: string;
 }
 
+/** A matter is the caller's when it is their firm's, or - for a user with no firm -
+ *  one they created. A matter id alone must never open or extend another firm's
+ *  facts (audit 2026-11-07). */
+export function ownsSheet(sheet: Pick<FactSheet, 'firmId' | 'createdBy'>, ctx: Ctx): boolean {
+  return sheet.firmId ? sheet.firmId === ctx.firmId : sheet.createdBy === ctx.userId;
+}
+
 export const factSheetService = {
   /** First version of a NEW matter. Returns version 1. */
   async create(facts: Record<string, unknown>, ctx: Ctx): Promise<FactSheet> {
@@ -110,8 +118,8 @@ export const factSheetService = {
     const sql = db();
     if (!sql) {
       const chain = mem.get(matterId);
-      if (!chain || chain.length === 0) {
-        throw new Error(`no fact sheet for matter ${matterId}`);
+      if (!chain || chain.length === 0 || !ownsSheet(chain[0]!, ctx)) {
+        throw new NotFoundError(`no fact sheet for matter ${matterId}`);
       }
       const next: FactSheet = {
         matterId,
@@ -127,7 +135,7 @@ export const factSheetService = {
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const cur = await this.getCurrent(matterId);
-      if (!cur) throw new Error(`no fact sheet for matter ${matterId}`);
+      if (!cur || !ownsSheet(cur, ctx)) throw new NotFoundError(`no fact sheet for matter ${matterId}`);
       const nextVersion = cur.version + 1;
       try {
         const rows = await sql<Row[]>`
