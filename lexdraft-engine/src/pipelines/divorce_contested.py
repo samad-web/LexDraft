@@ -19,6 +19,7 @@ LLM slot at paragraph 5 (grounds narrative).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -40,6 +41,20 @@ class Ground(Enum):
     DESERTION = "desertion"
     CONVERSION = "conversion"
     UNSOUND_MIND = "unsound_mind"
+
+
+# The operative clause of s.13(1) HMA for each ground. Pleaded by clause, never a
+# bare "s.13(1)": the composer writes the clause, which must be in the skeleton.
+_GROUND_CLAUSE = {
+    Ground.ADULTERY: "13(1)(i)",
+    Ground.CRUELTY: "13(1)(ia)",
+    Ground.DESERTION: "13(1)(ib)",
+    Ground.CONVERSION: "13(1)(ii)",
+    Ground.UNSOUND_MIND: "13(1)(iii)",
+}
+
+# "No children" / "nil" in the children list is the brief saying there are none.
+_NO_CHILDREN = re.compile(r"^\s*(no|nil|none)\b", re.I)
 
 
 class Section19Basis(Enum):
@@ -114,6 +129,12 @@ def build(
     # cause-title header (DPC book). Optional.
     family_court: Optional[str] = None,
     city: Optional[str] = None,
+    # the parties' particulars and where they lived together. Optional.
+    petitioner_age: Optional[int] = None,
+    petitioner_address: Optional[str] = None,
+    respondent_age: Optional[int] = None,
+    respondent_address: Optional[str] = None,
+    matrimonial_home: Optional[str] = None,
 ) -> DivorceResult:
     """Assemble the contested-divorce petition, or refuse."""
 
@@ -185,6 +206,9 @@ def build(
                        fields=("no_condonation",))
 
     # 4. children -> custody AND maintenance position addressed.
+    no_children_stated = bool(children) and all(_NO_CHILDREN.match(c) for c in children)
+    if no_children_stated:
+        children = []
     if children:
         if not (custody_position and custody_position.strip()):
             return _refuse(
@@ -206,9 +230,26 @@ def build(
     if separation_since is not None:
         separation_years = relativedelta(filing_date, separation_since).years
 
+    # Cruelty with dated instances opens the ground with the statutory averment
+    # (s.13(1)(ia)) rather than an empty "[to be drafted]" slot.
+    if grounds_narrative.strip():
+        grounds_slot = grounds_narrative
+    elif ground is Ground.CRUELTY and cruelty_instances:
+        grounds_slot = ("After the solemnisation of the marriage, the respondent has "
+                        "treated the petitioner with cruelty, the particulars of which "
+                        "are set out below.")
+    else:
+        grounds_slot = _LLM_SLOT_PLACEHOLDER
+
     context: Dict[str, Any] = {
-        "petitioner": {"name": petitioner_name},
-        "respondent": {"name": respondent_name},
+        "petitioner": {"name": petitioner_name, "age": petitioner_age,
+                       "address": petitioner_address},
+        "respondent": {"name": respondent_name, "age": respondent_age,
+                       "address": respondent_address},
+        "matrimonial_home": matrimonial_home,
+        "no_children_stated": no_children_stated,
+        "ground_clause": _GROUND_CLAUSE[ground],
+        "ground_label": ground.value.replace("_", " "),
         # cause-title header fields (render only when present).
         "family_court": family_court,
         "city": city,
@@ -230,8 +271,7 @@ def build(
         "custody_position": custody_position,
         "maintenance_position": maintenance_position,
         "jurisdiction_basis": jurisdiction_basis.value,
-        "grounds_slot": grounds_narrative if grounds_narrative.strip()
-                        else _LLM_SLOT_PLACEHOLDER,
+        "grounds_slot": grounds_slot,
         "place": place,
     }
     return DivorceResult(refused=False, context=context)
