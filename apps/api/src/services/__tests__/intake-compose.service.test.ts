@@ -571,6 +571,15 @@ describe('composeNoticeFor — reply-mode rejection', () => {
 });
 
 describe('gatherAuthorities — subject Acts', () => {
+  it('test_s138_reply_money_lenders_act: offers the TN Money-Lenders Act only when the brief raises no licence (r12)', async () => {
+    const { gatherAuthorities } = await import('../../lib/compose-authorities');
+    const cite = 'the Tamil Nadu Money-Lenders Act, 1957';
+    const withPoint = await gatherAuthorities({ docType: 's138_reply', docLabel: 'Reply', facts: {}, account: 'Kannappan has no money-lending licence' });
+    expect(withPoint.map((a) => a.cite)).toContain(cite);
+    const without = await gatherAuthorities({ docType: 's138_reply', docLabel: 'Reply', facts: {}, account: 'he never borrowed any money' });
+    expect(without.map((a) => a.cite)).not.toContain(cite);
+  });
+
   it('test_civil_revision_expert_opinion_basis: offers s.39 BSA when a handwriting-expert reference was refused (r12)', async () => {
     const { gatherAuthorities } = await import('../../lib/compose-authorities');
     const crp = await gatherAuthorities({ docType: 'civil_revision', docLabel: 'CRP', facts: {}, account: 'application to send the disputed signature to a handwriting expert was dismissed' });
