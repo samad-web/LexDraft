@@ -130,8 +130,9 @@ INDIGENT = {
 def test_indigent_application_respondents_are_r1_r2_name_gaps_not_a_description():
     text = _text("indigent_application", INDIGENT)
     head = text.split("PETITION FILED UNDER")[0]
-    assert ("1. [name of respondent to be provided], brother of the petitioner's late husband\n"
-            "2. [name of respondent to be provided], brother of the petitioner's late husband") in head
+    # r13: each brother also carries a parentage gap, as a cause title needs
+    assert ("1. [name of respondent to be provided], son of [father's name to be provided], brother of the petitioner's late husband\n"
+            "2. [name of respondent to be provided], son of [father's name to be provided], brother of the petitioner's late husband") in head
     assert "Her late husband's two brothers" not in text
 
 
@@ -174,12 +175,13 @@ def test_hrcp_eviction_heading_names_the_city_once():
 
 
 def test_hrcp_eviction_clause_g_verify_note_not_inside_the_ground():
+    # r13 decision: own occupation is pleaded by its words, with no clause letter and
+    # no verify note anywhere (supersedes the r12 note after the affidavit).
     text = _text("hrcp_eviction", HRCP)
     grounds = text.split("following ground(s)")[1].split("PRAYER:")[0]
-    assert "Clause (g):" in grounds and "verify" not in grounds.lower()
-    assert "under clauses (b) and (g) of Section 21(2) of the Tamil Nadu" in text
-    # the unconfirmed amendment is flagged once, after the affidavit
-    assert "[verify: clause (g)" in text.split("ADVOCATE / NOTARY PUBLIC")[-1]
+    assert "Own occupation:" in grounds and "verify" not in grounds.lower()
+    assert "under clause (b) and the own-occupation ground of Section 21(2) of the Tamil Nadu" in text
+    assert "[verify:" not in text
 
 
 def test_hrcp_eviction_has_verification_and_affidavit():

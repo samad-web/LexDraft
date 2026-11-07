@@ -341,9 +341,11 @@ def test_eviction_generates(tmp_path):
     assert "SECTION 21(2) OF THE TAMIL NADU REGULATION OF RIGHTS" in text
 
 
-def test_eviction_amended_clause_carries_verify_marker(tmp_path):
+def test_eviction_own_occupation_pleaded_by_its_words(tmp_path):
+    # r13 decision: no clause letter / verify note for the ground TN Act 19 of 2022 touched.
     text = _text(he, he.build(**_he(grounds=["own_occupation"])), tmp_path)
-    assert "[verify: clause (g)" in text
+    assert "Own occupation: the premises are required by the landlord for his own occupation" in text
+    assert "[verify: clause (g)" not in text and "clause (g)" not in text
 
 
 def test_eviction_needs_a_known_ground():

@@ -35,6 +35,7 @@ from typing import Any, Dict, Optional, Sequence
 from ..rules import limitation as lim
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
+from ._court_form import kind_of
 from .conveyancing import party
 
 TEMPLATE = "condone_delay_petition.docx"
@@ -188,6 +189,10 @@ def build(
             code="condone_delay_petition_no_cause", fields=("sufficient_cause",),
         )
 
+    # r13: the decree's suit ("O.S. No. 73 of 2023") is not this petition's number; a
+    # delay petition in a fresh appeal is an I.A. in the A.S.
+    if decree_appeal and (not case_ref.strip() or kind_of(case_ref) == "suit"):
+        case_ref = f"I.A. No. ______ of {filing_date.year}"
     context: Dict[str, Any] = {
         "court_name": court_name,
         "case_ref": case_ref,

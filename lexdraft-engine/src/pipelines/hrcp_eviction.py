@@ -83,12 +83,12 @@ GROUNDS: Dict[str, tuple] = {
     "change_of_land_use": (
         "(f)", "the premises are required for carrying out works consequent on a "
         "change of land use by the competent authority", ""),
+    # r13: the clause letter is uncertain after TN Act 19 of 2022, so the ground is
+    # pleaded by its words under Section 21(2), with no letter and no verify note.
     "own_occupation": (
-        "(g)", "the premises are required by the landlord for his own occupation "
+        "", "the premises are required by the landlord for his own occupation "
         "or for the occupation of a member of his family, and the landlord is not "
-        "in possession of any suitable accommodation within the same urban area",
-        "[verify: clause (g) is reported omitted by TN Act 19 of 2022 — confirm "
-        "whether that amendment has been brought into force before pleading it]"),
+        "in possession of any suitable accommodation within the same urban area", ""),
     "tenant_notice_to_quit": (
         "(h)", "the tenant gave written notice to quit and, in consequence, the "
         "landlord has contracted to sell the premises or taken other steps as a "
@@ -270,11 +270,16 @@ def build(
     for k in keys:
         clause, text, verify = GROUNDS[k]
         pleaded.append({"key": k, "clause": clause, "text": text, "verify": verify,
+                        "label": f"Clause {clause}" if clause else "Own occupation",
+                        "ref": f"clause {clause}" if clause else "the own-occupation ground",
                         "particulars": "; ".join(particulars.get(k, []))})
-    clauses = ", ".join(g["clause"] for g in pleaded)
-    cl = [g["clause"] for g in pleaded]
-    clauses_text = (f"clause {cl[0]}" if len(cl) == 1
-                    else "clauses " + ", ".join(cl[:-1]) + " and " + cl[-1]) + " of Section 21(2)"
+    clauses = ", ".join(g["clause"] for g in pleaded if g["clause"])
+    cl = [g["clause"] for g in pleaded if g["clause"]]
+    lettered = ("" if not cl else f"clause {cl[0]}" if len(cl) == 1
+                else "clauses " + ", ".join(cl[:-1]) + " and " + cl[-1])
+    own = "own_occupation" in keys
+    clauses_text = (" and ".join(p for p in (lettered, "the own-occupation ground" if own else "") if p)
+                    + " of Section 21(2)")
     deponent = next((n for n in landlord_names if n.strip()), "[name of the deponent to be provided]")
 
     context: Dict[str, Any] = {

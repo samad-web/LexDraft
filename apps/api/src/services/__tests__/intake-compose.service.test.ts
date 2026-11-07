@@ -637,3 +637,41 @@ describe('guardRecalledCases — the AI fallback path', () => {
     expect(r.paragraphs[2]).toBe('15. No case law here.');
   });
 });
+
+describe('r13 compose defects', () => {
+  it('test_writ_petition_paragraph_labels_in_order: a lettered label out of place is numbered in sequence', () => {
+    expect(numberBody(['1. Parties.', '2. Facts.', 'GROUNDS:', 'A. Ground one.', '6A. The petitioner has a legal right.', '6. ALTERNATIVE REMEDY: none lies.'], 1))
+      .toEqual(['1. Parties.', '2. Facts.', 'GROUNDS:', 'A. Ground one.', '3. The petitioner has a legal right.', '4. ALTERNATIVE REMEDY: none lies.']);
+  });
+
+  it('test_condone_delay_petition_no_estimated_delay: the account\'s "about 115 days" is cut beside the computed 118', async () => {
+    const blocks = [
+      { key: 'h', text: 'PETITION UNDER SECTION 5 OF THE LIMITATION ACT, 1963 TO CONDONE THE DELAY OF 118 DAYS' },
+      { key: 'p1', text: '1. There is a delay of 118 days in filing the appeal.' },
+      { key: 'p2', text: '2. The delay was due to illness.' },
+    ];
+    fetchQueue.push(anthropicReply('1. There is a delay of 118 days in filing the appeal. The appeal is filed with a delay of about 115 days, and the petitioner prays that the entire period be condoned.\n\n2. The delay was due to illness.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const result = await intakeCompose.compose({
+      docLabel: 'Condone delay petition', docType: 'condone_delay_petition', engineBlocks: blocks,
+      facts: { Petitioner: 'Mrs. P. Meena' }, account: 'It is being filed now, with a delay of about 115 days.', provider: 'anthropic',
+    });
+    expect(result.composed).toBe(true);
+    const text = result.blocks.map((b) => b.text).join('\n');
+    expect(text).toContain('delay of 118 days');
+    expect(text).not.toContain('115');
+  });
+
+  it('test_consumer_complaint_account_numbers_may_be_stated: the Facts header does not forbid the account\'s complaint IDs', async () => {
+    fetchQueue.push(anthropicReply('1. Three service visits under complaint IDs CW55102, CW55877 and CW56340 failed.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const result = await intakeCompose.compose({
+      docLabel: 'Consumer complaint', docType: 'consumer_complaint',
+      engineBlocks: [{ key: 'p5', text: '5. [to be drafted]' }],
+      facts: { Complainant: 'Mr. H. Balaji' }, account: 'three service visits (complaint IDs CW55102, CW55877, CW56340) failed', provider: 'anthropic',
+    });
+    const user = JSON.stringify(fetchCalls[0]!.body);
+    expect(user).toContain("# Facts (with the advocate's account, the ONLY dates, amounts and numbers you may state)");
+    expect(result.blocks.map((b) => b.text).join('\n')).toContain('CW55102');
+  });
+});

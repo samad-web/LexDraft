@@ -153,8 +153,12 @@ def test_s80_notice_states_title_and_illegality():
     assert ("Cause of action: My client is the owner of the land and compound wall in S.F. No. 101, Anna Nagar. "
             "Demolition of the compound wall") in text
     assert "The said act is illegal, in that it was demolished without any prior notice to my client." in text
+    # r13: a cause of action "without notice" now states that ground itself; a ground
+    # the facts do not give stays a named gap.
     bare = _text("s80_notice", _S80)
-    assert "The said act is illegal: [ground on which the act is illegal to be provided]." in bare
+    assert "The said act is illegal, in that it was done without any notice to my client." in bare
+    unknown = _text("s80_notice", {**_S80, "cause_of_action": "Demolition of the compound wall on S.F. No. 101, Anna Nagar on 05.09.2026"})
+    assert "The said act is illegal: [ground on which the act is illegal to be provided]." in unknown
 
 
 def test_s80_notice_clear_two_month_demand():

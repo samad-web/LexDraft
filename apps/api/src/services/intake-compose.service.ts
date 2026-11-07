@@ -276,8 +276,10 @@ export function numberBody(paragraphs: string[], first: number): string[] {
     if (bare !== p && SECTION_HEADING(bare)) return bare.trim();
     // (a numbered paragraph that introduces a list also ends in ":" — it is numbered)
     if (SUB_ITEM.test(p) || (!NUMBERED.test(p) && /:\s*$/.test(p)) || SECTION_HEADING(p)) return p;
-    // An inserted paragraph ("12B." — the s.12A mediation averment) keeps its label.
-    if (NUMBERED.exec(p)?.[2]) return p;
+    // An inserted paragraph ("12B." — the s.12A mediation averment) keeps its label,
+    // but only straight after its own number (r13 writ: "6A." printed before "6.").
+    const m = NUMBERED.exec(p);
+    if (m?.[2] && Number(m[1]) === n - 1) return p;
     return `${n++}. ${p.replace(NUMBERED, '')}`;
   });
 }
@@ -558,7 +560,9 @@ HARD RULES — you argue given facts, you never discover new ones:
 - Plain text only: no Markdown, no bold, no tables. ${args.keepNumbers ? 'Keep every paragraph’s existing number exactly as in the skeleton' : `Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively`}; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
 
   const user =
-    `# Facts (the ONLY dates, amounts and numbers you may state)\n${factLinesOf(args.facts) || '(none beyond what is in the skeleton)'}\n\n` +
+    // r13: "the ONLY … numbers" here contradicted the account rule, so complaint IDs
+    // given only in the account came out as "[to be drafted]" (para 5 orphaned).
+    `# Facts (with the advocate's account, the ONLY dates, amounts and numbers you may state)\n${factLinesOf(args.facts) || '(none beyond what is in the skeleton)'}\n\n` +
     (args.account ? `# Advocate's account (narrative detail only)\n${args.account}\n\n` : '') +
     `# Authorities (the only provisions you may add)\n${authoritiesBlock(args.authorities ?? [])}\n\n` +
     (args.plan ? `# Argument plan (follow it; drop any ground the facts cannot carry)\n${args.plan}\n\n` : '') +
@@ -802,8 +806,15 @@ export async function composeAndVerify(args: {
     // INTRODUCED: amounts/dates/periods/citations from nowhere -> strip those sentences.
     // The advocate's own account is a source too: a date they typed is not invented
     // (suite r4: "married 25.08.2017" in the brief came out as "[to be drafted]").
-    const introduced = introducedParticulars(paragraphs.join('\n'), [skeleton, factText, account ?? ''])
-      .filter((p) => p.kind !== 'section' && p.kind !== 'article' && p.kind !== 'order' && p.kind !== 'citation');
+    const introduced = [
+      ...introducedParticulars(paragraphs.join('\n'), [skeleton, factText, account ?? ''])
+        .filter((p) => p.kind !== 'section' && p.kind !== 'article' && p.kind !== 'order' && p.kind !== 'citation'),
+      // The delay is the skeleton's computed count, never the advocate's estimate
+      // (r13: "a delay of about 115 days" beside the computed 118).
+      ...(args.docType === 'condone_delay_petition'
+        ? introducedParticulars(paragraphs.join('\n'), [skeleton, factText]).filter((p) => p.kind === 'days')
+        : []),
+    ];
     if (introduced.length) {
       const s = stripSentences(paragraphs, introduced.map((p) => p.raw), GAP);
       paragraphs = s.paragraphs;

@@ -255,7 +255,7 @@ def build(
 
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner.name},
-        "respondents": [{"serial": r.serial, "name": r.name,
+        "respondents": [{"serial": r.serial, "name": ", ".join([r.name, *r.address_lines]),
                          "is_authority": r.is_authority} for r in respondents],
         "court_place": court_place,
         "court_side": court_side,

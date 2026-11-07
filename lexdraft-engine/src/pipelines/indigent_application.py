@@ -45,10 +45,18 @@ def respondents_from_description(text: str) -> list:
     count = next((v for w, v in _NUMBER_WORDS.items()
                   if re.search(rf"\b{w}\b", text, re.I)), 1)
     owner = re.sub(r"\b(?:two|three|four|five|\d)\b", "", text[:kin.start()], flags=re.I)
+    # r13: "The two brothers of her late husband" printed "brother of The".
+    owner = re.sub(r"^\s*(?:the|a)\b", "", owner.strip(), flags=re.I).strip()
+    if not owner:
+        owner = re.sub(r"^\s*of\s+", "", text[kin.end():].strip(" ,."), flags=re.I)
     owner = re.sub(r"^\s*(?:her|his|their)\b", "the petitioner's", owner.strip(), flags=re.I)
     owner = re.sub(r"'s\s*$", "", owner.strip()).strip()
-    relation = kin.group(1).lower() + (f" of {owner}" if owner else "")
-    return [f"[name of respondent to be provided], {relation}"] * count
+    kind = kin.group(1).lower()
+    relation = kind + (f" of {owner}" if owner else "")
+    # a sibling or nephew/niece is described by parentage too, as a cause title needs
+    parent = {"brother": "son", "nephew": "son", "sister": "daughter", "niece": "daughter"}.get(kind)
+    parentage = f"{parent} of [father's name to be provided], " if parent else ""
+    return [f"[name of respondent to be provided], {parentage}{relation}"] * count
 
 
 def share_fraction(share: Optional[str]) -> Optional[Fraction]:
@@ -59,6 +67,29 @@ def share_fraction(share: Optional[str]) -> Optional[Fraction]:
         return Fraction(int(m.group(1)), int(m.group(2)))
     return next((f for w, f in sorted(_SHARE_WORDS.items(), key=lambda x: -len(x[0]))
                  if w in s), None)
+
+_KIN_OPENING = re.compile(r"^(husband|wife|father|mother|brother|sister|son|daughter)\b", re.I)
+
+
+def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optional[str]) -> Optional[str]:
+    """The proposed plaint's facts as a pleaded sentence, not the brief's note
+    ("Husband died on ... and his brothers have refused ..."), with the heirship
+    the share rests on when a death is pleaded (r13)."""
+    facts = (cause_of_action or "").strip().rstrip(".")
+    if not facts:
+        return None
+    own = "her" if re.match(r"\s*(mrs|ms|smt|selvi|tmt|kum)\b", plaintiff or "", re.I) else "his"
+    facts = _KIN_OPENING.sub(lambda m: f"{own} {m.group(1).lower()}", facts)
+    facts = re.sub(r"^(The|A|An|On|In|After|His|Her|Their)\b", lambda m: m.group(1).lower(), facts)
+    text = f"The plaintiff states that {facts}."
+    if share and re.search(r"\bdied\b", facts, re.I):
+        share = re.sub(r"\s*share\s*$", "", share.strip(), flags=re.I).lower()
+        text += (f" On that death the plaintiff, as a legal heir, became entitled to a {share} share in "
+                 "the suit property. The defendants have refused to give that share, and the plaintiff "
+                 "is entitled to have the suit property partitioned and to be put in separate "
+                 "possession of it.")
+    return text
+
 
 TEMPLATE = "indigent_application.docx"
 SPEC = "dpc-21"
@@ -176,7 +207,9 @@ def build(
         "suit_property_schedule": [i for i in (suit_property_schedule or [])
                                    if i.strip()],
         "respondents": names,
-        "share_claimed": share_claimed if share else None,
+        # r13: "One-third share" printed "One-third share share".
+        "share_claimed": re.sub(r"\s*share\s*$", "", share_claimed.strip(), flags=re.I).lower() if share else None,
+        "plaint_facts": _plaint_facts(cause_of_action, applicant_name, share_claimed if share else None),
         "property_value": property_value if share else None,
         "court_fee": court_fee,
         "unverified_marker": _reg.marker_for("court_fee_ad_valorem_slabs") if court_fee else "",
