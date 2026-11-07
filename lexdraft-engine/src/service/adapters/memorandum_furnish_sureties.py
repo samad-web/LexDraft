@@ -24,6 +24,8 @@ ADAPTER = Adapter(
         FieldSpec("court_name", "string", required=False, default=None),
         FieldSpec("police_station", "string", required=False, default=None),
         ListFieldSpec("sureties", SURETY_ITEM, dict, min_items=0, required=False),
+        FieldSpec("accused_gender", "string", required=False, default=None),
+        FieldSpec("filing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

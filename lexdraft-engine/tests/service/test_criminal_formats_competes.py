@@ -175,3 +175,25 @@ def test_s256_condone_absence_prays_condone_and_evidence_not_restore():
     assert "restore" not in text.lower()
     dismissed = _draft("s256_condone_absence", {**S256, "case_dismissed": True})
     assert "restore the case to file and post the case for evidence" in dismissed
+
+
+MEMO_SURETIES = {
+    "accused_name": "Mr. R. Vinoth", "granting_court": "the Judicial Magistrate No. II, Salem",
+    "bail_granted": True, "bail_order_date": "2026-10-30",
+    "case_ref": "Crime No. 310 of 2026 of Hasthampatti Police Station", "place": "Salem",
+    "court_place": "Salem", "police_station": "Hasthampatti", "filing_date": "2026-11-07",
+    "sureties": [{"name": "Mr. P. Ganesan", "address": "Salem", "amount": "Rs. 10,000"},
+                 {"name": "Mr. K. Mohan", "address": "Attur", "amount": "Rs. 10,000"}]}
+
+
+def test_memorandum_furnish_sureties_pronouns():
+    text = _draft("memorandum_furnish_sureties", MEMO_SURETIES)
+    _no_alternatives(text)
+    assert "for his release on bail" in text
+    she = _draft("memorandum_furnish_sureties", {**MEMO_SURETIES, "accused_name": "Selvi R. Priya"})
+    assert "for her release on bail" in she
+
+
+def test_memorandum_furnish_sureties_date_line():
+    text = _draft("memorandum_furnish_sureties", MEMO_SURETIES)
+    assert "Dated at Salem on 07.11.2026." in text

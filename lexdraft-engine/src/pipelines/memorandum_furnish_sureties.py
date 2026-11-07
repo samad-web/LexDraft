@@ -22,7 +22,7 @@ from datetime import date
 from typing import Any, Dict, Mapping, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
-from ._court import bare_sum, court_and_place
+from ._court import bare_sum, court_and_place, pronouns
 from ._state_party import state_respondent
 
 TEMPLATE = "memorandum_furnish_sureties.docx"
@@ -66,6 +66,8 @@ def build(
     court_name: Optional[str] = None,
     police_station: Optional[str] = None,
     sureties: Sequence[Mapping[str, Any]] = (),   # {name, address, amount}
+    accused_gender: Optional[str] = None,          # resolves his/her when no title
+    filing_date: Optional[date] = None,            # the intake's date of filing (today)
 ) -> MemorandumFurnishSuretiesResult:
     """Assemble the memorandum for furnishing sureties, or refuse."""
 
@@ -98,6 +100,7 @@ def build(
         "sureties": [{"name": x.get("name") or "", "address": x.get("address"),
                       "amount": bare_sum(x.get("amount")) or None} for x in sureties],
         "accused_name": accused_name,
+        "pr": pronouns(accused_name, accused_gender),
         "granting_court": court_and_place(granting_court, None)[0],
         "bail_granted": bail_granted,
         "bail_order_ref": (bail_order_ref or "").strip(),
@@ -105,7 +108,8 @@ def build(
         "case_ref": case_ref,
         "place": place,
         "complainant_name": complainant_name,
-        "memo_date": memo_date.isoformat() if memo_date is not None else None,
+        "memo_date": ((memo_date or filing_date).isoformat()
+                      if (memo_date or filing_date) else None),
         "court_place": at,
     }
     return MemorandumFurnishSuretiesResult(refused=False, context=context)
