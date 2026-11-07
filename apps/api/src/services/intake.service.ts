@@ -1818,6 +1818,10 @@ export const intakeService = {
           if (!placeholders.is_fresh_action && specs.some((s) => s.key === 'is_fresh_action')) {
             placeholders.is_fresh_action = 'Yes';
           }
+          // The petition is signed today; unset, the engine dates it with the offence date (r10).
+          if (!placeholders.application_date && !state.form.application_date && specs.some((s) => s.key === 'application_date')) {
+            placeholders.application_date = todayIso();
+          }
           if (!placeholders.offence_date && specs.some((s) => s.key === 'offence_date')) {
             placeholders.offence_date = fillMissingDate('offence_date', sentinelDate, state.form, syntheticDateValues, doc.docType);
           }
@@ -2011,6 +2015,10 @@ export const intakeService = {
       if (specs.some((s) => s.key === 'is_fresh_action')) {
         if (!bypassed.is_fresh_action && specs.some((s) => s.key === 'is_fresh_action')) {
           bypassed.is_fresh_action = 'Yes';
+        }
+        // The petition is signed today; unset, the engine dates it with the offence date (r10).
+        if (!bypassed.application_date && !state.form.application_date && specs.some((s) => s.key === 'application_date')) {
+          bypassed.application_date = todayIso();
         }
         if (!bypassed.offence_date && specs.some((s) => s.key === 'offence_date')) {
           bypassed.offence_date = fillMissingDate('offence_date', sentinelDate, state.form, syntheticDateValues, doc.docType);
