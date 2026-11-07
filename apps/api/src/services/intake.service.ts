@@ -34,6 +34,7 @@ import type {
   PhrasedQuestion,
 } from '@lexdraft/types';
 import { logger } from '../logger';
+import { withRetry } from '../lib/retry';
 import { factSheetService, type Ctx } from './factsheet.service';
 import {
   engineClient,
@@ -2145,7 +2146,9 @@ export const intakeService = {
             // plain engine draft whole rather than show text the file doesn't have.
             const { start, end, paragraphs } = composeResult.splice;
             draftProgress.set(ctx.userId, 'word');
-            const spliced = await engineClient.spliceLines(draft.docxBase64, start, end, paragraphs).catch((err) => {
+            // Retried: under load the engine can drop the connection (r9b contempt: "fetch failed"); a splice is pure.
+            const docx = draft.docxBase64;
+            const spliced = await withRetry(() => engineClient.spliceLines(docx, start, end, paragraphs), { attempts: 3, baseMs: 500, shouldRetry: () => true }).catch((err) => {
               logger.warn({ err }, 'intake: splice of composed body failed');
               return null;
             });

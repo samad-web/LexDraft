@@ -326,6 +326,22 @@ describe('intake-compose — deep mode (authorities, plan, repair)', () => {
     expect(JSON.stringify(fetchCalls[2]!.body)).toContain('Replace EVERY');
   });
 
+  it('gets a second repair when the first still drops a particular (r9b)', async () => {
+    const dropped = BODY_OK.map((p) => p.replace(' and BNS s.317(2)', '')).join('\n\n');
+    fetchQueue.push(anthropicReply(dropped));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply(dropped));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply(BODY_OK.join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      repair: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.blocks.map((b) => b.text).join(' ')).toContain('317(2)');
+  });
+
   it('keeps a figure the advocate stated, but strips one from nowhere', async () => {
     fetchQueue.push(anthropicReply([...BODY_OK, '4. The petitioner repaid Rs. 75,000/- to the complainant. He later paid Rs. 9,99,000/- more.'].join('\n\n')));
     fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));

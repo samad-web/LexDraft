@@ -817,20 +817,25 @@ export async function composeAndVerify(args: {
   };
 
   let checked = await check(composedText);
-  if (!checked.ok && checked.retry && args.repair) {
-    // REPAIR: one redraft told what failed, run through the same checks. Better
-    // than handing the advocate the bare skeleton for one dropped date.
-    logger.info({ docType: args.docType, reason: checked.reason }, 'intake-compose: repairing');
+  // REPAIR: a redraft told what failed, run through the same checks - better than
+  // handing the advocate the bare skeleton for one dropped date. Twice, each from the
+  // latest attempt (r9b: DV, contested divorce, default bail still dropped one item).
+  let lastText = composedText;
+  for (let attempt = 0; attempt < 2 && !checked.ok && checked.retry && args.repair; attempt++) {
+    logger.info({ docType: args.docType, reason: checked.reason, attempt }, 'intake-compose: repairing');
     args.onStage?.('repairing');
     try {
       const result = await complete(provider, system,
-        `${user}\n\n# Your previous draft\n${composedText}\n\n# Correction\n${checked.retry} Return the whole corrected body, following the hard rules.`,
+        `${user}\n\n# Your previous draft\n${lastText}\n\n# Correction\n${checked.retry} Return the whole corrected body, following the hard rules.`,
         8000);
       usage(result);
-      if (result.text.trim()) checked = await check(result.text.trim());
+      if (!result.text.trim()) break;
+      lastText = result.text.trim();
+      checked = await check(lastText);
       stats.repaired = checked.ok;
     } catch (err) {
       logger.warn({ err }, 'intake-compose: repair call failed');
+      break;
     }
   }
   // RESTATE: a passing draft can still show "[to be drafted]" holes - sentences the
