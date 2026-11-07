@@ -913,6 +913,12 @@
         "effective_from": "2026-11-03",
         "spec": "tn-layout",
         "note": "Madras/TN layout (senior-advocate review): TN case numbers (Crl.M.P./O.S./I.A./W.P./H.C.P./Cont.P./Tr.C.M.P. etc.), 'residing at', '-Vs-', Madras High Court heading, TN prayer ending, 'Counsel for the Petitioner' sign-off; no 'IN THE MATTER OF' / 'R/o' / 'SUIT NO.' / 'Non-applicant' / 'S.H.O.'"
+      },
+      {
+        "version": 2,
+        "effective_from": "2026-11-07",
+        "spec": "tn-layout",
+        "note": "x1 deed review: testator age; beneficiaries recital; residuary clause; schedule of properties; s.63 ISA attestation"
       }
     ],
     "writ_criminal.docx": [
@@ -937,6 +943,78 @@
         "effective_from": "2026-11-04",
         "spec": "tn-forms",
         "note": "round-6 review: court name from the field (_court_expr)"
+      }
+    ],
+    "sale_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: consideration adds up (advance + balance = price, in words); title recital; covenants; boundaries in the schedule; party pronouns; s.54 TPA / s.17(1)(b) note"
+      }
+    ],
+    "agreement_for_sale.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: balance computed; completion period in the brief's unit; title deeds + EC covenant; specific performance; party pronouns"
+      }
+    ],
+    "gift_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: operative acceptance clause + donee signs as accepting (s.122 TPA); donor/donee pronouns; s.123 TPA / s.17(1)(a) note"
+      }
+    ],
+    "mortgage_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: simple mortgage (s.58(b) TPA): no out-of-court power of sale; personal covenant; redemption (s.60); title recital; boundaries; s.59 note"
+      }
+    ],
+    "lease_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: term with expiry date; rent due day; deposit; covenants; lessee firm reads 'its'; s.107 TPA / s.17(1)(d) registration note"
+      }
+    ],
+    "partnership_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: capital per partner; working-partner remuneration; banking; at will (s.43 IPA); books (s.12(d)); s.58/s.69 note"
+      }
+    ],
+    "dissolution_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: firm address; equal shares; takeover of business/stock/goodwill; settlement sum; liabilities + indemnity; public notice"
+      }
+    ],
+    "relinquishment_deed.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: Releasor/Releasors by number with verb agreement; releasee/deceased pronouns; date of death; no 'share share'"
+      }
+    ],
+    "power_of_attorney.docx": [
+      {
+        "version": 1,
+        "effective_from": "2026-11-07",
+        "spec": "",
+        "note": "x1 deed review: first-person appointment; terse powers written out in full; negatives go to a proviso; schedule; executed-abroad note (s.33 RA, s.18 ISA)"
       }
     ]
   }

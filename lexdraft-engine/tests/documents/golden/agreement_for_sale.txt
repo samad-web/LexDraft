@@ -1,28 +1,39 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
 AGREEMENT FOR SALE
+THIS AGREEMENT FOR SALE is made and executed at Chennai on 2024-01-01 BETWEEN
+A, S/o X, R/o Chennai (hereinafter called the "VENDOR", which expression shall, unless repugnant to the context, include his/her heirs, executors, administrators, legal representatives and assigns) of the ONE PART;
+AND
+B, S/o Y, R/o Chennai (hereinafter called the "PURCHASER", which expression shall, unless repugnant to the context, include his/her heirs, executors, administrators, legal representatives and assigns) of the OTHER PART.
 
-THIS AGREEMENT FOR SALE is made at Chennai on 2024-01-01 BETWEEN A, S/o X, R/o Chennai (hereinafter referred to as the VENDOR, which expression shall include his heirs, executors, administrators and assigns) of the FIRST PART; AND B, S/o Y, R/o Chennai (hereinafter referred to as the VENDEE/PURCHASER, which expression shall include his heirs, executors, administrators and assigns) of the SECOND PART.
-WHEREAS the Vendor is the absolute owner of Plot No. 45, admeasuring 2400 sq.ft., Anna Nagar, Chennai (hereinafter referred to as the said property).
-AND WHEREAS the Vendor has agreed to sell the said property to the Vendee at the price and on the conditions mentioned hereinafter.
+WHEREAS the Vendor is the absolute owner in possession of the property more fully described in the Schedule hereunder (hereinafter called the "Schedule Property");
+AND WHEREAS the Vendor has agreed to sell, and the Purchaser has agreed to purchase, the Schedule Property for a total sale consideration of Rs. 5000000/- (Rupees fifty lakh only), on the terms and conditions hereinafter set out;
 
-NOW IT IS AGREED BETWEEN THE PARTIES AS FOLLOWS:
-1. That the Vendor agrees to sell, transfer and convey the said property to the Vendee for a total consideration of Rs. 5000000/-.
-2. That the Vendee has paid Rs. 500000/- as earnest money (by cheque No. 010806 drawn on Indian Bank), the receipt of which the Vendor acknowledges; the balance shall be paid at the time of the final sale deed.
-3. That the Vendor shall make out a marketable title to the said property, free from encumbrances and reasonable doubts.
-4. That the sale shall be completed within 6 months from the date hereof.
-5. That the expenses of stamp duty, registration charges and all incidental expenses for the agreement and the sale deed shall be borne by the Vendee.
-6. That if the Vendor fails to make out a clear marketable title, the Vendee may cancel this agreement on fifteen days' notice, and the Vendor shall return the earnest money; if the Vendee fails to perform his obligations, the Vendor may cancel on fifteen days' notice and forfeit the earnest money.
+NOW THIS AGREEMENT WITNESSETH AND IT IS HEREBY AGREED BETWEEN THE PARTIES AS FOLLOWS:
+1. PRICE: The Vendor agrees to sell, and the Purchaser agrees to purchase, the Schedule Property free from all encumbrances for a total sale consideration of Rs. 5000000/- (Rupees fifty lakh only).
+2. ADVANCE: The Purchaser has this day paid to the Vendor Rs. 500000/- (Rupees five lakh only) as advance and part of the sale consideration by cheque No. 010806 drawn on Indian Bank, the receipt of which the Vendor hereby acknowledges.
+3. BALANCE: The balance sale consideration of Rs. 4500000/- (Rupees forty-five lakh only) shall be paid by the Purchaser to the Vendor within 6 months from the date hereof, at the time of execution and registration of the sale deed.
+4. TITLE DOCUMENTS: The Vendor shall deliver to the Purchaser, for scrutiny, the original title deeds of the Schedule Property and an up-to-date encumbrance certificate, and shall furnish such other documents as may reasonably be required to verify the title.
+5. TITLE AND NON-ALIENATION: The Vendor shall make out a good and marketable title to the Schedule Property, free from all encumbrances, and shall not, while this agreement subsists, sell, mortgage, lease or otherwise encumber the Schedule Property or enter into any agreement concerning it with any other person.
+6. SALE DEED AND POSSESSION: On receipt of the balance sale consideration, the Vendor shall execute a sale deed in favour of the Purchaser, present it for registration, and deliver vacant possession of the Schedule Property to the Purchaser.
+7. DEFAULT: If the Vendor fails to make out a marketable title or to perform his/her part of this agreement, the Purchaser shall be entitled to enforce specific performance of this agreement or, at his/her option, to the refund of the advance paid. If the Purchaser fails to pay the balance sale consideration within 6 months from the date hereof, the Vendor may, after notice in writing, terminate this agreement.
+8. EXPENSES: The stamp duty, registration charges and other expenses of the sale deed shall be borne by the Purchaser.
 
-SCHEDULE OF PROPERTY:
+SCHEDULE OF PROPERTY
 Plot No. 45, admeasuring 2400 sq.ft., Anna Nagar, Chennai
 
-IN WITNESS WHEREOF the parties hereto have signed this deed on the date and at the place first above written, in the presence of the following witnesses.
+IN WITNESS WHEREOF the parties hereto have signed this agreement on the date and at the place first above written, in the presence of the following witnesses.
 
 VENDOR
-VENDEE
+(A)
 
-WITNESSES:
+PURCHASER
+(B)
+
+WITNESSES (name, parentage and address):
 
    1. Witness A
 
    2. Witness B
+
+
+[NOTE: An agreement for sale does not, of itself, create any interest in or charge on the property (s.54, Transfer of Property Act, 1882). Stamp duty is payable under the Indian Stamp Act, 1899 as applicable in Tamil Nadu. Confirm the current Tamil Nadu requirement for registration of agreements for sale before execution.]

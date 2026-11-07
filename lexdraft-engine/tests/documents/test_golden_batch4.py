@@ -1,4 +1,9 @@
-"""Golden-file tests for the Batch-4 conveyancing deeds + notices (DPC book Part B)."""
+"""Golden-file tests for the Batch-4 conveyancing deeds + notices (DPC book Part B).
+
+2026-11-07: the eleven deed goldens were regenerated after the x1 drafting-quality
+rewrite of their templates (pronouns per party, consideration that adds up, no
+out-of-court power of sale in a simple mortgage, residuary clause in the will);
+the old goldens pinned those defects. See tests/service/test_deed_quality.py."""
 
 import os
 from datetime import date

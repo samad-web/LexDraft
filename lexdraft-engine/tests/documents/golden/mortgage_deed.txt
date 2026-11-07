@@ -1,29 +1,43 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
-DEED OF MORTGAGE
+DEED OF SIMPLE MORTGAGE
+THIS DEED OF SIMPLE MORTGAGE is made and executed at Chennai on 2024-01-01 BY
+A, S/o X, R/o Chennai (hereinafter called the "MORTGAGOR", which expression shall, unless repugnant to the context, include his/her heirs, executors, administrators, legal representatives and assigns) of the ONE PART;
+IN FAVOUR OF
+M/s ABC Ltd., a company incorporated under the Companies Act (hereinafter called the "MORTGAGEE", which expression shall, unless repugnant to the context, include its successors-in-interest and assigns) of the OTHER PART.
 
-THIS DEED OF MORTGAGE is executed at Chennai on 2024-01-01 BY A, S/o X, R/o Chennai (hereinafter called the MORTGAGOR, which expression shall include his heirs, legal representatives, executors, administrators and assigns) of the FIRST PART; IN FAVOUR OF M/s ABC Ltd., a company incorporated under the Companies Act (hereinafter called the MORTGAGEE, which expression shall include its successors and assigns).
+WHEREAS the property more fully described in the Schedule hereunder (hereinafter called the "Mortgaged Property") absolutely belongs to the Mortgagor, whose title thereto is as follows: [mortgagor's title (prior deed) to be provided];
 
-WHEREAS the Mortgagor wants to construct a residential building on the said plot
+AND WHEREAS the Mortgagor wants to construct a residential building on the said plot;
 
-AND WHEREAS in consideration of the sum of Rs. 200000/- advanced by the Mortgagee to the Mortgagor, the Mortgagor has agreed to execute this mortgage of the property described in the Schedule.
+AND WHEREAS the Mortgagor requested the Mortgagee for a loan of Rs. 200000/- (Rupees two lakh only), and the Mortgagee agreed to advance the same on the security of the Mortgaged Property by way of simple mortgage, on the terms hereinafter set out;
 
-NOW THIS DEED WITNESSES AS UNDER:
-1. That the Mortgagor acknowledges that he owes Rs. 200000/- to the Mortgagee, and shall be liable to pay interest thereon at 12.0% per annum from the date of the loan until payment.
-2. That the Mortgagor shall repay the principal and interest as follows: in equal monthly instalments of Rs. 2000/-.
-3. That in consideration of the aforesaid, the Mortgagor hereby transfers by way of simple mortgage to the Mortgagee the property described in the Schedule, together with any building or permanent structure erected thereon.
-4. That the Mortgagor covenants that the said property is free from encumbrances and that he shall not, until the entire amount is repaid, create any fresh mortgage, charge or alienation of the property.
-5. That if the Mortgagor fails to pay the sum when due, the Mortgagee shall, in addition to any other remedy at law, have the power to sell the mortgaged property, without the intervention of the Court, for the realisation of the money due.
+NOW THIS DEED OF MORTGAGE WITNESSETH AS FOLLOWS:
+1. LOAN AND REPAYMENT: In consideration of the sum of Rs. 200000/- (Rupees two lakh only) advanced by the Mortgagee to the Mortgagor, the receipt of which the Mortgagor hereby acknowledges, the Mortgagor covenants to repay the said principal sum together with simple interest at 12.0% per annum, as follows: in equal monthly instalments of Rs. 2000/-.
+2. PERSONAL COVENANT: The Mortgagor hereby binds him/herself personally to pay the mortgage money and interest in accordance with clause 1.
+3. MORTGAGE: As security for the repayment of the mortgage money and interest, the Mortgagor hereby mortgages the Mortgaged Property to the Mortgagee by way of simple mortgage, without delivering possession of it, and agrees that, in the event of default in payment, the Mortgagee shall have the right to cause the Mortgaged Property to be sold and the proceeds of sale to be applied, so far as may be necessary, in payment of the mortgage money (s.58(b), Transfer of Property Act, 1882).
+4. REMEDY ON DEFAULT: In the event of default, the Mortgagee's remedy shall be to sue for the sale of the Mortgaged Property through the Court and to recover the amount due. Nothing in this deed authorises the Mortgagee to sell the Mortgaged Property without the intervention of the Court.
+5. REDEMPTION: The Mortgagor may repay the entire mortgage money with interest at any time within the period stated in clause 1. On such payment the Mortgagee shall acknowledge full discharge in writing, execute a deed of release of this mortgage at the Mortgagor's cost, and return any title documents of the Mortgagor held by it (right of redemption, s.60, Transfer of Property Act, 1882).
+6. POSSESSION AND PRESERVATION: The Mortgagor shall remain in possession of the Mortgaged Property and shall, so long as any amount remains due, pay all taxes and charges on it, commit no waste, and not sell, mortgage, lease or otherwise encumber it without the written consent of the Mortgagee.
+7. TITLE: The Mortgagor covenants that he/she has good and marketable title to the Mortgaged Property, and that it is free from all encumbrances, charges, attachments and court proceedings.
 
-SCHEDULE (MORTGAGED PROPERTY):
+SCHEDULE (MORTGAGED PROPERTY)
 a vacant residential plot bearing Municipal No. A-25, Anna Nagar, Chennai
+Boundaries:
+   North by : [north boundary to be provided]
+   South by : [south boundary to be provided]
+   East by  : [east boundary to be provided]
+   West by  : [west boundary to be provided]
 
-IN WITNESS WHEREOF the parties hereto have signed this deed on the date and at the place first above written, in the presence of the following witnesses.
+IN WITNESS WHEREOF the Mortgagor has signed this deed of mortgage on the date and at the place first above written, in the presence of the following attesting witnesses.
 
 MORTGAGOR
-MORTGAGEE
+(A)
 
-WITNESSES:
+WITNESSES (name, parentage and address):
 
    1. Witness A
 
    2. Witness B
+
+
+[NOTE: Where the principal money secured is one hundred rupees or upwards, a simple mortgage can be effected only by a registered instrument signed by the mortgagor and attested by at least two witnesses (s.59, Transfer of Property Act, 1882); compulsorily registrable under s.17(1)(b) of the Registration Act, 1908. Stamp duty is payable under the Indian Stamp Act, 1899 as applicable in Tamil Nadu.]
