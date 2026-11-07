@@ -60,6 +60,7 @@ ADAPTER = Adapter(
                   default='THE HIGH COURT OF JUDICATURE AT MADRAS'),
         FieldSpec('jurisdiction_line', 'string', required=False, default=''),
         FieldSpec('prayer_text', 'string', required=False, default=''),
+        FieldSpec('documents', 'string_list', required=False, default=()),
     ),
     slots=(),
 )

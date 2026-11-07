@@ -195,6 +195,26 @@ def test_amendment_ia_prayer_no_para_number_and_diligence_before_trial():
     assert "documents for trial. The amendment is sought before the commencement of trial." in text
 
 
+def test_counter_affidavit_sole_respondent_balance_of_convenience_documents():
+    """r12: "1st respondent / acting on behalf"; no prima facie / balance of convenience
+    answer to an injunction IA; no list of the documents relied on."""
+    text = _text("counter_affidavit", {
+        "petition_ref": "I.A. No. 1120 of 2026", "main_case_ref": "O.S. No. 540 of 2026",
+        "court_name": "Principal District Munsif Court, Coimbatore",
+        "petitioner_names": ["Mr. K. Arumugam"], "respondent_names": ["Mr. M. Selvaraj"],
+        "answering_respondent_serial": 1, "deponent_name": "Mr. M. Selvaraj",
+        "deponent_description": "[deponent description to be provided]", "petition_para_count": 2,
+        "para_replies": [{"para": 1, "stance": "not_admitted"}, {"para": 2, "stance": "denied", "text": "No pathway exists."}],
+        "affirm_date": "2026-11-06", "place": "Coimbatore",
+        "documents": ["Sale deed of 2004", "Patta", "FMB sketch"]}, allow_placeholders=True)
+    assert "FILED ON BEHALF OF THE RESPONDENT\n" in text
+    assert "1. I am the respondent herein. I am well acquainted with the facts" in text
+    assert "acting on behalf" not in text and "1st respondent" not in text.lower()
+    assert "The balance of convenience is not in favour of the petitioner" in text
+    assert "DOCUMENTS RELIED ON BY THE RESPONDENT:\n1. Sale deed of 2004\n2. Patta\n3. FMB sketch" in text
+    assert "aged about ___ years" in text and "{%" not in text
+
+
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",
        "posted_for": "cross-examination of PW1 on 10.11.2026",
        "adjournment_reason": "The petitioner underwent cataract surgery on 30.10.2026.\n"

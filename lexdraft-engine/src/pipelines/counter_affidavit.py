@@ -26,6 +26,7 @@ its stance and "[to be drafted]" (the draft stays un-signable until written).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -38,6 +39,9 @@ TEMPLATE = "counter_affidavit.docx"
 SPEC = "mhc-counter"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+
+
+_INTERIM_REF = re.compile(r"\s*(?:I\.?\s?A|C\.?\s?M\.?\s?P|W\.?\s?M\.?\s?P|M\.?\s?P)\.?\s*No", re.I)
 
 
 class Stance(Enum):
@@ -110,6 +114,7 @@ def build(
     court_name: str = "THE HIGH COURT OF JUDICATURE AT MADRAS",
     jurisdiction_line: str = "",
     prayer_text: str = "",
+    documents: Sequence[str] = (),
 ) -> CounterAffidavitResult:
     """Assemble the counter affidavit, or refuse."""
 
@@ -170,8 +175,17 @@ def build(
         "petitioners": [p for p in petitioner_names if p.strip()],
         "respondents": [r for r in respondent_names if r.strip()],
         "respondent_ordinal": _ordinal(serial),
+        # r12: a sole respondent is "the respondent", never "the 1st respondent".
+        "respondent_label": ("respondent" if len([r for r in respondent_names if r.strip()]) <= 1
+                             else f"{_ordinal(serial)} respondent"),
+        # r12: a counter to an interim application answers the triple test too.
+        "is_interim": bool(_INTERIM_REF.match(petition_ref)),
+        "documents": [d for d in documents if d.strip()],
         "deponent_name": deponent_name,
-        "deponent_description": deponent_description,
+        # r12: a bare "[deponent description to be provided]" names what is missing.
+        "deponent_description": ("[son / daughter / wife of ________, aged about ___ years, residing at ________]"
+                                 if re.fullmatch(r"\[[^\]]*\]", deponent_description.strip())
+                                 else deponent_description),
         "deponent_designation": deponent_designation,
         "preliminary_objections": [o for o in preliminary_objections if o.strip()],
         "para_replies": replies,

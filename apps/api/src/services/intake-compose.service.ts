@@ -382,7 +382,8 @@ const MUST_PLEAD: Record<string, string> = {
   condone_delay_petition: '- The exact period of delay, and a continuous, day-by-day explanation of it from the facts — vague causes are rejected.',
   adjournment_petition: '- A reason the law accepts. Counsel being engaged in another court is NOT by itself a ground (proviso to Order XVII Rule 1 CPC) — if that is the only reason given, plead it plainly and leave "[to be drafted]" for any other cause.',
   written_statement: '- A specific traverse of each allegation; a bare "denies each and every allegation" is an evasive denial (Order VIII Rules 3–5 CPC).',
-  counter_affidavit: '- The deponent\'s designation and authority to swear for the respondent; a specific traverse of each paragraph.',
+  // r12: a private respondent swearing for himself got "duly authorised" filler in the reply to para 1.
+  counter_affidavit: '- A specific traverse of each paragraph. The deponent\'s competence is already sworn above the para-wise reply; never restate it there. Call the answering party "the respondent" (with its number only when there are several respondents).',
 };
 
 const GUIDES: Record<ComposeFamily, string> = {
