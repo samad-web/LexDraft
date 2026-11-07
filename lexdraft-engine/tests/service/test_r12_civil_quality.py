@@ -218,3 +218,26 @@ def test_lease_deed_tenancy_intimated_to_the_rent_authority():
     text = _text("lease_deed", LEASE, allow_placeholders=True)
     assert "Tamil Nadu Regulation of Rights and Responsibilities of Landlords and Tenants Act, 2017" in text
     assert "intimate it to the Rent Authority" in text and "within ninety days" in text
+
+
+# ---- succession_certificate: Malathi, widow of Kumaresan ----
+
+def test_succession_certificate_respondent_numbers_match_the_cause_title():
+    from tests.service.test_succession_contempt_quality import _SC
+    text = _text("succession_certificate", _SC)
+    assert "1. [name of the daughter to be provided], daughter of the deceased" in text
+    assert "namely the daughter as Respondent 1 and the son as Respondent 2" in text
+
+
+def test_succession_certificate_unstated_religion_is_one_clean_gap():
+    from tests.service.test_succession_contempt_quality import _SC
+    text = _text("succession_certificate", _SC)
+    assert "governed by [the personal law governing succession to the deceased to be provided]." in text
+    assert "if a Hindu" not in text
+
+
+def test_succession_certificate_schedule_i_printed_once():
+    from tests.service.test_succession_contempt_quality import _SC
+    text = _text("succession_certificate", _SC)
+    assert text.count("SCHEDULE I") == 1
+    assert "set forth in Schedule I at the foot of this petition" in text

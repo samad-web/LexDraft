@@ -105,4 +105,5 @@ def test_contempt_petition_address_does_not_repeat_the_petitioners_name():
 
 def test_succession_certificate_unstated_law_is_a_marked_gap_not_a_refusal():
     text = _text("succession_certificate", _SC)
-    assert "[the personal law of the deceased to be provided — if a Hindu: the Hindu Succession Act, 1956" in text
+    # r12: the gap is phrased as a clean placeholder (no drafting hint inside the pleading)
+    assert "governed by [the personal law governing succession to the deceased to be provided]." in text
