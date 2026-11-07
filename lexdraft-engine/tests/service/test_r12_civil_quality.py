@@ -51,3 +51,40 @@ def test_plaint_cause_of_action_place_gap_filled_from_the_shared_city():
     text = _text("plaint", {**PLAINT, "cause_of_action_place": "[cause of action place to be provided]"},
                  allow_placeholders=True)
     assert "arose at Chennai on 05.01.2026" in text
+
+
+# ---- condone_delay_petition: Meena v. ___, O.S. 73/2023 dismissed 12.06.2026 ----
+
+CONDONE = {
+    "main_proceeding": "appeal",
+    "main_proceeding_desc": "Appeal against the dismissal of O.S. No. 73 of 2023 (suit for "
+                            "recovery of Rs. 6,50,000 on a promissory note) by the Subordinate Court, Vellore",
+    "petitioner_name": "Mrs. P. Meena", "respondent_names": ["[respondent names to be provided]"],
+    "court_name": "Principal District Court, Vellore",
+    "impugned_order_ref": "O.S. No. 73 of 2023, Subordinate Court, Vellore",
+    "impugned_order_date": "2026-06-12", "period_days": 115, "filing_date": "2026-11-07",
+    "sufficient_cause": "Her earlier counsel undertook to apply for the decree copy but fell ill.",
+    "place": "Vellore", "copy_applied_date": "2026-09-26", "copy_ready_date": "2026-10-08",
+    "petitioner_role": "Appellant",
+    "supporting_documents": "Affidavit of Mrs. P. Meena; hospital records of CMC Hospital, Vellore",
+}
+
+
+def test_condone_delay_petition_copy_applied_after_expiry_gives_no_exclusion():
+    text = _text("condone_delay_petition", CONDONE, allow_placeholders=True)
+    # Art. 116(b): 30 days from 12.06.2026 -> 12.07.2026; copies applied 26.09.2026, too late
+    assert "CONDONE THE DELAY OF 118 DAYS" in text
+    assert "is 30 days from the date of the decree under Article 116(b)" in text
+    assert "115 days" not in text and "21 days" not in text
+    assert "not excluded under Section 12(2)" in text and "The last day for filing was 12.07.2026" in text
+    assert text.count("118 days") >= 4  # title, para 2, prayer, affidavit (x2)
+
+
+def test_condone_delay_petition_affidavit_reads_cleanly():
+    text = _text("condone_delay_petition", CONDONE, allow_placeholders=True)
+    assert "because her earlier counsel undertook" in text and "ill.." not in text
+    assert "The judgment and decree in O.S. No. 73 of 2023" in text
+    assert "in filing the appeal against the dismissal" in text and "filing Appeal" not in text
+    assert "I produce hospital records of CMC Hospital" in text
+    assert "signed her name in my presence" in text and "his/her" not in text
+    assert "in A.S. No. ______ of 2026" in text
