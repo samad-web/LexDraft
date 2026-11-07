@@ -59,6 +59,8 @@ ADAPTER = Adapter(
         ListFieldSpec("assets", _ASSET_ITEM, dict, required=False),
         FieldSpec("attesting_witnesses", "string_list", required=False, default=None),
         FieldSpec("deposing_witness", "string", required=False, default=None),
+        # the value of the whole estate, as the brief states it
+        FieldSpec("estate_value", "int", required=False, default=None),
     ),
     slots=("bequest_narrative",),
 )

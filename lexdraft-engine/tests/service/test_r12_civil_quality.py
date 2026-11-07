@@ -241,3 +241,37 @@ def test_succession_certificate_schedule_i_printed_once():
     text = _text("succession_certificate", _SC)
     assert text.count("SCHEDULE I") == 1
     assert "set forth in Schedule I at the foot of this petition" in text
+
+
+# ---- succession_grant: probate of Parvathi Ammal's will ----
+
+def _sg(**over):
+    from tests.service.test_succession_contempt_quality import _SG
+    return {**_SG, **over}
+
+
+_FLAT_UNVALUED = [{"description": "Flat No. 4, Kasturi Apartments, R.A. Puram, Chennai", "value": 0},
+                  {"description": "Deposits with Canara Bank, Mylapore", "value": 2200000}]
+
+
+def test_succession_grant_unvalued_flat_is_the_estate_balance_not_rs_0():
+    text = _text("succession_grant", _sg(assets=_FLAT_UNVALUED, estate_value=11000000))
+    sched = text.split("AFFIDAVIT OF ASSETS")[1]
+    assert "Rs. 0/-" not in sched
+    assert ("R.A. Puram, Chennai — Rs. 88,00,000/- (estimated, being the balance of the whole "
+            "estate of about Rs. 1,10,00,000/-)") in sched
+    assert "TOTAL: Rs. 1,10,00,000/-" in sched
+
+
+def test_succession_grant_unvalued_flat_without_estate_value_is_a_named_gap():
+    text = _text("succession_grant", _sg(assets=_FLAT_UNVALUED))
+    sched = text.split("AFFIDAVIT OF ASSETS")[1]
+    assert "R.A. Puram, Chennai — [value to be provided]" in sched and "Rs. 0/-" not in sched
+    assert "besides the item(s) whose value is to be provided" in sched
+
+
+def test_succession_grant_witness_never_named_as_his_own_co_witness():
+    text = _text("succession_grant", _sg(deposing_witness="V. Narayanan"))
+    aff = text.split("AFFIDAVIT OF ATTESTING WITNESS")[1]
+    assert "in the presence of Dr. P. Subramanian, the other attesting witness," in aff
+    assert "presence of Mr. V. Narayanan" not in aff
