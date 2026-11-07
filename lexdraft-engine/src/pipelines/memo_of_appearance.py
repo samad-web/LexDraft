@@ -17,9 +17,11 @@ Hard requirements (each refuses, no partial output):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading, opposite_role
 
 TEMPLATE = "memo_of_appearance.docx"
 SPEC = "tn-memo"
@@ -59,6 +61,7 @@ def build(
     opposite_party_name: Optional[str] = None,
     addressed_to: Optional[str] = None,   # e.g. "The Deputy Registrar, Appellate Side"
     enrolment_no: Optional[str] = None,
+    filing_date: Optional[date] = None,
 ) -> MemoOfAppearanceResult:
     """Assemble the memo of appearance, or refuse."""
 
@@ -79,14 +82,25 @@ def build(
             fields=("counsel_name",),
         )
 
+    # Full cause title, petitioner side first: appearing for a respondent still
+    # shows who brought the matter (a blank when the brief does not name them).
+    rep = party_represented.strip()
+    rep = rep[:1].upper() + rep[1:]
+    us = (party_name, rep)
+    them = ((opposite_party_name or "").strip() or "______", opposite_role(rep) or "Opposite Party")
+    first, second = (them, us) if rep.lower() in ("respondent", "defendant", "accused") else (us, them)
+    court, court_at = court_heading(court_name, court_place)
     context: Dict[str, Any] = {
+        "first_name": first[0], "first_label": first[1],
+        "second_name": second[0], "second_label": second[1],
+        "filing_date": filing_date.isoformat() if filing_date else None,
         "counsel_name": counsel_name,
         "party_represented": party_represented,
         "party_name": party_name,
         "case_ref": case_ref,
         "place": place,
-        "court_name": court_name,
-        "court_place": court_place,
+        "court_name": court,
+        "court_place": court_at,
         "opposite_party_name": opposite_party_name,
         "addressed_to": addressed_to,
         "enrolment_no": enrolment_no,

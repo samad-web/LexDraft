@@ -23,6 +23,7 @@ ADAPTER = Adapter(
         FieldSpec("address_for_service", "string", required=False, default=""),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("hearing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

@@ -20,6 +20,7 @@ ADAPTER = Adapter(
         FieldSpec("opposite_party_name", "string", required=False, default=None),
         FieldSpec("addressed_to", "string", required=False, default=None),
         FieldSpec("enrolment_no", "string", required=False, default=None),
+        FieldSpec("filing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

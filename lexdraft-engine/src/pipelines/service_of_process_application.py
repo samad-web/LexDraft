@@ -21,6 +21,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading, party_labels
 
 TEMPLATE = "service_of_process_application.docx"
 SPEC = "tn-service"
@@ -66,6 +67,11 @@ def build(
     court_place: Optional[str] = None,
     court_fee_amount: Optional[str] = None,
     hearing_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    # what is served ("summons", "notice"); blank -> "the process of this Court"
+    process_type: Optional[str] = None,
+    # how, e.g. "by registered post with acknowledgment due and through the court bailiff"
+    service_mode: Optional[str] = None,
 ) -> ServiceOfProcessApplicationResult:
     """Assemble the application to serve process on the listed respondents, or refuse."""
 
@@ -79,8 +85,20 @@ def build(
             fields=("respondents",),
         )
 
+    court, court_at = court_heading(court_name, court_place)
+    # a suit serves its defendants at the plaintiff's instance; a petition, respondents
+    applicant_label, served_label = party_labels(case_ref)
+    named = sum(1 for r in respondents if r.name.strip())
+    mode = (service_mode or "").strip()
+    if mode and not mode.lower().startswith(("by ", "through ")):
+        mode = "by " + mode
     context: Dict[str, Any] = {
         "case_ref": case_ref,
+        "court_name": court,
+        "applicant_label": applicant_label,
+        "served_label": served_label + ("s" if named > 1 else ""),
+        "process_type": (process_type or "").strip(),
+        "service_mode": mode,
         "respondents": [
             {
                 "name": r.name,
@@ -95,7 +113,7 @@ def build(
         "court_fee_amount": court_fee_amount,
         "hearing_date": hearing_date.isoformat() if hearing_date else None,
         "case_year": hearing_date.year if hearing_date else None,
-        "court_place": court_place,
+        "court_place": court_at,
         "place": place,
     }
     return ServiceOfProcessApplicationResult(refused=False, context=context)

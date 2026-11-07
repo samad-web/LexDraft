@@ -230,7 +230,10 @@ def test_golden_copy_application(tmp_path):
     assert r.refused is False
     txt = _g(ca.TEMPLATE, r.context, tmp_path, "ca")
     # New advocate format (04_Copy_Application_Civil_and_Crime.pdf) locked here:
-    assert "IN THE COURT" in txt and "SUBORDINATE JUDGE" in txt and "DISTRICT MUNSIFF" in txt
+    # 2026-11-07: a named court replaces the "SUBORDINATE JUDGE / DISTRICT MUNSIFF"
+    # strike-out (kept only when no court is given).
+    assert "IN THE COURT OF   City Civil Court" in txt and "AT Chennai" in txt
+    assert "SUBORDINATE JUDGE" not in txt
     assert "O.S. No." in txt
     # title "Application for Certified Copies" appears BELOW the parties (after To)
     assert txt.index("Versus") < txt.index("Application for Certified Copies")
@@ -436,7 +439,8 @@ def test_golden_process_memo(tmp_path):
     assert "- Petitioner" in txt and "- Respondents" in txt
     assert "- Vs -" in txt
     assert "PROCESS MEMO" in txt
-    assert "It is prayed that this Hon'ble court may be pleased issue summons" in txt
+    # 2026-11-07: "pleased issue" -> "pleased to issue" (grammar fix).
+    assert "It is prayed that this Hon'ble court may be pleased to issue summons" in txt
     assert "Address for Service" in txt
     assert "COUNSEL FOR THE PETITIONER" in txt
     # court de-duplicated (no doubled "Magistrate ... Magistrate ... Court")
@@ -562,11 +566,12 @@ def test_golden_affidavit_of_service(tmp_path):
     assert txt.index("Versus") < txt.index("Affidavit of Service")
     # - two case-reference lines
     assert "I.A. No." in txt and "O.S.No." in txt
-    # - stacked party role labels
-    assert "... Petitioner / Applicant / Plaintiff" in txt
-    assert "... Respondent / Defendent" in txt
-    # - verbatim clause 1 opening
-    assert "I am, the registered Clerk of the Petitioners Counsel on record" in txt
+    # 2026-11-07: the stacked strike-out labels resolve from the case number (I.A.
+    # -> Petitioner/Respondent), and clause 1 no longer has the clerk also claim to
+    # be the counsel on record (it read both, contradicting itself).
+    assert "... Petitioner" in txt and "... Respondent" in txt and "Defendent" not in txt
+    assert "I am the registered clerk of the counsel on record for the petitioner" in txt
+    assert "I am the counsel on Record" not in txt
     _assert_golden("tn_affidavit_of_service", txt)
     # The two-column closing (Solemnly affirmed | BEFORE ME / ADVOCATE / COUNSEL
     # FOR …) renders in a table, which extract_text does not read — assert it via
@@ -580,8 +585,9 @@ def test_golden_affidavit_of_service(tmp_path):
     )
     assert "Solemnly affirmed at" in _cells
     assert "BEFORE ME" in _cells
-    # "PLANTIFF" verbatim per the advocate's supplied form (typo reproduced on purpose).
-    assert "COUNSEL FOR PETITIONER / APPLICANT / PLANTIFF" in _cells
+    # 2026-11-07: the role resolves (I.A. -> PETITIONER); the form's "PLANTIFF"
+    # typo is no longer reproduced in a filed document.
+    assert "COUNSEL FOR PETITIONER" in _cells and "PLANTIFF" not in _cells
 
 
 def test_golden_substituted_service(tmp_path):

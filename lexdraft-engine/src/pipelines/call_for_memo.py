@@ -23,6 +23,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal
+from ._court_form import case_parts, year2
 
 TEMPLATE = "call_for_memo.docx"
 SPEC = "tn-callmemo"
@@ -102,9 +103,17 @@ def build(
         if m:
             pin = m.group(1)
 
+    # "of 20{{ cc_year }}" on the form (a 4-digit year printed "2022025")
+    parts = case_parts(case_ref)
+    cc_no = cc_no or (parts[0][1] if parts else "")
+    cc_year = (cc_year or "").strip()
+    if len(cc_year) == 1:          # the old "202_" form took the last digit alone
+        cc_year = "202" + cc_year
+    cc_year = year2(cc_year or (parts[0][2] if parts else ""))
     context: Dict[str, Any] = {
         "court_name": court_name_clean,
-        "court_place": court_place,
+        # shown under the heading only when the court name does not already carry it
+        "court_place": "" if (court_place or "").lower() in court_name_clean.lower() else court_place,
         "pincode": pin,
         "case_ref": case_ref,
         "cc_no": cc_no,

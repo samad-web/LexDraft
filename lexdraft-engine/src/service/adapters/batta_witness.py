@@ -49,6 +49,10 @@ ADAPTER = Adapter(
                       required=False),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("witness_name", "string", required=False, default=""),
+        FieldSpec("hearing_date", "date", required=False, default=None),
+        FieldSpec("documents_to_produce", "string", required=False, default=""),
+        FieldSpec("batta_amount", "string", required=False, default=""),
     ),
     slots=(),
 )

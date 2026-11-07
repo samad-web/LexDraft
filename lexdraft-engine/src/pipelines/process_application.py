@@ -25,6 +25,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading, opposite_role
 
 TEMPLATE = "process_application.docx"
 SPEC = "tn-process"
@@ -89,6 +90,8 @@ def build(
     service_mode: Optional[str] = None,
     next_hearing_date: Optional[date] = None,
     filing_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    process_fee_paid: bool = False,
 ) -> ProcessApplicationResult:
     """Assemble the application for issue of process and deposit of batta, or refuse."""
 
@@ -111,10 +114,20 @@ def build(
             fields=("applicant_name",),
         )
 
+    court, court_at = court_heading(court_name, court_place)
+    role = applicant_role.strip()
+    role = role[:1].upper() + role[1:]
     context: Dict[str, Any] = {
         "forum": forum.value,
         "case_ref": case_ref,
         "applicant": {"name": applicant_name, "role": applicant_role},
+        # the template reads the flat keys (it printed a blank applicant before)
+        "applicant_name": applicant_name,
+        "applicant_role": role,
+        # a defendant is the "Defendant", not an "Opposite Party"
+        "opposite_party_role": opposite_role(role) or "Opposite Party",
+        "court_name": court,
+        "process_fee_paid": process_fee_paid,
         "rows": [
             {
                 "nature_of_process": r.nature_of_process,
@@ -136,7 +149,7 @@ def build(
         "next_hearing_date": next_hearing_date.isoformat() if next_hearing_date else None,
         "filing_date": filing_date.isoformat() if filing_date else None,
         "case_year": filing_date.year if filing_date else None,
-        "court_place": court_place,
+        "court_place": court_at,
         "place": place,
     }
     return ProcessApplicationResult(refused=False, context=context)

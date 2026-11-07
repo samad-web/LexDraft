@@ -20,12 +20,14 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import case_parts, court_heading
 
 TEMPLATE = "copy_application.docx"
 SPEC = "tn-copy"
@@ -91,6 +93,8 @@ def build(
     # 20__) and a "dated this ___ day of ___ 20__" footer; all optional.
     os_no: Optional[str] = None,
     os_year: Optional[str] = None,
+    urgent: bool = False,
+    purpose: Optional[str] = None,       # "filing an appeal"
 ) -> CopyApplicationResult:
     """Assemble the application for certified copies of documents.
 
@@ -120,7 +124,19 @@ def build(
         if not digits:
             return None
         return digits[-2:]
-    os_year = _year2(os_year)
+    parts = [p for p in case_parts(case_ref) if p[0].upper().replace(" ", "").startswith("O.S")]
+    os_no = os_no or (parts[0][1] if parts else None)
+    os_year = _year2(os_year or (parts[0][2] if parts else None))
+
+    # A civil copying form: the cause title is always Plaintiff v. Defendant, but a
+    # DEFENDANT applicant sits in the defendant's slot and his counsel signs for him.
+    for_defendant = (applicant_role or "").strip().lower().startswith("defendant")
+    plaintiff_name, defendant_name = ((opposite_party_name, applicant_name) if for_defendant
+                                      else (applicant_name, opposite_party_name))
+    court, court_at = court_heading(court_name, court_place)
+    n_docs = len(documents)
+    plural = n_docs > 1 or (n_docs == 1 and " and " in documents[0].description)
+    purpose = re.sub(r"^\s*(for\s+)?(the\s+)?(purpose\s+of\s+)?", "", purpose or "", flags=re.I).rstrip(". ")
 
     context: Dict[str, Any] = {
         "forum": forum.value,
@@ -149,6 +165,15 @@ def build(
         "case_year": filing_date.year if filing_date else None,
         "court_place": court_place,
         "court_name": court_name,
+        "court_title": court,
+        "court_at": court_at,
+        "plaintiff_name": plaintiff_name,
+        "defendant_name": defendant_name,
+        "counsel_for": "Defendant" if for_defendant else "Plaintiff",
+        "copy_kind": "urgent" if urgent else "",
+        "copy_word": ("copies" if plural else "copy") if n_docs else "",
+        "doc_word": ("documents" if n_docs > 1 else "document") if n_docs else "",
+        "purpose": purpose,
         "os_no": os_no,
         "os_year": os_year,
         "place": place,
