@@ -21,6 +21,7 @@ notifications. `TIERS_ARE_VERIFY` is True.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -90,6 +91,19 @@ def _refuse(
             fields=fields, remedy_hint=remedy_hint,
         ),
     )
+
+
+def _parties(names: str) -> list:
+    """"A Ltd.; B Store" (or one per line) is two opposite parties. r13: the intake
+    joined them as "Coolwave Appliances Ltd. and Metro Digital Store" -> one merged
+    party. " and " splits only when every piece is a name of two or more words, so
+    "Larsen and Toubro Limited" or "Sri Ram Traders and Sons" stay whole."""
+    parts = [n.strip() for n in re.split(r";|\n", names) if n.strip()]
+    if len(parts) == 1:
+        pieces = [p.strip(" ,") for p in re.split(r"\s+and\s+", parts[0])]
+        if len(pieces) > 1 and all(len(p.split()) >= 2 for p in pieces):
+            parts = pieces
+    return parts
 
 
 def _forum_tier(consideration_paid: int) -> ForumTier:
@@ -178,7 +192,7 @@ def build(
         "complainant": {"name": complainant_name},
         "opposite_party": {"name": opposite_party_name},
         # "A Ltd.; B Store" is two opposite parties, each on its own line.
-        "opposite_parties": [n.strip() for n in opposite_party_name.split(";") if n.strip()],
+        "opposite_parties": _parties(opposite_party_name),
         "refund_amount": refund_amount,
         "refund_interest_rate": refund_interest_rate,
         "costs_claimed": costs_claimed,

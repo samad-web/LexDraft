@@ -13,6 +13,7 @@
 - 2026-11-02 — eFiling stays black and white (user reversed the portal-colour request the same day).
 - 2026-11-02 — eFiling login = one-step Sign In with the captcha shown on load; a new Sign In never ends a live session until the new login succeeds; unused Sign In pages close after 3 min.
 - eFiling portal actions always need the advocate's confirmation; captcha/OTP typed by the advocate; DifAi never pays.
+- 2026-11-07 r13 — HRCP own-occupation ground is pleaded by its words under s.21(2) with no clause letter and no verify note (clause numbering after TN Act 19 of 2022 unconfirmed).
 
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.

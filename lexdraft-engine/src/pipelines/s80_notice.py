@@ -116,6 +116,12 @@ def build(
             law += (f", and deprives my client of {his_her(client)} property without authority of law,"
                     " contrary to Article 300A of the Constitution of India")
         law += "."
+        # r13: no stated ground left "[ground ... to be provided]" beside the no-notice facts.
+        ground = ground or "it was done without any notice to my client"
+    # r13: draft-now's "[plaintiff name description to be provided]" though the client
+    # (name and address) is on record.
+    if plaintiff_name_description.strip().startswith("[") and client.strip() and not client.strip().startswith("["):
+        plaintiff_name_description = client.strip().rstrip(".")
     context: Dict[str, Any] = {
         "addressees": addressees,
         "illegality_law": law,

@@ -91,7 +91,8 @@ def build(
     place = place.strip() or court_place.strip() or (
         court_name.rsplit(",", 1)[1].strip() if "," in court_name else "")
     # r12: "Plaintiff - Defendant" is the form's strike-out; print only the side.
-    applicant_role = applicant_role.strip().title()
+    # r13: no side given -> the side that filed the suit, the usual applicant for a witness.
+    applicant_role = applicant_role.strip().title() or "Plaintiff"
     if re.fullmatch(r"[\d,]+(\.\d+)?(/-)?", batta_amount.strip()):
         batta_amount = f"Rs. {batta_amount.strip()}"
     # r12: the witness's designation and address for service, not the bare name.

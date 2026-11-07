@@ -124,7 +124,8 @@ def build(
     respondents = [n for n in (respondent_names or []) if n.strip()] or [respondent_name]
     if respondent_count and respondent_count > 1:
         # r10: "against her two brothers" drafted as one "[respondent name]" gap.
-        respondents = [n for n in respondents if not n.strip().startswith("[")]
+        # r13: a description ("her two brothers (names not stated)") is not a name.
+        respondents = [n for n in respondents if n.strip()[:1].isupper() and "not stated" not in n.lower()]
         respondents += [f"[name of {opp_role} {i} to be provided]"
                         for i in range(len(respondents) + 1, respondent_count + 1)]
 

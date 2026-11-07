@@ -136,6 +136,12 @@ def build(
         records_of.append(d[:m.start()] if m else d)
         if m:
             records_court.append(m.group(1).strip(" ."))
+    if kind == "records" and not records_of:
+        # r13: the case to call for came in the case reference / purpose, not as a document.
+        main = parts[0][1:] if parts else None
+        records_of = list(dict.fromkeys(
+            f"{label.split()[-1]} No. {no} of {year}" for label, no, year in case_parts(f"{case_ref} {purpose}")
+            if (no, year) != main))
     own = {re.sub(r"\W+", "", court_name.lower()), re.sub(r"\W+", "", court_name_clean.lower())} - {""}
     others = [c for c in records_court if not any(o and o in re.sub(r"\W+", "", c.lower()) for o in own)]
     role = applicant_role.strip().title()

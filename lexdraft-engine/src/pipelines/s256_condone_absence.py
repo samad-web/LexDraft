@@ -99,6 +99,12 @@ def build(
     # the deponent's own affidavit speaks in the first person.
     reason_first = (_PROPRIETOR.sub("I", reason, count=1) if m and m.group(1).strip() == deponent
                     else reason)
+    # r13: "Proprietor of M/s. X, the complainant" repeated the template's own words;
+    # what is left is the age/parentage/address (else the template's placeholder).
+    description = (deponent_description or "").strip()
+    if complainant_name.strip():
+        description = re.sub(rf"\b(?:proprietor\s+of\s+{re.escape(complainant_name.strip())}|the\s+complainant(?:\s+herein)?)[,\s]*",
+                             "", description, flags=re.I).strip(" ,")
     docs = [d for d in documents if d.strip()]
     proof = (", ".join(docs) if docs
              else "[the medical certificate]" if _MEDICAL.search(reason)
@@ -116,7 +122,7 @@ def build(
         "absence_reason_first": reason_first,
         "firm": firm,
         "deponent": deponent,
-        "deponent_description": (deponent_description or "").strip(),
+        "deponent_description": description,
         "proof": proof,
         "case_dismissed": case_dismissed,
         "case_nature": (case_nature or "").strip().rstrip("."),

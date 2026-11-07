@@ -141,6 +141,9 @@ def build(
     # The personal law: a Hindu deceased is pleaded with the Act and the heirs'
     # Class I status; an unstated law stays a marked gap (never assumed).
     law = (law_of_succession or "").strip()
+    # r13: "intestate succession" names no law; only an Act, a religion or a personal law does.
+    if not re.search(r"\b(act|law|hindu|muslim|mohammedan|shariat|christian|parsi|jain|sikh|buddhist)\b", law, re.I):
+        law = ""
     if not law:
         law_text = "[the personal law governing succession to the deceased to be provided]"
     elif re.fullmatch(r"(a\s+)?hindu\.?", law, re.I) or "hindu succession act" in law.lower():

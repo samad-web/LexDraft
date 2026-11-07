@@ -35,14 +35,18 @@ _PUBLIC_OFFICE = re.compile(
 def _respondent_party(kw: Dict[str, Any]) -> Party:
     name = kw["name"]
     is_authority = bool(kw.get("is_authority", False)) or bool(_PUBLIC_OFFICE.search(name))
+    address = (kw.get("address") or "").strip(" ,.")
     return Party(role=PartyRole.RESPONDENT, serial=int(kw.get("serial", 1)),
-                 name=name, is_authority=is_authority)
+                 name=name, is_authority=is_authority,
+                 address_lines=(address,) if address and address.lower() not in name.lower() else ())
 
 
 _RESPONDENT_ITEM = (
     FieldSpec("serial", "int", required=False, default=1),
     FieldSpec("name", "string"),
     FieldSpec("is_authority", "bool", required=False, default=False),
+    # r13: the brief's "Fort St. George, Chennai 600009" was dropped from the cause title.
+    FieldSpec("address", "string", required=False, default=""),
 )
 
 
