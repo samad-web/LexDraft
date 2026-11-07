@@ -37,6 +37,7 @@ LLM slots: facts (para 3) and grounds (para 5).
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -53,6 +54,9 @@ SPEC = "cpc-115-art227"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 _CONSUMED_TABLES = (aw.PERIODS_TABLE,)
+
+
+_ORDER_WORD = re.compile(r"(?:the\s+)?(?:(?:fair|common|impugned)\s+)?(?:order|decree|judgment)\b", re.I)
 
 
 class RevisionBasis(Enum):
@@ -111,6 +115,7 @@ def build(
     facts_narrative: str = "",
     grounds_narrative: str = "",
     grounds_list: Optional[Sequence[str]] = None,
+    stay_of_proceedings_sought: bool = False,
 ) -> CivilRevisionResult:
     """Assemble the civil revision petition, or refuse."""
 
@@ -186,6 +191,19 @@ def build(
     # Madras numbering follows the basis: C.R.P.(PD) under Article 227, C.R.P.(NPD)
     # under s.115 CPC (crp_category is kept for the inbound contract).
     cat = "PD" if basis is RevisionBasis.ART227 else "NPD"
+    # r10: the extractor's ref already read "I.A. No. 610 of 2026 in O.S. No. 412 of
+    # 2024", so "... passed in O.S. No. 412 of 2024" repeated it, and "set aside I.A."
+    # set aside the application, not the order on it.
+    ref = impugned_order_ref.strip()
+    if proceeding_ref.strip().lower() not in ref.lower():
+        ref = f"{ref} in {proceeding_ref.strip()}"
+    if _ORDER_WORD.match(ref):
+        the = "" if ref.lower().startswith("the ") else "the "
+        ref = f"{the}{ref} dated {impugned_order_date.isoformat()}"
+    else:
+        ref = f"the order dated {impugned_order_date.isoformat()} passed in {ref}"
+    court = lower_court.strip()
+    order_desc = f"{ref} on the file of {'' if court.lower().startswith('the ') else 'the '}{court}"
     context: Dict[str, Any] = {
         "basis": basis.value,
         "basis_label": _BASIS_LABEL[basis],
@@ -199,6 +217,8 @@ def build(
         "impugned_order_date": impugned_order_date.isoformat(),
         "lower_court": lower_court,
         "proceeding_ref": proceeding_ref,
+        "order_desc": order_desc,
+        "stay_of_proceedings_sought": stay_of_proceedings_sought,
         "is_s115": basis is RevisionBasis.S115,
         "limitation_expiry": win.expiry.isoformat() if win else None,
         "delay_days": win.delay_days if win else 0,

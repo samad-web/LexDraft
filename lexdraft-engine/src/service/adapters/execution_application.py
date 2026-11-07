@@ -28,6 +28,8 @@ ADAPTER = Adapter(
         FieldSpec('decree_interest_rate', 'int', required=False, default=None),
         FieldSpec('interest_from_date', 'date', required=False, default=None),
         FieldSpec('post_decree_interest_rate', 'int', required=False, default=None),
+        FieldSpec('property_schedule', 'string', required=False, default=''),
+        FieldSpec('employer', 'string', required=False, default=''),
     ),
     slots=(),
 )

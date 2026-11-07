@@ -99,6 +99,8 @@ def build(
     petitioner_role: str = "Petitioner",
     case_ref: str = "",
     delay_narrative: str = "",
+    # what the petitioner's affidavit annexes in proof (e.g. the hospital records).
+    supporting_documents: str = "",
 ) -> CondoneDelayResult:
     """Assemble the s.5 Limitation Act petition, or refuse."""
 
@@ -176,6 +178,7 @@ def build(
         "delay_slot": delay_narrative if delay_narrative.strip()
                       else _LLM_SLOT_PLACEHOLDER,
         "place": place,
+        "supporting_documents": supporting_documents.strip(),
         "computation": win.computation,
     }
     return CondoneDelayResult(refused=False, context=context)

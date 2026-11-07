@@ -75,9 +75,9 @@ export interface ComposeResult {
   removedSentences?: string[];
   /** Authorities the composed body cites beyond the skeleton (for advocate review). */
   addedAuthorities?: Authority[];
-  /** A verification line whose paragraph count the composed body changed: the
-   *  caller rewrites `from` to `to` in the .docx too. */
-  verification?: { from: string; to: string };
+  /** Lines (verification, affidavit) whose paragraph count the composed body
+   *  changed: the caller rewrites each `from` to `to` in the .docx too. */
+  verification?: Array<{ from: string; to: string }>;
   /** What the pass did, for quality telemetry. Absent when compose never ran. */
   stats?: { planned: boolean; repaired: boolean; authorities: number; judgments: number };
   modelUsed: string;
@@ -338,6 +338,10 @@ const MUST_PLEAD: Record<string, string> = {
   quash_petition: '- The FIR / complaint particulars and what each offence\'s ingredients are, then why the allegations, taken at face value, do not make them out.\n- Name each section the skeleton gives (never "[sections to be provided]" when it names them) and take its ingredients one by one, against EACH petitioner separately — a relative with no specific act, date or role attributed, or living elsewhere, is shown to be outside every ingredient.',
   criminal_revision: '- For a cheque-dishonour conviction: the offence under Section 138 of the Negotiable Instruments Act, 1881, and why the presumption under Section 139 stood rebutted on a preponderance of probabilities from the complainant\'s own evidence, which both courts below failed to consider.',
   criminal_appeal: '- If grounds attack only the sentence, say so; if they attack the conviction, plead the errors in appreciating evidence first.',
+  special_leave_petition: '- Where the impugned judgment is in a Second Appeal: the substantial question(s) of law on which the High Court admitted it, exactly as the facts state them, and that the point decided was not among them if the facts say so.\n- Each ground complete in itself, ending on a fact or provision given — no closing inference the facts do not support.',
+  amendment_ia: '- Every averment the amended pleading will carry, each as its own item of the proposed amendments — including any fact learnt since the pleading was filed (e.g. the defendants\' attempt to sell the property, and how and when it was learnt).\n- Due diligence (proviso to Order VI Rule 17 CPC): when and how the omission was discovered and why it could not have been raised earlier despite due diligence — plead it whenever issues have been framed, even if no witness has been examined.',
+  injunction: '- Ex parte (proviso to Order XXXIX Rule 3 CPC): why the object would be defeated by the delay of notice — the act going on now, from the facts (e.g. construction or trenching continuing despite a police complaint), and that it would be complete before the respondent could be heard.',
+  civil_revision: '- Where the facts ask for it, that further proceedings in the suit be stayed pending the revision, and why (the order goes to the root of the case).',
   condone_delay_petition: '- The exact period of delay, and a continuous, day-by-day explanation of it from the facts — vague causes are rejected.',
   adjournment_petition: '- A reason the law accepts. Counsel being engaged in another court is NOT by itself a ground (proviso to Order XVII Rule 1 CPC) — if that is the only reason given, plead it plainly and leave "[to be drafted]" for any other cause.',
   written_statement: '- A specific traverse of each allegation; a bare "denies each and every allegation" is an evasive denial (Order VIII Rules 3–5 CPC).',
@@ -871,14 +875,16 @@ export async function composeAndVerify(args: {
   const spliced = [...paragraphs, ...prayer];
   // The verification counts the paragraphs ("contents of paras 1 to 12"): recount.
   const lastPara = lastNumber(spliced, 0);
-  let verification: { from: string; to: string } | undefined;
+  // Every such line: a writ carries both the verification and the affidavit (r10).
+  const recounted: Array<{ from: string; to: string }> = [];
   const newTail = tail.map((t) => {
     const m = PARAS_RANGE.exec(t);
     if (!m || !lastPara || Number(m[2]) === lastPara) return t;
     const to = t.replace(PARAS_RANGE, `$1${lastPara}`);
-    verification = { from: t, to };
+    recounted.push({ from: t, to });
     return to;
   });
+  const verification = recounted.length ? recounted : undefined;
   const blocks = [...lines.slice(0, seg.start), ...spliced, ...newTail].map((text, i) => ({ key: `composed_${i}`, text }));
   if (removed.length) logger.info({ docType: args.docType, removed }, 'intake-compose: sentences removed by checks');
   const added = citedAuthorities(paragraphs, authorities, skeleton);

@@ -585,6 +585,7 @@ def test_golden_affidavit_of_service(tmp_path):
 
 
 def test_golden_substituted_service(tmp_path):
+    # 2026-11-07 (r10): golden re-pinned - an I.A. petition now precedes the supporting affidavit.
     from src.pipelines import substituted_service as ss
     r = ss.build(deponent_name="K. Menon", deponent_role="counsel for the plaintiff",
                  petitioner_name="Ramesh", respondent_name="Suresh",
@@ -675,6 +676,7 @@ def test_golden_recall_warrant(tmp_path):
 # ---- Cluster F: civil interlocutory --------------------------------------
 
 def test_golden_adjournment(tmp_path):
+    # 2026-11-07 (r10): golden re-pinned — full prayer and the supporting affidavit added.
     from src.pipelines import adjournment_petition as ap
     r = ap.build(petitioner_name="Anand", respondent_name="Balu", posted_for="trial",
                  adjournment_reason="counsel is engaged before the High Court",

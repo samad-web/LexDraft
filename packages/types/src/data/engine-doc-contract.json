@@ -1,9 +1,12 @@
 {
   "adjournment_petition": {
     "all": [
+      "adjournment_period",
       "adjournment_reason",
       "case_ref",
+      "court_name",
       "court_place",
+      "hearing_date",
       "petition_date",
       "petitioner_name",
       "place",
@@ -49,6 +52,21 @@
       {
         "key": "petition_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "adjournment_period",
+        "kind": "string",
         "required": false
       }
     ],
@@ -758,6 +776,7 @@
       "pleading_date",
       "proposed_amendments",
       "reasons_narrative",
+      "respondent_count",
       "respondent_name",
       "respondent_names",
       "suit_ref",
@@ -841,6 +860,11 @@
       {
         "key": "respondent_names",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "respondent_count",
+        "kind": "int",
         "required": false
       }
     ],
@@ -1706,7 +1730,8 @@
       "petitioner_names",
       "place",
       "proceeding_ref",
-      "respondent_names"
+      "respondent_names",
+      "stay_of_proceedings_sought"
     ],
     "fields": [
       {
@@ -1811,6 +1836,11 @@
       {
         "key": "grounds_list",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "stay_of_proceedings_sought",
+        "kind": "bool",
         "required": false
       }
     ],
@@ -1993,7 +2023,8 @@
       "petitioner_role",
       "place",
       "respondent_names",
-      "sufficient_cause"
+      "sufficient_cause",
+      "supporting_documents"
     ],
     "fields": [
       {
@@ -2085,6 +2116,11 @@
       },
       {
         "key": "delay_narrative",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "supporting_documents",
         "kind": "string",
         "required": false
       }
@@ -4199,6 +4235,7 @@
       "decree_holder_name",
       "decree_interest_rate",
       "decretal_amount",
+      "employer",
       "execution_against",
       "execution_court",
       "filing_date",
@@ -4211,6 +4248,7 @@
       "police_station",
       "post_decree_interest_rate",
       "prior_applications",
+      "property_schedule",
       "suit_no"
     ],
     "fields": [
@@ -4312,6 +4350,16 @@
       {
         "key": "post_decree_interest_rate",
         "kind": "int",
+        "required": false
+      },
+      {
+        "key": "property_schedule",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "employer",
+        "kind": "string",
         "required": false
       }
     ],
@@ -4902,6 +4950,7 @@
       "opposite_party_name",
       "place",
       "prima_facie_case",
+      "property_schedule",
       "subject_matter",
       "suit_ref",
       "undertaking_as_to_damages",
@@ -4996,6 +5045,11 @@
       {
         "key": "application_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "property_schedule",
+        "kind": "string",
         "required": false
       }
     ],
@@ -8914,6 +8968,7 @@
       "questions_of_law",
       "respondents",
       "slp_kind",
+      "subject_property",
       "substantial_questions_framed",
       "synopsis"
     ],
@@ -9020,6 +9075,11 @@
       {
         "key": "substantial_questions_framed",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "subject_property",
+        "kind": "string",
         "required": false
       }
     ],

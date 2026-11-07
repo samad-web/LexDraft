@@ -32,6 +32,8 @@ ADAPTER = Adapter(
         FieldSpec('facts_narrative', 'string', required=False, default=''),
         FieldSpec('grounds_narrative', 'string', required=False, default=''),
         FieldSpec('grounds_list', 'string_list', required=False, default=None),
+        # the brief asks to stay the trial pending the revision -> interim prayer
+        FieldSpec('stay_of_proceedings_sought', 'bool', required=False, default=False),
     ),
     slots=('facts_narrative', 'grounds_narrative'),
 )

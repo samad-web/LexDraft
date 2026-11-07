@@ -17,6 +17,7 @@ Brief facts (para 2) is an ordinary named [LLM] slot. This layer calls no LLM.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
@@ -90,6 +91,8 @@ def build(
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
     application_date: Optional[date] = None,
+    # the suit property, for the SCHEDULE at the foot of the petition.
+    property_schedule: str = "",
 ) -> InjunctionResult:
     """Assemble the injunction application, or refuse."""
 
@@ -114,6 +117,12 @@ def build(
 
     # --- prayer specificity: the restrained act must be named ---
     act = act_restrained.strip()
+    # r10: "restrain the defendant from Putting up ... till disposal of the suit, pending
+    # the final disposal of the above suit" — the prayer already says "pending".
+    act = re.sub(r"[,;.]?\s*(?:till|until|pending)\s+(?:the\s+)?(?:final\s+)?disposal\s+of\s+the\s+(?:above\s+)?suit\.?$",
+                 "", act, flags=re.I).strip()
+    if re.match(r"[A-Z][a-z]+ing\b", act):  # "Putting up" -> "putting up"; names untouched
+        act = act[0].lower() + act[1:]
     if not act or act.rstrip(".").lower() in _VAGUE_PRAYERS:
         return _refuse(
             "the prayer is not specific: the act sought to be restrained must be "
@@ -166,6 +175,7 @@ def build(
         "notice_futility_paragraph": bool(is_ex_parte),
         "notice_futility": notice_futility,
         "place": place,
+        "property_schedule": property_schedule.strip(),
     }
     return InjunctionResult(refused=False, context=context)
 

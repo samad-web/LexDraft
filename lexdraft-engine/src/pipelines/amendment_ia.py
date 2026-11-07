@@ -87,6 +87,9 @@ def build(
     reasons_narrative: str = "",
     # every respondent, when there is more than one (e.g. two brother-defendants).
     respondent_names: Optional[Sequence[str]] = None,
+    # how many respondents the brief says there are ("her two brothers") when it
+    # does not name them all: the unnamed ones are arrayed as numbered gaps.
+    respondent_count: Optional[int] = None,
 ) -> AmendmentIAResult:
     """Assemble the O.VI R.17 amendment application, or refuse."""
 
@@ -118,11 +121,17 @@ def build(
     role = applicant_role.strip().lower() or "plaintiff"
     opp_role = {"plaintiff": "defendant", "defendant": "plaintiff"}.get(role, "respondent")
 
+    respondents = [n for n in (respondent_names or []) if n.strip()] or [respondent_name]
+    if respondent_count and respondent_count > 1:
+        # r10: "against her two brothers" drafted as one "[respondent name]" gap.
+        respondents = [n for n in respondents if not n.strip().startswith("[")]
+        respondents += [f"[name of {opp_role} {i} to be provided]"
+                        for i in range(len(respondents) + 1, respondent_count + 1)]
+
     context: Dict[str, Any] = {
         "applicant": {"name": applicant_name, "role": role},
         "respondent": {"name": respondent_name, "role": opp_role},
-        "respondents": [n for n in (respondent_names or []) if n.strip()]
-                       or [respondent_name],
+        "respondents": respondents,
         "civil_court": civil_court,
         "city": city,
         "suit_ref": suit_ref,

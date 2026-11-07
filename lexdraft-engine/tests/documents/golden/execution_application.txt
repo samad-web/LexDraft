@@ -18,8 +18,10 @@ The Decree Holder prays for execution of the decree dated 2023-12-01, the partic
 (f) Whether any, and if so what, previous applications have been made for the execution of the decree, their dates and results: Nil
 (g) The amount with interest due upon the decree, or other relief granted thereby: principal Rs. 419200/-; interest: with interest at 18% per annum
 (h) The amount of the costs, if any, awarded: Rs. 15000/-
-(i) The name of the person against whom the enforcement of the decree is sought: the judgment-debtor B
+(i) The name of the person against whom the enforcement of the decree is sought: B, the Judgment Debtor
 (j) The mode in which the assistance of the Court is required (attachment and sale of property under Order XXI Rules 54 and 64, attachment of salary under Order XXI Rules 48 / 48A, arrest and detention, or delivery of property): attachment and sale of the judgment-debtor's property
+
+
 
 
 PRAYER:
@@ -33,5 +35,6 @@ VERIFICATION:
 Verified at Chennai on this 2024-02-01 that the contents of this application are true to my knowledge and belief.
 
 DECREE HOLDER
+
 
 [NOTE: The application shall be accompanied by a duly certified copy of the decree or order (Order XXI Rule 11 CPC).]

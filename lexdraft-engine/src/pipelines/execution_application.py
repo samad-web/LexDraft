@@ -74,6 +74,10 @@ def build(
     decree_interest_rate: Optional[float] = None,
     interest_from_date: Optional[date] = None,
     post_decree_interest_rate: Optional[float] = None,
+    # immovable property to attach (O.XXI R.13: survey number, boundaries) and the
+    # employer / disbursing officer for a salary attachment (O.XXI R.48 / 48A).
+    property_schedule: str = "",
+    employer: str = "",
 ) -> ExecutionResult:
     """Assemble the execution application, or refuse."""
 
@@ -118,6 +122,13 @@ def build(
         interest_due = sum(p.amount for p in parts)
         interest_working = [p.text for p in parts]
 
+    # r10: column (i) is the PERSON the decree is enforced against; the extractor put
+    # the house there. What it holds, if not the judgment-debtor, is the property.
+    against = execution_against.strip()
+    if judgment_debtor_name.strip().lower() in against.lower():
+        against = ""
+    schedule = property_schedule.strip() or "; ".join(
+        p.strip() for p in against.split(";") if p.strip() and "salary" not in p.lower())
     context: Dict[str, Any] = {
         "decree_holder": {"name": decree_holder_name},
         "judgment_debtor": {"name": judgment_debtor_name},
@@ -138,6 +149,9 @@ def build(
                       if interest_due is not None else None),
         "costs_amount": costs_amount,
         "execution_against": execution_against,
+        "property_schedule": schedule,
+        "salary_attachment": "salary" in mode_of_assistance.lower(),
+        "employer": employer.strip(),
         "mode_of_assistance": mode_of_assistance,
         "certified_copy_attached": certified_copy_attached,
         "place": place,

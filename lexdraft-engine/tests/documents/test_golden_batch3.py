@@ -173,6 +173,7 @@ def test_golden_transfer_petition(tmp_path):
 
 
 def test_golden_execution(tmp_path):
+    # 2026-11-07 (r10): golden re-pinned - item (i) names the judgment-debtor, not execution_against.
     from src.pipelines import execution_application as ex
     r = ex.build(
         decree_holder_name="A", judgment_debtor_name="B",
@@ -327,6 +328,8 @@ def test_golden_writ_criminal(tmp_path):
 
 
 def test_golden_slp_civil(tmp_path):
+    # 2026-11-07 (r10): goldens re-pinned — the synopsis is now drafted from the given
+    # particulars instead of a bare "[Synopsis ... to be provided]" gap.
     from src.pipelines import special_leave_petition as slp
     r = slp.build(
         slp_kind=slp.SLPKind.CIVIL, petitioner_name="Vasant Bhavsar",
