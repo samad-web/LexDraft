@@ -23,6 +23,7 @@ ADAPTER = Adapter(
         FieldSpec("urgency_grounds", "string", required=False, default=None),
         FieldSpec("posted_date", "date", required=False, default=None),
         FieldSpec("petitioner_role", "string", required=False, default=None),
+        FieldSpec("interim_prayer", "string", required=False, default=None),
     ),
     slots=(),
 )

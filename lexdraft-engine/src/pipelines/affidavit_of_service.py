@@ -26,7 +26,7 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
-from ._court_form import case_parts, court_heading, kind_of, party_labels, year2
+from ._court_form import case_parts, court_heading, his_her, kind_of, party_labels, year2
 
 TEMPLATE = "affidavit_of_service.docx"
 SPEC = "tn-affsvc"
@@ -146,6 +146,7 @@ def build(
         # Missing name/role render as blank fill-in lines on the form (never a
         # refusal — the advocate completes them).
         "deponent_name": deponent_name,
+        "his_her": his_her(deponent_name),
         "deponent_role": deponent_role,
         "deponent_parentage": deponent_parentage,
         "deponent_age": deponent_age,

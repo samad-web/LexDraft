@@ -50,7 +50,9 @@ def test_affidavit_authority_prayer_is_the_actual_request():
     text = _text("affidavit", {**_TAHSILDAR, "prayer": "correct my name as K. Ramesh in the patta for S.F. No. 88/2"})
     assert "Hon'ble Court" not in text
     assert "I therefore request the Tahsildar, Erode to correct my name as K. Ramesh in the patta" in text
-    missing = _text("affidavit", _TAHSILDAR)
+    # r12: a "wrongly recorded as" body now implies its request (see
+    # test_affidavit_name_correction_request_stated); with no such fact the gap stays.
+    missing = _text("affidavit", {**_TAHSILDAR, "body_paras": _TAHSILDAR["body_paras"][1:]})
     assert "I therefore request the Tahsildar, Erode to [request to be provided]." in missing
 
 

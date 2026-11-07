@@ -21,7 +21,7 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
-from ._court_form import court_heading, opposite_role
+from ._court_form import his_her, court_heading, opposite_role
 
 TEMPLATE = "urgent_petition.docx"
 SPEC = "tn-urgent"
@@ -64,6 +64,8 @@ def build(
     urgency_grounds: Optional[str] = None,
     posted_date: Optional[date] = None,       # date the application now stands posted to
     petitioner_role: Optional[str] = None,    # "plaintiff" / "defendant" in the suit
+    # interim order pending the advanced hearing, e.g. "direct the parties to maintain status quo"
+    interim_prayer: Optional[str] = None,
 ) -> UrgentPetitionResult:
     """Assemble the s.151 CPC urgent-listing petition, or refuse."""
 
@@ -101,6 +103,10 @@ def build(
     orders = re.sub(r"^to\s+", "", orders, flags=re.I) if verb else "grant " + orders
     orders = orders[:1].lower() + orders[1:]
     grounds = re.sub(r"^\s*because\s+", "", (urgency_grounds or "").strip(), flags=re.I).rstrip(". ")
+    # r12: "because The defendant started construction" — a clause mid-sentence.
+    if grounds[1:2].islower():
+        grounds = grounds[:1].lower() + grounds[1:]
+    interim = re.sub(r"^\s*(and\s+)?(to\s+)?", "", (interim_prayer or "").strip(), flags=re.I).rstrip(". ")
     side = (petitioner_role or "").strip().title()
     other = opposite_role(side)
     context: Dict[str, Any] = {
@@ -111,6 +117,9 @@ def build(
         "underlying_application": underlying_application,
         "orders_prayed": orders,
         "urgency_grounds": grounds,
+        "interim_prayer": interim[:1].lower() + interim[1:] if not interim or re.match(
+            r"(direct|grant|restrain|order|stay|permit|pass)\b", interim, re.I) else "grant " + interim,
+        "his_her": his_her(petitioner_name),
         "posted_date": posted_date.isoformat() if posted_date else None,
         "court_name": court,
         "case_ref": case_ref,

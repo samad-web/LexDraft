@@ -22,11 +22,13 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import his_her, opposite_role
 
 TEMPLATE = "adjournment_petition.docx"
 SPEC = "tn-adjourn"
 
 
+_ROLE_ONLY = re.compile(r"\s*(the\s+)?(plaintiff|defendant)s?\s*", re.I)
 _ON_DATE = re.compile(r"\s+on\s+(\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{4}-\d{2}-\d{2})$", re.I)
 
 
@@ -65,6 +67,7 @@ def build(
     court_name: Optional[str] = None,
     hearing_date: Optional[date] = None,
     adjournment_period: str = "",
+    petitioner_role: Optional[str] = None,    # "defendant" / "plaintiff" in the suit
 ) -> AdjournmentPetitionResult:
     """Assemble the Order XVII Rule 1 adjournment petition, or refuse."""
 
@@ -98,10 +101,25 @@ def build(
     # outside para 2, which compose then left behind as stray text (r10).
     reason = " ".join(adjournment_reason.split()).rstrip(".")
 
+    # r12: "by About four weeks" — the period follows "by" mid-sentence.
+    period = adjournment_period.strip().rstrip(".")
+    if period[1:2].islower():
+        period = period[:1].lower() + period[1:]
+    # The petitioner is often the defendant (r12): the cause title reads
+    # "Petitioner/Defendant" v "Respondent/Plaintiff"; a bare role word in the
+    # respondent slot is a missing name, not a name.
+    side = (petitioner_role or "").strip().title()
+    if _ROLE_ONLY.fullmatch(respondent_name or ""):
+        side = side or opposite_role(_ROLE_ONLY.fullmatch(respondent_name).group(2))
+        respondent_name = f"[name of the {opposite_role(side).lower()} to be provided]"
+    other = opposite_role(side)
     context: Dict[str, Any] = {
+        "petitioner_label": f"Petitioner/{side}" if other else "Petitioner",
+        "respondent_label": f"Respondent/{other}" if other else "Respondent",
+        "his_her": his_her(petitioner_name),
         "court_name": (court_name or "").strip() or None,
         "hearing_date": when,
-        "adjournment_period": adjournment_period.strip(),
+        "adjournment_period": period,
         "petitioner_name": petitioner_name,
         "respondent_name": respondent_name,
         "posted_for": posted,

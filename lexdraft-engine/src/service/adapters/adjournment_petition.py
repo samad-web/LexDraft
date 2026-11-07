@@ -22,6 +22,7 @@ ADAPTER = Adapter(
         FieldSpec("court_name", "string", required=False, default=None),
         FieldSpec("hearing_date", "date", required=False, default=None),
         FieldSpec("adjournment_period", "string", required=False, default=""),
+        FieldSpec("petitioner_role", "string", required=False, default=None),
     ),
     slots=(),
 )

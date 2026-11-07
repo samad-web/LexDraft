@@ -577,20 +577,11 @@ def test_golden_affidavit_of_service(tmp_path):
     assert "I am the registered clerk of the counsel on record for the petitioner" in txt
     assert "I am the counsel on Record" not in txt
     _assert_golden("tn_affidavit_of_service", txt)
-    # The two-column closing (Solemnly affirmed | BEFORE ME / ADVOCATE / COUNSEL
-    # FOR …) renders in a table, which extract_text does not read — assert it via
-    # the docx table cells so the attestation block can't silently drift.
-    from docx import Document
-    _out = tmp_path / "af_tbl.docx"
-    render_golden(af.TEMPLATE, r.context, _out)
-    _cells = " | ".join(
-        p.text for t in Document(str(_out)).tables for row in t.rows
-        for c in row.cells for p in c.paragraphs
-    )
-    assert "Solemnly affirmed at" in _cells
+    # r12: the closing jurat (solemnly affirmed / deponent / before me / counsel) is
+    # body text now, not a two-column table the draft text never showed.
+    _cells = txt[txt.index("Solemnly affirmed at"):]
+    assert "DEPONENT" in _cells
     assert "BEFORE ME" in _cells
-    # 2026-11-07: the role resolves (I.A. -> PETITIONER); the form's "PLANTIFF"
-    # typo is no longer reproduced in a filed document.
     assert "COUNSEL FOR PETITIONER" in _cells and "PLANTIFF" not in _cells
 
 

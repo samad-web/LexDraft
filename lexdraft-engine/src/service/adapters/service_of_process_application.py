@@ -37,6 +37,8 @@ ADAPTER = Adapter(
         FieldSpec("court_name", "string", required=False, default=None),
         FieldSpec("process_type", "string", required=False, default=None),
         FieldSpec("service_mode", "string", required=False, default=None),
+        FieldSpec("applicant_name", "string", required=False, default=None),
+        FieldSpec("filing_date", "date", required=False, default=None),
     ),
     slots=(),
 )
