@@ -134,6 +134,10 @@ def test_maintenance_wife_and_minor_child_engine_drafts_both_quanta_and_prayers(
     assert "proviso to s.144(2)" not in text
     assert "Section 7(2)(a) of the Family Courts Act, 1984" in text
     assert "solemnised on 20.11.2020 at Chennai" in text
+    # r12 test_maintenance_rajnesh_without_citation: no authority table carries
+    # Rajnesh v. Neha, so the skeleton names no case.
+    assert "Rajnesh" not in text
+    assert "affidavit of assets and liabilities, in the form prescribed by the Hon'ble Supreme Court" in text
 
 
 def test_maintenance_relationship_still_required_without_a_child():
