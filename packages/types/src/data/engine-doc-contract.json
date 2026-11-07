@@ -9,6 +9,7 @@
       "hearing_date",
       "petition_date",
       "petitioner_name",
+      "petitioner_role",
       "place",
       "posted_for",
       "respondent_name"
@@ -66,6 +67,11 @@
       },
       {
         "key": "adjournment_period",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_role",
         "kind": "string",
         "required": false
       }
@@ -1150,6 +1156,11 @@
             "key": "cost_estimate",
             "kind": "string",
             "required": false
+          },
+          {
+            "key": "count",
+            "kind": "string",
+            "required": false
           }
         ],
         "key": "documents",
@@ -1375,6 +1386,8 @@
       "plaintiff_name",
       "rows",
       "value_of_claim",
+      "witness_address",
+      "witness_designation",
       "witness_name"
     ],
     "fields": [
@@ -1515,6 +1528,16 @@
         "key": "batta_amount",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "witness_designation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "witness_address",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [],
@@ -1523,6 +1546,7 @@
   "call_for_memo": {
     "all": [
       "accused_name",
+      "applicant_role",
       "case_ref",
       "cc_no",
       "cc_year",
@@ -1532,6 +1556,8 @@
       "court_place",
       "documents",
       "filing_date",
+      "hearing_date",
+      "kind",
       "pincode",
       "place",
       "purpose"
@@ -1599,6 +1625,25 @@
       },
       {
         "key": "filing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "copy",
+          "records"
+        ],
+        "key": "kind",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "key": "applicant_role",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
         "kind": "date",
         "required": false
       }
@@ -2706,6 +2751,7 @@
       "deponent_description",
       "deponent_designation",
       "deponent_name",
+      "documents",
       "jurisdiction_line",
       "main_case_ref",
       "para_replies",
@@ -2819,6 +2865,11 @@
       {
         "key": "prayer_text",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -3502,6 +3553,8 @@
       "bail_court",
       "chargesheet_filed_ts",
       "city",
+      "deponent",
+      "deponent_relation",
       "district",
       "fir_no",
       "first_remand_date",
@@ -3648,6 +3701,16 @@
         "key": "application_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "deponent",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_relation",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -3665,7 +3728,7 @@
       "readiness_to_furnish_bail",
       "sections"
     ],
-    "title": "Application for default bail (s.167(2))"
+    "title": "Application for default bail (s.187(3) BNSS / s.167(2) CrPC)"
   },
   "dissolution_deed": {
     "all": [
@@ -4155,11 +4218,14 @@
       "family_court",
       "first_motion_case_no",
       "first_motion_order_date",
+      "marriage_date",
+      "marriage_place",
       "no_other_proceedings",
       "party_a",
       "party_b",
       "place",
       "second_motion_date",
+      "separation_date",
       "settlement_implemented",
       "waiver_sought"
     ],
@@ -4217,6 +4283,21 @@
       {
         "key": "no_other_proceedings",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "separation_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -6341,6 +6422,7 @@
   },
   "memorandum_furnish_sureties": {
     "all": [
+      "accused_gender",
       "accused_name",
       "bail_granted",
       "bail_order_date",
@@ -6349,6 +6431,7 @@
       "complainant_name",
       "court_name",
       "court_place",
+      "filing_date",
       "granting_court",
       "memo_date",
       "place",
@@ -6437,6 +6520,16 @@
         "key": "sureties",
         "kind": "list",
         "minItems": 0,
+        "required": false
+      },
+      {
+        "key": "accused_gender",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -6971,6 +7064,7 @@
       "plaintiff_address",
       "plaintiff_name",
       "plaintiff_parentage",
+      "plaintiff_representative",
       "principal",
       "s12a_ref",
       "s80_notice_ref",
@@ -7169,6 +7263,11 @@
       },
       {
         "key": "plaintiff_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_representative",
         "kind": "string",
         "required": false
       },
@@ -7774,14 +7873,18 @@
   "recall_petition": {
     "all": [
       "absence_reason",
+      "accused_gender",
       "accused_name",
       "case_ref",
       "cc_no",
       "complainant_name",
       "court_name",
       "court_place",
+      "deponent_description",
+      "documents",
       "filing_date",
       "place",
+      "police_station",
       "undertakes_to_appear",
       "warrant_date",
       "warrant_type"
@@ -7846,6 +7949,26 @@
         "key": "undertakes_to_appear",
         "kind": "bool",
         "required": false
+      },
+      {
+        "key": "accused_gender",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [],
@@ -7854,11 +7977,13 @@
   "recall_warrant": {
     "all": [
       "absence_reason",
+      "accused_gender",
       "accused_name",
       "case_ref",
       "court_name",
       "court_place",
       "documents",
+      "filing_date",
       "petition_date",
       "place",
       "police_station",
@@ -7931,6 +8056,16 @@
       {
         "key": "documents",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "accused_gender",
+        "kind": "string",
         "required": false
       }
     ],
@@ -9200,10 +9335,16 @@
       "absence_date",
       "absence_reason",
       "accused_name",
+      "case_dismissed",
+      "case_nature",
       "case_ref",
       "complainant_name",
       "court_designation",
       "court_place",
+      "deponent_description",
+      "deponent_name",
+      "documents",
+      "filing_date",
       "petition_date",
       "place",
       "post_for"
@@ -9258,6 +9399,36 @@
         "key": "post_for",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "case_dismissed",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "case_nature",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
+        "required": false
       }
     ],
     "required": [
@@ -9267,7 +9438,7 @@
       "complainant_name",
       "place"
     ],
-    "title": "Petition u/s 256 CrPC (Condone Complainant Absence)"
+    "title": "Petition u/s 279 BNSS (s.256 CrPC) (Condone Complainant Absence)"
   },
   "s317_dispense_presence": {
     "all": [
@@ -9616,10 +9787,12 @@
   },
   "service_of_process_application": {
     "all": [
+      "applicant_name",
       "case_ref",
       "court_fee_amount",
       "court_name",
       "court_place",
+      "filing_date",
       "hearing_date",
       "place",
       "process_type",
@@ -9703,6 +9876,16 @@
       {
         "key": "service_mode",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "applicant_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -10352,6 +10535,7 @@
       "deceased_last_residence",
       "deceased_name",
       "deposing_witness",
+      "estate_value",
       "filing_date",
       "grant_court",
       "grant_kind",
@@ -10531,6 +10715,11 @@
       {
         "key": "deposing_witness",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "estate_value",
+        "kind": "int",
         "required": false
       }
     ],
@@ -10922,12 +11111,14 @@
       "court_name",
       "court_place",
       "crime_no",
+      "filing_date",
       "id_proofs",
       "monthly_income",
       "offence_section",
       "place",
       "police_station",
       "prior_suretyships",
+      "property_description",
       "property_particulars",
       "state_rep_by",
       "surety_address",
@@ -10935,7 +11126,8 @@
       "surety_name",
       "surety_occupation",
       "surety_parentage",
-      "surety_relationship_to_accused"
+      "surety_relationship_to_accused",
+      "title_documents"
     ],
     "fields": [
       {
@@ -11046,6 +11238,21 @@
       {
         "key": "police_station",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "property_description",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "title_documents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -11373,6 +11580,7 @@
       "case_ref",
       "court_name",
       "court_place",
+      "interim_prayer",
       "orders_prayed",
       "petition_date",
       "petitioner_name",
@@ -11441,6 +11649,11 @@
       },
       {
         "key": "petitioner_role",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "interim_prayer",
         "kind": "string",
         "required": false
       }
@@ -11708,6 +11921,7 @@
   },
   "writ_criminal": {
     "all": [
+      "detention_order_no",
       "detention_place",
       "detenu_name",
       "facts_narrative",
@@ -11721,6 +11935,7 @@
       "petitioner_address",
       "petitioner_name",
       "petitioner_parentage",
+      "petitioner_relation",
       "place",
       "police_station",
       "pre_execution_stage",
@@ -11809,6 +12024,16 @@
       },
       {
         "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "detention_order_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_relation",
         "kind": "string",
         "required": false
       }
@@ -12055,6 +12280,7 @@
   },
   "written_statement": {
     "all": [
+      "additional_pleas",
       "city",
       "civil_court",
       "counter_claim_or_setoff",
@@ -12152,6 +12378,11 @@
       {
         "key": "city",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "additional_pleas",
+        "kind": "string_list",
         "required": false
       }
     ],
