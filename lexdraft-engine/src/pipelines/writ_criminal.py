@@ -22,6 +22,16 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._bench import MADURAI_COURT, madurai_bench
+
+_PRISON = re.compile(r"\b(?:Central Prison|Special Prison for Women|District Jail|Sub[- ]Jail)"
+                     r",\s*[A-Z][A-Za-z]+")
+_GOONDA = re.compile(r"\bgoondas?\b|\bAct 14 of 1982\b", re.IGNORECASE)
+_TN_ACT_14_1982 = (
+    "the Tamil Nadu Prevention of Dangerous Activities of Bootleggers, Cyber Law "
+    "Offenders, Drug-Offenders, Forest-Offenders, Goondas, Immoral Traffic Offenders, "
+    "Sand-Offenders, Sexual-Offenders, Slum-Grabbers and Video Pirates Act, 1982 "
+    "(Tamil Nadu Act 14 of 1982)")
 
 TEMPLATE = "writ_criminal.docx"
 SPEC = "dpc-63-66"
@@ -79,7 +89,10 @@ def _array_state(respondents: Sequence[str], high_court: Optional[str],
         names.insert(0, state)
     low = " ".join(names).lower()
     if detention_place and detention_place.strip() and "superintendent" not in low:
-        names.append(f"The Superintendent of Prison, {detention_place.strip()}")
+        dp = detention_place.strip()
+        # "The Superintendent, Central Prison, Tiruchirappalli" (the jailor's title)
+        names.append(f"The Superintendent, {dp}" if re.search(r"prison|jail", dp, re.I)
+                     else f"The Superintendent of Prison, {dp}")
     ps = (police_station or "").strip()
     if ps and ps.lower() not in low:
         if "police station" not in ps.lower():
@@ -140,13 +153,35 @@ def build(
             fields=("no_similar_petition",),
         )
 
+    # A detenu already confined somewhere is past the pre-execution stage: the
+    # remedy is habeas corpus (r10: a Goondas detenu in Central Prison came out
+    # as a W.P.(Crl.) for certiorari because the flag was set wrongly).
+    told = " ".join([impugned_order_ref, facts_narrative, *grounds])
+    if not (detention_place or "").strip():
+        m = _PRISON.search(told)
+        detention_place = m.group(0) if m else None
+    pre_execution_stage = pre_execution_stage and not detention_place
+    statute = impugned_order_statute.strip()
+    # a "Goonda" detention is under TN Act 14 of 1982 — name it in full when the
+    # statute is missing or given only as "the Goondas Act".
+    if "14 of 1982" not in statute and (
+            _GOONDA.search(statute) or ((not statute or statute.startswith("["))
+                                        and _GOONDA.search(told))):
+        impugned_order_statute = _TN_ACT_14_1982
+    high_court = high_court or "Judicature at Madras"
+    madurai = madurai_bench(high_court, impugned_order_ref, police_station,
+                            petitioner_address, place)
+    if madurai and "madurai" not in high_court.lower():
+        high_court = MADURAI_COURT
+
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
                        "address": petitioner_address},
         "respondents": _array_state(respondents, high_court, police_station,
                                     None if pre_execution_stage else detention_place),
         # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
-        "high_court": high_court or "Judicature at Madras",
+        "high_court": high_court,
+        "md_suffix": "(MD)" if madurai else "",
         "petition_year": filing_date.year,
         "petition_date": filing_date.isoformat(),
         "impugned_order_ref": impugned_order_ref,

@@ -14,8 +14,8 @@ client = TestClient(app)
 MATTER = {"matter_id": "M-R10-CRIM", "version": 1}
 
 
-def _draft(doc_type, fields):
-    r = client.post(f"/v1/draft/{doc_type}", json={"matter": MATTER, "fields": fields})
+def _draft(doc_type, fields, **extra):
+    r = client.post(f"/v1/draft/{doc_type}", json={"matter": MATTER, "fields": fields, **extra})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["outcome"] == "generated", body
@@ -150,3 +150,34 @@ def test_criminal_revision_prayer_sets_aside_both_judgments_and_acquits():
             "[date of the trial court's judgment] passed by Judicial Magistrate No. I, Sivakasi in "
             "S.T.C. No. 340 of 2021, and acquit the petitioner of the offence under Section 138 "
             "of the Negotiable Instruments Act, 1881") in text
+
+
+# --- writ_criminal ----------------------------------------------------------------
+
+_WRIT = {
+    "petitioner_name": "Mrs. R. Chellammal", "petitioner_address": "Pudukkottai",
+    "respondents": ["The District Collector and District Magistrate, Pudukkottai"],
+    "impugned_order_ref": "Detention order passed by the District Collector and District Magistrate, Pudukkottai",
+    "impugned_order_date": "2026-09-12", "impugned_order_statute": "[impugned order statute to be provided]",
+    "facts_narrative": ("Mr. R. Saravanan, aged 26, has been detained as a 'Goonda' and is now in "
+                        "Central Prison, Tiruchirappalli."),
+    "grounds": ["The representation dated 25.09.2026 was rejected only on 30.10.2026."],
+    # the r10 extraction set this wrongly though the detenu is in prison
+    "pre_execution_stage": True, "no_similar_petition": True,
+    "filing_date": "2026-11-07", "place": "Madurai", "high_court": "Madras High Court",
+    "detenu_name": "Mr. R. Saravanan", "police_station": "Pudukkottai Town",
+}
+
+
+def test_writ_criminal_goondas_detenu_in_prison_is_a_habeas_corpus_petition_md():
+    """r10: numbered W.P.(Crl.), prayed certiorari, no statute, no prison respondent."""
+    text = "\n".join(_draft("writ_criminal", _WRIT, allow_placeholders=True))
+    assert "H.C.P.(MD) No. ______ of 2026" in text and "W.P.(Crl.)" not in text
+    assert "(MADURAI BENCH)" in text
+    assert "HABEAS CORPUS PETITION FILED UNDER ARTICLE 226" in text
+    assert "issue a Writ of Habeas Corpus" in text and "Certiorari" not in text
+    assert "direct the respondents to produce the detenu, Mr. R. Saravanan," in text
+    assert "set the detenu at liberty" in text
+    assert "(Tamil Nadu Act 14 of 1982)" in text and "[impugned order statute" not in text
+    assert "The Superintendent, Central Prison, Tiruchirappalli" in text
+    assert "Alka Subhash Gadia" not in text
