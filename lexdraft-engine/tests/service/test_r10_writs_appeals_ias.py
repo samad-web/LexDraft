@@ -232,6 +232,18 @@ def test_written_statement_additional_pleas_and_no_written_acknowledgment():
     assert text.index("ADDITIONAL PLEAS") < text.index("PRAYER:") and "{%" not in text
 
 
+def test_divorce_mutual_second_marriage_date_and_joint_affidavit():
+    """r12: the brief's marriage date (25.08.2017) was lost; only a NOTE stood for the joint affidavit."""
+    text = _text("divorce_mutual_second", {
+        "party_a": "Mr. L. Prakash", "party_b": "Mrs. P. Shalini", "first_motion_order_date": "2026-04-15",
+        "second_motion_date": "2026-11-07", "settlement_implemented": False, "place": "Chennai",
+        "family_court": "Family Court, Chennai", "first_motion_case_no": "H.M.O.P. No. 912 of 2026",
+        "marriage_date": "2017-08-25", "separation_date": "2025-03-01"})
+    assert "Their marriage was solemnised on 25.08.2017, and they have lived separately since 01.03.2025." in text
+    assert "JOINT AFFIDAVIT OF THE PETITIONERS FILED IN SUPPORT OF THE PETITION" in text
+    assert "[NOTE: This joint petition must be supported" not in text and "{%" not in text
+
+
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",
        "posted_for": "cross-examination of PW1 on 10.11.2026",
        "adjournment_reason": "The petitioner underwent cataract surgery on 30.10.2026.\n"
