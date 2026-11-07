@@ -21,12 +21,14 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading
 
 TEMPLATE = "court_notice.docx"
 SPEC = "tn-courtnotice"
@@ -75,6 +77,9 @@ def build(
     documents_description: Optional[str] = None,   # produce_documents
     written_statement_date: Optional[date] = None, # family_court
     seal_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    addressee_address: Optional[str] = None,
+    appearance_time: Optional[str] = None,          # "10.30 a.m."
 ) -> CourtNoticeResult:
     """Assemble the court-issued notice draft for the court's issue, or refuse."""
 
@@ -108,15 +113,22 @@ def build(
                 fields=("documents_description",),
             )
 
+    court, court_at = court_heading(court_name, court_place)
+    # the form already reads "an application to this Court for ..."
+    relief = re.sub(r"^\s*(a\s+|an\s+|the\s+)?(petition|application)\s+for\s+", "",
+                    application_or_relief or "", flags=re.I) or application_or_relief
     context: Dict[str, Any] = {
         "court_issues": True,
+        "court_name": court,
+        "addressee_address": addressee_address,
+        "appearance_time": appearance_time,
         "kind": kind.value,
         "case_ref": case_ref,
         "applicant_or_petitioner_name": applicant_or_petitioner_name,
         "addressee_name": addressee_name,
         "place": place,
-        "court_place": court_place,
-        "application_or_relief": application_or_relief,
+        "court_place": court_at,
+        "application_or_relief": relief,
         "appearance_date": appearance_date.isoformat() if appearance_date else None,
         "documents_description": documents_description,
         "written_statement_date": (written_statement_date.isoformat()

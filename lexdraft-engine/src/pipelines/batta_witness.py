@@ -23,6 +23,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal
+from ._court_form import case_parts, court_heading, year2
 
 TEMPLATE = "batta_witness.docx"
 SPEC = "tn-batta"
@@ -71,16 +72,24 @@ def build(
     rows: Sequence[BattaRow] = (),
     place: str = "",
     filing_date: Optional[date] = None,
+    # the memo's own particulars: whom to summon, when, what to bring, batta paid
+    witness_name: str = "",
+    hearing_date: Optional[date] = None,
+    documents_to_produce: str = "",
+    batta_amount: str = "",
 ) -> BattaWitnessResult:
     """Assemble the Batta Witness application. Never refuses — renders blanks for
     anything not supplied, so it drafts complete-with-gaps for the advocate."""
 
     # Heading "AT <place>" — drop it when the place already appears IN the court
     # name (avoids "... Court, Chennai AT Chennai"). Only shown when it adds info.
-    court_at = ""
-    cp = (court_place or "").strip()
-    if cp and cp.lower() not in (court_name or "").lower():
-        court_at = cp
+    court_name, court_at = court_heading(court_name, court_place)
+    # "of 20{{ os_year }}" on the form: a 4-digit year printed "202025".
+    parts = [p for p in case_parts(case_ref) if p[0].upper().replace(" ", "").startswith("O.S")]
+    os_no = os_no or (parts[0][1] if parts else "")
+    os_year = year2(os_year or (parts[0][2] if parts else ""))
+    if not court_day and hearing_date:
+        court_day = hearing_date.strftime("%d.%m.%Y")
 
     # Date parts for "on this the <day> day of <month> <year>". None -> the
     # template prints the blank fill-in lines (advocate fills, or a date on record
@@ -109,6 +118,12 @@ def build(
     # to hand-enter witnesses/process into (Word grows each cell as they type, and
     # Tab adds more rows). Matches the printed form's tall writable area.
     _BLANK_ROWS = 4
+    if not row_ctx and witness_name.strip():
+        row_ctx = [{"nature_of_process": "Summons to witness", "person_description": witness_name,
+                    "place_of_service": "", "distance_miles": "", "travelling_allowance": "",
+                    "class_of_allowance": "", "amount": batta_amount, "for_how_many_days": "",
+                    "process_fees": "",
+                    "remarks": f"To produce {documents_to_produce}" if documents_to_produce else ""}]
     if not row_ctx:
         empty = {k: "" for k in (
             "nature_of_process", "person_description", "place_of_service",
@@ -130,6 +145,10 @@ def build(
         "applicant_role": applicant_role,
         "value_of_claim": value_of_claim,
         "court_day": court_day,
+        "witness_name": witness_name,
+        "hearing_date": hearing_date.isoformat() if hearing_date else None,
+        "documents_to_produce": documents_to_produce,
+        "batta_amount": batta_amount,
         "rows": row_ctx,
         "place": place,
         "filing_date": filing_date.isoformat() if filing_date else None,

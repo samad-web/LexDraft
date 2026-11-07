@@ -48,6 +48,8 @@ ADAPTER = Adapter(
         FieldSpec("filing_date", "date", required=False, default=None),
         FieldSpec("os_no", "string", required=False, default=None),
         FieldSpec("os_year", "string", required=False, default=None),
+        FieldSpec("urgent", "bool", required=False, default=False),
+        FieldSpec("purpose", "string", required=False, default=None),
     ),
     slots=(),
 )

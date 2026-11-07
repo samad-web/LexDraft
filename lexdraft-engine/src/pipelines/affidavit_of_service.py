@@ -26,6 +26,7 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import case_parts, court_heading, kind_of, party_labels, year2
 
 TEMPLATE = "affidavit_of_service.docx"
 SPEC = "tn-affsvc"
@@ -86,6 +87,12 @@ def build(
     ia_year: Optional[str] = None,
     os_no: Optional[str] = None,
     os_year: Optional[str] = None,
+    # how the notice was served: "personal" | "rpad"; inferred when blank
+    service_mode: Optional[str] = None,
+    served_date: Optional[date] = None,
+    served_time: Optional[str] = None,        # "11 a.m."
+    service_address: Optional[str] = None,
+    acknowledgment_signed: bool = False,
 ) -> AffidavitOfServiceResult:
     """Assemble the affidavit of service.
 
@@ -97,7 +104,45 @@ def build(
     doc-type, which is free-form and does require a named deponent.)
     """
 
+    # Case numbers: fill from the reference, and print the year as the two digits
+    # after the form's fixed "20" (a 4-digit year printed "202026").
+    for label, no, yr in case_parts(case_ref):
+        k = label.upper().replace(" ", "")
+        if k.startswith("I.A") and not ia_no:
+            ia_no, ia_year = no, ia_year or yr
+        elif k.startswith("O.S") and not os_no:
+            os_no, os_year = no, os_year or yr
+    ia_year, os_year = year2(ia_year), year2(os_year)
+    court, court_at = court_heading(court_name, court_place)
+
+    # Party labels: I.A. -> petitioner/respondent, suit -> plaintiff/defendant;
+    # unknown -> the form's strike-out alternatives.
+    if kind_of(case_ref) or ia_no:
+        p_label, r_label = party_labels(case_ref) if kind_of(case_ref) else ("Petitioner", "Respondent")
+    else:
+        p_label, r_label = "Petitioner / Applicant / Plaintiff", "Respondent / Defendant"
+
+    # A clerk is not the counsel on record (the form recited both, contradicting itself).
+    role = (deponent_role or "").lower()
+    deponent_kind = "clerk" if "clerk" in role else (
+        "counsel" if any(w in role for w in ("counsel", "advocate")) else "")
+
+    # Personal service and a returned RPAD cover are alternatives, never both.
+    m = (service_mode or "").lower()
+    mode = ("rpad" if any(w in m for w in ("rpad", "registered", "post", "courier")) else
+            "personal" if any(w in m for w in ("personal", "hand", "in person")) else
+            "personal" if (served_date or acknowledgment_signed) else
+            "rpad" if endorsement else "")
+
     context: Dict[str, Any] = {
+        "p_label": p_label,
+        "r_label": r_label,
+        "deponent_kind": deponent_kind,
+        "service_mode": mode,
+        "served_date": served_date.isoformat() if served_date else None,
+        "served_time": served_time,
+        "service_address": service_address,
+        "acknowledgment_signed": acknowledgment_signed,
         # Missing name/role render as blank fill-in lines on the form (never a
         # refusal — the advocate completes them).
         "deponent_name": deponent_name,
@@ -118,8 +163,8 @@ def build(
         "case_ref": case_ref,
         "affirm_date": affirm_date.isoformat() if affirm_date else None,
         "case_year": affirm_date.year if affirm_date else None,
-        "court_place": court_place,
-        "court_name": court_name,
+        "court_place": court_at,
+        "court_name": court,
         "place": place,
         # Two case-reference lines on the advocate form (I.A. No. / O.S. No.).
         "ia_no": ia_no,

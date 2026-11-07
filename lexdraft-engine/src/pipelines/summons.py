@@ -26,6 +26,7 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading
 
 TEMPLATE = "summons.docx"
 SPEC = "tn-summons"
@@ -74,6 +75,9 @@ def build(
     claim_amount: Optional[str] = None,            # summary suit
     costs: Optional[str] = None,
     seal_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    addressee_address: Optional[str] = None,
+    appearance_time: Optional[str] = None,          # "10.30 a.m."
 ) -> SummonsResult:
     """Assemble the court summons draft for the court's issue, or refuse."""
 
@@ -106,14 +110,18 @@ def build(
                 fields=("claim_amount",),
             )
 
+    court, court_at = court_heading(court_name, court_place)
     context: Dict[str, Any] = {
         "court_issues": True,
+        "court_name": court,
+        "addressee_address": addressee_address,
+        "appearance_time": appearance_time,
         "kind": kind.value,
         "case_ref": case_ref,
         "plaintiff_name": plaintiff_name,
         "defendant_or_witness_name": defendant_or_witness_name,
         "place": place,
-        "court_place": court_place,
+        "court_place": court_at,
         "cause_of_action": cause_of_action,
         "appearance_date": appearance_date.isoformat() if appearance_date else None,
         "documents_to_produce": documents_to_produce,

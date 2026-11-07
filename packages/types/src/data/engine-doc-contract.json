@@ -429,6 +429,7 @@
   },
   "affidavit_of_service": {
     "all": [
+      "acknowledgment_signed",
       "affirm_date",
       "case_ref",
       "court_name",
@@ -447,7 +448,11 @@
       "petitioner_name",
       "place",
       "religion",
-      "respondent_name"
+      "respondent_name",
+      "served_date",
+      "served_time",
+      "service_address",
+      "service_mode"
     ],
     "fields": [
       {
@@ -548,6 +553,31 @@
       {
         "key": "os_year",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "service_mode",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "served_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "served_time",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "service_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "acknowledgment_signed",
+        "kind": "bool",
         "required": false
       }
     ],
@@ -1255,18 +1285,22 @@
   "batta_witness": {
     "all": [
       "applicant_role",
+      "batta_amount",
       "case_ref",
       "court_day",
       "court_name",
       "court_place",
       "defendant_name",
+      "documents_to_produce",
       "filing_date",
+      "hearing_date",
       "os_no",
       "os_year",
       "place",
       "plaintiff_name",
       "rows",
-      "value_of_claim"
+      "value_of_claim",
+      "witness_name"
     ],
     "fields": [
       {
@@ -1385,6 +1419,26 @@
       {
         "key": "filing_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "witness_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "documents_to_produce",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "batta_amount",
+        "kind": "string",
         "required": false
       }
     ],
@@ -2437,7 +2491,9 @@
       "os_no",
       "os_year",
       "place",
-      "rule_ref"
+      "purpose",
+      "rule_ref",
+      "urgent"
     ],
     "fields": [
       {
@@ -2550,6 +2606,16 @@
       },
       {
         "key": "os_year",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "urgent",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "purpose",
         "kind": "string",
         "required": false
       }
@@ -2697,11 +2763,14 @@
   },
   "court_notice": {
     "all": [
+      "addressee_address",
       "addressee_name",
       "appearance_date",
+      "appearance_time",
       "applicant_or_petitioner_name",
       "application_or_relief",
       "case_ref",
+      "court_name",
       "court_place",
       "documents_description",
       "kind",
@@ -2765,6 +2834,21 @@
       {
         "key": "written_statement_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "addressee_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appearance_time",
+        "kind": "string",
         "required": false
       },
       {
@@ -5972,6 +6056,7 @@
       "court_name",
       "court_place",
       "enrolment_no",
+      "filing_date",
       "opposite_party_name",
       "party_name",
       "party_represented",
@@ -6026,6 +6111,11 @@
       {
         "key": "enrolment_no",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -6928,12 +7018,14 @@
       "applicant_role",
       "case_ref",
       "court_day",
+      "court_name",
       "court_place",
       "filing_date",
       "forum",
       "next_hearing_date",
       "opposite_party_name",
       "place",
+      "process_fee_paid",
       "process_type",
       "rows",
       "service_mode",
@@ -7058,6 +7150,16 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "process_fee_paid",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [
@@ -7079,6 +7181,7 @@
       "court_name",
       "court_place",
       "filing_date",
+      "hearing_date",
       "petitioner_name",
       "place",
       "process_type",
@@ -7137,6 +7240,11 @@
       },
       {
         "key": "filing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
         "kind": "date",
         "required": false
       }
@@ -9036,10 +9144,13 @@
     "all": [
       "case_ref",
       "court_fee_amount",
+      "court_name",
       "court_place",
       "hearing_date",
       "place",
-      "respondents"
+      "process_type",
+      "respondents",
+      "service_mode"
     ],
     "fields": [
       {
@@ -9103,6 +9214,21 @@
       {
         "key": "hearing_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "process_type",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "service_mode",
+        "kind": "string",
         "required": false
       }
     ],
@@ -10199,11 +10325,14 @@
   },
   "summons": {
     "all": [
+      "addressee_address",
       "appearance_date",
+      "appearance_time",
       "case_ref",
       "cause_of_action",
       "claim_amount",
       "costs",
+      "court_name",
       "court_place",
       "defendant_or_witness_name",
       "documents_to_produce",
@@ -10276,6 +10405,21 @@
       },
       {
         "key": "costs",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "addressee_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appearance_time",
         "kind": "string",
         "required": false
       },
@@ -10693,13 +10837,17 @@
   "urgent_petition": {
     "all": [
       "case_ref",
+      "court_name",
       "court_place",
       "orders_prayed",
       "petition_date",
       "petitioner_name",
+      "petitioner_role",
       "place",
+      "posted_date",
       "respondent_name",
-      "underlying_application"
+      "underlying_application",
+      "urgency_grounds"
     ],
     "fields": [
       {
@@ -10740,6 +10888,26 @@
       {
         "key": "petition_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "urgency_grounds",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "posted_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "petitioner_role",
+        "kind": "string",
         "required": false
       }
     ],

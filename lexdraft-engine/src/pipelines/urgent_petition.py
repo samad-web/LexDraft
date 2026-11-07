@@ -15,11 +15,13 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import court_heading, opposite_role
 
 TEMPLATE = "urgent_petition.docx"
 SPEC = "tn-urgent"
@@ -57,6 +59,11 @@ def build(
     place: str,
     court_place: Optional[str] = None,
     petition_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    # why it cannot wait, e.g. "the defendant started construction on 01.11.2026"
+    urgency_grounds: Optional[str] = None,
+    posted_date: Optional[date] = None,       # date the application now stands posted to
+    petitioner_role: Optional[str] = None,    # "plaintiff" / "defendant" in the suit
 ) -> UrgentPetitionResult:
     """Assemble the s.151 CPC urgent-listing petition, or refuse."""
 
@@ -81,13 +88,33 @@ def build(
             fields=("orders_prayed",),
         )
 
+    court, court_at = court_heading(court_name, court_place)
+    # "the defendant" is a role, not a name: leave the blank for the advocate.
+    if re.fullmatch(r"\s*(the\s+)?(defendant|respondent|plaintiff|petitioner)s?\s*", respondent_name or "", re.I):
+        respondent_name = ""
+    # The prayer reads "may be pleased to treat the matter as urgent and <orders>".
+    # An infinitive ("To advance the hearing ...") follows "and"; a noun phrase
+    # ("an interim injunction ...") follows "and grant".
+    orders = orders_prayed.strip().rstrip(". ")
+    verb = re.match(r"(to\s+)?(advance|list|post|hear|grant|pass|direct|restrain|stay|take|call|issue|order|"
+                    r"permit|appoint|extend|dispense|condone|recall|set)\b", orders, re.I)
+    orders = re.sub(r"^to\s+", "", orders, flags=re.I) if verb else "grant " + orders
+    orders = orders[:1].lower() + orders[1:]
+    grounds = re.sub(r"^\s*because\s+", "", (urgency_grounds or "").strip(), flags=re.I).rstrip(". ")
+    side = (petitioner_role or "").strip().title()
+    other = opposite_role(side)
     context: Dict[str, Any] = {
         "petitioner_name": petitioner_name,
-        "respondent_name": respondent_name,
+        "respondent_name": respondent_name or "______",
+        "petitioner_label": f"Petitioner/{side}" if other else "Petitioner",
+        "respondent_label": f"Respondent/{other}" if other else "Respondent",
         "underlying_application": underlying_application,
-        "orders_prayed": orders_prayed,
+        "orders_prayed": orders,
+        "urgency_grounds": grounds,
+        "posted_date": posted_date.isoformat() if posted_date else None,
+        "court_name": court,
         "case_ref": case_ref,
-        "court_place": court_place,
+        "court_place": court_at,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,
         "place": place,
     }

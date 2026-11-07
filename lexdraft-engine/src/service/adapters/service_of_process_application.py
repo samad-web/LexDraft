@@ -34,6 +34,9 @@ ADAPTER = Adapter(
         FieldSpec("court_place", "string", required=False, default=None),
         FieldSpec("court_fee_amount", "string", required=False, default=None),
         FieldSpec("hearing_date", "date", required=False, default=None),
+        FieldSpec("court_name", "string", required=False, default=None),
+        FieldSpec("process_type", "string", required=False, default=None),
+        FieldSpec("service_mode", "string", required=False, default=None),
     ),
     slots=(),
 )

@@ -23,6 +23,7 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal
+from ._court_form import case_parts, court_heading, kind_of, party_labels
 
 TEMPLATE = "process_memo.docx"
 SPEC = "tn-processmemo"
@@ -73,6 +74,7 @@ def build(
     address_for_service: str = "",
     place: str = "",
     filing_date: Optional[date] = None,
+    hearing_date: Optional[date] = None,
 ) -> ProcessMemoResult:
     """Assemble the Process Memo. Never refuses — renders blanks for anything not
     supplied, so it drafts complete-with-gaps for the advocate to finish."""
@@ -89,6 +91,28 @@ def build(
     cp = (court_place or "").strip()
     court_at = cp if (cp and cp.lower() not in court_name_clean.lower()) else ""
 
+    # The printed form is the Magistrate's (DVC) memo. A civil suit/petition gets a
+    # civil cause title instead: its own court, case number and plaintiff/defendant
+    # (never "Magistrate", "DVC" or "accused" in a suit).
+    civil = kind_of(case_ref) in ("suit", "petition") or bool(re.search(
+        r"munsif|sub(ordinate)?\s+(court|judge)|district\s+(court|judge)", court_name or "", re.I))
+    parts = case_parts(case_ref)
+    if parts:
+        case_no = case_no or parts[0][1]
+        case_year = case_year or parts[0][2]
+    if civil:
+        heading, at = court_heading(court_name, court_place)
+        heading = heading or "________________"
+        at_line = f"AT {at}" if at else ("" if (court_place or "").strip() else "AT ____________")
+        p1, p2 = party_labels(case_ref) if kind_of(case_ref) else ("Plaintiff", "Defendant")
+        labels = {"case_label": (parts[0][0] + " No.") if parts else "O.S. No.",
+                  "party1_label": p1, "party2_label": p2, "process_target": p2.lower()}
+    else:
+        heading = f"{court_name_clean or '________________'} MAGISTRATE"
+        at_line = f"AT {court_at or '____________'}"
+        labels = {"case_label": "DVC No.", "party1_label": "Petitioner",
+                  "party2_label": "Respondents", "process_target": "accused / Petitioner"}
+
     # Normalise the case year to a FULL 4-digit year for the "DVC No. __ OF <year>"
     # line (the template prints the full year, not "20"+suffix — that produced
     # "OF 202026"). Accept "26" -> "2026", "2026" -> "2026"; blank -> "20____".
@@ -102,6 +126,10 @@ def build(
         "court_name": court_name_clean,
         "court_place": court_place,
         "court_at": court_at,
+        "court_heading": heading,
+        "court_at_line": at_line,
+        **labels,
+        "hearing_date": hearing_date.isoformat() if hearing_date else None,
         "case_ref": case_ref,
         "case_no": case_no,
         "case_year": case_year_full,

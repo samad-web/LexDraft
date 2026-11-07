@@ -37,6 +37,11 @@ ADAPTER = Adapter(
         FieldSpec("ia_year", "string", required=False, default=None),
         FieldSpec("os_no", "string", required=False, default=None),
         FieldSpec("os_year", "string", required=False, default=None),
+        FieldSpec("service_mode", "string", required=False, default=None),
+        FieldSpec("served_date", "date", required=False, default=None),
+        FieldSpec("served_time", "string", required=False, default=None),
+        FieldSpec("service_address", "string", required=False, default=None),
+        FieldSpec("acknowledgment_signed", "bool", required=False, default=False),
     ),
     slots=(),
 )
