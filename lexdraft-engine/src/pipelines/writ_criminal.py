@@ -37,6 +37,12 @@ TEMPLATE = "writ_criminal.docx"
 SPEC = "dpc-63-66"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+# "D.O. No. 45/2026", "C.M.P. No. 12 of 2026", "Memo No. ..." in the order reference.
+_ORDER_NO = re.compile(r"\b(?:[A-Z][A-Za-z.()]*\s+)*No\.\s*[\w./-]+(?:\s+of\s+\d{4})?")
+_DETAINING = re.compile(r"collector|district magistrate|commissioner of police", re.I)
+_RELATION = re.compile(r"\bis the (mother|father|wife|husband|brother|sister|son|daughter)"
+                       r" of\b", re.I)
+_ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth")
 
 
 @dataclass(frozen=True)
@@ -123,6 +129,10 @@ def build(
     detention_place: Optional[str] = None,
     # the sponsoring police station (preventive detention). Optional.
     police_station: Optional[str] = None,
+    # the detention order's own number (e.g. "D.O. No. 45/2026"). Optional.
+    detention_order_no: Optional[str] = None,
+    # the petitioner's relation to the detenu (e.g. "mother"). Optional.
+    petitioner_relation: Optional[str] = None,
 ) -> WritCriminalResult:
     """Assemble the criminal writ petition, or refuse."""
 
@@ -174,11 +184,26 @@ def build(
     if madurai and "madurai" not in high_court.lower():
         high_court = MADURAI_COURT
 
+    arrayed = _array_state(respondents, high_court, police_station,
+                           None if pre_execution_stage else detention_place)
+    # the prayer names the order by its number and its author's array position,
+    # never by re-reciting the description the extractor put in the ref.
+    order_no = (detention_order_no or "").strip()
+    if not order_no:
+        m = _ORDER_NO.search(impugned_order_ref)
+        order_no = m.group(0).strip() if m else ""
+    author = next((i for i, r in enumerate(arrayed) if _DETAINING.search(r)), None)
+    relation = (petitioner_relation or "").strip()
+    if not relation:
+        m = _RELATION.search(facts_narrative)
+        relation = m.group(1).lower() if m else ""
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
-                       "address": petitioner_address},
-        "respondents": _array_state(respondents, high_court, police_station,
-                                    None if pre_execution_stage else detention_place),
+                       "address": petitioner_address, "relation": relation},
+        "respondents": arrayed,
+        "detention_order_no": order_no,
+        "order_author": (f"the {_ORDINALS[author]} respondent"
+                         if author is not None and author < len(_ORDINALS) else ""),
         # None printed as "HIGH COURT OF NONE"; the engine is Madras-first.
         "high_court": high_court,
         "md_suffix": "(MD)" if madurai else "",

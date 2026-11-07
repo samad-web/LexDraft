@@ -232,3 +232,53 @@ def test_surety_affidavit_before_me_attestation():
     text = _draft("surety_affidavit", {**SURETY_AFFIDAVIT, "filing_date": "2026-11-07"})
     assert "Solemnly affirmed at Salem on this 07.11.2026 and signed before me." in text
     assert "BEFORE ME\t\tSignature of Surety" in text and "ADVOCATE, SALEM" in text
+
+
+HCP = {
+    "petitioner_name": "Mrs. R. Chellammal", "petitioner_address": "Pudukkottai",
+    "respondents": ["The District Collector and District Magistrate, Pudukkottai"],
+    "impugned_order_ref": ("Detention order dated 12.09.2026 passed by the District Collector and "
+                           "District Magistrate, Pudukkottai, detaining Mr. R. Saravanan as a 'Goonda'"),
+    "impugned_order_date": "2026-09-12", "impugned_order_statute": "Goondas Act",
+    "facts_narrative": ("The petitioner, Mrs. R. Chellammal of Pudukkottai, is the mother of "
+                        "Mr. R. Saravanan, aged 26, who is now in Central Prison, Tiruchirappalli."),
+    "grounds": ["The representation dated 25.09.2026 was rejected only on 30.10.2026."],
+    "pre_execution_stage": False, "no_similar_petition": True,
+    "filing_date": "2026-11-07", "place": "Madurai", "high_court": "Madras High Court",
+    "detenu_name": "Mr. R. Saravanan", "police_station": "Pudukkottai Town"}
+
+
+def test_writ_criminal_hcp_cites_article_22_5():
+    text = _draft("writ_criminal", HCP)
+    assert "Article 22(5) of the Constitution of India" in text
+    assert "earliest opportunity of making an effective representation" in text
+
+
+def test_writ_criminal_hcp_prayer_does_not_repeat_order_details():
+    text = _draft("writ_criminal", HCP)
+    prayer = next(line for line in text.splitlines() if "Writ of Habeas Corpus, calling" in line)
+    assert ("calling for the records relating to the detention order in [detention order number] "
+            "dated 12.09.2026 passed by the second respondent and quash the same") in prayer
+    assert prayer.count("12.09.2026") == 1 and "Goonda" not in prayer and "Act 14" not in prayer
+
+
+def test_writ_criminal_detention_order_number_field():
+    text = _draft("writ_criminal", {**HCP, "detention_order_no": "D.O. No. 45/2026"})
+    assert "detention order in D.O. No. 45/2026 dated 12.09.2026 passed by the second respondent" in text
+    ref = _draft("writ_criminal", {**HCP, "impugned_order_ref": "Detention Order No. 45/2026"})
+    assert "detention order in Detention Order No. 45/2026 dated 12.09.2026" in ref
+
+
+def test_writ_criminal_supporting_affidavit():
+    text = _draft("writ_criminal", HCP)
+    assert "[NOTE: The petition is to be supported by an affidavit.]" not in text
+    assert "AFFIDAVIT" in text and "I, Mrs. R. Chellammal, residing at Pudukkottai" in text
+    assert "the mother of the detenu, Mr. R. Saravanan" in text
+    assert "now confined at Central Prison, Tiruchirappalli." in text
+    assert "BEFORE ME\t\tDEPONENT" in text
+
+
+def test_writ_criminal_hcp_opening_does_not_repeat_order_date():
+    text = _draft("writ_criminal", HCP)
+    first = next(line for line in text.splitlines() if "by the present petition" in line)
+    assert first.count("12.09.2026") == 1 and "dated 12.09.2026 passed by the second respondent" in first
