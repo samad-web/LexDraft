@@ -126,6 +126,8 @@ def build(
         "suit_date": filing_date.isoformat(),
         "knowledge_para_last": 4,
         "suit_property": suit_property,
+        # r12: the schedule after the plaint, from the same facts (a sentence of its own).
+        "schedule_property": (lambda s: s[:1].upper() + s[1:])(suit_property.strip().rstrip(".")),
         "possession_basis": possession_basis,
         "act_restrained": act,
         "threat_slot": threat_narrative if threat_narrative.strip()

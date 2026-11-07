@@ -244,6 +244,21 @@ def test_divorce_mutual_second_marriage_date_and_joint_affidavit():
     assert "[NOTE: This joint petition must be supported" not in text and "{%" not in text
 
 
+def test_permanent_injunction_schedule_from_brief_facts():
+    """r12: the schedule was a "[to be drafted]" slot though the brief gave the land."""
+    prop = ("3.40 acres of dry land in Survey Nos. 412/1 and 412/2, Pappini village, "
+            "together with the well in Survey No. 412/2.")
+    text = _text("permanent_injunction", {
+        "plaintiff_name": "Mr. T. Ramalingam", "defendant_names": ["Mr. K. Duraisamy"], "suit_property": prop,
+        "possession_basis": "family partition deed of 1989; patta No. 645", "act_restrained": "interfering with the well",
+        "cause_of_action_date": "2026-10-02", "cause_of_action_place": "Pappini village", "court_fee": 500,
+        "valuation": "Rs. 1,00,000/-", "jurisdiction_basis": "the property is within the court's limits",
+        "filing_date": "2026-11-07", "place": "Kangeyam"}, allow_placeholders=True)
+    schedule = text.split("SCHEDULE OF THE SUIT PROPERTY\n")[1]
+    assert schedule.startswith(prop + "\n[Registration District")
+    assert text.index("VERIFICATION:") < text.index("SCHEDULE OF THE SUIT PROPERTY") and "{%" not in text
+
+
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",
        "posted_for": "cross-examination of PW1 on 10.11.2026",
        "adjournment_reason": "The petitioner underwent cataract surgery on 30.10.2026.\n"
