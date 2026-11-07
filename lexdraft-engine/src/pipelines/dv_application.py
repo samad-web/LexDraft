@@ -13,6 +13,7 @@ LLM slot at paragraph 4 (domestic incidents) only.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -120,6 +121,10 @@ def build(
     filing_date: Optional[date] = None,
     # every respondent (husband, mother-in-law, ...) when more than one. Optional.
     respondent_names: Optional[Sequence[str]] = None,
+    # cause-title particulars. Optional.
+    aggrieved_age: Optional[int] = None,
+    aggrieved_address: Optional[str] = None,
+    respondent_address: Optional[str] = None,  # the shared household, as a rule
 ) -> DvResult:
     """Assemble the DV s.12 application, or refuse."""
 
@@ -158,9 +163,35 @@ def build(
                 code="dv_relief_head_unsupported", fields=("reliefs",),
             )
 
-    respondents = [n.strip() for n in (respondent_names or []) if n.strip()]
-    if respondent_name.strip() and respondent_name.strip() not in respondents:
-        respondents.insert(0, respondent_name.strip())
+    # One entry per person: "Mr. V. Sathish" and "Mr. V. Sathish (husband)" are the
+    # same respondent (r10 listed him twice).
+    def _key(n: str) -> str:
+        n = re.sub(r"\([^)]*\)", " ", n.lower())
+        n = re.sub(r"\b(mr|mrs|ms|smt|thiru|tmt|dr)\b\.?", " ", n)
+        return " ".join(re.sub(r"[^a-z0-9]+", " ", n).split())
+
+    respondents: List[str] = []
+    for n in [respondent_name, *(respondent_names or [])]:
+        n = n.strip()
+        if not n:
+            continue
+        same = next((i for i, r in enumerate(respondents) if _key(r) == _key(n)), None)
+        if same is None:
+            respondents.append(n)
+        elif len(n) > len(respondents[same]):
+            respondents[same] = n  # keep the fuller description
+    # The prayer is the operative order alone; a monetary figure in its averment is
+    # carried ("of Rs. 30,000 per month"), never the averment glued on after a colon.
+    def _prayer(r: ReliefSought) -> str:
+        lead = _PRAYER_LEAD[r.head].format(rs=rs)
+        if r.head is ReliefHead.MONETARY_20:
+            m = re.search(r"Rs\.?\s*[\d,]+(?:/-)?(?:\s+per\s+(?:month|mensem|annum))?",
+                          r.averment, re.I)
+            if m:
+                per = (" per month" if " per " not in m.group(0)
+                       and re.search(r"\bmonthly\b", r.averment, re.I) else "")
+                lead += f" of {m.group(0)}{per}"
+        return lead
     rs = "respondents" if len(respondents) > 1 else "respondent"
 
     context: Dict[str, Any] = {
@@ -168,9 +199,10 @@ def build(
         "respondent": {"name": respondent_name},
         "respondents": respondents,
         # one lettered prayer clause per order sought (ss.18-22)
-        "relief_prayers": [_PRAYER_LEAD[r.head].format(rs=rs) + (
-            f": {r.averment.strip().rstrip('.')}" if r.averment.strip() else "")
-            for r in reliefs],
+        "relief_prayers": [_prayer(r) for r in reliefs],
+        "aggrieved_age": aggrieved_age,
+        "aggrieved_address": aggrieved_address,
+        "respondent_address": respondent_address,
         # cause-title header fields (render only when present).
         "magistrate_court": magistrate_court,
         "city": city,
@@ -189,8 +221,10 @@ def build(
         ],
         "jurisdiction_basis": jurisdiction_basis,
         # LLM slot (para 4)
+        # the slot marker only when nothing is pleaded (r10: a stray "[to be drafted]"
+        # survived beside the listed incidents).
         "incidents_slot": incidents_narrative if incidents_narrative.strip()
-                          else _LLM_SLOT_PLACEHOLDER,
+                          else ("" if incidents else _LLM_SLOT_PLACEHOLDER),
         "place": place,
     }
     return DvResult(refused=False, context=context)
