@@ -76,6 +76,9 @@ def build(
     surety_age: Optional[str] = None,
     surety_parentage: Optional[str] = None,
     police_station: Optional[str] = None,
+    property_description: Optional[str] = None,   # door/survey no., extent, village
+    title_documents: Sequence[str] = (),          # e.g. "Sale Deed Doc. No. 1234/2010"
+    filing_date: Optional[date] = None,           # the intake's date of filing (today)
 ) -> SuretyAffidavitResult:
     """Assemble the surety affidavit, or refuse."""
 
@@ -128,6 +131,7 @@ def build(
     if crime and crime in (case_ref or ""):
         crime = ""  # the case reference line already carries it
 
+    titles = [t for t in title_documents if t.strip()]
     context: Dict[str, Any] = {
         "court_name": court,
         "surety_particulars": particulars,
@@ -136,7 +140,11 @@ def build(
         "offence_section": offence_section,
         "bail_granted": bail_granted,
         "bail_sum": bare_sum(bail_sum),
-        "id_proofs": [p for p in id_proofs if p.strip()],
+        # proof of means: the title documents of the property offered (a visible gap).
+        "id_proofs": [p for p in id_proofs if p.strip()]
+                     + (titles or ["[copy of the title document of the above property]"]),
+        "property_description": (property_description or "").strip(),
+        "title_documents": titles,
         "case_ref": case_ref,
         "place": place,
         "surety_occupation": surety_occupation,
@@ -145,7 +153,8 @@ def build(
         "property_particulars": property_particulars,
         "monthly_income": monthly_income,
         "prior_suretyships": prior_suretyships,
-        "affirm_date": affirm_date.isoformat() if affirm_date is not None else None,
+        "affirm_date": ((affirm_date or filing_date).isoformat()
+                        if (affirm_date or filing_date) else None),
         "court_place": at,
         "state_rep_by": state_rep_by,
         "crime_no": crime,

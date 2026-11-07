@@ -197,3 +197,38 @@ def test_memorandum_furnish_sureties_pronouns():
 def test_memorandum_furnish_sureties_date_line():
     text = _draft("memorandum_furnish_sureties", MEMO_SURETIES)
     assert "Dated at Salem on 07.11.2026." in text
+
+
+SURETY_AFFIDAVIT = {
+    "surety_name": "Mr. K. Mohan", "surety_age": "47", "surety_parentage": "S/o Kandasamy",
+    "surety_address": "No. 3, Main Road, Attur", "surety_occupation": "Shop owner",
+    "property_particulars": "property worth Rs. 15,00,000",
+    "accused_name": "Mr. R. Vinoth", "offence_section": "[offence section to be provided]",
+    "bail_granted": True, "bail_sum": "Rs. 10,000", "id_proofs": ["[id proofs to be provided]"],
+    "case_ref": "Crime No. 310 of 2026", "place": "Salem",
+    "court_name": "Judicial Magistrate No. II, Salem", "police_station": "Hasthampatti"}
+
+
+def test_surety_affidavit_property_and_title_documents_described():
+    text = _draft("surety_affidavit", SURETY_AFFIDAVIT)
+    assert ("Property owned: property worth Rs. 15,00,000, being [description of the property: "
+            "door / survey number, extent, village and taluk], standing in my name under "
+            "[title document: sale deed / patta number and date].") in text
+    assert "(b) [copy of the title document of the above property]" in text
+    given = _draft("surety_affidavit", {
+        **SURETY_AFFIDAVIT, "property_description": "a house at Door No. 3, Main Road, Attur",
+        "title_documents": ["Sale Deed Doc. No. 1234 of 2010, S.R.O. Attur"]})
+    assert "being a house at Door No. 3, Main Road, Attur, standing in my name under Sale Deed" in given
+    assert "(b) Sale Deed Doc. No. 1234 of 2010, S.R.O. Attur" in given
+
+
+def test_surety_affidavit_not_surety_in_any_other_case():
+    text = _draft("surety_affidavit", SURETY_AFFIDAVIT)
+    assert "I am not a surety for any other person in any other case pending" in text
+    assert "undertake to secure the presence of the accused" in text
+
+
+def test_surety_affidavit_before_me_attestation():
+    text = _draft("surety_affidavit", {**SURETY_AFFIDAVIT, "filing_date": "2026-11-07"})
+    assert "Solemnly affirmed at Salem on this 07.11.2026 and signed before me." in text
+    assert "BEFORE ME\t\tSignature of Surety" in text and "ADVOCATE, SALEM" in text
