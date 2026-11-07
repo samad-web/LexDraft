@@ -48,6 +48,11 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
   const [note, setNote] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const pending = useRef<Record<string, string>>({});
+  // Edits applied engine-only while typing; "Update document" re-sends them with the
+  // model polish (compose) on.
+  const unpolished = useRef<Record<string, string>>({});
+  const [needsPolish, setNeedsPolish] = useState(false);
+  const latest = useRef(0); // only the newest request may update the document
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // A new draft (different matter or format) starts from its own fact sheet.
@@ -55,6 +60,8 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
     setValues({});
     setNote(null);
     pending.current = {};
+    unpolished.current = {};
+    setNeedsPolish(false);
   }, [state.matterId, state.docLabel]);
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -62,18 +69,23 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
   const valueOf = (f: FactSheetField) =>
     values[f.key] ?? (isMissing(f) ? '' : (f.value ?? ''));
 
-  const flush = async () => {
-    const edits = pending.current;
+  // compose=false while typing: an engine-only re-draft (fast, no model call, no quota).
+  const flush = async (compose: boolean) => {
+    if (timer.current) clearTimeout(timer.current);
+    const edits = compose ? { ...unpolished.current, ...pending.current } : pending.current;
     pending.current = {};
     if (!Object.keys(edits).length) return;
+    const seq = ++latest.current;
     try {
       const next = await edit.mutateAsync({
         matterId: state.matterId,
         docLabel: state.docLabel,
         edits,
         draftNow: true,
+        ...(compose ? {} : { compose: false }),
         ...(language && language !== 'EN' ? { language } : {}),
       });
+      if (seq !== latest.current) return; // a newer edit is on its way
       if (next.status === 'refused' && next.refusal) {
         setNote(`Not updated: ${next.refusal.reason}`);
         return;
@@ -82,10 +94,12 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
         setNote('Saved. The document will update once the remaining required details are in.');
         return;
       }
-      setNote(null);
+      unpolished.current = compose ? {} : { ...unpolished.current, ...edits };
+      setNeedsPolish(!compose);
+      setNote(compose ? null : 'Updated. Click Update document for the final wording.');
       onUpdated(next);
     } catch {
-      setNote('Could not update the document. Check your connection and try again.');
+      if (seq === latest.current) setNote('Could not update the document. Check your connection and try again.');
     }
   };
 
@@ -94,7 +108,7 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
     pending.current[key] = value;
     if (manual) return; // saved on "Update document"
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void flush(); }, DEBOUNCE_MS);
+    timer.current = setTimeout(() => { void flush(false); }, DEBOUNCE_MS);
   };
 
   const missingRequired = fields.filter((f) => f.required && isMissing(f));
@@ -142,9 +156,9 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
         </button>
       )}
 
-      {manual && (
+      {(manual || needsPolish) && (
         <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 8 }}
-          disabled={locked || edit.isPending} onClick={() => { void flush(); }}>
+          disabled={locked || edit.isPending} onClick={() => { void flush(true); }}>
           {edit.isPending ? 'Updating…' : 'Update document'}
         </button>
       )}

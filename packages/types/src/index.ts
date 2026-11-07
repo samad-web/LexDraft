@@ -852,6 +852,8 @@ export interface IntakeEditRequest {
   edits: Record<string, string>;
   /** Re-draft immediately with [placeholders] for remaining gaps (live panel). */
   draftNow?: boolean;
+  /** false (with draftNow): engine re-draft only, no model polish. Typing in the live panel. */
+  compose?: boolean;
   language?: 'EN' | 'HI' | 'TA';
 }
 

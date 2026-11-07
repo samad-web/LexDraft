@@ -1143,7 +1143,7 @@ export const intakeService = {
     docLabel: string,
     edits: Record<string, string>,
     ctx: RunCtx,
-    opts: { draftNow?: boolean } = {},
+    opts: { draftNow?: boolean; compose?: boolean } = {},
   ): Promise<IntakeState> {
     const doc = await resolveDoc(docLabel, ctx.firmId, matterId);
     if (!doc) throw new IntakeError(`doc "${docLabel}" is not intake-routable`);
@@ -1177,11 +1177,13 @@ export const intakeService = {
     const revised = await factSheetService.revise(matterId, pack(state, docLabel), ctx);
     if (opts.draftNow) {
       // Live update: re-draft straight away, gaps as [placeholders] — the same
-      // path as "Draft now", with no question phrasing (fast, no model call).
+      // path as "Draft now", with no question phrasing. compose:false (typing in the
+      // live panel) keeps it engine-only: no compose, no AI fallback, no model call.
       const out = await this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, {
-        phrase: false, bumpAsks: false, draftNow: true,
+        phrase: false, bumpAsks: false, draftNow: true, compose: opts.compose,
       });
       if (out.status === 'generated' && out.draft) return withFormatNotes({ ...out, draftedBy: 'engine' }, state);
+      if (opts.compose === false) return withFormatNotes(out, state);
       return withFormatNotes((await aiFallbackDraft(doc.docType, docLabel, specs, state, out, ctx)) ?? out, state);
     }
     return this._evaluate(revised.matterId, docLabel, doc, specs, state, ctx, { phrase: true });
@@ -1660,7 +1662,7 @@ export const intakeService = {
     specs: IntakeFieldSpec[],
     state: StoredState,
     ctx: RunCtx,
-    opts: { phrase: boolean; bumpAsks?: boolean; preface?: string[]; persist?: boolean; draftNow?: boolean },
+    opts: { phrase: boolean; bumpAsks?: boolean; preface?: string[]; persist?: boolean; draftNow?: boolean; compose?: boolean },
   ): Promise<IntakeState> {
     const persist = opts.persist ?? true;
     // For a vakalatnama, the court FORMAT (criminal / civil / small_causes) comes
@@ -2113,7 +2115,7 @@ export const intakeService = {
     // verified authority set it may cite.
     if (outcome?.outcome === 'generated') {
       let draft = toDraft(outcome);
-      if (env.intakeComposeEnabled && composeAppliesTo(doc.docType)) {
+      if (opts.compose !== false && env.intakeComposeEnabled && composeAppliesTo(doc.docType)) {
         const facts = labelledFacts(specs, state.form);
         const deep = env.intakeComposeDeep
           ? {

@@ -21,5 +21,10 @@ Raise how many drafts production can run at once, without new infrastructure. To
 - Engine starts N server processes when `WEB_CONCURRENCY=N` and answers concurrent requests.
 - Progress polls neither consume nor are blocked by the IP budget; other routes are still limited at the same ceiling.
 
-## Found, not fixed (needs a decision)
-- Live "Missing details" typing re-drafts after each 900 ms pause through `/engine/intake/edit` with `draftNow`. Each re-draft runs the full deep compose (up to 5 Sonnet calls) and a new PDF, and counts against the 30-per-hour limit. See MEMORY.md open questions.
+## 4. Live edits engine-only (user chose 2026-11-07)
+- Typing in "Missing details" sends `/engine/intake/edit` with `draftNow: true, compose: false`: engine re-draft only. No compose, no AI fallback, no model call. Skips `llmGenerationLimiter` and the AI quota (`isEngineOnlyEdit`); the per-user write limiter (120/15 min) still applies.
+- After an engine-only update the panel shows "Update document"; it re-sends the edits made since the last polish with compose on.
+- Only the newest request updates the document (sequence guard), so a slow compose reply cannot overwrite a newer edit.
+- Bypass check: `compose:false` without `draftNow`, or a non-boolean, stays limited. Other routes ignore `compose`.
+- Impact: `intake.service` edit + `_evaluate` (default unchanged for every other caller), `drafting.routes` edit route, `IntakeEditRequest` type, `LiveDetailsPanel`.
+- Acceptance: typing makes zero model calls; "Update document" composes once; a blocked edit while typing returns the refusal, not an AI draft.

@@ -1253,8 +1253,15 @@ const IntakeEdit = z.object({
   /** Live "Missing details" panel: save the edits, then re-draft at once with
    *  [placeholders] for whatever is still missing (no questions asked). */
   draftNow: z.boolean().optional(),
+  /** false (with draftNow) = typing in the live panel: engine re-draft only, no model call. */
+  compose: z.boolean().optional(),
   language: z.enum(['EN', 'HI', 'TA']).optional(),
 });
+/** An engine-only live edit makes no model call (see intakeService.edit). */
+export const isEngineOnlyEdit = (body: unknown): boolean => {
+  const b = body as { compose?: unknown; draftNow?: unknown } | null | undefined;
+  return b?.compose === false && b?.draftNow === true;
+};
 
 const IntakeLoad = z.object({
   matterId: z.string().uuid(),
@@ -1506,16 +1513,22 @@ draftingRouter.post('/engine/intake/draft-now', requireFeature('drafting.ai'), l
 });
 
 // Directly edit fact-sheet fields (§10). Uses the phraser (LLM) to re-ask any
-// still-missing fields, so it is quota-guarded too.
-draftingRouter.post('/engine/intake/edit', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+// still-missing fields, so it is quota-guarded too. Engine-only live edits make no
+// model call, so they skip the hourly LLM limiter and the AI quota (the per-user
+// write limiter still bounds them).
+draftingRouter.post('/engine/intake/edit', requireFeature('drafting.ai'), (req, res, next) => {
+  if (isEngineOnlyEdit(req.body)) { next(); return; }
+  llmGenerationLimiter(req, res, next);
+}, async (req, res, next) => {
   try {
     const parsed = IntakeEdit.parse(req.body);
-    const ctx = await intakeSetup(req, res, parsed.docLabel, true);
+    const engineOnly = isEngineOnlyEdit(parsed);
+    const ctx = await intakeSetup(req, res, parsed.docLabel, !engineOnly);
     if (!ctx) return;
     try {
       const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, {
         ...ctx, ...(parsed.language ? { language: parsed.language } : {}),
-      }, { draftNow: parsed.draftNow === true });
+      }, { draftNow: parsed.draftNow === true, ...(engineOnly ? { compose: false } : {}) });
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }

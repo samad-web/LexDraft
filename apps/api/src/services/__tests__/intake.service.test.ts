@@ -370,6 +370,49 @@ describe('intake loop — the engine decides, the model phrases', () => {
     expect(state.draft?.blocks[0]?.text).toBe('DRAFT');
   });
 
+  // drafting-efficiency: typing in the live panel re-drafts on the engine only.
+  it('a live edit with compose:false re-drafts without compose', async () => {
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'generated' });
+    const state = await intakeService.start(DOC, 'Everything is here.', CTX);
+    expect(composeCalls).toHaveLength(1);
+
+    engineQueue.push({ kind: 'generated' });
+    const live = await intakeService.edit(state.matterId, DOC, { recipient_name: 'Sandeep Verma' }, CTX,
+      { draftNow: true, compose: false });
+    expect(live.status).toBe('generated');
+    expect(live.draftedBy).toBe('engine');
+    expect(composeCalls).toHaveLength(1); // no compose on the typing path
+
+    engineQueue.push({ kind: 'generated' });
+    await intakeService.edit(state.matterId, DOC, { recipient_name: 'Sandeep Verma' }, CTX, { draftNow: true });
+    expect(composeCalls).toHaveLength(2); // "Update document" still composes
+  });
+
+  it('a live edit with compose:false never falls back to the AI draft when blocked', async () => {
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'place', code: 'required', message: 'x' }] });
+    const state = await intakeService.start(DOC, 'A cheque bounced.', CTX);
+    const refusal = {
+      code: 's138_notice_cheque_presented_after_validity', severity: 'HARD',
+      reason: 'The cheque was presented after its validity.', computation: null,
+      pipeline: 's138_notice', spec: '2.2', fields_implicated: ['cheque_date'], remedy_hint: 'none',
+    };
+    // Draft-now may retry the engine after a refusal; every try still refuses.
+    for (let i = 0; i < 4; i += 1) engineQueue.push({ kind: 'refused', refusal });
+    (env as { ANTHROPIC_API_KEY: string }).ANTHROPIC_API_KEY = 'test-key';
+    claudeQueue.push('LEGAL NOTICE\n\nA model draft that must not be used.');
+    try {
+      const live = await intakeService.edit(state.matterId, DOC, { cheque_date: '2020-01-01' }, CTX,
+        { draftNow: true, compose: false });
+      expect(live.status).toBe('refused');
+      expect(live.draftedBy).not.toBe('ai');
+      expect(claudeQueue).toHaveLength(1); // Claude never called
+    } finally {
+      claudeQueue.length = 0; // not reset in beforeEach
+    }
+  });
+
   it('downgrades a field to direct entry after the ask limit (2)', async () => {
     // Same missing field, asked repeatedly; the advocate never fills it.
     for (let i = 0; i < 3; i += 1) {

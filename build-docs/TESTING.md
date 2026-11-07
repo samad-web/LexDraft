@@ -76,3 +76,4 @@
 - apps/api/src/middleware/__tests__/rateLimit.test.ts → apiIpLimiter: 3 new tests (polls don't consume the IP budget; polls answer after it is spent; only GET on the exact path is exempt). 7/7 pass.
 - Mutation check: with the `skip` removed, 2 of the 3 fail (the third guards the other direction).
 - Engine workers: uvicorn with WEB_CONCURRENCY=2 started 2 server processes; 6 concurrent /healthz → 200 ×6; /v1/doc-types → 200. Engine code unchanged, so pytest not re-run.
+- Live edits engine-only: intake.service.test.ts +2 (compose:false skips compose; never falls back to the AI draft when blocked), routes/__tests__/drafting-engine-only-edit.test.ts +2 (only compose:false + draftNow:true skips the limiter). 55/55 in the intake suites; mutation check: reverting either service change fails its test. LiveDetailsPanel: typecheck only (web has no DOM test setup).
