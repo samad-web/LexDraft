@@ -18,6 +18,7 @@ never refuses. PARTY-FILED.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -77,6 +78,8 @@ def build(
     hearing_date: Optional[date] = None,
     documents_to_produce: str = "",
     batta_amount: str = "",
+    witness_designation: str = "",       # "Civil Surgeon, Government Hospital, Namakkal"
+    witness_address: str = "",           # address for service of the summons
 ) -> BattaWitnessResult:
     """Assemble the Batta Witness application. Never refuses — renders blanks for
     anything not supplied, so it drafts complete-with-gaps for the advocate."""
@@ -84,6 +87,19 @@ def build(
     # Heading "AT <place>" — drop it when the place already appears IN the court
     # name (avoids "... Court, Chennai AT Chennai"). Only shown when it adds info.
     court_name, court_at = court_heading(court_name, court_place)
+    # r12: the date line read "Dated at ______" though the court sits at Namakkal.
+    place = place.strip() or court_place.strip() or (
+        court_name.rsplit(",", 1)[1].strip() if "," in court_name else "")
+    # r12: "Plaintiff - Defendant" is the form's strike-out; print only the side.
+    applicant_role = applicant_role.strip().title()
+    if re.fullmatch(r"[\d,]+(\.\d+)?(/-)?", batta_amount.strip()):
+        batta_amount = f"Rs. {batta_amount.strip()}"
+    # r12: the witness's designation and address for service, not the bare name.
+    witness_line = witness_name.strip()
+    for part in (witness_designation, witness_address):
+        part = part.strip(" ,")
+        if part and part.lower() not in witness_line.lower():
+            witness_line = f"{witness_line}, {part}"
     # "of 20{{ os_year }}" on the form: a 4-digit year printed "202025".
     parts = [p for p in case_parts(case_ref) if p[0].upper().replace(" ", "").startswith("O.S")]
     os_no = os_no or (parts[0][1] if parts else "")
@@ -120,7 +136,8 @@ def build(
     _BLANK_ROWS = 4
     if not row_ctx and witness_name.strip():
         row_ctx = [{"nature_of_process": "Summons to witness", "person_description": witness_name,
-                    "place_of_service": "", "distance_miles": "", "travelling_allowance": "",
+                    "place_of_service": witness_address.strip() or witness_designation.strip(),
+                    "distance_miles": "", "travelling_allowance": "",
                     "class_of_allowance": "", "amount": batta_amount, "for_how_many_days": "",
                     "process_fees": "",
                     "remarks": f"To produce {documents_to_produce}" if documents_to_produce else ""}]
@@ -146,6 +163,7 @@ def build(
         "value_of_claim": value_of_claim,
         "court_day": court_day,
         "witness_name": witness_name,
+        "witness_line": witness_line,
         "hearing_date": hearing_date.isoformat() if hearing_date else None,
         "documents_to_produce": documents_to_produce,
         "batta_amount": batta_amount,

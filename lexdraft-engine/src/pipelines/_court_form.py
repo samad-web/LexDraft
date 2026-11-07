@@ -69,5 +69,14 @@ def party_labels(case_ref: Optional[str]) -> Tuple[str, str]:
         kind_of(case_ref), ("Petitioner", "Respondent"))
 
 
+def his_her(name: Optional[str]) -> str:
+    """The deponent's pronoun from the honorific, else the form's "his/her"."""
+    if re.match(r"\s*(mr|thiru|shri|sri)\b\.?", name or "", re.I):
+        return "his"
+    if re.match(r"\s*(mrs|ms|miss|smt|tmt|selvi|kumari)\b\.?", name or "", re.I):
+        return "her"
+    return "his/her"
+
+
 def opposite_role(role: Optional[str]) -> str:
     return _OPPOSITE.get((role or "").strip().lower(), "")

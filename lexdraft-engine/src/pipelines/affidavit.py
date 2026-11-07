@@ -19,6 +19,7 @@ from datetime import date
 from typing import Any, Dict, Optional, Sequence
 
 from ..components import affidavit as component
+from ._court_form import his_her
 from ..rules import s138_windows as windows
 from ..verify.refusals import Refusal, Severity
 
@@ -31,6 +32,11 @@ SPEC = "p0#1.3"
 _COURT_FORUM = re.compile(
     r"\b(court|tribunal|judge|magistrate|munsiff?|commission|forum|bench)\b", re.I)
 _LEAD = re.compile(r"^\s*(in\s+the\s+|before\s+the\s+)?(court\s+of\s+)?(the\s+)?", re.I)
+
+
+_WRONGLY_RECORDED = re.compile(
+    r"\bwrongly\s+(?:recorded|entered|mentioned|spelt|written)\s+as\s+.+?\s+in\s+(?P<record>the\s+.+?)\s*\.?\s*$",
+    re.I)
 
 
 def _placeholder(text: Optional[str]) -> bool:
@@ -202,6 +208,9 @@ def build(
     # authoritative for everything it sets).
     ctx.setdefault("court_place", court_place)
     ctx.setdefault("religion", religion)
+    ptype = (parentage_type or "").strip().lower()
+    ctx["his_her"] = ("his" if ptype.startswith("s") else "her" if ptype[:1] in ("d", "w")
+                      else his_her(deponent_name))
 
     # Court cause-title + party block for the full court-affidavit format. The template
     # renders these only when a court is present (has_court); a bare affidavit omits the
@@ -217,6 +226,13 @@ def build(
             "IN THE " if re.search(r"\bcourt\b", name, re.I) else "IN THE COURT OF ") + name.upper()
     elif name:
         request = re.sub(r"^\s*to\s+", "", prayer or "", flags=re.I).strip().rstrip(".")
+        if _placeholder(request):
+            # r12: a name-correction affidavit implies its own request — "my name is
+            # wrongly recorded as X in the patta for S.F. No. 88/2" asks the authority
+            # to correct that record to the deponent's name.
+            m = next(filter(None, (_WRONGLY_RECORDED.search(str(p)) for p in body_paras)), None)
+            if m:
+                request = f"correct {m.group('record').rstrip(' .,')} to read my name as {deponent_name}"
         ctx["authority_heading"] = name
         ctx["standalone"] = True
         ctx["prayer_line"] = (f"I therefore request the {name} to "

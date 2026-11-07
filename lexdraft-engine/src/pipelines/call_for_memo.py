@@ -23,10 +23,14 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal
-from ._court_form import case_parts, year2
+from ._court_form import case_parts, year2, year4
 
 TEMPLATE = "call_for_memo.docx"
 SPEC = "tn-callmemo"
+
+
+_RECORDS = re.compile(r"(?i)records?\s+(of|in)\b|case\s+records?")
+_COPY = re.compile(r"(?i)certified\s+cop")
 
 
 def _dedupe_court(court_name: str) -> str:
@@ -83,6 +87,11 @@ def build(
     court_fee: str = "",
     place: str = "",
     filing_date: Optional[date] = None,
+    # "copy" (memo to release applied-for certified copies, the default form) or
+    # "records" (petition to call for the records of another case); blank -> inferred
+    kind: str = "",
+    applicant_role: str = "",            # "complainant" / "accused" — who files
+    hearing_date: Optional[date] = None,
 ) -> CallForMemoResult:
     """Assemble the Call for Memo. Never refuses — renders blanks for anything
     not supplied, so it drafts complete-with-gaps for the advocate to finish."""
@@ -109,8 +118,38 @@ def build(
     cc_year = (cc_year or "").strip()
     if len(cc_year) == 1:          # the old "202_" form took the last digit alone
         cc_year = "202" + cc_year
+    full_year = year4(cc_year or (parts[0][2] if parts else ""))
     cc_year = year2(cc_year or (parts[0][2] if parts else ""))
+    docs = [str(d).strip() for d in (documents or ()) if str(d).strip()]
+    # r12: "For For comparison of ..." — the form prints its own "For".
+    purpose = re.sub(r"^\s*(for|to\s+enable)\s+", "", purpose.strip(), flags=re.I).rstrip(". ")
+    # r12: a brief asking the court to CALL FOR the records of another case (S.T.C.
+    # No. 118 of 2024, to compare the accused's signatures) is a call-for-records
+    # petition, not the copying-section memo for certified copies applied for.
+    kind = (kind or "").strip().lower()
+    if kind not in ("copy", "records"):
+        kind = "records" if any(_RECORDS.search(d) and not _COPY.search(d) for d in docs) else "copy"
+    records_of, records_court = [], []
+    for d in docs:
+        d = re.sub(r"^\s*(the\s+)?(case\s+)?records?\s+(of|in)\s+", "", d, flags=re.I)
+        m = re.search(r"\s+on\s+the\s+file\s+of\s+(.+)$", d, re.I)
+        records_of.append(d[:m.start()] if m else d)
+        if m:
+            records_court.append(m.group(1).strip(" ."))
+    own = {re.sub(r"\W+", "", court_name.lower()), re.sub(r"\W+", "", court_name_clean.lower())} - {""}
+    others = [c for c in records_court if not any(o and o in re.sub(r"\W+", "", c.lower()) for o in own)]
+    role = applicant_role.strip().title()
     context: Dict[str, Any] = {
+        "kind": kind,
+        "applicant_label": role if role in ("Complainant", "Accused") else "Petitioner",
+        "records_of": " and ".join(records_of) or "[case to be provided]",
+        "records_court": "; ".join(others) if others else "this Hon'ble Court",
+        # proceedings instituted before 1 July 2024 stay under the Cr.P.C. (s.531 BNSS)
+        "section": ("Section 91 of the Code of Criminal Procedure, 1973" if full_year and full_year < "2024"
+                    else "Section 94 of the Bharatiya Nagarik Suraksha Sanhita, 2023 (Section 91 of the "
+                         "Code of Criminal Procedure, 1973)" if full_year == "2024"
+                    else "Section 94 of the Bharatiya Nagarik Suraksha Sanhita, 2023"),
+        "hearing_date": hearing_date.isoformat() if hearing_date else None,
         "court_name": court_name_clean,
         # shown under the heading only when the court name does not already carry it
         "court_place": "" if (court_place or "").lower() in court_name_clean.lower() else court_place,
@@ -118,11 +157,13 @@ def build(
         "case_ref": case_ref,
         "cc_no": cc_no,
         "cc_year": cc_year,
-        "complainant_name": complainant_name,
-        "accused_name": accused_name,
+        # the petition's cause title names both sides; the copy memo keeps its blanks
+        "complainant_name": complainant_name or (
+            "[name of the complainant to be provided]" if kind == "records" else ""),
+        "accused_name": accused_name or (
+            "[name of the accused to be provided]" if kind == "records" else ""),
         # The numbered list of documents applied for (blank lines when absent).
-        # Tolerate None (the adapter's default when the field is omitted).
-        "documents": [d for d in (documents or ()) if str(d).strip()],
+        "documents": docs,
         "purpose": purpose,
         "court_fee": court_fee,
         "place": place,

@@ -26,6 +26,9 @@ ADAPTER = Adapter(
         FieldSpec("court_fee", "string", required=False, default=""),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("kind", "enum", required=False, default="", enum_values=("copy", "records")),
+        FieldSpec("applicant_role", "string", required=False, default=""),
+        FieldSpec("hearing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

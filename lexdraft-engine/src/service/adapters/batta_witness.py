@@ -53,6 +53,8 @@ ADAPTER = Adapter(
         FieldSpec("hearing_date", "date", required=False, default=None),
         FieldSpec("documents_to_produce", "string", required=False, default=""),
         FieldSpec("batta_amount", "string", required=False, default=""),
+        FieldSpec("witness_designation", "string", required=False, default=""),
+        FieldSpec("witness_address", "string", required=False, default=""),
     ),
     slots=(),
 )

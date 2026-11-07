@@ -47,6 +47,7 @@ class RecordDocRow:
     pages_translation: Optional[str] = None
     pages_printing: Optional[str] = None
     cost_estimate: Optional[str] = None
+    count: Optional[str] = None          # r12: "4 exhibits" — how many items the row holds
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,7 @@ def build(
                 "pages_translation": r.pages_translation,
                 "pages_printing": r.pages_printing,
                 "cost_estimate": r.cost_estimate,
+                "count": (r.count or "").strip(),
             }
             for r in rows
         ],
