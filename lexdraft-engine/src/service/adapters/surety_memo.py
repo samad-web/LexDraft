@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from ...pipelines import surety_memo as pipeline
-from . import Adapter, FieldSpec, register
+from . import Adapter, FieldSpec, ListFieldSpec, register
+
+# A surety offered for the accused (shared with memorandum_furnish_sureties).
+SURETY_ITEM = (
+    FieldSpec("name", "string"),
+    FieldSpec("address", "string", required=False, default=None),
+    FieldSpec("amount", "string", required=False, default=None),
+)
 
 ADAPTER = Adapter(
     doc_type="surety_memo", spec="tn-suretymemo",
@@ -22,6 +29,9 @@ ADAPTER = Adapter(
         FieldSpec("accused_name", "string", required=False, default=""),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("police_station", "string", required=False, default=""),
+        ListFieldSpec("sureties", SURETY_ITEM, dict, min_items=0, required=False),
+        FieldSpec("documents", "string_list", required=False, default=()),
     ),
     slots=(),
 )

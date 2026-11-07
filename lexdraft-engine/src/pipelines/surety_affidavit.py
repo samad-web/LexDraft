@@ -23,6 +23,8 @@ from datetime import date
 from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court import bare_sum, court_and_place, parentage
+from ._state_party import bare_crime_no, state_respondent
 
 TEMPLATE = "surety_affidavit.docx"
 SPEC = "tn-surety"
@@ -70,6 +72,10 @@ def build(
     court_place: Optional[str] = None,
     state_rep_by: Optional[str] = None,
     crime_no: Optional[str] = None,
+    court_name: Optional[str] = None,
+    surety_age: Optional[str] = None,
+    surety_parentage: Optional[str] = None,
+    police_station: Optional[str] = None,
 ) -> SuretyAffidavitResult:
     """Assemble the surety affidavit, or refuse."""
 
@@ -111,12 +117,25 @@ def build(
             fields=("id_proofs",),
         )
 
+    court, at = court_and_place(court_name, court_place)
+    particulars = "".join(f", {v}" for v in (
+        parentage(surety_parentage, surety_name),
+        f"aged {str(surety_age).strip()} years" if (surety_age or "").strip() else "",
+    ) if v)
+    if not (state_rep_by or "").strip() and (police_station or "").strip():
+        state_rep_by = state_respondent(police_station)
+    crime = bare_crime_no(crime_no)
+    if crime and crime in (case_ref or ""):
+        crime = ""  # the case reference line already carries it
+
     context: Dict[str, Any] = {
+        "court_name": court,
+        "surety_particulars": particulars,
         "surety_name": surety_name,
         "accused_name": accused_name,
         "offence_section": offence_section,
         "bail_granted": bail_granted,
-        "bail_sum": bail_sum,
+        "bail_sum": bare_sum(bail_sum),
         "id_proofs": [p for p in id_proofs if p.strip()],
         "case_ref": case_ref,
         "place": place,
@@ -127,8 +146,8 @@ def build(
         "monthly_income": monthly_income,
         "prior_suretyships": prior_suretyships,
         "affirm_date": affirm_date.isoformat() if affirm_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
         "state_rep_by": state_rep_by,
-        "crime_no": crime_no,
+        "crime_no": crime,
     }
     return SuretyAffidavitResult(refused=False, context=context)

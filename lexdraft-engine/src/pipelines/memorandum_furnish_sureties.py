@@ -19,9 +19,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court import bare_sum, court_and_place
+from ._state_party import state_respondent
 
 TEMPLATE = "memorandum_furnish_sureties.docx"
 SPEC = "tn-suretymemo"
@@ -54,13 +56,16 @@ def build(
     accused_name: str,
     granting_court: str,
     bail_granted: bool,
-    bail_order_ref: str,
     bail_order_date: Optional[date],
     case_ref: str,
     place: str,
+    bail_order_ref: str = "",
     complainant_name: Optional[str] = None,
     memo_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    court_name: Optional[str] = None,
+    police_station: Optional[str] = None,
+    sureties: Sequence[Mapping[str, Any]] = (),   # {name, address, amount}
 ) -> MemorandumFurnishSuretiesResult:
     """Assemble the memorandum for furnishing sureties, or refuse."""
 
@@ -83,16 +88,24 @@ def build(
             fields=("granting_court",),
         )
 
+    # Sureties are furnished before the court that granted bail unless another is named.
+    court, at = court_and_place(court_name or granting_court, court_place)
+    if not (complainant_name or "").strip() and (police_station or "").strip():
+        complainant_name = state_respondent(police_station)
+
     context: Dict[str, Any] = {
+        "court_name": court,
+        "sureties": [{"name": x.get("name") or "", "address": x.get("address"),
+                      "amount": bare_sum(x.get("amount")) or None} for x in sureties],
         "accused_name": accused_name,
-        "granting_court": granting_court,
+        "granting_court": court_and_place(granting_court, None)[0],
         "bail_granted": bail_granted,
-        "bail_order_ref": bail_order_ref,
+        "bail_order_ref": (bail_order_ref or "").strip(),
         "bail_order_date": bail_order_date.isoformat(),
         "case_ref": case_ref,
         "place": place,
         "complainant_name": complainant_name,
         "memo_date": memo_date.isoformat() if memo_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
     }
     return MemorandumFurnishSuretiesResult(refused=False, context=context)

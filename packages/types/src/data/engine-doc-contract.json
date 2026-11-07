@@ -587,6 +587,7 @@
   "affidavit_of_surety": {
     "all": [
       "accused_name",
+      "accused_parentage",
       "bail_order_date",
       "bail_sum",
       "bail_sum_words",
@@ -599,10 +600,12 @@
       "offence_sections",
       "place",
       "police_station",
+      "property_particulars",
       "state_name",
       "surety_address",
       "surety_age",
       "surety_name",
+      "surety_occupation",
       "surety_parentage"
     ],
     "fields": [
@@ -694,6 +697,21 @@
       {
         "key": "filing_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_occupation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "property_particulars",
+        "kind": "string",
         "required": false
       }
     ],
@@ -1185,7 +1203,10 @@
   },
   "bail_bond": {
     "all": [
+      "accused_address",
+      "accused_age",
       "accused_name",
+      "accused_parentage",
       "attend_date",
       "bail_granted",
       "bail_order_court",
@@ -1194,10 +1215,12 @@
       "case_ref",
       "committing_magistrate",
       "complainant_name",
+      "court_name",
       "court_place",
       "forfeiture_sum",
       "offence_section",
       "place",
+      "police_station",
       "prison_superintendent",
       "sureties"
     ],
@@ -1292,6 +1315,31 @@
       },
       {
         "key": "court_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
         "kind": "string",
         "required": false
       }
@@ -2895,18 +2943,25 @@
   },
   "court_warrant": {
     "all": [
+      "accused_address",
+      "accused_name",
       "addressed_to",
       "amount_due",
       "case_ref",
+      "court_name",
       "court_place",
       "decree_holder_or_petitioner_name",
       "decree_or_order_date",
       "decree_or_order_ref",
+      "default_date",
+      "despite_summons",
       "judgment_debtor_or_respondent_name",
       "kind",
+      "offence",
       "place",
       "property_schedule",
       "restraint_text",
+      "return_date",
       "seal_date"
     ],
     "fields": [
@@ -2915,7 +2970,8 @@
           "attach_immovable",
           "attach_movable",
           "possession",
-          "injunction_order"
+          "injunction_order",
+          "arrest"
         ],
         "key": "kind",
         "kind": "enum",
@@ -2929,12 +2985,12 @@
       {
         "key": "decree_holder_or_petitioner_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "judgment_debtor_or_respondent_name",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "place",
@@ -2980,12 +3036,45 @@
         "key": "seal_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "accused_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "offence",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "default_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "despite_summons",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "return_date",
+        "kind": "date",
+        "required": false
       }
     ],
     "required": [
       "case_ref",
-      "decree_holder_or_petitioner_name",
-      "judgment_debtor_or_respondent_name",
       "kind",
       "place"
     ],
@@ -6258,10 +6347,13 @@
       "bail_order_ref",
       "case_ref",
       "complainant_name",
+      "court_name",
       "court_place",
       "granting_court",
       "memo_date",
-      "place"
+      "place",
+      "police_station",
+      "sureties"
     ],
     "fields": [
       {
@@ -6277,11 +6369,6 @@
       {
         "key": "bail_granted",
         "kind": "bool",
-        "required": true
-      },
-      {
-        "key": "bail_order_ref",
-        "kind": "string",
         "required": true
       },
       {
@@ -6313,13 +6400,50 @@
         "key": "court_place",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "bail_order_ref",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "amount",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "sureties",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
       }
     ],
     "required": [
       "accused_name",
       "bail_granted",
       "bail_order_date",
-      "bail_order_ref",
       "case_ref",
       "granting_court",
       "place"
@@ -7649,6 +7773,7 @@
   },
   "recall_petition": {
     "all": [
+      "absence_reason",
       "accused_name",
       "case_ref",
       "cc_no",
@@ -7657,6 +7782,8 @@
       "court_place",
       "filing_date",
       "place",
+      "undertakes_to_appear",
+      "warrant_date",
       "warrant_type"
     ],
     "fields": [
@@ -7704,6 +7831,21 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "absence_reason",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "warrant_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "undertakes_to_appear",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [],
@@ -7714,12 +7856,15 @@
       "absence_reason",
       "accused_name",
       "case_ref",
+      "court_name",
       "court_place",
+      "documents",
       "petition_date",
       "place",
       "police_station",
       "state_rep_by",
       "undertaking_future_appearance",
+      "warrant_date",
       "warrant_pending"
     ],
     "fields": [
@@ -7771,6 +7916,21 @@
       {
         "key": "court_place",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "warrant_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -9037,6 +9197,7 @@
   },
   "s256_condone_absence": {
     "all": [
+      "absence_date",
       "absence_reason",
       "accused_name",
       "case_ref",
@@ -9044,7 +9205,8 @@
       "court_designation",
       "court_place",
       "petition_date",
-      "place"
+      "place",
+      "post_for"
     ],
     "fields": [
       {
@@ -9086,6 +9248,16 @@
         "key": "court_place",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "absence_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "post_for",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -9105,6 +9277,8 @@
       "case_ref",
       "complainant_name",
       "court_place",
+      "hearing_date",
+      "identity_not_disputed",
       "magistrate_designation",
       "petition_date",
       "place"
@@ -9153,6 +9327,16 @@
       {
         "key": "court_place",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "hearing_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "identity_not_disputed",
+        "kind": "bool",
         "required": false
       }
     ],
@@ -10735,18 +10919,22 @@
       "bail_granted",
       "bail_sum",
       "case_ref",
+      "court_name",
       "court_place",
       "crime_no",
       "id_proofs",
       "monthly_income",
       "offence_section",
       "place",
+      "police_station",
       "prior_suretyships",
       "property_particulars",
       "state_rep_by",
       "surety_address",
+      "surety_age",
       "surety_name",
       "surety_occupation",
+      "surety_parentage",
       "surety_relationship_to_accused"
     ],
     "fields": [
@@ -10839,6 +11027,26 @@
         "key": "crime_no",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "court_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "surety_parentage",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -10861,10 +11069,13 @@
       "court_place",
       "crime_no",
       "crime_year",
+      "documents",
       "filing_date",
       "place",
       "police_inspector",
-      "state_name"
+      "police_station",
+      "state_name",
+      "sureties"
     ],
     "fields": [
       {
@@ -10915,6 +11126,39 @@
       {
         "key": "filing_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "police_station",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "amount",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "sureties",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
+      },
+      {
+        "key": "documents",
+        "kind": "string_list",
         "required": false
       }
     ],

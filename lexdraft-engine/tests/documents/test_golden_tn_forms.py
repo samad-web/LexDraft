@@ -403,7 +403,8 @@ def test_golden_recall_petition(tmp_path):
     assert "C.C. / Crime No." in txt
     assert "... Petitioner / Accused" in txt and "Complainant / Respondent" in txt
     assert "-Vs-" in txt
-    assert "PETITION U/S.70 (2) Cr.P.C." in txt
+    # 2026-11-07: a 2026 case is under the BNSS (s.72(2)), not s.70(2) CrPC.
+    assert "PETITION UNDER SECTION 72(2) OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023" in txt
     assert "neither wilful nor wanton" in txt
     assert "recall the warrant of arrest issued against the accused" in txt
     assert "Accused Signature" in txt and "Counsel for the Accused" in txt
@@ -421,7 +422,8 @@ def test_recall_petition_blank_when_empty(tmp_path):
     r = rp.build()
     assert r.refused is False
     txt = _g(rp.TEMPLATE, r.context, tmp_path, "rp_empty")
-    assert "PETITION U/S.70 (2) Cr.P.C." in txt
+    # 2026-11-07: no case year -> the code is unknowable, both shown to confirm.
+    assert "SECTION 72(2) OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023 / SECTION 70(2)" in txt
     assert "N.B.W. / B.W." in txt   # both shown when warrant type unknown
 
 
@@ -470,7 +472,8 @@ def test_golden_surety_memo(tmp_path):
     assert r.refused is False
     txt = _g(sm.TEMPLATE, r.context, tmp_path, "sm")
     # Advocate format (06_Surety_Memo.pdf) locked here:
-    assert "IN THE COURT OF" in txt and "MAGISTRATE" in txt
+    # 2026-11-07: the full designation prints (it read "OF FIRST CLASS, CHENNAI MAGISTRATE").
+    assert "IN THE COURT OF the Judicial Magistrate First Class :: AT Chennai" in txt
     assert "Crime No." in txt and "(On the file of the Respondent)" in txt
     assert "State :" in txt and "Inspector of Police," in txt
     assert "Complainant" in txt and "Accused" in txt
@@ -482,8 +485,6 @@ def test_golden_surety_memo(tmp_path):
     assert "Counsel For Petitioner / Accused" in txt
     # crime year normalised to full 4 digits
     assert "Crime No. 1234 of 2026" in txt
-    # court de-duplicated
-    assert "First Class, Chennai" in txt
     _assert_golden("tn_surety_memo", txt)
 
 
@@ -509,7 +510,8 @@ def test_golden_affidavit_of_surety(tmp_path):
     assert r.refused is False
     txt = _g(af.TEMPLATE, r.context, tmp_path, "aos")
     # Advocate format (07_Affidavit_of_Surety.pdf) locked here:
-    assert "IN THE COURT OF" in txt and "MAGISTRATE" in txt
+    # 2026-11-07: the full designation prints (it read "OF FIRST CLASS, CHENNAI MAGISTRATE").
+    assert "IN THE COURT OF the Judicial Magistrate First Class :: AT Chennai" in txt
     assert "Crime No." in txt and "(On the file of the Complainant)" in txt
     assert "AFFIDAVIT OF SURETY" in txt
     assert "I beg to offer myself as a surety for the accused" in txt

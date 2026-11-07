@@ -1,4 +1,5 @@
-"""Petition to recall/cancel a warrant of arrest (s.70(2) CrPC) — pipeline.
+"""Petition to recall/cancel a warrant of arrest (s.72(2) BNSS; s.70(2) CrPC for
+a pre-1.7.2024 case) — pipeline.
 
 PARTY-FILED (accused's counsel). Where, on the accused's non-appearance, the
 court has issued a warrant of arrest, s.70(2) CrPC provides that such a warrant
@@ -20,9 +21,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._code_framework import provision
+from ._court import bare_station, clause, court_and_place
+from ._state_party import state_respondent
 
 TEMPLATE = "recall_warrant.docx"
 SPEC = "tn-recall"
@@ -62,6 +66,9 @@ def build(
     police_station: Optional[str] = None,
     petition_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    court_name: Optional[str] = None,
+    warrant_date: Optional[date] = None,
+    documents: Sequence[str] = (),   # e.g. the medical certificate filed with it
 ) -> RecallWarrantResult:
     """Assemble the s.70(2) petition to recall the warrant of arrest, or refuse."""
 
@@ -97,16 +104,26 @@ def build(
             fields=("undertaking_future_appearance",),
         )
 
+    court, at = court_and_place(court_name, court_place)
+    station = bare_station(police_station)
+    if not (state_rep_by or "").strip():
+        # The State prosecutes a warrant case; an unknown station stays a visible gap.
+        state_rep_by, station = state_respondent(station), ""
+
     context: Dict[str, Any] = {
+        "court_name": court,
+        "recall_provision": provision("warrant_recall", case_ref),
+        "warrant_date": warrant_date.isoformat() if warrant_date else None,
+        "documents": [d for d in documents if d.strip()],
         "accused_name": accused_name,
-        "absence_reason": absence_reason,
+        "absence_reason": clause(absence_reason),
         "warrant_pending": warrant_pending,
         "undertaking_future_appearance": undertaking_future_appearance,
         "case_ref": case_ref,
         "state_rep_by": state_rep_by,
-        "police_station": police_station,
+        "police_station": station,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
         "place": place,
     }
     return RecallWarrantResult(refused=False, context=context)

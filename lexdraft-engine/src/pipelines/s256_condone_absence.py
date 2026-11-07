@@ -21,6 +21,8 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._code_framework import provision
+from ._court import clause, court_and_place
 
 TEMPLATE = "s256_condone_absence.docx"
 SPEC = "tn-s256"
@@ -58,6 +60,8 @@ def build(
     court_designation: Optional[str] = None,
     petition_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    absence_date: Optional[date] = None,   # the hearing the complainant missed
+    post_for: Optional[str] = None,        # e.g. "evidence": restore and post the case for it
 ) -> S256CondoneAbsenceResult:
     """Assemble the s.256 petition to condone the complainant's absence, or refuse."""
 
@@ -72,14 +76,20 @@ def build(
             fields=("absence_reason",),
         )
 
+    court, at = court_and_place(court_designation, court_place)
     context: Dict[str, Any] = {
+        "court_name": court,
+        # s.279 BNSS (old s.256 CrPC): complainant's absence; proviso: represented by counsel.
+        "absence_provision": provision("complainant_absence", case_ref),
+        "absence_date": absence_date.isoformat() if absence_date else None,
+        "post_for": (post_for or "").strip().rstrip("."),
         "complainant_name": complainant_name,
         "accused_name": accused_name,
-        "absence_reason": absence_reason,
+        "absence_reason": clause(absence_reason),
         "case_ref": case_ref,
         "court_designation": court_designation,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
         "place": place,
     }
     return S256CondoneAbsenceResult(refused=False, context=context)

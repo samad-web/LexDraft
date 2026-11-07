@@ -1,4 +1,4 @@
-"""Bail bond under ss.389, 437, 438, 439 & 441 CrPC — document pipeline.
+"""Bail bond (ss.478-485 BNSS; ss.436-441 CrPC for a pre-1.7.2024 case) — document pipeline.
 
 A bail bond is the instrument executed by the accused, together with one or more
 sureties, AFTER a court has granted bail. By it the accused binds himself (and the
@@ -23,6 +23,9 @@ from datetime import date
 from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._code_framework import provision
+from ._court import bare_sum, court_and_place, parentage
+from ._state_party import state_respondent
 
 TEMPLATE = "bail_bond.docx"
 SPEC = "tn-bailbond"
@@ -74,6 +77,11 @@ def build(
     prison_superintendent: Optional[str] = None,
     bond_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    court_name: Optional[str] = None,
+    accused_age: Optional[str] = None,
+    accused_parentage: Optional[str] = None,
+    accused_address: Optional[str] = None,
+    police_station: Optional[str] = None,
 ) -> BailBondResult:
     """Assemble the bail bond, or refuse."""
 
@@ -105,16 +113,30 @@ def build(
             fields=("forfeiture_sum",),
         )
 
+    # The bond is executed before the court that granted bail unless another is named.
+    court, at = court_and_place(court_name or bail_order_court, court_place)
+    particulars = "".join(
+        f", {v}" for v in (
+            parentage(accused_parentage, accused_name),
+            f"aged {str(accused_age).strip()} years" if (accused_age or "").strip() else "",
+            f"residing at {accused_address.strip()}" if (accused_address or "").strip() else "",
+        ) if v)
+    if not (complainant_name or "").strip() and (police_station or "").strip():
+        complainant_name = state_respondent(police_station)
+
     context: Dict[str, Any] = {
+        "court_name": court,
+        "bond_provision": provision("bail_bond", case_ref),
+        "accused_particulars": particulars,
         "accused_name": accused_name,
         "offence_section": offence_section,
         "bail_granted": bail_granted,
-        "bail_order_court": bail_order_court,
+        "bail_order_court": court_and_place(bail_order_court, None)[0],
         "bail_order_date": bail_order_date.isoformat(),
-        "forfeiture_sum": forfeiture_sum,
+        "forfeiture_sum": bare_sum(forfeiture_sum),
         "sureties": [
             {"name": s.name, "address": s.address,
-             "forfeiture_sum": s.forfeiture_sum}
+             "forfeiture_sum": bare_sum(s.forfeiture_sum) or None}
             for s in sureties
         ],
         "case_ref": case_ref,
@@ -124,6 +146,6 @@ def build(
         "attend_date": attend_date.isoformat() if attend_date is not None else None,
         "prison_superintendent": prison_superintendent,
         "bond_date": bond_date.isoformat() if bond_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
     }
     return BailBondResult(refused=False, context=context)
