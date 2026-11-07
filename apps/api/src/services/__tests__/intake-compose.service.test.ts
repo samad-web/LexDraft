@@ -571,6 +571,12 @@ describe('composeNoticeFor — reply-mode rejection', () => {
 });
 
 describe('gatherAuthorities — subject Acts', () => {
+  it('test_civil_revision_expert_opinion_basis: offers s.39 BSA when a handwriting-expert reference was refused (r12)', async () => {
+    const { gatherAuthorities } = await import('../../lib/compose-authorities');
+    const crp = await gatherAuthorities({ docType: 'civil_revision', docLabel: 'CRP', facts: {}, account: 'application to send the disputed signature to a handwriting expert was dismissed' });
+    expect(crp.map((a) => a.cite)).toContain('Section 39 of the Bharatiya Sakshya Adhiniyam, 2023');
+  });
+
   it('offers the TN Patta Pass Book Act for a patta matter, and not otherwise', async () => {
     const { gatherAuthorities } = await import('../../lib/compose-authorities');
     const withPatta = await gatherAuthorities({ docType: 'writ_petition', docLabel: 'Writ', facts: {}, account: 'applied for transfer of patta in his name' });

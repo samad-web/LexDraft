@@ -59,6 +59,17 @@ def test_civil_revision_stay_of_trial_is_prayed_when_sought():
     assert "interim stay of all further proceedings in O.S. No. 412 of 2024" in text
 
 
+def test_civil_revision_order_date_once_place_hc_seat_and_stay_cmp():
+    """r12: "Order dated 22.09.2026 in I.A. ... dated 22.09.2026"; Place: Tiruppur; no stay CMP."""
+    text = _text("civil_revision", {**CRP, "stay_of_proceedings_sought": True,
+                                    "impugned_order_ref": "Order dated 22.09.2026 in I.A. No. 610 of 2026"})
+    assert text.count("dated 22.09.2026") == text.count("Order dated 22.09.2026")
+    assert "Place: Chennai" in text and "Place: Tiruppur" not in text
+    assert "C.M.P. No. ______ of 2026" in text
+    assert "PETITION FOR INTERIM STAY UNDER SECTION 151 OF THE CODE OF CIVIL PROCEDURE, 1908" in text
+    assert "{%" not in text
+
+
 def test_civil_first_appeal_by_defendant_prays_to_dismiss_the_suit():
     """r10: the prayer only set aside the decree; a defendant-appellant asks that the suit be dismissed."""
     text = _text("civil_first_appeal", {
