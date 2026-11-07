@@ -285,6 +285,39 @@ function renumberFrom(lines: string[], next: number): string[] {
   return lines.map((l) => (NUMBERED.test(l) ? l.replace(NUMBERED, (_m, _d, _s) => `${n++}. `) : l));
 }
 
+const GAP_RE = /\[to be drafted\]/g;
+const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
+
+/**
+ * The last word on "[to be drafted]" (r12: RESTATE could not fill every hole). A
+ * final body never shows a bare one: standing as its own sentence (a cut sentence,
+ * an unfilled slot) it goes; after a label ("Grounds: …") it becomes that label's
+ * named gap; inside a sentence it becomes "[particulars to be provided]". A
+ * paragraph left with nothing is dropped (numberBody renumbers), and so is a
+ * heading directly over it. A para-wise reply keeps every number, so its
+ * emptied paragraph is named instead.
+ */
+export function settleGaps(paragraphs: string[], keepNumbers = false): string[] {
+  const out: string[] = [];
+  for (const para of paragraphs) {
+    if (!para.includes(GAP)) { out.push(para); continue; }
+    const lead = NUMBERED.exec(para)?.[0] ?? '';
+    const text = para.slice(lead.length).replace(GAP_RE, (gap, at: number, all: string) => {
+      const before = all.slice(0, at);
+      const after = all.slice(at + gap.length);
+      const label = /^\s*([A-Za-z][A-Za-z ,'()/-]{2,60}):\s*$/.exec(before)?.[1];
+      if (label) return `[${label.trim().toLowerCase()} to be provided]`;
+      const standalone = (GAP_LEAD.test(before) || /[.!?;:)"”]\s*$/.test(before)) && /^\s*(?:[.;]?\s*$|[A-Z(“"])/.test(after);
+      return standalone ? '' : '[particulars to be provided]';
+    }).replace(/^\s*[.;]\s*/, '').replace(/\s+([.;,])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    if (text) out.push(`${lead}${text}`);
+    else if (keepNumbers && lead) out.push(`${lead}[reply to this paragraph to be provided]`);
+    // A heading over only the dropped slot ("SCHEDULE OF THE SUIT PROPERTY") goes with it.
+    else if (out.length && SECTION_HEADING(out[out.length - 1]!) && !NUMBERED.test(out[out.length - 1]!)) out.pop();
+  }
+  return out;
+}
+
 function lastNumber(paragraphs: string[], fallback: number): number {
   for (let i = paragraphs.length - 1; i >= 0; i -= 1) {
     const m = NUMBERED.exec(paragraphs[i]!);
@@ -852,7 +885,8 @@ export async function composeAndVerify(args: {
   // defect reviewers marked). Ask once for each hole drafted from the facts, or named
   // as the exact missing particular; keep it only if it passes with fewer holes.
   const holes = (c: Checked) => (c.ok ? c.removed.length + c.paragraphs.join('\n').split(GAP).length - 1 : Infinity);
-  if (checked.ok && holes(checked) > 0 && args.repair && !stats.repaired) {
+  // Even after a REPAIR (r12: the holes survived because REPAIR had set stats.repaired).
+  if (checked.ok && holes(checked) > 0 && args.repair) {
     args.onStage?.('repairing');
     const cut = checked.removed.length
       ? `These sentences were cut because each states a date, amount, provision or claim found in none of the Facts, the skeleton, the advocate's account or the Authorities:\n- ${checked.removed.join('\n- ')}\nKeep each point, stated without the untraced detail (or drop the point if nothing is left of it).\n`
@@ -873,7 +907,8 @@ export async function composeAndVerify(args: {
   }
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
-  const paragraphs = reply ? checked.paragraphs : numberBody(checked.paragraphs, seg.startNumber);
+  const settled = settleGaps(checked.paragraphs, reply);
+  const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);
 
   const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
   const spliced = [...paragraphs, ...prayer];

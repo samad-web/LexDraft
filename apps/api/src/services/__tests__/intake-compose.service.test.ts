@@ -40,7 +40,8 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps } from '../intake-compose.service';
+import { sentencesOf } from '../../lib/draft-guards';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
 // a numbered prayer, then the place line.
@@ -346,6 +347,50 @@ describe('intake-compose — deep mode (authorities, plan, repair)', () => {
     expect(r.composed).toBe(true);
     expect(r.blocks.map((b) => b.text).join(' ')).not.toContain('[to be drafted]');
     expect(JSON.stringify(fetchCalls[2]!.body)).toContain('Replace EVERY');
+  });
+
+  it('test_compose_no_bare_gap: settles every "[to be drafted]" left in a final body (r12)', () => {
+    expect(settleGaps([
+      '1. The marriage was solemnised at Salem.',
+      '2. [to be drafted] The children of the marriage are none.',
+      'SCHEDULE OF THE SUIT PROPERTY',
+      '3. [to be drafted]',
+      '4. Grounds: [to be drafted]',
+      '5. The occasions on which the threats were made are [to be drafted].',
+      '6. He paid nothing. [to be drafted] Hence this petition.',
+      '7. [to be drafted]',
+    ])).toEqual([
+      '1. The marriage was solemnised at Salem.',
+      '2. The children of the marriage are none.',
+      '4. Grounds: [grounds to be provided]',
+      '5. The occasions on which the threats were made are [particulars to be provided].',
+      '6. He paid nothing. Hence this petition.',
+    ]);
+    // A para-wise reply keeps the number and names the hole.
+    expect(settleGaps(['7. [to be drafted]'], true)).toEqual(['7. [reply to this paragraph to be provided]']);
+    // "Smt." is not a sentence end: the cut takes the whole case reference, no "Smt. [gap]" stub.
+    expect(sentencesOf('As held in Smt. Mayadevi v. Jagdish Prasad, cruelty is proved. Next.')).toHaveLength(2);
+  });
+
+  it('test_compose_restate_after_repair: still restates holes after a REPAIR, and the final body has none (r12)', async () => {
+    const dropped = BODY_OK.map((p) => p.replace(' and BNS s.317(2)', '')).join('\n\n');
+    fetchQueue.push(anthropicReply(dropped));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. [to be drafted]', '5. Grounds: [to be drafted]'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    // RESTATE runs although REPAIR already succeeded; its answer still has one hole.
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. [to be drafted]', '5. The petitioner is a lorry driver with a fixed abode.'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      repair: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(JSON.stringify(fetchCalls[4]!.body)).toContain('Replace EVERY');
+    const texts = r.blocks.map((b) => b.text);
+    expect(texts.join(' ')).not.toContain('[to be drafted]');
+    // The emptied paragraph is dropped and the body renumbered.
+    expect(texts).toContain('4. The petitioner is a lorry driver with a fixed abode.');
   });
 
   it('gets a second repair when the first still drops a particular (r9b)', async () => {
