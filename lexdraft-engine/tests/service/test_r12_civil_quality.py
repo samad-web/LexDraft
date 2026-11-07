@@ -189,3 +189,32 @@ def test_hrcp_eviction_has_verification_and_affidavit():
     assert "clause (b), because the tenant has not paid the arrears" in aff
     assert "Rs. 1,05,000/-" in aff and "signed his name in my presence" in aff
     assert "DEPONENT" in aff
+
+
+# ---- lease_deed: Sundaram to M/s. Mobile World, Big Bazaar Street shop ----
+
+LEASE = {
+    "lessor_name": "Mr. G. Sundaram", "lessor_description": "Aged 70 years, residing at "
+    "No. 22, Big Bazaar Street, Tiruchirappalli", "lessee_name": "M/s. Mobile World",
+    "lessee_description": "Represented by Mr. A. Rafiq",
+    "property_desc": "Ground-floor shop at No. 22, Big Bazaar Street, Tiruchirappalli",
+    "term_months": 36, "commencement_date": "2026-12-01", "monthly_rent": 18000,
+    "escalation_note": "5% increase in rent each year", "security_deposit": 100000,
+    "notice_months": 3, "rent_due_day": 5, "lease_purpose": "Commercial (shop)",
+    "execution_date": "2026-11-07", "witnesses": ["[witnesses to be provided]"],
+    "place": "Tiruchirappalli",
+}
+
+
+def test_lease_deed_purpose_label_reads_as_a_use():
+    text = _text("lease_deed", LEASE, allow_placeholders=True)
+    assert "Commercial (shop)" not in text
+    assert "grant a lease of the Demised Premises for use as a commercial shop, and" in text
+    assert "only for use as a commercial shop, and for no unlawful purpose" in text
+    assert "Mr. G. Sundaram, aged 70 years" in text and "M/s. Mobile World, represented by" in text
+
+
+def test_lease_deed_tenancy_intimated_to_the_rent_authority():
+    text = _text("lease_deed", LEASE, allow_placeholders=True)
+    assert "Tamil Nadu Regulation of Rights and Responsibilities of Landlords and Tenants Act, 2017" in text
+    assert "intimate it to the Rent Authority" in text and "within ninety days" in text
