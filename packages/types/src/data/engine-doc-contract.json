@@ -702,6 +702,7 @@
   },
   "agreement_for_sale": {
     "all": [
+      "completion_days",
       "completion_months",
       "earnest_mode",
       "earnest_money",
@@ -710,8 +711,10 @@
       "property_desc",
       "total_consideration",
       "vendee_description",
+      "vendee_gender",
       "vendee_name",
       "vendor_description",
+      "vendor_gender",
       "vendor_name",
       "witnesses"
     ],
@@ -759,7 +762,32 @@
       {
         "key": "completion_months",
         "kind": "int",
-        "required": true
+        "required": false
+      },
+      {
+        "key": "completion_days",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "vendor_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "vendee_gender",
+        "kind": "enum",
+        "required": false
       },
       {
         "key": "execution_date",
@@ -778,7 +806,6 @@
       }
     ],
     "required": [
-      "completion_months",
       "earnest_mode",
       "earnest_money",
       "execution_date",
@@ -3554,13 +3581,18 @@
   "dissolution_deed": {
     "all": [
       "accounts_settled",
+      "continuing_partner",
       "dissolution_date",
       "execution_date",
+      "firm_address",
       "firm_name",
+      "liabilities_by",
       "original_deed_ref",
       "partners",
       "place",
       "records_custodian",
+      "settlement_amount",
+      "settlement_payee",
       "witnesses"
     ],
     "fields": [
@@ -3584,6 +3616,16 @@
           {
             "key": "share_pct",
             "kind": "int",
+            "required": false
+          },
+          {
+            "enumValues": [
+              "male",
+              "female",
+              "entity"
+            ],
+            "key": "gender",
+            "kind": "enum",
             "required": false
           }
         ],
@@ -3610,7 +3652,32 @@
       {
         "key": "records_custodian",
         "kind": "string",
-        "required": true
+        "required": false
+      },
+      {
+        "key": "firm_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "continuing_partner",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "settlement_amount",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "settlement_payee",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "liabilities_by",
+        "kind": "string",
+        "required": false
       },
       {
         "key": "execution_date",
@@ -3635,7 +3702,6 @@
       "original_deed_ref",
       "partners",
       "place",
-      "records_custodian",
       "witnesses"
     ],
     "title": "Deed of Dissolution of Partnership"
@@ -4715,8 +4781,10 @@
       "boundary_south",
       "boundary_west",
       "donee_description",
+      "donee_gender",
       "donee_name",
       "donor_description",
+      "donor_gender",
       "donor_name",
       "execution_date",
       "market_value",
@@ -4813,6 +4881,26 @@
         "key": "place",
         "kind": "string",
         "required": true
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "donor_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "donee_gender",
+        "kind": "enum",
+        "required": false
       }
     ],
     "required": [
@@ -5431,14 +5519,18 @@
       "commencement_date",
       "escalation_note",
       "execution_date",
+      "lease_purpose",
       "lessee_description",
+      "lessee_gender",
       "lessee_name",
       "lessor_description",
+      "lessor_gender",
       "lessor_name",
       "monthly_rent",
       "notice_months",
       "place",
       "property_desc",
+      "rent_due_day",
       "security_deposit",
       "term_months",
       "witnesses"
@@ -5498,6 +5590,36 @@
         "key": "notice_months",
         "kind": "int",
         "required": true
+      },
+      {
+        "key": "rent_due_day",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "lease_purpose",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "lessor_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "lessee_gender",
+        "kind": "enum",
+        "required": false
       },
       {
         "key": "execution_date",
@@ -6206,14 +6328,21 @@
   },
   "mortgage_deed": {
     "all": [
+      "boundary_east",
+      "boundary_north",
+      "boundary_south",
+      "boundary_west",
       "execution_date",
       "interest_rate",
       "mortgagee_description",
+      "mortgagee_gender",
       "mortgagee_name",
       "mortgagor_description",
+      "mortgagor_gender",
       "mortgagor_name",
       "place",
       "principal",
+      "prior_title_recital",
       "property_desc",
       "purpose_recital",
       "repayment_terms",
@@ -6263,6 +6392,51 @@
       {
         "key": "purpose_recital",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_title_recital",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "boundary_east",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "boundary_west",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "boundary_north",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "boundary_south",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "mortgagor_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "mortgagee_gender",
+        "kind": "enum",
         "required": false
       },
       {
@@ -6395,6 +6569,7 @@
   "partnership_deed": {
     "all": [
       "at_will",
+      "banking_mode",
       "business_nature",
       "capital_note",
       "commencement_date",
@@ -6427,6 +6602,26 @@
             "key": "share_pct",
             "kind": "int",
             "required": true
+          },
+          {
+            "key": "capital",
+            "kind": "int",
+            "required": false
+          },
+          {
+            "key": "remuneration",
+            "kind": "int",
+            "required": false
+          },
+          {
+            "enumValues": [
+              "male",
+              "female",
+              "entity"
+            ],
+            "key": "gender",
+            "kind": "enum",
+            "required": false
           }
         ],
         "key": "partners",
@@ -6457,6 +6652,11 @@
       {
         "key": "at_will",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "banking_mode",
+        "kind": "string",
         "required": false
       },
       {
@@ -6911,8 +7111,10 @@
     "all": [
       "attorney_description",
       "attorney_name",
+      "excluded_powers",
       "executant_description",
       "executant_name",
+      "executed_abroad",
       "execution_date",
       "place",
       "poa_kind",
@@ -6922,6 +7124,7 @@
       "sale_agreement_ref",
       "sale_price",
       "sale_property",
+      "schedule_property",
       "witnesses"
     ],
     "fields": [
@@ -6997,6 +7200,21 @@
       {
         "key": "sale_agreement_ref",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "schedule_property",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "executed_abroad",
+        "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "excluded_powers",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -7777,12 +7995,15 @@
   },
   "relinquishment_deed": {
     "all": [
+      "death_date",
+      "deceased_gender",
       "deceased_owner",
       "execution_date",
       "for_consideration",
       "place",
       "property_desc",
       "releasee_description",
+      "releasee_gender",
       "releasee_name",
       "releasors",
       "releasors_share",
@@ -7800,6 +8021,16 @@
             "key": "description",
             "kind": "string",
             "required": true
+          },
+          {
+            "enumValues": [
+              "male",
+              "female",
+              "entity"
+            ],
+            "key": "gender",
+            "kind": "enum",
+            "required": false
           }
         ],
         "key": "releasors",
@@ -7835,6 +8066,31 @@
       {
         "key": "for_consideration",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "death_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "deceased_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "releasee_gender",
+        "kind": "enum",
         "required": false
       },
       {
@@ -9014,6 +9270,8 @@
   },
   "sale_deed": {
     "all": [
+      "advance_amount",
+      "advance_date",
       "amount_already_paid",
       "balance_paid_mode",
       "boundary_east",
@@ -9027,8 +9285,10 @@
       "to_be_registered",
       "total_consideration",
       "vendee_description",
+      "vendee_gender",
       "vendee_name",
       "vendor_description",
+      "vendor_gender",
       "vendor_name",
       "witnesses"
     ],
@@ -9117,6 +9377,36 @@
         "key": "place",
         "kind": "string",
         "required": true
+      },
+      {
+        "key": "advance_amount",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "advance_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "vendor_gender",
+        "kind": "enum",
+        "required": false
+      },
+      {
+        "enumValues": [
+          "male",
+          "female",
+          "entity"
+        ],
+        "key": "vendee_gender",
+        "kind": "enum",
+        "required": false
       }
     ],
     "required": [
@@ -11064,10 +11354,13 @@
       "bequests",
       "execution_date",
       "executor_name",
+      "family_recital",
       "place",
+      "residuary_beneficiary",
       "revokes_prior_wills",
       "sound_mind_declared",
       "testator_address",
+      "testator_age",
       "testator_name",
       "testator_parentage",
       "witnesses"
@@ -11138,6 +11431,21 @@
       },
       {
         "key": "executor_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "testator_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "residuary_beneficiary",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "family_recital",
         "kind": "string",
         "required": false
       }

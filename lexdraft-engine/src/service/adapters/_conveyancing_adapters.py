@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from ...pipelines import conveyancing as cv
-from . import Adapter, FieldSpec, ListFieldSpec, register
+from . import GENDERS, Adapter, FieldSpec, ListFieldSpec, register
 
 
 def _boundaries(kw: Dict[str, Any]) -> Dict[str, str]:
@@ -30,6 +30,8 @@ _BOUNDARY_FIELDS = (
     FieldSpec("boundary_north", "string"),
     FieldSpec("boundary_south", "string"),
 )
+_OPTIONAL_BOUNDARY_FIELDS = tuple(
+    FieldSpec(f.key, "string", required=False, default="") for f in _BOUNDARY_FIELDS)
 
 
 # --- WILL -----------------------------------------------------------------
@@ -57,6 +59,9 @@ register(Adapter(
         FieldSpec("place", "string"),
         FieldSpec("revokes_prior_wills", "bool", required=False, default=True),
         FieldSpec("executor_name", "string", required=False, default=None),
+        FieldSpec("testator_age", "int", required=False, default=None),
+        FieldSpec("residuary_beneficiary", "string", required=False, default=""),
+        FieldSpec("family_recital", "string", required=False, default=""),
     ),
     slots=(),
 ))
@@ -87,6 +92,9 @@ register(Adapter(
         FieldSpec("sale_price", "int", required=False, default=None),
         FieldSpec("purchaser_name", "string", required=False, default=""),
         FieldSpec("sale_agreement_ref", "string", required=False, default=""),
+        FieldSpec("schedule_property", "string", required=False, default=""),
+        FieldSpec("executed_abroad", "bool", required=False, default=False),
+        FieldSpec("excluded_powers", "string_list", required=False, default=[]),
     ),
     slots=(),
 ))
@@ -105,7 +113,10 @@ register(Adapter(
         FieldSpec("total_consideration", "int"),
         FieldSpec("earnest_money", "int"),
         FieldSpec("earnest_mode", "string"),
-        FieldSpec("completion_months", "int"),
+        FieldSpec("completion_months", "int", required=False, default=0),
+        FieldSpec("completion_days", "int", required=False, default=0),
+        FieldSpec("vendor_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("vendee_gender", "enum", enum_values=GENDERS, required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -130,6 +141,10 @@ register(Adapter(
         FieldSpec("escalation_note", "string", required=False, default=""),
         FieldSpec("security_deposit", "int"),
         FieldSpec("notice_months", "int"),
+        FieldSpec("rent_due_day", "int", required=False, default=0),
+        FieldSpec("lease_purpose", "string", required=False, default=""),
+        FieldSpec("lessor_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("lessee_gender", "enum", enum_values=GENDERS, required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -139,9 +154,13 @@ register(Adapter(
 
 
 # --- MORTGAGE DEED --------------------------------------------------------
+def _build_mortgage(**kw: Any):
+    return cv.build_mortgage_deed(boundaries=_boundaries(kw), **kw)
+
+
 register(Adapter(
     doc_type="mortgage_deed", spec="dpc-116-117", title="Mortgage Deed",
-    build=cv.build_mortgage_deed, template="mortgage_deed.docx",
+    build=_build_mortgage, template="mortgage_deed.docx",
     fields=(
         FieldSpec("mortgagor_name", "string"),
         FieldSpec("mortgagor_description", "string"),
@@ -152,6 +171,10 @@ register(Adapter(
         FieldSpec("interest_rate", "int"),
         FieldSpec("repayment_terms", "string"),
         FieldSpec("purpose_recital", "string", required=False, default=""),
+        FieldSpec("prior_title_recital", "string", required=False, default=""),
+        *_OPTIONAL_BOUNDARY_FIELDS,
+        FieldSpec("mortgagor_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("mortgagee_gender", "enum", enum_values=GENDERS, required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -165,6 +188,9 @@ _PARTNER_ITEM = (
     FieldSpec("name", "string"),
     FieldSpec("description", "string"),
     FieldSpec("share_pct", "int"),
+    FieldSpec("capital", "int", required=False, default=0),
+    FieldSpec("remuneration", "int", required=False, default=0),
+    FieldSpec("gender", "enum", enum_values=GENDERS, required=False, default=""),
 )
 
 
@@ -182,6 +208,7 @@ register(Adapter(
         FieldSpec("commencement_date", "date"),
         FieldSpec("capital_note", "string", required=False, default=""),
         FieldSpec("at_will", "bool", required=False, default=True),
+        FieldSpec("banking_mode", "string", required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -194,6 +221,7 @@ _DPARTNER_ITEM = (
     FieldSpec("name", "string"),
     FieldSpec("description", "string"),
     FieldSpec("share_pct", "int", required=False, default=0),
+    FieldSpec("gender", "enum", enum_values=GENDERS, required=False, default=""),
 )
 
 
@@ -207,7 +235,12 @@ register(Adapter(
         FieldSpec("original_deed_ref", "string"),
         FieldSpec("dissolution_date", "date"),
         FieldSpec("accounts_settled", "bool", required=False, default=True),
-        FieldSpec("records_custodian", "string"),
+        FieldSpec("records_custodian", "string", required=False, default=""),
+        FieldSpec("firm_address", "string", required=False, default=""),
+        FieldSpec("continuing_partner", "string", required=False, default=""),
+        FieldSpec("settlement_amount", "int", required=False, default=0),
+        FieldSpec("settlement_payee", "string", required=False, default=""),
+        FieldSpec("liabilities_by", "string", required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -220,6 +253,7 @@ register(Adapter(
 _RELEASOR_ITEM = (
     FieldSpec("name", "string"),
     FieldSpec("description", "string"),
+    FieldSpec("gender", "enum", enum_values=GENDERS, required=False, default=""),
 )
 
 
@@ -238,6 +272,9 @@ register(Adapter(
         FieldSpec("deceased_owner", "string"),
         FieldSpec("releasors_share", "string"),
         FieldSpec("for_consideration", "bool", required=False, default=False),
+        FieldSpec("death_date", "date", required=False, default=None),
+        FieldSpec("deceased_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("releasee_gender", "enum", enum_values=GENDERS, required=False, default=""),
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
@@ -269,6 +306,8 @@ register(Adapter(
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
+        FieldSpec("donor_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("donee_gender", "enum", enum_values=GENDERS, required=False, default=""),
     ),
     slots=(),
 ))

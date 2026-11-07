@@ -1,39 +1,48 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
 DEED OF PARTNERSHIP
+THIS DEED OF PARTNERSHIP is made and executed at Chennai on 2024-01-01 BETWEEN:
 
-THIS DEED OF PARTNERSHIP is executed at Chennai on 2024-01-01 BETWEEN:
+   1. X, S/o A, R/o Chennai;
 
-   1. X, S/o A, R/o Chennai (share: 51%);
+   2. Y, S/o B, R/o Chennai;
 
-   2. Y, S/o B, R/o Chennai (share: 49%);
+(hereinafter collectively called the "PARTNERS", which expression shall include their respective heirs, executors, administrators and legal representatives).
 
-(hereinafter collectively referred to as the PARTNERS, which expression shall include their respective heirs, successors, executors and legal representatives).
-WHEREAS the parties have agreed to commence and carry on business in partnership on the terms set out hereunder.
+WHEREAS the Partners have agreed to carry on business in partnership on the terms and conditions hereinafter set out, and to reduce those terms into writing;
 
-NOW, THEREFORE, THIS DEED WITNESSES AS UNDER:
-1. That the name and style of the partnership shall be M/s XYZ.
-2. That the business of the partnership shall be interior decoration, furnishing and the manufacture and sale of furniture.
-3. That the business shall be deemed to have commenced on 2024-01-01, and its principal place of business shall be at E-1 Ram Nagar, Chennai.
-4. That the shares of the partners in the profits and losses shall be as follows:
+NOW THIS DEED OF PARTNERSHIP WITNESSETH AS FOLLOWS:
+1. NAME: The business shall be carried on in the name and style of M/s XYZ (hereinafter called the "Firm").
+2. BUSINESS: The business of the Firm shall be interior decoration, furnishing and the manufacture and sale of furniture, and such other business as the Partners may mutually agree upon from time to time.
+3. PLACE OF BUSINESS: The principal place of business of the Firm shall be at E-1 Ram Nagar, Chennai, or at such other place as the Partners may mutually decide.
+4. COMMENCEMENT AND DURATION: The partnership shall commence on 2024-01-01. The partnership shall be a partnership at will, and any partner may dissolve the Firm by giving notice in writing to all the other partners of the intention to dissolve it (s.43, Indian Partnership Act, 1932).
+5. CAPITAL: the initial capital of Rs. 15,000/- has been contributed by each partner
+
+6. PROFIT AND LOSS: The net profits and losses of the Firm, after deducting all expenses including the remuneration payable to the working partners, shall be shared by the Partners as follows:
 
    - X: 51%
 
    - Y: 49%
 
-5. CAPITAL: the initial capital of Rs. 15,000/- has been contributed by each partner.
-6. That the partnership shall maintain regular books of account at its principal place of business, and its accounting year shall run from 1st April to 31st March.
 
-7. That the partnership shall be a partnership at will; any partner intending to retire or dissolve the firm shall give fifteen days' advance notice to the other partners.
 
-8. That any dispute between the partners shall be referred to arbitration under the Arbitration and Conciliation Act, 1996; and in all other matters not provided herein, the partnership shall be governed by the Indian Partnership Act, 1932.
+9. BOOKS OF ACCOUNT: Proper books of account shall be kept at the principal place of business, and every partner shall have access to them and may inspect and copy them (s.12(d), Indian Partnership Act, 1932). The accounts shall be closed on 31st March of every year and the profit or loss ascertained.
+10. DUTIES: Every partner shall be just and faithful to the others and carry on the business of the Firm to the greatest common advantage (s.9, Indian Partnership Act, 1932), and no partner shall, without the written consent of the others, stand surety, borrow or lend money on behalf of the Firm, or carry on any business competing with that of the Firm.
+11. DISPUTES: Any dispute between the Partners touching the Firm shall be referred to arbitration under the Arbitration and Conciliation Act, 1996.
+12. In all matters not provided for in this deed, the Indian Partnership Act, 1932 shall apply.
 
-IN WITNESS WHEREOF the parties hereto have signed this deed on the date and at the place first above written, in the presence of the following witnesses.
+IN WITNESS WHEREOF the Partners have signed this deed on the date and at the place first above written, in the presence of the following witnesses.
 
-FIRST PARTNER
-SECOND PARTNER
 
-WITNESSES:
+X (PARTNER 1)
+
+Y (PARTNER 2)
+
+
+WITNESSES (name, parentage and address):
 
    1. Witness A
 
    2. Witness B
+
+
+[NOTE: The Firm may be registered with the Registrar of Firms (s.58, Indian Partnership Act, 1932); an unregistered firm cannot sue to enforce a right arising from a contract (s.69). Stamp duty is payable under the Indian Stamp Act, 1899 as applicable in Tamil Nadu.]

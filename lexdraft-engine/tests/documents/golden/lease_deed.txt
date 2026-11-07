@@ -1,31 +1,46 @@
 [DRAFT — for advocate review; not to be filed until reviewed and signed off]
 LEASE DEED
+THIS DEED OF LEASE is made and executed at Chennai on 2024-01-01 BETWEEN
+Sudarshan Kaur, W/o Paramjit Singh, R/o Chennai (hereinafter called the "LESSOR", which expression shall, unless repugnant to the context, include his/her heirs, executors, administrators, legal representatives and assigns) of the ONE PART;
+AND
+M/s Dave Thomson Associates (India) Pvt. Ltd., through its Director (hereinafter called the "LESSEE", which expression shall, unless repugnant to the context, include its successors-in-interest and assigns) of the OTHER PART.
 
-THIS LEASE DEED is made and executed at Chennai on 2024-01-01 BETWEEN Sudarshan Kaur, W/o Paramjit Singh, R/o Chennai (hereinafter referred to as the LESSOR, which expression shall include his legal heirs, successors, representatives and assigns) of the FIRST PART; AND M/s Dave Thomson Associates (India) Pvt. Ltd., through its Director (hereinafter referred to as the LESSEE, which expression shall include its successors and assigns) of the SECOND PART.
-WHEREAS the Lessor is the owner of the basement portion, admeasuring 760 sq.ft., at M-170, Anna Nagar, Chennai (hereinafter the demised premises) and is desirous of letting out the same; AND WHEREAS the Lessee has offered to take the demised premises on lease, and the Lessor has agreed to let out the same on the terms hereinafter specified.
+WHEREAS the Lessor is the absolute owner of the premises more fully described in the Schedule hereunder (hereinafter called the "Demised Premises");
+AND WHEREAS the Lessee has requested the Lessor to grant a lease of the Demised Premises for the purpose of [purpose of the lease to be provided], and the Lessor has agreed to do so on the terms hereinafter set out;
 
-NOW THIS AGREEMENT WITNESSETH AS UNDER:
-1. That the Lessor lets out the demised premises to the Lessee for a term of 24 months with effect from 2024-01-01, at a monthly rent of Rs. 4000/- (exclusive of electricity and water charges).
+NOW THIS DEED OF LEASE WITNESSETH AS FOLLOWS:
+1. TERM: The Lessor hereby demises the Demised Premises unto the Lessee for a term of 2 years commencing on 2024-01-01 and ending on 2025-12-31.
+2. RENT: The Lessee shall pay the Lessor a monthly rent of Rs. 4000/- (Rupees four thousand only), on or before [day of the month on which rent is due to be provided].
 
-2. That the rent shall be escalated as follows: the rent shall be increased by 10% per annum after every 12 months.
+3. ESCALATION: The monthly rent shall be enhanced as follows: the rent shall be increased by 10% per annum after every 12 months.
 
-3. That the Lessee has paid Rs. 36000/- as an interest-free security deposit, refundable on termination of the lease after adjustment of dues.
-4. That either party may terminate this lease by giving 3 months' written notice.
-5. That the Lessee shall pay the electricity and water charges, keep the premises in good tenantable condition, use them only for the authorised purpose, and deliver vacant possession on the expiry or termination of the lease.
-6. That the Lessor shall pay all municipal and property taxes, and shall not interfere with the Lessee's peaceful enjoyment of the demised premises.
 
-SCHEDULE (DEMISED PREMISES):
+4. SECURITY DEPOSIT: The Lessee has paid the Lessor Rs. 36000/- (Rupees thirty-six thousand only) as an interest-free security deposit, which the Lessor shall refund to the Lessee on the expiry or earlier termination of the lease, on delivery of vacant possession, after adjusting any arrears of rent and charges then due.
+
+5. ELECTRICITY: The Lessee shall pay the electricity charges for the Demised Premises for the period of the lease, as per the meter reading, directly to the authority concerned.
+6. USE: The Lessee shall use the Demised Premises only for the purpose of [purpose of the lease to be provided], and for no unlawful purpose.
+7. NO SUB-LETTING: The Lessee shall not sub-let, assign or part with possession of the Demised Premises or any part of it without the prior written consent of the Lessor.
+8. MAINTENANCE: The Lessee shall keep the Demised Premises in good and tenantable condition, reasonable wear and tear excepted, and shall make no structural alteration without the written consent of the Lessor.
+9. LESSOR'S COVENANTS: The Lessor shall pay the property tax and other statutory levies on the Demised Premises; and the Lessee, paying the rent and observing the covenants herein, shall peaceably hold and enjoy the Demised Premises during the term without interruption by the Lessor or any person claiming through him/her.
+10. TERMINATION: Either party may terminate this lease by giving the other 3 months' notice in writing.
+11. DELIVERY OF POSSESSION: On the expiry or earlier termination of the lease, the Lessee shall deliver vacant and peaceful possession of the Demised Premises to the Lessor.
+
+SCHEDULE (DEMISED PREMISES)
 the basement portion, admeasuring 760 sq.ft., at M-170, Anna Nagar, Chennai
 
-IN WITNESS WHEREOF the parties hereto have signed this deed on the date and at the place first above written, in the presence of the following witnesses.
+IN WITNESS WHEREOF the parties hereto have signed this deed of lease on the date and at the place first above written, in the presence of the following witnesses.
 
 LESSOR
-LESSEE
+(Sudarshan Kaur)
 
-WITNESSES:
+LESSEE
+(M/s Dave Thomson Associates (India) Pvt. Ltd.)
+
+WITNESSES (name, parentage and address):
 
    1. Witness A
 
    2. Witness B
 
-[NOTE: Read ss.105-111 of the Transfer of Property Act, 1882.]
+
+[NOTE: This lease is for a term exceeding one year and can be made only by a registered instrument (s.107, Transfer of Property Act, 1882; s.17(1)(d), Registration Act, 1908). Stamp duty is payable under the Indian Stamp Act, 1899 as applicable in Tamil Nadu.]

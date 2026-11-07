@@ -13,7 +13,7 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from ...pipelines import conveyancing as pipeline
-from . import Adapter, FieldSpec, register
+from . import GENDERS, Adapter, FieldSpec, register
 
 
 def _build(**kw: Any):
@@ -50,6 +50,11 @@ ADAPTER = Adapter(
         FieldSpec("execution_date", "date"),
         FieldSpec("witnesses", "string_list"),
         FieldSpec("place", "string"),
+        # The advance paid before today (its date); the balance is price - advance.
+        FieldSpec("advance_amount", "int", required=False, default=0),
+        FieldSpec("advance_date", "date", required=False, default=None),
+        FieldSpec("vendor_gender", "enum", enum_values=GENDERS, required=False, default=""),
+        FieldSpec("vendee_gender", "enum", enum_values=GENDERS, required=False, default=""),
     ),
     slots=(),
 )

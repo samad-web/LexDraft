@@ -117,6 +117,11 @@ def _coerce_scalar(kind: str, value: Any, *, key: str,
 # FieldSpec — one inbound field, and how it maps to an engine kwarg.
 # --------------------------------------------------------------------------
 
+# A deed party's grammatical gender (pronouns, "heirs" vs "successors"). Optional:
+# when absent the engine reads the honorific (Mr./Mrs./M/s.).
+GENDERS = ("male", "female", "entity")
+
+
 @dataclass(frozen=True)
 class FieldSpec:
     """One inbound contract field.
