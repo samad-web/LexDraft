@@ -19,6 +19,8 @@ ADAPTER = Adapter(
         FieldSpec("magistrate_designation", "string", required=False, default=None),
         FieldSpec("petition_date", "date", required=False, default=None),
         FieldSpec("court_place", "string", required=False, default=None),
+        FieldSpec("hearing_date", "date", required=False, default=None),
+        FieldSpec("identity_not_disputed", "bool", required=False, default=False),
     ),
     slots=(),
 )

@@ -1,12 +1,13 @@
-"""Recall Petition — Petition u/s 70(2) Cr.P.C. to recall a warrant of arrest.
+"""Recall Petition — Petition u/s 72(2) BNSS (s.70(2) Cr.P.C. for a pre-1.7.2024
+case) to recall a warrant of arrest.
 
 Where a Non-Bailable Warrant (N.B.W.) or Bailable Warrant (B.W.) has issued against
 an accused who was unable to attend court, the accused (through counsel) petitions
-the Magistrate under Section 70(2) of the Code of Criminal Procedure to recall and
+the Magistrate under Section 72(2) BNSS / 70(2) CrPC to recall and
 cancel the warrant and release the accused on his own bond. This is the advocate's
 short standard form (02_Recall_Petition.pdf): a Judicial-Magistrate cause title, the
 C.C./Crime number, the parties (accused vs State by S.I. of Police), the "PETITION
-U/S.70(2) Cr.P.C." heading, four verbatim submission/prayer clauses, the date line,
+UNDER <section>" heading (the code follows the case year), four verbatim submission/prayer clauses, the date line,
 and the accused/counsel signatures. The form is generalised for any state/court —
 court name and place are placeholders. Criminal context. PARTY-FILED (by the
 accused's counsel).
@@ -25,6 +26,8 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal
+from ._code_framework import provision
+from ._court import clause
 
 TEMPLATE = "recall_petition.docx"
 SPEC = "tn-recallpet"
@@ -74,6 +77,9 @@ def build(
     warrant_type: str = "",
     place: str = "",
     filing_date: Optional[date] = None,
+    absence_reason: str = "",            # why the accused could not appear
+    warrant_date: Optional[date] = None,  # the date the warrant issued
+    undertakes_to_appear: bool = False,
 ) -> RecallPetitionResult:
     """Assemble the Recall Petition. Never refuses — renders blanks for anything
     not supplied, so it drafts complete-with-gaps for the advocate to finish."""
@@ -95,6 +101,11 @@ def build(
 
     context: Dict[str, Any] = {
         "court_name": court_name_clean,
+        # s.72(2) BNSS: a warrant stays in force until the issuing court cancels it.
+        "recall_provision": provision("warrant_recall", cc_no, case_ref),
+        "absence_reason": clause(absence_reason),
+        "warrant_date": warrant_date.isoformat() if warrant_date else None,
+        "undertakes_to_appear": undertakes_to_appear,
         "court_place": court_place,
         "court_at": court_at,
         "case_ref": case_ref,

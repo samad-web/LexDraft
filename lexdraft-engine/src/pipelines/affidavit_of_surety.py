@@ -18,29 +18,16 @@ when known and render as the form's blank fill-in line otherwise — never refus
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal
+from ._court import (bare_name, bare_parentage, bare_station, bare_sum,
+                     designation_and_place, split_crime, sum_in_words)
 
 TEMPLATE = "affidavit_of_surety.docx"
 SPEC = "tn-affsurety"
-
-
-def _dedupe_court(court_name: str) -> str:
-    """Strip what the fixed "IN THE COURT OF … MAGISTRATE" heading already carries
-    so the case court name doesn't double it. See the other memo pipelines."""
-    s = (court_name or "").strip()
-    if not s:
-        return ""
-    s = re.sub(r"^\s*(in\s+the\s+)?court\s+of\s+(the\s+)?", "", s, flags=re.I)
-    s = re.sub(r"\b(chief\s+)?(judicial|metropolitan)?\s*magistrate('s)?\b", "", s, flags=re.I)
-    s = re.sub(r"\bcourt\b", "", s, flags=re.I)
-    s = re.sub(r"\s*,\s*", ", ", s)
-    s = re.sub(r"\s{2,}", " ", s).strip(" ,-")
-    return s
 
 
 @dataclass(frozen=True)
@@ -78,6 +65,9 @@ def build(
     surety_address: str = "",
     place: str = "",
     filing_date: Optional[date] = None,
+    accused_parentage: str = "",
+    surety_occupation: str = "",
+    property_particulars: str = "",
 ) -> AffidavitOfSuretyResult:
     """Assemble the Affidavit of Surety. Never refuses — renders blanks for
     anything not supplied, so it drafts complete-with-gaps for the surety."""
@@ -88,11 +78,10 @@ def build(
     filing_month = _MONTHS[filing_date.month - 1] if filing_date else None
     filing_year = str(filing_date.year) if filing_date else None
 
-    court_name_clean = _dedupe_court(court_name)
-    cp = (court_place or "").strip()
-    court_at = cp if (cp and cp.lower() not in court_name_clean.lower()) else ""
-
-    _y = (crime_year or "").strip()
+    court_name_clean, court_at = designation_and_place(court_name, court_place)
+    # "Crime No. 310 of 2026" -> number "310", year "2026" (the form prints both).
+    crime_no, of_year = split_crime(crime_no)
+    _y = (crime_year or of_year or "").strip()
     crime_year_full = (_y if len(_y) == 4 else ("20" + _y.zfill(2))[-4:]) if _y else ""
 
     context: Dict[str, Any] = {
@@ -103,14 +92,18 @@ def build(
         "crime_no": crime_no,
         "crime_year": crime_year_full,
         "state_name": state_name,
-        "police_station": police_station,
-        "accused_name": accused_name,
+        "police_station": bare_station(police_station),
+        "accused_full": accused_name,
+        "accused_name": bare_name(accused_name),  # the form prints "Mr"
+        "accused_parentage": bare_parentage(accused_parentage),
+        "surety_occupation": surety_occupation,
+        "property_particulars": property_particulars,
         "offence_sections": offence_sections,
-        "bail_sum": bail_sum,
-        "bail_sum_words": bail_sum_words,
+        "bail_sum": bare_sum(bail_sum),
+        "bail_sum_words": bail_sum_words or sum_in_words(bail_sum),
         "bail_order_date": bail_order_date,
         "surety_name": surety_name,
-        "surety_parentage": surety_parentage,
+        "surety_parentage": bare_parentage(surety_parentage),
         "surety_age": surety_age,
         "surety_address": surety_address,
         "place": place,

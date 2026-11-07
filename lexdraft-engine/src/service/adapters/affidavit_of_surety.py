@@ -30,6 +30,9 @@ ADAPTER = Adapter(
         FieldSpec("surety_address", "string", required=False, default=""),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("accused_parentage", "string", required=False, default=""),
+        FieldSpec("surety_occupation", "string", required=False, default=""),
+        FieldSpec("property_particulars", "string", required=False, default=""),
     ),
     slots=(),
 )

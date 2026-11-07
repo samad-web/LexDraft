@@ -22,6 +22,8 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._code_framework import provision
+from ._court import clause, court_and_place
 
 TEMPLATE = "s317_dispense_presence.docx"
 SPEC = "tn-s317"
@@ -60,6 +62,8 @@ def build(
     magistrate_designation: Optional[str] = None,
     petition_date: Optional[date] = None,
     court_place: Optional[str] = None,
+    hearing_date: Optional[date] = None,   # the hearing to be dispensed with
+    identity_not_disputed: bool = False,   # counsel appears; identity will not be disputed
 ) -> S317DispensePresenceResult:
     """Assemble the s.317 petition to dispense with the accused's presence, or refuse."""
 
@@ -85,15 +89,21 @@ def build(
             fields=("absence_not_wanton",),
         )
 
+    court, at = court_and_place(magistrate_designation, court_place)
     context: Dict[str, Any] = {
+        "court_name": court,
+        # s.355 BNSS (old s.317 CrPC): inquiry / trial in the accused's absence.
+        "dispense_provision": provision("dispense_presence", case_ref),
+        "hearing_date": hearing_date.isoformat() if hearing_date else None,
+        "identity_not_disputed": identity_not_disputed,
         "accused_name": accused_name,
         "complainant_name": complainant_name,
-        "absence_reason": absence_reason,
+        "absence_reason": clause(absence_reason),
         "absence_not_wanton": absence_not_wanton,
         "case_ref": case_ref,
         "magistrate_designation": magistrate_designation,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,
-        "court_place": court_place,
+        "court_place": at,
         "place": place,
     }
     return S317DispensePresenceResult(refused=False, context=context)

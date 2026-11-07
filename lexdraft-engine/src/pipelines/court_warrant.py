@@ -9,7 +9,9 @@ THIS — the advocate prepares this draft for the court's issue]".
 Covers: an Order XXI Rule 54 CPC prohibitory order attaching immovable property; an
 Order XXI CPC warrant of attachment of movable property in execution of a money
 decree; a warrant of delivery of possession in execution of an eviction/HRC order;
-and an Order XXXIX Rules 1 & 2 CPC order granting an interim injunction.
+an Order XXXIX Rules 1 & 2 CPC order granting an interim injunction; and a
+criminal warrant of arrest (Form No. 2, s.72 BNSS / s.70 CrPC by the case year)
+against an accused who failed to appear.
 
 Hard requirements (each refuses, no partial output):
   - The decree-holder/petitioner and the judgment-debtor/respondent must both be
@@ -28,6 +30,8 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
+from ._code_framework import provision
+from ._court import court_and_place
 
 TEMPLATE = "court_warrant.docx"
 SPEC = "tn-warrant"
@@ -38,6 +42,7 @@ class WarrantKind(Enum):
     ATTACH_MOVABLE = "attach_movable"         # Order XXI CPC — warrant of attachment of movable property in execution of a money decree
     POSSESSION = "possession"                 # warrant of delivery of possession in execution of an eviction/HRC order
     INJUNCTION_ORDER = "injunction_order"     # Order XXXIX Rules 1 & 2 CPC — order granting interim injunction
+    ARREST = "arrest"                         # Form No. 2 — warrant of arrest of an accused (s.72 BNSS / s.70 CrPC)
 
 
 @dataclass(frozen=True)
@@ -66,9 +71,9 @@ def build(
     *,
     kind: WarrantKind,
     case_ref: str,
-    decree_holder_or_petitioner_name: str,
-    judgment_debtor_or_respondent_name: str,
     place: str,
+    decree_holder_or_petitioner_name: str = "",
+    judgment_debtor_or_respondent_name: str = "",
     court_place: Optional[str] = None,
     decree_or_order_ref: Optional[str] = None,
     decree_or_order_date: Optional[date] = None,
@@ -77,11 +82,35 @@ def build(
     restraint_text: Optional[str] = None,   # injunction: what the respondent is restrained from
     addressed_to: Optional[str] = None,     # e.g. "The Bailiff of the Court"
     seal_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    # arrest warrant:
+    accused_name: Optional[str] = None,
+    accused_address: Optional[str] = None,
+    offence: Optional[str] = None,          # offence(s) and sections charged
+    default_date: Optional[date] = None,    # the hearing the accused failed to attend
+    despite_summons: bool = False,          # summons had issued for that hearing
+    return_date: Optional[date] = None,     # date the warrant is returnable
 ) -> CourtWarrantResult:
     """Assemble the court-issued warrant/order draft for the court's issue, or refuse."""
 
     _EXECUTION = (WarrantKind.ATTACH_IMMOVABLE, WarrantKind.ATTACH_MOVABLE,
                   WarrantKind.POSSESSION)
+
+    # 0. an arrest warrant names the accused to be arrested; the complainant may be
+    #    a visible gap (the case number identifies the case).
+    if kind is WarrantKind.ARREST:
+        accused_name = (accused_name or judgment_debtor_or_respondent_name or "").strip()
+        if not accused_name:
+            return _refuse(
+                "a warrant of arrest must name the accused to be arrested; the name "
+                "is absent",
+                code="court_warrant_accused_missing",
+                fields=("accused_name",),
+            )
+        judgment_debtor_or_respondent_name = accused_name
+        decree_holder_or_petitioner_name = (decree_holder_or_petitioner_name.strip()
+                                            or "[complainant to be provided]")
+        addressed_to = addressed_to or "[officer to execute the warrant to be provided]"
 
     # 1. both parties must be named.
     if (not decree_holder_or_petitioner_name.strip()
@@ -124,14 +153,23 @@ def build(
                 fields=("restraint_text",),
             )
 
+    court, at = court_and_place(court_name, court_place)
     context: Dict[str, Any] = {
+        "court_name": court,
+        "warrant_provision": provision("warrant", case_ref),
+        "accused_name": accused_name,
+        "accused_address": accused_address,
+        "offence": (offence or "").strip() or "[offence(s) and section(s) to be provided]",
+        "default_date": default_date.isoformat() if default_date else None,
+        "despite_summons": despite_summons,
+        "return_date": return_date.isoformat() if return_date else None,
         "court_issues": True,
         "kind": kind.value,
         "case_ref": case_ref,
         "decree_holder_or_petitioner_name": decree_holder_or_petitioner_name,
         "judgment_debtor_or_respondent_name": judgment_debtor_or_respondent_name,
         "place": place,
-        "court_place": court_place,
+        "court_place": at,
         "decree_or_order_ref": decree_or_order_ref,
         "decree_or_order_date": (decree_or_order_date.isoformat()
                                  if decree_or_order_date else None),

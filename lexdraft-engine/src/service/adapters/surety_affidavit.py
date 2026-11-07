@@ -28,6 +28,10 @@ ADAPTER = Adapter(
         FieldSpec("court_place", "string", required=False, default=None),
         FieldSpec("state_rep_by", "string", required=False, default=None),
         FieldSpec("crime_no", "string", required=False, default=None),
+        FieldSpec("court_name", "string", required=False, default=None),
+        FieldSpec("surety_age", "string", required=False, default=None),
+        FieldSpec("surety_parentage", "string", required=False, default=None),
+        FieldSpec("police_station", "string", required=False, default=None),
     ),
     slots=(),
 )

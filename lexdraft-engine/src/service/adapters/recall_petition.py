@@ -21,6 +21,9 @@ ADAPTER = Adapter(
         FieldSpec("warrant_type", "string", required=False, default=""),
         FieldSpec("place", "string", required=False, default=""),
         FieldSpec("filing_date", "date", required=False, default=None),
+        FieldSpec("absence_reason", "string", required=False, default=""),
+        FieldSpec("warrant_date", "date", required=False, default=None),
+        FieldSpec("undertakes_to_appear", "bool", required=False, default=False),
     ),
     slots=(),
 )

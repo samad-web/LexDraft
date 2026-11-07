@@ -15,8 +15,10 @@ ADAPTER = Adapter(
         FieldSpec("kind", "enum",
                   enum_values=tuple(k.value for k in WarrantKind), to_engine=WarrantKind),
         FieldSpec("case_ref", "string"),
-        FieldSpec("decree_holder_or_petitioner_name", "string"),
-        FieldSpec("judgment_debtor_or_respondent_name", "string"),
+        # optional: an arrest warrant may leave the complainant a gap; the other
+        # kinds refuse (court_warrant_parties_missing) when either is blank.
+        FieldSpec("decree_holder_or_petitioner_name", "string", required=False, default=""),
+        FieldSpec("judgment_debtor_or_respondent_name", "string", required=False, default=""),
         FieldSpec("place", "string"),
         FieldSpec("court_place", "string", required=False, default=None),
         FieldSpec("decree_or_order_ref", "string", required=False, default=None),
@@ -26,6 +28,13 @@ ADAPTER = Adapter(
         FieldSpec("restraint_text", "string", required=False, default=None),
         FieldSpec("addressed_to", "string", required=False, default=None),
         FieldSpec("seal_date", "date", required=False, default=None),
+        FieldSpec("court_name", "string", required=False, default=None),
+        FieldSpec("accused_name", "string", required=False, default=None),
+        FieldSpec("accused_address", "string", required=False, default=None),
+        FieldSpec("offence", "string", required=False, default=None),
+        FieldSpec("default_date", "date", required=False, default=None),
+        FieldSpec("despite_summons", "bool", required=False, default=False),
+        FieldSpec("return_date", "date", required=False, default=None),
     ),
     slots=(),
 )

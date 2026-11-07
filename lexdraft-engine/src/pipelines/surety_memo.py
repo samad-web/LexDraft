@@ -18,33 +18,15 @@ blank fill-in line otherwise — the pipeline never refuses.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence
 
 from ..verify.refusals import Refusal
+from ._court import bare_station, bare_sum, designation_and_place, split_crime
 
 TEMPLATE = "surety_memo.docx"
 SPEC = "tn-suretymemo"
-
-
-def _dedupe_court(court_name: str) -> str:
-    """The fixed heading already says "IN THE COURT OF" and ends in "MAGISTRATE";
-    the case court name is inserted between. Strip a leading "(In the) Court of
-    (the)" and the "Magistrate" phrase / redundant "Court" so a case court like
-    "Judicial Magistrate First Class Court, Chennai" doesn't double the heading.
-    Returns the distinguishing remainder (e.g. "First Class, Chennai"), or "" when
-    nothing distinguishing remains."""
-    s = (court_name or "").strip()
-    if not s:
-        return ""
-    s = re.sub(r"^\s*(in\s+the\s+)?court\s+of\s+(the\s+)?", "", s, flags=re.I)
-    s = re.sub(r"\b(chief\s+)?(judicial|metropolitan)?\s*magistrate('s)?\b", "", s, flags=re.I)
-    s = re.sub(r"\bcourt\b", "", s, flags=re.I)
-    s = re.sub(r"\s*,\s*", ", ", s)
-    s = re.sub(r"\s{2,}", " ", s).strip(" ,-")
-    return s
 
 
 @dataclass(frozen=True)
@@ -73,6 +55,9 @@ def build(
     accused_name: str = "",
     place: str = "",
     filing_date: Optional[date] = None,
+    police_station: str = "",
+    sureties: Sequence[Mapping[str, Any]] = (),   # {name, address, amount}
+    documents: Sequence[str] = (),                # property documents / ID proofs produced
 ) -> SuretyMemoResult:
     """Assemble the Surety Memo. Never refuses — renders blanks for anything not
     supplied, so it drafts complete-with-gaps for the advocate to finish."""
@@ -83,19 +68,14 @@ def build(
     filing_month = _MONTHS[filing_date.month - 1] if filing_date else None
     filing_year = str(filing_date.year) if filing_date else None
 
-    # De-duplicate the court name against the fixed "... MAGISTRATE" heading.
-    court_name_clean = _dedupe_court(court_name)
-    # "AT <place>" — drop when the place already appears in the (cleaned) court name.
-    cp = (court_place or "").strip()
-    court_at = cp if (cp and cp.lower() not in court_name_clean.lower()) else ""
-
-    # Normalise the crime year to a FULL 4-digit year for the "Crime No. __ of
-    # <year>" line ("26" -> "2026"; "2026" -> "2026"; blank -> "202__").
-    _y = (crime_year or "").strip()
-    if _y:
-        crime_year_full = _y if len(_y) == 4 else ("20" + _y.zfill(2))[-4:]
-    else:
-        crime_year_full = ""
+    court_name_clean, court_at = designation_and_place(court_name, court_place)
+    # "Crime No. 310 of 2026" -> number "310", year "2026" (the form prints both).
+    crime_no, of_year = split_crime(crime_no)
+    # Normalise the crime year to a FULL 4-digit year ("26" -> "2026").
+    _y = (crime_year or of_year or "").strip()
+    crime_year_full = (_y if len(_y) == 4 else ("20" + _y.zfill(2))[-4:]) if _y else ""
+    if not police_inspector.strip() and bare_station(police_station):
+        police_inspector = bare_station(police_station) + " Police Station"
 
     context: Dict[str, Any] = {
         "court_name": court_name_clean,
@@ -106,6 +86,9 @@ def build(
         "crime_year": crime_year_full,
         "state_name": state_name,
         "police_inspector": police_inspector,
+        "sureties": [{"name": x.get("name") or "", "address": x.get("address"),
+                      "amount": bare_sum(x.get("amount")) or None} for x in sureties],
+        "documents": [d for d in documents if d.strip()],
         "accused_name": accused_name,
         "place": place,
         "filing_date": filing_date.isoformat() if filing_date else None,
