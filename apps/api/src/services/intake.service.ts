@@ -335,14 +335,29 @@ export function fillMissingDate(
   if (AS_ON_KEY.test(formKey) || SELF_DATE_KEY.test(formKey)) return todayIso();
   if (formKey === 'notice_date' && docType && NOTICE_DOCS.has(docType)) return todayIso();
   // s.106 TPA: a missing quit date is the notice date + clear 15 days, not a stand-in that voids the notice.
-  if (formKey === 'quit_date') {
-    const d = new Date(`${/^\d{4}-\d{2}-\d{2}$/.test(form.notice_date ?? '') ? form.notice_date : todayIso()}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 16);
-    return d.toISOString().slice(0, 10);
-  }
-  const sv = serviceDateSentinel(formKey, base, form);
+  if (formKey === 'quit_date') return addDays(isIso(form.notice_date) ? form.notice_date! : todayIso(), 16);
+  // Dates another date on record fixes (r8): a notice is dated the day it is sent; a
+  // month-to-month lease ends on termination and the cause of action arises the next day.
+  if (formKey === 'notice_date' && isIso(form.notice_dispatch_date)) return form.notice_dispatch_date!;
+  if (formKey === 'lease_expiry_date' && isIso(form.tenancy_end_date)) return form.tenancy_end_date!;
+  if (formKey === 'cause_of_action_date' && isIso(form.tenancy_end_date)) return addDays(form.tenancy_end_date!, 1);
+  // A stand-in must not equal a real date on record (or today): it is marked by value,
+  // and r8 "Date: 06.11.2026" would have been marked along with the stand-in.
+  const real = new Set([todayIso(), ...Object.values(form).filter(isIso)]);
+  let sv = serviceDateSentinel(formKey, base, form);
+  while (real.has(sv)) sv = addDays(sv, -1);
   synthetic.add(sv);
   return sv;
+}
+
+function isIso(v: string | undefined): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(v ?? '');
+}
+
+function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 /** MACT: the engine refuses when the advocate's claimed total differs from its own
@@ -2676,7 +2691,7 @@ export function markSyntheticDates(
     const dd = String(Number(d));
     const monthName = MONTH_NAMES[Number(mo) - 1];
     const isoRaw = `${y}-${mo}-${d}`;
-    const dmy = `${d}[-/]${mo}[-/]${y}`;
+    const dmy = `${d}[-/.]${mo}[-/.]${y}`; // TN drafts print 06.11.2026
     const long = `${dd}(?:st|nd|rd|th)?\\s+${monthName}\\.?,?\\s+${y}`;
     patterns.push(new RegExp(`\\b(?:${isoRaw}|${dmy}|${long})\\b`, 'g'));
   }

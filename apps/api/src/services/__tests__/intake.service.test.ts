@@ -895,6 +895,30 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     expect(blank.claimed_total).toBe('8710000');
   });
 
+  it('derives dates the record fixes, and never uses a real date as a stand-in (r8)', async () => {
+    const { fillMissingDate, markSyntheticDates } = await import('../intake.service');
+    const today = new Date().toISOString().slice(0, 10);
+    const synthetic = new Set<string>();
+    // s.138 complaint: the notice is dated the day it was sent, not the cheque date.
+    expect(fillMissingDate('notice_date', '2026-08-10', { notice_dispatch_date: '2026-09-30' }, synthetic, 's138_complaint')).toBe('2026-09-30');
+    // Month-to-month ejectment: lease ends on termination; cause of action the next day.
+    const ej = { tenancy_end_date: '2026-08-23', filing_date: today };
+    expect(fillMissingDate('lease_expiry_date', today, ej, synthetic, 'ejectment')).toBe('2026-08-23');
+    expect(fillMissingDate('cause_of_action_date', today, ej, synthetic, 'ejectment')).toBe('2026-08-24');
+    expect(synthetic.size).toBe(0);
+    // A stand-in equal to today's filing date steps back, so marking it can't blank the real "Date:".
+    const sv = fillMissingDate('cause_of_action_date', today, { filing_date: today }, synthetic, 'plaint');
+    expect(sv).not.toBe(today);
+    const [y, m, d] = sv.split('-');
+    const [ty, tm, td] = today.split('-');
+    const out = markSyntheticDates({ outcome: 'generated', blocks: [
+      { key: 'a', text: `The cause of action arose on ${d}.${m}.${y}.` },
+      { key: 'b', text: `Date: ${td}.${tm}.${ty}` },
+    ] } as never, synthetic);
+    expect(out.blocks[0]!.text).toContain('[DATE TO BE CONFIRMED]');
+    expect(out.blocks[1]!.text).toBe(`Date: ${td}.${tm}.${ty}`);
+  });
+
   it('keeps the marked stand-in for any other missing date', async () => {
     const { fillMissingDate } = await import('../intake.service');
     const synthetic = new Set<string>();

@@ -15,3 +15,4 @@
 - Drafting (2026-11-06): MACT pleads the computed compensation when the advocate's total differs, and says so in the chat; the dev Claude Code route survives extension updates.
 - Drafting (2026-11-06): no stray "[to be drafted]" left in a composed draft (filled from the brief or named); prayers read cleanly ("pleased to dismiss...", not "pleased to To dismiss...,"); bail drafts no longer print "Crime No. Crime No.".
 - Drafting efficiency (2026-11-07): the drafting progress poll no longer counts toward the 600-per-15-min IP limit, so a whole office drafting behind one IP no longer hits 429s.
+- Drafting (2026-11-07): stand-in dates show as "[DATE TO BE CONFIRMED]" in the TN dot format and never equal a real date; notice, lease-expiry and cause-of-action dates are derived from the record; compose fills a placeholder the brief states; the extractor derives the district and the deponent.
