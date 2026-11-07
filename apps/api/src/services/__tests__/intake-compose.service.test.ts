@@ -110,6 +110,28 @@ describe('intake-compose — body-only composition', () => {
     expect(JSON.stringify(fetchCalls[0]!.body)).toContain('GROUNDS, numbered');
   });
 
+  it('writ_petition: recounts BOTH the verification and the affidavit "paras 1 to N" (r10: verification kept 12)', async () => {
+    const blocks = [...BAIL,
+      'Verified at Chennai that the contents of paras 1 to 12 of the petition are true to my knowledge.',
+      'I state that the facts stated in paras 1 to 12 of the petition above are true.',
+    ].map((b, i) => (typeof b === 'string' ? { key: `v${i}`, text: b } : b));
+    fetchQueue.push(anthropicReply([
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+      '4. That the charge sheet has been filed, so the investigation is complete.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Writ Petition', docType: 'regular_bail', engineBlocks: blocks, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(r.verification?.map((v) => v.to)).toEqual([
+      'Verified at Chennai that the contents of paras 1 to 5 of the petition are true to my knowledge.',
+      'I state that the facts stated in paras 1 to 5 of the petition above are true.',
+    ]);
+  });
+
   it('rejects a composition that drops a section from the skeleton', async () => {
     fetchQueue.push(anthropicReply('1. The petitioner, Dinesh Kumar, is a lorry driver.\n\n2. The offence is under BNS s.303(2).\n\n3. Arrested on 2024-09-16, in custody 96 days as on 2024-12-20.'));
     fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));

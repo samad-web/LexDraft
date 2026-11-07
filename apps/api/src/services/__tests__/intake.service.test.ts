@@ -198,7 +198,7 @@ vi.mock('../../lib/grok-client', () => ({
   },
 }));
 
-import { intakeService, markSyntheticDates } from '../intake.service';
+import { intakeService, markSyntheticDates, placeholderFor } from '../intake.service';
 import { factSheetService } from '../factsheet.service';
 import { env } from '../../env';
 
@@ -1142,5 +1142,15 @@ describe('markSyntheticDates — draft-now sentinel-date marking (real engine ou
   it('is a no-op when there are no synthetic dates', () => {
     const marked = markSyntheticDates(outcome, new Set());
     expect(marked).toBe(outcome);
+  });
+});
+
+describe('writ_petition draft-now date placeholders', () => {
+  it('writ_petition: the filing year is the current year, not "[year to be provided]" (r10)', () => {
+    expect(placeholderFor({ key: 'year', label: 'Year', type: 'text', required: true })).toBe(String(new Date().toISOString().slice(0, 4)));
+    expect(placeholderFor({ key: 'day', label: 'Day', type: 'text', required: true })).toBe('[day to be provided]');
+  });
+  it('injunction: the ex parte notice-futility averment is drafted from the facts, not a "[... to be provided]" gap (r10)', () => {
+    expect(placeholderFor({ key: 'notice_futility', label: 'Notice futility', type: 'text', required: false })).toBe('[to be drafted]');
   });
 });

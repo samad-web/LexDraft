@@ -28,6 +28,7 @@ ADAPTER = Adapter(
         FieldSpec('petitioner_role', 'string', required=False, default='Petitioner'),
         FieldSpec('case_ref', 'string', required=False, default=''),
         FieldSpec('delay_narrative', 'string', required=False, default=''),
+        FieldSpec('supporting_documents', 'string', required=False, default=''),
     ),
     slots=('delay_narrative',),
 )

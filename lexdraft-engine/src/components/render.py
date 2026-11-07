@@ -43,7 +43,9 @@ def render_to_docx(
             f"(python templates/build_templates.py)."
         )
     doc = DocxTemplate(str(tpl_path))
-    doc.render(dict(context), jinja_env)
+    # autoescape: docxtpl re-parses with recover=True, so a raw "&" in a value
+    # ("Accountant General (A&E)") was silently dropped along with what followed.
+    doc.render(dict(context), jinja_env, autoescape=True)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out))

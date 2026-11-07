@@ -2181,14 +2181,17 @@ export const intakeService = {
               };
               usedComposed = true;
               // The verification's "paras 1 to N" recounted for the composed body.
-              const v = composeResult.verification;
-              const at = v ? spliced.blocks.findIndex((b) => b.text.trim() === v.from.trim()) : -1;
-              if (v && at !== -1) {
-                const fixed = await engineClient.spliceLines(spliced.docxBase64, at, at, [v.to]).catch((err) => {
+              let lines = spliced.blocks; // the .docx's own lines, so indexes match the file
+              for (const v of composeResult.verification ?? []) {
+                const at = lines.findIndex((b) => b.text.trim() === v.from.trim());
+                if (at === -1) continue;
+                const fixed = await engineClient.spliceLines(draft.docxBase64 as string, at, at, [v.to]).catch((err) => {
                   logger.warn({ err }, 'intake: verification recount splice failed');
                   return null;
                 });
-                if (fixed) draft = { ...draft, blocks: fixed.blocks.length ? fixed.blocks : draft.blocks, docxBase64: fixed.docxBase64 };
+                if (!fixed) continue;
+                if (fixed.blocks.length) lines = fixed.blocks;
+                draft = { ...draft, blocks: fixed.blocks.length ? fixed.blocks : draft.blocks, docxBase64: fixed.docxBase64 };
               }
             }
           }
@@ -2665,9 +2668,12 @@ export function stripInjectedContext(text: string): string {
  *  advocate's story (H2H writ: "legal right ([legal right to be provided])" was
  *  printed while the body already explained the right). Names, numbers, dates and
  *  references stay "[… to be provided]" — only the advocate can supply those. */
-const NARRATIVE_FIELD = /(?:^|_)(legal_right|public_duty|prior_demand|alternative_remedy_basis|delay_explanation|grounds?|narrative|basis|explanation|reason|prosecution_case|apprehension|urgency|balance_of_convenience|prima_facie|irreparable)/;
+const NARRATIVE_FIELD = /(?:^|_)(legal_right|public_duty|prior_demand|alternative_remedy_basis|delay_explanation|grounds?|narrative|basis|explanation|reason|prosecution_case|apprehension|urgency|balance_of_convenience|prima_facie|irreparable|notice_futility)/;
 
-function placeholderFor(spec: IntakeFieldSpec): string {
+export function placeholderFor(spec: IntakeFieldSpec): string {
+  // The writ's filing year ("W.P. No. ___ of 2026") is the year it is drafted in (r10);
+  // the day and month of signing stay for the advocate.
+  if (spec.key === 'year') return todayIso().slice(0, 4);
   if ((spec.type === 'text' || spec.type === 'textarea') && NARRATIVE_FIELD.test(spec.key)) return '[to be drafted]';
   const label = (spec.label || spec.key).toLowerCase();
   if (spec.type === 'date') return `[${label} — to be confirmed]`;

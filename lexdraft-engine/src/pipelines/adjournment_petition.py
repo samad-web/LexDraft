@@ -16,6 +16,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -24,6 +25,9 @@ from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "adjournment_petition.docx"
 SPEC = "tn-adjourn"
+
+
+_ON_DATE = re.compile(r"\s+on\s+(\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{4}-\d{2}-\d{2})$", re.I)
 
 
 @dataclass(frozen=True)
@@ -58,6 +62,9 @@ def build(
     place: str,
     court_place: Optional[str] = None,
     petition_date: Optional[date] = None,
+    court_name: Optional[str] = None,
+    hearing_date: Optional[date] = None,
+    adjournment_period: str = "",
 ) -> AdjournmentPetitionResult:
     """Assemble the Order XVII Rule 1 adjournment petition, or refuse."""
 
@@ -80,11 +87,25 @@ def build(
             fields=("adjournment_reason",),
         )
 
+    # r10: "posted today for cross-examination of PW1 on 10.11.2026" — the hearing
+    # date rode in on posted_for; it is the date the case stands posted to.
+    posted = posted_for.strip().rstrip(".")
+    m = _ON_DATE.search(posted)
+    when = hearing_date.isoformat() if hearing_date else (m.group(1) if m else None)
+    if m:
+        posted = posted[:m.start()].rstrip(" ,")
+    # A multi-line reason (a textarea) rendered its later lines as loose paragraphs
+    # outside para 2, which compose then left behind as stray text (r10).
+    reason = " ".join(adjournment_reason.split()).rstrip(".")
+
     context: Dict[str, Any] = {
+        "court_name": (court_name or "").strip() or None,
+        "hearing_date": when,
+        "adjournment_period": adjournment_period.strip(),
         "petitioner_name": petitioner_name,
         "respondent_name": respondent_name,
-        "posted_for": posted_for,
-        "adjournment_reason": adjournment_reason,
+        "posted_for": posted,
+        "adjournment_reason": reason,
         "case_ref": case_ref,
         "court_place": court_place,
         "petition_date": petition_date.isoformat() if petition_date is not None else None,

@@ -29,6 +29,7 @@ ADAPTER = Adapter(
         FieldSpec('list_of_dates', 'string_list', required=False, default=None),
         FieldSpec('impugned_in_second_appeal', 'bool', required=False, default=False),
         FieldSpec('substantial_questions_framed', 'string_list', required=False, default=None),
+        FieldSpec('subject_property', 'string', required=False, default=''),
     ),
     slots=('brief_facts',),
 )

@@ -24,6 +24,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -31,6 +32,9 @@ from typing import Any, Dict, Optional
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "substituted_service.docx"
+
+# A party "name" that is only a role description.
+_ROLE_NOT_NAME = re.compile(r"\(client\)|^\s*(?:the\s+|my\s+)?(?:client|plaintiff|petitioner)\b(?:\s+in\b|\s*$)", re.I)
 SPEC = "tn-subsvc"
 
 
@@ -98,6 +102,14 @@ def build(
             code="substituted_service_newspaper_missing",
             fields=("newspaper",),
         )
+
+    # r10: with no name in the brief the extractor wrote the role ("Plaintiff in O.S.
+    # No. 66 of 2026 (client)") into the cause title; a role is not a name.
+    if _ROLE_NOT_NAME.search(petitioner_name):
+        petitioner_name = "[name of the plaintiff to be provided]"
+    if deponent_name.strip().startswith("[") or _ROLE_NOT_NAME.search(deponent_name):
+        if re.search(r"plaintiff|petitioner", deponent_role, re.I):
+            deponent_name = petitioner_name
 
     context: Dict[str, Any] = {
         "deponent_name": deponent_name,

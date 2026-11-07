@@ -25,6 +25,7 @@ def _assert_golden(name: str, text: str):
 
 
 def test_golden_injunction(tmp_path):
+    # 2026-11-07 (r10): golden re-pinned - blank line from the optional property schedule block.
     result = inj.build(
         suit_ref="O.S. No. 100 of 2024",
         subject_matter="the suit property at 12 North Street, Mylapore",

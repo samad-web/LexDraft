@@ -89,6 +89,8 @@ def build(
     # questions of law the High Court formulated (a gap when not given).
     impugned_in_second_appeal: bool = False,
     substantial_questions_framed: Optional[Sequence[str]] = None,
+    # the property in dispute (civil): pleads status quo on its possession.
+    subject_property: str = "",
 ) -> SLPResult:
     """Assemble the Special Leave Petition, or refuse."""
 
@@ -127,6 +129,34 @@ def build(
         )
 
     is_civil = slp_kind is SLPKind.CIVIL
+    framed = [q for q in (substantial_questions_framed or []) if q.strip()]
+    questions = [q for q in questions_of_law if q.strip()]
+    prop = subject_property.strip()
+    interim_prayer = ""
+    if is_civil and prop:
+        interim_prayer = ("grant an ex parte ad interim order directing the parties to maintain "
+                          f"status quo as regards possession of {prop}")
+        if not interim_relief_sought.strip():
+            interim_relief_sought = (
+                "The petitioner has a strong prima facie case, as the grounds above show. "
+                f"Unless the parties are directed to maintain status quo as regards possession of {prop} "
+                "pending this petition, the property may be dealt with and the petition rendered "
+                "infructuous. The balance of convenience is in favour of the petitioner.")
+    if not synopsis.strip():
+        # r10: the synopsis was a bare gap though every particular below is given.
+        parts = [f"The petitioner seeks special leave to appeal against the final judgment and order "
+                 f"dated {impugned_judgment_date.isoformat()} passed by {impugned_court} in {impugned_case_ref}"
+                 + (", a Second Appeal under Section 100 of the Code of Civil Procedure, 1908" if impugned_in_second_appeal else "")
+                 + (f", concerning {prop}" if prop else "") + "."]
+        if brief_facts.strip() and not brief_facts.strip().startswith("["):
+            parts.append(brief_facts.strip())
+        if framed:
+            parts.append("The High Court admitted the Second Appeal on the substantial question(s) of law: "
+                         + "; ".join(f"({i}) {q}" for i, q in enumerate(framed, 1)) + ".")
+        if questions:
+            parts.append("The questions of law that arise are: "
+                         + "; ".join(f"({i}) {q}" for i, q in enumerate(questions, 1)) + ".")
+        synopsis = " ".join(parts)
     context: Dict[str, Any] = {
         "slp_kind": slp_kind.value,
         "is_civil": is_civil,
@@ -158,8 +188,8 @@ def build(
         "synopsis": synopsis.strip(),
         "list_of_dates": [d for d in (list_of_dates or []) if d.strip()],
         "impugned_in_second_appeal": impugned_in_second_appeal,
-        "substantial_questions_framed": [q for q in (substantial_questions_framed or [])
-                                         if q.strip()],
+        "substantial_questions_framed": framed,
+        "interim_prayer": interim_prayer,
         "place": place,
     }
     return SLPResult(refused=False, context=context)
