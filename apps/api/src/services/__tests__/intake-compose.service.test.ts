@@ -249,6 +249,15 @@ describe('intake-compose — compose only argues GIVEN facts', () => {
 });
 
 describe('numberBody — every pleading paragraph keeps a number', () => {
+  it('test_plaint_keeps_para_12B: an inserted lettered paragraph keeps its label (s.12A mediation)', async () => {
+    expect(numberBody(['12. The cause of action arose at Chennai.', '12B. No urgent interim relief is sought; pre-institution mediation under Section 12A was exhausted.', '13. Valuation.'], 12))
+      .toEqual(['12. The cause of action arose at Chennai.', '12B. No urgent interim relief is sought; pre-institution mediation under Section 12A was exhausted.', '13. Valuation.']);
+    const { guideFor } = await import('../intake-compose.service');
+    expect(guideFor('plaint')).toContain('12B');
+    expect(guideFor('succession_certificate')).toContain('Respondent 1');
+    expect(guideFor('condone_delay_petition')).toContain('to be provided]');
+  });
+
   it('re-numbers a paragraph whose numbered opening sentence was stripped', () => {
     expect(numberBody([
       '1. The Complainant is the payee.',
