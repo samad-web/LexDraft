@@ -185,6 +185,16 @@ def test_amendment_ia_pleads_due_diligence_even_before_trial():
             "states that in spite of due diligence the matter could not have been raised earlier: the omission") in text
 
 
+def test_amendment_ia_prayer_no_para_number_and_diligence_before_trial():
+    """r12: the prayer cited "paragraph 2" though compose put the amendments in para 3;
+    diligence was argued against the filing of the plaint, not the commencement of trial."""
+    text = _text("amendment_ia", {**AMD, "due_diligence_explanation": "the omission came to light only while collecting documents for trial."},
+                 allow_placeholders=True)
+    assert "paragraph 2 above" not in text
+    assert "by carrying out the proposed amendments set out above" in text
+    assert "documents for trial. The amendment is sought before the commencement of trial." in text
+
+
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",
        "posted_for": "cross-examination of PW1 on 10.11.2026",
        "adjournment_reason": "The petitioner underwent cataract surgery on 30.10.2026.\n"
