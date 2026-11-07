@@ -14,3 +14,10 @@ from src.components.prayer import relief_clause
 ])
 def test_relief_clause(given, want):
     assert relief_clause(given) == want
+
+
+def test_writ_petition_prayer_direction_without_article():
+    # r12: "directing the respondents to direction to the respondents to consider ..."
+    assert relief_clause("direction to the respondents to consider the petitioner's representation") \
+        == "consider the petitioner's representation"
+    assert relief_clause("Directions to the respondent to sanction pension.") == "sanction pension"

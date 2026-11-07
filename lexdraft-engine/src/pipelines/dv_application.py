@@ -43,6 +43,8 @@ class ReliefHead(Enum):
 
 
 # The operative words of each order, for the lettered prayer ({rs} = respondent/s).
+_OUSTED = re.compile(r"\b(?:thrown|driven|forced|turned|pushed|sent)\s+out\b|\bousted\b|\bevicted\b|\bdispossessed\b", re.I)
+
 _PRAYER_LEAD = {
     ReliefHead.PROTECTION_18: "pass a protection order under Section 18 of the Act "
                               "prohibiting the {rs} from committing any act of "
@@ -184,6 +186,16 @@ def build(
     # carried ("of Rs. 30,000 per month"), never the averment glued on after a colon.
     def _prayer(r: ReliefSought) -> str:
         lead = _PRAYER_LEAD[r.head].format(rs=rs)
+        # r12: thrown out already, "restraining ... from dispossessing" protects nothing:
+        # she needs re-entry, or alternative accommodation / rent (s.19(1)(f)).
+        if r.head is ReliefHead.RESIDENCE_19 and _OUSTED.search(" ".join(
+                [r.averment, shared_household_particulars, incidents_narrative]
+                + [i.description for i in incidents])):
+            lead = (f"pass a residence order under Section 19 of the Act directing the {rs} to "
+                    f"restore the aggrieved person to the shared household and restraining the {rs} "
+                    "from dispossessing her from it or, in the alternative, directing the "
+                    f"{rs} to secure for her alternate accommodation of the same level as she "
+                    "enjoyed in the shared household or to pay rent for the same")
         if r.head is ReliefHead.MONETARY_20:
             m = re.search(r"Rs\.?\s*[\d,]+(?:/-)?(?:\s+per\s+(?:month|mensem|annum))?",
                           r.averment, re.I)

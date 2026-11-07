@@ -104,7 +104,7 @@ def build(
 
 
 _RELIEF_LEAD = re.compile(
-    r"^\s*(?:(?:a|an)\s+(?:writ|order|direction)\s+(?:of\s+\w+\s+)?(?:to|directing)\s+the\s+respondents?\s+to\s+"
+    r"^\s*(?:(?:(?:a|an)\s+)?(?:writ|order|direction)s?\s+(?:of\s+\w+\s+)?(?:to|directing)\s+the\s+respondents?\s+to\s+"
     r"|direct(?:ing)?\s+the\s+respondents?\s+to\s+|to\s+)",
     re.I)
 

@@ -208,7 +208,7 @@ export function misnamedActs(paragraphs: string[]): string[] {
 const squash = (s: string) => s.toLowerCase().replace(/[\s.,;:'"“”‘’()/-]+/g, '');
 
 // Sentence split that does not break on "Rs.", "No.", "s.", "Hon'ble", initials or numbering.
-const SENTENCE = /(?<!\b(?:Rs|No|Nos|s|ss|Sec|Art|Thiru|Tmt|Mr|Mrs|Ms|Dr|M\/s|v|vs|viz|Ors|ors|Anr|anr|Etc|etc|i\.e|e\.g|Ltd|Pvt|Co|[A-Z]|\d+))[.;](?=\s+[A-Z(“"])/;
+const SENTENCE = /(?<!\b(?:Rs|No|Nos|s|ss|Sec|Art|Thiru|Tmt|Selvi|Smt|Shri|Sri|Kum|Mr|Mrs|Ms|Dr|Prof|M\/s|v|vs|viz|Ors|ors|Anr|anr|Etc|etc|i\.e|e\.g|Ltd|Pvt|Co|[A-Z]|\d+))[.;](?=\s+[A-Z(“"])/;
 
 export function sentencesOf(paragraph: string): string[] {
   const parts: string[] = [];

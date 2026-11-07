@@ -15,6 +15,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -23,6 +24,8 @@ from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "s138_reply.docx"
 SPEC = "dpc-132-133"
+
+_UNNAMED_ADVOCATE = re.compile(r"\s*(?:the\s+)?(?:learned\s+)?(?:advocate|counsel|lawyer)s?\b", re.I)
 
 
 @dataclass(frozen=True)
@@ -96,7 +99,10 @@ def build(
         "dispatch_line": dispatch_line,
         "client": client,
         "client_address": client_address,
-        "opposing_advocate": opposing_advocate,
+        # r12: "To, the advocate for Mr. R. Kannappan, Advocate" — a description, not
+        # a name: the addressee is named as the gap it is.
+        "opposing_advocate": (f"[name of {opposing_advocate.strip()} to be provided]"
+                              if _UNNAMED_ADVOCATE.match(opposing_advocate) else opposing_advocate),
         "notice_date": notice_date,
         # the reply's own date: as given, else the day it is drawn
         "reply_date": reply_date or date.today(),

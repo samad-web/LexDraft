@@ -247,6 +247,7 @@ const META_TALK = /\b(?:please confirm|let me know|I have (?:removed|kept|restor
 
 /** "contents of paras 1 to 12" in a verification. */
 const PARAS_RANGE = /(\bpara(?:graph)?s?\.?\s+(?:no\.?\s*)?1\s+to\s+)(\d+)/i;
+const LEGAL_RANGE = /\bpara(?:graph)?s?\.?\s+\d+\s+to\s+\d+(?:,\s*if any,)?\s+are\s+true\s+on\s+legal\s+advice/i;
 
 /** "MOST RESPECTFULLY SHOWETH:" — the line a pleading's body follows. */
 const SHOWETH = /\bSH[OE]WETH\b/i;
@@ -283,6 +284,39 @@ export function numberBody(paragraphs: string[], first: number): string[] {
 function renumberFrom(lines: string[], next: number): string[] {
   let n = next;
   return lines.map((l) => (NUMBERED.test(l) ? l.replace(NUMBERED, (_m, _d, _s) => `${n++}. `) : l));
+}
+
+const GAP_RE = /\[to be drafted\]/g;
+const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
+
+/**
+ * The last word on "[to be drafted]" (r12: RESTATE could not fill every hole). A
+ * final body never shows a bare one: standing as its own sentence (a cut sentence,
+ * an unfilled slot) it goes; after a label ("Grounds: …") it becomes that label's
+ * named gap; inside a sentence it becomes "[particulars to be provided]". A
+ * paragraph left with nothing is dropped (numberBody renumbers), and so is a
+ * heading directly over it. A para-wise reply keeps every number, so its
+ * emptied paragraph is named instead.
+ */
+export function settleGaps(paragraphs: string[], keepNumbers = false): string[] {
+  const out: string[] = [];
+  for (const para of paragraphs) {
+    if (!para.includes(GAP)) { out.push(para); continue; }
+    const lead = NUMBERED.exec(para)?.[0] ?? '';
+    const text = para.slice(lead.length).replace(GAP_RE, (gap, at: number, all: string) => {
+      const before = all.slice(0, at);
+      const after = all.slice(at + gap.length);
+      const label = /^\s*([A-Za-z][A-Za-z ,'()/-]{2,60}):\s*$/.exec(before)?.[1];
+      if (label) return `[${label.trim().toLowerCase()} to be provided]`;
+      const standalone = (GAP_LEAD.test(before) || /[.!?;:)"”]\s*$/.test(before)) && /^\s*(?:[.;]?\s*$|[A-Z(“"])/.test(after);
+      return standalone ? '' : '[particulars to be provided]';
+    }).replace(/^\s*[.;]\s*/, '').replace(/\s+([.;,])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    if (text) out.push(`${lead}${text}`);
+    else if (keepNumbers && lead) out.push(`${lead}[reply to this paragraph to be provided]`);
+    // A heading over only the dropped slot ("SCHEDULE OF THE SUIT PROPERTY") goes with it.
+    else if (out.length && SECTION_HEADING(out[out.length - 1]!) && !NUMBERED.test(out[out.length - 1]!)) out.pop();
+  }
+  return out;
 }
 
 function lastNumber(paragraphs: string[], fallback: number): number {
@@ -325,31 +359,34 @@ Within each paragraph: open with the stance, then traverse each material allegat
 const MUST_PLEAD: Record<string, string> = {
   s138_notice: '- That the drawer is liable for the offence under Section 138 if payment is not made within 15 days of receipt of this notice (the offence is NOT complete on dishonour alone).',
   s138_complaint: '- The cause of action arose on the failure to pay within 15 days of receipt of the statutory notice (proviso (c) to Section 138 read with Section 142) — not on supply of goods or issue of the cheque.\n- The complainant as payee / holder of the cheque (not "holder in due course" unless an endorsee).',
+  s138_reply: '- Where the facts say the payee holds no money-lending licence, tie that point to the Tamil Nadu Money-Lenders Act, 1957 when it is in the Authorities list (the Act only, no section); otherwise state it as a fact.',
   default_bail: '- That NO charge sheet / final report had been filed as on the date of this application, and the date the statutory period expired.',
   regular_bail: '- If custody has run past the statutory period without a charge sheet, assert the default-bail right outright, not hesitantly.',
-  maintenance: '- The wife (or child / parent) is unable to maintain herself; the respondent has sufficient means and has neglected or refused to maintain.\n- She lives separately for sufficient reason, and is not living in adultery or separately by mutual consent (the bars in Section 144(4) BNSS / 125(4) CrPC).\n- Maintenance is claimed from the date of the application (not from an earlier date of neglect).\n- Interim maintenance only in the prayer\'s words: "the second proviso to sub-section (1) of Section 144" — never "proviso to Section 144(2)". Each petitioner\'s monthly figure separately, as the skeleton gives it.',
+  maintenance: '- The wife (or child / parent) is unable to maintain herself; the respondent has sufficient means and has neglected or refused to maintain.\n- She lives separately for sufficient reason (e.g. she was driven out), and is not living in adultery or separately by mutual consent — plead these facts in words; cite no sub-section and never the CrPC for them (r12: that sentence was cut, leaving a gap).\n- Never name a case (no "Rajnesh v. Neha") unless it is in the Authorities list.\n- Maintenance is claimed from the date of the application (not from an earlier date of neglect).\n- Interim maintenance only in the prayer\'s words: "the second proviso to sub-section (1) of Section 144" — never "proviso to Section 144(2)". Each petitioner\'s monthly figure separately, as the skeleton gives it.',
   // 2026-11-07: the composer wrote "Section 13(1)(ia)" against a skeleton that said
   // only "s.13(1)", so the guard stripped it and the compose fell back every time.
-  divorce_contested: '- The ground by its clause exactly as the skeleton writes it (e.g. "Section 13(1)(ia) of the Hindu Marriage Act, 1955") — never a bare "Section 13" / "Section 13(1)", never "(i-a)".\n- Each instance with its date as the skeleton gives it; that there is no collusion, connivance or condonation; the jurisdiction fact under Section 19.',
+  divorce_contested: '- The ground by its clause exactly as the skeleton writes it (e.g. "Section 13(1)(ia) of the Hindu Marriage Act, 1955") — never a bare "Section 13" / "Section 13(1)", never "(i-a)".\n- Each instance with its date as the skeleton gives it; that there is no collusion, connivance or condonation; the jurisdiction fact under Section 19.\n- No judgment named or paraphrased ("as observed by the Supreme Court in …") unless it is in the Authorities list; argue cruelty from the instances themselves (r12: a cut case name left "in Smt. [gap]").',
   divorce_mutual_first: '- Living separately for one year or more immediately before presentation; that they have not been able to live together; that they have mutually agreed the marriage be dissolved — Section 13B(1).\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
   divorce_mutual_second: '- The second motion is moved not earlier than six months and not later than eighteen months after the PRESENTATION of the first-motion petition — Section 13B(2); consent continues.\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
   succession_certificate: '- The personal law and the heirs exactly as the skeleton states; every other heir is a respondent. Describe each heir by relation to the deceased ("the son of the deceased"; a widow petitioner\'s children are "their children", never "her other children").',
   specific_performance: '- Readiness and willingness to perform, continuously from the agreement to date (Section 16(c) Specific Relief Act).\n- Where the property lies (territorial jurisdiction for immovable property is Section 16 CPC, not Section 20).\n- Refund of the earnest / advance money as alternative relief, which must be specifically claimed (Section 22(2) Specific Relief Act).',
   ejectment: '- That the premises are outside the Tamil Nadu Regulation of Rights and Responsibilities of Landlords and Tenants Act, 2017, or why the civil court has jurisdiction — only if the facts say so.\n- A description of the suit property (schedule).',
-  permanent_injunction: '- A description of the suit property (schedule) and the plaintiff\'s possession of it on the date of suit.',
+  // r12: the composer wrote its own "SCHEDULE" heading over a "[to be drafted]" slot.
+  permanent_injunction: '- The suit property described in words from the facts (extent, survey numbers, village, any well or structure) and the plaintiff\'s possession of it on the date of suit. The SCHEDULE is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body.',
   mact_claim: '- The compensation figures and heads exactly as the skeleton computes them; do not describe or re-derive the method (multiplicand, future prospects, deduction) yourself.\n- The deceased / injured by NAME and each claimant\'s relationship and dependency; every legal representative is a claimant or a respondent; a minor claimant sues by the next friend the skeleton names.\n- The respondents in the skeleton\'s order (driver, owner, insurer); the place of the accident as the jurisdiction fact.\n- Filed within six months of the accident (Section 166(3) Motor Vehicles Act) — only as the facts give the dates.',
   consumer_complaint: '- A defect in GOODS is a "defect" under Section 2(10); a shortfall in a SERVICE is a "deficiency" under Section 2(11) — use the one that fits.\n- Pecuniary jurisdiction (the value of goods/services paid) and that the complaint is within two years of the cause of action.',
   quash_petition: '- The FIR / complaint particulars and what each offence\'s ingredients are, then why the allegations, taken at face value, do not make them out.\n- Name each section the skeleton gives (never "[sections to be provided]" when it names them) and take its ingredients one by one, against EACH petitioner separately — a relative with no specific act, date or role attributed, or living elsewhere, is shown to be outside every ingredient.',
   criminal_revision: '- For a cheque-dishonour conviction: the offence under Section 138 of the Negotiable Instruments Act, 1881, and why the presumption under Section 139 stood rebutted on a preponderance of probabilities from the complainant\'s own evidence, which both courts below failed to consider.',
   criminal_appeal: '- If grounds attack only the sentence, say so; if they attack the conviction, plead the errors in appreciating evidence first.',
   special_leave_petition: '- Where the impugned judgment is in a Second Appeal: the substantial question(s) of law on which the High Court admitted it, exactly as the facts state them, and that the point decided was not among them if the facts say so.\n- Each ground complete in itself, ending on a fact or provision given — no closing inference the facts do not support.',
-  amendment_ia: '- Every averment the amended pleading will carry, each as its own item of the proposed amendments — including any fact learnt since the pleading was filed (e.g. the defendants\' attempt to sell the property, and how and when it was learnt).\n- Due diligence (proviso to Order VI Rule 17 CPC): when and how the omission was discovered and why it could not have been raised earlier despite due diligence — plead it whenever issues have been framed, even if no witness has been examined.',
+  amendment_ia: '- Every averment the amended pleading will carry, each as its own item of the proposed amendments — including any fact learnt since the pleading was filed (e.g. the defendants\' attempt to sell the property, and how and when it was learnt).\n- Due diligence (proviso to Order VI Rule 17 CPC): when and how the omission was discovered and why, despite due diligence, it could not have been raised before the commencement of trial — plead it whenever issues have been framed, even if no witness has been examined. Diligence is measured against the commencement of trial, never against the filing of the plaint.\n- Put the proposed amendments in ONE numbered paragraph; the prayer refers to them as "the proposed amendments set out above", so never cite a paragraph number for them.',
   injunction: '- Ex parte (proviso to Order XXXIX Rule 3 CPC): why the object would be defeated by the delay of notice — the act going on now, from the facts (e.g. construction or trenching continuing despite a police complaint), and that it would be complete before the respondent could be heard.',
   civil_revision: '- Where the facts ask for it, that further proceedings in the suit be stayed pending the revision, and why (the order goes to the root of the case).',
   condone_delay_petition: '- The exact period of delay, and a continuous, day-by-day explanation of it from the facts — vague causes are rejected.',
   adjournment_petition: '- A reason the law accepts. Counsel being engaged in another court is NOT by itself a ground (proviso to Order XVII Rule 1 CPC) — if that is the only reason given, plead it plainly and leave "[to be drafted]" for any other cause.',
   written_statement: '- A specific traverse of each allegation; a bare "denies each and every allegation" is an evasive denial (Order VIII Rules 3–5 CPC).',
-  counter_affidavit: '- The deponent\'s designation and authority to swear for the respondent; a specific traverse of each paragraph.',
+  // r12: a private respondent swearing for himself got "duly authorised" filler in the reply to para 1.
+  counter_affidavit: '- A specific traverse of each paragraph. The deponent\'s competence is already sworn above the para-wise reply; never restate it there. Call the answering party "the respondent" (with its number only when there are several respondents).',
 };
 
 const GUIDES: Record<ComposeFamily, string> = {
@@ -852,7 +889,8 @@ export async function composeAndVerify(args: {
   // defect reviewers marked). Ask once for each hole drafted from the facts, or named
   // as the exact missing particular; keep it only if it passes with fewer holes.
   const holes = (c: Checked) => (c.ok ? c.removed.length + c.paragraphs.join('\n').split(GAP).length - 1 : Infinity);
-  if (checked.ok && holes(checked) > 0 && args.repair && !stats.repaired) {
+  // Even after a REPAIR (r12: the holes survived because REPAIR had set stats.repaired).
+  if (checked.ok && holes(checked) > 0 && args.repair) {
     args.onStage?.('repairing');
     const cut = checked.removed.length
       ? `These sentences were cut because each states a date, amount, provision or claim found in none of the Facts, the skeleton, the advocate's account or the Authorities:\n- ${checked.removed.join('\n- ')}\nKeep each point, stated without the untraced detail (or drop the point if nothing is left of it).\n`
@@ -873,7 +911,8 @@ export async function composeAndVerify(args: {
   }
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
-  const paragraphs = reply ? checked.paragraphs : numberBody(checked.paragraphs, seg.startNumber);
+  const settled = settleGaps(checked.paragraphs, reply);
+  const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);
 
   const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
   const spliced = [...paragraphs, ...prayer];
@@ -884,7 +923,9 @@ export async function composeAndVerify(args: {
   const newTail = tail.map((t) => {
     const m = PARAS_RANGE.exec(t);
     if (!m || !lastPara || Number(m[2]) === lastPara) return t;
-    const to = t.replace(PARAS_RANGE, `$1${lastPara}`);
+    // A second, legal-advice range numbers the skeleton's paragraphs, not the composed
+    // ones (r12: "paras 1 to 14 … and paras 10 to 11 … on legal advice" overlapped).
+    const to = t.replace(PARAS_RANGE, `$1${lastPara}`).replace(LEGAL_RANGE, 'the legal submissions therein are true on legal advice');
     recounted.push({ from: t, to });
     return to;
   });

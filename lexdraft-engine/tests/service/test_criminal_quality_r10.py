@@ -55,6 +55,13 @@ def test_s138_reply_demands_return_of_cheques_within_a_time_limit():
     assert "to return" not in "\n".join(_draft("s138_reply", _REPLY))
 
 
+def test_s138_reply_addressee_advocate_named_as_gap():
+    """r12: "To, the advocate for Mr. R. Kannappan, Advocate" — no name in the brief."""
+    text = "\n".join(_draft("s138_reply", {**_REPLY, "opposing_advocate": "the advocate for Mr. R. Kannappan"}))
+    assert "[name of the advocate for Mr. R. Kannappan to be provided], Advocate" in text
+    assert "T. Ravi, Advocate" in "\n".join(_draft("s138_reply", _REPLY))
+
+
 # --- surrender_petition ----------------------------------------------------------
 
 _SURRENDER = {

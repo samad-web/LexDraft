@@ -47,6 +47,7 @@ from ..rules import limitation as lim
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
+from ._bench import madurai_bench
 from .writ_petition import _letter
 
 TEMPLATE = "civil_revision.docx"
@@ -197,11 +198,19 @@ def build(
     ref = impugned_order_ref.strip()
     if proceeding_ref.strip().lower() not in ref.lower():
         ref = f"{ref} in {proceeding_ref.strip()}"
+    # r12: "the Order dated 22.09.2026 in I.A. ... dated 22.09.2026" — the ref
+    # already carried its date.
     if _ORDER_WORD.match(ref):
         the = "" if ref.lower().startswith("the ") else "the "
-        ref = f"{the}{ref} dated {impugned_order_date.isoformat()}"
+        dated = "" if re.search(r"\bdated\b", ref, re.I) else f" dated {impugned_order_date.isoformat()}"
+        ref = f"{the}{ref}{dated}"
     else:
+        ref = re.sub(r"\s+dated\s+[\d./-]+", "", ref, flags=re.I)
         ref = f"the order dated {impugned_order_date.isoformat()} passed in {ref}"
+    # r12: a revision is signed where the High Court sits, not at the trial court's town.
+    hc = (court_name or "").lower()
+    if not hc or any(k in hc for k in ("madras", "chennai", "madurai", "tamil nadu")):
+        place = "Madurai" if madurai_bench(court_name, lower_court, proceeding_ref, place) else "Chennai"
     court = lower_court.strip()
     order_desc = f"{ref} on the file of {'' if court.lower().startswith('the ') else 'the '}{court}"
     context: Dict[str, Any] = {

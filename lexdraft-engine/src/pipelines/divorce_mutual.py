@@ -183,6 +183,10 @@ def build_second_motion(
     # the second motion is moved in that same proceeding.
     first_motion_case_no: Optional[str] = None,
     no_other_proceedings: Optional[bool] = None,
+    # r12: the brief's marriage date was lost — the second motion recites it too.
+    marriage_date: Optional[date] = None,
+    marriage_place: Optional[str] = None,
+    separation_date: Optional[date] = None,
 ) -> MotionResult:
     """Assemble the second-motion petition, or refuse."""
 
@@ -239,6 +243,9 @@ def build_second_motion(
         "waiver_attached": waiver_attached,
         "first_motion_case_no": (first_motion_case_no or "").strip() or None,
         "no_other_proceedings": no_other_proceedings,
+        "marriage_date": marriage_date,
+        "marriage_place": (marriage_place or "").strip() or None,
+        "separation_date": separation_date,
         "place": place,
     }
     return MotionResult(refused=False, context=context)

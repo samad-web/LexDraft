@@ -59,6 +59,17 @@ def test_civil_revision_stay_of_trial_is_prayed_when_sought():
     assert "interim stay of all further proceedings in O.S. No. 412 of 2024" in text
 
 
+def test_civil_revision_order_date_once_place_hc_seat_and_stay_cmp():
+    """r12: "Order dated 22.09.2026 in I.A. ... dated 22.09.2026"; Place: Tiruppur; no stay CMP."""
+    text = _text("civil_revision", {**CRP, "stay_of_proceedings_sought": True,
+                                    "impugned_order_ref": "Order dated 22.09.2026 in I.A. No. 610 of 2026"})
+    assert text.count("dated 22.09.2026") == text.count("Order dated 22.09.2026")
+    assert "Place: Chennai" in text and "Place: Tiruppur" not in text
+    assert "C.M.P. No. ______ of 2026" in text
+    assert "PETITION FOR INTERIM STAY UNDER SECTION 151 OF THE CODE OF CIVIL PROCEDURE, 1908" in text
+    assert "{%" not in text
+
+
 def test_civil_first_appeal_by_defendant_prays_to_dismiss_the_suit():
     """r10: the prayer only set aside the decree; a defendant-appellant asks that the suit be dismissed."""
     text = _text("civil_first_appeal", {
@@ -172,6 +183,80 @@ def test_amendment_ia_pleads_due_diligence_even_before_trial():
                  allow_placeholders=True)
     assert ("The trial has not commenced. Even so, in terms of the proviso to Order VI Rule 17 CPC, the petitioner "
             "states that in spite of due diligence the matter could not have been raised earlier: the omission") in text
+
+
+def test_amendment_ia_prayer_no_para_number_and_diligence_before_trial():
+    """r12: the prayer cited "paragraph 2" though compose put the amendments in para 3;
+    diligence was argued against the filing of the plaint, not the commencement of trial."""
+    text = _text("amendment_ia", {**AMD, "due_diligence_explanation": "the omission came to light only while collecting documents for trial."},
+                 allow_placeholders=True)
+    assert "paragraph 2 above" not in text
+    assert "by carrying out the proposed amendments set out above" in text
+    assert "documents for trial. The amendment is sought before the commencement of trial." in text
+
+
+def test_counter_affidavit_sole_respondent_balance_of_convenience_documents():
+    """r12: "1st respondent / acting on behalf"; no prima facie / balance of convenience
+    answer to an injunction IA; no list of the documents relied on."""
+    text = _text("counter_affidavit", {
+        "petition_ref": "I.A. No. 1120 of 2026", "main_case_ref": "O.S. No. 540 of 2026",
+        "court_name": "Principal District Munsif Court, Coimbatore",
+        "petitioner_names": ["Mr. K. Arumugam"], "respondent_names": ["Mr. M. Selvaraj"],
+        "answering_respondent_serial": 1, "deponent_name": "Mr. M. Selvaraj",
+        "deponent_description": "[deponent description to be provided]", "petition_para_count": 2,
+        "para_replies": [{"para": 1, "stance": "not_admitted"}, {"para": 2, "stance": "denied", "text": "No pathway exists."}],
+        "affirm_date": "2026-11-06", "place": "Coimbatore",
+        "documents": ["Sale deed of 2004", "Patta", "FMB sketch"]}, allow_placeholders=True)
+    assert "FILED ON BEHALF OF THE RESPONDENT\n" in text
+    assert "1. I am the respondent herein. I am well acquainted with the facts" in text
+    assert "acting on behalf" not in text and "1st respondent" not in text.lower()
+    assert "The balance of convenience is not in favour of the petitioner" in text
+    assert "DOCUMENTS RELIED ON BY THE RESPONDENT:\n1. Sale deed of 2004\n2. Patta\n3. FMB sketch" in text
+    assert "aged about ___ years" in text and "{%" not in text
+
+
+def test_written_statement_additional_pleas_and_no_written_acknowledgment():
+    """r12: no additional-pleas section; a limitation defence did not deny a written
+    acknowledgment (s.18) or a payment acknowledged in writing (s.19)."""
+    text = _text("written_statement", {
+        "plaintiff_name": "Mr. P. Raju", "defendant_name": "Mr. K. Lakshmanan", "suit_ref": "O.S. No. 790 of 2026",
+        "plaint_para_count": 2,
+        "preliminary_objections": [{"text": "The suit is barred by limitation."}],
+        "merit_replies": [{"plaint_para": 1, "stance": "not_admitted", "text": "Not admitted."},
+                          {"plaint_para": 2, "stance": "denied", "text": "Denied."}],
+        "additional_pleas": ["The defendant borrowed only Rs. 1,00,000 in February 2023 and repaid it in cash by June 2024."],
+        "filing_date": "2026-11-07", "place": "Tiruchirappalli"})
+    assert "ADDITIONAL PLEAS:\n   3. The defendant borrowed only Rs. 1,00,000" in text
+    assert "4. The defendant never made any acknowledgment of liability in writing" in text
+    assert "Section 19 of that Act" in text
+    assert text.index("ADDITIONAL PLEAS") < text.index("PRAYER:") and "{%" not in text
+
+
+def test_divorce_mutual_second_marriage_date_and_joint_affidavit():
+    """r12: the brief's marriage date (25.08.2017) was lost; only a NOTE stood for the joint affidavit."""
+    text = _text("divorce_mutual_second", {
+        "party_a": "Mr. L. Prakash", "party_b": "Mrs. P. Shalini", "first_motion_order_date": "2026-04-15",
+        "second_motion_date": "2026-11-07", "settlement_implemented": False, "place": "Chennai",
+        "family_court": "Family Court, Chennai", "first_motion_case_no": "H.M.O.P. No. 912 of 2026",
+        "marriage_date": "2017-08-25", "separation_date": "2025-03-01"})
+    assert "Their marriage was solemnised on 25.08.2017, and they have lived separately since 01.03.2025." in text
+    assert "JOINT AFFIDAVIT OF THE PETITIONERS FILED IN SUPPORT OF THE PETITION" in text
+    assert "[NOTE: This joint petition must be supported" not in text and "{%" not in text
+
+
+def test_permanent_injunction_schedule_from_brief_facts():
+    """r12: the schedule was a "[to be drafted]" slot though the brief gave the land."""
+    prop = ("3.40 acres of dry land in Survey Nos. 412/1 and 412/2, Pappini village, "
+            "together with the well in Survey No. 412/2.")
+    text = _text("permanent_injunction", {
+        "plaintiff_name": "Mr. T. Ramalingam", "defendant_names": ["Mr. K. Duraisamy"], "suit_property": prop,
+        "possession_basis": "family partition deed of 1989; patta No. 645", "act_restrained": "interfering with the well",
+        "cause_of_action_date": "2026-10-02", "cause_of_action_place": "Pappini village", "court_fee": 500,
+        "valuation": "Rs. 1,00,000/-", "jurisdiction_basis": "the property is within the court's limits",
+        "filing_date": "2026-11-07", "place": "Kangeyam"}, allow_placeholders=True)
+    schedule = text.split("SCHEDULE OF THE SUIT PROPERTY\n")[1]
+    assert schedule.startswith(prop + "\n[Registration District")
+    assert text.index("VERIFICATION:") < text.index("SCHEDULE OF THE SUIT PROPERTY") and "{%" not in text
 
 
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",

@@ -49,6 +49,7 @@ const HMA = { act: 'Hindu Marriage Act, 1955', pattern: 'H\\.?M\\.? Act|Hindu Ma
 const DVA = { act: 'Protection of Women from Domestic Violence Act, 2005', pattern: 'D\\.?V\\.? Act|Domestic Violence Act' };
 const TPA = { act: 'Transfer of Property Act, 1882', pattern: 'T\\.?P\\.? Act|Transfer of Property Act' };
 const MVA = { act: 'Motor Vehicles Act, 1988', pattern: 'M\\.?V\\.? Act|Motor Vehicles Act' };
+const BSA = { act: 'Bharatiya Sakshya Adhiniyam, 2023', pattern: 'BSA|Bharatiya Sakshya Adhiniyam' };
 
 type ActRef = { act: string; pattern: string };
 const sec = (a: ActRef, n: string, heading: string): Authority =>
@@ -203,6 +204,12 @@ const act = (title: string, heading: string, pattern: string): Authority =>
 const BY_SUBJECT: Array<{ when: RegExp; add: Authority[] }> = [
   { when: /\bpatta\b|transfer of registry|mutation/i,
     add: [act('Tamil Nadu Patta Pass Book Act, 1983', 'Patta pass books and the record of rights in land (cite the Act only; verify the provision for transfer of registry)', 'Patta Pass Book')] },
+  // r12 s.138 reply: the brief's "no money-lending licence" point, tied to its Act.
+  { when: /(?:money[- ]?lend\w*|lending)\s+licen[cs]e|licensed money[- ]?lender|unlicensed money[- ]?lend/i,
+    add: [act('Tamil Nadu Money-Lenders Act, 1957', 'Licensing of money-lenders; an unlicensed money-lender (cite the Act only, as a point the drawer reserves)', 'Money-?Lenders Act')] },
+  // r12 civil revision: refusing a handwriting-expert reference had no statutory basis.
+  { when: /handwriting expert|disputed (?:signature|handwriting)|expert opinion/i,
+    add: [sec(BSA, '39', 'Opinions of experts — on handwriting or finger impressions, the opinion of a person specially skilled is relevant (formerly Section 45 of the Indian Evidence Act, 1872)')] },
 ];
 
 const escapeRx = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

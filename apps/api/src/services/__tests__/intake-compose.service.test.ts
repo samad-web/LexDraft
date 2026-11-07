@@ -40,7 +40,8 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps } from '../intake-compose.service';
+import { sentencesOf } from '../../lib/draft-guards';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
 // a numbered prayer, then the place line.
@@ -129,6 +130,24 @@ describe('intake-compose — body-only composition', () => {
     expect(r.verification?.map((v) => v.to)).toEqual([
       'Verified at Chennai that the contents of paras 1 to 5 of the petition are true to my knowledge.',
       'I state that the facts stated in paras 1 to 5 of the petition above are true.',
+    ]);
+  });
+
+  it('test_divorce_contested_verification_ranges_overlap: drops the skeleton-numbered legal-advice range (r12)', async () => {
+    const blocks = [...BAIL,
+      'Verified at Coimbatore that the contents of paras 1 to 9 are true to my knowledge and paras 10 to 11, if any, are true on legal advice received and believed to be true.',
+    ].map((b, i) => (typeof b === 'string' ? { key: `v${i}`, text: b } : b));
+    fetchQueue.push(anthropicReply([
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+    ].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Divorce', docType: 'regular_bail', engineBlocks: blocks, facts: BAIL_FACTS, provider: 'anthropic',
+    });
+    expect(r.verification?.map((v) => v.to)).toEqual([
+      'Verified at Coimbatore that the contents of paras 1 to 4 are true to my knowledge and the legal submissions therein are true on legal advice received and believed to be true.',
     ]);
   });
 
@@ -348,6 +367,50 @@ describe('intake-compose — deep mode (authorities, plan, repair)', () => {
     expect(JSON.stringify(fetchCalls[2]!.body)).toContain('Replace EVERY');
   });
 
+  it('test_compose_no_bare_gap: settles every "[to be drafted]" left in a final body (r12)', () => {
+    expect(settleGaps([
+      '1. The marriage was solemnised at Salem.',
+      '2. [to be drafted] The children of the marriage are none.',
+      'SCHEDULE OF THE SUIT PROPERTY',
+      '3. [to be drafted]',
+      '4. Grounds: [to be drafted]',
+      '5. The occasions on which the threats were made are [to be drafted].',
+      '6. He paid nothing. [to be drafted] Hence this petition.',
+      '7. [to be drafted]',
+    ])).toEqual([
+      '1. The marriage was solemnised at Salem.',
+      '2. The children of the marriage are none.',
+      '4. Grounds: [grounds to be provided]',
+      '5. The occasions on which the threats were made are [particulars to be provided].',
+      '6. He paid nothing. Hence this petition.',
+    ]);
+    // A para-wise reply keeps the number and names the hole.
+    expect(settleGaps(['7. [to be drafted]'], true)).toEqual(['7. [reply to this paragraph to be provided]']);
+    // "Smt." is not a sentence end: the cut takes the whole case reference, no "Smt. [gap]" stub.
+    expect(sentencesOf('As held in Smt. Mayadevi v. Jagdish Prasad, cruelty is proved. Next.')).toHaveLength(2);
+  });
+
+  it('test_compose_restate_after_repair: still restates holes after a REPAIR, and the final body has none (r12)', async () => {
+    const dropped = BODY_OK.map((p) => p.replace(' and BNS s.317(2)', '')).join('\n\n');
+    fetchQueue.push(anthropicReply(dropped));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. [to be drafted]', '5. Grounds: [to be drafted]'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    // RESTATE runs although REPAIR already succeeded; its answer still has one hole.
+    fetchQueue.push(anthropicReply([...BODY_OK, '4. [to be drafted]', '5. The petitioner is a lorry driver with a fixed abode.'].join('\n\n')));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const r = await intakeCompose.compose({
+      docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS,
+      repair: true, provider: 'anthropic',
+    });
+    expect(r.composed).toBe(true);
+    expect(JSON.stringify(fetchCalls[4]!.body)).toContain('Replace EVERY');
+    const texts = r.blocks.map((b) => b.text);
+    expect(texts.join(' ')).not.toContain('[to be drafted]');
+    // The emptied paragraph is dropped and the body renumbered.
+    expect(texts).toContain('4. The petitioner is a lorry driver with a fixed abode.');
+  });
+
   it('gets a second repair when the first still drops a particular (r9b)', async () => {
     const dropped = BODY_OK.map((p) => p.replace(' and BNS s.317(2)', '')).join('\n\n');
     fetchQueue.push(anthropicReply(dropped));
@@ -526,6 +589,21 @@ describe('composeNoticeFor — reply-mode rejection', () => {
 });
 
 describe('gatherAuthorities — subject Acts', () => {
+  it('test_s138_reply_money_lenders_act: offers the TN Money-Lenders Act only when the brief raises no licence (r12)', async () => {
+    const { gatherAuthorities } = await import('../../lib/compose-authorities');
+    const cite = 'the Tamil Nadu Money-Lenders Act, 1957';
+    const withPoint = await gatherAuthorities({ docType: 's138_reply', docLabel: 'Reply', facts: {}, account: 'Kannappan has no money-lending licence' });
+    expect(withPoint.map((a) => a.cite)).toContain(cite);
+    const without = await gatherAuthorities({ docType: 's138_reply', docLabel: 'Reply', facts: {}, account: 'he never borrowed any money' });
+    expect(without.map((a) => a.cite)).not.toContain(cite);
+  });
+
+  it('test_civil_revision_expert_opinion_basis: offers s.39 BSA when a handwriting-expert reference was refused (r12)', async () => {
+    const { gatherAuthorities } = await import('../../lib/compose-authorities');
+    const crp = await gatherAuthorities({ docType: 'civil_revision', docLabel: 'CRP', facts: {}, account: 'application to send the disputed signature to a handwriting expert was dismissed' });
+    expect(crp.map((a) => a.cite)).toContain('Section 39 of the Bharatiya Sakshya Adhiniyam, 2023');
+  });
+
   it('offers the TN Patta Pass Book Act for a patta matter, and not otherwise', async () => {
     const { gatherAuthorities } = await import('../../lib/compose-authorities');
     const withPatta = await gatherAuthorities({ docType: 'writ_petition', docLabel: 'Writ', facts: {}, account: 'applied for transfer of patta in his name' });

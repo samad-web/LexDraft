@@ -69,6 +69,8 @@ ADAPTER = Adapter(
         FieldSpec("counter_claim_or_setoff", "bool", required=False, default=False),
         FieldSpec("civil_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
+        # The defendant's own case beyond the para-wise traverse (r12).
+        FieldSpec("additional_pleas", "string_list", required=False, default=()),
     ),
     slots=(),
 )
