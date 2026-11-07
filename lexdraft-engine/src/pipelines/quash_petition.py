@@ -89,6 +89,25 @@ def _full(label: str, act_full: str) -> str:
     return re.sub(r"\s+(BNSS|CrPC)$", "", label) + " of " + act_full
 
 
+def _matrimonial_sections(told: str, substantive) -> list:
+    """The sections a wife's cruelty / dowry-harassment FIR is registered under,
+    when the brief names the allegation but not the sections (r10: "alleging
+    cruelty and dowry harassment" left para 1 and the ingredients blank)."""
+    out = []
+    if re.search(r"\bcruelty\b", told, re.I) and re.search(
+            r"\b(wife|husband|in-laws?|matrimonial|dowry|marri)", told, re.I):
+        out.append("Section 85 of the Bharatiya Nyaya Sanhita, 2023"
+                   if substantive is router.Substantive.BNS
+                   else "Section 498A of the Indian Penal Code, 1860")
+    if re.search(r"\bdowry\b", told, re.I):
+        out.append("Section 4 of the Dowry Prohibition Act, 1961")
+    return out
+
+
+def _and_join(items: Sequence[str]) -> str:
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
 def _refuse(reason: str, *, code: str, fields: tuple = (),
             remedy_hint: str = "none") -> QuashPetitionResult:
     return QuashPetitionResult(
@@ -127,6 +146,9 @@ def build(
     # itself the FIR (a final report / C.C. on a police report). Optional.
     police_station: Optional[str] = None,
     crime_no: Optional[str] = None,
+    # the alternative relief: quash at least as against these petitioners
+    # (e.g. ["Mrs. K. Valli (A2)", "Mrs. S. Deepa (A3)"]). Optional.
+    alternative_quash_against: Optional[Sequence[str]] = None,
 ) -> QuashPetitionResult:
     """Assemble the s.528 BNSS / s.482 CrPC quash petition, or refuse."""
 
@@ -156,6 +178,10 @@ def build(
     secs = [s for s in sections if s.strip()]
     # a "[… to be provided]" gap never sits beside real sections
     secs = [s for s in secs if not s.strip().startswith("[")] or secs
+    if secs and all(s.strip().startswith("[") for s in secs):
+        told = " ".join([facts_narrative, grounds_narrative, special_circumstances or "",
+                         *(grounds_list or []), *secs])
+        secs = _matrimonial_sections(told, routed.substantive) or secs
     if not secs:
         return _refuse(
             "the offences alleged in the impugned proceeding (sections and Act) "
@@ -197,6 +223,7 @@ def build(
                 if code_framework == "bnss" else
                 "the Code of Criminal Procedure, 1973")
     target_label = _TARGET_LABEL[target]
+    alt = [a.strip() for a in (alternative_quash_against or []) if a.strip()]
     petitioners = [p for p in petitioner_names if p.strip()]
     respondents = [r for r in respondent_names if r.strip()]
     # a police case arrays the State (rep. by the Inspector of Police) as R1; a
@@ -227,6 +254,7 @@ def build(
         "is_compromise": quash_basis is QuashBasis.COMPROMISE,
         "special_circumstances": special_circumstances,
         "stay_sought": stay_sought,
+        "alternative_against": _and_join(alt) if alt else None,
         "facts_slot": facts_narrative if facts_narrative.strip()
                       else _LLM_SLOT_PLACEHOLDER,
         "lettered_grounds": [

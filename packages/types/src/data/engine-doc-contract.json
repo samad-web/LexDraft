@@ -6887,6 +6887,7 @@
   },
   "quash_petition": {
     "all": [
+      "alternative_quash_against",
       "bench",
       "compromise_memo_annexed",
       "crime_no",
@@ -7041,6 +7042,11 @@
       {
         "key": "crime_no",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "alternative_quash_against",
+        "kind": "string_list",
         "required": false
       }
     ],

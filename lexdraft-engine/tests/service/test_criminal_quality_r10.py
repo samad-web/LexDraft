@@ -181,3 +181,30 @@ def test_writ_criminal_goondas_detenu_in_prison_is_a_habeas_corpus_petition_md()
     assert "(Tamil Nadu Act 14 of 1982)" in text and "[impugned order statute" not in text
     assert "The Superintendent, Central Prison, Tiruchirappalli" in text
     assert "Alka Subhash Gadia" not in text
+
+
+# --- quash_petition ---------------------------------------------------------------
+
+_QUASH = {
+    "petitioner_names": ["Mr. K. Rajesh", "Mrs. K. Valli", "Mrs. S. Deepa"],
+    "respondent_names": ["Mrs. R. Sangeetha"], "target": "fir",
+    "proceeding_ref": "Crime No. 45 of 2026", "proceeding_forum": "All Women Police Station, Salem Town",
+    "sections": ["[sections to be provided]"], "offence_date": "2026-02-14",
+    "filing_date": "2026-11-07", "place": "Chennai",
+    "facts_narrative": "The wife lodged a complaint alleging cruelty and dowry harassment after the divorce notice.",
+    "alternative_quash_against": ["Mrs. K. Valli (A2)", "Mrs. S. Deepa (A3)"],
+}
+
+
+def test_quash_petition_cruelty_dowry_fir_names_bns_85_and_dp_act_4():
+    """r10: the brief says "cruelty and dowry harassment"; the sections stayed blank."""
+    text = "\n".join(_draft("quash_petition", _QUASH, allow_placeholders=True))
+    assert ("registered for the alleged offences under Section 85 of the Bharatiya Nyaya Sanhita, "
+            "2023, Section 4 of the Dowry Prohibition Act, 1961") in text
+    assert "[sections to be provided]" not in text
+
+
+def test_quash_petition_prays_in_the_alternative_against_a2_and_a3():
+    text = "\n".join(_draft("quash_petition", _QUASH, allow_placeholders=True))
+    assert ("quash the same as against the petitioners, or, in the alternative, quash the same at "
+            "least as against Mrs. K. Valli (A2) and Mrs. S. Deepa (A3), and pass") in text
