@@ -16,7 +16,7 @@ MOST RESPECTFULLY SHOWETH:
 3. That the said will was duly made by the deceased in the presence of the witnesses whose names, addresses and signatures appear at the end of the will.
 4. That by virtue of the said will, the deceased bequeathed: the estate to the widow and the son in equal shares
 5. That a description of the relatives of the deceased and their respective residences is set out in the cause-title above (all such relatives being made respondents).
-6. That the assets of the deceased likely to come to the hands of the petitioner are detailed in Schedule-A (Schedule-A annexed), annexed hereto.
+6. That the assets of the deceased likely to come to the hands of the petitioner are detailed in Schedule-A (Schedule-A annexed), the affidavit of assets annexed hereto.
 7. That, so far as the petitioner has been able to ascertain, there are no properties other than those specified in the affidavit of assets.
 
 8. That the petitioner undertakes to pay the court fees payable in respect of any other properties coming to the petitioner's hands.
@@ -44,9 +44,16 @@ I, the petitioner above-named, declare that what is stated herein is true to the
 
 PETITIONER
 
-VERIFICATION (WITNESSES TO THE WILL):
-We, the witnesses to the last will and testament of the testator/testatrix, declare that we were present and saw the testator/testatrix affix his/her signature on the will annexed, and we acknowledge the same to be his/her last will and testament in our presence.
+VERIFICATION BY ATTESTING WITNESS (SECTION 281 OF THE INDIAN SUCCESSION ACT, 1925):
+I, [name of the attesting witness], one of the witnesses to the last will and testament of the testator/testatrix mentioned in the above petition, declare that I was present and saw the said testator/testatrix affix his/her signature thereto.
 
-WITNESS NO. 1                    WITNESS NO. 2
+ATTESTING WITNESS
+SCHEDULE-A — AFFIDAVIT OF ASSETS
+I, Kamala, the petitioner above-named, solemnly affirm that the following are the properties and credits of the deceased Krishnan likely to come to my hands, with their estimated values:
+   [the properties and credits of the deceased, with their values, to be set out]
+Solemnly affirmed at Chennai on this the ____ day of ____________, 20____.                DEPONENT
+AFFIDAVIT OF ATTESTING WITNESS
+I, [name of the attesting witness], [age and address of the deponent to be provided], do hereby solemnly affirm and state as follows: 1. I am one of the attesting witnesses to the last will and testament dated 2020-01-15 of the late Krishnan. 2. The testator/testatrix signed the will in my presence, and I signed it as an attesting witness in the presence of the testator/testatrix. 3. At the time of execution the testator/testatrix was in a sound and disposing state of mind.
+Solemnly affirmed at Chennai on this the ____ day of ____________, 20____, before me.                DEPONENT (ATTESTING WITNESS)
 
 [NOTE: To be supported by an affidavit.]

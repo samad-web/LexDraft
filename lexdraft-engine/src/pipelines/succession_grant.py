@@ -99,6 +99,11 @@ def build(
     city: Optional[str] = None,
     # 'male' / 'female': his/her, testator/testatrix. Unknown -> both forms.
     deceased_gender: Optional[str] = None,
+    # Schedule-A (affidavit of assets): dicts of description / value. Optional.
+    assets: Optional[Sequence[Dict[str, Any]]] = None,
+    # the will's attesting witnesses, and the one who verifies / swears (s.281 ISA).
+    attesting_witnesses: Optional[Sequence[str]] = None,
+    deposing_witness: Optional[str] = None,
 ) -> SuccessionGrantResult:
     """Assemble the probate / letters-of-administration petition, or refuse."""
 
@@ -164,6 +169,11 @@ def build(
             code="succession_grant_no_kin_to_cite", fields=("relatives",),
         )
 
+    witnesses = [w.strip() for w in (attesting_witnesses or []) if w.strip()]
+    # One witness verifies (s.281 needs at least one, "when procurable"); with
+    # only one listed, that is the one.
+    deposing = (deposing_witness or "").strip() or (witnesses[0] if len(witnesses) == 1 else None)
+
     context: Dict[str, Any] = {
         "grant_kind": grant_kind.value,
         "grant_label": ("Probate" if grant_kind is GrantKind.PROBATE
@@ -194,6 +204,11 @@ def build(
         "case_year": filing_date.year,
         "petition_date": filing_date.isoformat(),
         "has_witness_verification": True,
+        "assets": [{"description": a["description"], "value": a["value"]}
+                   for a in (assets or [])],
+        "assets_total": sum(a["value"] for a in (assets or [])),
+        "deposing_witness": deposing,
+        "other_witnesses": [w for w in witnesses if norm(w) != norm(deposing or "")],
         "place": place,
     }
     return SuccessionGrantResult(refused=False, context=context)

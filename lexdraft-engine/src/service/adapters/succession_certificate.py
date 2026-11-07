@@ -15,6 +15,15 @@ _SECURITY_ITEM = (
 )
 
 
+# the other legal heirs, arrayed as respondents (name/address may be unknown).
+_HEIR_ITEM = (
+    FieldSpec("relation", "string"),
+    FieldSpec("name", "string", required=False, default=""),
+    FieldSpec("address", "string", required=False, default=""),
+    FieldSpec("consented", "bool", required=False, default=False),
+)
+
+
 def _security(kw: Dict[str, Any]) -> Security:
     return Security(**kw)
 
@@ -28,7 +37,8 @@ ADAPTER = Adapter(
         FieldSpec("deceased_name", "string"),
         FieldSpec("death_date", "date"),
         FieldSpec("deceased_residence", "string"),
-        FieldSpec("law_of_succession", "string"),
+        # optional: unstated -> a marked gap in the petition, not a blocked draft.
+        FieldSpec("law_of_succession", "string", required=False, default=""),
         FieldSpec("diligent_search_no_will", "bool"),
         FieldSpec("next_of_kin", "string"),
         FieldSpec("petitioner_relation", "string"),
@@ -44,6 +54,7 @@ ADAPTER = Adapter(
         FieldSpec("grant_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("respondent_name", "string", required=False, default=None),
+        ListFieldSpec("respondents", _HEIR_ITEM, dict, required=False),
     ),
     slots=(),
 )
