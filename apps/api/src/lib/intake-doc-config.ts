@@ -219,6 +219,15 @@ const s138Complaint: IntakeSectionSpec[] = [
       { key: 'accused_name', label: 'Accused name (drawer of the cheque)', type: 'text', required: true },
       { key: 'accused_parentage', label: "Accused's parentage (S/o, D/o, W/o)", type: 'text', required: false },
       { key: 'accused_address', label: 'Accused address', type: 'textarea', required: false },
+      { key: 'accused_is_company', label: 'Is the accused a company / firm?', type: 'select', options: ['Yes', 'No'], required: false, default: 'No' },
+      { key: 's141_averment', label: 'Section 141 averment (who was in charge of and responsible for the business)', type: 'textarea', required: false, hint: 'Required when the accused is a company, e.g. "Mr. A. Karthik, its Managing Director, was in charge of and responsible to the company for the conduct of its business".' },
+      // Further accused (s.141: MD / directors / partners) -> Accused No. 2, 3 in the
+      // cause title. Folded into the engine's additional_accused[] list.
+      ...[0, 1, 2].flatMap((row) => [
+        { key: `additional_accused_${row}_name`, label: `Accused No. ${row + 2} — name (director / partner in charge)`, type: 'text' as const, required: false, engineKeys: [`additional_accused[${row}].name`] },
+        { key: `additional_accused_${row}_description`, label: `Accused No. ${row + 2} — description (e.g. "Managing Director, M/s. X Pvt. Ltd.")`, type: 'text' as const, required: false, engineKeys: [`additional_accused[${row}].description`] },
+        { key: `additional_accused_${row}_address`, label: `Accused No. ${row + 2} — address`, type: 'textarea' as const, required: false, engineKeys: [`additional_accused[${row}].address`] },
+      ]),
     ],
   },
   {

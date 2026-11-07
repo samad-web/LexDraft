@@ -49,6 +49,7 @@ from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
 from . import _code_framework as cf
+from ._bench import MADURAI_COURT, madurai_bench
 from ._state_party import with_state
 from .writ_petition import _letter
 
@@ -135,6 +136,9 @@ def build(
     # append the companion s.430 BNSS / s.389 CrPC petition to suspend the
     # sentence. Optional.
     draft_suspension_petition: bool = False,
+    # the suspension petition's custody ground and its supporting affidavit.
+    custody_since: Optional[date] = None,
+    deponent_description: Optional[str] = None,
 ) -> CriminalAppealResult:
     """Assemble the criminal appeal against conviction, or refuse."""
 
@@ -235,10 +239,17 @@ def build(
     default_court = ("THE HIGH COURT OF JUDICATURE AT MADRAS"
                      if forum is AppealForum.HIGH_COURT
                      else "THE COURT OF THE PRINCIPAL SESSIONS JUDGE")
+    court_name = court_name or default_court
+    madurai = forum is AppealForum.HIGH_COURT and madurai_bench(
+        court_name, trial_court, police_station, place)
+    if madurai and "madurai" not in court_name.lower():
+        court_name = MADURAI_COURT
+    md_suffix = "(MD)" if madurai else ""
 
     context: Dict[str, Any] = {
         "forum": forum.value,
-        "court_name": court_name or default_court,
+        "court_name": court_name,
+        "md_suffix": md_suffix,
         "appeal_year": filing_date.year,
         "appeal_date": filing_date.isoformat(),
         "appellants": [a for a in appellant_names if a.strip()],
@@ -249,7 +260,11 @@ def build(
             "draft": draft_suspension_petition,
             "year": filing_date.year,
             "section": sections_map["suspension_of_sentence"],
-            "main_label": "CRL.A." if forum is AppealForum.HIGH_COURT else "Crl.A.",
+            "main_label": ("CRL.A." if forum is AppealForum.HIGH_COURT else "Crl.A.") + md_suffix,
+            # a fixed term (not death / life) is the classic ground for suspension
+            "fixed_term": not death_sentence and "life" not in sentence_text.lower(),
+            "custody_since": custody_since.isoformat() if custody_since else None,
+            "deponent_description": (deponent_description or "").strip() or None,
             "proceeding": "appeal",
             "order_ref": f"the judgment dated {judgment_date.isoformat()} in "
                          f"{trial_case_ref}",

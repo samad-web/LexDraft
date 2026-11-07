@@ -114,7 +114,9 @@ def test_writ_criminal_detenu_in_custody_is_habeas_corpus():
     t = _draft("writ_criminal", pre_execution_stage=False, high_court="Madurai Bench",
                detenu_name="R. Saravanan",
                detention_place="Central Prison, Tiruchirappalli")
-    assert "H.C.P. No. ______ of 2016" in t and "(MADURAI BENCH)" in t
+    # 2026-11-07 (suite r10 review): a Madurai Bench habeas petition is numbered
+    # "H.C.P.(MD) No.", as the Bench registry numbers it.
+    assert "H.C.P.(MD) No. ______ of 2016" in t and "(MADURAI BENCH)" in t
     assert "HABEAS CORPUS PETITION FILED UNDER ARTICLE 226" in t
     assert "issue a Writ of Habeas Corpus, calling for the records relating to the " \
            "detention order" in t

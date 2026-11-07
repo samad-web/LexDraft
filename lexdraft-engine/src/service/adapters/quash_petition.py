@@ -36,6 +36,7 @@ ADAPTER = Adapter(
         FieldSpec('grounds_list', 'string_list', required=False, default=None),
         FieldSpec('police_station', 'string', required=False, default=None),
         FieldSpec('crime_no', 'string', required=False, default=None),
+        FieldSpec('alternative_quash_against', 'string_list', required=False, default=None),
     ),
     slots=('facts_narrative', 'grounds_narrative'),
 )

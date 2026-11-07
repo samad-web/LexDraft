@@ -2813,7 +2813,9 @@
       "copy_ready_date",
       "court_name",
       "crime_no",
+      "custody_since",
       "death_sentence",
+      "deponent_description",
       "draft_suspension_petition",
       "facts_narrative",
       "filing_date",
@@ -2999,6 +3001,16 @@
         "key": "draft_suspension_petition",
         "kind": "bool",
         "required": false
+      },
+      {
+        "key": "custody_since",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -3043,7 +3055,9 @@
       "proceeding_start_date",
       "respondent_names",
       "revision_before_other_forum",
-      "sentence_text"
+      "sentence_text",
+      "trial_court",
+      "trial_judgment_date"
     ],
     "fields": [
       {
@@ -3173,6 +3187,16 @@
       {
         "key": "draft_suspension_petition",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "trial_court",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "trial_judgment_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -6915,6 +6939,7 @@
   },
   "quash_petition": {
     "all": [
+      "alternative_quash_against",
       "bench",
       "compromise_memo_annexed",
       "crime_no",
@@ -7069,6 +7094,11 @@
       {
         "key": "crime_no",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "alternative_quash_against",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -7771,6 +7801,7 @@
       "accused_is_company",
       "accused_name",
       "accused_parentage",
+      "additional_accused",
       "advocate_contact",
       "advocate_enrolments",
       "advocate_office_address",
@@ -8106,6 +8137,29 @@
         "key": "case_number_label",
         "kind": "string",
         "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "additional_accused",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
       }
     ],
     "required": [
@@ -8309,6 +8363,7 @@
       "advocate_chamber",
       "advocate_phone",
       "cheque_in_discharge_denied",
+      "cheques_to_return",
       "client",
       "client_address",
       "defence_narrative",
@@ -8317,7 +8372,8 @@
       "notice_date",
       "opposing_advocate",
       "place",
-      "reply_date"
+      "reply_date",
+      "return_within_days"
     ],
     "fields": [
       {
@@ -8383,6 +8439,16 @@
       {
         "key": "reply_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "cheques_to_return",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "return_within_days",
+        "kind": "int",
         "required": false
       }
     ],
@@ -10147,6 +10213,7 @@
       "court_name",
       "court_place",
       "crime_no",
+      "crime_registered_date",
       "identification_marks",
       "offence_section",
       "petition_date",
@@ -10218,6 +10285,11 @@
       {
         "key": "court_name",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_registered_date",
+        "kind": "date",
         "required": false
       }
     ],

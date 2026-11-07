@@ -48,12 +48,15 @@ from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
 from . import _code_framework as cf
+from ._bench import MADURAI_COURT, madurai_bench
 from .writ_petition import _letter
 
 TEMPLATE = "criminal_revision.docx"
 SPEC = "bnss-438-442"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+_CHEQUE = re.compile(r"\bcheque", re.IGNORECASE)
+_NI_138 = "Section 138 of the Negotiable Instruments Act, 1881"
 _CONSUMED_TABLES = ("section_mappings", "code_appointed_day", aw.PERIODS_TABLE)
 
 
@@ -120,6 +123,10 @@ def build(
     convicted_sections: Optional[Sequence[str]] = None,
     sentence_text: Optional[str] = None,
     draft_suspension_petition: bool = False,
+    # a revision against an appellate judgment confirming a conviction: the trial
+    # court and its judgment, so the prayer sets aside both. Optional.
+    trial_court: Optional[str] = None,
+    trial_judgment_date: Optional[date] = None,
 ) -> CriminalRevisionResult:
     """Assemble the criminal revision petition, or refuse."""
 
@@ -211,15 +218,29 @@ def build(
     default_court = ("THE HIGH COURT OF JUDICATURE AT MADRAS"
                      if forum is RevisionForum.HIGH_COURT
                      else "THE COURT OF THE PRINCIPAL SESSIONS JUDGE")
-    case_label = ("CRL.R.C." if forum is RevisionForum.HIGH_COURT else "CRL.R.P.")
+    court_name = court_name or default_court
+    madurai = forum is RevisionForum.HIGH_COURT and madurai_bench(
+        court_name, lower_court, case_ref, place)
+    if madurai and "madurai" not in court_name.lower():
+        court_name = MADURAI_COURT
+    md_suffix = "(MD)" if madurai else ""
+    case_label = ("CRL.R.C." if forum is RevisionForum.HIGH_COURT else "CRL.R.P.") + md_suffix
     secs = [s for s in (convicted_sections or []) if s.strip()]
-    # a cheque-dishonour conviction: s.138 of the Negotiable Instruments Act
+    # a cheque-dishonour conviction: s.138 of the Negotiable Instruments Act. The
+    # extractor may give only the offence's name ("dishonour of a cheque", r10),
+    # which the prayer then recited as "the offence under Dishonour of a cheque".
+    secs = list(dict.fromkeys(
+        _NI_138 if (_CHEQUE.search(s) and not re.search(r"\d", s.split("Rs")[0])) else s
+        for s in secs))
     ni_act = any(re.search(r"\b138\b", s) and re.search(r"\bN\.?\s?I\b|negotiable", s, re.I)
                  for s in secs)
 
     context: Dict[str, Any] = {
         "forum": forum.value,
-        "court_name": court_name or default_court,
+        "court_name": court_name,
+        "md_suffix": md_suffix,
+        "trial_court": (trial_court or "").strip() or None,
+        "trial_judgment_date": trial_judgment_date.isoformat() if trial_judgment_date else None,
         "case_label": case_label,
         "petition_year": filing_date.year,
         "petition_date": filing_date.isoformat(),

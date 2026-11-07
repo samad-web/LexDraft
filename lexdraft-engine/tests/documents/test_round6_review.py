@@ -135,7 +135,9 @@ def test_writ_criminal_arrays_state_and_prison():
                police_station="Pudukkottai Town", high_court="Madurai Bench")
     assert "The State of Tamil Nadu, rep. by the Additional Chief Secretary" in t
     assert "The Government (to which" not in t
-    assert "The Superintendent of Prison, Central Prison, Tiruchirappalli" in t
+    # 2026-11-07 (suite r10 review): the jailor is "The Superintendent, Central
+    # Prison, Tiruchirappalli", not "The Superintendent of Prison, Central Prison, …".
+    assert "The Superintendent, Central Prison, Tiruchirappalli" in t
     assert "The Inspector of Police, Pudukkottai Town Police Station (sponsoring authority)" in t
 
 
