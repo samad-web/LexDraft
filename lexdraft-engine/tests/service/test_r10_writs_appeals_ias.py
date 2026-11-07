@@ -215,6 +215,23 @@ def test_counter_affidavit_sole_respondent_balance_of_convenience_documents():
     assert "aged about ___ years" in text and "{%" not in text
 
 
+def test_written_statement_additional_pleas_and_no_written_acknowledgment():
+    """r12: no additional-pleas section; a limitation defence did not deny a written
+    acknowledgment (s.18) or a payment acknowledged in writing (s.19)."""
+    text = _text("written_statement", {
+        "plaintiff_name": "Mr. P. Raju", "defendant_name": "Mr. K. Lakshmanan", "suit_ref": "O.S. No. 790 of 2026",
+        "plaint_para_count": 2,
+        "preliminary_objections": [{"text": "The suit is barred by limitation."}],
+        "merit_replies": [{"plaint_para": 1, "stance": "not_admitted", "text": "Not admitted."},
+                          {"plaint_para": 2, "stance": "denied", "text": "Denied."}],
+        "additional_pleas": ["The defendant borrowed only Rs. 1,00,000 in February 2023 and repaid it in cash by June 2024."],
+        "filing_date": "2026-11-07", "place": "Tiruchirappalli"})
+    assert "ADDITIONAL PLEAS:\n   3. The defendant borrowed only Rs. 1,00,000" in text
+    assert "4. The defendant never made any acknowledgment of liability in writing" in text
+    assert "Section 19 of that Act" in text
+    assert text.index("ADDITIONAL PLEAS") < text.index("PRAYER:") and "{%" not in text
+
+
 ADJ = {"petitioner_name": "K. Palanisamy", "respondent_name": "R. Kumar",
        "posted_for": "cross-examination of PW1 on 10.11.2026",
        "adjournment_reason": "The petitioner underwent cataract surgery on 30.10.2026.\n"

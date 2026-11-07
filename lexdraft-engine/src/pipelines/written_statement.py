@@ -26,6 +26,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -35,6 +36,14 @@ from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "written_statement.docx"
 SPEC = "dpc-27-29"
+
+_LIMITATION = re.compile(r"limitation|time[- ]barred|out of time", re.I)
+_NO_ACKNOWLEDGMENT = (
+    "The defendant never made any acknowledgment of liability in writing signed by him "
+    "within the meaning of Section 18 of the Limitation Act, 1963, and no payment by him "
+    "was acknowledged in writing in his handwriting or signed by him, as Section 19 of that "
+    "Act requires for a fresh period of limitation. No fresh period of limitation has "
+    "therefore begun, and the suit is barred by limitation.")
 
 
 class Stance(Enum):
@@ -92,6 +101,7 @@ def build(
     # cause-title header. Optional.
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
+    additional_pleas: Sequence[str] = (),
 ) -> WrittenStatementResult:
     """Assemble the written statement, or refuse."""
 
@@ -146,7 +156,16 @@ def build(
                               if m.stance in (Stance.DENIED, Stance.NOT_ADMITTED)]
     admitted = [m.plaint_para for m in ordered if m.stance is Stance.ADMITTED]
 
+    # r12: ADDITIONAL PLEAS — the defendant's own case, numbered on from the plaint's
+    # paragraphs; a limitation objection also denies what alone could save the suit
+    # (a written acknowledgment, s.18, or a payment acknowledged in writing, s.19).
+    pleas = [p.strip() for p in additional_pleas if p.strip()]
+    if any(_LIMITATION.search(o.text) for o in preliminary_objections):
+        pleas.append(_NO_ACKNOWLEDGMENT)
+    first = max([plaint_para_count] + [m.plaint_para for m in ordered]) + 1
+
     context: Dict[str, Any] = {
+        "additional_pleas": [{"n": first + i, "text": t} for i, t in enumerate(pleas)],
         "plaintiff": {"name": plaintiff_name},
         "defendant": {"name": defendant_name},
         "civil_court": civil_court,
