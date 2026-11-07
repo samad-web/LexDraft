@@ -18,6 +18,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional, Sequence
@@ -78,6 +79,7 @@ def build(
     petition_date: Optional[date] = None,
     court_place: Optional[str] = None,
     court_name: Optional[str] = None,
+    crime_registered_date: Optional[date] = None,
 ) -> SurrenderPetitionResult:
     """Assemble the surrender petition, or refuse."""
 
@@ -109,7 +111,17 @@ def build(
             fields=("identification_marks",),
         )
 
+    # The Magistrate's remand / bail powers on surrender: BNSS for a crime
+    # registered on or after 1.7.2024 (s.531 BNSS saves the CrPC for earlier ones).
+    # shortcut: a 2024 crime number without its registration date is taken as BNSS.
+    year = re.search(r"\b(?:19|20)\d{2}\b", crime_no)
+    crpc = (crime_registered_date < date(2024, 7, 1) if crime_registered_date
+            else bool(year) and int(year.group()) < 2024)
     context: Dict[str, Any] = {
+        "remand_section": ("Section 167 of the Code of Criminal Procedure, 1973" if crpc
+                           else "Section 187 of the Bharatiya Nagarik Suraksha Sanhita, 2023"),
+        "bail_section": ("Section 437 of the said Code" if crpc
+                         else "Section 480 of the said Sanhita"),
         "accused_name": accused_name,
         "offence_section": offence_section,
         "crime_no": bare_crime_no(crime_no),

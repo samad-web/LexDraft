@@ -8257,6 +8257,7 @@
       "advocate_chamber",
       "advocate_phone",
       "cheque_in_discharge_denied",
+      "cheques_to_return",
       "client",
       "client_address",
       "defence_narrative",
@@ -8265,7 +8266,8 @@
       "notice_date",
       "opposing_advocate",
       "place",
-      "reply_date"
+      "reply_date",
+      "return_within_days"
     ],
     "fields": [
       {
@@ -8331,6 +8333,16 @@
       {
         "key": "reply_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "cheques_to_return",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "return_within_days",
+        "kind": "int",
         "required": false
       }
     ],
@@ -10087,6 +10099,7 @@
       "court_name",
       "court_place",
       "crime_no",
+      "crime_registered_date",
       "identification_marks",
       "offence_section",
       "petition_date",
@@ -10158,6 +10171,11 @@
       {
         "key": "court_name",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "crime_registered_date",
+        "kind": "date",
         "required": false
       }
     ],
