@@ -12107,6 +12107,11 @@
             "key": "is_authority",
             "kind": "bool",
             "required": false
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
           }
         ],
         "key": "respondents",
