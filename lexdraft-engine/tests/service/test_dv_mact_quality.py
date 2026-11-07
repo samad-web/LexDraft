@@ -100,6 +100,22 @@ def test_dv_application_prayer_not_colon_joined_and_no_stray_slot_marker():
     assert "[to be drafted]" not in text
 
 
+def test_dv_application_residence_reentry_or_alternative_accommodation_and_affidavit():
+    """r12: she was thrown out on 03.09.2026, yet s.19 only restrained dispossession;
+    the affidavit was a NOTE."""
+    ousted = {**_DV, "reliefs": _DV["reliefs"] + [
+        {"head": "s.19 residence", "averment": "Residence order; she was thrown out on 03.09.2026"}]}
+    prayer = _text("dv_application", ousted).split("PRAYER:")[1]
+    assert "directing the respondents to restore the aggrieved person to the shared household" in prayer
+    assert "alternate accommodation of the same level as she enjoyed in the shared household or to pay rent" in prayer
+    # still living there: the plain non-dispossession order
+    stays = {**_DV, "reliefs": _DV["reliefs"] + [{"head": "s.19 residence", "averment": "Residence order"}]}
+    text = _text("dv_application", stays)
+    assert "restraining the respondents from dispossessing the aggrieved person from the shared household" in text
+    assert "AFFIDAVIT FILED IN SUPPORT OF THE PETITION\nI, Mrs. J. Anitha, aged about 32 years, residing at No. 15, Kilpauk" in text
+    assert "[NOTE: This application must be supported by an Affidavit" not in text and "{%" not in text
+
+
 def test_mact_claim_unset_dependants_counts_the_claimants_not_a_500():
     # r11: draft-now sent dependants=0 and compute_death raised -> HTTP 500.
     text = _text("mact_claim", {**_MACT, "dependants": 0})
