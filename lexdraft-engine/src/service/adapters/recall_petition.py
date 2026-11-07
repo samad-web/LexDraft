@@ -24,6 +24,10 @@ ADAPTER = Adapter(
         FieldSpec("absence_reason", "string", required=False, default=""),
         FieldSpec("warrant_date", "date", required=False, default=None),
         FieldSpec("undertakes_to_appear", "bool", required=False, default=False),
+        FieldSpec("accused_gender", "string", required=False, default=""),
+        FieldSpec("police_station", "string", required=False, default=""),
+        FieldSpec("documents", "string_list", required=False, default=()),
+        FieldSpec("deponent_description", "string", required=False, default=""),
     ),
     slots=(),
 )

@@ -75,6 +75,9 @@ def build(
     bail_court: Optional[str] = None,
     city: Optional[str] = None,
     application_date: Optional[date] = None,
+    # supporting affidavit of a relative (the accused is in custody). Optional.
+    deponent: Optional[str] = None,
+    deponent_relation: Optional[str] = None,
 ) -> DefaultBailDoc:
     """Assemble the default-bail application, or refuse with the distinct code."""
 
@@ -137,7 +140,10 @@ def build(
         "as_on": as_on,
         "custody_days": custody_days,
         "period_days": period.period_days,
-        "period_statute": period.statute,
+        # the general period is the framework's own section (s.187(3) BNSS for a
+        # BNSS case), never the table's CrPC label; a special statute keeps its own.
+        "period_statute": (period.statute if special_statute
+                           else sections_map["default_bail"]),
         "accrual_date": period.accrual_date,
         "period_last_day": period.last_day,
         "extension_procedure": period.extension_procedure,
@@ -146,6 +152,8 @@ def build(
         "readiness_averred": True,               # gated above
         "application_preceded_chargesheet": verdict.application_preceded_chargesheet,
         "place": place,
+        "deponent": deponent,
+        "deponent_relation": deponent_relation,
     }
     return DefaultBailDoc(refused=False, reason_code=verdict.reason_code,
                           computation=verdict.computation, context=context)

@@ -23,11 +23,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal
 from ._code_framework import provision
-from ._court import clause
+from ._court import pronouns, subject_clause
+from ._state_party import state_respondent
 
 TEMPLATE = "recall_petition.docx"
 SPEC = "tn-recallpet"
@@ -80,6 +81,10 @@ def build(
     absence_reason: str = "",            # why the accused could not appear
     warrant_date: Optional[date] = None,  # the date the warrant issued
     undertakes_to_appear: bool = False,
+    accused_gender: str = "",            # resolves he/his/him when no title
+    police_station: str = "",
+    documents: Sequence[str] = (),       # e.g. the medical certificate filed with it
+    deponent_description: str = "",      # age, parentage, address for the affidavit
 ) -> RecallPetitionResult:
     """Assemble the Recall Petition. Never refuses — renders blanks for anything
     not supplied, so it drafts complete-with-gaps for the advocate to finish."""
@@ -99,11 +104,25 @@ def build(
     # prints "C.C. / Crime No.").
     cc_clean = re.sub(r"^\s*(c\.?\s*c\.?|crime)\s*(no\.?)?\s*", "", cc_no or "", flags=re.I).strip()
 
+    pr = pronouns(accused_name, accused_gender)
+    reason = subject_clause(absence_reason, pr["he"])
+    # the affidavit is the accused's own word: "as I was admitted ...".
+    # shortcut: only the leading subject turns first person; a later "his" stays.
+    reason_first = re.sub(r"^(he/she|he|she)\b", "I", subject_clause(absence_reason, "I"))
+
     context: Dict[str, Any] = {
         "court_name": court_name_clean,
+        "pr": pr,
+        "state_party": state_respondent(police_station),
+        "documents": [d for d in documents if d.strip()],
+        # a hospital stay is proved by the certificate: a visible gap when none listed.
+        "medical_absence": bool(re.search(r"hospital|admitted|medical|treatment|ill\b|fever",
+                                          absence_reason or "", re.I)),
+        "absence_reason_first": reason_first,
+        "deponent_description": deponent_description,
         # s.72(2) BNSS: a warrant stays in force until the issuing court cancels it.
         "recall_provision": provision("warrant_recall", cc_no, case_ref),
-        "absence_reason": clause(absence_reason),
+        "absence_reason": reason,
         "warrant_date": warrant_date.isoformat() if warrant_date else None,
         "undertakes_to_appear": undertakes_to_appear,
         "court_place": court_place,

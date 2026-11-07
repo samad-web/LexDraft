@@ -43,7 +43,7 @@ def _build(**kw: Any):
 
 ADAPTER = Adapter(
     doc_type="default_bail", spec="3.4",
-    title="Application for default bail (s.167(2))", build=_build,
+    title="Application for default bail (s.187(3) BNSS / s.167(2) CrPC)", build=_build,
     template="default_bail.docx",
     fields=(
         FieldSpec("accused_name", "string"),
@@ -74,6 +74,8 @@ ADAPTER = Adapter(
         FieldSpec("bail_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("application_date", "date", required=False, default=None),
+        FieldSpec("deponent", "string", required=False, default=None),
+        FieldSpec("deponent_relation", "string", required=False, default=None),
     ),
     slots=(),
 )

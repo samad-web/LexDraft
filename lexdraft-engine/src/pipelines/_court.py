@@ -55,6 +55,49 @@ def parentage(value: Optional[str], name: Optional[str] = "") -> str:
     return f"{rel} {v}"
 
 
+_MALE = re.compile(r"(mr|thiru|shri|sri|master)\b", re.I)
+_FEMALE = re.compile(r"(mrs|ms|miss|selvi|smt|tmt|kumari)\b", re.I)
+
+
+def gender_of(name: Optional[str], gender: Optional[str] = None) -> Optional[str]:
+    """'m' | 'f' | None: an explicit gender ('male'/'female'/'m'/'f') wins, else
+    the name's title (Mr./Thiru -> m; Mrs./Ms./Selvi/Tmt. -> f)."""
+    g = (gender or "").strip().lower()[:1]
+    if g in ("m", "f"):
+        return g
+    n = (name or "").strip()
+    return "m" if _MALE.match(n) else "f" if _FEMALE.match(n) else None
+
+
+def pronouns(name: Optional[str], gender: Optional[str] = None) -> dict:
+    """The party's he/his/him/himself + son/daughter, resolved from the title or
+    gender; the form's 'he/she' alternative stays only when neither tells."""
+    g = gender_of(name, gender)
+
+    def pick(m: str, f: str) -> str:
+        return m if g == "m" else f if g == "f" else f"{m}/{f}"
+    return {"he": pick("he", "she"), "his": pick("his", "her"),
+            "him": pick("him", "her"), "himself": pick("himself", "herself"),
+            "child": pick("son", "daughter"), "rel": pick("S/o", "D/o")}
+
+
+_SUBJECT = re.compile(r"(he|she|they|i|it|the|his|her|their|my|petitioner|accused|"
+                      r"complainant|mr|mrs|ms|thiru|tmt|selvi)\b", re.I)
+_AUX = ("was", "were", "had", "has", "could", "did", "is", "would")
+
+
+def subject_clause(reason: Optional[str], he: str) -> str:
+    """A reason spliced after 'as ...' that has no subject gets one: 'Hospitalised
+    for dengue' -> 'he was hospitalised for dengue'; 'had to travel' -> 'he had to
+    travel'; 'he was ill' stays as it is."""
+    s = clause(reason)
+    if not s or _SUBJECT.match(s):
+        return s
+    first = s.split(" ", 1)[0].lower()
+    s = s[0].lower() + s[1:]
+    return f"{he} {s}" if first in _AUX else f"{he} was {s}"
+
+
 def clause(value: Optional[str]) -> str:
     """A reason spliced after 'as ...': lower-case a leading pronoun/article and
     drop the trailing full stop the template already prints."""
