@@ -346,7 +346,13 @@ export function fillMissingDate(
   // and r8 "Date: 06.11.2026" would have been marked along with the stand-in.
   const real = new Set([todayIso(), ...Object.values(form).filter(isIso)]);
   let sv = serviceDateSentinel(formKey, base, form);
-  while (real.has(sv)) sv = addDays(sv, -1);
+  // An application stand-in sits just before its known outcome (copy applied before
+  // copy ready, r11 civil revision refused "copy_ready precedes copy_applied").
+  const ready = form[formKey.replace('applied', 'ready')];
+  if (/applied/.test(formKey) && isIso(ready)) sv = addDays(ready!, -1);
+  // A later event (copy ready, delivery) steps forward so it never precedes its pair (r11).
+  const step = /ready|deliver|receiv/.test(formKey) ? 1 : -1;
+  while (real.has(sv)) sv = addDays(sv, step);
   synthetic.add(sv);
   return sv;
 }

@@ -156,6 +156,12 @@ def build(
 
     # 2. compute — DEATH and INJURY by their separate formulae.
     if claim_kind is ClaimKind.DEATH:
+        # The claimants of a death claim are the dependants when no count is given
+        # (r11: an unset count reached compute_death as 0 and crashed with a 500).
+        dependants = dependants or len(claimants)
+        if dependants < 1:
+            return _refuse("a death claim needs at least one dependant claimant",
+                           code="mact_claim_no_dependants", fields=("dependants", "claimants"))
         d = cm.compute_death(
             age=victim_age, annual_income=victim_annual_income,
             dependants=dependants, employment=employment,

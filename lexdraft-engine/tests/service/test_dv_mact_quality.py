@@ -98,3 +98,9 @@ def test_dv_application_prayer_not_colon_joined_and_no_stray_slot_marker():
     assert "monetary relief under Section 20 of the Act of Rs. 30,000 per month;" in prayer
     assert "person: Protection order" not in prayer and ": Monetary relief" not in prayer
     assert "[to be drafted]" not in text
+
+
+def test_mact_claim_unset_dependants_counts_the_claimants_not_a_500():
+    # r11: draft-now sent dependants=0 and compute_death raised -> HTTP 500.
+    text = _text("mact_claim", {**_MACT, "dependants": 0})
+    assert "Rs. 88,39,650" in text or "88,39,650" in text

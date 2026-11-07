@@ -962,6 +962,13 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     expect(out.blocks[1]!.text).toBe(`Date: ${td}.${tm}.${ty}`);
   });
 
+  it('puts an applied stand-in before its ready date, and still marks it (r11)', async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const synthetic = new Set<string>();
+    expect(fillMissingDate('copy_applied_date', '2026-11-07', { copy_ready_date: '2026-10-05' }, synthetic, 'civil_revision')).toBe('2026-10-04');
+    expect([...synthetic]).toEqual(['2026-10-04']);
+  });
+
   it('keeps the marked stand-in for any other missing date', async () => {
     const { fillMissingDate } = await import('../intake.service');
     const synthetic = new Set<string>();
