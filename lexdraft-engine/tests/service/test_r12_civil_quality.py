@@ -88,3 +88,24 @@ def test_condone_delay_petition_affidavit_reads_cleanly():
     assert "I produce hospital records of CMC Hospital" in text
     assert "signed her name in my presence" in text and "his/her" not in text
     assert "in A.S. No. ______ of 2026" in text
+
+
+# ---- summary_suit: Divya v. Harish, loan agreement + cheque ----
+
+def test_summary_suit_article_35_even_when_the_basis_is_the_loan_agreement():
+    from tests.service.test_civil_suit_review import SUMMARY
+    text = _text("summary_suit", {**SUMMARY, "claim_basis": "written_contract",
+                                  "limitation_article": "[limitation article to be provided]"},
+                 allow_placeholders=True)
+    assert "Article 35 of the Schedule to the Limitation Act, 1963" in text
+    assert "computed from 15.07.2026 expires on 15.07.2029" in text
+    assert "[limitation article" not in text
+
+
+def test_summary_suit_order_xxxvii_rule_2_inscription_and_averments():
+    from tests.service.test_civil_suit_review import SUMMARY
+    text = _text("summary_suit", SUMMARY)
+    head = text.split("MOST RESPECTFULLY")[0]
+    assert "O.S. No. ______ of 2026\n(Under Order XXXVII of the Code of Civil Procedure, 1908)" in head
+    assert "as required by Order XXXVII Rule 2(1)(a)" in text
+    assert "No relief which does not fall within the ambit of Order XXXVII Rule 1" in text
