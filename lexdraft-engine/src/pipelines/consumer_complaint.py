@@ -120,6 +120,11 @@ def build(
     complaints_narrative: str,
     # cause-title header (DPC book). Optional.
     commission_place: Optional[str] = None,
+    # the money reliefs the complainant asks for (prayer): a refund of the price
+    # with interest, and costs. Optional; without them the prayer stays generic.
+    refund_amount: Optional[int] = None,
+    refund_interest_rate: Optional[int] = None,
+    costs_claimed: Optional[int] = None,
 ) -> ConsumerResult:
     """Assemble the consumer complaint, or refuse."""
 
@@ -172,6 +177,11 @@ def build(
     context: Dict[str, Any] = {
         "complainant": {"name": complainant_name},
         "opposite_party": {"name": opposite_party_name},
+        # "A Ltd.; B Store" is two opposite parties, each on its own line.
+        "opposite_parties": [n.strip() for n in opposite_party_name.split(";") if n.strip()],
+        "refund_amount": refund_amount,
+        "refund_interest_rate": refund_interest_rate,
+        "costs_claimed": costs_claimed,
         # cause-title header fields (render only when present).
         "commission_place": commission_place,
         "complaint_year": filing_date.year,

@@ -14,8 +14,8 @@ client = TestClient(app)
 MATTER = {"matter_id": "M-CIVIL-REVIEW", "version": 1}
 
 
-def _text(doc_type, fields):
-    r = client.post(f"/v1/draft/{doc_type}", json={"matter": MATTER, "fields": fields})
+def _text(doc_type, fields, **body):
+    r = client.post(f"/v1/draft/{doc_type}", json={"matter": MATTER, "fields": fields, **body})
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["outcome"] == "generated", body
@@ -178,3 +178,94 @@ def test_specific_performance_alternative_refund_prays_interest():
     text = _text("specific_performance", SPECIFIC)
     assert ("refund the earnest money of Rs. 10,00,000/- to the plaintiff with interest at "
             "such rate as this Hon'ble Court may deem fit from the date of its payment") in text
+
+
+# Balaji v. Coolwave + Metro Digital: Rs. 62,000 fridge, refusal on 01.08.2026.
+CONSUMER = {
+    "complainant_name": "Mr. H. Balaji",
+    "opposite_party_name": "Coolwave Appliances Ltd.; Metro Digital Store",
+    "purpose": "personal", "consideration_paid": 62000, "transaction_date": "2026-04-12",
+    "invoice_ref": "invoice No. MDS/1182", "cause_of_action_date": "2026-08-01",
+    "filing_date": "2026-11-07", "compensation": 50000,
+    "compensation_basis": "food loss and mental agony", "affidavit_present": True,
+    "evidence_affidavit_present": True, "place": "Chennai",
+    "territorial_basis": "the opposite parties carry on business within its limits",
+    "commission_place": "Chennai (South)", "refund_amount": 62000, "costs_claimed": 10000,
+}
+
+
+def test_consumer_complaint_prayer_asks_refund_with_interest_compensation_and_costs():
+    prayer = _text("consumer_complaint", CONSUMER).split("PRAYER")[1]
+    assert "jointly and severally, to refund Rs. 62,000/- paid by the complainant, with interest" in prayer
+    assert "compensation of Rs. 50,000/-" in prayer
+    assert "costs of Rs. 10,000/-" in prayer
+
+
+def test_consumer_complaint_limitation_under_s69_from_the_cause_of_action():
+    text = _text("consumer_complaint", CONSUMER)
+    assert "Section 69(1) of the Act" in text
+    assert "The cause of action arose on 01.08.2026; the period expires on 01.08.2028" in text
+
+
+def test_consumer_complaint_law_is_in_the_skeleton_and_parties_listed():
+    text = _text("consumer_complaint", CONSUMER)
+    for law in ("Section 2(10)", "Section 2(11)", "Section 34(1)", "Section 34(2)"):
+        assert law in text
+    assert "1. Coolwave Appliances Ltd." in text and "2. Metro Digital Store" in text
+    assert "... Opposite Parties" in text
+
+
+# Sundaram v. Rafiq: rent unpaid from May 2026; only "a notice dated 10.08.2026".
+HRCP = {
+    "landlord_names": ["Mr. G. Sundaram"], "tenant_names": ["Mr. A. Rafiq"],
+    "premises_description": "ground-floor shop at No. 22, Big Bazaar Street, Tiruchirappalli",
+    "monthly_rent": 15000, "grounds": ["arrears_of_rent"], "filing_date": "2026-11-07",
+    "place": "Tiruchirappalli", "written_tenancy_agreement": True, "arrears_months": 7,
+    "arrears_amount": 105000, "demand_notice_date": "2026-08-10",
+}
+
+
+def test_hrcp_eviction_demand_notice_date_only_drafts_with_a_service_gap():
+    text = _text("hrcp_eviction", HRCP)
+    assert ("A notice of demand dated 10.08.2026 was served on the respondent on "
+            "[date of service to be provided]") in text
+
+
+def test_hrcp_eviction_premature_from_the_notice_date_still_refuses():
+    r = client.post("/v1/draft/hrcp_eviction", json={"matter": MATTER, "fields": {
+        **HRCP, "filing_date": "2026-09-05"}})
+    assert r.json()["outcome"] == "refused"
+    assert r.json()["refusal"]["code"] == "hrcp_eviction_demand_period_not_elapsed"
+
+
+# Selvi: partition of her late husband's 1/3 share against his two (unnamed) brothers.
+INDIGENT = {
+    "applicant_name": "Mrs. V. Selvi", "respondent_name": "[respondent name to be provided]",
+    "indigency_pleaded": True,
+    "indigency_particulars": "she earns about Rs. 6,000 a month and owns only household "
+                             "articles and jewellery worth about Rs. 15,000",
+    "undertakes_to_pay_if_decreed": True, "filing_date": "2026-11-07", "place": "Kallakurichi",
+    "civil_court": "Subordinate Court", "city": "Kallakurichi", "respondent_count": 2,
+    "relief_claimed": "partition and separate possession of her one-third share",
+    "property_value": 1800000, "share_claimed": "one-third",
+}
+
+
+def test_indigent_application_impleads_both_brothers():
+    text = _text("indigent_application", INDIGENT, allow_placeholders=True)
+    assert "1. [name of respondent 1 to be provided]" in text
+    assert "2. [name of respondent 2 to be provided]" in text
+    assert "Respondents/Defendants" in text
+
+
+def test_indigent_application_values_only_her_one_third_share():
+    text = _text("indigent_application", INDIGENT, allow_placeholders=True)
+    assert "Section 37(1) of the Tamil Nadu Court Fees and Suits Valuation Act, 1955" in text
+    assert "namely Rs. 6,00,000/- for the purposes of jurisdiction and court fee" in text
+    assert "Rs. 18,00,000/- for the purposes" not in text
+
+
+def test_indigent_application_refers_to_the_proposed_plaint_not_a_suit_ref_gap():
+    text = _text("indigent_application", INDIGENT, allow_placeholders=True)
+    assert "the suit set out in the proposed plaint filed along with this petition" in text
+    assert "[suit ref" not in text

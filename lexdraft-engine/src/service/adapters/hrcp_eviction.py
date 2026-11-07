@@ -25,6 +25,7 @@ ADAPTER = Adapter(
         FieldSpec('arrears_months', 'int', required=False, default=0),
         FieldSpec('arrears_amount', 'int', required=False, default=0),
         FieldSpec('demand_notice_served_date', 'date', required=False, default=None),
+        FieldSpec('demand_notice_date', 'date', required=False, default=None),
         FieldSpec('misuse_notice_date', 'date', required=False, default=None),
         FieldSpec('tenant_quit_notice_date', 'date', required=False, default=None),
         FieldSpec('rent_court', 'string', required=False, default='THE RENT COURT'),

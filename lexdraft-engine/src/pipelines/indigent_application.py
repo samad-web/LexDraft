@@ -13,11 +13,31 @@ Hard requirement (refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
+from fractions import Fraction
 from typing import Any, Dict, Optional, Sequence
 
+from ..rules import court_fee as cf
+from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
+from ..verify.signoff import SLOT_PATTERN
+
+_SHARE_WORDS = {"half": Fraction(1, 2), "one-half": Fraction(1, 2), "one-third": Fraction(1, 3),
+                "one third": Fraction(1, 3), "two-thirds": Fraction(2, 3),
+                "one-fourth": Fraction(1, 4), "one fourth": Fraction(1, 4),
+                "quarter": Fraction(1, 4), "one-fifth": Fraction(1, 5)}
+
+
+def share_fraction(share: Optional[str]) -> Optional[Fraction]:
+    """'1/3' or 'one-third share' -> Fraction(1, 3); None when not a share."""
+    s = (share or "").lower()
+    m = re.search(r"(\d+)\s*/\s*(\d+)", s)
+    if m and 0 < int(m.group(1)) <= int(m.group(2)):
+        return Fraction(int(m.group(1)), int(m.group(2)))
+    return next((f for w, f in sorted(_SHARE_WORDS.items(), key=lambda x: -len(x[0]))
+                 if w in s), None)
 
 TEMPLATE = "indigent_application.docx"
 SPEC = "dpc-21"
@@ -49,7 +69,7 @@ def build(
     *,
     applicant_name: str,
     respondent_name: str,
-    suit_ref: str,
+    suit_ref: Optional[str],
     indigency_pleaded: bool,
     indigency_particulars: str,
     undertakes_to_pay_if_decreed: bool,
@@ -75,6 +95,12 @@ def build(
     relief_claimed: Optional[str] = None,
     cause_of_action: Optional[str] = None,
     suit_valuation: Optional[int] = None,
+    # how many defendants the brief names ("her husband's two brothers"), so each
+    # unnamed one is impleaded as a visible gap; a partition suit is valued on the
+    # market value of the plaintiff's share (s.37(1) TN CF & SV Act 1955).
+    respondent_count: Optional[int] = None,
+    property_value: Optional[int] = None,
+    share_claimed: Optional[str] = None,
 ) -> IndigentResult:
     """Assemble the indigent-person application, or refuse."""
 
@@ -98,6 +124,19 @@ def build(
             fields=("undertakes_to_pay_if_decreed",),
         )
 
+    names = [n for n in (respondent_names or []) if n.strip() and not SLOT_PATTERN.search(n)]
+    if not names and respondent_name.strip() and not SLOT_PATTERN.search(respondent_name):
+        names = [respondent_name]
+    for i in range(len(names), max(respondent_count or 0, 1)):
+        names.append(f"[name of respondent {i + 1} to be provided]")
+
+    share = share_fraction(share_claimed)
+    if property_value and share:
+        suit_valuation = int(property_value * share)
+    court_fee = (cf.compute(reliefs=[cf.Relief(kind=cf.ReliefKind.MONEY,
+                                               value=suit_valuation)]).fee
+                 if suit_valuation else None)
+
     context: Dict[str, Any] = {
         "applicant": {"name": applicant_name, "parentage": applicant_parentage,
                       "address": applicant_address},
@@ -107,15 +146,18 @@ def build(
         "city": city,
         "case_year": filing_date.year,
         "application_date": filing_date.isoformat(),
-        "suit_ref": suit_ref,
+        "suit_ref": suit_ref if suit_ref and not SLOT_PATTERN.search(suit_ref) else None,
         "indigency_particulars": indigency_particulars,
         "undertakes_to_pay_if_decreed": undertakes_to_pay_if_decreed,
         "property_schedule": [i for i in (petitioner_assets or property_schedule
                                           or []) if i.strip()],
         "suit_property_schedule": [i for i in (suit_property_schedule or [])
                                    if i.strip()],
-        "respondents": [n for n in (respondent_names or []) if n.strip()]
-                       or [respondent_name],
+        "respondents": names,
+        "share_claimed": share_claimed if share else None,
+        "property_value": property_value if share else None,
+        "court_fee": court_fee,
+        "unverified_marker": _reg.marker_for("court_fee_ad_valorem_slabs") if court_fee else "",
         "relief_claimed": relief_claimed,
         "cause_of_action": cause_of_action,
         "suit_valuation": suit_valuation,

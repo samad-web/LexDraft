@@ -2114,6 +2114,7 @@
       "complainant_name",
       "complaints_narrative",
       "consideration_paid",
+      "costs_claimed",
       "defect_narrative",
       "evidence_affidavit_present",
       "filing_date",
@@ -2121,6 +2122,8 @@
       "opposite_party_name",
       "place",
       "purpose",
+      "refund_amount",
+      "refund_interest_rate",
       "territorial_basis",
       "transaction_date"
     ],
@@ -2213,6 +2216,21 @@
       {
         "key": "commission_place",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "refund_amount",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "refund_interest_rate",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "costs_claimed",
+        "kind": "int",
         "required": false
       }
     ],
@@ -4559,6 +4577,7 @@
       "arrears_amount",
       "arrears_months",
       "court_place",
+      "demand_notice_date",
       "demand_notice_served_date",
       "facts_narrative",
       "filing_date",
@@ -4642,6 +4661,11 @@
         "required": false
       },
       {
+        "key": "demand_notice_date",
+        "kind": "date",
+        "required": false
+      },
+      {
         "key": "misuse_notice_date",
         "kind": "date",
         "required": false
@@ -4692,11 +4716,14 @@
       "petitioner_assets",
       "place",
       "property_schedule",
+      "property_value",
       "relief_claimed",
       "respondent_address",
+      "respondent_count",
       "respondent_name",
       "respondent_names",
       "respondent_parentage",
+      "share_claimed",
       "suit_property_schedule",
       "suit_ref",
       "suit_valuation",
@@ -4716,7 +4743,7 @@
       {
         "key": "suit_ref",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "indigency_pleaded",
@@ -4807,6 +4834,21 @@
         "key": "suit_valuation",
         "kind": "int",
         "required": false
+      },
+      {
+        "key": "respondent_count",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "property_value",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "share_claimed",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -4816,7 +4858,6 @@
       "indigency_pleaded",
       "place",
       "respondent_name",
-      "suit_ref",
       "undertakes_to_pay_if_decreed"
     ],
     "title": "Application to sue as an indigent person"

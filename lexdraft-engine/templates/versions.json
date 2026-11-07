@@ -423,6 +423,12 @@
         "effective_from": "2026-11-04",
         "spec": "format-specs-p0.md#7.1",
         "note": "round-6 review: supporting affidavit drafted in full (to the Commission)"
+      },
+      {
+        "version": 6,
+        "effective_from": "2026-11-07",
+        "spec": "format-specs-p0.md#7.1",
+        "note": "2026-11-07 senior review: opposite parties listed; ss.2(7), 2(10), 2(11), 34(1), 34(2), 69(1) CPA 2019 in the skeleton; prayer for refund with interest, compensation and costs as claimed"
       }
     ],
     "mact_claim.docx": [
@@ -595,6 +601,12 @@
         "effective_from": "2026-11-04",
         "spec": "tn-rrrlt-21 (R.L.T.O.P., TN Act 42 of 2017 s.21(2))",
         "note": "round-6 review: ground particulars printed under the mapped s.21(2) clause; arrears prayer"
+      },
+      {
+        "version": 3,
+        "effective_from": "2026-11-07",
+        "spec": "tn-rrrlt-21 (R.L.T.O.P., TN Act 42 of 2017 s.21(2))",
+        "note": "2026-11-07 senior review: demand notice date accepted; date of service a visible gap; one-month check from the notice date"
       }
     ],
     "condone_delay_petition.docx": [
@@ -683,6 +695,12 @@
         "effective_from": "2026-11-04",
         "spec": "tn-nomenclature",
         "note": "round-6 review: petitioner's own assets schedule; suit property schedule; plaint particulars; several respondents"
+      },
+      {
+        "version": 4,
+        "effective_from": "2026-11-07",
+        "spec": "tn-nomenclature",
+        "note": "2026-11-07 senior review: every defendant impleaded (respondent_count gaps); s.37(1) valuation on the plaintiff's share; refers to the proposed plaint"
       }
     ],
     "o39_r2a_application.docx": [

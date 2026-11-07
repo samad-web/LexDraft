@@ -10,7 +10,7 @@ ADAPTER = Adapter(
     fields=(
         FieldSpec('applicant_name', 'string'),
         FieldSpec('respondent_name', 'string'),
-        FieldSpec('suit_ref', 'string'),
+        FieldSpec('suit_ref', 'string', required=False, default=None),
         FieldSpec('indigency_pleaded', 'bool'),
         FieldSpec('indigency_particulars', 'string'),
         FieldSpec('undertakes_to_pay_if_decreed', 'bool'),
@@ -29,6 +29,9 @@ ADAPTER = Adapter(
         FieldSpec('relief_claimed', 'string', required=False, default=None),
         FieldSpec('cause_of_action', 'string', required=False, default=None),
         FieldSpec('suit_valuation', 'int', required=False, default=None),
+        FieldSpec('respondent_count', 'int', required=False, default=None),
+        FieldSpec('property_value', 'int', required=False, default=None),
+        FieldSpec('share_claimed', 'string', required=False, default=None),
     ),
     slots=(),
 )

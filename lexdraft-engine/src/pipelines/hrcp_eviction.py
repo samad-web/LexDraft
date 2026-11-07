@@ -179,6 +179,8 @@ def build(
     arrears_months: int = 0,
     arrears_amount: int = 0,
     demand_notice_served_date: Optional[date] = None,
+    # the demand notice's own date, when the brief gives no date of service
+    demand_notice_date: Optional[date] = None,
     misuse_notice_date: Optional[date] = None,
     tenant_quit_notice_date: Optional[date] = None,
     rent_court: str = "THE RENT COURT",
@@ -226,7 +228,7 @@ def build(
                 code="hrcp_eviction_arrears_below_two_months",
                 fields=("arrears_months",),
             )
-        if demand_notice_served_date is None:
+        if demand_notice_served_date is None and demand_notice_date is None:
             return _refuse(
                 "ground (b) of Section 21(2) requires a notice of demand for the "
                 "arrears served on the tenant (in the manner of Section 106(4) of "
@@ -234,7 +236,10 @@ def build(
                 code="hrcp_eviction_no_demand_notice",
                 fields=("demand_notice_served_date",),
             )
-        earliest = demand_notice_served_date + relativedelta(months=1)
+        # Service is on or after the notice's date: with only the date known, the
+        # month is checked from it (premature even at the earliest service -> refuse)
+        # and the service date stays a visible gap for the advocate.
+        earliest = (demand_notice_served_date or demand_notice_date) + relativedelta(months=1)
         if filing_date <= earliest:
             return _refuse(
                 "the tenant has one month from service of the demand notice to pay "
@@ -242,7 +247,7 @@ def build(
                 f"ground cannot be filed before {earliest + relativedelta(days=1)}",
                 code="hrcp_eviction_demand_period_not_elapsed",
                 fields=("demand_notice_served_date", "filing_date"),
-                computation=f"notice served {demand_notice_served_date}; one month "
+                computation=f"notice served {demand_notice_served_date or demand_notice_date}; one month "
                             f"expires {earliest}; filing {filing_date}",
             )
 
@@ -287,6 +292,7 @@ def build(
         "arrears_amount": arrears_amount,
         "demand_notice_served_date": (demand_notice_served_date.isoformat()
                                       if demand_notice_served_date else None),
+        "demand_notice_date": demand_notice_date.isoformat() if demand_notice_date else None,
         "misuse_notice_date": misuse_notice_date.isoformat() if misuse_notice_date else None,
         "tenant_quit_notice_date": (tenant_quit_notice_date.isoformat()
                                     if tenant_quit_notice_date else None),

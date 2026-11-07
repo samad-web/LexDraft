@@ -26,6 +26,9 @@ ADAPTER = Adapter(
         FieldSpec('defect_narrative', 'string', required=False, default=''),
         FieldSpec('complaints_narrative', 'string', required=False, default=''),
         FieldSpec('commission_place', 'string', required=False, default=None),
+        FieldSpec('refund_amount', 'int', required=False, default=None),
+        FieldSpec('refund_interest_rate', 'int', required=False, default=None),
+        FieldSpec('costs_claimed', 'int', required=False, default=None),
     ),
     slots=('defect_narrative', 'complaints_narrative'),
 )
