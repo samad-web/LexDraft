@@ -112,3 +112,31 @@ def test_recall_petition_supporting_affidavit():
     assert "as I was admitted in Meenakshi Mission Hospital" in text
     assert "I undertake to appear before this Hon'ble Court on every hearing date." in text
     assert "BEFORE ME" in text and "on this ____ day of ____________ 2026" in text
+
+
+RECALL_WARRANT = {
+    "accused_name": "Mr. B. Senthil", "warrant_pending": True,
+    "absence_reason": "Hospitalised for dengue from 13.10.2026 to 18.10.2026 at "
+                      "Meenakshi Mission Hospital, Madurai",
+    "undertaking_future_appearance": True, "case_ref": "C.C. No. 412 of 2025",
+    "court_name": "Judicial Magistrate No. I, Madurai", "court_place": "Madurai",
+    "warrant_date": "2026-10-15", "documents": ["Medical certificate"], "place": "Madurai",
+    "filing_date": "2026-11-07"}
+
+
+def test_recall_warrant_as_hospitalised_grammar():
+    text = _draft("recall_warrant", RECALL_WARRANT)
+    assert "as he was hospitalised for dengue from 13.10.2026" in text
+    assert "as Hospitalised" not in text
+
+
+def test_recall_warrant_date_line():
+    text = _draft("recall_warrant", RECALL_WARRANT)
+    assert "Dated: 07.11.2026" in text
+    no_date = {k: v for k, v in RECALL_WARRANT.items() if k != "filing_date"}
+    assert "Dated: ____________" in _draft("recall_warrant", no_date)
+
+
+def test_recall_warrant_undertaking_to_appear():
+    text = _draft("recall_warrant", RECALL_WARRANT)
+    assert "undertakes to appear before this Hon'ble Court on every date of hearing without fail" in text

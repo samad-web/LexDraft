@@ -25,7 +25,7 @@ from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 from ._code_framework import provision
-from ._court import bare_station, clause, court_and_place
+from ._court import bare_station, court_and_place, pronouns, subject_clause
 from ._state_party import state_respondent
 
 TEMPLATE = "recall_warrant.docx"
@@ -69,6 +69,8 @@ def build(
     court_name: Optional[str] = None,
     warrant_date: Optional[date] = None,
     documents: Sequence[str] = (),   # e.g. the medical certificate filed with it
+    filing_date: Optional[date] = None,   # the intake's date of filing (today)
+    accused_gender: Optional[str] = None,  # resolves he/she when no title
 ) -> RecallWarrantResult:
     """Assemble the s.70(2) petition to recall the warrant of arrest, or refuse."""
 
@@ -104,6 +106,7 @@ def build(
             fields=("undertaking_future_appearance",),
         )
 
+    petition_date = petition_date or filing_date
     court, at = court_and_place(court_name, court_place)
     station = bare_station(police_station)
     if not (state_rep_by or "").strip():
@@ -116,7 +119,8 @@ def build(
         "warrant_date": warrant_date.isoformat() if warrant_date else None,
         "documents": [d for d in documents if d.strip()],
         "accused_name": accused_name,
-        "absence_reason": clause(absence_reason),
+        "absence_reason": subject_clause(
+            absence_reason, pronouns(accused_name, accused_gender)["he"]),
         "warrant_pending": warrant_pending,
         "undertaking_future_appearance": undertaking_future_appearance,
         "case_ref": case_ref,
