@@ -177,7 +177,7 @@ def test_recall_warrant_bnss_court_state_respondent_and_certificate():
     assert "Code of Criminal Procedure" not in text
 
 
-def test_s256_condone_absence_bnss_past_date_restore_and_court():
+def test_s256_condone_absence_bnss_past_date_post_for_evidence_and_court():
     text = _draft("s256_condone_absence", {
         "complainant_name": "M/s. Sri Murugan Traders", "accused_name": "[accused name to be provided]",
         "absence_reason": "The proprietor, Mr. K. Senthil, was travelling to Delhi for a family wedding.",
@@ -189,7 +189,8 @@ def test_s256_condone_absence_bnss_past_date_restore_and_court():
     assert "IN THE COURT OF THE JUDICIAL MAGISTRATE NO. I, COIMBATORE" in up
     assert "was unable to attend this Hon'ble Court on 28.10.2026, as the proprietor" in text
     assert "today" not in text
-    assert "restore the case to file and post it for evidence" in text
+    # r12: a case not dismissed is not "restored" -- condone and post it for evidence.
+    assert "and post the case for evidence" in text and "restore" not in text.lower()
     assert "Code of Criminal Procedure" not in text and "wedding.." not in text
 
 

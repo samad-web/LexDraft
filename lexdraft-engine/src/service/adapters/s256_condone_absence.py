@@ -7,7 +7,7 @@ from . import Adapter, FieldSpec, register
 
 ADAPTER = Adapter(
     doc_type="s256_condone_absence", spec="tn-s256",
-    title="Petition u/s 256 CrPC (Condone Complainant Absence)",
+    title="Petition u/s 279 BNSS (s.256 CrPC) (Condone Complainant Absence)",
     build=pipeline.build, template="s256_condone_absence.docx",
     fields=(
         FieldSpec("complainant_name", "string"),
@@ -20,6 +20,12 @@ ADAPTER = Adapter(
         FieldSpec("court_place", "string", required=False, default=None),
         FieldSpec("absence_date", "date", required=False, default=None),
         FieldSpec("post_for", "string", required=False, default=None),
+        FieldSpec("case_dismissed", "bool", required=False, default=False),
+        FieldSpec("case_nature", "string", required=False, default=None),
+        FieldSpec("deponent_name", "string", required=False, default=None),
+        FieldSpec("deponent_description", "string", required=False, default=None),
+        FieldSpec("documents", "string_list", required=False, default=()),
+        FieldSpec("filing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

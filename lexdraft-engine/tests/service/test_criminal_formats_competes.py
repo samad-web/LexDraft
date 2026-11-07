@@ -140,3 +140,38 @@ def test_recall_warrant_date_line():
 def test_recall_warrant_undertaking_to_appear():
     text = _draft("recall_warrant", RECALL_WARRANT)
     assert "undertakes to appear before this Hon'ble Court on every date of hearing without fail" in text
+
+
+S256 = {
+    "complainant_name": "M/s. Sri Murugan Traders", "accused_name": "[accused name to be provided]",
+    "absence_reason": "the proprietor Mr. K. Senthil was travelling to Delhi for a family wedding",
+    "case_ref": "S.T.C. No. 118 of 2026", "place": "Coimbatore",
+    "court_designation": "Judicial Magistrate No. I, Coimbatore", "court_place": "Coimbatore",
+    "absence_date": "2026-10-28", "post_for": "evidence", "filing_date": "2026-11-07",
+    "case_nature": "Section 138 of the Negotiable Instruments Act, 1881"}
+
+
+def test_s256_condone_absence_bnss_s279():
+    text = _draft("s256_condone_absence", S256)
+    assert "PETITION UNDER SECTION 279 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA, 2023" in text
+    assert "256" not in text.replace("S.T.C.", "") and "Criminal Procedure" not in text
+
+
+def test_s256_condone_absence_proprietor_affidavit_with_travel_proof():
+    text = _draft("s256_condone_absence", S256)
+    assert ("I, Mr. K. Senthil, [age, parentage and address], proprietor of "
+            "M/s. Sri Murugan Traders, the complainant herein") in text
+    assert "on 28.10.2026, as I was travelling to Delhi for a family wedding" in text
+    assert "I file herewith [copies of the travel tickets] in proof of the same." in text
+    assert "under Section 138 of the Negotiable Instruments Act, 1881" in text
+    assert "Dated: 07.11.2026" in text
+
+
+def test_s256_condone_absence_prays_condone_and_evidence_not_restore():
+    text = _draft("s256_condone_absence", S256)
+    assert ("condone the absence of the complainant on 28.10.2026 under Section 279 of the "
+            "Bharatiya Nagarik Suraksha Sanhita, 2023 and permit the complainant to be "
+            "represented by counsel and post the case for evidence") in text
+    assert "restore" not in text.lower()
+    dismissed = _draft("s256_condone_absence", {**S256, "case_dismissed": True})
+    assert "restore the case to file and post the case for evidence" in dismissed
