@@ -6,6 +6,7 @@ placeholders. Output is always editable .docx (never PDF, never plain text).
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Mapping, Union
 
@@ -46,10 +47,55 @@ def render_to_docx(
     # autoescape: docxtpl re-parses with recover=True, so a raw "&" in a value
     # ("Accountant General (A&E)") was silently dropped along with what followed.
     doc.render(dict(context), jinja_env, autoescape=True)
+    collapse_doubled_tokens(doc.docx)
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out))
     return out
+
+
+# A template prints a prefix the value already carries ("S/o {{ father }}" fed
+# "S/o Ravi", "20{{ yy }}" fed "2026"). Each pattern matches only the redundant
+# FIRST copy, which is deleted; the value's own copy is kept.
+_DOUBLED = [
+    re.compile(r"\b([SDWC]/o)\.?\s+(?=\1\b)", re.I),
+    re.compile(r"\bRs\.?\s*(?=Rs\b)"),
+    re.compile(r"\b(Mr|Mrs|Ms|Dr)\b\.?\s+(?=\1\b)", re.I),
+    re.compile(r"\bMr\./Ms\.\s+(?=(Mr|Mrs|Ms|Dr)\b)"),
+    re.compile(r"\bPolice Station\s+(?=Police Station\b)", re.I),
+    re.compile(r"(?:(?<=\bof )|(?<=\bof\t))20(?=20\d\d\b)"),
+]
+
+
+def _paragraphs(container):
+    yield from container.paragraphs
+    for table in container.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                yield from _paragraphs(cell)
+
+
+def collapse_doubled_tokens(document) -> None:
+    """Delete the doubled prefixes above in every paragraph (body, tables,
+    headers, footers), across run boundaries, keeping each run's formatting."""
+    parts = [document] + [hf for s in document.sections for hf in (s.header, s.footer)]
+    for part in parts:
+        for p in _paragraphs(part):
+            runs = p.runs
+            texts = [r.text for r in runs]
+            full = "".join(texts)
+            keep = [True] * len(full)
+            for rx in _DOUBLED:
+                for m in rx.finditer(full):
+                    keep[m.start():m.end()] = [False] * (m.end() - m.start())
+            if all(keep):
+                continue
+            pos = 0
+            for r, t in zip(runs, texts):
+                new = "".join(c for c, k in zip(t, keep[pos:pos + len(t)]) if k)
+                pos += len(t)
+                if new != t:
+                    r.text = new
 
 
 def extract_text(docx_path: Union[str, Path]) -> str:

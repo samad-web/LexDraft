@@ -13,6 +13,7 @@ Refusals mirror the component's validate():
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional, Sequence
@@ -23,6 +24,18 @@ from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "affidavit.docx"
 SPEC = "p0#1.3"
+
+# A forum that takes a suit cause title. Anything else named in `court_name`
+# (Tahsildar, Sub-Registrar, a bank) is an authority: no cause title and no
+# "Hon'ble Court" prayer.
+_COURT_FORUM = re.compile(
+    r"\b(court|tribunal|judge|magistrate|munsiff?|commission|forum|bench)\b", re.I)
+_LEAD = re.compile(r"^\s*(in\s+the\s+|before\s+the\s+)?(court\s+of\s+)?(the\s+)?", re.I)
+
+
+def _placeholder(text: Optional[str]) -> bool:
+    t = (text or "").strip()
+    return not t or t.startswith("[") or "to be provided" in t.lower()
 
 
 @dataclass(frozen=True)
@@ -194,7 +207,20 @@ def build(
     # renders these only when a court is present (has_court); a bare affidavit omits the
     # top block. "AFFIDAVIT OF <name>, S/o <parent>, aged <age>, R/o <address>[, in the
     # capacity of <capacity>]" is assembled here so the template stays declarative.
-    ctx["has_court"] = bool(court_name)
+    name = _LEAD.sub("", court_name or "").strip()
+    has_court = bool(name) and bool(_COURT_FORUM.search(name) or suit_no
+                                    or plaintiff_name or defendant_name)
+    ctx["has_court"] = has_court
+    if has_court:
+        # "District Munsif Court, X" already says Court: not "IN THE COURT OF ... COURT".
+        ctx["court_heading"] = (
+            "IN THE " if re.search(r"\bcourt\b", name, re.I) else "IN THE COURT OF ") + name.upper()
+    elif name:
+        request = re.sub(r"^\s*to\s+", "", prayer or "", flags=re.I).strip().rstrip(".")
+        ctx["authority_heading"] = name
+        ctx["standalone"] = True
+        ctx["prayer_line"] = (f"I therefore request the {name} to "
+                              f"{'[request to be provided]' if _placeholder(request) else request}.")
     ctx["court_name"] = court_name
     ctx["court_district"] = court_district
     ctx["suit_no"] = suit_no

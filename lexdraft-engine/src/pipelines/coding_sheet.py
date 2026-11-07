@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 
@@ -89,6 +89,10 @@ def build(
     # contempt sub-block (original side)
     order_violated: Optional[str] = None,
     senior_citizen: bool = False,
+    petitioner_address: Optional[str] = None,
+    respondents: Sequence[str] = (),
+    counsel_enrolment_no: Optional[str] = None,
+    nature_of_relief: Optional[str] = None,
 ) -> CodingSheetResult:
     """Assemble the registry coding sheet, or refuse."""
 
@@ -143,5 +147,14 @@ def build(
         "detaining_authority": detaining_authority,
         "order_violated": order_violated,
         "senior_citizen": senior_citizen,
+        # The coding sheet is a Madras High Court registry form: Principal Seat or
+        # the Madurai Bench, never just the city.
+        "court_heading": ("BEFORE THE MADURAI BENCH OF MADRAS HIGH COURT"
+                          if "madurai" in (court_place or "").lower()
+                          else "IN THE HIGH COURT OF JUDICATURE AT MADRAS"),
+        "petitioner_address": petitioner_address,
+        "respondent_rows": [r.strip() for r in respondents if r and r.strip()] or [respondent_name],
+        "counsel_enrolment_no": counsel_enrolment_no,
+        "nature_of_relief": nature_of_relief,
     }
     return CodingSheetResult(refused=False, context=context)

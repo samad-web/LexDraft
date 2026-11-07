@@ -36,6 +36,9 @@ ADAPTER = Adapter(
         FieldSpec("court_place", "string", required=False, default=None),
         FieldSpec("copies_required", "string", required=False, default=None),
         FieldSpec("counsel_name", "string", required=False, default=None),
+        # The decree appealed from: "O.S. No. 156 of 2022" and its court.
+        FieldSpec("lower_court_case", "string", required=False, default=None),
+        FieldSpec("lower_court", "string", required=False, default=None),
     ),
     slots=(),
 )

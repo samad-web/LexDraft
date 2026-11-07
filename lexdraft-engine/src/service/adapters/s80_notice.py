@@ -25,6 +25,10 @@ ADAPTER = Adapter(
         FieldSpec("advocate_chamber", "string", required=False, default=None),
         FieldSpec("advocate_phone", "string", required=False, default=None),
         FieldSpec("dispatch_line", "string", required=False, default=None),
+        # The client's ownership/title to the property affected, and why the
+        # Government's act was illegal (no notice, no authority of law ...).
+        FieldSpec("client_title", "string", required=False, default=None),
+        FieldSpec("illegality_ground", "string", required=False, default=None),
     ),
     slots=(),
 )

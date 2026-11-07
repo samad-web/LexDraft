@@ -216,6 +216,7 @@ def build(
     # Small-Causes fee amount (Rs.) for the fee clause; only used when the court
     # kind carries a fee clause.
     counsel_fee: Optional[str] = None,
+    executant_age: Optional[int] = None,
 ) -> VakalatnamaResult:
     """Assemble the vakalatnama, or refuse."""
 
@@ -335,6 +336,36 @@ def build(
     # a detail isn't in the documents, leave a placeholder — never refuse.)
     place_display = place.strip() if place and place.strip() else "____________"
 
+    # "District Munsif Court, Pollachi" already names the Court: "IN THE DISTRICT
+    # MUNSIF COURT", never "IN THE COURT OF DISTRICT MUNSIF COURT".
+    court_heading = spec.get("court_heading")
+    if not court_heading and court_name and re.search(r"\bcourt\b", court_name, re.I):
+        court_heading = "In the " + re.sub(r"^the\s+", "", court_name, flags=re.I)
+
+    executant_desc = executant_name
+    if executant_age:
+        executant_desc += f", aged about {executant_age} years"
+    if party_address and party_address.strip():
+        executant_desc += f", residing at {party_address.strip()}"
+
+    # Show the advocate's address-for-service ONLY when a real advocate is on
+    # record (not a "[… to be provided]" placeholder) AND an address was given.
+    # This stops the client's address leaking into the advocate's field.
+    advocate_address_shown = bool(
+        address_for_service and address_for_service.strip()
+        and not any("to be provided" in a.lower() or a.strip().startswith("[")
+                    for a in advocate_list)
+    )
+    acceptance_clause = spec.get("acceptance_clause")
+    advocate_sign_label = spec.get("advocate_sign_label", "Advocate")
+    counsel_label = spec.get("counsel_label")
+    if court_kind is CourtKind.CIVIL:
+        # The advocate signs for the PARTY ("Advocate for Plaintiff"), not for himself.
+        advocate_sign_label = counsel_label = f"Advocate for {party_role}"
+        if advocate_address_shown:
+            acceptance_clause = ("ACCEPTED : The address for service of the said Advocate is : "
+                                 f"{address_for_service.strip()}")
+
     context: Dict[str, Any] = {
         "kind": kind.value,
         "executant_name": executant_name,
@@ -348,15 +379,8 @@ def build(
         "opposite_party_name": opposite_party_name,
         "enrolment_no": enrolment_no,
         "address_for_service": address_for_service,
-        # Show the advocate's address-for-service ONLY when a real advocate is on
-        # record (not a "[… to be provided]" placeholder) AND an address was given.
-        # This stops the client's address leaking into the advocate's field.
-        "advocate_address_shown": bool(
-            address_for_service and address_for_service.strip()
-            and advocate_list
-            and not any("to be provided" in a.lower() or a.strip().startswith("[")
-                        for a in advocate_list)
-        ),
+        "advocate_address_shown": advocate_address_shown,
+        "executant_desc": executant_desc,
         "advocate_mobile": advocate_mobile,
         "advocate_email": advocate_email,
         "party_contact": party_contact,
@@ -366,7 +390,7 @@ def build(
         "court_kind": court_kind.value,
         "vakalat_title": spec["title"],
         # A fixed court heading (Small Causes) overrides the court_name placeholder.
-        "court_heading": spec.get("court_heading"),
+        "court_heading": court_heading,
         "executant_role_choices": spec["executant_roles"],
         "opposite_role_choices": spec["opposite_roles"],
         "opposite_label": spec.get("opposite_label", "Opposite Party"),
@@ -376,7 +400,7 @@ def build(
         "body_clause": body_clause,
         "signature_label": spec.get("signature_label"),
         "acceptance_line": spec.get("acceptance_line"),
-        "counsel_label": spec.get("counsel_label"),
+        "counsel_label": counsel_label,
         "has_fee_clause": spec["has_fee_clause"],
         "has_counter_agreement": spec["has_counter_agreement"],
         "certificate_style": spec["certificate_style"],
@@ -387,8 +411,8 @@ def build(
         #  - acceptance_clause -> the civil "ACCEPTED: address for service" line.
         #  - advocate_sign_label -> the signature caption ("Advocate for").
         "date_style": spec.get("date_style", "executed_before"),
-        "acceptance_clause": spec.get("acceptance_clause"),
-        "advocate_sign_label": spec.get("advocate_sign_label", "Advocate"),
+        "acceptance_clause": acceptance_clause,
+        "advocate_sign_label": advocate_sign_label,
         # The 2-column advocate/party details block appears on the criminal /
         # small-causes / generic forms but NOT on the civil form (which ends at
         # the ACCEPTED "address for service" clause). Default True; the civil

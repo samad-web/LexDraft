@@ -15,6 +15,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -64,6 +65,7 @@ def build(
     caveator_address: Optional[str] = None,
     petitioner_parentage: Optional[str] = None,
     petitioner_address: Optional[str] = None,
+    caveator_age: Optional[int] = None,
 ) -> CaveatResult:
     """Assemble the s.148-A caveat, or refuse."""
 
@@ -87,9 +89,27 @@ def build(
             fields=("copy_served_on_petitioner",),
         )
 
+    ref = impugned_order_ref.strip()
+    kind = re.search(r"\b(decree|judgment|order)\b", ref, re.I)
+    order_word = kind[1].lower() if kind else "order"
+    # "the decree for injunction in O.S. 212/2024" reads as is; a bare case number
+    # needs "the order in ...".
+    order_phrase = (f"the {ref}" if re.match(r"(the\s+)?(decree|judgment|order)\b", ref, re.I)
+                    else f"the {order_word} in {ref}")
+    order_phrase = re.sub(r"^the the\b", "the", order_phrase, flags=re.I)
+    # The template says "against the said decree"; drop the extractor's own copy
+    # ("Appeal ... against the decree in O.S. 212/2024") so it is not said twice.
+    proceeding = re.sub(r"\s+against\s+(the\s+)?(said\s+)?(decree|judgment|order)\b.*$", "",
+                        apprehended_proceeding.strip(), flags=re.I)
+
     context: Dict[str, Any] = {
         "caveator": {"name": caveator_name, "parentage": caveator_parentage,
-                     "address": caveator_address},
+                     "address": caveator_address, "age": caveator_age},
+        "order_word": order_word,
+        "order_phrase": order_phrase,
+        "proceeding": proceeding,
+        "proceeding_names_target": bool(re.search(r"\bagainst\b", proceeding, re.I)),
+        "lower_court_name": re.sub(r"^the\s+", "", lower_court.strip(), flags=re.I),
         "petitioner": {"name": expected_petitioner_name,
                        "parentage": petitioner_parentage,
                        "address": petitioner_address},

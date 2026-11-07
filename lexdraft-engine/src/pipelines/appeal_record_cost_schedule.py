@@ -15,13 +15,28 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "appeal_record_cost_schedule.docx"
 SPEC = "tn-appealrec"
+
+
+def _total(costs: Sequence[Optional[str]]) -> Optional[str]:
+    """Sum of the per-row figures ("Rs. 1,200" -> 1200), or None when any row has
+    no figure (the total is then a fill-in gap, never a guess)."""
+    total = Decimal(0)
+    for c in costs:
+        digits = re.sub(r"(?i)^\s*(rs\.?|inr|₹)\s*", "", c or "").replace(",", "").rstrip("/- ").strip()
+        try:
+            total += Decimal(digits)
+        except InvalidOperation:
+            return None
+    return format(total, "f")  # served copy gets Indian grouping (service/tidy.py)
 
 
 @dataclass(frozen=True)
@@ -66,6 +81,8 @@ def build(
     court_place: Optional[str] = None,
     copies_required: Optional[str] = None,
     counsel_name: Optional[str] = None,
+    lower_court_case: Optional[str] = None,
+    lower_court: Optional[str] = None,
 ) -> AppealRecordCostScheduleResult:
     """Assemble the Form 476 appeal-record cost schedule, or refuse."""
 
@@ -101,5 +118,10 @@ def build(
         "copies_required": copies_required,
         "counsel_name": counsel_name,
         "place": place,
+        "lower_court_case": lower_court_case,
+        "lower_court": re.sub(r"^the\s+", "", (lower_court or "").strip(), flags=re.I),
+        # The engine holds no verified copying/printing rate table, so a cost is
+        # only ever the advocate's own figure; the total is their sum, else a gap.
+        "total_cost": _total([r.cost_estimate for r in rows]),
     }
     return AppealRecordCostScheduleResult(refused=False, context=context)

@@ -10,7 +10,7 @@ ABC.                          ... Respondent/Caveator
 CAVEAT PETITION FILED UNDER SECTION 148-A OF THE CODE OF CIVIL PROCEDURE, 1908
 
 MOST RESPECTFULLY SHOWETH:
-1. That the Civil Judge, Chennai District passed an order (the order in Civil Suit No. 100 of 2023) on 2024-01-10 against the caveator.
+1. That the Civil Judge, Chennai District passed the order in Civil Suit No. 100 of 2023 on 2024-01-10, the caveator and the petitioner being parties to the said proceeding.
 2. That the caveator apprehends that the petitioner may file a Civil Misc. (Main) Petition under Article 227 of the Constitution of India against the said order before this Hon'ble Court, and as such this caveat is being filed.
 3. That the caveator has a right to appear and contest the said proceeding if preferred by the petitioner.
 4. That the caveator desires notice of the filing of the said proceeding so as to appear at the hearing, and that no stay may be granted without hearing the caveator.
@@ -23,4 +23,15 @@ CAVEATOR
 Place: Chennai
 Date:  2024-02-01                Counsel for the Caveator
 
-[NOTE: An affidavit of the caveator, duly attested by an oath commissioner, is to be attached.]
+
+AFFIDAVIT OF THE CAVEATOR
+
+I, ABC, aged about [age to be provided] years, residing at [address to be provided], do hereby solemnly affirm and sincerely state as follows:
+1. I am the caveator herein and I am well acquainted with the facts of the case.
+2. The facts stated in the above caveat petition are true and correct to the best of my knowledge, information and belief.
+3. A copy of the caveat has been sent by registered post with acknowledgment due to the petitioner, as required by Section 148-A(2) of the Code of Civil Procedure, 1908.
+
+Solemnly affirmed at Chennai on this ____ day of ____________ 2024 and signed his/her name in my presence.
+DEPONENT
+BEFORE ME
+Advocate / Notary Public

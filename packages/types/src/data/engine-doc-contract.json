@@ -1028,6 +1028,8 @@
       "court_place",
       "court_type",
       "documents",
+      "lower_court",
+      "lower_court_case",
       "on_behalf_of",
       "place"
     ],
@@ -1102,6 +1104,16 @@
       },
       {
         "key": "counsel_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "lower_court_case",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "lower_court",
         "kind": "string",
         "required": false
       }
@@ -1469,6 +1481,7 @@
     "all": [
       "apprehended_proceeding",
       "caveator_address",
+      "caveator_age",
       "caveator_name",
       "caveator_parentage",
       "copy_served_on_petitioner",
@@ -1541,6 +1554,11 @@
       {
         "key": "caveator_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "caveator_age",
+        "kind": "int",
         "required": false
       },
       {
@@ -1861,6 +1879,7 @@
       "act_and_provision",
       "case_type",
       "connected_case",
+      "counsel_enrolment_no",
       "court_fee",
       "court_place",
       "crime_no",
@@ -1868,12 +1887,15 @@
       "in_jail",
       "is_hcp",
       "lower_court_details",
+      "nature_of_relief",
       "order_violated",
+      "petitioner_address",
       "petitioner_counsel",
       "petitioner_name",
       "police_station",
       "respondent_counsel",
       "respondent_name",
+      "respondents",
       "senior_citizen",
       "side",
       "subject_category_code",
@@ -1992,6 +2014,26 @@
       {
         "key": "senior_citizen",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondents",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "counsel_enrolment_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "nature_of_relief",
+        "kind": "string",
         "required": false
       }
     ],
@@ -3531,12 +3573,17 @@
       "maintenance_position",
       "marriage_date",
       "marriage_place",
+      "matrimonial_home",
       "no_collusion",
       "no_condonation",
       "no_connivance",
       "non_joinder_reason",
+      "petitioner_address",
+      "petitioner_age",
       "petitioner_name",
       "place",
+      "respondent_address",
+      "respondent_age",
       "respondent_name",
       "separation_since",
       "without_consent",
@@ -3693,6 +3740,31 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "matrimonial_home",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -3719,6 +3791,7 @@
       "living_separately_since",
       "marriage_date",
       "marriage_place",
+      "no_other_proceedings",
       "party_a",
       "party_a_address",
       "party_a_age",
@@ -3815,6 +3888,11 @@
         "key": "party_b_address",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "no_other_proceedings",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [
@@ -3836,7 +3914,9 @@
     "all": [
       "city",
       "family_court",
+      "first_motion_case_no",
       "first_motion_order_date",
+      "no_other_proceedings",
       "party_a",
       "party_b",
       "place",
@@ -3889,6 +3969,16 @@
         "key": "city",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "first_motion_case_no",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "no_other_proceedings",
+        "kind": "bool",
+        "required": false
       }
     ],
     "required": [
@@ -3902,6 +3992,8 @@
   },
   "dv_application": {
     "all": [
+      "aggrieved_address",
+      "aggrieved_age",
       "aggrieved_name",
       "city",
       "domestic_relationship_basis",
@@ -3913,6 +4005,7 @@
       "magistrate_court",
       "place",
       "reliefs",
+      "respondent_address",
       "respondent_name",
       "respondent_names",
       "shared_household_particulars",
@@ -4036,6 +4129,21 @@
       {
         "key": "respondent_names",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "aggrieved_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "aggrieved_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
         "required": false
       }
     ],
@@ -5344,6 +5452,7 @@
     "all": [
       "accident_date",
       "accident_narrative",
+      "accident_place",
       "attendant_expenses",
       "claim_kind",
       "claimants",
@@ -5508,6 +5617,11 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "accident_place",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -5656,6 +5770,8 @@
   "maintenance": {
     "all": [
       "child_age",
+      "child_name",
+      "child_quantum",
       "child_unable_due_to_abnormality",
       "city",
       "divorced_not_remarried",
@@ -5663,9 +5779,13 @@
       "is_fresh_action",
       "jurisdiction_basis",
       "magistrate_court",
+      "marriage_date",
+      "marriage_place",
       "neglect_narrative",
       "neglect_or_refusal_pleaded",
       "offence_date",
+      "petitioner_address",
+      "petitioner_age",
       "petitioner_inability",
       "petitioner_name",
       "petitioner_rajnesh_affidavit",
@@ -5675,6 +5795,7 @@
       "quantum_basis",
       "quantum_narrative",
       "relationship",
+      "respondent_address",
       "respondent_means",
       "respondent_name"
     ],
@@ -5693,7 +5814,7 @@
         ],
         "key": "relationship",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "respondent_name",
@@ -5723,7 +5844,7 @@
       {
         "key": "petitioner_rajnesh_affidavit",
         "kind": "bool",
-        "required": true
+        "required": false
       },
       {
         "key": "respondent_means",
@@ -5743,7 +5864,7 @@
       {
         "key": "quantum_basis",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "divorced_not_remarried",
@@ -5794,6 +5915,41 @@
         "key": "filing_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "child_name",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "child_quantum",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "petitioner_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "marriage_date",
+        "kind": "date",
+        "required": false
+      },
+      {
+        "key": "marriage_place",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -5801,11 +5957,8 @@
       "neglect_or_refusal_pleaded",
       "petitioner_inability",
       "petitioner_name",
-      "petitioner_rajnesh_affidavit",
       "place",
       "quantum",
-      "quantum_basis",
-      "relationship",
       "respondent_means",
       "respondent_name"
     ],
@@ -8657,8 +8810,10 @@
       "advocate_phone",
       "cause_of_action",
       "client",
+      "client_title",
       "dispatch_line",
       "government_body",
+      "illegality_ground",
       "notice_date",
       "place",
       "plaintiff_name_description",
@@ -8722,6 +8877,16 @@
       },
       {
         "key": "dispatch_line",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "client_title",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "illegality_ground",
         "kind": "string",
         "required": false
       }
@@ -9411,6 +9576,7 @@
       "place",
       "purpose",
       "respondent_name",
+      "respondents",
       "securities"
     ],
     "fields": [
@@ -9437,7 +9603,7 @@
       {
         "key": "law_of_succession",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "diligent_search_no_will",
@@ -9526,6 +9692,34 @@
         "key": "respondent_name",
         "kind": "string",
         "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "relation",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "name",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "consented",
+            "kind": "bool",
+            "required": false
+          }
+        ],
+        "key": "respondents",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
       }
     ],
     "required": [
@@ -9535,7 +9729,6 @@
       "deceased_residence",
       "diligent_search_no_will",
       "filing_date",
-      "law_of_succession",
       "next_of_kin",
       "no_impediment_s370",
       "no_prior_application",
@@ -9549,13 +9742,16 @@
   },
   "succession_grant": {
     "all": [
+      "assets",
       "assets_schedule_ref",
+      "attesting_witnesses",
       "bequest_narrative",
       "city",
       "death_date",
       "deceased_gender",
       "deceased_last_residence",
       "deceased_name",
+      "deposing_witness",
       "filing_date",
       "grant_court",
       "grant_kind",
@@ -9653,7 +9849,7 @@
       {
         "key": "assets_schedule_ref",
         "kind": "string",
-        "required": true
+        "required": false
       },
       {
         "key": "undertakes_further_court_fee",
@@ -9708,10 +9904,37 @@
         "key": "deceased_gender",
         "kind": "enum",
         "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "description",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "value",
+            "kind": "int",
+            "required": true
+          }
+        ],
+        "key": "assets",
+        "kind": "list",
+        "minItems": 0,
+        "required": false
+      },
+      {
+        "key": "attesting_witnesses",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "deposing_witness",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
-      "assets_schedule_ref",
       "death_date",
       "deceased_last_residence",
       "deceased_name",
@@ -10542,6 +10765,7 @@
       "court_name",
       "court_place",
       "enrolment_no",
+      "executant_age",
       "executant_name",
       "execution_date",
       "kind",
@@ -10635,6 +10859,11 @@
       {
         "key": "party_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "executant_age",
+        "kind": "int",
         "required": false
       },
       {

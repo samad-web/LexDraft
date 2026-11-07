@@ -20,6 +20,7 @@ ADAPTER = Adapter(
         FieldSpec('court_name', 'string', required=False, default=None),
         FieldSpec('caveator_parentage', 'string', required=False, default=None),
         FieldSpec('caveator_address', 'string', required=False, default=None),
+        FieldSpec('caveator_age', 'int', required=False, default=None),
         FieldSpec('petitioner_parentage', 'string', required=False, default=None),
         FieldSpec('petitioner_address', 'string', required=False, default=None),
     ),
