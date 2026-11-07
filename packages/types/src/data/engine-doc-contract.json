@@ -7749,6 +7749,7 @@
       "accused_is_company",
       "accused_name",
       "accused_parentage",
+      "additional_accused",
       "advocate_contact",
       "advocate_enrolments",
       "advocate_office_address",
@@ -8083,6 +8084,29 @@
       {
         "key": "case_number_label",
         "kind": "string",
+        "required": false
+      },
+      {
+        "itemFields": [
+          {
+            "key": "name",
+            "kind": "string",
+            "required": true
+          },
+          {
+            "key": "description",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "address",
+            "kind": "string",
+            "required": false
+          }
+        ],
+        "key": "additional_accused",
+        "kind": "list",
+        "minItems": 0,
         "required": false
       }
     ],

@@ -158,9 +158,11 @@ def test_golden_s138_complaint_tn_full(tmp_path):
     # Body dates are dd.mm.yyyy, not ISO.
     assert ctx["notice_date_body"] == "17.07.2026"
     assert ctx["deferment_agreement_date_body"] == "07.05.2026"
-    # Itemised list: 4 cheques + 4 memos + deferment + notice + 2 acks = 12.
+    # Itemised list: 4 cheques + 4 memos + deferment + notice + postal receipt
+    # + 2 acks = 13. (2026-11-07, suite r10: the postal dispatch receipt is now
+    # always listed — the s.138 proof of dispatch; it was 12 without it.)
     assert ctx["itemised_documents"] is True
-    assert len(ctx["documents"]) == 12
+    assert len(ctx["documents"]) == 13
     assert any("deferment agreement" in d.lower() for d in ctx["documents"])
     assert any("acknowledgement card dated 21-07-2026" in d for d in ctx["documents"])
     # Complainant seeded as CW-1.
@@ -179,7 +181,7 @@ def test_golden_s138_complaint_tn_full(tmp_path):
     assert ctx["advocate_contact"] == "Mobile: 8056618648 | Email: ask2gdr@gmail.com"
     # Reference structure: S.T.C. case-number label + structured document records.
     assert ctx["case_number_label"] == "S.T.C. No."
-    assert len(ctx["document_records"]) == 14  # 12 standard + GST + bank statement
+    assert len(ctx["document_records"]) == 15  # 13 standard (incl. postal receipt, 2026-11-07) + GST + bank statement
     assert ctx["document_records"][0]["remarks"] == "Original"
 
     out = tmp_path / "s138_complaint_tn_full.docx"

@@ -344,4 +344,18 @@ describe('s138_complaint — flat cheque keys fold into the engine cheques[] lis
     expect('cheque_no' in fields).toBe(false);
     expect('drawee_bank_2' in fields).toBe(false);
   });
+
+  it('s138_complaint_md_as_accused_no_2: folds additional_accused_<row>_* into additional_accused[] (r10)', () => {
+    const { fields } = mapFormToEngine('s138_complaint', {
+      ...COMPLAINT_FORM,
+      accused_is_company: 'Yes',
+      additional_accused_0_name: 'Mr. A. Karthik',
+      additional_accused_0_description: 'Managing Director, M/s. Sunrise Foods Private Limited',
+    });
+    expect(fields.accused_is_company).toBe(true);
+    expect(fields.additional_accused).toEqual([
+      { name: 'Mr. A. Karthik', description: 'Managing Director, M/s. Sunrise Foods Private Limited' },
+    ]);
+    expect('additional_accused_0_name' in fields).toBe(false);
+  });
 });

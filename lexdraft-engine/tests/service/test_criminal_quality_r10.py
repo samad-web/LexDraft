@@ -50,7 +50,7 @@ def test_s138_reply_demands_return_of_cheques_within_a_time_limit():
                                    "cheques_to_return": "both the signed blank cheques, including Cheque No. 204517"})
     text = "\n".join(blocks)
     assert ("withdraw the said notice and to return both the signed blank cheques, including "
-            "Cheque No. 204517 to my client within 7 days of receipt of this reply") in text
+            "Cheque No. 204517 to my client within 7 days of receipt of this reply, and not to drag") in text
     # no cheques named -> no return demand
     assert "to return" not in "\n".join(_draft("s138_reply", _REPLY))
 
@@ -181,6 +181,44 @@ def test_writ_criminal_goondas_detenu_in_prison_is_a_habeas_corpus_petition_md()
     assert "(Tamil Nadu Act 14 of 1982)" in text and "[impugned order statute" not in text
     assert "The Superintendent, Central Prison, Tiruchirappalli" in text
     assert "Alka Subhash Gadia" not in text
+
+
+# --- s138_complaint ---------------------------------------------------------------
+
+_COMPLAINT = {
+    "complainant_name": "Mr. M. Rajendran", "is_payee": True,
+    "accused_name": "M/s. Sunrise Foods Private Limited", "accused_is_company": True,
+    "accused_address": "No. 90, Velachery Main Road, Chennai 600042",
+    "s141_averment": "Mr. A. Karthik, its Managing Director, is in charge of and responsible for its day-to-day business",
+    "additional_accused": [{"name": "Mr. A. Karthik",
+                            "description": "Managing Director, M/s. Sunrise Foods Private Limited"}],
+    "cheques": [{"number": "655120", "date": "2026-08-10", "amount": 620000, "bank": "HDFC Bank",
+                 "branch": "Velachery", "drawer": "M/s. Sunrise Foods Private Limited",
+                 "payee": "Mr. M. Rajendran"}],
+    "presentation_date": "2026-09-20", "memo_date": "2026-09-22", "memo_received_date": "2026-09-24",
+    "dishonour_reason": "Funds Insufficient", "notice_date": "2026-09-30",
+    "notice_dispatch_date": "2026-09-30", "notice_delivery_date": "2026-10-03",
+    "filing_date": "2026-11-07", "payee_bank_branch_in_jurisdiction": True,
+    "jurisdiction_basis": "the cheque was presented through Karur Vysya Bank, Guindy branch",
+    "place": "Chennai", "itemise_documents": True, "prayer_twice_amount": True,
+}
+
+
+def test_s138_complaint_company_md_is_arrayed_as_accused_no_2():
+    """r10: the MD, treated as A2 under s.141 in the body, was missing from the cause title."""
+    text = "\n".join(_draft("s138_complaint", _COMPLAINT))
+    assert "...Accused No. 1" in text
+    assert "Mr. A. Karthik\nManaging Director, M/s. Sunrise Foods Private Limited\n\t...Accused No. 2" in text
+    # a single accused keeps the plain "...Accused"
+    single = "\n".join(_draft("s138_complaint", {**_COMPLAINT, "additional_accused": []}))
+    assert "Accused No." not in single.split("COMPLAINT FILED UNDER")[0]
+
+
+def test_s138_complaint_document_list_has_postal_receipt_and_acknowledgement():
+    text = "\n".join(_draft("s138_complaint", _COMPLAINT))
+    docs = text[text.index("LIST OF DOCUMENTS"):]
+    assert "Postal receipt for dispatch of the Statutory Notice (Original)" in docs
+    assert "Postal Acknowledgement Card / returned cover for the Statutory Notice" in docs
 
 
 # --- quash_petition ---------------------------------------------------------------

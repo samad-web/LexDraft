@@ -183,6 +183,9 @@ def build(
     # "S.T.C. No. ___ of <year>"; other forums differ. Defaults to the generic
     # "CRIMINAL COMPLAINT NO." so existing callers are unaffected.
     case_number_label: Optional[str] = None,
+    # further accused (s.141 NI Act: the director / partner in charge), each
+    # {name, description, address}; arrayed as Accused No. 2, 3 ... Optional.
+    additional_accused: Optional[Sequence[Dict[str, Any]]] = None,
 ) -> ComplaintResult:
     """Assemble the s.138 complaint, or refuse."""
 
@@ -436,6 +439,25 @@ def build(
             "description": "Statutory Notice issued by the Complainant",
             "remarks": "Office copy",
         })
+        # the postal proof of dispatch and of service (r10: the itemised list
+        # stopped at the notice when no acknowledgement-card dates were given)
+        standard_documents.append(
+            f"Postal receipt for dispatch of the statutory notice dated "
+            f"{table_date(notice_dispatch_date)}")
+        document_records.append({
+            "date_body": table_date(notice_dispatch_date),
+            "description": "Postal receipt for dispatch of the Statutory Notice",
+            "remarks": "Original",
+        })
+        if notice_ack_official_date is None and notice_ack_residence_date is None:
+            standard_documents.append(
+                "Postal acknowledgement card / returned cover for the statutory notice")
+            document_records.append({
+                "date_body": table_date(delivery_date) if delivery_date else "",
+                "description": "Postal Acknowledgement Card / returned cover for the "
+                               "Statutory Notice",
+                "remarks": "Original",
+            })
         if notice_ack_official_date is not None:
             standard_documents.append(
                 f"Proof of notice served to the official address of the accused — "
@@ -507,6 +529,9 @@ def build(
         "case_number_label": (case_number_label.strip() if case_number_label and case_number_label.strip() else "CRIMINAL COMPLAINT NO."),
         "accused": {"name": accused_name, "is_company": accused_is_company,
                     "parentage": accused_parentage, "address": accused_address},
+        "additional_accused": [
+            {k: (str(a.get(k) or "").strip() or None) for k in ("name", "description", "address")}
+            for a in (additional_accused or []) if str(a.get("name") or "").strip()],
         # cause-title header fields (render only when present). Suppress `city`
         # when `court_location` already ends with (or contains) it, so the header
         # never reads "... Magistrate, Saidapet, Chennai, Chennai" — a doubled city

@@ -29,6 +29,14 @@ _PRESENTATION_ROUND_ITEM = (
 )
 
 
+# Further accused (s.141: the MD / director / partner in charge) -> Accused No. 2..
+_ADDITIONAL_ACCUSED_ITEM = (
+    FieldSpec("name", "string"),
+    FieldSpec("description", "string", required=False, default=None),
+    FieldSpec("address", "string", required=False, default=None),
+)
+
+
 def _cheque(kw: Dict[str, Any]) -> Cheque:
     return Cheque(**kw)
 
@@ -91,6 +99,7 @@ ADAPTER = Adapter(
         FieldSpec("advocate_contact", "string", required=False, default=None),
         FieldSpec("advocate_office_address", "string", required=False, default=None),
         FieldSpec("case_number_label", "string", required=False, default=None),
+        ListFieldSpec("additional_accused", _ADDITIONAL_ACCUSED_ITEM, dict, required=False),
     ),
     slots=("debt_slot",),
     extra_reverse={"cheque_dates": "cheques[].date"},
