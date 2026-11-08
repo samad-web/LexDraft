@@ -385,6 +385,17 @@ export function restoreDatedGaps(paragraphs: string[], skeletonBody: string): st
   return out;
 }
 
+/** A paragraph the document cannot go without: when compose drops it, the skeleton's
+ *  own paragraph goes back at the end of the body (v3: s.138 lost its s.142(2) para). */
+const KEEP_PARA: Record<string, RegExp> = { s138_complaint: /territorial\s+jurisdiction/i };
+
+export function restoreKeptPara(paragraphs: string[], skeletonBody: string, docType?: string): string[] {
+  const rx = KEEP_PARA[docType ?? ''];
+  if (!rx || paragraphs.some((p) => rx.test(p))) return paragraphs;
+  const kept = skeletonBody.split('\n').find((l) => rx.test(l));
+  return kept ? [...paragraphs, kept] : paragraphs;
+}
+
 /** Documents whose skeleton para 1 identifies the impugned order (r15 criminal revision:
  *  compose opened "By that judgment …" with no antecedent). */
 const ANCHORED_OPENING = new Set(['criminal_revision']);
@@ -1046,7 +1057,7 @@ export async function composeAndVerify(args: {
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
   checked.paragraphs = correctLawSlips(checked.paragraphs);
-  let settled = reply ? settleGaps(checked.paragraphs, reply) : restoreDatedGaps(settleGaps(checked.paragraphs), body);
+  let settled = reply ? settleGaps(checked.paragraphs, reply) : restoreKeptPara(restoreDatedGaps(settleGaps(checked.paragraphs), body), body, args.docType);
   if (ANCHORED_OPENING.has(args.docType ?? '')) settled = anchorOpening(settled, lines[seg.start] ?? '');
   const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);
 
