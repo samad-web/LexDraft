@@ -22,7 +22,7 @@ from datetime import date
 from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
-from ._court_form import his_her, opposite_role
+from ._court_form import deponent_particulars, his_her, opposite_role
 
 TEMPLATE = "adjournment_petition.docx"
 SPEC = "tn-adjourn"
@@ -54,6 +54,18 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _suit_nature(text: Optional[str]) -> Optional[str]:
+    """'Declaration and injunction over a cart-track' -> 'a suit for declaration and
+    injunction over a cart-track' (b2 item 3); a gap or nothing -> None."""
+    t = (text or "").strip().rstrip(".")
+    if not t or t.startswith("["):
+        return None
+    t = t[0].lower() + t[1:]
+    if re.match(r"(?:a|an|the)\s", t):
+        return t
+    return ("a " + t) if t.startswith("suit") else f"a suit for {re.sub(r'^for\s+', '', t)}"
+
+
 def build(
     *,
     petitioner_name: str,
@@ -68,6 +80,8 @@ def build(
     hearing_date: Optional[date] = None,
     adjournment_period: str = "",
     petitioner_role: Optional[str] = None,    # "defendant" / "plaintiff" in the suit
+    petitioner_age: Optional[str] = None,     # b2: the deponent's age in the affidavit
+    suit_nature: Optional[str] = None,        # b2: "a suit for declaration and injunction ..."
 ) -> AdjournmentPetitionResult:
     """Assemble the Order XVII Rule 1 adjournment petition, or refuse."""
 
@@ -117,6 +131,8 @@ def build(
         "petitioner_label": f"Petitioner/{side}" if other else "Petitioner",
         "respondent_label": f"Respondent/{other}" if other else "Respondent",
         "his_her": his_her(petitioner_name),
+        "deponent_particulars": deponent_particulars(petitioner_age),
+        "suit_nature": _suit_nature(suit_nature),
         "court_name": (court_name or "").strip() or None,
         "hearing_date": when,
         "adjournment_period": period,

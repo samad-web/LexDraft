@@ -46,7 +46,31 @@ _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 # an appeal from the decree in an original suit: Art. 116 fixes the period
 _DECREE = re.compile(r"\bO\.\s?S\.|\bdecree\b|\boriginal suit\b", re.I)
 _LEAD_WORD = re.compile(r"^(?:Appeal|Revision|Review|Application|Petition)\b")
-_PRONOUN_LEAD = re.compile(r"^(?:Her|His|Their|The|She|He|They|Its)\b")
+_PRONOUN_LEAD = re.compile(r"^(?:Her|His|Their|The|She|He|They|Its|Earlier|Previous|Former|Due|Owing)\b")
+
+_PARTY = r"(?:petitioner|appellant|applicant)"
+_OBJECT_LEAD = r"(?:to|for|with|by|from|told|informed|advised|assured|admitted)"
+
+
+def _first_person(text: str, female: bool) -> str:
+    """The deponent's own cause in the affidavit (b2 item 12): 'The petitioner was herself
+    admitted ...' -> 'I was myself admitted ...'. Only the deponent's own pronouns turn
+    (her/she for a woman); a male counsel's 'he' stays.
+    shortcut: a male deponent's 'he/his' stays third person (ambiguous with counsel's)."""
+    t = re.sub(rf"\b[Tt]he {_PARTY}'s\b", "my", text)
+    t = re.sub(rf"\b({_OBJECT_LEAD}) the {_PARTY}\b", r"\1 me", t)
+    t = re.sub(rf"\b[Tt]he {_PARTY}\b", "I", t)
+    if female:
+        t = re.sub(r"\bherself\b", "myself", t)
+        t = re.sub(rf"\b({_OBJECT_LEAD}) her\b", r"\1 me", t)
+        t = re.sub(r"\b[Hh]er\b", "my", t)
+        t = re.sub(r"\b[Ss]he\b", "I", t)
+    else:
+        t = re.sub(r"(\bI\b[^.]*?)\bhimself\b", r"\1myself", t)
+    t = re.sub(r"\bI (?:is)\b", "I am", t)
+    t = re.sub(r"\bI has\b", "I have", t)
+    t = re.sub(r"\bI does\b", "I do", t)
+    return re.sub(r"(^|[.!?]\s+)my\b", lambda m: m.group(1) + "My", t)
 
 
 def _impugned(ref: str, decree_appeal: bool) -> str:
@@ -259,6 +283,8 @@ def build(
         "limitation_expiry": win.expiry.isoformat(),
         "delay_days": win.delay_days,
         "sufficient_cause": _mid_sentence(sufficient_cause, _PRONOUN_LEAD),
+        "affidavit_cause": _first_person(_mid_sentence(sufficient_cause, _PRONOUN_LEAD),
+                                         party(petitioner_name)["his"] == "her"),
         # r15: a filled narrative slot dropped the named stretches; every stretch neither
         # the cause nor the narrative covers stays named, whoever wrote the narrative.
         "delay_slot": " ".join([delay_narrative.strip() or _LLM_SLOT_PLACEHOLDER, *(

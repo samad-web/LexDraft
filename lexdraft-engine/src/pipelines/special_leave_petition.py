@@ -22,6 +22,7 @@ Hard requirements (each refuses, no partial output):
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from datetime import date, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
@@ -33,6 +34,51 @@ SPEC = "dpc-67-74"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 _SLP_LIMITATION_DAYS = 90
+
+# b2 items 5/13: the courts below and the dated events, read from the pleaded text.
+_CASE_REF = re.compile(
+    r"\b((?:O\.S|A\.S|S\.A|C\.S|C\.R\.P|W\.P|W\.A|C\.M\.A|Crl\.A|Crl\.R\.C|C\.C)\.?\s*No\.\s*(\d+)\s+of\s+(\d{4}))"
+    r"(?:\s+(?:before|on the file of)\s+(the\s+[A-Z][\w.]*(?:(?:\s+|,\s+)[A-Z][\w.]*)*))?")
+_DATED = re.compile(r"\b(\d{2})\.(\d{2})\.(\d{4})\b")
+
+
+def _sentences(text: str) -> List[str]:
+    return [s.strip() for s in re.split(r"(?<=[a-z0-9)])\.\s+(?=[A-Z])", text or "") if s.strip()]
+
+
+def _courts_below(texts: Sequence[str], impugned_case_ref: str) -> List[tuple]:
+    """[(year, 'O.S. No. 54 of 2011', 'the District Munsif Court, Melur' or '')] in order."""
+    seen, out = set(), []
+    # sentence by sentence, so a court name stops at its full stop
+    for m in (m for t in texts for s in _sentences(t) for m in _CASE_REF.finditer(s)):
+        ref = m.group(1)
+        if ref in seen or ref.replace(" ", "") in impugned_case_ref.replace(" ", ""):
+            continue
+        seen.add(ref)
+        out.append((int(m.group(3)), ref, (m.group(4) or "").rstrip(".,")))
+    return sorted(out, key=lambda x: x[0])
+
+
+def _derived_dates(texts: Sequence[str], below: List[tuple], judgment: date,
+                   impugned_court: str, impugned_case_ref: str) -> List[str]:
+    """A list of dates from what is pleaded: each court below by its year, each dated
+    sentence, and the impugned judgment — never a gap the brief answers."""
+    rows = [((y, 0, 0), f"{y}: {ref}{' on the file of ' + court if court else ''}.") for y, ref, court in below]
+    for t in texts:
+        for s in _sentences(t):
+            for d in _DATED.finditer(s):
+                when = date(int(d.group(3)), int(d.group(2)), int(d.group(1)))
+                if when != judgment:
+                    rows.append(((when.year, when.month, when.day), f"{d.group(0)}: {s.rstrip('.')}."))
+    rows.append(((judgment.year, judgment.month, judgment.day),
+                 f"{judgment.strftime('%d.%m.%Y')}: {impugned_court} in {impugned_case_ref} passed the "
+                 "impugned final judgment and order."))
+    out, seen = [], set()
+    for _k, r in sorted(rows, key=lambda x: x[0]):
+        if r not in seen:
+            seen.add(r)
+            out.append(r)
+    return out
 
 
 class SLPKind(Enum):
@@ -157,6 +203,13 @@ def build(
             parts.append("The questions of law that arise are: "
                          + "; ".join(f"({i}) {q}" for i, q in enumerate(questions, 1)) + ".")
         synopsis = " ".join(parts)
+    pleaded = [brief_facts, synopsis, *grounds, *framed, *questions]
+    below = _courts_below(pleaded, impugned_case_ref)
+    dates = [d for d in (list_of_dates or []) if d.strip() and not d.strip().startswith("[")]
+    if not dates:
+        dates = _derived_dates(pleaded, below, impugned_judgment_date, impugned_court, impugned_case_ref)
+    annexures = [f"True copy of the judgment and decree in {ref}{' on the file of ' + court if court else ''}"
+                 for _y, ref, court in below]
     context: Dict[str, Any] = {
         "slp_kind": slp_kind.value,
         "is_civil": is_civil,
@@ -186,7 +239,8 @@ def build(
                             else _LLM_SLOT_PLACEHOLDER,
         "interim_relief_sought": interim_relief_sought,
         "synopsis": synopsis.strip(),
-        "list_of_dates": [d for d in (list_of_dates or []) if d.strip()],
+        "list_of_dates": dates,
+        "annexures": annexures,
         "impugned_in_second_appeal": impugned_in_second_appeal,
         "substantial_questions_framed": framed,
         "interim_prayer": interim_prayer,

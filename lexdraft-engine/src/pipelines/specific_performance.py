@@ -20,6 +20,7 @@ Valuation Act 1955); the fee is computed when not given.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
@@ -171,6 +172,11 @@ def build(
         "suit_date": filing_date.isoformat(),
         "knowledge_para_last": 8,
         "suit_property": suit_property,
+        # b2 item 12: the schedule is always printed, from the property described.
+        "schedule_property": (lambda s: (s[:1].upper() + s[1:]) if s else
+                              "[schedule of the suit property (survey number, extent, village, "
+                              "taluk, district and boundaries) to be provided]")(
+            re.sub(r"^(?:a|an|the)\s+", "", (suit_property or "").strip().rstrip("."), flags=re.I)),
         "agreement_date": agreement_date,
         "agreement_ref": agreement_ref,
         "total_consideration": total_consideration,

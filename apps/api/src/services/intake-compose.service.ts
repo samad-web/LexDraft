@@ -330,7 +330,9 @@ const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
  */
 export function settleGaps(paragraphs: string[], keepNumbers = false): string[] {
   const out: string[] = [];
-  for (const para of paragraphs) {
+  for (const raw of paragraphs) {
+    // b2 injunction: the composer qualifies its own hole ("[to be drafted: the stage …]").
+    const para = raw.replace(/\[to be drafted:[^\]]*\]/g, GAP);
     if (!para.includes(GAP)) { out.push(para); continue; }
     // A ground letter is a label too (r14: "D. [to be drafted]" printed as "9. D.").
     const lead = /^\s*(?:(?:\d+[A-Z]?|[A-Z])\s*[.)]|\([a-z]\))\s+/.exec(para)?.[0] ?? '';
@@ -351,7 +353,7 @@ export function settleGaps(paragraphs: string[], keepNumbers = false): string[] 
       if (label) return `[${label.trim().toLowerCase()} to be provided]`;
       const standalone = (GAP_LEAD.test(before) || /[.!?;:)"”]\s*$/.test(before)) && /^\s*(?:[.;]?\s*$|[A-Z(“"])/.test(after);
       return standalone ? '' : '[particulars to be provided]';
-    }).replace(/^\s*[.;]\s*/, '').replace(/\s+([.;,])/g, '$1').replace(/\s{2,}/g, ' ').trim();
+    }).replace(/^\s*[.;]\s*/, '').replace(/\s+([.;,])/g, '$1').replace(/([.;:])\.+(?=\s|$)/g, '$1').replace(/\s{2,}/g, ' ').trim();
     if (text) out.push(`${lead}${text}`);
     else if (keepNumbers && lead) out.push(`${lead}[reply to this paragraph to be provided]`);
     // A heading over only the dropped slot ("SCHEDULE OF THE SUIT PROPERTY") goes with it.
@@ -471,6 +473,28 @@ const MUST_PLEAD: Record<string, string> = {
   writ_petition: '- A mandamus prayer gives the period exactly as the skeleton does ("within a period of eight weeks from the date of receipt of a copy of this order, or within such time as this Hon\'ble Court may fix") — never only "such time as this Hon\'ble Court may fix".',
   // r12: a private respondent swearing for himself got "duly authorised" filler in the reply to para 1.
   counter_affidavit: '- A specific traverse of each paragraph. The deponent\'s competence is already sworn above the para-wise reply; never restate it there. Call the answering party "the respondent" (with its number only when there are several respondents).',
+};
+
+/** b2 civil-batch checklist items the compose step lost or garbled; the engine skeleton
+ *  carries the wording, these keep the composer from undoing it. Joined after MUST_PLEAD. */
+const B2_MUST_PLEAD: Record<string, string> = {
+  plaint: '- A firm plaintiff in the cause title exactly as the skeleton has it ("M/s. Lotus Electricals, rep. by its Managing Partner Mr. G. Venkatesh").',
+  summary_suit: '- Where the skeleton files an Original Side claim in the City Civil Court, keep its pecuniary-jurisdiction sentence (the claim does not exceed Rs. 1,00,00,000/-).\n- An agreed interest rate cites the agreement fixing it, as the skeleton does ("vide the written loan agreement dated …") — never a placeholder for it.',
+  ejectment: '- Section 106 of the Transfer of Property Act as amended in 2002: fifteen days\' notice, which need NOT expire with the end of a month of the tenancy — never plead the pre-2002 month-end rule.',
+  specific_performance: '- The SCHEDULE of the suit property is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body, and never say a schedule is "attached".',
+  injunction: '- The prayer exactly as the skeleton has it ("restrain the defendant from …, pending the final disposal of the above suit") — never add "till the suit is disposed of".\n- Never write "[to be drafted: …]"; a fact the facts do not give is simply not pleaded.',
+  indigent_application: '- The Order XXXIII Rule 5(e) averment (no property disposed of within two months before the petition) and the applicant\'s age, exactly as the skeleton has them.\n- Where the skeleton names co-heirs, account for their shares as it does — never claim the whole share for the petitioner alone.',
+  condone_delay_petition: '- The affidavit is the petitioner\'s own word, in the first person throughout ("I was admitted …", "my counsel"); the petition stays in the third person.',
+  adjournment_petition: '- The nature of the suit (what it is for) as the skeleton states it in paragraph 1, and the deponent\'s age in the affidavit when given.',
+  substituted_service: '- Each mode of substituted service the skeleton lists — (a) affixture and (b) publication — complete, in the petition and the affidavit alike.',
+  execution_application: '- For a salary attachment: the employer, the bank the salary is drawn through, and the Section 60(1) CPC limit (the first Rs. 1,000 and two-thirds of the remainder are exempt), as the skeleton states.',
+  civil_revision: '- The prayer sets aside the order AND grants what the dismissed application sought, as the skeleton does.\n- Limitation as the skeleton states it (Article 227: no fixed period; filed without delay) — never a "[to be provided by counsel]" placeholder.\n- The stay petition\'s supporting affidavit is engine text after the C.M.P.: never drop it.',
+  civil_first_appeal: '- Valuation and court fee with their basis (Section 52 of the Tamil Nadu Court Fees and Suits Valuation Act, 1955), as the skeleton states.\n- Where the Commissioner\'s report was relied on and objections to it were not considered, the ground under Order XXVI Rule 10 CPC.',
+  special_leave_petition: '- The LIST OF DATES and the INDEX OF ANNEXURES are engine text: keep every dated entry and annexure.',
+  transfer_petition: '- The deponent\'s age in the affidavit exactly as the skeleton has it.',
+  o39_r2a_application: '- Never write that a list of properties "is attached": the respondent\'s property is set out, or named as a gap, as the skeleton does.',
+  contempt_petition: '- A judgment is cited complete (full case title and citation) within one sentence, or not at all.',
+  counter_affidavit: '- Answer each paragraph\'s allegation with the respondent\'s own case from the facts (e.g. to a wall-building allegation: the land is the respondent\'s own and the wall was completed before the suit) — never a bare "not admitted" where the facts give an answer.\n- The prayer is to dismiss the petition with costs.',
 };
 
 const GUIDES: Record<ComposeFamily, string> = {
@@ -661,8 +685,9 @@ const PLANNED_FAMILIES = new Set<ComposeFamily>(['bail', 'writ', 'suit', 'family
 /** The structure guide + must-plead list for a doc type (the general-AI fallback
  *  draft uses it too, so both paths plead the same essentials). */
 export function guideFor(docType: string): string {
+  const must = [MUST_PLEAD[docType], B2_MUST_PLEAD[docType]].filter(Boolean).join('\n');
   return (GUIDE_FOR_DOC[docType] ?? GUIDES[COMPOSE_FAMILY[docType] ?? 'generic'])
-    + (MUST_PLEAD[docType] ? `\nFor THIS document, these must be pleaded (from the facts; where a fact is missing leave "[to be drafted]" for it):\n${MUST_PLEAD[docType]}` : '');
+    + (must ? `\nFor THIS document, these must be pleaded (from the facts; where a fact is missing leave "[to be drafted]" for it):\n${must}` : '');
 }
 
 export function plansFor(docType: string | undefined): boolean {

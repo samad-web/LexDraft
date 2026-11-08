@@ -33,6 +33,7 @@ LLM slots: brief facts and grounds (when no grounds_list is given).
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from datetime import date
 from enum import Enum
 from typing import Any, Dict, Optional, Sequence
@@ -47,6 +48,14 @@ TEMPLATE = "civil_first_appeal.docx"
 SPEC = "cpc-96-o41"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+# b2 item 12: objections to a Commissioner's report left undecided -> O.XXVI R.10 CPC.
+_COMMISSIONER_OBJECTIONS = re.compile(r"commissioner.{0,200}objection|objection.{0,200}commissioner", re.I | re.S)
+COMMISSIONER_GROUND = (
+    "The trial court failed to consider the appellant's objections to the Commissioner's report. Under "
+    "Order XXVI Rule 10(2) CPC the report is evidence in the suit subject to the objections of the parties, "
+    "and under Order XXVI Rule 10(3) CPC the court, if dissatisfied with the Commissioner's proceedings, may "
+    "direct such further inquiry as it thinks fit; a decree resting on the report without deciding the "
+    "objections cannot stand.")
 _CONSUMED_TABLES = (aw.PERIODS_TABLE,)
 
 
@@ -124,6 +133,12 @@ def build(
         )
 
     grounds = [g for g in (grounds_list or []) if g.strip()]
+    pleaded = " ".join([facts_narrative, grounds_narrative, *grounds])
+    commissioner_ground = (COMMISSIONER_GROUND if _COMMISSIONER_OBJECTIONS.search(pleaded)
+                           and not re.search(r"Order\s+XXVI\s+Rule\s+10|O\.\s?XXVI\s+R\.\s?10", pleaded, re.I)
+                           else "")
+    if commissioner_ground and grounds:
+        grounds.append(commissioner_ground)
 
     if forum is AppellateForum.HIGH_COURT:
         period_key, art = "art116_high_court", "Art. 116(a)"
@@ -178,6 +193,7 @@ def build(
                       else _LLM_SLOT_PLACEHOLDER,
         "lettered_grounds": [{"letter": _letter(i), "text": g}
                              for i, g in enumerate(grounds)],
+        "commissioner_ground": "" if grounds else commissioner_ground,
         "grounds_slot": grounds_narrative if grounds_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "place": place,

@@ -32,6 +32,9 @@ ADAPTER = Adapter(
         FieldSpec('respondent_count', 'int', required=False, default=None),
         FieldSpec('property_value', 'int', required=False, default=None),
         FieldSpec('share_claimed', 'string', required=False, default=None),
+        FieldSpec('applicant_age', 'string', required=False, default=None),
+        # the deceased's other heirs the brief names ("her two minor children"); never invented
+        FieldSpec('co_heirs', 'string_list', required=False, default=None),
     ),
     slots=(),
 )

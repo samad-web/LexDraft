@@ -33,7 +33,7 @@ from ..verify import tables as _reg
 from ..verify.signoff import SLOT_PATTERN
 from ..verify.refusals import Refusal, Severity
 from .plaint import (_ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS, ARTICLE_GAP,
-                     address_lead, interest_basis_text)
+                     address_lead, interest_basis_text, rate_document)
 
 TEMPLATE = "summary_suit.docx"
 SPEC = "4.1"
@@ -196,6 +196,8 @@ def build(
 
     # 2. jurisdiction — both limbs. Delegated refusals carry their own coded
     # Refusal; surface it without restating the code.
+    interest_document_ref = rate_document(interest_document_ref, instrument_ref, transaction_narrative)
+    pecuniary_text = jur.pecuniary_basis(claimed_total, forum, civil_court)
     forum, civil_court, city = jur.original_side_forum(forum, claimed_total, civil_court, city)
     pec = jur.check_pecuniary(value=claimed_total, forum=forum)
     if pec.refused:
@@ -301,8 +303,7 @@ def build(
         "cause_of_action_place": cause_of_action_place,
         # jurisdiction
         "forum": forum.value,
-        "pecuniary_basis": f"the suit is valued at Rs. {claimed_total}/-, within "
-                           "the pecuniary jurisdiction of this Hon'ble Court",
+        "pecuniary_basis": pecuniary_text,
         "territorial_bases": [jur.basis_text(b) for b in ter.bases],
         # account statement
         "principal": principal,

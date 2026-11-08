@@ -78,5 +78,20 @@ def his_her(name: Optional[str]) -> str:
     return "his/her"
 
 
+def age_years(age) -> Optional[str]:
+    """"67", 67, "aged 67 years", "67 yrs old" -> "67"; anything else (a gap) -> None."""
+    a = re.sub(r"^\s*aged\s+|\s*(?:years?|yrs?)\.?\s*(?:old)?\s*$", "", str(age or ""), flags=re.I).strip()
+    return a if re.fullmatch(r"\d{1,3}", a) else None
+
+
+def deponent_particulars(age) -> str:
+    """What follows "I, <name>," in an affidavit: the age the brief gives (b2: 67, 29),
+    the rest a visible gap."""
+    a = age_years(age)
+    if not a:
+        return "[age, parentage and address of the deponent to be provided]"
+    return f"aged {a} years, [parentage and address of the deponent to be provided]"
+
+
 def opposite_role(role: Optional[str]) -> str:
     return _OPPOSITE.get((role or "").strip().lower(), "")

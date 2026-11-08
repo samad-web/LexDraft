@@ -16,6 +16,7 @@ ADAPTER = Adapter(
         FieldSpec('disobedience_narrative', 'string'),
         FieldSpec('disobedience_date', 'date', required=False, default=None),
         FieldSpec('property_list_attached', 'bool'),
+        FieldSpec('respondent_properties', 'string_list', required=False, default=None),
         FieldSpec('filing_date', 'date'),
         FieldSpec('place', 'string'),
         FieldSpec('civil_court', 'string', required=False, default=None),

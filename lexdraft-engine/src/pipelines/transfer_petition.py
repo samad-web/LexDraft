@@ -23,6 +23,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
+from ._court_form import age_years
 
 TEMPLATE = "transfer_petition.docx"
 SPEC = "dpc-31-35"
@@ -68,6 +69,7 @@ def build(
     place: str,
     # cause-title header (DPC book pp.31-35). Optional.
     petitioner_parentage: Optional[str] = None,
+    petitioner_age: Optional[str] = None,     # b2: the deponent's age in the affidavit
     petitioner_address: Optional[str] = None,
 ) -> TransferPetitionResult:
     """Assemble the s.25 CPC transfer petition, or refuse."""
@@ -100,7 +102,7 @@ def build(
         )
 
     context: Dict[str, Any] = {
-        "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
+        "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage, "age": age_years(petitioner_age),
                        "address": petitioner_address},
         "respondents": list(respondents),
         "petition_year": filing_date.year,

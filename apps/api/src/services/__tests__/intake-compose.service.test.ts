@@ -822,3 +822,22 @@ describe('r17 must-plead checklist items', () => {
     expect(guideFor('writ_petition')).toContain('within a period of eight weeks from the date of receipt of a copy of this order');
   });
 });
+
+// b2 civil batch: the two checklist items fixed in the compose path (the rest are engine text).
+describe('b2 civil checklist items', () => {
+  it('test_injunction_item11: a qualified "[to be drafted: …]" never survives', () => {
+    const out = settleGaps(['10. The work would proceed further in the meantime. [to be drafted: the stage the construction would reach before the respondent could be heard].']);
+    expect(out).toEqual(['10. The work would proceed further in the meantime.']);
+  });
+  it('test_contempt_petition_item12: a cut takes the whole citation sentence', async () => {
+    const { stripSentences } = await import('../../lib/draft-guards');
+    const para = "2. The order is clear. The Hon'ble Supreme Court, in BALWANTBHAI SOMABHAI BHANDARI v. HIRALAL SOMABHAI CONTRACTOR (DECEASED) REP. BY LRS. AND OTHERS, (2023) 17 SCC 1, held that wilful breach is contempt. Compliance was due.";
+    const { paragraphs } = stripSentences([para], ['(2023) 17 SCC 1']);
+    expect(paragraphs).toEqual(['2. The order is clear. Compliance was due.']);
+  });
+  it('b2 must-plead lines reach the composer', () => {
+    expect(guideFor('ejectment')).toContain('need NOT expire with the end of a month');
+    expect(guideFor('counter_affidavit')).toContain('dismiss the petition with costs');
+    expect(guideFor('plaint')).toContain('12B'); // the existing MUST_PLEAD line is kept
+  });
+});

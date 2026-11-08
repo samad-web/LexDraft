@@ -63,6 +63,39 @@ class ParaReply:
     para: int
     stance: Stance
     text: str = ""
+    # the petition paragraph's own averment ("on 20.09.2026 the respondent started
+    # building a compound wall blocking the pathway"), used to answer a blank reply.
+    allegation: str = ""
+
+
+_STOP = {"that", "this", "with", "from", "have", "been", "which", "their", "there", "over", "into",
+         "upon", "them", "they", "were", "will", "shall", "said", "such", "petitioner", "respondent",
+         "suit", "petition", "under", "before", "after", "only", "also", "said", "since", "about"}
+_CONSTRUCTION = re.compile(r"\b(?:wall|construct\w*|build\w*|fenc\w*|structure|compound)\b", re.I)
+_OWN_LAND = re.compile(r"\bown\s+(?:land|property|site|lands)\b", re.I)
+
+
+def _words(text: str) -> set:
+    return {w.lower() for w in re.findall(r"[A-Za-z]{4,}", text)} - _STOP
+
+
+def _answer_from_case(allegation: str, case: Sequence[str]) -> str:
+    """b2 item 6: a paragraph the extractor left blank is answered from the respondent's
+    own case elsewhere in the counter (objections, other replies) that speaks to the same
+    thing — and, to a construction allegation, his title to the land it stands on."""
+    want = _words(allegation)
+    if not want:
+        return ""
+    sentences = [s.strip() for c in case for s in re.split(r"(?<=[.;])\s+(?=[A-Z])", c) if s.strip()]
+    hits = [s for s in sentences
+            if (_words(s) & want or (_CONSTRUCTION.search(allegation) and _OWN_LAND.search(s)))
+            and not re.match(r"It is (?:denied|not admitted)\b", s)]
+    seen: List[str] = []
+    for s in hits:
+        s = s.rstrip(" .;") + "."
+        if s not in seen:
+            seen.append(s)
+    return " ".join(seen)
 
 
 @dataclass(frozen=True)
@@ -158,9 +191,12 @@ def build(
         )
 
     replies: List[Dict[str, Any]] = []
+    case = [r.text for r in para_replies if r.text.strip()] + [o for o in preliminary_objections if o.strip()]
     for r in sorted(para_replies, key=lambda x: x.para):
         lead = _STANCE_LEAD[r.stance].format(n=r.para)
-        body = r.text.strip() or _LLM_SLOT_PLACEHOLDER
+        body = (r.text.strip()
+                or (_answer_from_case(r.allegation, case) if r.stance is not Stance.ADMITTED else "")
+                or _LLM_SLOT_PLACEHOLDER)
         replies.append({"para": r.para, "stance": r.stance.value,
                         "text": f"{lead} {body}"})
 
@@ -189,7 +225,9 @@ def build(
         "deponent_designation": deponent_designation,
         "preliminary_objections": [o for o in preliminary_objections if o.strip()],
         "para_replies": replies,
-        "prayer_text": relief_clause(prayer_text) or "dismiss the petition",
+        # b2 item 11: a counter prays for costs.
+        "prayer_text": (lambda p: p if re.search(r"\bcosts?\b", p, re.I) else f"{p} with costs")(
+            relief_clause(prayer_text) or "dismiss the petition"),
         "place": place,
     }
     return CounterAffidavitResult(refused=False, context=context)

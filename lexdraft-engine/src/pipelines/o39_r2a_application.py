@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 
@@ -69,6 +69,8 @@ def build(
     # raised across the common passage"): the prayer then seeks its removal and
     # the restoration of the status quo, instead of restoration of possession.
     construction_to_remove: Optional[str] = None,
+    # b2: the respondent's property to attach, as the brief describes it; never "attached" without it.
+    respondent_properties: Optional[Sequence[str]] = None,
 ) -> O39R2AResult:
     """Assemble the O39 R2-A application, or refuse."""
 
@@ -113,6 +115,7 @@ def build(
         "disobedience_slot": disobedience_narrative,
         "disobedience_date": disobedience_date,
         "property_list_attached": property_list_attached,
+        "respondent_properties": [p.strip().rstrip(".") for p in (respondent_properties or []) if p.strip() and not p.strip().startswith("[")],
         "place": place,
     }
     return O39R2AResult(refused=False, context=context)

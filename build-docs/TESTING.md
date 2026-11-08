@@ -91,6 +91,7 @@
 - Both alert SELECTs run read-only on the local dev DB (PG16): valid on the real schema (1 limitation due locally).
 - 2026-11-08 - r16 checklist fixes: engine tests/service/test_r16_checklists.py 15 tests (test_<format>_<item>, one per FAIL item); goldens permanent_injunction, divorce_mutual_first, s138_notice_single_cheque regenerated (intended wording only); 2020 pass. API: test_writ_petition_dated (replaces the r10 "[day to be provided]" assertion, user's r16 decision) - 749 pass, tsc clean.
 - 2026-11-08 - r17 checklist fixes: engine tests/service/test_r17_checklists.py 5 tests (test_<format>_<item>); r16 writ asserts updated to the new period wording; goldens s138_complaint, s138_complaint_tn_full regenerated (limitation para only); 2025 pass. API: r17 must-plead block +5 - 753 pass, tsc clean.
+- 2026-11-08 - b2 civil checklist fixes: engine tests/service/test_b2_checklists.py 27 tests (test_<format>_item<N>, hrcp 6 skipped by decision); r10 condone-delay affidavit assert moved to first person (it pinned the third-person slip); goldens ejectment, indigent, o39_r2a, slp_civil, slp_criminal, specific_performance, substituted_service, adjournment regenerated (intended wording only). API: b2 block +3 (settleGaps qualified gap, whole-citation strip, must-plead) - 756 pass, tsc clean.
 - 2026-11-08 - r15 fixes: engine tests/service/test_r15_competes.py +28 parametrised (every r12-r15 wording; 1996+ pass); API +7 (intake-compose r15 block, engine-field-map affidavit authority) - 733 pass, tsc clean.
 
 ## Contract Review provider — 2026-11-08

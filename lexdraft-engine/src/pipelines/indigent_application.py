@@ -23,6 +23,7 @@ from ..rules import court_fee as cf
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from ..verify.signoff import SLOT_PATTERN
+from ._court_form import age_years
 
 _SHARE_WORDS = {"half": Fraction(1, 2), "one-half": Fraction(1, 2), "one-third": Fraction(1, 3),
                 "one third": Fraction(1, 3), "two-thirds": Fraction(2, 3),
@@ -84,7 +85,22 @@ def share_fraction(share: Optional[str]) -> Optional[Fraction]:
 _KIN_OPENING = re.compile(r"^(husband|wife|father|mother|brother|sister|son|daughter)\b", re.I)
 
 
-def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optional[str]) -> Optional[str]:
+def _co_heirs(heirs: Optional[Sequence[str]], own: str) -> Optional[str]:
+    """["her two minor children"] -> "her two minor children": the other heirs the brief
+    names, never invented (b2 item 11)."""
+    items = []
+    for h in heirs or []:
+        h = re.sub(r"^\s*(?:her|his|their|the\s+(?:petitioner|plaintiff|applicant)'s)\s+", "",
+                   (h or "").strip().rstrip(".,;"), flags=re.I)
+        if h and not SLOT_PATTERN.search(h):
+            items.append(f"{own} {h}" if h[:1].islower() else h)
+    if not items:
+        return None
+    return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optional[str],
+                  heirs: Optional[str] = None) -> Optional[str]:
     """The proposed plaint's facts as a pleaded sentence, not the brief's note
     ("Husband died on ... and his brothers have refused ..."), with the heirship
     the share rests on when a death is pleaded (r13)."""
@@ -102,6 +118,14 @@ def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optiona
         text = f"The plaintiff states that {facts}."
     if share and re.search(r"\bdied\b|\bdeath\b", facts, re.I):
         share = re.sub(r"\s*share\s*$", "", share.strip(), flags=re.I).lower()
+        if heirs:
+            # b2: the deceased's share devolved on every heir, not on the plaintiff alone.
+            return text + (f" On that death the {share} share sued for devolved on the legal heirs, "
+                           f"namely the plaintiff and {heirs}. The plaintiff claims {own} own share in "
+                           f"it, and the shares of {heirs} are accounted for and are to be allotted "
+                           "to them in the final decree. The defendants have refused to give any "
+                           "share, and the suit property is to be partitioned and the plaintiff put "
+                           f"in separate possession of {own} share.")
         text += (f" On that death the plaintiff, as a legal heir, became entitled to a {share} share in "
                  "the suit property. The defendants have refused to give that share, and the plaintiff "
                  "is entitled to have the suit property partitioned and to be put in separate "
@@ -171,6 +195,10 @@ def build(
     respondent_count: Optional[int] = None,
     property_value: Optional[int] = None,
     share_claimed: Optional[str] = None,
+    # b2: "42" -> "aged 42 years" in the cause titles.
+    applicant_age: Optional[str] = None,
+    # b2: the other heirs of a deceased whose share is sued for ("her two minor children").
+    co_heirs: Optional[Sequence[str]] = None,
 ) -> IndigentResult:
     """Assemble the indigent-person application, or refuse."""
 
@@ -211,9 +239,15 @@ def build(
                                                value=suit_valuation)]).fee
                  if suit_valuation else None)
 
+    own = "her" if re.match(r"\s*(mrs|ms|smt|selvi|tmt|kum)\b", applicant_name or "", re.I) else "his"
+    heirs = _co_heirs(co_heirs, own) if share else None
+
     context: Dict[str, Any] = {
         "applicant": {"name": applicant_name, "parentage": applicant_parentage,
-                      "address": applicant_address},
+                      "address": applicant_address,
+                      "age": age_years(applicant_age)},
+        "co_heirs": heirs,
+        "own": own,
         "respondent": {"name": respondent_name, "parentage": respondent_parentage,
                        "address": respondent_address},
         "civil_court": civil_court,
@@ -230,7 +264,7 @@ def build(
         "respondents": names,
         # r13: "One-third share" printed "One-third share share".
         "share_claimed": re.sub(r"\s*share\s*$", "", share_claimed.strip(), flags=re.I).lower() if share else None,
-        "plaint_facts": _plaint_facts(cause_of_action, applicant_name, share_claimed if share else None),
+        "plaint_facts": _plaint_facts(cause_of_action, applicant_name, share_claimed if share else None, heirs),
         "property_value": property_value if share else None,
         "court_fee": court_fee,
         "unverified_marker": _reg.marker_for("court_fee_ad_valorem_slabs") if court_fee else "",
