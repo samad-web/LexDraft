@@ -27,7 +27,7 @@ describe('format reader — dev route', () => {
     expect(stream).not.toHaveBeenCalled();
   });
 
-  it('never shows the provider's billing text when a PDF cannot be read', async () => {
+  it('never shows the provider billing text when a PDF cannot be read', async () => {
     stream.mockReturnValueOnce({ finalMessage: () => Promise.reject(new Error('Your credit balance is too low')) });
     const read = formatReader.read({ fileName: 'deed.pdf', mime: 'application/pdf', data: Buffer.from('%PDF') });
     await expect(read).rejects.toMatchObject({ name: 'FormatReadError', status: 503, message: expect.not.stringMatching(/credit|balance/i) });
