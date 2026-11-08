@@ -6917,7 +6917,9 @@
       "jurisdiction_basis",
       "place",
       "plaintiff_address",
+      "plaintiff_age",
       "plaintiff_name",
+      "plaintiff_occupation",
       "plaintiff_parentage",
       "possession_basis",
       "suit_property",
@@ -6997,6 +6999,16 @@
       },
       {
         "key": "plaintiff_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "plaintiff_occupation",
         "kind": "string",
         "required": false
       },
@@ -12092,6 +12104,7 @@
       "public_office",
       "quasi_judicial_order",
       "relief_sought",
+      "representation_date",
       "respondents",
       "writ_type",
       "year"
@@ -12276,6 +12289,11 @@
         "key": "petitioner_description",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "representation_date",
+        "kind": "date",
+        "required": false
       }
     ],
     "required": [
@@ -12307,7 +12325,8 @@
       "plaint_para_count",
       "plaintiff_name",
       "preliminary_objections",
-      "suit_ref"
+      "suit_ref",
+      "summons_served_date"
     ],
     "fields": [
       {
@@ -12399,6 +12418,11 @@
       {
         "key": "additional_pleas",
         "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "summons_served_date",
+        "kind": "date",
         "required": false
       }
     ],
