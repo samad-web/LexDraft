@@ -14,11 +14,13 @@
 import { createHash } from 'node:crypto';
 import mammoth from 'mammoth';
 import type Anthropic from '@anthropic-ai/sdk';
+import type OpenAI from 'openai';
 import { env } from '../env';
 import { logger } from '../logger';
 import { anthropic, usageFrom } from '../lib/anthropic-client';
 import { claudeCodeComplete, devViaClaudeCode } from '../lib/claude-code-dev';
-import type { NormalizedUsage } from '../lib/llm-usage';
+import { grok, outputLimit } from '../lib/grok-client';
+import { xaiUsage, type NormalizedUsage } from '../lib/llm-usage';
 import { LABEL_TO_ENGINE_DOC } from '../lib/engine-field-map';
 import { engineClient, type EngineFormatContract } from './engine-client.service';
 import type { FirmFormatReviewNotes, FirmFormatSpec } from './firm-formats.service';
@@ -116,6 +118,44 @@ function instructions(c: EngineFormatContract, titleHint: string): string {
     + 'Transcribe the source format above into the spec.';
 }
 
+const READ_FAILED = 'This PDF or photo could not be read just now. Please try again shortly, or attach the format as a Word or text file.';
+
+function openAiPart(b: Anthropic.Beta.Messages.BetaContentBlockParam, fileName: string): OpenAI.Chat.ChatCompletionContentPart {
+  if (b.type === 'image' && b.source.type === 'base64') {
+    return { type: 'image_url', image_url: { url: `data:${b.source.media_type};base64,${b.source.data}` } };
+  }
+  if (b.type === 'document' && b.source.type === 'base64') {
+    return { type: 'file', file: { filename: fileName, file_data: `data:application/pdf;base64,${b.source.data}` } };
+  }
+  return { type: 'text', text: (b as { text: string }).text };
+}
+
+/** The same read on OpenAI, for when the Anthropic read failed (no credit, outage). */
+async function readViaOpenAI(
+  system: string,
+  blocks: Anthropic.Beta.Messages.BetaContentBlockParam[],
+  fileName: string,
+  ask: string,
+): Promise<{ text: string; usage: NormalizedUsage }> {
+  // xAI takes no PDFs, so only the OpenAI vendor of this slot can stand in.
+  if (env.openaiCompat.vendor !== 'openai' || !env.XAI_API_KEY) throw new FormatReadError(READ_FAILED, 503);
+  const res = await grok().chat.completions.create({
+    model: env.XAI_MODEL,
+    ...outputLimit(64_000),
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: [...blocks.map((b) => openAiPart(b, fileName)), { type: 'text', text: ask }] },
+    ],
+  }).catch((err: unknown) => {
+    logger.error({ err }, 'format-reader: OpenAI read failed');
+    throw new FormatReadError(READ_FAILED, 503);
+  });
+  const choice = res.choices[0];
+  if (choice?.finish_reason === 'length') throw new FormatReadError('The format is too long to read in one go.');
+  return { text: choice?.message.content ?? '', usage: xaiUsage(res.usage as Parameters<typeof xaiUsage>[0]) };
+}
+
 function labelForDocType(docType: string): string | null {
   const hit = Object.entries(LABEL_TO_ENGINE_DOC).find(([, d]) => d === docType);
   return hit ? hit[0] : null;
@@ -127,6 +167,9 @@ export const formatReader = {
     const c = await contract();
     const blocks = await sourceBlocks(input.fileName, input.mime, input.data);
     const model = env.FORMAT_READER_MODEL;
+    const ask = instructions(c, input.titleHint ?? '');
+    const jsonSystem = `${c.system_prompt}\n\nReply with ONLY one JSON object matching this JSON schema, no prose, no code fence:\n${JSON.stringify(c.schema)}`;
+    let servedBy = model;
 
     let text: string;
     let usage: NormalizedUsage;
@@ -134,8 +177,8 @@ export const formatReader = {
     if (devViaClaudeCode()) {
       const out = await claudeCodeComplete({
         model,
-        system: `${c.system_prompt}\n\nReply with ONLY one JSON object matching this JSON schema, no prose, no code fence:\n${JSON.stringify(c.schema)}`,
-        user: [...blocks.flatMap((b) => (b.type === 'text' ? [b.text] : [])), instructions(c, input.titleHint ?? '')].join('\n\n'),
+        system: jsonSystem,
+        user: [...blocks.flatMap((b) => (b.type === 'text' ? [b.text] : [])), ask].join('\n\n'),
         attachments: blocks.filter((b) => b.type !== 'text'),
       });
       text = out.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
@@ -150,21 +193,26 @@ export const formatReader = {
         output_config: { effort: 'high', format: { type: 'json_schema', schema: c.schema } },
         messages: [{
           role: 'user',
-          content: [...blocks, { type: 'text', text: instructions(c, input.titleHint ?? '') }],
+          content: [...blocks, { type: 'text', text: ask }],
         }],
       });
       const message = await stream.finalMessage().catch((err: unknown) => {
         // The provider's own text (billing, keys) is never shown to the advocate.
         logger.error({ err }, 'format-reader: AI read failed');
-        throw new FormatReadError('This PDF or photo could not be read just now. Please try again shortly, or attach the format as a Word or text file.', 503);
+        return null;
       });
-      if (message.stop_reason === 'refusal') throw new FormatReadError('The reader declined this file.');
-      if (message.stop_reason === 'max_tokens') throw new FormatReadError('The format is too long to read in one go.');
-      text = message.content
-        .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === 'text')
-        .map((b) => b.text)
-        .join('');
-      usage = usageFrom(message.usage as unknown as Anthropic.Usage);
+      if (!message) {
+        ({ text, usage } = await readViaOpenAI(jsonSystem, blocks, input.fileName, ask));
+        servedBy = env.XAI_MODEL;
+      } else {
+        if (message.stop_reason === 'refusal') throw new FormatReadError('The reader declined this file.');
+        if (message.stop_reason === 'max_tokens') throw new FormatReadError('The format is too long to read in one go.');
+        text = message.content
+          .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        usage = usageFrom(message.usage as unknown as Anthropic.Usage);
+      }
     }
     let raw: Record<string, any>;
     try {
@@ -207,7 +255,7 @@ export const formatReader = {
         : null,
       sourceName: input.fileName,
       sourceSha256: createHash('sha256').update(input.data).digest('hex'),
-      usage: { ...usage, model },
+      usage: { ...usage, model: servedBy },
     };
   },
 };

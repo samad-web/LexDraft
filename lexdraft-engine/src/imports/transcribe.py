@@ -147,7 +147,7 @@ numbered list — type its number exactly as the source prints it, e.g. "1." or 
 designation line), note (small print, e.g. N.B. notes), blank (an empty line; text ""), \
 list (renders a string_list field as numbered items; `text` is just that field's key).
 - `text` may contain only literal text and `{{ field_key }}` placeholders — no other \
-template syntax. Every declared field must appear in at least one block. A bracketed \
+template syntax. Every declared field must appear in at least one block. A firm's letterhead (its name, description and printed address) is fixed text, never a field. A bracketed \
 hint beside a blank ("(Address)", "(Name of the Department)") only says what goes there: \
 make it that field's label and leave it out of `text`. Keep a pattern around a blank \
 (a reference "SA/____/20__" stays "SA/{{ ref_no }}/20__").

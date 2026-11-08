@@ -54,3 +54,4 @@ def test_untyped_number_keeps_word_numbering(tmp_path):
 def test_reader_is_told_to_keep_typed_numbers_and_drop_hints():
     assert "type its number exactly as the source prints it" in SYSTEM_PROMPT
     assert "only says what goes there" in SYSTEM_PROMPT
+    assert "letterhead" in SYSTEM_PROMPT and "never a field" in SYSTEM_PROMPT
