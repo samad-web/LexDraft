@@ -21,6 +21,7 @@ ADAPTER = Adapter(
         FieldSpec('filing_date', 'date'),
         FieldSpec('place', 'string'),
         FieldSpec('petitioner_parentage', 'string', required=False, default=None),
+        FieldSpec('petitioner_age', 'string', required=False, default=None),
         FieldSpec('petitioner_address', 'string', required=False, default=None),
     ),
     slots=('brief_facts',),

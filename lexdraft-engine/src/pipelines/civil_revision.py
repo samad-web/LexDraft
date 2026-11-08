@@ -48,12 +48,16 @@ from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
 from ._bench import madurai_bench
+from ..components.prayer import relief_clause
 from .writ_petition import _letter
 
 TEMPLATE = "civil_revision.docx"
 SPEC = "cpc-115-art227"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+_IA_NO = re.compile(r"\bI\.\s?A\.\s?No\.\s?\d+\s+of\s+\d{4}", re.I)
+_FIRM = re.compile(r"^\s*m/s\b|\b(?:ltd|limited|llp|pvt|private|company|corporation|firm|textiles|traders|"
+                   r"industries|enterprises?)\b", re.I)
 _CONSUMED_TABLES = (aw.PERIODS_TABLE,)
 
 
@@ -117,6 +121,9 @@ def build(
     grounds_narrative: str = "",
     grounds_list: Optional[Sequence[str]] = None,
     stay_of_proceedings_sought: bool = False,
+    # b2: what the High Court should do after setting aside ("allow I.A. No. 610 of 2026
+    # and refer the disputed signature to a handwriting expert").
+    consequential_relief: Optional[str] = None,
 ) -> CivilRevisionResult:
     """Assemble the civil revision petition, or refuse."""
 
@@ -213,6 +220,28 @@ def build(
         place = "Madurai" if madurai_bench(court_name, lower_court, proceeding_ref, place) else "Chennai"
     court = lower_court.strip()
     order_desc = f"{ref} on the file of {'' if court.lower().startswith('the ') else 'the '}{court}"
+    # b2 item 9: setting aside the dismissal of an I.A. leaves it pending; the prayer allows it.
+    relief = relief_clause(consequential_relief or "")
+    if not relief or relief.startswith("["):
+        ia = _IA_NO.search(impugned_order_ref)
+        relief = (f"allow {ia.group(0)}" if ia and re.search(r"\bdismiss", f"{impugned_order_ref} {facts_narrative}", re.I)
+                  else "")
+    # b2 item 12: the limitation paragraph is engine text, never a counsel placeholder.
+    when = impugned_order_date.isoformat()
+    copy = f", and the copy of the order was received on {copy_ready_date.isoformat()}" if copy_ready_date else ""
+    if basis is RevisionBasis.ART227:
+        limitation_text = ("LIMITATION: No period of limitation is prescribed for a petition under Article 227 "
+                           f"of the Constitution of India. The impugned order was passed on {when}{copy}. This "
+                           "petition is filed without delay, within a reasonable time of the impugned order.")
+    else:
+        limitation_text = ("LIMITATION: The revision is filed within the period of ninety days prescribed by "
+                           "Article 131 of the Schedule to the Limitation Act, 1963, which expires on "
+                           f"{win.expiry.isoformat()}.")
+    deponent_intro = (f"[name, age and address of the deponent to be provided], the [partner / proprietor / "
+                      f"authorised signatory] of {petitioner_names[0].strip()}"
+                      if petitioner_names and _FIRM.search(petitioner_names[0])
+                      else f"{(petitioner_names or ['[name of the deponent to be provided]'])[0].strip()}, "
+                           "[age, parentage and address of the deponent to be provided]")
     context: Dict[str, Any] = {
         "basis": basis.value,
         "basis_label": _BASIS_LABEL[basis],
@@ -227,6 +256,9 @@ def build(
         "lower_court": lower_court,
         "proceeding_ref": proceeding_ref,
         "order_desc": order_desc,
+        "consequential_relief": relief,
+        "limitation_text": limitation_text,
+        "deponent_intro": deponent_intro,
         "stay_of_proceedings_sought": stay_of_proceedings_sought,
         "is_s115": basis is RevisionBasis.S115,
         "limitation_expiry": win.expiry.isoformat() if win else None,

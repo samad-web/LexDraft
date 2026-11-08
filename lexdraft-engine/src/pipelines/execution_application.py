@@ -78,6 +78,8 @@ def build(
     # employer / disbursing officer for a salary attachment (O.XXI R.48 / 48A).
     property_schedule: str = "",
     employer: str = "",
+    # b2: the bank the salary is drawn through ("Canara Bank, Thanjavur Main branch").
+    salary_bank: str = "",
 ) -> ExecutionResult:
     """Assemble the execution application, or refuse."""
 
@@ -152,6 +154,7 @@ def build(
         "property_schedule": schedule,
         "salary_attachment": "salary" in mode_of_assistance.lower(),
         "employer": employer.strip(),
+        "salary_bank": salary_bank.strip() if not salary_bank.strip().startswith("[") else "",
         "mode_of_assistance": mode_of_assistance,
         "certified_copy_attached": certified_copy_attached,
         "place": place,

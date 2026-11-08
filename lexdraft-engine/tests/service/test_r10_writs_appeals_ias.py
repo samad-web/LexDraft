@@ -325,6 +325,7 @@ def test_condone_delay_petition_has_the_petitioners_affidavit_with_hospital_reco
         "supporting_documents": "the discharge summary and hospital records of CMC Hospital, Vellore"})
     assert "[NOTE: To be supported" not in text
     assert "AFFIDAVIT FILED IN SUPPORT OF THE PETITION\nI, Mrs. P. Meena," in text
-    assert "I state that the delay was caused because the petitioner was admitted at CMC Hospital" in text
+    # b2 item 12: the affidavit is the deponent's own word (this asserted the third-person slip)
+    assert "I state that the delay was caused because I was admitted at CMC Hospital" in text
     assert "I produce the discharge summary and hospital records of CMC Hospital, Vellore, marked as annexures" in text
     assert "DEPONENT" in text

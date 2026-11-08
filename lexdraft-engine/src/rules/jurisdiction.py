@@ -155,6 +155,19 @@ def original_side_forum(forum: Forum, value: int, civil_court: Optional[str],
     return forum, civil_court, city
 
 
+def pecuniary_basis(value: int, forum_asked: Forum, civil_court_asked: Optional[str]) -> str:
+    """The pecuniary averment; when an Original Side suit was moved to the City Civil
+    Court for its value, why (b2 summary_suit item 1)."""
+    text = f"the suit is valued at Rs. {value}/-, within the pecuniary jurisdiction of this Hon'ble Court"
+    on_hc = forum_asked is Forum.HIGH_COURT_OS or "high court" in (civil_court_asked or "").lower()
+    if on_hc and value <= HC_ORIGINAL_SIDE_FLOOR:
+        text += (". The claim does not exceed Rs. 1,00,00,000/-, the pecuniary limit above which "
+                 "suits in the City of Chennai lie on the Original Side of the High Court of "
+                 "Judicature at Madras; the suit is therefore instituted in this Hon'ble Court, the "
+                 "City Civil Court, Chennai")
+    return text
+
+
 def check_territorial(*, bases: List[TerritorialBasis]) -> TerritorialResult:
     """Whether at least one s.20 CPC territorial basis is pleaded. Multiple bases
     are fine; none is a refusal."""

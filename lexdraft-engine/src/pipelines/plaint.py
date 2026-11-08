@@ -112,6 +112,22 @@ _ENTITY = re.compile(r"^\s*m/s\b|\b(?:ltd|limited|llp|pvt|private|company|corpor
                      r"bank|firm|enterprises?|traders|industries)\b|&\s*co\b", re.I)
 
 
+_HONORIFIC = r"(?:Mr|Mrs|Ms|Dr|Thiru|Tmt|Selvi|Sri|Smt)\.?\s"
+
+
+def rep_by(representative: Optional[str]) -> Optional[str]:
+    """'Mr. G. Venkatesh, managing partner' / 'managing partner Mr. G. Venkatesh' ->
+    'rep. by its Managing Partner Mr. G. Venkatesh' for a firm's cause title (b2 item 2)."""
+    rep = (representative or "").strip().rstrip(".,;")
+    if not rep or rep.startswith("["):
+        return None
+    m = (re.match(rf"^(?P<name>{_HONORIFIC}.+?)\s*,\s*(?:its\s+|the\s+)?(?P<role>[A-Za-z ]+)$", rep)
+         or re.match(rf"^(?:its\s+|the\s+)?(?P<role>[A-Za-z ]+?)\s*,?\s+(?P<name>{_HONORIFIC}.+)$", rep, re.I))
+    if not m:
+        return f"rep. by {rep}"
+    return f"rep. by its {m['role'].strip().title()} {m['name'].strip()}"
+
+
 def address_lead(name: str, is_entity: bool = False) -> str:
     """'residing at' for a person, 'having its place of business at' for a firm."""
     return ("having its place of business at" if is_entity or _ENTITY.search(name or "")
@@ -161,6 +177,16 @@ def commercial_court(forum: jur.Forum, city: Optional[str]) -> tuple:
     where = c.upper() if c and not c.startswith("[") else "[district to be provided]"
     return f"IN THE COURT OF THE PRINCIPAL DISTRICT JUDGE (COMMERCIAL COURT), {where}", "C.O.S."
 RATE_DOC_GAP = "[document fixing the agreed rate of interest to be provided]"
+_AGREEMENT_DATED = re.compile(r"\b((?:written\s+|registered\s+)?(?:loan\s+)?agreement\s+dated\s+\d{2}\.\d{2}\.\d{4})", re.I)
+
+
+def rate_document(ref: Optional[str], *texts: str) -> Optional[str]:
+    """The document fixing an agreed rate; none given -> the agreement the facts name
+    ("the written loan agreement dated 15.01.2026"), never a gap the brief answers (b2)."""
+    if (ref or "").strip() and not (ref or "").strip().startswith("["):
+        return ref
+    m = next((m for t in texts if (m := _AGREEMENT_DATED.search(t or ""))), None)
+    return f"the {m.group(1)}" if m else ref
 
 
 def interest_basis_text(rate: float, contractual: bool, ref: Optional[str]) -> str:
@@ -247,6 +273,7 @@ def build(
 
     # 2. jurisdiction — both limbs, expressly. Delegated refusals carry their
     # own coded Refusal; surface it without restating the code.
+    pecuniary_text = jur.pecuniary_basis(claimed_total, forum, civil_court)
     forum, civil_court, city = jur.original_side_forum(forum, claimed_total, civil_court, city)
     # 2a. a commercial dispute of a specified value -> Commercial Court, s.12A, O.VI R.15A.
     basis = commercial_basis(variant, defendant_names, claim_for, claimed_total)
@@ -351,6 +378,9 @@ def build(
         "plaintiff": {"name": plaintiff_name, "parentage": plaintiff_parentage,
                       "address": plaintiff_address,
                       "representative": plaintiff_representative,
+                      "rep_by": (rep_by(plaintiff_representative)
+                                 if variant in (Variant.PARTNERSHIP, Variant.COMPANY)
+                                 or _ENTITY.search(plaintiff_name or "") else None),
                       "address_lead": address_lead(
                           plaintiff_name, variant in (Variant.PARTNERSHIP, Variant.COMPANY))},
         "defendants": [
@@ -374,8 +404,7 @@ def build(
         "cause_of_action_place": cause_of_action_place,
         # jurisdiction (both limbs)
         "forum": forum.value,
-        "pecuniary_basis": f"the suit is valued at Rs. {claimed_total}/-, within "
-                           "the pecuniary jurisdiction of this Hon'ble Court",
+        "pecuniary_basis": pecuniary_text,
         "territorial_bases": [jur.basis_text(b) for b in ter.bases],
         # account statement
         "principal": principal,

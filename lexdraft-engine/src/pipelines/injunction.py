@@ -119,8 +119,10 @@ def build(
     act = act_restrained.strip()
     # r10: "restrain the defendant from Putting up ... till disposal of the suit, pending
     # the final disposal of the above suit" — the prayer already says "pending".
-    act = re.sub(r"[,;.]?\s*(?:till|until|pending)\s+(?:the\s+)?(?:final\s+)?disposal\s+of\s+the\s+(?:above\s+)?suit\.?$",
-                 "", act, flags=re.I).strip()
+    # b2: "... possession, till the suit is disposed of." -> "..., pending the final disposal".
+    act = re.sub(r"[,;.]?\s*(?:till|until|pending)\s+(?:the\s+)?(?:final\s+)?(?:disposal\s+of\s+the\s+"
+                 r"(?:above\s+)?suit|(?:above\s+)?suit\s+is\s+(?:finally\s+)?disposed\s+of)[\s.,;]*$",
+                 "", act, flags=re.I).strip().rstrip(" .,;")
     if re.match(r"[A-Z][a-z]+ing\b", act):  # "Putting up" -> "putting up"; names untouched
         act = act[0].lower() + act[1:]
     if not act or act.rstrip(".").lower() in _VAGUE_PRAYERS:
