@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import mammoth from 'mammoth';
 import type Anthropic from '@anthropic-ai/sdk';
 import { env } from '../env';
+import { logger } from '../logger';
 import { anthropic, usageFrom } from '../lib/anthropic-client';
 import { claudeCodeComplete, devViaClaudeCode } from '../lib/claude-code-dev';
 import type { NormalizedUsage } from '../lib/llm-usage';
@@ -153,7 +154,11 @@ export const formatReader = {
           content: [...blocks, { type: 'text', text: instructions(c, input.titleHint ?? '') }],
         }],
       });
-      const message = await stream.finalMessage();
+      const message = await stream.finalMessage().catch((err: unknown) => {
+        // The provider's own text (billing, keys) is never shown to the advocate.
+        logger.error({ err }, 'format-reader: AI read failed');
+        throw new FormatReadError('This PDF or photo could not be read just now. Please try again shortly, or attach the format as a Word or text file.', 503);
+      });
       if (message.stop_reason === 'refusal') throw new FormatReadError('The reader declined this file.');
       if (message.stop_reason === 'max_tokens') throw new FormatReadError('The format is too long to read in one go.');
       text = message.content
