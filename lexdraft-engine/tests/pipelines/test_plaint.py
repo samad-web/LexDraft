@@ -186,9 +186,11 @@ class TestInterest:
     # 2026-11-07 (senior review): this used to pin a fall-back to "statutory",
     # which pleaded an agreed 18% as statutory interest — self-contradictory. The
     # agreed rate is now pleaded as agreed with the missing document as a gap.
+    # 2026-11-08 (b2 item 6): with no stated agreement the rate is the rate claimed; this
+    # path now needs the facts to say interest was agreed.
     def test_contractual_without_document_ref_keeps_agreed_rate_with_gap(self):
-        result = pl.build(**_base(interest_is_contractual=True,
-                                  interest_document_ref=None))
+        result = pl.build(**_base(interest_is_contractual=True, interest_document_ref=None,
+                                  transaction_narrative="The defendant agreed to pay interest at 18% per annum."))
         assert result.refused is False
         assert result.context["interest_basis"] == "contractual"
         assert pl.RATE_DOC_GAP in result.context["interest_basis_text"]

@@ -189,12 +189,24 @@ def rate_document(ref: Optional[str], *texts: str) -> Optional[str]:
     return f"the {m.group(1)}" if m else ref
 
 
-def interest_basis_text(rate: float, contractual: bool, ref: Optional[str]) -> str:
+_INTEREST_AGREED = re.compile(r"\bagreed\b[^.]*\binterest\b|\binterest\b[^.]*\bagreed\b", re.I)
+
+
+def rate_is_agreed(contractual: bool, ref: Optional[str], *texts: str) -> bool:
+    """An interest rate is pleaded as agreed only when a document fixes it or the facts
+    say it was agreed. Otherwise it is the rate claimed: no invented agreement (b2)."""
+    if not contractual:
+        return False
+    named = (ref or "").strip()
+    return (bool(named) and not named.startswith("[")) or any(_INTEREST_AGREED.search(t or "") for t in texts)
+
+
+def interest_basis_text(rate: float, contractual: bool, ref: Optional[str], claimed: bool = False) -> str:
     """How the interest claim is pleaded. An agreed rate stays agreed; its missing
     document is a gap for the advocate, never a relabel to 'statutory'."""
     at = f"at {rate:g}% per annum"
     if not contractual:
-        return at
+        return f"{at}, being the rate claimed by the plaintiff" if claimed else at
     return f"{at}, the rate agreed between the parties, vide {(ref or '').strip() or RATE_DOC_GAP}"
 
 
@@ -350,6 +362,9 @@ def build(
             )
 
     # 5. interest — an agreed rate is pleaded as agreed (its document, or a gap).
+    agreed = rate_is_agreed(interest_is_contractual, interest_document_ref, transaction_narrative,
+                            performance_narrative, default_narrative, notice_narrative)
+    rate_only_claimed, interest_is_contractual = interest_is_contractual and not agreed, agreed
     interest_basis = "contractual" if interest_is_contractual else "claimed"
 
     # 6. s.80 CPC — Government defendant.
@@ -414,7 +429,7 @@ def build(
         "interest_rate": interest_rate,
         "interest_basis": interest_basis,
         "interest_basis_text": interest_basis_text(interest_rate, interest_is_contractual,
-                                                   interest_document_ref),
+                                                   interest_document_ref, rate_only_claimed),
         "interest_document_ref": interest_document_ref,
         "interest_fallback_note": None,
         # limitation

@@ -862,3 +862,28 @@ describe('b2 civil checklist items', () => {
     expect(guideFor('plaint')).toContain('12B'); // the existing MUST_PLEAD line is kept
   });
 });
+
+
+describe('settleGaps stubs (v2 unscored)', () => {
+  it('drops a whole-paragraph note and an other-proceedings stub', () => {
+    expect(settleGaps(['2. Real para.', '9. [details of any other petition filed on the same subject matter, if any, to be provided]', '10. Next.'])).toEqual(['2. Real para.', '10. Next.']);
+    expect(settleGaps(["[The petitioner's affidavit contains [total] paragraphs. Any other paragraph is to be answered here: [to be drafted].]", '2. Real.'])).toEqual(['2. Real.']);
+  });
+
+  it('drops a qualified "to be drafted" tag at the end of a paragraph', () => {
+    expect(settleGaps(['4. She lives apart for good reason. [Averment that the petitioner is not living in adultery, to be drafted]'])).toEqual(['4. She lives apart for good reason.']);
+    expect(settleGaps(['16. [Particulars of any other proceedings between the parties are to be drafted.]'])).toEqual([]);
+  });
+});
+
+describe('must-plead lines for the v2 items', () => {
+  it('test_s138_reply_item11 and test_s106_notice_item9 reach the guide', () => {
+    expect(guideFor('s138_reply')).toContain('never leave it open');
+    expect(guideFor('s106_notice')).toContain('need NOT expire with the end of a month');
+    expect(guideFor('plaint')).toContain('rate claimed by the plaintiff');
+    expect(guideFor('specific_performance')).toContain('"registered"');
+    expect(guideFor('mact_claim')).toContain('Sections 147 and 149');
+    expect(guideFor('divorce_mutual_second')).toContain('eighteen months');
+    expect(guideFor('general_notice')).toContain('principal sum');
+  });
+});

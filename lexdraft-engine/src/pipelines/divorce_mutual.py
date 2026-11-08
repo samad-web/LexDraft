@@ -182,6 +182,7 @@ def build_second_motion(
     # the number the first-motion petition already bears (H.M.O.P. / F.C.O.P.);
     # the second motion is moved in that same proceeding.
     first_motion_case_no: Optional[str] = None,
+    first_motion_presented_date: Optional[date] = None,
     no_other_proceedings: Optional[bool] = None,
     # r12: the brief's marriage date was lost — the second motion recites it too.
     marriage_date: Optional[date] = None,
@@ -196,7 +197,8 @@ def build_second_motion(
         second_motion_date = date.today()
 
     six_months = first_motion_order_date + relativedelta(months=6)
-    eighteen_months = first_motion_order_date + relativedelta(months=18)
+    # s.13B(2) runs from the presentation of the first motion; the order date stands in until known.
+    eighteen_months = (first_motion_presented_date or first_motion_order_date) + relativedelta(months=18)
 
     # After 18 months -> refuse outright.
     if second_motion_date > eighteen_months:
@@ -238,6 +240,7 @@ def build_second_motion(
         "petition_year": second_motion_date.year,
         "petition_date": second_motion_date.isoformat(),
         "first_motion_order_date": first_motion_order_date,
+        "first_motion_presented_date": first_motion_presented_date,
         "second_motion_date": second_motion_date,
         "settlement_implemented": settlement_implemented,
         "waiver_attached": waiver_attached,

@@ -208,8 +208,10 @@ def build(
     dates = [d for d in (list_of_dates or []) if d.strip() and not d.strip().startswith("[")]
     if not dates:
         dates = _derived_dates(pleaded, below, impugned_judgment_date, impugned_court, impugned_case_ref)
-    annexures = [f"True copy of the judgment and decree in {ref}{' on the file of ' + court if court else ''}"
-                 for _y, ref, court in below]
+    annexures = ([f"True copy of the impugned judgment dated {impugned_judgment_date:%d.%m.%Y} in "
+                  f"{impugned_case_ref}{' of ' + impugned_court if impugned_court else ''}"]
+                 + [f"True copy of the judgment and decree in {ref}{' on the file of ' + court if court else ''}"
+                    for _y, ref, court in below])
     context: Dict[str, Any] = {
         "slp_kind": slp_kind.value,
         "is_civil": is_civil,

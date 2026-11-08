@@ -45,6 +45,7 @@ from typing import Any, Dict, Optional, Sequence
 
 from ..rules import dual_code_router as router
 from ..rules import limitation as lim
+from ._court_form import age_years
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _appeal_window as aw
@@ -118,6 +119,10 @@ def build(
     pleaded_guilty: bool = False,
     appeal_limited_to_sentence: bool = False,
     appellant_in_custody: bool = False,
+    # b1 item 2: the appellant's particulars in the cause title.
+    appellant_age: Optional[str] = None,
+    appellant_occupation: Optional[str] = None,
+    appellant_address: Optional[str] = None,
     copy_applied_date: Optional[date] = None,
     copy_ready_date: Optional[date] = None,
     condone_delay_petition_filed: bool = False,
@@ -250,6 +255,11 @@ def build(
     if madurai and "madurai" not in court_name.lower():
         court_name = MADURAI_COURT
     md_suffix = "(MD)" if madurai else ""
+    age = age_years(appellant_age)
+    appellant_desc = ", ".join(x for x in (
+        f"aged {age} years" if age else "", (appellant_occupation or "").strip(),
+        f"residing at {appellant_address.strip()}" if (appellant_address or "").strip() else "") if x)
+    deponent_description = deponent_description or appellant_desc or None
 
     context: Dict[str, Any] = {
         "forum": forum.value,
@@ -258,6 +268,7 @@ def build(
         "appeal_year": filing_date.year,
         "appeal_date": filing_date.isoformat(),
         "appellants": [a for a in appellant_names if a.strip()],
+        "appellant_desc": appellant_desc,
         "respondents": ([r for r in respondent_names if r.strip()]
                         if private_complaint else
                         with_state(respondent_names, police_station, crime_no)),

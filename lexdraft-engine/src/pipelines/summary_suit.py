@@ -32,7 +32,7 @@ from ..rules.limitation import Acknowledgement
 from ..verify import tables as _reg
 from ..verify.signoff import SLOT_PATTERN
 from ..verify.refusals import Refusal, Severity
-from .plaint import (_ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS, ARTICLE_GAP,
+from .plaint import (_ARTICLE_PERIOD_YEARS, _DEFAULT_ARTICLE_YEARS, ARTICLE_GAP, rate_is_agreed,
                      address_lead, interest_basis_text, rate_document)
 
 TEMPLATE = "summary_suit.docx"
@@ -64,6 +64,10 @@ _BASIS_WORDS = (
 # Art. 35: a bill of exchange or promissory note payable on demand (a cheque is one).
 _ARTICLE_35 = ("35", "on a bill of exchange or promissory note payable on demand, "
                      "three years from the date of the bill or note")
+_ARTICLE_19 = ("19", "for money payable for money lent, three years from when the loan is made")
+_ARTICLE_55 = ("55", "for compensation for the breach of a contract, three years from when the "
+                     "contract is broken")
+_LOANISH = re.compile(r"\b(?:loan|lent|lending|hand\s*loan|advance)\b", re.I)
 _BASIS_GAP = "[claim basis under Order XXXVII Rule 1(2) to be provided]"
 
 _IN_SCOPE = {
@@ -197,6 +201,8 @@ def build(
     # 2. jurisdiction — both limbs. Delegated refusals carry their own coded
     # Refusal; surface it without restating the code.
     interest_document_ref = rate_document(interest_document_ref, instrument_ref, transaction_narrative)
+    agreed = rate_is_agreed(interest_is_contractual, interest_document_ref, instrument_ref, transaction_narrative)
+    rate_only_claimed, interest_is_contractual = interest_is_contractual and not agreed, agreed
     pecuniary_text = jur.pecuniary_basis(claimed_total, forum, civil_court)
     forum, civil_court, city = jur.original_side_forum(forum, claimed_total, civil_court, city)
     pec = jur.check_pecuniary(value=claimed_total, forum=forum)
@@ -216,8 +222,11 @@ def build(
     if SLOT_PATTERN.search(limitation_article or ""):
         limitation_article = None
     limitation_article = ((limitation_article or "").strip()
-                          or (_ARTICLE_35[0] if on_instrument else ARTICLE_GAP))
-    article_desc = _ARTICLE_35[1] if limitation_article == "35" else None
+                          or (_ARTICLE_35[0] if on_instrument else
+                              # b2 item 8: a point of law, never a gap (loan: Art. 19; other contract: Art. 55).
+                              _ARTICLE_19[0] if _LOANISH.search(f"{instrument_ref} {transaction_narrative}")
+                              else _ARTICLE_55[0]))
+    article_desc = {"35": _ARTICLE_35[1], "19": _ARTICLE_19[1], "55": _ARTICLE_55[1]}.get(limitation_article)
     if limitation_trigger_date is None:
         limitation_trigger_date = ((instrument_date if limitation_article == "35" else None)
                                    or cause_of_action_date)
@@ -313,7 +322,7 @@ def build(
         "interest_rate": interest_rate,
         "interest_basis": interest_basis,
         "interest_basis_text": interest_basis_text(interest_rate, interest_is_contractual,
-                                                   interest_document_ref),
+                                                   interest_document_ref, rate_only_claimed),
         "interest_document_ref": interest_document_ref,
         "interest_fallback_note": None,
         # limitation

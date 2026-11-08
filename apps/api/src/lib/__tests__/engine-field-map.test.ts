@@ -444,3 +444,33 @@ describe('b1 brief signals', () => {
     expect(gap.sections).toBe('[sections to be provided]');
   });
 });
+
+
+describe('brief signals for the remaining v2 checklist items', () => {
+  it('test_criminal_appeal_item2: appellant particulars from the brief', async () => {
+    const { withBriefSignals } = await import('../engine-field-map');
+    const form: Record<string, string> = {};
+    withBriefSignals('criminal_appeal', form, 'My client, Mr. S. Murugesan, aged 45, a lorry driver from Manachanallur, Tiruchirappalli District, was convicted by the court.');
+    expect(form).toEqual({ appellant_age: '45', appellant_occupation: 'lorry driver', appellant_address: 'Manachanallur, Tiruchirappalli District' });
+  });
+
+  it('test_specific_performance_item3: "registered" from the brief', async () => {
+    const { withBriefSignals } = await import('../engine-field-map');
+    const form: Record<string, string> = {};
+    withBriefSignals('specific_performance', form, 'entered into a registered sale agreement dated 15.03.2025');
+    expect(form.agreement_registered).toBe('Yes');
+    const plain: Record<string, string> = {};
+    withBriefSignals('specific_performance', plain, 'entered into a sale agreement dated 15.03.2025');
+    expect(plain.agreement_registered).toBeUndefined();
+  });
+
+  it('test_indigent_application_item9_10_11: value, share, property and co-heirs from the brief', async () => {
+    const { withBriefSignals } = await import('../engine-field-map');
+    const form: Record<string, string> = { property_value: '[value to be provided]' };
+    withBriefSignals('indigent_application', form, "partition of her husband's one-third share in the family properties, about 3 acres of dry land and a tiled house at Sankarapuram village, worth roughly Rs. 18,00,000 in all. His brothers refused any share to her or her two minor children.");
+    expect(form.property_value).toBe('1800000');
+    expect(form.share_claimed).toBe('one-third share');
+    expect(form.suit_property_schedule).toContain('3 acres of dry land and a tiled house at Sankarapuram village');
+    expect(form.co_heirs).toBe('her two minor children');
+  });
+});

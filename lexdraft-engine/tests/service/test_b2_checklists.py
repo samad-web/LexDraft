@@ -236,8 +236,8 @@ def test_special_leave_petition_item5_list_of_dates_from_the_brief():
 
 def test_special_leave_petition_item13_annexure_index():
     text = _text("special_leave_petition", SLP, allow_placeholders=True)
-    assert ("INDEX OF ANNEXURES\nAnnexure P-1: True copy of the judgment and decree in O.S. No. 54 of 2011 on the "
-            "file of the District Munsif Court, Melur.\nAnnexure P-2: True copy of the judgment and decree in "
+    assert ("Annexure P-2: True copy of the judgment and decree in O.S. No. 54 of 2011 on the "
+            "file of the District Munsif Court, Melur.\nAnnexure P-3: True copy of the judgment and decree in "
             "A.S. No. 31 of 2015 on the file of the Principal Subordinate Court, Madurai.") in text
 
 

@@ -75,7 +75,8 @@ def _first_person(text: str, female: bool) -> str:
 
 def _impugned(ref: str, decree_appeal: bool) -> str:
     """'O.S. No. 73 of 2023, ...' -> 'the judgment and decree in O.S. No. 73 of 2023, ...'."""
-    ref = ref.strip()
+    # b2 item 12: "Dismissal of O.S. No. 73 of 2023" is the event, not a decree reference.
+    ref = re.sub(r"(?i)^(?:the\s+)?dismissal\s+of\s+", "", ref.strip())
     if re.match(r"(?i)(the\s+)?(judgment|decree|order|award)\b", ref):
         return ref
     return ("the judgment and decree in " if decree_appeal else "the order in ") + ref

@@ -193,7 +193,7 @@ def build(
         m = _ORDER_NO.search(impugned_order_ref)
         order_no = m.group(0).strip() if m else ""
     author = next((i for i, r in enumerate(arrayed) if _DETAINING.search(r)), None)
-    relation = (petitioner_relation or "").strip()
+    relation = re.sub(r"\s+of\s+the\s+detenu\s*$", "", (petitioner_relation or "").strip(), flags=re.I)
     if not relation:
         m = _RELATION.search(facts_narrative)
         relation = m.group(1).lower() if m else ""

@@ -18,6 +18,7 @@ blank fill-in line otherwise — the pipeline never refuses.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Mapping, Optional, Sequence
@@ -27,6 +28,21 @@ from ._court import bare_station, bare_sum, designation_and_place, split_crime
 
 TEMPLATE = "surety_memo.docx"
 SPEC = "tn-suretymemo"
+
+
+def _documents_text(documents: Sequence[str], sureties: int) -> str:
+    """["Property documents of the sureties", "Identity proofs of the sureties"] ->
+    "their property documents and identity proofs" (b1 item 8: no slot text)."""
+    of_them = re.compile(r"\s+of\s+the\s+suret(?:y|ies)\s*$", re.I)
+    items = [d.strip().rstrip(".") for d in documents if d.strip()]
+    own = any(of_them.search(i) for i in items)
+    # a common noun goes lower-case; "Aadhaar", "PAN", "Patta" keep theirs
+    cleaned = [(c if (c := of_them.sub("", i)).split()[0].lower() in {"aadhaar", "pan", "patta"}
+                else c[:1].lower() + c[1:]) for i in items]
+    if not cleaned:
+        return ""
+    body = cleaned[0] if len(cleaned) == 1 else ", ".join(cleaned[:-1]) + " and " + cleaned[-1]
+    return (("their " if sureties != 1 else "the ") + body) if own else body
 
 
 @dataclass(frozen=True)
@@ -88,7 +104,7 @@ def build(
         "police_inspector": police_inspector,
         "sureties": [{"name": x.get("name") or "", "address": x.get("address"),
                       "amount": bare_sum(x.get("amount")) or None} for x in sureties],
-        "documents": [d for d in documents if d.strip()],
+        "documents_text": _documents_text(documents, len(sureties)),
         "accused_name": accused_name,
         "place": place,
         "filing_date": filing_date.isoformat() if filing_date else None,

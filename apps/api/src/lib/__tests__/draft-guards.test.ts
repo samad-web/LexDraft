@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { introducedParticulars, lostParticulars, misnamedActs, particularsOf, stripSentences, unauthorisedCitations } from '../draft-guards';
+import { correctLawSlips, introducedParticulars, lostParticulars, misnamedActs, particularsOf, stripSentences, unauthorisedCitations } from '../draft-guards';
 
 describe('particularsOf — format-independent keys', () => {
   it('treats different spellings of the same amount, date and section as equal', () => {
@@ -122,5 +122,23 @@ describe('draft-guards — Order/Rule in any case', () => {
     expect(key('under Order XVII Rule 1 of the Code')).toEqual(['17:1']);
     expect(unauthorisedCitations(['The petition is under Order XVII Rule 1 of the Code of Civil Procedure.'],
       ['PETITION FOR ADJOURNMENT UNDER ORDER XVII RULE 1'], [])).toEqual([]);
+  });
+});
+
+
+describe('correctLawSlips', () => {
+  it('test_s106_notice_item9_guard: the pre-2002 month-end rule cannot come back', () => {
+    const [p] = correctLawSlips(["It can be terminated by the landlord by giving the tenant fifteen days' notice expiring with the end of a month of the tenancy."]);
+    expect(p).not.toMatch(/end of a month/);
+    expect(p).toContain("fifteen days' notice");
+    // the statement that the rule does NOT apply is left alone
+    const ok = 'The notice need not expire with the end of a month of the tenancy.';
+    expect(correctLawSlips([ok])[0]).toBe(ok);
+  });
+
+  it('test_general_notice_item9_guard: interest is never equated with the principal alone', () => {
+    const [p] = correctLawSlips(['refund the deposit with interest at 12% p.a. from 31.08.2026, being the sum of Rs. 1,50,000/- within 15 days']);
+    expect(p).toContain('the principal sum being Rs. 1,50,000');
+    expect(p).not.toContain('being the sum of');
   });
 });

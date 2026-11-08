@@ -148,6 +148,8 @@ def build(
         "demand_amount": demand_amount,
         "demand_words": rupees_in_words(demand_amount),
         "act_required": act_required,
+        # b4 item 9: a demand with interest is not "being the sum of" the principal alone.
+        "interest_in_demand": bool(re.search(r"\binterest\b", act_required or "", re.I)),
         "compliance_days": compliance_days,
         "civil_consequence": civil_consequence,
         "criminal_consequence": criminal_consequence,
