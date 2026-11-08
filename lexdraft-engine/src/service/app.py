@@ -758,7 +758,8 @@ async def compose_text_docx(body: Dict[str, Any],
 
     def _run() -> Dict[str, Any]:
         with tempfile.TemporaryDirectory() as tmp:
-            out = compose_docx([p for p in paras][:2000], Path(tmp) / "composed.docx")
+            kind = body.get("kind") if isinstance(body.get("kind"), str) else None
+            out = compose_docx([p for p in paras][:2000], Path(tmp) / "composed.docx", kind)
             return {"docx_base64": base64.b64encode(out.read_bytes()).decode("ascii"),
                     "blocks": _extract_blocks(out)}
 

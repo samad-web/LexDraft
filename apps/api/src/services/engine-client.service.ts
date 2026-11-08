@@ -437,8 +437,8 @@ export const engineClient = {
   },
 
   /** Lay plain drafted text out as a court-format .docx (house style). */
-  async composeDocx(paragraphs: string[]): Promise<{ docxBase64: string; blocks: EngineBlock[] }> {
-    const { status, json } = await call('POST', '/v1/compose-docx', { paragraphs });
+  async composeDocx(paragraphs: string[], kind?: string): Promise<{ docxBase64: string; blocks: EngineBlock[] }> {
+    const { status, json } = await call('POST', '/v1/compose-docx', { paragraphs, ...(kind ? { kind } : {}) });
     if (status !== 200) throw new EngineError(`compose-docx failed: ${status}`);
     return { docxBase64: json.docx_base64, blocks: json.blocks ?? [] };
   },

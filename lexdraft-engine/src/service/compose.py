@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from docx import Document
 
@@ -100,10 +100,50 @@ def classify(lines: List[str]) -> List[dict]:
     return blocks
 
 
-def compose_docx(lines: List[str], out_path: Path) -> Path:
+_CLOSING = re.compile(
+    r"^\s*(yours\s+(faithfully|truly|sincerely)|for\s+and\s+on\s+behalf|(first|second|third)\s+party\s*$|"
+    r"executants?\s*$|lessor\s*$|lessee\s*$|vendor\s*$|purchaser\s*$|settlor\s*$|trustees?\s*$|"
+    r"witnesses\b|witness\s*\d?\s*:?\s*$)",
+    re.IGNORECASE,
+)
+# A deed, agreement, notice, letter, opinion or form is not laid out as a court filing.
+OPEN_KINDS = ("deed", "agreement", "notice", "letter", "opinion", "form")
+
+
+def classify_document(lines: List[str]) -> List[dict]:
+    """Block style for a document that is not a pleading: its first line is the title,
+    a short line in capitals a heading, and the rest flows as clauses and paragraphs."""
+    blocks: List[dict] = []
+    titled = False
+    for raw in lines:
+        text = raw.strip()
+        if not text:
+            blocks.append({"style": "blank", "text": ""})
+            continue
+        if not titled:
+            style, titled = "title", True
+        elif _VERSUS.match(text):
+            style = "center"
+        elif _CLOSING.match(text) and len(text) <= 60:
+            style = "left"
+        elif _is_caps(text) and len(text) <= 90:
+            style = "heading"
+        elif _SUBITEM.match(text):
+            style = "left"
+        elif _NUMBERED.match(text):
+            style = "para"
+        elif len(text) <= 60 and not text.endswith("."):
+            style = "left"
+        else:
+            style = "para"
+        blocks.append({"style": style, "text": text, "bold": style in ("title", "heading")})
+    return blocks
+
+
+def compose_docx(lines: List[str], out_path: Path, kind: Optional[str] = None) -> Path:
     doc = Document()
     _page_setup(doc)
-    for block in classify(lines):
+    for block in (classify_document(lines) if kind in OPEN_KINDS else classify(lines)):
         # literal text: neutralise any brace pairs so nothing reads as template syntax
         block["text"] = block["text"].replace("{{", "{ {").replace("}}", "} }")
         _add_block(doc, block)

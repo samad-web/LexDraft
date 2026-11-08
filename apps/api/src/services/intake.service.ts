@@ -783,7 +783,7 @@ async function openState(sheet: FactSheet, docLabel: string, state: StoredState)
   const open = state.open!;
   let composed: { docxBase64: string; blocks: Array<{ key: string; text: string }> } | null = null;
   try {
-    composed = await engineClient.composeDocx(open.lines);
+    composed = await engineClient.composeDocx(open.lines, open.kind);
   } catch (err) {
     logger.warn({ err, docLabel }, 'open draft: Word file failed; returning text-only draft');
   }

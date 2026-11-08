@@ -54,3 +54,35 @@ def test_endpoint_returns_court_format_docx():
 
 def test_rejects_bad_input():
     assert client.post("/v1/compose-docx", json={"paragraphs": []}).status_code == 422
+
+
+DEED = ["FAMILY SETTLEMENT DEED", "THIS DEED is made at Madurai on 01.01.2026 BETWEEN the parties named below and it binds them.", "AND",
+        "NOW THIS DEED WITNESSETH AS FOLLOWS:", "1. ALLOTMENT: The house is allotted to the first party for ever and without any claim.",
+        "(a) that he shall sign all papers", "SCHEDULE A", "North by: Road", "FIRST PARTY", "WITNESSES:"]
+
+
+def _styles(lines, kind):
+    from src.service.compose import classify, classify_document, OPEN_KINDS
+    return [b["style"] for b in (classify_document(lines) if kind in OPEN_KINDS else classify(lines))]
+
+
+def test_deed_is_laid_out_as_a_deed_not_a_filing():
+    assert _styles(DEED, "deed") == ["title", "para", "center", "heading", "para", "left", "heading", "left", "left", "left"]
+
+
+def test_compose_docx_with_a_kind_writes_the_title_first(tmp_path):
+    from docx import Document
+    from src.service.compose import compose_docx
+    out = compose_docx(DEED, tmp_path / "d.docx", "deed")
+    assert Document(str(out)).paragraphs[0].text == "FAMILY SETTLEMENT DEED"
+
+
+def test_notice_closing_is_not_a_heading():
+    assert _styles(["ADVOCATE NAME", "To,", "Yours faithfully,"], "notice") == ["title", "left", "left"]
+
+
+def test_no_kind_or_pleading_keeps_the_court_layout():
+    from src.service.compose import classify
+    lines = ["IN THE COURT OF THE DISTRICT MUNSIF, ERODE", "1. The plaintiff states as follows and prays accordingly."]
+    assert _styles(lines, None) == _styles(lines, "pleading") == [b["style"] for b in classify(lines)]
+    assert _styles(lines, "unknown") == [b["style"] for b in classify(lines)]
