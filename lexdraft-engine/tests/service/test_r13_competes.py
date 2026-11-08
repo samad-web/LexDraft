@@ -111,7 +111,7 @@ def test_indigent_application_cause_title_parentage_and_plaint_facts():
         "cause_of_action": "Husband died on 11.02.2025 and his brothers have refused to give any share to her or her two minor children"})
     head = text.split("PETITION FILED UNDER")[0]
     assert "brother of The" not in text
-    assert ("1. [name of respondent to be provided], son of [father's name to be provided], "
+    assert ("1. [name of respondent 1 to be provided], son of [father's name to be provided], "
             "brother of the petitioner's late husband") in head
     plaint = text.split("ANNEXURE: THE PROPOSED PLAINT")[1]
     assert "2. The plaintiff states that her husband died on 11.02.2025" in plaint

@@ -34,7 +34,9 @@ from ..verify.refusals import Refusal, Severity
 TEMPLATE = "substituted_service.docx"
 
 # A party "name" that is only a role description.
-_ROLE_NOT_NAME = re.compile(r"\(client\)|^\s*(?:the\s+|my\s+)?(?:client|plaintiff|petitioner)\b(?:\s+in\b|\s*$)", re.I)
+_ROLE_NOT_NAME = re.compile(
+    r"\(\s*(?:my\s+|our\s+|the\s+)?client\b"
+    r"|^\s*(?:the\s+|my\s+|our\s+)?(?:client|plaintiff|petitioner)s?\b(?:\s+in\b|\s*[(,]|\s*$)", re.I)
 SPEC = "tn-subsvc"
 
 

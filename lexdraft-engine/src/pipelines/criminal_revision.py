@@ -235,7 +235,24 @@ def build(
     ni_act = any(re.search(r"\b138\b", s) and re.search(r"\bN\.?\s?I\b|negotiable", s, re.I)
                  for s in secs)
 
+    # r15: compose opened para 1 "By that judgment ..." with nothing before it. Para 1
+    # names the impugned judgment itself - court, case number, date - and the trial
+    # case it arose from, so any redraft keeps its antecedent.
+    the = lambda c: c if re.match(r"(?i)the\b", c) else f"the {c}"  # noqa: E731
+    on = impugned_order_date.strftime("%d.%m.%Y")
+    if re.match(r"(?i)\s*(?:the\s+)?(?:judgment|order|common)\b", impugned_order_ref):
+        ident = (f"{impugned_order_ref.strip()} dated {on} passed by {the(lower_court.strip())}"
+                 + (f" in {case_ref.strip()}" if case_ref.strip() else ""))
+    else:
+        kind = ("judgment" if re.search(r"(?i)\b(?:Crl\.?\s*)?A\.|\bappeal|\bS\.?\s?T\.?\s?C\.|\bC\.\s?C\.|\bS\.\s?C\.",
+                                        impugned_order_ref) else "order")
+        ident = f"the {kind} dated {on} passed by {the(lower_court.strip())} in {impugned_order_ref.strip()}"
+        if case_ref.strip() and case_ref.strip() not in impugned_order_ref:
+            ident += (", arising out of the judgment of conviction and sentence passed by "
+                      f"{the(trial_court.strip())} in {case_ref.strip()}" if secs and (trial_court or "").strip()
+                      else f", arising out of {case_ref.strip()}")
     context: Dict[str, Any] = {
+        "impugned_identification": ident,
         "forum": forum.value,
         "court_name": court_name,
         "md_suffix": md_suffix,

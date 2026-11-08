@@ -40,7 +40,7 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreDatedGaps } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreDatedGaps, anchorOpening, guideFor } from '../intake-compose.service';
 import { sentencesOf } from '../../lib/draft-guards';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
@@ -747,5 +747,59 @@ describe('r14 compose defects', () => {
       facts: { Petitioner: 'Mrs. V. Selvi' }, provider: 'anthropic',
     });
     expect(result.blocks.map((b) => b.text).join('\n')).toContain('paragraphs 1 to 4 of the plaint');
+  });
+});
+
+describe('r15 compose defects', () => {
+  it('test_dv_application_must_plead_s3_s17_s27: a thinned body is told the statutory heads', () => {
+    const g = guideFor('dv_application');
+    expect(g).toContain('Section 3 of the Act');
+    expect(g).toContain('Section 17 of the Act');
+    expect(g).toContain('Section 27 of the Act');
+  });
+
+  it('test_condone_delay_petition_sub_items_relettered_from_any_start: (b)(d)(e)(g) -> (a)..(d); roman lists untouched', () => {
+    expect(numberBody(['3. Explanation:', '(b) Hospital.', '(d) Counsel approached.', '(e) Copies.', '(g) Filed.'], 3))
+      .toEqual(['3. Explanation:', '(a) Hospital.', '(b) Counsel approached.', '(c) Copies.', '(d) Filed.']);
+    expect(numberBody(['3. Lead:', '(i) One.', '(ii) Two.', '(iii) Three.', '(iv) Four.', '(v) Five.'], 3))
+      .toEqual(['3. Lead:', '(i) One.', '(ii) Two.', '(iii) Three.', '(iv) Four.', '(v) Five.']);
+  });
+
+  it('test_condone_delay_petition_sub_item_keeps_content_after_cut_opener: label and remaining facts survive', () => {
+    const settled = settleGaps(['3. The delay is explained below.', '(a) [to be drafted] He fell ill and did not apply for the decree copy.', '(b) [to be drafted]', '(c) 20.07.2026 to 02.09.2026: In hospital.']);
+    expect(numberBody(settled, 3)).toEqual([
+      '3. The delay is explained below.',
+      '(a) He fell ill and did not apply for the decree copy.',
+      '(b) 20.07.2026 to 02.09.2026: In hospital.',
+    ]);
+  });
+
+  it('test_condone_delay_petition_gap_periods_always_named: every engine stretch is restored after compose', () => {
+    const skeleton = '4. The earlier counsel fell ill. [cause of delay from 12.07.2026 to 20.07.2026 to be provided] [cause of delay from 08.10.2026 to 08.11.2026 to be provided]';
+    const out = numberBody(restoreDatedGaps(settleGaps([
+      '3. The explanation, in date order:',
+      '(b) 20.07.2026 to 02.09.2026: The petitioner was in hospital.',
+      '(e) Certified copies were applied for on 26.09.2026 and received on 08.10.2026.',
+      '4. The last day for filing was 12.07.2026.',
+    ]), skeleton), 3).join('\n');
+    expect(out).toContain('[cause of delay from 12.07.2026 to 20.07.2026 to be provided]');
+    expect(out).toContain('(b) Certified copies were applied for on 26.09.2026 and received on 08.10.2026. [cause of delay from 08.10.2026 to 08.11.2026 to be provided]');
+  });
+
+  it('test_criminal_revision_para1_keeps_impugned_identification: "By that judgment" gets its antecedent back', () => {
+    const skel = '1. This revision is directed against the judgment dated 30.09.2026 passed by the Additional District and Sessions Court, Srivilliputhur in C.A. No. 22 of 2025, which is not an interlocutory order.';
+    const out = anchorOpening(['1. By that judgment the Sessions Court dismissed his appeal.', '2. Address.'], skel);
+    expect(out[0]).toBe('1. This revision is directed against the judgment dated 30.09.2026 passed by the Additional District and Sessions Court, Srivilliputhur in C.A. No. 22 of 2025, which is not an interlocutory order. By that judgment the Sessions Court dismissed his appeal.');
+    const kept = ['1. The petitioner challenges the judgment in C.A. No. 22 of 2025 dated 30.09.2026.'];
+    expect(anchorOpening(kept, skel)).toEqual(kept);
+  });
+
+  it('test_criminal_revision_ground_fragment_dropped: a cut opener takes "for this purpose ..." with it', () => {
+    const settled = settleGaps([
+      'A. The courts below failed to consider the defence.',
+      'D. [to be drafted] The accused was not bound to lead further evidence for this purpose, and the courts below erred.',
+      'E. Both courts held the presumption unrebutted.',
+    ]);
+    expect(numberBody(settled, 1)).toEqual(['A. The courts below failed to consider the defence.', 'B. Both courts held the presumption unrebutted.']);
   });
 });

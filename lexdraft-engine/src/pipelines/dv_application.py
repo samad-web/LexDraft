@@ -172,8 +172,16 @@ def build(
         n = re.sub(r"\b(mr|mrs|ms|smt|thiru|tmt|dr)\b\.?", " ", n)
         return " ".join(re.sub(r"[^a-z0-9]+", " ", n).split())
 
+    # r15: one field held "Mr. V. Sathish; Mrs. V. Kamala" (or "... and Mrs. ...").
+    def _split(n: str) -> List[str]:
+        parts = re.split(r"\s*;\s*|\s*,?\s+(?:and|&)\s+(?=[A-Z])"
+                         r"|\s*,\s*(?=(?:Mr|Mrs|Ms|Smt|Thiru|Tmt|Dr)\b\.?\s)", n)
+        if len(parts) > 1 and any(re.search(r"\b(?:sons|co|company|associates)\b", p, re.I) for p in parts):
+            return [n]  # a firm's name, not two persons
+        return parts
+
     respondents: List[str] = []
-    for n in [respondent_name, *(respondent_names or [])]:
+    for n in [p for raw in [respondent_name, *(respondent_names or [])] for p in _split(raw or "")]:
         n = n.strip()
         if not n:
             continue

@@ -727,6 +727,17 @@ export function townOf(text: string): string {
   return '';
 }
 
+// r15 affidavit: court_name not extracted though the brief says "to be filed before the
+// Tahsildar, Erode" - the forum then read "Hon'ble Court". Keywords any case; town Capitalised.
+const AUTHORITY_IN_ACCOUNT = /(?:[Bb]efore|[Tt]o)\s+the\s+((?:[Dd]eputy\s+)?(?:Tahsildar|tahsildar|Sub[- ]Registrar|District Registrar|Revenue Divisional Officer|District Collector|Collector|Village Administrative Officer)(?:,\s*[A-Z][\w-]*)?)/;
+
+/** An affidavit with no forum takes the authority the advocate's account names. */
+export function withAffidavitAuthority(docType: string, form: Record<string, string>, account: string): void {
+  if (docType !== 'affidavit' || !/^\s*(?:\[[^\]]*\])?\s*$/.test(String(form.court_name ?? ''))) return;
+  const m = AUTHORITY_IN_ACCOUNT.exec(account);
+  if (m) form.court_name = m[1]!.replace(/^tahsildar/, 'Tahsildar');
+}
+
 /** Fill every empty place field of `keys` (default: the contract's) from the court's
  *  town, else a party's address town. */
 export function withPlaceFallback(docType: string, fields: Record<string, unknown>, keys?: string[]): Record<string, unknown> {

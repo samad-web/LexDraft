@@ -39,6 +39,24 @@ _WRONGLY_RECORDED = re.compile(
     re.I)
 
 
+# r15: court_name not extracted, but the proceeding/body said "... before the Tahsildar, Erode".
+_AUTHORITY = re.compile(  # keywords any case; the town must be Capitalised
+    r"(?i:\b(?:before|to)\s+the\s+)(?P<name>(?i:(?:Deputy\s+|Special\s+)?(?:Tahsildar|Sub[- ]Registrar"
+    r"|District\s+Registrar|Revenue\s+Divisional\s+Officer|District\s+Collector|Collector"
+    r"|Village\s+Administrative\s+Officer|Block\s+Development\s+Officer))"
+    r"(?:,?\s+(?:of|at)\s+[A-Z][\w-]*|,\s*[A-Z][\w-]*(?:\s+[A-Z][\w-]+)?)?)")
+# "Correction of name in patta for S.F. No. 88/2, Chithode village, before the Tahsildar"
+_CORRECTION_OF = re.compile(
+    r"\bcorrection\s+of\s+(?:the\s+|my\s+)?name\s+in\s+(?:the\s+)?(?P<record>.+?)(?:,?\s+(?:before|to)\s+the\b|\s*\.?\s*$)",
+    re.I)
+
+
+def authority_in(*texts: Optional[str]) -> Optional[str]:
+    """The non-court authority a free-text field says the affidavit goes before, or None."""
+    m = next(filter(None, (_AUTHORITY.search(t or "") for t in texts)), None)
+    return m.group("name").strip(" ,.") if m else None
+
+
 def _placeholder(text: Optional[str]) -> bool:
     t = (text or "").strip()
     return not t or t.startswith("[") or "to be provided" in t.lower()
@@ -216,7 +234,11 @@ def build(
     # renders these only when a court is present (has_court); a bare affidavit omits the
     # top block. "AFFIDAVIT OF <name>, S/o <parent>, aged <age>, R/o <address>[, in the
     # capacity of <capacity>]" is assembled here so the template stays declarative.
+    if _placeholder(court_name):
+        court_name = authority_in(proceeding, *map(str, body_paras), prayer, court_place) or court_name
     name = _LEAD.sub("", court_name or "").strip()
+    if _placeholder(name):
+        name = ""
     has_court = bool(name) and bool(_COURT_FORUM.search(name) or suit_no
                                     or plaintiff_name or defendant_name)
     ctx["has_court"] = has_court
@@ -231,10 +253,17 @@ def build(
             # wrongly recorded as X in the patta for S.F. No. 88/2" asks the authority
             # to correct that record to the deponent's name.
             m = next(filter(None, (_WRONGLY_RECORDED.search(str(p)) for p in body_paras)), None)
+            c = _CORRECTION_OF.search(proceeding or "")
             if m:
                 request = f"correct {m.group('record').rstrip(' .,')} to read my name as {deponent_name}"
+            elif c:
+                request = f"correct my name in the {c.group('record').rstrip(' .,')} to read {deponent_name}"
         ctx["authority_heading"] = name
         ctx["standalone"] = True
+        # r15: the deponent who asks an authority for something is its applicant.
+        r = (role or "").strip()
+        r = "applicant" if _placeholder(r) or r.lower() == "deponent" else r
+        ctx["standalone_role"] = f"{r} before the {name},"
         ctx["prayer_line"] = (f"I therefore request the {name} to "
                               f"{'[request to be provided]' if _placeholder(request) else request}.")
     ctx["court_name"] = court_name

@@ -247,8 +247,9 @@ export function stripSentences(
         removed.push(s.trim());
         // One marker for a run of removed sentences.
         if (replacement && !kept[kept.length - 1]?.trim().endsWith(replacement)) {
-          // A removed opening sentence keeps its paragraph number / ground letter.
-          const lead = /^\s*(?:\d+[A-Z]?|[A-Z])[.)]\s+/.exec(s)?.[0] ?? '';
+          // A removed opening sentence keeps its paragraph number / ground letter /
+          // sub-item label (r15 condone delay: "(a)" went with its first sentence).
+          const lead = /^\s*(?:(?:\d+[A-Z]?|[A-Z])[.)]|\([a-z]\))\s+/.exec(s)?.[0] ?? '';
           kept.push(`${kept.length ? ' ' : ''}${lead.trim() ? `${lead.trim()} ` : ''}${replacement}`);
         }
       } else {
@@ -257,7 +258,7 @@ export function stripSentences(
     }
     const text = kept.join('').trim();
     // A paragraph reduced to just its number ("7.") carries nothing.
-    if (text && !/^\s*\d+[A-Z]?\s*[.)]?\s*$/.test(text)) out.push(text);
+    if (text && !/^\s*(?:\d+[A-Z]?\s*[.)]?|\([a-z]\))\s*$/.test(text)) out.push(text);
   }
   return {
     paragraphs: out,
