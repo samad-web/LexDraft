@@ -43,3 +43,4 @@
 - fix(attached-formats): when the Anthropic read of an attached format fails, the same read runs on OpenAI (`OPENAI_API_KEY`, `OPENAI_MODEL`); if both fail the advocate sees the plain message. A firm's letterhead stays fixed text.
 - feat(open-drafting): F1. The format picker can say a document is not on the list, instead of forcing a related format. Only the document's name, not facts after it, can pick a format. Until F2 lands the advocate is told to attach a format.
 - feat(open-drafting): F2. A document with no format here is drafted by blueprint, draft, review and repair, modelled on the firm's formats or the closest built-in. No database change.
+- feat(open-drafting): F3. Judgments from memory are removed; provisions our sources cannot confirm are listed to verify; invented dates and figures and misnamed Acts go back for repair.

@@ -10,6 +10,8 @@
 
 import { env } from '../env';
 import { claudeComplete } from '../lib/anthropic-client';
+import { authoritiesBlock, guardRecalledCases, type Authority } from '../lib/compose-authorities';
+import { citationKey, correctLawSlips, introducedParticulars, judgmentCitationsIn, misnamedActs, particularsOf, sentencesOf, unauthorisedCitations } from '../lib/draft-guards';
 import { grokComplete } from '../lib/grok-client';
 import { parseJsonLoose } from '../lib/llm-drafting';
 import { withRetry } from '../lib/retry';
@@ -51,8 +53,8 @@ export interface OpenDraftInput {
   title: string;
   advocateSaid: string;
   sourceText: string;
-  /** Provisions gathered for this matter, already formatted. */
-  authorities: string;
+  /** Provisions gathered for this matter from our law sources. */
+  authorities: Authority[];
   /** Labels the blueprint may name as the closest style model. */
   styleOptions: string[];
   styleOf: (label: string) => Promise<string>;
@@ -105,7 +107,7 @@ function factsBlock(input: OpenDraftInput): string {
     `# Today\n${input.today}`,
     `# What the advocate said\n${input.advocateSaid}`,
     input.sourceText ? `# Attached documents (facts only)\n${input.sourceText.slice(0, 20_000)}` : '',
-    `# Governing provisions\n${input.authorities}`,
+    `# Governing provisions\n${authoritiesBlock(input.authorities)}`,
   ].filter(Boolean).join('\n\n');
 }
 
@@ -165,6 +167,44 @@ confirm: at most 4 points the advocate must confirm with the client or verify, l
   }
 }
 
+const REMOVED_AUTHORITY = '[authority to be cited]';
+
+/** A judgment stays only if our sources list it; one recalled from memory goes. */
+export function keepListedJudgments(lines: string[], authorities: Authority[]): { lines: string[]; removed: number } {
+  const listed = new Set(authorities.filter((a) => a.source === 'judgment').flatMap((a) => judgmentCitationsIn(a.cite)).map(citationKey));
+  const guarded = guardRecalledCases(lines);
+  let removed = guarded.removed.length;
+  const out = guarded.paragraphs.map((para) => sentencesOf(para).map((s) => {
+    if (!s.includes('[verify citation]')) return s;
+    if (judgmentCitationsIn(s).every((c) => listed.has(citationKey(c)))) return s.replace(' [verify citation]', '');
+    removed += 1;
+    return `${s.match(/^\s*/)?.[0] ?? ''}${REMOVED_AUTHORITY}${/\s$/.test(s) ? ' ' : ''}`;
+  }).join(''));
+  return { lines: out, removed };
+}
+
+/** Provisions our law sources could not confirm, named with their Act where the sentence gives it. */
+export function citationsToVerify(lines: string[], input: Pick<OpenDraftInput, 'advocateSaid' | 'sourceText' | 'authorities'>): string[] {
+  const out = new Set<string>();
+  const provision = (p: { kind: string }) => p.kind === 'section' || p.kind === 'article' || p.kind === 'order';
+  const known = input.authorities.map((a) => ({ cite: a.cite, actPattern: a.actPattern }));
+  for (const sentence of unauthorisedCitations(lines, [input.advocateSaid, input.sourceText], known)) {
+    for (const p of particularsOf(sentence).filter(provision)) {
+      const at = sentence.indexOf(p.raw);
+      const act = /^[^.;]{0,70}?(?:Act|Code|Sanhita|Adhiniyam|Rules)(?:,?\s*\d{4})?/.exec(sentence.slice(at));
+      out.add((act?.[0] ?? p.raw).replace(/\s+/g, ' ').trim());
+    }
+  }
+  return [...out];
+}
+
+/** Dates and figures in the draft that the advocate never gave. */
+function inventedParticulars(lines: string[], input: OpenDraftInput): string[] {
+  return introducedParticulars(lines.join('\n'), [input.advocateSaid, input.sourceText, authoritiesBlock(input.authorities), input.today, '01.07.2024'])
+    .filter((p) => p.kind === 'date' || p.kind === 'amount')
+    .map((p) => p.raw);
+}
+
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && Boolean(x.trim())) : []);
 
 export async function composeOpenDraft(input: OpenDraftInput): Promise<OpenDraftResult> {
@@ -193,7 +233,11 @@ export async function composeOpenDraft(input: OpenDraftInput): Promise<OpenDraft
 
   const checked = await review(lines, blueprint, input);
   if (!checked) notes.push('The second-reader check could not run on this draft.');
-  const issues = checked?.issues ?? [];
+  const issues = [
+    ...(checked?.issues ?? []),
+    ...inventedParticulars(lines, input).map((raw) => ({ problem: `"${raw}" is not in the advocate's facts`, fix: 'Remove it or put the particular in brackets, unless the law itself fixes it.' })),
+    ...misnamedActs(lines).map((s) => ({ where: s, problem: 'An Act is named with another Act\'s abbreviation', fix: 'Name the Act correctly.' })),
+  ];
   if (issues.length && first.complete) {
     try {
       const fix = await writeFull(system, `${user}\n\n# Your draft\n${lines.join('\n\n')}\n\n# Corrections from the senior\n${JSON.stringify(issues)}\nFix these and change nothing else. Return the whole document.`, input);
@@ -212,5 +256,15 @@ export async function composeOpenDraft(input: OpenDraftInput): Promise<OpenDraft
     notes.push(...strings(blueprint?.formalities).slice(0, 4).map((f) => `Formality: ${f}`));
   }
   notes.push(...strings(checked?.confirm).slice(0, 4));
-  return { title, kind, blueprint, lines, notes: [...new Set(notes)].slice(0, 16) };
+
+  // Last, so nothing a repair wrote escapes them.
+  const judged = keepListedJudgments(correctLawSlips(lines), input.authorities);
+  lines = judged.lines;
+  const checks: string[] = [];
+  if (judged.removed) checks.push(`${judged.removed} judgment reference(s) could not be confirmed in our sources and were removed. Marked "${REMOVED_AUTHORITY}".`);
+  const invented = inventedParticulars(lines, input);
+  if (invented.length) checks.push(`Check these; they are not in your instructions: ${invented.join('; ')}.`);
+  const verify = citationsToVerify(lines, input);
+  if (verify.length) checks.push(`Verify this citation against the bare Act: ${verify.join('; ')}.`);
+  return { title, kind, blueprint, lines, notes: [...new Set([...checks, ...notes])].slice(0, 16) };
 }

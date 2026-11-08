@@ -1314,7 +1314,7 @@ export const intakeService = {
         title,
         advocateSaid,
         sourceText: state.sourceText,
-        authorities: authoritiesBlock(await gatherAuthorities({ docType: 'open_draft', docLabel: title, facts: {}, account: advocateSaid })),
+        authorities: await gatherAuthorities({ docType: 'open_draft', docLabel: title, facts: {}, account: advocateSaid }),
         ...(await openStyles(ctx.firmId)),
         ...(state.open ? { followUp: { previous: state.open, instruction: instruction ?? 'New documents were attached. Use them.' } } : {}),
         today: todayIso(),
