@@ -10,7 +10,8 @@ from ..blank import _INT_SENTINEL
 
 _REPLY_ITEM = (
     FieldSpec('para', 'int'),
-    FieldSpec('stance', 'enum', enum_values=tuple(s.value for s in Stance)),
+    FieldSpec('stance', 'enum', required=False, default=None,
+              enum_values=tuple(s.value for s in Stance)),
     FieldSpec('text', 'string', required=False, default=''),
     # the petition paragraph's own averment, so a blank reply can be answered from the facts
     FieldSpec('allegation', 'string', required=False, default=''),
@@ -19,7 +20,7 @@ _REPLY_ITEM = (
 
 def _reply(kw: Dict[str, Any]) -> ParaReply:
     kw = dict(kw)
-    kw['stance'] = Stance(kw['stance'])
+    kw['stance'] = Stance(kw['stance']) if kw['stance'] else Stance.NOT_ADMITTED  # as for an unanswered para
     kw['text'] = kw.get('text') or ''
     kw['allegation'] = kw.get('allegation') or ''
     return ParaReply(**kw)

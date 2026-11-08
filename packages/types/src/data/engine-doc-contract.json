@@ -2848,7 +2848,7 @@
             ],
             "key": "stance",
             "kind": "enum",
-            "required": true
+            "required": false
           },
           {
             "key": "text",

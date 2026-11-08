@@ -320,7 +320,7 @@ const AS_ON_KEY = /^as_on$|^as_on_date$|^as_of$|computed_on/i;
 /** The document's OWN date (the day it is signed) is today, like "as on" — a
  *  stand-in from another date dated an s.138 notice with the cheque date. In a
  *  reply, notice_date is the opponent's notice, so only notices take it. */
-const SELF_DATE_KEY = /^(petition|filing|complaint|application|slp|first_motion|second_motion|reply)_date$/;
+const SELF_DATE_KEY = /^(petition|filing|complaint|application|slp|first_motion|second_motion|reply|affirm)_date$/;
 const NOTICE_DOCS = new Set(['s138_notice', 'general_notice', 's106_notice']);
 
 /** Value for ONE missing required date during draft-now: today for an "as on"

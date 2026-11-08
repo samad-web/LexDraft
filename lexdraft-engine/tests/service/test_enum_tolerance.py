@@ -64,3 +64,10 @@ def test_dv_valid_category_is_kept():
 def test_dv_application_renders_with_unreadable_category(bad):
     incident = {"category": bad, "date": "2024-01-10", "description": "He beat her with a belt"}
     assert "He beat her with a belt" in _text("dv_application", {**PAYLOADS["dv_application"], "incidents": [incident]})
+
+
+@pytest.mark.parametrize("bad", [None, "", "deny"])
+def test_counter_affidavit_unreadable_stance_is_not_admitted(bad):
+    payload = PAYLOADS["counter_affidavit"]
+    replies = [{**r, "stance": bad} for r in payload["para_replies"]]
+    assert "are not admitted" in _text("counter_affidavit", {**payload, "para_replies": replies})
