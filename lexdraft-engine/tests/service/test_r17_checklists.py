@@ -67,3 +67,10 @@ def test_writ_petition_item10_mandamus_period():
     own = _text("writ_petition", {**WRIT, "relief_sought": "sanction pension within 6 weeks"},
                 allow_placeholders=True)
     assert "sanction pension in accordance with" in own and "within a period of 6 weeks from" in own
+
+
+def test_permanent_injunction_item3_relationship_with_trailing_punctuation():
+    # r17 v3: the extractor gave "Cousin of the plaintiff;" -> "the plaintiff's Cousin of the plaintiff;"
+    from src.pipelines.permanent_injunction import _relationship
+    for raw in ("Cousin of the plaintiff;", "the plaintiff's cousin.", "Cousin"):
+        assert _relationship([raw], 0) == "cousin"

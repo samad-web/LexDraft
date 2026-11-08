@@ -65,11 +65,11 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
 
 def _relationship(rels: Optional[Sequence[str]], i: int) -> Optional[str]:
     """'the plaintiff's cousin' / 'cousin of the plaintiff' -> 'cousin' (r17)."""
-    r = str(rels[i] if rels and i < len(rels) else "").strip().rstrip(".")
+    r = str(rels[i] if rels and i < len(rels) else "").strip().rstrip(" .;,")  # r17v3: "Cousin of the plaintiff;"
     r = re.sub(r"^(?:is\s+)?(?:the\s+)?(?:plaintiff'?s|his|her)\s+", "", r, flags=re.I)
     r = re.sub(r"\s+of\s+the\s+plaintiff$", "", r, flags=re.I)
     r = re.sub(r"^(?:the|a|an)\s+", "", r, flags=re.I).strip()
-    return r if r and not r.startswith("[") else None  # an unknown relation is not pleaded
+    return r.lower() if r and not r.startswith("[") else None  # an unknown relation is not pleaded
 
 
 def build(
