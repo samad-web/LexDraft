@@ -829,3 +829,18 @@ describe('b1 must-plead checklist items', () => {
     expect(guideFor('quash_petition')).toContain('keeps that marker where the offences are first stated');
   });
 });
+
+describe('b3 checklist must-plead', () => {
+  const HINDUS = 'both parties are Hindus and are governed by the Hindu Marriage Act, 1955';
+  it('test_divorce_contested_item3: HMA averment', () => expect(guideFor('divorce_contested')).toContain(HINDUS));
+  it('test_judicial_separation_item3: ground by clause read with s.10', () =>
+    expect(guideFor('judicial_separation')).toContain('cruelty under Section 13(1)(ia) read with Section 10'));
+  it('test_judicial_separation_item4: HMA averment', () => expect(guideFor('judicial_separation')).toContain(HINDUS));
+  it('test_restitution_conjugal_rights_item2: respondent residence from the facts', () =>
+    expect(guideFor('restitution_conjugal_rights')).toContain('never "[the respondent\'s residence to be stated]"'));
+  it('test_restitution_conjugal_rights_item4: HMA averment', () => expect(guideFor('restitution_conjugal_rights')).toContain(HINDUS));
+  it('test_maintenance_item10: s.145 BNSS', () =>
+    expect(guideFor('maintenance')).toContain('Section 145 of the Bharatiya Nagarik Suraksha Sanhita, 2023'));
+  it('test_maintenance_item12: no stub paragraph', () =>
+    expect(guideFor('maintenance')).toContain('No paragraph that is only a bracketed gap'));
+});

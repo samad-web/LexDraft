@@ -111,6 +111,18 @@ def _with_next_friend(claimants: Sequence[str]) -> List[str]:
     return out
 
 
+def _tribunal_heading(name: Optional[str], place: Optional[str]) -> str:
+    """The Tribunal exactly as briefed ("Motor Accidents Claims Tribunal (Special District
+    Court), Chennai"), upper-cased; a full name put in tribunal_place counts as the name."""
+    name, place = (name or "").strip(), (place or "").strip()
+    if not name and "TRIBUNAL" in place.upper():
+        name, place = place, ""
+    name = re.sub(r"^(before\s+)?the\s+", "", name or "Motor Accident Claims Tribunal", flags=re.I)
+    if place and place.upper() not in name.upper():
+        name = f"{name}, {place}"
+    return name.upper()
+
+
 def build(
     *,
     claim_kind: ClaimKind,
@@ -139,6 +151,7 @@ def build(
     accident_narrative: str,
     # cause-title header (DPC book). Optional.
     tribunal_place: Optional[str] = None,
+    tribunal_name: Optional[str] = None,
     filing_date: Optional[date] = None,
     # where the accident happened — the s.166(2) MV Act jurisdiction fact. Optional.
     accident_place: Optional[str] = None,
@@ -243,6 +256,7 @@ def build(
         "accident_place": (accident_place or "").strip() or None,
         # cause-title header fields (render only when present).
         "tribunal_place": tribunal_place,
+        "tribunal_heading": _tribunal_heading(tribunal_name, tribunal_place),
         "petition_year": filing_date.year if filing_date else None,
         "petition_date": filing_date.isoformat() if filing_date else None,
         "accident_date": accident_date,
