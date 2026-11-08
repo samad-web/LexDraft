@@ -30,6 +30,7 @@ import { logger } from '../logger';
 import { complete, parseJsonLoose, providerModel, resolveProvider, type Provider } from '../lib/llm-drafting';
 import { aiQuotaService } from './ai-quota.service';
 import { aiUsageService } from './ai-usage.service';
+import { localEdit } from '../lib/draft-local-edit';
 
 export const MAX_REVISE_PARAGRAPHS = 2_000;
 export const MAX_REVISE_CHARS = 80_000;
@@ -295,6 +296,17 @@ interface RawRevise {
 
 export const draftReviseService = {
   async revise(req: ReviseRequest, ctx: { firmId: string | null; userId: string }): Promise<ReviseResult> {
+    // An exact edit needs no model: no cost, no quota, nothing else touched.
+    // A review fix is model text, so only the advocate's own words qualify.
+    if (req.source !== 'review') {
+      const local = localEdit(req.instruction, req.paragraphs);
+      const scope = local ? resolveScope(req) : null;
+      const edits = local && scope ? limitToFocus(local.edits, scope) : local?.edits;
+      if (local && edits?.length) {
+        return { ...applyReviseEdits(req.paragraphs, edits), summary: local.summary, questions: [], warnings: local.warnings, scope };
+      }
+    }
+
     const provider: Provider = resolveProvider(req.provider);
     if (provider === 'none') throw new ReviseUnavailableError();
 

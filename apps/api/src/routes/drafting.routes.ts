@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from 'express';
+import { Router, type Request, type RequestHandler, type Response } from 'express';
 import { z } from 'zod';
 import { draftingService, type NoteContextItem, type CaseFacts } from '../services/drafting.service';
 import { draftAgentService, NoProviderError } from '../services/draft-agent.service';
@@ -11,6 +11,7 @@ import {
   MAX_REVISE_CHARS,
   MAX_REVISE_PARAGRAPHS,
 } from '../services/draft-revise.service';
+import { localEdit } from '../lib/draft-local-edit';
 import { draftReviewService, ReviewUnavailableError } from '../services/draft-review.service';
 import {
   documentAskService,
@@ -552,7 +553,15 @@ draftingRouter.get('/progress', (req, res) => {
   res.json(req.user?.id ? draftProgress.get(req.user.id) ?? { stage: null, label: null } : { stage: null, label: null });
 });
 
-draftingRouter.post('/revise', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+// An exact edit ("change X to Y") makes no AI call, so it must not use up the hourly AI limit.
+const reviseLimiter: RequestHandler = (req, res, next) => {
+  const { instruction, paragraphs, source } = (req.body ?? {}) as { instruction?: unknown; paragraphs?: unknown; source?: unknown };
+  const local = source !== 'review' && typeof instruction === 'string' && Array.isArray(paragraphs)
+    && paragraphs.every((p) => typeof p === 'string') && localEdit(instruction, paragraphs as string[]);
+  return local ? next() : llmGenerationLimiter(req, res, next);
+};
+
+draftingRouter.post('/revise', requireFeature('drafting.ai'), reviseLimiter, async (req, res, next) => {
   try {
     const parsed = ReviseBody.parse(req.body);
     if (parsed.paragraphs.reduce((n, p) => n + p.length, 0) > MAX_REVISE_CHARS) {
