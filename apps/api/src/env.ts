@@ -44,6 +44,9 @@ const Schema = z.object({
   // pick it with LLM_PROVIDER=xai / INTAKE_PROVIDER=xai.
   OPENAI_API_KEY: z.string().optional().default(''),
   OPENAI_MODEL: z.string().default('gpt-5.5'),
+  /** 'openai' = Contract Review runs on OpenAI (OPENAI_API_KEY + OPENAI_MODEL) while
+   *  everything else stays on LLM_PROVIDER. User's choice 2026-11-08. */
+  REVIEW_PROVIDER: z.enum(['default', 'openai']).default('default'),
   /** The fast extraction/question model when INTAKE_PROVIDER=xai routes to OpenAI. */
   OPENAI_INTAKE_MODEL: z.string().default('gpt-5.4-mini'),
   // Conversational-intake extractor/classifier use a SEPARATE, FAST model — the

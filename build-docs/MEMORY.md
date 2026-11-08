@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-08 — Contract Review on OpenAI (REVIEW_PROVIDER=openai, OPENAI_MODEL gpt-5.5): a deliberate exception to "Sonnet 5.5 for every AI call"; everything else stays on Claude. No fallback: a missing OpenAI key fails the review. User accepted that client contracts go to OpenAI as well.
 - 2026-11-08 — Deadline alerts: limitations alert at 90/30/7/1/0 days (no "filed" status yet, user accepted); tasks alert by priority (very high 3/1/0/-1, high 1/0/-1, medium 0/-1, low 0). Bell always, email for limitation ≤7 days and high/very-high tasks. Job runs hourly 9-21 IST because pg-boss does not replay a missed cron. Push waits for mobile-push.
 - 2026-11-07 — Live "Missing details" typing re-drafts on the engine only (compose:false: no model call, no hourly limit, no AI quota); "Update document" runs the model polish. User chose this over composing on every typing pause (up to 5 Sonnet calls each).
 - 2026-11-07 — Efficiency: engine runs WEB_CONCURRENCY=2 workers (stateless: sign-offs re-read from disk); the drafting progress poll is exempt from the 600/15 min IP limiter (office NAT). Preview-PDF debounce dropped: conversion already runs only when the .docx changes.

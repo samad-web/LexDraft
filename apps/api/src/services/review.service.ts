@@ -220,6 +220,9 @@ type ProviderOverride = 'xai' | 'anthropic' | undefined;
 type ResolvedProvider = 'xai' | 'anthropic' | 'none';
 
 function resolveProvider(override: ProviderOverride): ResolvedProvider {
+  // REVIEW_PROVIDER=openai: always the OpenAI-compatible slot, which points at
+  // OpenAI when OPENAI_API_KEY is set; create() fails the review when it isn't.
+  if (env.REVIEW_PROVIDER === 'openai') return 'xai';
   if (override === 'xai' && env.XAI_API_KEY) return 'xai';
   if (override === 'anthropic' && env.ANTHROPIC_API_KEY) return 'anthropic';
   return env.llmProvider;
@@ -548,6 +551,10 @@ export const reviewService = {
     //    failed row so the UI can show "Re-run" instead of a generic toast.
     try {
       let parsed: RawReviewLlmOutput;
+      // Without its key the slot would fall through to xAI: fail instead, never switch providers silently.
+      if (env.REVIEW_PROVIDER === 'openai' && !env.OPENAI_API_KEY) {
+        throw new Error('Contract Review is set to OpenAI (REVIEW_PROVIDER=openai) but OPENAI_API_KEY is not set on the server.');
+      }
       if (provider === 'none') {
         parsed = demoOutput(input.perspective);
       } else {
@@ -556,7 +563,8 @@ export const reviewService = {
         const raw = result.text;
         aiUsageService.recordAsync({
           firmId: input.firmId, userId: input.createdBy, feature: 'review',
-          provider, model: provider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
+          provider: provider === 'xai' ? env.openaiCompat.vendor : provider,
+          model: provider === 'anthropic' ? env.ANTHROPIC_MODEL : env.XAI_MODEL,
           tokensIn: result.tokensIn, tokensOut: result.tokensOut,
           cacheReadTokens: result.cacheRead, cacheWriteTokens: result.cacheWrite,
         });

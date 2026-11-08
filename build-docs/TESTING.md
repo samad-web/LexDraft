@@ -90,3 +90,6 @@
 - apps/api/src/services/__tests__/deadline-alerts.test.ts: 10 pass (limitation days 90/30/7/1/0 only; each task priority fires on exactly its days; tones + email flags; IST date at 00:30 IST; owner vs firm-admin recipients; a second run the same day sends nothing).
 - Both alert SELECTs run read-only on the local dev DB (PG16): valid on the real schema (1 limitation due locally).
 - 2026-11-08 - r15 fixes: engine tests/service/test_r15_competes.py +28 parametrised (every r12-r15 wording; 1996+ pass); API +7 (intake-compose r15 block, engine-field-map affidavit authority) - 733 pass, tsc clean.
+
+## Contract Review provider — 2026-11-08
+- apps/api/src/services/__tests__/review-provider.test.ts: 4 pass (default stays on Claude; openai + key calls only OpenAI and logs provider openai; openai without key fails and calls no model; REVIEW_PROVIDER beats a request asking for Anthropic). Mutation check: removing the missing-key guard fails test 3. No live API call (testing rule).
