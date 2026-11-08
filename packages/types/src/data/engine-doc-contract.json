@@ -3179,8 +3179,11 @@
   "criminal_appeal": {
     "all": [
       "appeal_limited_to_sentence",
+      "appellant_address",
+      "appellant_age",
       "appellant_in_custody",
       "appellant_names",
+      "appellant_occupation",
       "condone_delay_petition_filed",
       "convicted_sections",
       "copy_applied_date",
@@ -3383,6 +3386,21 @@
       },
       {
         "key": "deponent_description",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appellant_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appellant_occupation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "appellant_address",
         "kind": "string",
         "required": false
       }
@@ -4263,6 +4281,7 @@
       "family_court",
       "first_motion_case_no",
       "first_motion_order_date",
+      "first_motion_presented_date",
       "marriage_date",
       "marriage_place",
       "no_other_proceedings",
@@ -4323,6 +4342,11 @@
       {
         "key": "first_motion_case_no",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "first_motion_presented_date",
+        "kind": "date",
         "required": false
       },
       {
@@ -10203,6 +10227,7 @@
     "all": [
       "agreement_date",
       "agreement_ref",
+      "agreement_registered",
       "alternative_refund",
       "balance_amount",
       "cause_of_action_date",
@@ -10253,6 +10278,11 @@
         "key": "agreement_ref",
         "kind": "string",
         "required": true
+      },
+      {
+        "key": "agreement_registered",
+        "kind": "bool",
+        "required": false
       },
       {
         "key": "total_consideration",
