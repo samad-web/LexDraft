@@ -41,6 +41,7 @@ ADAPTER = Adapter(
         FieldSpec("place", "string"),
         FieldSpec("accident_narrative", "string", required=False, default=""),
         FieldSpec("tribunal_place", "string", required=False, default=None),
+        FieldSpec("tribunal_name", "string", required=False, default=None),
         FieldSpec("filing_date", "date", required=False, default=None),
         FieldSpec("accident_place", "string", required=False, default=None),
     ),

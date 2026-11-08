@@ -31,6 +31,14 @@ SPEC = "dpc-42-43"
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 
 
+# s.10 HMA adopts the s.13(1) grounds: pleaded by clause, never a bare "s.13".
+_GROUND_CLAUSE = {
+    "adultery": "13(1)(i)", "cruelty": "13(1)(ia)", "desertion": "13(1)(ib)",
+    "conversion": "13(1)(ii)", "unsound_mind": "13(1)(iii)",
+    "venereal_disease": "13(1)(v)", "renunciation": "13(1)(vi)",
+}
+
+
 class Ground(Enum):
     CRUELTY = "cruelty"
     DESERTION = "desertion"
@@ -87,6 +95,8 @@ def build(
     petitioner_address: Optional[str] = None,
     respondent_parentage: Optional[str] = None,
     respondent_address: Optional[str] = None,
+    petitioner_age: Optional[str] = None,
+    petitioner_occupation: Optional[str] = None,
     family_court: Optional[str] = None,
     city: Optional[str] = None,
     # s.26 HMA: custody of a minor child (e.g. "the minor son, R. Arjun, aged 4").
@@ -141,6 +151,8 @@ def build(
 
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
+                       "age": str(petitioner_age or "").strip() or None,
+                       "occupation": (petitioner_occupation or "").strip() or None,
                        "address": petitioner_address},
         "respondent": {"name": respondent_name, "parentage": respondent_parentage,
                        "address": respondent_address},
@@ -153,6 +165,7 @@ def build(
         "marriage_place": marriage_place,
         "marriage_registered": marriage_registered,
         "ground": ground.value,
+        "ground_clause": _GROUND_CLAUSE.get(ground.value),
         "ground_slot": ground_narrative,
         "no_condonation": no_condonation,
         "no_connivance": no_connivance,

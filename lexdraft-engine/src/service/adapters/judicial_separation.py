@@ -28,6 +28,8 @@ ADAPTER = Adapter(
         FieldSpec('petitioner_address', 'string', required=False, default=None),
         FieldSpec('respondent_parentage', 'string', required=False, default=None),
         FieldSpec('respondent_address', 'string', required=False, default=None),
+        FieldSpec('petitioner_age', 'string', required=False, default=None),
+        FieldSpec('petitioner_occupation', 'string', required=False, default=None),
         FieldSpec('family_court', 'string', required=False, default=None),
         FieldSpec('city', 'string', required=False, default=None),
         FieldSpec('custody_sought', 'string', required=False, default=None),

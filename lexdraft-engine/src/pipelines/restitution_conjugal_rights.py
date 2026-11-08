@@ -71,6 +71,8 @@ def build(
     petitioner_address: Optional[str] = None,
     respondent_parentage: Optional[str] = None,
     respondent_address: Optional[str] = None,
+    petitioner_age: Optional[str] = None,
+    petitioner_occupation: Optional[str] = None,
     family_court: Optional[str] = None,
     city: Optional[str] = None,
 ) -> RCRResult:
@@ -106,6 +108,8 @@ def build(
 
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
+                       "age": str(petitioner_age or "").strip() or None,
+                       "occupation": (petitioner_occupation or "").strip() or None,
                        "address": petitioner_address},
         "respondent": {"name": respondent_name, "parentage": respondent_parentage,
                        "address": respondent_address},
