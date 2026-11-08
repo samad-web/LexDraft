@@ -6913,6 +6913,7 @@
       "court_fee",
       "defendant_addresses",
       "defendant_names",
+      "defendant_relationships",
       "filing_date",
       "jurisdiction_basis",
       "place",
@@ -7014,6 +7015,11 @@
       },
       {
         "key": "defendant_addresses",
+        "kind": "string_list",
+        "required": false
+      },
+      {
+        "key": "defendant_relationships",
         "kind": "string_list",
         "required": false
       },
@@ -12079,6 +12085,7 @@
     "all": [
       "alternative_remedy_addressed",
       "alternative_remedy_basis",
+      "compliance_period",
       "court_place",
       "court_side",
       "day",
@@ -12294,6 +12301,11 @@
         "key": "representation_date",
         "kind": "date",
         "required": false
+      },
+      {
+        "key": "compliance_period",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -12322,6 +12334,7 @@
       "filing_date",
       "merit_replies",
       "place",
+      "plaint_claims",
       "plaint_para_count",
       "plaintiff_name",
       "preliminary_objections",
@@ -12423,6 +12436,11 @@
       {
         "key": "summons_served_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "plaint_claims",
+        "kind": "string",
         "required": false
       }
     ],
