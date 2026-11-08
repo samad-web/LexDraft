@@ -13,6 +13,7 @@ ADAPTER = Adapter(
         FieldSpec('suit_property', 'string'),
         FieldSpec('agreement_date', 'date'),
         FieldSpec('agreement_ref', 'string'),
+        FieldSpec('agreement_registered', 'bool', required=False, default=False),
         FieldSpec('total_consideration', 'int'),
         FieldSpec('earnest_paid', 'int'),
         FieldSpec('balance_amount', 'int'),

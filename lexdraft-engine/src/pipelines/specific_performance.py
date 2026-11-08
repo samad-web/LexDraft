@@ -65,6 +65,8 @@ def build(
     suit_property: str,
     agreement_date: Optional[date],
     agreement_ref: str,
+    # b2 item 3: the agreement's registration, when the brief states it.
+    agreement_registered: bool = False,
     total_consideration: int,
     earnest_paid: int,
     balance_amount: int,
@@ -179,6 +181,7 @@ def build(
             re.sub(r"^(?:a|an|the)\s+", "", (suit_property or "").strip().rstrip("."), flags=re.I)),
         "agreement_date": agreement_date,
         "agreement_ref": agreement_ref,
+        "agreement_registered": agreement_registered or bool(re.search(r"\bregistered\b", agreement_ref or "", re.I)),
         "total_consideration": total_consideration,
         "earnest_paid": earnest_paid,
         "alternative_refund": alternative_refund,

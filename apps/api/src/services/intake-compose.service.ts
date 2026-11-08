@@ -43,7 +43,7 @@ import { withRetry } from '../lib/retry';
 import { type NormalizedUsage } from '../lib/llm-usage';
 import { claudeComplete } from '../lib/anthropic-client';
 import { grokComplete } from '../lib/grok-client';
-import { introducedParticulars, lostParticulars, misnamedActs, sentencesOf, stripSentences, unauthorisedCitations } from '../lib/draft-guards';
+import { correctLawSlips, introducedParticulars, lostParticulars, misnamedActs, sentencesOf, stripSentences, unauthorisedCitations } from '../lib/draft-guards';
 import { COMPOSE_FAMILY, type ComposeFamily } from '../lib/compose-families';
 import {
   authoritiesBlock, citedAuthorities, judgmentAuthority, unauthorisedCases, type Authority, type JudgmentRef,
@@ -317,6 +317,7 @@ const GAP_RE = /\[to be drafted\]/g;
 const LEANS_BACK = /^\s*(?:He|She|They|These|Those|Such|It(?!\s+is\s+(?:\w+\s+)?submitted))\b/;
 /** A ground sentence pointing at what a cut sentence said ("for this purpose"). */
 const REFERS_BACK = /\b(?:this|that|these|those|such|said)\s+(?:purpose|presumption|evidence|admission|defence|finding|fact|ground|point|aspect|material)s?\b|\b(?:the same|thereof|therein|thereby)\b/i;
+const OTHER_PROCEEDINGS_STUB = /^\s*\d+[A-Z]?[.)]\s*\[[^\]]*\bother\s+(?:proceedings?|petitions?)\b[^\]]*\]\.?\s*$/i;
 const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
 
 /**
@@ -331,8 +332,10 @@ const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
 export function settleGaps(paragraphs: string[], keepNumbers = false): string[] {
   const out: string[] = [];
   for (const raw of paragraphs) {
-    // b2 injunction: the composer qualifies its own hole ("[to be drafted: the stage …]").
-    const para = raw.replace(/\[to be drafted:[^\]]*\]/g, GAP);
+    // A whole-paragraph note to the advocate, or a stray "other proceedings" stub, is no pleading (b2/b3 unscored).
+    if ((raw.trim() !== GAP && /^\s*\[.*\bto be drafted\b.*\]\.?\s*$/.test(raw)) || OTHER_PROCEEDINGS_STUB.test(raw)) continue;
+    // b2 injunction: the composer qualifies its own hole ("[to be drafted: the stage …]", "[Averment that …, to be drafted]").
+    const para = raw.replace(/\[[^\[\]\n]*\bto be drafted\b[^\[\]\n]*\]/g, GAP);
     if (!para.includes(GAP)) { out.push(para); continue; }
     // A ground letter is a label too (r14: "D. [to be drafted]" printed as "9. D.").
     const lead = /^\s*(?:(?:\d+[A-Z]?|[A-Z])\s*[.)]|\([a-z]\))\s+/.exec(para)?.[0] ?? '';
@@ -480,10 +483,16 @@ const MUST_PLEAD: Record<string, string> = {
 /** b2 civil-batch checklist items the compose step lost or garbled; the engine skeleton
  *  carries the wording, these keep the composer from undoing it. Joined after MUST_PLEAD. */
 const B2_MUST_PLEAD: Record<string, string> = {
-  plaint: '- A firm plaintiff in the cause title exactly as the skeleton has it ("M/s. Lotus Electricals, rep. by its Managing Partner Mr. G. Venkatesh").',
+  s138_reply: '- The period for returning the cheques: state exactly the days the skeleton gives for it, never leave it open.',
+  hrcp_eviction: '- The arrears stated as both months and rupees, exactly as the skeleton has them.',
+  general_notice: '- A demand that carries interest: say "the principal sum of Rs. X together with the said interest"; never "being the sum of" the principal alone.',
+  s106_notice: '- Section 106 of the Transfer of Property Act as amended in 2002: fifteen days\' notice, which need NOT expire with the end of a month of the tenancy — never plead the pre-2002 month-end rule.',
+  mact_claim: '- A minor claimant sues by the mother as next friend, as in the cause title.\n- The insurer\'s liability to indemnify the owner under the policy (Sections 147 and 149, Motor Vehicles Act, 1988), as the skeleton pleads it.',
+  divorce_mutual_second: '- That the second motion is within eighteen months of the presentation of the first motion, with the date or its named gap exactly as the skeleton has it.',
+  plaint: '- Where the skeleton pleads interest as "the rate claimed by the plaintiff", never call it agreed and never cite a document for it.\n- A firm plaintiff in the cause title exactly as the skeleton has it ("M/s. Lotus Electricals, rep. by its Managing Partner Mr. G. Venkatesh").',
   summary_suit: '- Where the skeleton files an Original Side claim in the City Civil Court, keep its pecuniary-jurisdiction sentence (the claim does not exceed Rs. 1,00,00,000/-).\n- An agreed interest rate cites the agreement fixing it, as the skeleton does ("vide the written loan agreement dated …") — never a placeholder for it.',
   ejectment: '- Section 106 of the Transfer of Property Act as amended in 2002: fifteen days\' notice, which need NOT expire with the end of a month of the tenancy — never plead the pre-2002 month-end rule.',
-  specific_performance: '- The SCHEDULE of the suit property is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body, and never say a schedule is "attached".',
+  specific_performance: '- Keep the word "registered" wherever the skeleton calls the agreement registered.\n- The SCHEDULE of the suit property is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body, and never say a schedule is "attached".',
   injunction: '- The prayer exactly as the skeleton has it ("restrain the defendant from …, pending the final disposal of the above suit") — never add "till the suit is disposed of".\n- Never write "[to be drafted: …]"; a fact the facts do not give is simply not pleaded.',
   indigent_application: '- The Order XXXIII Rule 5(e) averment (no property disposed of within two months before the petition) and the applicant\'s age, exactly as the skeleton has them.\n- Where the skeleton names co-heirs, account for their shares as it does — never claim the whole share for the petitioner alone.',
   condone_delay_petition: '- The affidavit is the petitioner\'s own word, in the first person throughout ("I was admitted …", "my counsel"); the petition stays in the third person.',
@@ -1036,6 +1045,7 @@ export async function composeAndVerify(args: {
   }
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
+  checked.paragraphs = correctLawSlips(checked.paragraphs);
   let settled = reply ? settleGaps(checked.paragraphs, reply) : restoreDatedGaps(settleGaps(checked.paragraphs), body);
   if (ANCHORED_OPENING.has(args.docType ?? '')) settled = anchorOpening(settled, lines[seg.start] ?? '');
   const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);

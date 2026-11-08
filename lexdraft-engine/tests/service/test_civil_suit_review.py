@@ -47,7 +47,9 @@ def test_plaint_firms_have_a_place_of_business_not_a_residence():
 def test_plaint_agreed_18_percent_is_never_called_statutory():
     text = _text("plaint", PLAINT)
     assert "statutory" not in text
-    assert "at 18% per annum, the rate agreed between the parties, vide [document fixing" in text
+    # b2 item 6: the brief states no agreement, so 18% is the rate claimed.
+    assert "at 18% per annum, being the rate claimed by the plaintiff" in text
+    assert "rate agreed" not in text
 
 
 def test_plaint_cause_of_action_comes_from_the_invoice_and_notice_dates():

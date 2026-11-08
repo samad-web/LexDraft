@@ -270,6 +270,9 @@ def build(
             fields=("tenant_quit_notice_date",),
         )
 
+    # b2 items 8, 11: months at the agreed rent, so the sum is pleaded and prayed for.
+    arrears_amount = arrears_amount or (arrears_months * monthly_rent)
+
     pleaded: List[Dict[str, str]] = []
     for k in keys:
         clause, text, verify = GROUNDS[k]

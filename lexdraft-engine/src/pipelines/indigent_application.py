@@ -99,6 +99,11 @@ def _co_heirs(heirs: Optional[Sequence[str]], own: str) -> Optional[str]:
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
+def _names_gap(heirs: Optional[str]) -> Optional[str]:
+    """Co-heirs the brief describes but does not name are a visible gap, never left out (b2 item 11)."""
+    return f"[names of {heirs} to be provided]" if heirs and not re.search(r"[A-Z]", heirs) else None
+
+
 def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optional[str],
                   heirs: Optional[str] = None) -> Optional[str]:
     """The proposed plaint's facts as a pleaded sentence, not the brief's note
@@ -125,7 +130,8 @@ def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optiona
                            f"it, and the shares of {heirs} are accounted for and are to be allotted "
                            "to them in the final decree. The defendants have refused to give any "
                            "share, and the suit property is to be partitioned and the plaintiff put "
-                           f"in separate possession of {own} share.")
+                           f"in separate possession of {own} share."
+                           + (f" {_names_gap(heirs)}" if _names_gap(heirs) else ""))
         text += (f" On that death the plaintiff, as a legal heir, became entitled to a {share} share in "
                  "the suit property. The defendants have refused to give that share, and the plaintiff "
                  "is entitled to have the suit property partitioned and to be put in separate "
@@ -247,6 +253,7 @@ def build(
                       "address": applicant_address,
                       "age": age_years(applicant_age)},
         "co_heirs": heirs,
+        "co_heirs_gap": _names_gap(heirs),
         "own": own,
         "respondent": {"name": respondent_name, "parentage": respondent_parentage,
                        "address": respondent_address},

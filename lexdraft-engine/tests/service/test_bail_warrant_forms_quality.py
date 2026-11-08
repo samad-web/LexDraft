@@ -118,7 +118,7 @@ def test_surety_memo_cause_title_sureties_and_documents():
     assert "Inspector of Police, Hasthampatti Police Station" in text
     assert "1. Mr. P. Ganesan, Salem, for Rs. 10,000" in text
     assert "2. Mr. K. Mohan, Attur, for Rs. 10,000" in text
-    assert "The sureties produce their property documents, identity proofs." in text
+    assert "The sureties produce their property documents and identity proofs." in text
     _no_doubles(text)
 
 

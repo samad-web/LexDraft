@@ -715,6 +715,30 @@ export function withBriefSignals(docType: string, form: Record<string, string>, 
   if (docType === 's256_condone_absence' && /\brestor/i.test(account) && !String(form.restore_sought ?? '').trim()) {
     form.restore_sought = 'Yes';
   }
+  // b1/b2: facts in the brief the extractor can drop, read straight from the advocate's words.
+  const empty = (k: string) => !String(form[k] ?? '').trim() || /^\s*\[.*\]\s*$/.test(String(form[k]));
+  if (docType === 'criminal_appeal') {
+    const m = /,\s*aged\s+(\d{1,3})(?:\s+years)?,\s+(?:a|an)\s+([^,.]{3,40}?)\s+(?:from|of|at)\s+([^.]+?)(?=,\s*(?:was|is)\b|\s+was\b|\.)/.exec(account);
+    if (m) {
+      if (empty('appellant_age')) form.appellant_age = m[1]!;
+      if (empty('appellant_occupation')) form.appellant_occupation = m[2]!.trim();
+      if (empty('appellant_address')) form.appellant_address = m[3]!.trim();
+    }
+  }
+  if (docType === 'specific_performance' && /\bregistered\s+(?:sale\s+)?agreement\b/i.test(account) && empty('agreement_registered')) {
+    form.agreement_registered = 'Yes';
+  }
+  if (docType === 'indigent_application') {
+    const worth = /\bworth\s+(?:roughly\s+|about\s+|approximately\s+|around\s+)?Rs\.?\s*([\d,]+)/i.exec(account);
+    if (worth && empty('property_value')) form.property_value = worth[1]!.replace(/,/g, '');
+    const share = /\b(one[- ]third|one[- ]half|one[- ]fourth|one[- ]fifth|half|\d\/\d)\s+share\b/i.exec(account);
+    if (share && empty('share_claimed')) form.share_claimed = share[0]!;
+    // a suit property the brief describes: jurisdiction is then pleaded, not left as a gap
+    const land = /\b((?:about\s+)?[\d.]+\s+acres?\b[^.;]*?)(?=,\s*worth\b|\.)/i.exec(account);
+    if (land && empty('suit_property_schedule')) form.suit_property_schedule = land[1]!.trim();
+    const kids = /\b(?:her|his)\s+(?:two|three|four|five|\d)?\s*minor\s+children\b/i.exec(account);
+    if (kids && empty('co_heirs')) form.co_heirs = kids[0]!.replace(/\s+/g, ' ');
+  }
   if (docType === 'quash_petition' && String(form.sections ?? '').trim()) {
     form.sections = String(form.sections).split(/\r?\n/).map((line) => {
       const num = /(?:sec(?:tion)?s?\.?|s\.|u\/s\.?)\s*(\d+[A-Z]?)/i.exec(line)?.[1] ?? /\b(\d{1,3}[A-Z]?)\b/.exec(line)?.[1];

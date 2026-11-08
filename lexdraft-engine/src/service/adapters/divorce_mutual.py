@@ -68,6 +68,7 @@ register(Adapter(
         FieldSpec("family_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("first_motion_case_no", "string", required=False, default=None),
+        FieldSpec("first_motion_presented_date", "date", required=False, default=None),
         FieldSpec("no_other_proceedings", "bool", required=False, default=None),
         FieldSpec("marriage_date", "date", required=False, default=None),
         FieldSpec("marriage_place", "string", required=False, default=None),

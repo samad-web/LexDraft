@@ -86,7 +86,8 @@ def _refuse(
     )
 
 
-_MINOR = re.compile(r"\bminor\b|\((\d{1,2})\)")
+# "(6)" or "(son, 6)": b3 item 2 lost the next friend to the second form.
+_MINOR = re.compile(r"\bminor\b|\((?:[^)]*[,\s])?(\d{1,2})\)")
 
 
 def _with_next_friend(claimants: Sequence[str]) -> List[str]:

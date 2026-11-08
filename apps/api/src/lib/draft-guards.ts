@@ -212,6 +212,14 @@ const squash = (s: string) => s.toLowerCase().replace(/[\s.,;:'"“”‘’()/-
 // between two all-capitals words never ends one, so a cut takes the whole citation or none.
 const SENTENCE = /(?<!\b(?:Rs|No|Nos|s|ss|Sec|Art|Thiru|Tmt|Selvi|Smt|Shri|Sri|Kum|Mr|Mrs|Ms|Dr|Prof|M\/s|v|vs|viz|Ors|ors|Anr|anr|Rep|rep|LRs|Lrs|Thr|thr|Etc|etc|i\.e|e\.g|Ltd|Pvt|Co|[A-Z]|\d+))(?<!\b[A-Z]{2,}(?=[.;]\s+[A-Z]{2,}\b))[.;](?=\s+[A-Z(“"])/;
 
+/** Fixed legal slips a composer can reintroduce, corrected in place (b4 item 9s): s.106 TPA's
+ *  pre-2002 month-end rule, and interest demanded but called "the sum of" the principal alone. */
+export function correctLawSlips(paragraphs: string[]): string[] {
+  return paragraphs.map((p) => p
+    .replace(/,?\s*(?:expiring|which (?:must|shall|should) expire|(?:must|shall|should) expire)\s+(?:with|at)\s+the\s+end\s+of\s+a\s+month\s+of\s+the\s+tenancy/gi, '')
+    .replace(/(\binterest\b[^;\n]{0,120}?),\s*being the sum of (Rs\.\s*[\d,]+)/gi, '$1, the principal sum being $2'));
+}
+
 export function sentencesOf(paragraph: string): string[] {
   const parts: string[] = [];
   let rest = paragraph;
