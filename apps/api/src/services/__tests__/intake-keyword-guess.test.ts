@@ -1,11 +1,39 @@
 import { describe, expect, it } from 'vitest';
-import { explicitRequest, keywordGuessLabel, labelNamedIn } from '../intake.service';
+import { documentHead, explicitRequest, keywordGuessLabel, labelNamedIn } from '../intake.service';
 import { LABEL_TO_ENGINE_DOC, isRoutable } from '../../lib/engine-field-map';
 
 // The advocate's instruction is classified by these keyword cues FIRST and wins
 // outright, so a wrong cue drafts the wrong document with "high" confidence.
 const LABELS = Object.keys(LABEL_TO_ENGINE_DOC);
 const guess = (s: string) => keywordGuessLabel(s, LABELS);
+
+describe('documentHead — only the document name can pick a format', () => {
+  it.each([
+    ['family settlement deed between brothers over a gift', 'family settlement deed'],
+    ['sale deed by Mr. A in favour of Mr. B', 'sale deed'],
+    ['application for certified copies', 'application for certified copies'],
+    ['complaint under section 138', 'complaint under section 138'],
+    ['adoption deed under the Hindu Adoptions and Maintenance Act', 'adoption deed'],
+    ['petition for divorce by mutual consent', 'petition for divorce by mutual consent'],
+    ['bail petition by the accused', 'bail petition'],
+  ])('%s -> %s', (phrase, head) => {
+    expect(documentHead(phrase)).toBe(head);
+  });
+});
+
+describe('keywordGuessLabel — requests that went to the wrong format', () => {
+  it.each([
+    ['warrant of arrest in C.C. No. 412', 'Court Warrant / Order'],
+    ['default bail petition before the Judicial Magistrate', 'Default Bail Application'],
+    ['application for issue of summons to the defendant', 'Application for Issue of Process'],
+    ['bail application, a warrant of arrest was issued', 'Regular Bail Application'],
+  ])('%s -> %s', (phrase, label) => {
+    expect(guess(phrase)).toBe(label);
+  });
+  it.each(['certified true copy of a board resolution', 'contract termination notice'])('%s is not a built-in', (phrase) => {
+    expect(guess(phrase)).toBeNull();
+  });
+});
 
 describe('keywordGuessLabel — court-issued instruments', () => {
   it.each([

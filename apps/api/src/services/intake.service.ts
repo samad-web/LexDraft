@@ -890,6 +890,12 @@ export function explicitRequest(text: string): string | null {
   return last;
 }
 
+/** The document's name alone: facts after it ("sale deed between ... a gift") can't pick a format. */
+export function documentHead(phrase: string): string {
+  // "by" only before a party ("by the defendant"), never "by mutual consent".
+  return phrase.split(/\s+(?:between|against|on behalf|in favou?r|whereby|regarding|concerning|involving|under the|by(?=\s+(?:the\b|my\b|our\b|[A-Z])))\b/)[0]!.trim();
+}
+
 const LABEL_STOPWORDS = new Set(['of', 'for', 'the', 'a', 'an', 'to', 'by', 'as', 'u', 's', 'and', 'in', 'on', 'with']);
 const labelWords = (s: string) =>
   s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => !LABEL_STOPWORDS.has(w)) ?? [];
@@ -993,6 +999,7 @@ export const intakeService = {
     const forKeyword = instruction?.trim() || message;
     let label: string | null;
     let confidence: 'high' | 'medium' | 'low';
+    let notListed: string | undefined;
 
     // AUTHORITATIVE INSTRUCTION OVERRIDE. When the advocate's OWN instruction
     // ("draft a complaint under 138") yields a confident keyword match, that WINS
@@ -1007,12 +1014,13 @@ export const intakeService = {
     // not pick the format. If it names a document that exists but can't be drafted
     // here, say so instead of drafting something else.
     const requested = explicitRequest(instruction?.trim() || message);
+    const requestedName = requested ? documentHead(requested) : null;
     const requestedLabel = requested
-      ? (labelNamedIn(requested, labels) ?? keywordGuessLabel(requested, labels))
+      ? (labelNamedIn(requested, labels) ?? keywordGuessLabel(requestedName!, labels))
       : null;
     if (requested && !requestedLabel) {
       const known = labelNamedIn(requested, Object.keys(LABEL_TO_ENGINE_DOC))
-        ?? keywordGuessLabel(requested, Object.keys(LABEL_TO_ENGINE_DOC));
+        ?? keywordGuessLabel(requestedName!, Object.keys(LABEL_TO_ENGINE_DOC));
       if (known) {
         throw new IntakeUnavailableError(
           `"${known}" can't be drafted here yet. Open Formats to pick a format, or describe the document differently.`,
@@ -1021,7 +1029,7 @@ export const intakeService = {
     }
     // When the advocate named a document, a FACT word in the brief ("gift deed",
     // "notice") must never pick the format — only the named phrase is classified.
-    const classifyText = requested ?? forKeyword;
+    const classifyText = requestedName ?? forKeyword;
     const instructionLabel = requestedLabel
       ?? (!requested && instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
     if (instructionLabel) {
@@ -1037,8 +1045,13 @@ export const intakeService = {
         ...(ctx.provider ? { provider: ctx.provider } : {}),
         onUsage: (u) => recordUsage(ctx, u),
       });
-      label = guess.label ?? keywordGuessLabel(classifyText, labels);
+      notListed = guess.notListed;
+      label = guess.label ?? (notListed ? null : keywordGuessLabel(classifyText, labels));
       confidence = guess.label ? guess.confidence : 'low';
+    }
+    if (!label && notListed) {
+      logger.info({ doc: notListed, firmId: ctx.firmId }, 'open_draft_requested');
+      throw new IntakeUnavailableError(`There is no format for "${notListed}" on the list yet. Attach your own format for it, or pick one from Formats.`);
     }
     if (!label) {
       throw new IntakeError('could not determine the document type from the description');
@@ -2479,7 +2492,11 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
   const has = (label: string) => labels.includes(label);
   // Word-boundaried cues — avoid substring false positives (e.g. "please" must not
   // match "lease", "will" the verb must not match a Will document loosely).
+  // A company's resolution is not a court copy, whatever its "certified true copy" heading says.
+  if (/\bboard resolution\b/.test(t)) return null;
   const cues: Array<[RegExp, string]> = [
+    [/^\s*warrant of arrest\b/, 'Court Warrant / Order'],
+    [/\bapplication for issue of (?:summons|process)\b/, 'Application for Issue of Process'],
     // "Affidavit of Service" (proof a notice was taken out and returned unserved)
     // is its OWN doc type with the advocate's TN format — it must be matched BEFORE
     // the generic "affidavit" cue below (first match wins), which is why that cue
@@ -2564,6 +2581,7 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
     [/(?=.*(?:\b138\b|\bcheque\b|dishonou?r|\bbounced?\b|\bni act\b))(?=.*(?:\bcomplaint\b|\bcase\b|\bprosecut|\bfil(?:e|ing)\b)).*/, 'Complaint u/s 138 NI Act'],
     // The demand NOTICE: a 138/cheque/dishonour cue with NO complaint intent.
     [/\bcheque\b|\b138\b|dishonou?r|\bbounced?\b/, 'Notice u/s 138 NI Act'],
+    [/\b(?:default|statutory) bail\b/, 'Default Bail Application'],
     [/anticipat|pre.?arrest|apprehend/, 'Anticipatory Bail Application'],
     [/\bbail\b|\barrest(ed)?\b|\bcustody\b|\bremand\b/, 'Regular Bail Application'],
     [/\bvakalat/, 'Vakalatnama'],
@@ -2594,7 +2612,7 @@ export function keywordGuessLabel(brief: string, labels: string[]): string | nul
     [/eviction|ejectment|\bvacate\b/, 'Suit for Ejectment & Damages'],
     [/\bconsumer\b|deficien.*service/, 'Consumer Complaint'],
     [/\baccident\b|\bmact\b|motor vehicle/, 'MACT Claim Petition'],
-    [/\bnotice\b/, 'General Demand Notice'],
+    [/(?<!\bterminat\w*\s)\bnotice\b/, 'General Demand Notice'],
   ];
   for (const [re, label] of cues) {
     if (re.test(t) && has(label)) return label;

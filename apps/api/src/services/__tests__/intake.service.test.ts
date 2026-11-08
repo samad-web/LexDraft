@@ -1020,6 +1020,13 @@ describe('intake loop — auto-detect the format (startAuto)', () => {
     expect(state.detectionConfidence).toBe('low');
   });
 
+  it('never substitutes a format when the classifier says the document is not listed', async () => {
+    classifyQueue.push({ label: null, confidence: 'low', notListed: 'Family Settlement Deed' } as never);
+    await expect(
+      intakeService.startAuto('The two brothers want the sale of the land and the gift recorded by agreement.', CTX),
+    ).rejects.toThrow(/no format for "Family Settlement Deed"/);
+  });
+
   it('throws IntakeError when neither the classifier nor keywords can decide', async () => {
     classifyQueue.push({ label: null, confidence: 'low' });
     await expect(

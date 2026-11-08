@@ -1,3 +1,37 @@
+# PLAN — Open drafting: any legal document (approved 2026-11-08)
+
+## Goal and scope
+- Goal: an advocate can ask for any Indian legal document and get a complete, carefully checked draft, whether or not DifAi has a format for it. Match or beat a general AI and DraftBotPro.
+- For: practising advocates, Tamil Nadu first, all-India law where it applies.
+- Output must read and look as a practising advocate drafts it: same structure, phrasing and Word layout as our built-in formats and the firm's own formats, with no AI style.
+- Out of scope now: drafting in Tamil or other languages; new built-in formats (demand log decides later); live database changes; deployment.
+
+## Project memory that applies
+- 84 built-in formats stay as the first choice when they truly match: they have engine rules and tests. Nothing waits on them.
+- Sonnet 5.5 only. Testing through the Agent SDK, never the API. Never invent facts. Black and white UI. No live DB changes; this plan needs no migration.
+- Deploy only on command. Live server needs a funded AI key; the current Anthropic key has no credit.
+
+## Where this plan pushes back
+- "Correct like ChatGPT" is too low a bar and not a guarantee. General AIs cite wrong sections and invent cases. This plan adds a blueprint, a review pass and code checks, and marks what could not be verified. An advocate must still check every draft.
+- Beating DraftBotPro can only be claimed after scoring its real drafts.
+
+## Features (detail: `features/open-drafting.md`)
+1. F1 Router that can say "not on the list": no more wrong-format substitution.
+2. F2 Open drafting flow: blueprint, draft, review, repair.
+3. F3 Law and citation safety.
+4. F4 Word layout per kind of document.
+5. F5 Composer: honest label, points to confirm, citations to verify.
+6. F6 Proof: 30 out-of-list briefs, blind scoring against a plain AI.
+
+## Build order
+F1 → F2 → F3 → F4 → F5 → F6. F3 needs F2's draft; F5 needs F2 and F3's notes; F6 scores the whole flow. Each feature is tested and committed on its own.
+
+## Needs from you
+- Approval of this plan.
+- Optional, for F6: DraftBotPro drafts of 5 to 10 of the test briefs from its free plan.
+
+---
+
 # PLAN — Mobile app upgrade (approved 2026-11-03)
 
 ## Goal and scope

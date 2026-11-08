@@ -41,3 +41,4 @@
 - Attached formats (2026-11-08): a failed PDF/photo read shows a plain message; the provider's billing or key text only goes to the log.
 - fix(attached-formats): in dev, PDFs and photos are read through the Claude Code route (`attachments` via stream-json), not the API. Court heading no longer doubles "COURT"; a blank opening its line sees the line above; s138_reply cheques read mid-sentence; composer no longer writes sentences or end tags only to hold a gap.
 - fix(attached-formats): when the Anthropic read of an attached format fails, the same read runs on OpenAI (`OPENAI_API_KEY`, `OPENAI_MODEL`); if both fail the advocate sees the plain message. A firm's letterhead stays fixed text.
+- feat(open-drafting): F1. The format picker can say a document is not on the list, instead of forcing a related format. Only the document's name, not facts after it, can pick a format. Until F2 lands the advocate is told to attach a format.
