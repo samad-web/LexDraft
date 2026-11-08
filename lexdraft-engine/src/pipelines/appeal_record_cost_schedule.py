@@ -48,6 +48,7 @@ class RecordDocRow:
     pages_printing: Optional[str] = None
     cost_estimate: Optional[str] = None
     count: Optional[str] = None          # r12: "4 exhibits" — how many items the row holds
+    pages: Optional[str] = None          # b4: "120 pages" of typed matter
 
 
 @dataclass(frozen=True)
@@ -112,6 +113,8 @@ def build(
                 "pages_printing": r.pages_printing,
                 "cost_estimate": r.cost_estimate,
                 "count": (r.count or "").strip(),
+                # "120 pages" / "120" -> "120" (the template prints "(120 pages)").
+                "pages": re.sub(r"\s*pages?\.?$", "", (r.pages or "").strip(), flags=re.I),
             }
             for r in rows
         ],

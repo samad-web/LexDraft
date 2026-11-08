@@ -14,6 +14,7 @@ Validation:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -57,6 +58,24 @@ def _refuse(
     )
 
 
+# "refund the security deposit of Rs. 1,50,000 to my client, together with ..." ->
+# "Demand for refund of the security deposit of Rs. 1,50,000" (b4 item 5: a Sub: line).
+_NOUN = {"refund": "refund of", "repay": "repayment of", "pay": "payment of",
+         "return": "return of", "deliver": "delivery of", "release": "release of"}
+
+
+def _subject(subject: str, act_required: str, demand_amount: int) -> str:
+    s = re.sub(r"^\s*sub(?:ject)?\s*[:.-]\s*", "", subject or "", flags=re.I).strip().rstrip(".")
+    if s:
+        return s
+    act = re.split(r",\s|\btogether with\b|\bwithin\b", act_required or "", maxsplit=1)[0].strip().rstrip(".")
+    act = re.sub(r"\s+to\s+(?:my|our)\s+client$", "", act, flags=re.I)
+    m = re.match(r"(?:to\s+)?(\w+)\s+(.+)", act)
+    if m and m.group(1).lower() in _NOUN:
+        return f"Demand for {_NOUN[m.group(1).lower()]} {m.group(2)}"
+    return f"Demand that you {act}" if act else f"Demand for payment of Rs. {demand_amount}/-"
+
+
 def build(
     *,
     client: str,
@@ -78,6 +97,7 @@ def build(
     loss_narrative: str,
     notice_date: date,
     place: str,
+    subject: str = "",
 ) -> NoticeResult:
     """Assemble the general demand notice, or refuse."""
 
@@ -141,6 +161,7 @@ def build(
                               else _LLM_SLOT_PLACEHOLDER,
         "loss_slot": loss_narrative if loss_narrative.strip()
                      else _LLM_SLOT_PLACEHOLDER,
+        "subject": _subject(subject, act_required, demand_amount),
         "notice_date": notice_date,
         "place": place,
     }

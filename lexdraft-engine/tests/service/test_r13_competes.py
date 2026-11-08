@@ -34,10 +34,11 @@ def test_amendment_ia_descriptive_respondent_becomes_name_gaps():
     assert "names not stated" not in text
 
 
-def test_batta_witness_unknown_side_defaults_to_plaintiff():
+def test_batta_witness_unknown_side_is_not_the_form_strikeout():
+    # b4 replaced r13's assumed Plaintiff with one named gap (test_b4_checklists item 8);
+    # the r13 point that still holds: no raw "Plaintiff - Defendant" strike-out.
     text = _text("batta_witness", {k: v for k, v in _BATTA.items() if k != "applicant_role"})
-    assert "above named Plaintiff for issue of Process" in text and "Plaintiff - Defendant" not in text
-    assert "Counsel for Plaintiff" in text and "Plaintiff / Defendant" not in text
+    assert "Plaintiff - Defendant" not in text and "above named [Plaintiff / Defendant]" in text
 
 
 def test_call_for_memo_records_case_from_the_purpose():

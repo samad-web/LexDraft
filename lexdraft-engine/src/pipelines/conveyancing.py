@@ -326,6 +326,8 @@ def build_power_of_attorney(
         title = "GENERAL POWER OF ATTORNEY"
         witnesseth = "NOW THIS GENERAL POWER OF ATTORNEY WITNESSETH AS UNDER:"
 
+    if executed_abroad:
+        place = _abroad_place(place, executant_description)
     ctx = _base_ctx(title, execution_date, place,
                     poa_kind=poa_kind.value,
                     witnesseth=witnesseth,
@@ -343,6 +345,22 @@ def build_power_of_attorney(
                     executed_abroad=executed_abroad,
                     witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="power_of_attorney.docx", context=ctx)
+
+
+# "now working in Dubai" / "residing at Singapore" -> the place abroad (b4).
+_ABROAD = re.compile(r"\b(?:working|residing|living|settled|employed|staying|based)\s+(?:in|at)\s+"
+                     r"([A-Z][A-Za-z .'-]*?)(?=\s*(?:[,;()]|$|\s(?:and|since|as|for)\b))")
+
+
+def _abroad_place(place: str, executant_description: str) -> str:
+    """A deed executed outside India is executed at the foreign place, never the
+    executant's Indian address; unknown -> a named gap."""
+    if place.strip() and place.strip().lower() not in executant_description.lower():
+        return place  # a place that is not the Indian address: taken as given
+    for m in _ABROAD.finditer(executant_description):
+        if m.group(1).strip().lower() not in place.lower():
+            return m.group(1).strip()
+    return "[place of execution outside India]"
 
 
 _NEGATIVE_LEAD = re.compile(r"^\s*(?:(?:no power|no authority|shall not|cannot|not)\s+)?"

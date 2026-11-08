@@ -239,7 +239,7 @@ def test_golden_copy_application(tmp_path):
     assert "O.S. No." in txt
     # title "Application for Certified Copies" appears BELOW the parties (after To)
     assert txt.index("Versus") < txt.index("Application for Certified Copies")
-    assert "UNDER RULE" in txt
+    assert "UNDER [rule under the Civil Rules of Practice]" in txt
     assert "It is requested that" in txt and "hereunder mentioned" in txt
     _assert_golden("tn_copy_application", txt)
     # The 5-column schedule renders as a TABLE (extract_text skips tables) — assert
@@ -264,7 +264,7 @@ def test_copy_application_is_civil_form_for_any_case(tmp_path):
     of the case's roles / statute:
       - roles are ALWAYS Plaintiff / Defendant (never Complainant/Accused/etc.);
       - "Counsel for Plaintiff" (never the case role);
-      - UNDER RULE is ALWAYS blank (never the case's offence sections);
+      - the rule is ALWAYS the named gap (never the case's offence sections; b4: was a bare blank);
       - no [DRAFT] review banner;
       - a long court name never collides the heading labels ("JUDGEAT").
     This locks the general behaviour, not just the Thoorigai case.
@@ -296,7 +296,7 @@ def test_copy_application_is_civil_form_for_any_case(tmp_path):
         assert "Complainant" not in txt and "Accused" not in txt, label
         assert "Respondent" not in txt and "Petitioner" not in txt, label
         assert "Counsel for Plaintiff" in txt, label
-        assert "UNDER RULE ______" in txt, label          # always blank
+        assert "UNDER [rule under the Civil Rules of Practice]" in txt, label  # always the named gap
         assert "s.138" not in txt and "Article 226" not in txt, label  # no statute
         assert "[DRAFT" not in txt, label                  # no review banner
         assert "JUDGEAT" not in txt, label                 # no heading collision

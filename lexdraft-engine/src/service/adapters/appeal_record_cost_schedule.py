@@ -17,6 +17,7 @@ _DOCUMENT_ITEM = (
     FieldSpec("pages_printing", "string", required=False, default=None),
     FieldSpec("cost_estimate", "string", required=False, default=None),
     FieldSpec("count", "string", required=False, default=None),
+    FieldSpec("pages", "string", required=False, default=None),
 )
 
 

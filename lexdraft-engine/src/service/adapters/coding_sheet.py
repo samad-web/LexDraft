@@ -38,6 +38,7 @@ ADAPTER = Adapter(
         FieldSpec("respondents", "string_list", required=False, default=()),
         FieldSpec("counsel_enrolment_no", "string", required=False, default=None),
         FieldSpec("nature_of_relief", "string", required=False, default=None),
+        FieldSpec("filing_date", "date", required=False, default=None),
     ),
     slots=(),
 )

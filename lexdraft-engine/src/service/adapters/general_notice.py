@@ -32,6 +32,7 @@ ADAPTER = Adapter(
         FieldSpec("loss_narrative", "string", required=False, default=""),
         FieldSpec("notice_date", "date"),
         FieldSpec("place", "string"),
+        FieldSpec("subject", "string", required=False, default=""),
     ),
     slots=("transaction_narrative", "breach_narrative", "prior_demands_narrative",
            "loss_narrative"),
