@@ -131,8 +131,8 @@ def test_indigent_application_respondents_are_r1_r2_name_gaps_not_a_description(
     text = _text("indigent_application", INDIGENT)
     head = text.split("PETITION FILED UNDER")[0]
     # r13: each brother also carries a parentage gap, as a cause title needs
-    assert ("1. [name of respondent to be provided], son of [father's name to be provided], brother of the petitioner's late husband\n"
-            "2. [name of respondent to be provided], son of [father's name to be provided], brother of the petitioner's late husband") in head
+    assert ("1. [name of respondent 1 to be provided], son of [father's name to be provided], brother of the petitioner's late husband\n"
+            "2. [name of respondent 2 to be provided], son of [father's name to be provided], brother of the petitioner's late husband") in head
     assert "Her late husband's two brothers" not in text
 
 

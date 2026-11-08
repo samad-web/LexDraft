@@ -32,24 +32,37 @@ _SHARE_WORDS = {"half": Fraction(1, 2), "one-half": Fraction(1, 2), "one-third":
 
 _NUMBER_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "2": 2, "3": 3, "4": 4, "5": 5}
 _KIN = re.compile(r"\b(brother|sister|son|daughter|child|heir|nephew|niece)(?:s|ren)?\b", re.I)
+_KIN_WORD = r"(?:brother|sister|son|daughter|child|heir|nephew|niece)(?:s|ren)?"
+# r12-r15: "Her late husband's two brothers", "The two brothers of her late husband",
+# "Brothers of her late husband (names not stated)", "husband's brothers" are descriptions.
 _DESCRIBED = re.compile(r"^\s*(?:her|his|their|the)\b|\b(?:two|three|four|five|[2-5])\s+(?:\w+\s+)?"
-                        r"(?:brother|sister|son|daughter|child|heir|nephew|niece)", re.I)
+                        rf"{_KIN_WORD}\b|^\s*{_KIN_WORD}\b|'s\s+(?:\w+\s+)?{_KIN_WORD}\b"
+                        r"|\bnames?\b[^)]*\bnot\b", re.I)
+_PLURAL_KIN = re.compile(r"\b(?:brothers|sisters|sons|daughters|children|heirs|nephews|nieces)\b", re.I)
 
 
-def respondents_from_description(text: str) -> list:
+def respondents_from_description(text: str, count_hint: Optional[int] = None) -> list:
     """"Her late husband's two brothers" is a description, not a name: one
     respondent per person, each a name gap with the relation."""
     kin = _KIN.search(text or "")
     if not (kin and _DESCRIBED.search(text)):
         return [text]
     count = next((v for w, v in _NUMBER_WORDS.items()
-                  if re.search(rf"\b{w}\b", text, re.I)), 1)
-    owner = re.sub(r"\b(?:two|three|four|five|\d)\b", "", text[:kin.start()], flags=re.I)
+                  if re.search(rf"\b{w}\s+(?:\w+\s+)?{_KIN_WORD}\b", text, re.I)), 0)
+    if not count:
+        count = max(count_hint or 0, 2) if _PLURAL_KIN.search(text) else 1
+    # "(names not stated)", "(two brothers; names not given)" are notes, not the relation.
+    bare = re.sub(r"\s*\([^)]*\)", "", text).strip(" ,.;")
+    kin = _KIN.search(bare) or kin
+    owner = re.sub(r"\b(?:two|three|four|five|\d)\b", "", bare[:kin.start()], flags=re.I)
     # r13: "The two brothers of her late husband" printed "brother of The".
     owner = re.sub(r"^\s*(?:the|a)\b", "", owner.strip(), flags=re.I).strip()
     if not owner:
-        owner = re.sub(r"^\s*of\s+", "", text[kin.end():].strip(" ,."), flags=re.I)
+        owner = re.sub(r"^\s*(?:\d+\s+)?of\s+", "", bare[kin.end():].strip(" ,."), flags=re.I)
     owner = re.sub(r"^\s*(?:her|his|their)\b", "the petitioner's", owner.strip(), flags=re.I)
+    if (owner and not re.match(r"(?:the|a|an)\b", owner, re.I)
+            and re.match(r"(?:late\s+)?(?:husband|wife|father|mother)\b", owner, re.I)):
+        owner = "the petitioner's " + owner  # "husband's brothers"
     owner = re.sub(r"'s\s*$", "", owner.strip()).strip()
     kind = kin.group(1).lower()
     relation = kind + (f" of {owner}" if owner else "")
@@ -184,9 +197,12 @@ def build(
     names = [n for n in (respondent_names or []) if n.strip() and not SLOT_PATTERN.search(n)]
     if not names and respondent_name.strip() and not SLOT_PATTERN.search(respondent_name):
         names = [respondent_name]
-    names = [m for n in names for m in respondents_from_description(n)]
+    names = [m for n in names for m in respondents_from_description(n, respondent_count)]
     for i in range(len(names), max(respondent_count or 0, 1)):
         names.append(f"[name of respondent {i + 1} to be provided]")
+    # r15: each unnamed respondent is its own numbered gap (R1, R2), whatever the wording.
+    names = [n.replace("[name of respondent to be provided]", f"[name of respondent {i + 1} to be provided]")
+             for i, n in enumerate(names)]
 
     share = share_fraction(share_claimed)
     if property_value and share:

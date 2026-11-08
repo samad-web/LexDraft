@@ -395,3 +395,21 @@ describe('s138_complaint — flat cheque keys fold into the engine cheques[] lis
     expect('additional_accused_0_name' in fields).toBe(false);
   });
 });
+
+describe('r15 affidavit authority', () => {
+  it('test_affidavit_tahsildar_from_account: an empty forum takes the authority the brief names', async () => {
+    const { withAffidavitAuthority } = await import('../engine-field-map');
+    const account = 'Draft a general affidavit of Mr. K. Ramesh ... to be filed before the Tahsildar, Erode.';
+    for (const court_name of ['', '[court to be provided]']) {
+      const form: Record<string, string> = { court_name };
+      withAffidavitAuthority('affidavit', form, account);
+      expect(form.court_name).toBe('Tahsildar, Erode');
+    }
+    const named: Record<string, string> = { court_name: 'District Munsif Court, Erode' };
+    withAffidavitAuthority('affidavit', named, account);
+    expect(named.court_name).toBe('District Munsif Court, Erode');
+    const other: Record<string, string> = {};
+    withAffidavitAuthority('plaint', other, account);
+    expect(other.court_name).toBeUndefined();
+  });
+});

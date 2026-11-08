@@ -227,6 +227,9 @@ def build(
     # delay petition in a fresh appeal is an I.A. in the A.S.
     if decree_appeal and (not case_ref.strip() or kind_of(case_ref) == "suit"):
         case_ref = f"I.A. No. ______ of {filing_date.year}"
+    # r15: her role in the suit ("Plaintiff") is not her role in this petition.
+    if main_proceeding is MainProceeding.APPEAL:
+        petitioner_role = "Petitioner/Appellant"
     context: Dict[str, Any] = {
         "court_name": court_name,
         "case_ref": case_ref,
@@ -256,11 +259,12 @@ def build(
         "limitation_expiry": win.expiry.isoformat(),
         "delay_days": win.delay_days,
         "sufficient_cause": _mid_sentence(sufficient_cause, _PRONOUN_LEAD),
-        "delay_slot": delay_narrative if delay_narrative.strip()
-                      else " ".join([_LLM_SLOT_PLACEHOLDER, *(
+        # r15: a filled narrative slot dropped the named stretches; every stretch neither
+        # the cause nor the narrative covers stays named, whoever wrote the narrative.
+        "delay_slot": " ".join([delay_narrative.strip() or _LLM_SLOT_PLACEHOLDER, *(
                           f"[cause of delay from {_dmy(a)} to {_dmy(b)} to be provided]"
                           for a, b in unexplained_stretches(
-                              win.expiry, filing_date, sufficient_cause,
+                              win.expiry, filing_date, f"{sufficient_cause} {delay_narrative}",
                               copy_applied_date, copy_ready_date))]),
         "place": place,
         # the affidavit cannot annex itself

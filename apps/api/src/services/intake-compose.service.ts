@@ -288,7 +288,8 @@ export function numberBody(paragraphs: string[], first: number): string[] {
     // Sub-items (a), (b) … likewise (r14 condone delay: "(a) (c) (e) (f)").
     const sub = /^(\s*)\(([a-z])\)(\s)/.exec(p);
     if (sub) {
-      small = small ? String.fromCharCode(small.charCodeAt(0) + 1) : sub[2] === 'a' ? 'a' : '';
+      // A list whose "(a)" was dropped starts at "(b)" (r15) - still (a); "(i)", "(v)", "(x)" may be roman.
+      small = small ? String.fromCharCode(small.charCodeAt(0) + 1) : 'ivx'.includes(sub[2]!) ? '' : 'a';
       if (small) return `${sub[1]}(${small})${sub[3]}${p.slice(sub[0].length)}`;
     } else small = '';
     if (!/^\s*(?:\([0-9a-z]{1,4}\)|[a-z][.)]|[ivx]+[.)])\s/.test(p)) letter = '';
@@ -314,6 +315,8 @@ function renumberFrom(lines: string[], next: number): string[] {
 const GAP_RE = /\[to be drafted\]/g;
 /** A sentence that only makes sense after the one before it. */
 const LEANS_BACK = /^\s*(?:He|She|They|These|Those|Such|It(?!\s+is\s+(?:\w+\s+)?submitted))\b/;
+/** A ground sentence pointing at what a cut sentence said ("for this purpose"). */
+const REFERS_BACK = /\b(?:this|that|these|those|such|said)\s+(?:purpose|presumption|evidence|admission|defence|finding|fact|ground|point|aspect|material)s?\b|\b(?:the same|thereof|therein|thereby)\b/i;
 const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
 
 /**
@@ -330,12 +333,15 @@ export function settleGaps(paragraphs: string[], keepNumbers = false): string[] 
   for (const para of paragraphs) {
     if (!para.includes(GAP)) { out.push(para); continue; }
     // A ground letter is a label too (r14: "D. [to be drafted]" printed as "9. D.").
-    const lead = /^\s*(?:\d+[A-Z]?|[A-Z])\s*[.)]\s+/.exec(para)?.[0] ?? '';
+    const lead = /^\s*(?:(?:\d+[A-Z]?|[A-Z])\s*[.)]|\([a-z]\))\s+/.exec(para)?.[0] ?? '';
     let body = para.slice(lead.length);
     if (body.startsWith(GAP)) {
-      // A cut opening takes the sentences that lean on it ("He may show …", r14 para 5).
+      // A cut opening takes the sentences that lean on it ("He may show …", r14 para 5);
+      // a dated sub-item "(a)" keeps what is left - its facts are the delay's (r15).
       const rest = sentencesOf(body.slice(GAP.length));
-      while (rest.length && LEANS_BACK.test(rest[0]!)) rest.shift();
+      // r15 ground D: "… for this purpose, and …" after a cut opener is a fragment too.
+      const leans = (s: string) => LEANS_BACK.test(s) || (/^\s*[A-Z][.)]/.test(lead) && REFERS_BACK.test(s));
+      while (rest.length && leans(rest[0]!) && !lead.includes('(')) rest.shift();
       body = (rest.length ? GAP : '') + rest.join('');
     }
     const text = body.replace(GAP_RE, (gap, at: number, all: string) => {
@@ -372,6 +378,21 @@ export function restoreDatedGaps(paragraphs: string[], skeletonBody: string): st
     else out.push(marker);
   }
   return out;
+}
+
+/** Documents whose skeleton para 1 identifies the impugned order (r15 criminal revision:
+ *  compose opened "By that judgment …" with no antecedent). */
+const ANCHORED_OPENING = new Set(['criminal_revision']);
+const CASE_OR_DATE = /\bNo\.\s*\d+\s+of\s+\d{4}\b|\b\d{2}\.\d{2}\.\d{4}\b/g;
+
+/** Para 1 must carry every case number and date of the skeleton's para 1; when the
+ *  redraft lost any, the skeleton's sentence goes back at its head. */
+export function anchorOpening(paragraphs: string[], skeletonFirst: string): string[] {
+  const keys = skeletonFirst.match(CASE_OR_DATE) ?? [];
+  const first = paragraphs[0];
+  if (!first || !keys.length || keys.every((k) => first.includes(k))) return paragraphs;
+  const lead = NUMBERED.exec(first)?.[0] ?? '';
+  return [`${lead}${skeletonFirst.replace(NUMBERED, '').trim()} ${first.slice(lead.length).trim()}`, ...paragraphs.slice(1)];
 }
 
 function lastNumber(paragraphs: string[], fallback: number): number {
@@ -417,6 +438,8 @@ const MUST_PLEAD: Record<string, string> = {
   s138_reply: '- Where the facts say the payee holds no money-lending licence, tie that point to the Tamil Nadu Money-Lenders Act, 1957 when it is in the Authorities list (the Act only, no section); otherwise state it as a fact.',
   default_bail: '- That NO charge sheet / final report had been filed as on the date of this application, and the date the statutory period expired.',
   regular_bail: '- If custody has run past the statutory period without a charge sheet, assert the default-bail right outright, not hesitantly.',
+  // r15: a thinned compose dropped the statutory heads, the residence right and jurisdiction.
+  dv_application: '- Each act complained of named by its head of domestic violence under Section 3 of the Act (physical, sexual, verbal and emotional, or economic abuse; a dowry demand is harassment under Section 3(b)), as the facts show.\n- The petitioner\'s right to reside in the shared household under Section 17 of the Act, whether or not she has any right, title or beneficial interest in it, and that she shall not be evicted or excluded from it save by procedure established by law.\n- Jurisdiction under Section 27 of the Act: the court within whose local limits the petitioner permanently or temporarily resides, or the respondent resides, or the cause of action arose — from the addresses in the facts.',
   maintenance: '- The wife (or child / parent) is unable to maintain herself; the respondent has sufficient means and has neglected or refused to maintain.\n- She lives separately for sufficient reason (e.g. she was driven out), and is not living in adultery or separately by mutual consent — plead these facts in words; cite no sub-section and never the CrPC for them (r12: that sentence was cut, leaving a gap).\n- Never name a case (no "Rajnesh v. Neha") unless it is in the Authorities list.\n- Maintenance is claimed from the date of the application (not from an earlier date of neglect).\n- Interim maintenance only in the prayer\'s words: "the second proviso to sub-section (1) of Section 144" — never "proviso to Section 144(2)". Each petitioner\'s monthly figure separately, as the skeleton gives it.',
   // 2026-11-07: the composer wrote "Section 13(1)(ia)" against a skeleton that said
   // only "s.13(1)", so the guard stripped it and the compose fell back every time.
@@ -984,7 +1007,8 @@ export async function composeAndVerify(args: {
   }
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
-  const settled = reply ? settleGaps(checked.paragraphs, reply) : restoreDatedGaps(settleGaps(checked.paragraphs), body);
+  let settled = reply ? settleGaps(checked.paragraphs, reply) : restoreDatedGaps(settleGaps(checked.paragraphs), body);
+  if (ANCHORED_OPENING.has(args.docType ?? '')) settled = anchorOpening(settled, lines[seg.start] ?? '');
   const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);
 
   const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
