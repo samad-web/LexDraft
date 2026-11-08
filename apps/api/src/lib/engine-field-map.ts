@@ -703,6 +703,28 @@ export function dropUnstatedFlags(
   return dropped;
 }
 
+// ---- brief signals (b1) --------------------------------------------------------
+//
+// Facts only the advocate's own words settle. s256: "restore the case" asks for the
+// restoration prayer (restore_sought), never case_dismissed. quash: a section the
+// extractor named though the account cites none is inferred from the allegation, so
+// it is marked for the advocate to confirm against the FIR.
+const TO_CONFIRM = '[to be confirmed against the FIR]';
+
+export function withBriefSignals(docType: string, form: Record<string, string>, account: string): void {
+  if (docType === 's256_condone_absence' && /\brestor/i.test(account) && !String(form.restore_sought ?? '').trim()) {
+    form.restore_sought = 'Yes';
+  }
+  if (docType === 'quash_petition' && String(form.sections ?? '').trim()) {
+    form.sections = String(form.sections).split(/\r?\n/).map((line) => {
+      const num = /(?:sec(?:tion)?s?\.?|s\.|u\/s\.?)\s*(\d+[A-Z]?)/i.exec(line)?.[1] ?? /\b(\d{1,3}[A-Z]?)\b/.exec(line)?.[1];
+      if (!line.trim() || line.includes('[') || !num) return line;
+      const stated = new RegExp(`(?:sec(?:tion)?s?\\.?|s\\.|u/s\\.?)\\s*(?:\\d+[A-Z]?(?:\\([^)]*\\))*\\s*(?:,|and|&|r/w)\\s*)*${num}\\b|\\b${num}\\s*(?:\\(\\w+\\)\\s*)*(?:of\\s+the\\s+)?(?:BNS|IPC|Bharatiya|Indian|D\\.?P\\.?\\s*Act|Dowry)`, 'i');
+      return stated.test(account) ? line : `${line.trimEnd()} ${TO_CONFIRM}`;
+    }).join('\n');
+  }
+}
+
 // ---- place fallback ------------------------------------------------------------
 //
 // A document's place of signing/filing ("Place: ___", "executed at ___") is never a

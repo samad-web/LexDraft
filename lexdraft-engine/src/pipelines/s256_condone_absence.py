@@ -70,6 +70,7 @@ def build(
     absence_date: Optional[date] = None,   # the hearing the complainant missed
     post_for: Optional[str] = None,        # e.g. "evidence": post the case for it
     case_dismissed: bool = False,          # only a dismissed case is prayed to be restored
+    restore_sought: bool = False,          # b1: the brief asks to restore the case
     case_nature: Optional[str] = None,     # e.g. "Section 138 of the Negotiable Instruments Act, 1881"
     deponent_name: Optional[str] = None,   # the proprietor / complainant who swears the affidavit
     deponent_description: Optional[str] = None,  # age, parentage, address
@@ -125,6 +126,7 @@ def build(
         "deponent_description": description,
         "proof": proof,
         "case_dismissed": case_dismissed,
+        "restore": case_dismissed or restore_sought,
         "case_nature": (case_nature or "").strip().rstrip("."),
         "case_ref": case_ref,
         "court_designation": court_designation,

@@ -21,6 +21,7 @@ ADAPTER = Adapter(
         FieldSpec("absence_date", "date", required=False, default=None),
         FieldSpec("post_for", "string", required=False, default=None),
         FieldSpec("case_dismissed", "bool", required=False, default=False),
+        FieldSpec("restore_sought", "bool", required=False, default=False),
         FieldSpec("case_nature", "string", required=False, default=None),
         FieldSpec("deponent_name", "string", required=False, default=None),
         FieldSpec("deponent_description", "string", required=False, default=None),

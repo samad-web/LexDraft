@@ -104,6 +104,16 @@ def build(
     # prints "C.C. / Crime No.").
     cc_clean = re.sub(r"^\s*(c\.?\s*c\.?|crime)\s*(no\.?)?\s*", "", cc_no or "", flags=re.I).strip()
 
+    # b1: the label the number came with (cc_no, else the case reference); a bare
+    # number before a Magistrate is a C.C.
+    lead = (cc_no or "").strip() or (case_ref or "").strip()
+    case_label = ("Crime No." if re.match(r"(?i)crime", lead)
+                  else "S.T.C. No." if re.match(r"(?i)s\.?\s*t\.?\s*c", lead)
+                  else "C.C. No." if cc_clean else "C.C. / Crime No.")
+    if case_label == "S.T.C. No.":
+        cc_clean = re.sub(r"(?i)^s\.?\s*t\.?\s*c\.?\s*(no\.?)?\s*", "", cc_clean)
+    if not cc_clean and case_ref.strip():
+        cc_clean = re.sub(r"(?i)^\s*(c\.?\s*c\.?|crime|s\.?\s*t\.?\s*c\.?)\s*(no\.?)?\s*", "", case_ref).strip()
     pr = pronouns(accused_name, accused_gender)
     reason = subject_clause(absence_reason, pr["he"])
     # the affidavit is the accused's own word: "as I was admitted ...".
@@ -129,6 +139,7 @@ def build(
         "court_at": court_at,
         "case_ref": case_ref,
         "cc_no": cc_clean,
+        "case_label": case_label,
         "accused_name": accused_name,
         "complainant_name": complainant_name,
         # N.B.W. / B.W. — blank prints both for the advocate to strike one out.

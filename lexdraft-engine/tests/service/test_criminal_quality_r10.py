@@ -244,8 +244,10 @@ _QUASH = {
 def test_quash_petition_cruelty_dowry_fir_names_bns_85_and_dp_act_4():
     """r10: the brief says "cruelty and dowry harassment"; the sections stayed blank."""
     text = "\n".join(_draft("quash_petition", _QUASH, allow_placeholders=True))
+    # b1: inferred, so each is marked for the advocate to confirm against the FIR
     assert ("registered for the alleged offences under Section 85 of the Bharatiya Nyaya Sanhita, "
-            "2023, Section 4 of the Dowry Prohibition Act, 1961") in text
+            "2023 [to be confirmed against the FIR], Section 4 of the Dowry Prohibition Act, 1961 "
+            "[to be confirmed against the FIR]") in text
     assert "[sections to be provided]" not in text
 
 

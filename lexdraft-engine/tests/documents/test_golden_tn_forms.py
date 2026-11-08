@@ -400,7 +400,7 @@ def test_golden_recall_petition(tmp_path):
     txt = _g(rp.TEMPLATE, r.context, tmp_path, "rp")
     # Advocate format (02_Recall_Petition.pdf) locked here:
     assert "In the Court of Hon'ble Judicial Magistrate" in txt
-    assert "C.C. / Crime No." in txt
+    assert "C.C. No. 125 of 2026" in txt and "C.C. / Crime No." not in txt  # b1: the case's own label
     assert "... Petitioner / Accused" in txt and "Complainant / Respondent" in txt
     assert "-Vs-" in txt
     # 2026-11-07: a 2026 case is under the BNSS (s.72(2)), not s.70(2) CrPC.
@@ -411,7 +411,7 @@ def test_golden_recall_petition(tmp_path):
     # heading de-duplicated (no doubled "Magistrate ... Magistrate ... Court")
     assert "Magistrate First Class, Chennai" in txt
     # cc_no redundant "C.C. No." prefix stripped
-    assert "C.C. / Crime No. 125 of 2026" in txt
+    assert "C.C. No. 125 of 2026" in txt  # b1: the stray "C.C. No." stripped, its own label kept
     _assert_golden("tn_recall_petition", txt)
 
 
@@ -479,7 +479,8 @@ def test_golden_surety_memo(tmp_path):
     assert "Complainant" in txt and "Accused" in txt
     assert "- Versus -" in txt
     assert "SURETY MEMO" in txt
-    assert ("as per the orders of this Hon'ble Court, the sureties is being "
+    # b1: the form's "the sureties is being furnished" read as a grammar slip
+    assert ("as per the orders of this Hon'ble Court, the sureties are being "
             "furnished for the accused above named") in txt
     assert "released on bail and thus render justice" in txt
     assert "Counsel For Petitioner / Accused" in txt
@@ -496,7 +497,7 @@ def test_surety_memo_blank_when_empty(tmp_path):
     assert r.refused is False
     txt = _g(sm.TEMPLATE, r.context, tmp_path, "sm_empty")
     assert "SURETY MEMO" in txt
-    assert "sureties is being furnished" in txt
+    assert "sureties are being furnished" in txt  # b1
 
 
 def test_golden_affidavit_of_surety(tmp_path):

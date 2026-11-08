@@ -18,6 +18,7 @@ when known and render as the form's blank fill-in line otherwise — never refus
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, Optional
@@ -68,6 +69,9 @@ def build(
     accused_parentage: str = "",
     surety_occupation: str = "",
     property_particulars: str = "",
+    # b1: "have stood surety for ... in ..." when the brief says so; else the
+    # declaration reads "have not stood surety in any other case".
+    prior_suretyship: str = "",
 ) -> AffidavitOfSuretyResult:
     """Assemble the Affidavit of Surety. Never refuses — renders blanks for
     anything not supplied, so it drafts complete-with-gaps for the surety."""
@@ -98,6 +102,8 @@ def build(
         "accused_parentage": bare_parentage(accused_parentage),
         "surety_occupation": surety_occupation,
         "property_particulars": property_particulars,
+        "prior_suretyship": re.sub(r"^\s*(?:I\s+)?(?:have\s+)?", "have ", prior_suretyship.strip().rstrip(".")
+                                   ) if prior_suretyship.strip() else "",
         "offence_sections": offence_sections,
         "bail_sum": bare_sum(bail_sum),
         "bail_sum_words": bail_sum_words or sum_in_words(bail_sum),

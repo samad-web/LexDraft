@@ -26,6 +26,7 @@ ADAPTER = Adapter(
         FieldSpec("documents", "string_list", required=False, default=()),
         FieldSpec("filing_date", "date", required=False, default=None),
         FieldSpec("accused_gender", "string", required=False, default=None),
+        FieldSpec("deponent_description", "string", required=False, default=None),
     ),
     slots=(),
 )

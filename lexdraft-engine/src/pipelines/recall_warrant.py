@@ -25,7 +25,7 @@ from typing import Any, Dict, Optional, Sequence
 
 from ..verify.refusals import Refusal, Severity
 from ._code_framework import provision
-from ._court import bare_station, court_and_place, pronouns, subject_clause
+from ._court import bare_station, court_and_place, first_person, pronouns, subject_clause
 from ._state_party import state_respondent
 
 TEMPLATE = "recall_warrant.docx"
@@ -71,6 +71,7 @@ def build(
     documents: Sequence[str] = (),   # e.g. the medical certificate filed with it
     filing_date: Optional[date] = None,   # the intake's date of filing (today)
     accused_gender: Optional[str] = None,  # resolves he/she when no title
+    deponent_description: Optional[str] = None,  # age, parentage, address for the affidavit
 ) -> RecallWarrantResult:
     """Assemble the s.70(2) petition to recall the warrant of arrest, or refuse."""
 
@@ -121,6 +122,9 @@ def build(
         "accused_name": accused_name,
         "absence_reason": subject_clause(
             absence_reason, pronouns(accused_name, accused_gender)["he"]),
+        "absence_reason_first": first_person(absence_reason),
+        "deponent_description": (deponent_description or "").strip(),
+        "petition_year": str(petition_date.year) if petition_date else None,
         "warrant_pending": warrant_pending,
         "undertaking_future_appearance": undertaking_future_appearance,
         "case_ref": case_ref,

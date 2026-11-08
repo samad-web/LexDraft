@@ -141,7 +141,8 @@ def build(
         "bail_granted": bail_granted,
         "bail_sum": bare_sum(bail_sum),
         # proof of means: the title documents of the property offered (a visible gap).
-        "id_proofs": [p for p in id_proofs if p.strip()]
+        "id_proofs": [("[identity document listed in Rule 14(4), e.g. Passport, Voter ID or PAN card]"
+                       if p.strip().startswith("[") else p) for p in id_proofs if p.strip()]
                      + (titles or ["[copy of the title document of the above property]"]),
         "property_description": (property_description or "").strip(),
         "title_documents": titles,

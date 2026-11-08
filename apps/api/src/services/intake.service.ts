@@ -44,7 +44,7 @@ import {
   type EngineRefusal,
   type EngineBundleDoc,
 } from './engine-client.service';
-import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable, withPlaceFallback, dropUnstatedFlags, withAffidavitAuthority } from '../lib/engine-field-map';
+import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable, withPlaceFallback, dropUnstatedFlags, withAffidavitAuthority, withBriefSignals } from '../lib/engine-field-map';
 import { createHash } from 'node:crypto';
 import {
   firmFormatsService,
@@ -1706,6 +1706,7 @@ export const intakeService = {
     }
     dropUnstatedFlags(state.form, state.meta, advocateAccount(state));
     withAffidavitAuthority(doc.docType, state.form, advocateAccount(state));
+    withBriefSignals(doc.docType, state.form, advocateAccount(state));
     const { fields } = mapForDoc(doc,state.form, {});
     // Free-text SLOTS the engine merges into the template (kept separate from the
     // validated `fields`). Today: the s.138 complaint's debt paragraph (para 3),

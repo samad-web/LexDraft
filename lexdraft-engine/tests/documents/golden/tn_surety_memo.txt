@@ -5,10 +5,9 @@ State : State of Tamil Nadu
 Inspector of Police, Egmore P.S.
 --- Complainant
 - Versus -
---- Accused
-Anand
+Anand  --- Accused
 SURETY MEMO
-It is submitted that as per the orders of this Hon'ble Court, the sureties is being furnished for the accused above named, it may be accepted and the accused may be released on bail and thus render justice.
+It is submitted that as per the orders of this Hon'ble Court, the sureties are being furnished for the accused above named; they may be accepted and the accused may be released on bail and thus render justice.
 
 
 

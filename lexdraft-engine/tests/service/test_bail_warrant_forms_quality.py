@@ -206,7 +206,7 @@ def test_s317_dispense_presence_bnss_hearing_date_identity_and_court():
     assert "IN THE COURT OF THE JUDICIAL MAGISTRATE NO. I AT COIMBATORE" in up
     assert "on 20.11.2026, as he is undergoing knee surgery" in text
     assert "in this case on 20.11.2026." in text and "today" not in text
-    assert "will not dispute his/her identity" in text
+    assert "undertakes that he will not dispute his identity" in text  # b1: resolved from "Mr."
 
 
 def test_court_warrant_arrest_kind_form2_bnss_court_and_return_date():
@@ -223,7 +223,7 @@ def test_court_warrant_arrest_kind_form2_bnss_court_and_return_date():
     assert "Mr. B. Senthil                          ... Accused" in text
     assert "To, The Inspector of Police, Thallakulam Police Station, Madurai" in text
     assert "failed to appear before this Court on 15.10.2026 in spite of the summons" in text
-    assert "produce him/her before this Court on or before 20.11.2026. Herein fail not." in text
+    assert "produce him before this Court on or before 20.11.2026. Herein fail not." in text  # b1
     assert "[offence(s) and section(s) to be provided]" in text  # not in the brief
     assert "Decree-Holder" not in text and "Judgment-Debtor" not in text
 

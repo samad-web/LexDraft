@@ -149,6 +149,10 @@ def build(
     own = {re.sub(r"\W+", "", court_name.lower()), re.sub(r"\W+", "", court_name_clean.lower())} - {""}
     others = [c for c in records_court if not any(o and o in re.sub(r"\W+", "", c.lower()) for o in own)]
     role = applicant_role.strip().title()
+    # b1: a petition to call for records to compare the ACCUSED's signatures is the
+    # complainant's (the accused disputes the signature; the complainant proves it).
+    if not role and kind == "records" and re.search(r"(?i)signature.*\baccused\b|accused'?s?\s+signature", purpose):
+        role = "Complainant"
     context: Dict[str, Any] = {
         "kind": kind,
         "applicant_label": role if role in ("Complainant", "Accused") else "Petitioner",

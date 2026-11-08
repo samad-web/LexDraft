@@ -31,7 +31,7 @@ from typing import Any, Dict, Optional
 
 from ..verify.refusals import Refusal, Severity
 from ._code_framework import provision
-from ._court import court_and_place
+from ._court import court_and_place, pronouns
 
 TEMPLATE = "court_warrant.docx"
 SPEC = "tn-warrant"
@@ -90,6 +90,7 @@ def build(
     default_date: Optional[date] = None,    # the hearing the accused failed to attend
     despite_summons: bool = False,          # summons had issued for that hearing
     return_date: Optional[date] = None,     # date the warrant is returnable
+    accused_gender: Optional[str] = None,   # resolves him/her when no title
 ) -> CourtWarrantResult:
     """Assemble the court-issued warrant/order draft for the court's issue, or refuse."""
 
@@ -159,6 +160,7 @@ def build(
         "warrant_provision": provision("warrant", case_ref),
         "accused_name": accused_name,
         "accused_address": accused_address,
+        "pr": pronouns(accused_name, accused_gender),
         "offence": (offence or "").strip() or "[offence(s) and section(s) to be provided]",
         "default_date": default_date.isoformat() if default_date else None,
         "despite_summons": despite_summons,

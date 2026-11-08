@@ -48,6 +48,7 @@ TEMPLATE = "quash_petition.docx"
 SPEC = "bnss-528"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
+_TO_CONFIRM = "[to be confirmed against the FIR]"
 _CONSUMED_TABLES = ("section_mappings", "code_appointed_day")
 
 
@@ -181,7 +182,8 @@ def build(
     if secs and all(s.strip().startswith("[") for s in secs):
         told = " ".join([facts_narrative, grounds_narrative, special_circumstances or "",
                          *(grounds_list or []), *secs])
-        secs = _matrimonial_sections(told, routed.substantive) or secs
+        # b1: inferred, not given - the advocate confirms them against the FIR.
+        secs = [f"{x} {_TO_CONFIRM}" for x in _matrimonial_sections(told, routed.substantive)] or secs
     if not secs:
         return _refuse(
             "the offences alleged in the impugned proceeding (sections and Act) "

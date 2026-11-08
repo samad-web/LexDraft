@@ -413,3 +413,34 @@ describe('r15 affidavit authority', () => {
     expect(other.court_name).toBeUndefined();
   });
 });
+
+describe('b1 brief signals', () => {
+  it('test_s256_condone_absence_item9: "restore the case" sets restore_sought, never case_dismissed', async () => {
+    const { withBriefSignals } = await import('../engine-field-map');
+    const form: Record<string, string> = { post_for: 'evidence' };
+    withBriefSignals('s256_condone_absence', form, 'condone the absence on 28.10.2026; restore the case and post it for evidence');
+    expect(form.restore_sought).toBe('Yes');
+    expect(form.case_dismissed).toBeUndefined();
+    const plain: Record<string, string> = {};
+    withBriefSignals('s256_condone_absence', plain, 'condone the absence and post it for evidence');
+    expect(plain.restore_sought).toBeUndefined();
+  });
+
+  it('test_quash_petition_item5: a section the brief never cites is marked for confirmation', async () => {
+    const { withBriefSignals } = await import('../engine-field-map');
+    const account = 'Crime No. 45 of 2026 registered on 14.02.2026 alleging cruelty and dowry harassment';
+    const form: Record<string, string> = { sections: 'Section 85 of the Bharatiya Nyaya Sanhita, 2023\nSection 4 of the Dowry Prohibition Act, 1961' };
+    withBriefSignals('quash_petition', form, account);
+    expect(form.sections).toBe('Section 85 of the Bharatiya Nyaya Sanhita, 2023 [to be confirmed against the FIR]\n'
+      + 'Section 4 of the Dowry Prohibition Act, 1961 [to be confirmed against the FIR]');
+    const given: Record<string, string> = { sections: 'Section 85 BNS\nSection 4 of the Dowry Prohibition Act, 1961' };
+    withBriefSignals('quash_petition', given, 'registered under sections 85 and 4 of the D.P. Act');
+    expect(given.sections).toBe('Section 85 BNS\nSection 4 of the Dowry Prohibition Act, 1961');
+    const ipc: Record<string, string> = { sections: '498A IPC' };
+    withBriefSignals('quash_petition', ipc, 'an FIR under 498A IPC');
+    expect(ipc.sections).toBe('498A IPC');
+    const gap: Record<string, string> = { sections: '[sections to be provided]' };
+    withBriefSignals('quash_petition', gap, account);
+    expect(gap.sections).toBe('[sections to be provided]');
+  });
+});

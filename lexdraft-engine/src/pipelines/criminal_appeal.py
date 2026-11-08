@@ -208,10 +208,15 @@ def build(
     # 4. limitation — Art. 115.
     if death_sentence:
         period_key, art = "art115_death_sentence", "Art. 115(a)"
+        art_note = "which allows thirty days for an appeal from a sentence of death"
     elif forum is AppealForum.HIGH_COURT:
+        # b1: (b)(i) is an appeal to the High Court from any sentence other than death
         period_key, art = "art115_high_court", "Art. 115(b)(i)"
+        art_note = ("which allows sixty days for an appeal to the High Court from a "
+                    "sentence other than a sentence of death")
     else:
         period_key, art = "art115_other_court", "Art. 115(b)(ii)"
+        art_note = "which allows thirty days for an appeal to a court other than the High Court"
     period_days = aw.period(period_key)
     try:
         win = aw.window(order_date=judgment_date, filing_date=filing_date,
@@ -285,6 +290,7 @@ def build(
         "appellant_in_custody": appellant_in_custody,
         "suspension_petition_filed": suspension_petition_filed,
         "limitation_article": art,
+        "limitation_note": art_note,
         "limitation_expiry": win.expiry.isoformat(),
         "delay_days": win.delay_days,
         "in_time": win.in_time,

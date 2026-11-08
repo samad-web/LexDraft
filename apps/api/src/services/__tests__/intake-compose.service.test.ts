@@ -822,3 +822,10 @@ describe('r17 must-plead checklist items', () => {
     expect(guideFor('writ_petition')).toContain('within a period of eight weeks from the date of receipt of a copy of this order');
   });
 });
+
+// b1: an inferred section keeps its "[to be confirmed against the FIR]" marker through compose.
+describe('b1 must-plead checklist items', () => {
+  it('test_quash_petition_item5: the confirmation marker is kept', () => {
+    expect(guideFor('quash_petition')).toContain('keeps that marker where the offences are first stated');
+  });
+});

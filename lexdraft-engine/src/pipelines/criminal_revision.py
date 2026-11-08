@@ -232,6 +232,15 @@ def build(
     secs = list(dict.fromkeys(
         _NI_138 if (_CHEQUE.search(s) and not re.search(r"\d", s.split("Rs")[0])) else s
         for s in secs))
+    # b1: the extractor gave no offence for "convicted ... for dishonour of a cheque";
+    # the cheque and the sentence in the facts still make it a s.138 conviction.
+    told = " ".join([facts_narrative, grounds_narrative, sentence_text or "",
+                     impugned_order_ref, *(grounds_list or [])])
+    if not secs and _CHEQUE.search(told) and (sentence_text or re.search(r"(?i)\bconvict", told)):
+        secs = [_NI_138]
+    if not (trial_court or "").strip() and case_ref.strip():
+        m = re.search(rf"(?i)convicted\s+by\s+(?:the\s+)?(.+?)\s+in\s+{re.escape(case_ref.strip())}", told)
+        trial_court = f"the {m.group(1).strip()}" if m else trial_court
     ni_act = any(re.search(r"\b138\b", s) and re.search(r"\bN\.?\s?I\b|negotiable", s, re.I)
                  for s in secs)
 
@@ -264,7 +273,7 @@ def build(
         "petitioners": [p for p in petitioner_names if p.strip()],
         "respondents": [r for r in respondent_names if r.strip()],
         "convicted_sections": secs,
-        "against_conviction": bool(secs),
+        "against_conviction": bool(secs) or bool((sentence_text or "").strip()),
         "ni_act": ni_act,
         "suspension": {
             "draft": draft_suspension_petition,
@@ -279,6 +288,7 @@ def build(
                          f"{impugned_order_date.isoformat()}",
             "court": lower_court,
             "sentence": sentence_text,
+            "deponent_description": None,
         },
         "code_framework": code_framework,
         "act_short": act_short,

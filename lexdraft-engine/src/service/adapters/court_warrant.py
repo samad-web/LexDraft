@@ -35,6 +35,7 @@ ADAPTER = Adapter(
         FieldSpec("default_date", "date", required=False, default=None),
         FieldSpec("despite_summons", "bool", required=False, default=False),
         FieldSpec("return_date", "date", required=False, default=None),
+        FieldSpec("accused_gender", "string", required=False, default=None),
     ),
     slots=(),
 )

@@ -98,6 +98,14 @@ def subject_clause(reason: Optional[str], he: str) -> str:
     return f"{he} {s}" if first in _AUX else f"{he} was {s}"
 
 
+def first_person(reason: Optional[str]) -> str:
+    """The reason in the deponent's own words: 'he is undergoing surgery' -> 'I am
+    undergoing surgery'; 'hospitalised for dengue' -> 'I was hospitalised for dengue'.
+    shortcut: only the leading subject turns first person; a later 'his' stays."""
+    s = re.sub(r"^(he/she|he|she)\b", "I", subject_clause(reason, "I"))
+    return re.sub(r"^I (is|has)\b", lambda m: "I am" if m.group(1) == "is" else "I have", s)
+
+
 def clause(value: Optional[str]) -> str:
     """A reason spliced after 'as ...': lower-case a leading pronoun/article and
     drop the trailing full stop the template already prints."""
