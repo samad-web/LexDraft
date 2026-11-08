@@ -100,3 +100,7 @@
 ## Contract Review provider — 2026-11-08
 - apps/api/src/services/__tests__/review-provider.test.ts: 4 pass (default stays on Claude; openai + key calls only OpenAI and logs provider openai; openai without key fails and calls no model; REVIEW_PROVIDER beats a request asking for Anthropic). Mutation check: removing the missing-key guard fails test 3. No live API call (testing rule).
 - 2026-11-08 - b1-b4 v2 checklist fixes: engine tests/service/test_b_v2_checklists.py (test_<format>_item<N>, one per FAIL item, plus the writ detenu doubling); updated by changed requirement: test_plaint contractual-without-document (needs facts stating an agreement now), test_civil_suit_review 18% (rate claimed), b2 SLP index (impugned judgment is P-1), bail-forms surety documents (joined with 'and'); goldens regenerated for the supporting affidavits, 18-month line, SLP index, MACT indemnity, s.106 wording, s.138 reply. API: correctLawSlips (s.106 month-end, interest-as-principal), settleGaps stubs, withBriefSignals backfills, must-plead lines.
+
+## Choice fields no longer refuse a draft — 2026-11-08
+- `tests/service/test_enum_tolerance.py`: 15 passed. Blank/off-list divorce basis derived from the stated places, gap when none is in the court's town, valid values kept; DV category read from the incident.
+- Full engine suite 2133 + 7 passed after a test-only fix (wrong line match). API 803 passed; 1 failure is `anthropic-failover`, caused by another session's uncommitted `anthropic-client.ts`.

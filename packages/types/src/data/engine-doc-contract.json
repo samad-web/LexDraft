@@ -4084,7 +4084,7 @@
         ],
         "key": "jurisdiction_basis",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "place",
@@ -4135,7 +4135,6 @@
     "required": [
       "filing_date",
       "ground",
-      "jurisdiction_basis",
       "marriage_date",
       "marriage_place",
       "no_collusion",
@@ -4467,7 +4466,7 @@
             ],
             "key": "category",
             "kind": "enum",
-            "required": true
+            "required": false
           },
           {
             "key": "date",

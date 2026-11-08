@@ -45,7 +45,7 @@ ADAPTER = Adapter(
         FieldSpec("children", "string_list", required=False, default=[]),
         FieldSpec("custody_position", "string", required=False, default=None),
         FieldSpec("maintenance_position", "string", required=False, default=None),
-        FieldSpec("jurisdiction_basis", "enum",
+        FieldSpec("jurisdiction_basis", "enum", required=False, default=None,
                   enum_values=tuple(b.value for b in Section19Basis),
                   to_engine=Section19Basis),
         FieldSpec("place", "string"),

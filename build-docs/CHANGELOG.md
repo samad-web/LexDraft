@@ -32,3 +32,7 @@
 - Contract Review provider (2026-11-08): REVIEW_PROVIDER=openai runs Contract Review on OpenAI (gpt-5.5) while drafting stays on Claude Sonnet 5.5; a missing OpenAI key fails the review instead of switching providers.
 - Redraft (2026-11-08): exact corrections ("change X to Y", "X should be Y", "delete para 5", "add para after 7: ...") are applied by code with no AI call, no quota and no hourly limit; anything else still goes to the AI.
 - Drafting (2026-11-08, b1-b4 v2): last 22 checklist FAILs fixed in the skeleton, tail or prayer so compose cannot lose them (criminal appeal title particulars; s.138 reply return period; surety memo documents; plaint rate claimed vs agreed; summary-suit article never a gap; HRCP arrears months x rent in the prayer; registered agreement; indigent valuation/jurisdiction/co-heirs named gap; condone-delay decree ref; SLP index with the impugned judgment; supporting affidavits for divorce, judicial separation, RCR, succession; second-motion 18-month statement; MACT next friend and s.147/149 indemnity; demand notice principal vs interest; s.106 month-end rule guard). Bracket stubs dropped from composed bodies.
+
+## fix(engine-choice-fields) — 2026-11-08
+- An optional choice field the brief reading left blank or off-list no longer sends the whole draft to the AI fallback.
+- Contested divorce: s.19 limb derived from the stated places; named gap when none is in the court's town. DV: incident category read from its description.

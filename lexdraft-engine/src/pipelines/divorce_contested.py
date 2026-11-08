@@ -101,6 +101,27 @@ def _refuse(
     )
 
 
+def _derive_basis(
+    court_place: str,
+    marriage_place: str,
+    respondent_address: Optional[str],
+    matrimonial_home: Optional[str],
+    petitioner_address: Optional[str],
+) -> Optional[Section19Basis]:
+    """The s.19 limb the stated facts support, in the section's own order. None when no
+    stated place is in the court's town: the draft then shows a gap, never a guess."""
+    at_court = re.compile(rf"\b{re.escape(court_place.strip())}\b", re.I)
+    for basis, where in (
+        (Section19Basis.MARRIAGE_SOLEMNISED, marriage_place),
+        (Section19Basis.RESPONDENT_RESIDES, respondent_address),
+        (Section19Basis.LAST_RESIDED_TOGETHER, matrimonial_home),
+        (Section19Basis.PETITIONER_RESIDES, petitioner_address),
+    ):
+        if where and at_court.search(where):
+            return basis
+    return None
+
+
 def build(
     *,
     petitioner_name: str,
@@ -123,7 +144,7 @@ def build(
     children: Sequence[str],
     custody_position: Optional[str],
     maintenance_position: Optional[str],
-    jurisdiction_basis: Section19Basis,
+    jurisdiction_basis: Optional[Section19Basis],
     place: str,
     grounds_narrative: str,
     # cause-title header (DPC book). Optional.
@@ -137,6 +158,10 @@ def build(
     matrimonial_home: Optional[str] = None,
 ) -> DivorceResult:
     """Assemble the contested-divorce petition, or refuse."""
+
+    if jurisdiction_basis is None:
+        jurisdiction_basis = _derive_basis(
+            city or place, marriage_place, respondent_address, matrimonial_home, petitioner_address)
 
     # 1. s.14 one-year bar: within a year -> leave required (attach), not refuse.
     one_year = marriage_date + relativedelta(years=1)
@@ -270,7 +295,7 @@ def build(
         "children": list(children),
         "custody_position": custody_position,
         "maintenance_position": maintenance_position,
-        "jurisdiction_basis": jurisdiction_basis.value,
+        "jurisdiction_basis": jurisdiction_basis.value if jurisdiction_basis else None,
         "grounds_slot": grounds_slot,
         "place": place,
     }

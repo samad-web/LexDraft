@@ -193,6 +193,12 @@ class ListFieldSpec:
         return self.required
 
 
+def _off_list(spec: "FieldSpec", value: Any) -> bool:
+    """An OPTIONAL choice outside its list: treated as not supplied, so one unreadable
+    choice leaves a gap or a derived value instead of refusing the whole draft."""
+    return spec.kind == "enum" and value not in (spec.enum_values or ())
+
+
 # --------------------------------------------------------------------------
 # The Adapter.
 # --------------------------------------------------------------------------
@@ -244,6 +250,8 @@ class Adapter:
                              allow_placeholders: bool = False) -> None:
         required = spec.is_required(payload)
         present = spec.key in payload and payload[spec.key] is not None
+        if present and not required and _off_list(spec, payload[spec.key]):
+            present = False
         if not present:
             if required:
                 issues.append(FieldIssue(spec.key, "required", "this field is required"))
@@ -315,7 +323,8 @@ class Adapter:
             item_kwargs: Dict[str, Any] = {}
             item_ok = True
             for sub in spec.item_fields:
-                sub_present = sub.key in item and item[sub.key] is not None
+                sub_present = (sub.key in item and item[sub.key] is not None
+                               and (sub.required or not _off_list(sub, item[sub.key])))
                 sub_path = f"{spec.key}[{idx}].{sub.key}"
                 if not sub_present:
                     if sub.required:

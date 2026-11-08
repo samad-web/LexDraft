@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict
 
 from ...pipelines import dv_application as pipeline
@@ -21,15 +22,33 @@ def _relief(kw: Dict[str, Any]) -> ReliefSought:
 
 
 _INCIDENT_ITEM = (
-    FieldSpec("category", "enum",
+    FieldSpec("category", "enum", required=False, default=None,
               enum_values=tuple(c.value for c in AbuseCategory)),
     FieldSpec("date", "date", required=False, default=None),
     FieldSpec("description", "string"),
 )
 
 
+_CATEGORY_WORDS = (
+    (AbuseCategory.SEXUAL, r"\b(?:sexual|molest|forced intercourse)"),
+    (AbuseCategory.PHYSICAL, r"\b(?:assault|beat|hit|slap|kick|burn|injur|physical)"),
+    (AbuseCategory.ECONOMIC, r"\b(?:dowry|money|salary|stridhan|jewel|maintenance|economic|financ)"),
+)
+
+
+def _category(given: Any, description: str) -> AbuseCategory:
+    """The incident's head under s.3, from its own words when the brief reading left
+    it unset (v3: one blank category sent the whole application to the AI)."""
+    if given:
+        return AbuseCategory(given)
+    for category, pattern in _CATEGORY_WORDS:
+        if re.search(pattern, description or "", re.I):
+            return category
+    return AbuseCategory.VERBAL_EMOTIONAL
+
+
 def _incident(kw: Dict[str, Any]) -> AbuseIncident:
-    return AbuseIncident(category=AbuseCategory(kw["category"]),
+    return AbuseIncident(category=_category(kw.get("category"), kw["description"]),
                          date=kw.get("date"), description=kw["description"])
 
 
