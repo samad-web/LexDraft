@@ -143,11 +143,14 @@ for bool; for string_list, items separated by " | ").
 Blocks (paragraphs, in document order):
 - `style`: title (document heading), heading (section heading such as SCHEDULE / \
 PRAYER), center, para (justified body paragraph), left, right, numbered (one item of a \
-numbered list — do NOT type the number), signature (a right-aligned signature / \
+numbered list — type its number exactly as the source prints it, e.g. "1." or "(a)"), signature (a right-aligned signature / \
 designation line), note (small print, e.g. N.B. notes), blank (an empty line; text ""), \
 list (renders a string_list field as numbered items; `text` is just that field's key).
 - `text` may contain only literal text and `{{ field_key }}` placeholders — no other \
-template syntax. Every declared field must appear in at least one block.
+template syntax. Every declared field must appear in at least one block. A bracketed \
+hint beside a blank ("(Address)", "(Name of the Department)") only says what goes there: \
+make it that field's label and leave it out of `text`. Keep a pattern around a blank \
+(a reference "SA/____/20__" stays "SA/{{ ref_no }}/20__").
 - `condition`: "" normally; or the key of a bool field when the paragraph should print \
 only if that bool is true.
 - Tables: linearise them into paragraphs (one row per paragraph, "Label: {{ key }}").

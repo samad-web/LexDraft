@@ -37,3 +37,4 @@
 - An optional choice field the brief reading left blank or off-list no longer sends the whole draft to the AI fallback.
 - Contested divorce: s.19 limb derived from the stated places; named gap when none is in the court's town. DV: incident category read from its description.
 - Compose (2026-11-08): s.138 complaint's territorial-jurisdiction para restored by code if dropped; counter-affidavit documents and writ delay rules; counter stance tolerant; affidavit jurat dated today.
+- Attached formats (2026-11-08): each blank is read with its sentence so the value fits; typed clause numbers kept; hints beside blanks dropped; "Rs. 110000," grouped (bug hit every format); "the 5" -> "the 5th"; "1 month(s)" resolved.

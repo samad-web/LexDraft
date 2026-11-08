@@ -31,6 +31,7 @@ BLOCK_STYLES = ("title", "heading", "center", "para", "left", "right", "numbered
 _PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}")
 _CONTROL = re.compile(r"\{%|%\}|\{#|#\}")
 _STRAY = re.compile(r"\{\{|\}\}")
+_TYPED_NUMBER = re.compile(r"\s*\(?(?:\d{1,3}|[a-zA-Z]|[ivxIVX]{1,5})[.)]\s")
 
 BODY_FONT = "Carlito"
 HEADING_FONT = "Caladea"
@@ -165,7 +166,9 @@ def _add_block(doc, block: Mapping[str, Any]) -> None:
     if cond:
         text = "{% if " + cond + " %}" + text + "{% endif %}"
 
-    p = doc.add_paragraph(style="List Number" if style == "numbered" else None)
+    # A typed number is the format's own; Word would add a second one.
+    auto = style == "numbered" and not _TYPED_NUMBER.match(block.get("text") or "")
+    p = doc.add_paragraph(style="List Number" if auto else None)
     run = p.add_run(text)  # one run: placeholders can't split
     run.bold = bool(block.get("bold")) or style in ("title", "heading")
     fmt = p.paragraph_format

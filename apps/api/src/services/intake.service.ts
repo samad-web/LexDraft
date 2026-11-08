@@ -71,6 +71,7 @@ import { env } from '../env';
 import {
   intakeDocConfig,
   formKeyForEngineKey,
+  blankSentence,
   intakeSectionsFromDescribe,
   seedDefaults,
   type IntakeSectionSpec,
@@ -425,6 +426,7 @@ function fieldSpecs(sections: IntakeSectionSpec[]): IntakeFieldSpec[] {
       type: f.type,
       ...(f.options ? { options: f.options } : {}),
       required: f.required,
+      ...(f.blankIn ? { blankIn: f.blankIn } : {}),
     })),
   );
 }
@@ -665,6 +667,8 @@ function docFromSpec(firm: FirmFormat): ResolvedDoc {
       ...(typeof f['label'] === 'string' ? { label: f['label'] as string } : {}),
     })),
   });
+  const blocks = firm.spec.blocks as Array<{ text?: string }>;
+  for (const f of sections.flatMap((s) => s.fields)) f.blankIn = blankSentence(blocks, f.key);
   return { docType: firm.docType, sections, firm };
 }
 

@@ -29,6 +29,8 @@ export interface IntakeFieldConfig {
   type: 'text' | 'textarea' | 'select' | 'date' | 'number' | 'currency';
   options?: string[];
   required: boolean;
+  /** An attached format's sentence holding this blank, so the value is fitted to it. */
+  blankIn?: string;
   /**
    * Engine inbound key(s) this form field is responsible for. When the engine
    * reports a 422 on any of these, the loop asks about THIS form field. Defaults
@@ -470,6 +472,15 @@ function humanise(key: string): string {
  * hand-authored sectioning); the fact-sheet view still renders them, just flat.
  * Booleans and enums become selects; lists become a textarea the extractor fills.
  */
+/** The text around a format's blank ("{{ key }}"), for fitting the value to its sentence. */
+export function blankSentence(blocks: Array<{ text?: string }>, key: string): string | undefined {
+  const rx = new RegExp(String.raw`\{\{\s*${key}\s*\}\}`);
+  const text = blocks.find((b) => rx.test(b.text ?? ''))?.text;
+  if (!text) return undefined;
+  const at = text.search(rx);
+  return text.slice(Math.max(0, at - 90), at + key.length + 90).trim();
+}
+
 export function intakeSectionsFromDescribe(desc: EngineDescribe): IntakeSectionSpec[] {
   const fields: IntakeFieldConfig[] = desc.fields.flatMap((f) => {
     // A `list` of records (e.g. s138_complaint.cheques) MUST NOT collapse into one

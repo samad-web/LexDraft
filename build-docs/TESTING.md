@@ -109,3 +109,6 @@
 - Re-drafted: divorce_contested, dv_application, counter_affidavit, s138_complaint, writ_petition. All on the engine, none on the AI fallback.
 - Rechecked only the failed items, plus the added facts the reviewer listed: divorce 13, DV 14, counter 4 and 13, s138 11, writ 13 pass. No full re-score by an independent reviewer. Drafts: `benchmark-h2h/difai-v4/`.
 - Counter-affidavit `stance` was a third case of the same refusal: `test_enum_tolerance.py` now 18 passed; engine service + pipelines 1405 passed; API 804 passed, 1 failure (`anthropic-failover`, another session's uncommitted edit).
+
+## Attached formats: blanks fit their sentence — 2026-11-08
+- `test_attached_format_fit.py` 14 passed, `blank-sentence.test.ts` 4 passed. Engine 2157 passed; API 808 passed, 1 failure (`anthropic-failover`, another session's uncommitted edit).

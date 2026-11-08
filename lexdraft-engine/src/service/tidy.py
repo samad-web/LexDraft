@@ -72,7 +72,15 @@ def _fix_court_heading(p) -> None:
 
 
 _DASH_DATE = re.compile(r"\b(\d{2})-(\d{2})-(\d{4})\b")
-_RUPEES = re.compile(r"((?:Rs\.?|₹|INR)\s?)(\d{4,})(?![\d,])")
+# A comma after the figure may be the sentence's own ("Rs. 110000, which ...").
+_RUPEES = re.compile(r"((?:Rs\.?|₹|INR)\s?)(\d{4,})(?!\d|,\d)")
+_DAY_OF = re.compile(r"\bthe (\d{1,2}) (?=day of\b|of (?:every|each)\b)")
+_PLURAL_S = re.compile(r"\b(\d+) (\w+)\(s\)")
+
+
+def _ordinal(n: str) -> str:
+    v = int(n)
+    return n + ("th" if 10 <= v % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(v % 10, "th"))
 _PARA_NO = re.compile(r"^(\s*)(\d{1,3})(\.\s)")
 
 
@@ -124,6 +132,8 @@ def tidy_docx(path: Union[str, Path]) -> None:
             text = _ISO_DATE.sub(lambda m: f"{m[3]}.{m[2]}.{m[1]}", text)
             text = _DASH_DATE.sub(lambda m: f"{m[1]}.{m[2]}.{m[3]}", text)
             text = _RUPEES.sub(lambda m: m[1] + indian_grouping(m[2]), text)
+            text = _DAY_OF.sub(lambda m: f"the {_ordinal(m[1])} ", text)
+            text = _PLURAL_S.sub(lambda m: f"{m[1]} {m[2]}{'' if m[1] == '1' else 's'}", text)
             if text != run.text:
                 run.text = text
     doc.save(str(path))
