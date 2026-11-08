@@ -116,6 +116,35 @@ def rs(amount: int) -> str:
     return f"Rs. {amount}/- (Rupees {rupees_in_words(amount)} only)"
 
 
+_INSTRUMENTS = (
+    (r"\bdemand\s+draft\b|\bD\.?\s?D\b\.?", "Demand Draft"),
+    (r"\bcheque\b", "cheque"),
+    (r"\bRTGS\b", "RTGS"), (r"\bNEFT\b", "NEFT"), (r"\bIMPS\b", "IMPS"), (r"\bUPI\b", "UPI"),
+    (r"\b(?:bank|online|electronic)\s+transfer\b", "bank transfer"),
+    (r"\bcash\b", "cash"),
+)
+
+
+def payment_mode(text: Any) -> str:
+    """The instrument a mode-of-payment field names. r14: the field carried the
+    brief's prose ("Balance Rs. 25,00,000 paid today by DD") and the deed read
+    "paid this day by Balance Rs. 25,00,000 paid today by Demand Draft"."""
+    t = str(text or "").strip()
+    if re.fullmatch(r"D\.?\s?D\.?", t, re.I):
+        return "Demand Draft"
+    # A real mode ("cheque No. 010806 dated 29-09-2024 drawn on Indian Bank") is kept;
+    # only prose that restates the payment is cut down to its instrument.
+    if not re.search(r"\bRs\b|\bpaid\b|\bbalance\b|\btoday\b|\badvance\b|\bthis day\b", t, re.I):
+        return t
+    for pat, name in _INSTRUMENTS:
+        m = re.search(pat, t, re.I)
+        if m:
+            no = re.search(r"^\s*(?:bearing\s+)?No\.?\s*([A-Z0-9/-]*\d[A-Z0-9/-]*)", t[m.end():], re.I)
+            return f"{name} No. {no.group(1)}" if no else name
+    # Prose with no instrument in it is no mode at all -> the gap.
+    return "" if re.search(r"\bRs\b|\bpaid\b|\d", t, re.I) else t
+
+
 def gap(value: Any, what: str) -> Any:
     """A missing fact never gets invented: it renders as a bracketed gap."""
     if isinstance(value, str):
@@ -416,7 +445,7 @@ def build_agreement_for_sale(
         advance_clause = (
             f"The Purchaser has this day paid to the Vendor {rs(earnest_money)} as "
             f"advance and part of the sale consideration by "
-            f"{gap(earnest_mode, 'mode of payment')}, the receipt of which the Vendor "
+            f"{gap(payment_mode(earnest_mode), 'mode of payment')}, the receipt of which the Vendor "
             f"hereby acknowledges.")
         balance_clause = (
             f"The balance sale consideration of {rs(balance)} shall be paid by the "
@@ -434,7 +463,7 @@ def build_agreement_for_sale(
                     property_desc=property_desc,
                     total_consideration=total_consideration,
                     total_rs=rs(total_consideration),
-                    earnest_money=earnest_money, earnest_mode=earnest_mode,
+                    earnest_money=earnest_money, earnest_mode=payment_mode(earnest_mode),
                     completion_months=completion_months, period=period,
                     advance_clause=advance_clause, balance_clause=balance_clause,
                     witnesses=list(witnesses))
@@ -506,7 +535,7 @@ def build_sale_deed(
     advance = advance_amount or (amount_already_paid
                                  if amount_already_paid < total_consideration else 0)
     balance = total_consideration - advance
-    mode = gap(balance_paid_mode, "mode of payment")
+    mode = gap(payment_mode(balance_paid_mode), "mode of payment")
     T = rs(total_consideration)
     if 0 < advance < total_consideration:
         on = f" on {advance_date.isoformat()}" if advance_date else ""
@@ -529,7 +558,7 @@ def build_sale_deed(
                     total_consideration=total_consideration, total_rs=T,
                     amount_already_paid=advance, balance=balance,
                     consideration_clause=consideration_clause,
-                    balance_paid_mode=balance_paid_mode,
+                    balance_paid_mode=payment_mode(balance_paid_mode),
                     prior_title_recital=prior_title_recital,
                     to_be_registered=to_be_registered,
                     witnesses=list(witnesses))

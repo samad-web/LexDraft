@@ -1,6 +1,42 @@
 import { describe, expect, it } from 'vitest';
 import engineDocContract from '@lexdraft/types/engine-doc-contract.json';
-import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC } from '../engine-field-map';
+import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, withPlaceFallback, townOf, dropUnstatedFlags } from '../engine-field-map';
+
+describe('unstated flags (r14)', () => {
+  it('test_s256_condone_absence_no_restore_without_dismissal: "restore the case" is no dismissal', () => {
+    const form = { case_dismissed: 'Yes', post_for: 'evidence' };
+    expect(dropUnstatedFlags(form, {}, 'restore the case and post it for evidence')).toEqual(['case_dismissed']);
+    expect(form).toEqual({ post_for: 'evidence' });
+    const said = { case_dismissed: 'Yes' };
+    dropUnstatedFlags(said, {}, 'the complaint was dismissed for default on 28.10.2026');
+    expect(said.case_dismissed).toBe('Yes');
+    const edited = { case_dismissed: 'Yes' };
+    dropUnstatedFlags(edited, { case_dismissed: { via: 'direct-edit' } }, '');
+    expect(edited.case_dismissed).toBe('Yes');
+  });
+});
+
+describe('place fallback (r14)', () => {
+  it('test_agreement_for_sale_place_from_party_address: empty place takes the parties\' town, never nothing', () => {
+    const f = withPlaceFallback('agreement_for_sale', {
+      vendor_name: 'Mr. T. Rajendran', vendor_description: 'aged 60 years, residing at No. 4, North Street, Thanjavur',
+    });
+    expect(f.place).toBe('Thanjavur');
+    // A bracketed placeholder is empty too.
+    expect(withPlaceFallback('agreement_for_sale', { place: '[place to be provided]', vendee_description: 'No. 19, Medical College Road, Thanjavur - 613 004' }).place).toBe('Thanjavur');
+    // Nothing on record -> nothing invented; a real place is kept.
+    expect('place' in withPlaceFallback('agreement_for_sale', { vendor_name: 'X' })).toBe(false);
+    expect(withPlaceFallback('agreement_for_sale', { place: 'Kumbakonam', vendor_description: 'Thanjavur' }).place).toBe('Kumbakonam');
+  });
+
+  it('test_place_fallback_court_town_first: the court\'s town wins over an address; factual places untouched', () => {
+    const f = withPlaceFallback('x', { court_name: 'Principal District Court, Namakkal', petitioner_address: 'No. 2, Main Road, Salem', accident_place: '' }, ['place', 'accident_place']);
+    expect(f.place).toBe('Namakkal');
+    expect(f.accident_place).toBe('');
+    expect(townOf('High Court of Judicature at Madras')).toBe('Madras');
+    expect(townOf('No. 4, North Street')).toBe('');
+  });
+});
 
 // The form (doc-schemas.ts vocabulary) and the engine inbound contract are
 // different key sets; this proves the bridge, including the two tricky cases:

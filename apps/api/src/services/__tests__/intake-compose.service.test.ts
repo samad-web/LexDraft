@@ -40,7 +40,7 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreDatedGaps } from '../intake-compose.service';
 import { sentencesOf } from '../../lib/draft-guards';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
@@ -673,5 +673,79 @@ describe('r13 compose defects', () => {
     const user = JSON.stringify(fetchCalls[0]!.body);
     expect(user).toContain("# Facts (with the advocate's account, the ONLY dates, amounts and numbers you may state)");
     expect(result.blocks.map((b) => b.text).join('\n')).toContain('CW55102');
+  });
+});
+
+describe('r14 compose defects', () => {
+  it('test_criminal_revision_lettered_ground_keeps_text: "D. <ground>" keeps its text; a cut ground leaves no "9. D."', () => {
+    const settled = settleGaps([
+      '4. The petitioner does not ask for a reweighing of evidence.',
+      '5. [to be drafted] He may show that the debt did not exist. He is not expected to prove it beyond doubt. A complainant who keeps no accounts has not shown the debt.',
+      'GROUNDS:',
+      'A. The courts below failed to consider the defence.',
+      'B. The courts below failed to consider the admission.',
+      'C. [to be drafted]',
+      'D. The courts below held the presumption unrebutted without dealing with the admissions.',
+      'E. [to be drafted]',
+      '6. No appeal lies against the impugned order.',
+    ]);
+    expect(numberBody(settled, 1)).toEqual([
+      '1. The petitioner does not ask for a reweighing of evidence.',
+      '2. A complainant who keeps no accounts has not shown the debt.',
+      'GROUNDS:',
+      'A. The courts below failed to consider the defence.',
+      'B. The courts below failed to consider the admission.',
+      'C. The courts below held the presumption unrebutted without dealing with the admissions.',
+      '3. No appeal lies against the impugned order.',
+    ]);
+  });
+
+  it('test_condone_delay_petition_gap_periods_restored: a dropped dated gap goes back, sub-items re-lettered', () => {
+    const skeleton = '4. [to be drafted] [cause of delay from 12.07.2026 to 20.07.2026 to be provided] [cause of delay from 08.10.2026 to 07.11.2026 to be provided]';
+    const restored = restoreDatedGaps([
+      '3. The delay is explained below.',
+      '(a) 20.07.2026 to 02.09.2026: The petitioner was in hospital.',
+      '(c) 26.09.2026 to 08.10.2026: Certified copies were obtained.',
+      '4. The last day for filing was 12.07.2026.',
+    ], skeleton);
+    const out = numberBody(restored, 3);
+    expect(out[2]).toBe('(b) 26.09.2026 to 08.10.2026: Certified copies were obtained. [cause of delay from 08.10.2026 to 07.11.2026 to be provided]');
+    expect(out[3]).toBe('4. The last day for filing was 12.07.2026. [cause of delay from 12.07.2026 to 20.07.2026 to be provided]');
+    // an explained gap (both dates in one sentence) is left alone
+    expect(restoreDatedGaps(['From 08.10.2026 to 07.11.2026 the papers were prepared.'], skeleton.split(' [cause of delay from 12')[0] + ' [cause of delay from 08.10.2026 to 07.11.2026 to be provided]'))
+      .toEqual(['From 08.10.2026 to 07.11.2026 the papers were prepared.']);
+  });
+
+  it('test_judicial_separation_no_invented_registration: "not registered" is cut unless the advocate raised it', async () => {
+    const blocks = [
+      { key: 'h', text: 'PETITION UNDER SECTION 10 OF THE HINDU MARRIAGE ACT, 1955' },
+      { key: 'p1', text: '1. The marriage was solemnised on 07.09.2012 at Tirunelveli.' },
+      { key: 'p2', text: '2. The respondent treated the petitioner with cruelty.' },
+    ];
+    fetchQueue.push(anthropicReply('1. The marriage was solemnised on 07.09.2012 at Tirunelveli. The marriage was not registered.\n\n2. The respondent treated the petitioner with cruelty. For religious reasons she does not seek a divorce.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const result = await intakeCompose.compose({
+      docLabel: 'Judicial Separation Petition', docType: 'judicial_separation', engineBlocks: blocks,
+      facts: { Petitioner: 'Mrs. R. Gomathi' }, account: 'Married under Hindu rites; for religious reasons she does not want a divorce.', provider: 'anthropic',
+    });
+    const text = result.blocks.map((b) => b.text).join('\n');
+    expect(text).not.toContain('not registered');
+    expect(text).toContain('For religious reasons she does not seek a divorce.');
+  });
+
+  it('test_indigent_application_plaint_verification_count_kept: the annexed plaint keeps its own paragraph count', async () => {
+    const blocks = [
+      { key: 'h', text: 'MOST RESPECTFULLY SHOWETH:' },
+      { key: 'p1', text: '1. The petitioner is a widow.' },
+      { key: 'p2', text: '2. She is an indigent person.' },
+      { key: 'v', text: 'Verified at Kallakurichi that the contents of paragraphs 1 to 4 of the plaint are true.' },
+    ];
+    fetchQueue.push(anthropicReply('1. The petitioner is a widow.\n\n2. She is an indigent person.\n\n3. She undertakes to pay the court fee.'));
+    fetchQueue.push(anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    const result = await intakeCompose.compose({
+      docLabel: 'Application to Sue as an Indigent Person', docType: 'indigent_application', engineBlocks: blocks,
+      facts: { Petitioner: 'Mrs. V. Selvi' }, provider: 'anthropic',
+    });
+    expect(result.blocks.map((b) => b.text).join('\n')).toContain('paragraphs 1 to 4 of the plaint');
   });
 });

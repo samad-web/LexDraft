@@ -680,3 +680,67 @@ for (const docType of IMPORTED_DOC_TYPES) {
   const title = ENGINE_CONTRACT[docType]?.title;
   if (title && !(title in LABEL_TO_ENGINE_DOC)) LABEL_TO_ENGINE_DOC[title] = docType;
 }
+
+// ---- unstated flags ----------------------------------------------------------
+//
+// A Yes flag that asserts a fact the advocate's own words must carry. r14
+// s256_condone_absence: "restore the case and post it for evidence" was read as
+// case_dismissed = Yes, and the prayer asked to "restore the case to file" though
+// nothing was dismissed. An extracted Yes with no such word is dropped (the engine
+// default, No, applies); a value the advocate set directly is kept.
+const FLAG_NEEDS_WORD: Record<string, RegExp> = { case_dismissed: /\bdismiss/i };
+
+export function dropUnstatedFlags(
+  form: Record<string, string>,
+  meta: Record<string, { via?: string } | undefined>,
+  account: string,
+): string[] {
+  const dropped = Object.entries(FLAG_NEEDS_WORD)
+    .filter(([k, word]) => /^(?:yes|true)$/i.test(String(form[k] ?? '').trim())
+      && meta[k]?.via !== 'direct-edit' && !word.test(account))
+    .map(([k]) => k);
+  for (const k of dropped) delete form[k];
+  return dropped;
+}
+
+// ---- place fallback ------------------------------------------------------------
+//
+// A document's place of signing/filing ("Place: ___", "executed at ___") is never a
+// disputed fact: it is the court's town or, for a deed, where the parties live. When
+// the extractor leaves it empty (r14 agreement_for_sale: brief all in Thanjavur, deed
+// "executed at [place to be provided]"), take it from a field on record - never from
+// nothing. Factual places (accident_place, marriage_place …) are NOT filled.
+const PLACE_KEYS = new Set(['place', 'place_of_execution', 'execution_place', 'city', 'court_place', 'verification_place']);
+const STREETISH = /\b(?:street|st|road|rd|nagar|colony|layout|avenue|lane|cross|main|salai|block|floor|flat|door|plot|no|village|taluk|post|tamil nadu|india)\b|\d/i;
+
+/** The town a court name or an address ends with, or ''. */
+export function townOf(text: string): string {
+  const s = text.replace(/\s+/g, ' ').trim();
+  const at = /\bat\s+([A-Z][A-Za-z]+(?: [A-Z][A-Za-z]+)?)\s*\.?$/.exec(s)?.[1];
+  if (at) return at;
+  const segs = s.split(',').map((x) => x.replace(/[-–]?\s*\d{3}\s?\d{3}\b/, '').replace(/\s+(?:District|Dt\.?)\s*$/i, '').trim().replace(/\.$/, ''));
+  for (let i = segs.length - 1; i >= 0; i -= 1) {
+    const g = segs[i]!;
+    if (!g || /^(?:tamil nadu|india)$/i.test(g)) continue;
+    return /^[A-Z][A-Za-z.]+(?: [A-Z][A-Za-z.]+){0,2}$/.test(g) && !STREETISH.test(g) ? g : '';
+  }
+  return '';
+}
+
+/** Fill every empty place field of `keys` (default: the contract's) from the court's
+ *  town, else a party's address town. */
+export function withPlaceFallback(docType: string, fields: Record<string, unknown>, keys?: string[]): Record<string, unknown> {
+  const all = keys ?? (ENGINE_CONTRACT[docType]?.fields ?? []).map((f) => f.key);
+  const empty = all.filter((k) => PLACE_KEYS.has(k) && /^\s*(?:\[[^\]]*\])?\s*$/.test(String(fields[k] ?? '')));
+  if (!empty.length) return fields;
+  const vals: Array<[string, string]> = [];
+  const walk = (o: unknown, key: string): void => {
+    if (typeof o === 'string') vals.push([key, o]);
+    else if (Array.isArray(o)) o.forEach((v) => walk(v, key));
+    else if (o && typeof o === 'object') Object.entries(o).forEach(([k, v]) => walk(v, k));
+  };
+  walk(fields, '');
+  const pick = (re: RegExp) => vals.filter(([k]) => re.test(k)).map(([, v]) => townOf(v)).find(Boolean);
+  const town = pick(/court/) ?? pick(/address|description|residence|residing/);
+  return town ? { ...fields, ...Object.fromEntries(empty.map((k) => [k, town])) } : fields;
+}

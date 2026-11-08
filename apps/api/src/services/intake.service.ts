@@ -44,7 +44,7 @@ import {
   type EngineRefusal,
   type EngineBundleDoc,
 } from './engine-client.service';
-import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable } from '../lib/engine-field-map';
+import { mapFormToEngine, mapFormToFields, LABEL_TO_ENGINE_DOC, isRoutable, withPlaceFallback, dropUnstatedFlags } from '../lib/engine-field-map';
 import { createHash } from 'node:crypto';
 import {
   firmFormatsService,
@@ -627,8 +627,14 @@ function mapForDoc(
   form: Record<string, unknown>,
   extra: Record<string, unknown> = {},
 ): { fields: Record<string, unknown> } {
-  if (doc.firm) return mapFormToFields(doc.firm.spec.fields as Array<{ key: string; kind: string }>, { ...extra, ...form });
-  return mapFormToEngine(doc.docType, form, extra);
+  // An empty place field is filled from the court's town / the parties' address (r14).
+  if (doc.firm) {
+    const spec = doc.firm.spec.fields as Array<{ key: string; kind: string }>;
+    const mapped = mapFormToFields(spec, { ...extra, ...form });
+    return { ...mapped, fields: withPlaceFallback(doc.docType, mapped.fields, spec.map((f) => f.key)) };
+  }
+  const mapped = mapFormToEngine(doc.docType, form, extra);
+  return { ...mapped, fields: withPlaceFallback(doc.docType, mapped.fields) };
 }
 
 /** Draft through the engine: a firm format sends its spec (/v1/draft-spec);
@@ -1698,6 +1704,7 @@ export const intakeService = {
         state.form.court_kind = derived;
       }
     }
+    dropUnstatedFlags(state.form, state.meta, advocateAccount(state));
     const { fields } = mapForDoc(doc,state.form, {});
     // Free-text SLOTS the engine merges into the template (kept separate from the
     // validated `fields`). Today: the s.138 complaint's debt paragraph (para 3),

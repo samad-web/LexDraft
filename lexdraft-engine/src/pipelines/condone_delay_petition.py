@@ -102,6 +102,40 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+_DATE = re.compile(r"\b(\d{1,2})[./-](\d{1,2})[./-](\d{4})\b")
+
+
+def _dmy(d: date) -> str:
+    return f"{d.day:02d}.{d.month:02d}.{d.year}"
+
+
+def unexplained_stretches(start: date, end: date, cause: str,
+                          copy_applied: Optional[date] = None,
+                          copy_ready: Optional[date] = None) -> list:
+    """The stretches between limitation expiry and filing that no dated event in
+    the cause shown covers (r14: 12.07-20.07, 02.09-25.09 and 08.10-07.11 were
+    left unexplained). A "D1 to D2" range covers that span; a lone date covers its
+    day; the copy application covers applied..ready. Gaps of a day or less drop."""
+    spans = []
+    for m in re.finditer(rf"{_DATE.pattern}(?:\s*(?:to|till|until|-|–)\s*{_DATE.pattern})?", cause):
+        try:
+            a = date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+            b = date(int(m.group(6)), int(m.group(5)), int(m.group(4))) if m.group(4) else a
+        except ValueError:
+            continue
+        spans.append((a, b))
+    if copy_applied:
+        spans.append((copy_applied, copy_ready or copy_applied))
+    gaps, cursor = [], start
+    for a, b in sorted(spans):
+        if a > cursor and (a - cursor).days > 1 and a <= end:
+            gaps.append((cursor, a))
+        cursor = max(cursor, b)
+    if (end - cursor).days > 1:
+        gaps.append((cursor, end))
+    return gaps
+
+
 def build(
     *,
     main_proceeding: MainProceeding,
@@ -223,7 +257,11 @@ def build(
         "delay_days": win.delay_days,
         "sufficient_cause": _mid_sentence(sufficient_cause, _PRONOUN_LEAD),
         "delay_slot": delay_narrative if delay_narrative.strip()
-                      else _LLM_SLOT_PLACEHOLDER,
+                      else " ".join([_LLM_SLOT_PLACEHOLDER, *(
+                          f"[cause of delay from {_dmy(a)} to {_dmy(b)} to be provided]"
+                          for a, b in unexplained_stretches(
+                              win.expiry, filing_date, sufficient_cause,
+                              copy_applied_date, copy_ready_date))]),
         "place": place,
         # the affidavit cannot annex itself
         "supporting_documents": "; ".join(

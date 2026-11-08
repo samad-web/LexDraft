@@ -81,8 +81,13 @@ def _plaint_facts(cause_of_action: Optional[str], plaintiff: str, share: Optiona
     own = "her" if re.match(r"\s*(mrs|ms|smt|selvi|tmt|kum)\b", plaintiff or "", re.I) else "his"
     facts = _KIN_OPENING.sub(lambda m: f"{own} {m.group(1).lower()}", facts)
     facts = re.sub(r"^(The|A|An|On|In|After|His|Her|Their)\b", lambda m: m.group(1).lower(), facts)
-    text = f"The plaintiff states that {facts}."
-    if share and re.search(r"\bdied\b", facts, re.I):
+    # r14: a noun phrase ("Refusal by the late husband's brothers to give any share …")
+    # is no clause for "states that": it is pleaded as the cause of action.
+    if re.match(r"(?:refusal|denial|failure|non-?payment|breach|dispossession|exclusion)\b", facts, re.I):
+        text = f"The cause of action for the suit is the {facts[0].lower()}{facts[1:]}."
+    else:
+        text = f"The plaintiff states that {facts}."
+    if share and re.search(r"\bdied\b|\bdeath\b", facts, re.I):
         share = re.sub(r"\s*share\s*$", "", share.strip(), flags=re.I).lower()
         text += (f" On that death the plaintiff, as a legal heir, became entitled to a {share} share in "
                  "the suit property. The defendants have refused to give that share, and the plaintiff "

@@ -51,6 +51,9 @@ ADAPTER = Adapter(
         FieldSpec("place", "string"),
         FieldSpec("petitioner_parentage", "string", required=False, default=None),
         FieldSpec("petitioner_address", "string", required=False, default=None),
+        # r14: the brief's age and "no nominee" were dropped by the composer.
+        FieldSpec("petitioner_age", "int", required=False, default=None),
+        FieldSpec("no_nominee", "bool", required=False, default=False),
         FieldSpec("grant_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
         FieldSpec("respondent_name", "string", required=False, default=None),

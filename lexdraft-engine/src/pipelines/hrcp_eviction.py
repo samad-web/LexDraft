@@ -124,7 +124,11 @@ _PHRASES = (
     ("own_occupation", r"own (use|occupation|business|residence)|bona ?fide|"
                        r"personal (use|occupation)|requirement (of|for)|required by the "
                        r"landlord|for (his|her|the landlord'?s) (son|daughter|wife|"
-                       r"husband|family)|member of (his|her) family"),
+                       r"husband|family)|member of (his|her) family|"
+                       # r14: "Landlord's son, who … has returned for good, requires the
+                       # premises to start a hardware business" refused as unknown.
+                       r"\b(son|daughter|wife|husband|family)\b[^.;]*\b(requires?|needs?|wants?)\b|"
+                       r"requires? the (premises|shop|building|portion)"),
     ("no_written_agreement", r"no (written )?(tenancy )?agreement|"
                              r"section 4\(2\)|not registered"),
 )

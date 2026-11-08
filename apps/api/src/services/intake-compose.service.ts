@@ -245,6 +245,11 @@ const GAP = '[to be drafted]';
 /** Text addressed to us, not the court — never part of a pleading. */
 const META_TALK = /\b(?:please confirm|let me know|I have (?:removed|kept|restored|added|deleted)|the (?:checker|facts list|skeleton)|as you (?:asked|requested)|removed sentences|previous draft|hard rules)\b/i;
 
+/** [what a sentence asserts, the topic the advocate must have raised for it]. */
+const UNSTATED: Array<[RegExp, RegExp]> = [
+  [/\b(?:was|is|has)\s+not\s+(?:been\s+)?registered\b/i, /regist/i],
+];
+
 /** "contents of paras 1 to 12" in a verification. */
 const PARAS_RANGE = /(\bpara(?:graph)?s?\.?\s+(?:no\.?\s*)?1\s+to\s+)(\d+)/i;
 const LEGAL_RANGE = /\bpara(?:graph)?s?\.?\s+\d+\s+to\s+\d+(?:,\s*if any,)?\s+are\s+true\s+on\s+legal\s+advice/i;
@@ -270,7 +275,23 @@ export function bodyStart(blocks: Array<{ text: string }>): number {
  */
 export function numberBody(paragraphs: string[], first: number): string[] {
   let n = first;
+  // Lettered grounds run A., B., C. … with no hole where a cut ground was dropped (r14).
+  let letter = '';
+  let small = '';
   return paragraphs.map((p) => {
+    const lt = /^(\s*)([A-Z])([.)]\s)/.exec(p);
+    if (lt) {
+      small = '';
+      letter = letter ? String.fromCharCode(letter.charCodeAt(0) + 1) : lt[2] === 'A' ? 'A' : '';
+      return letter ? `${lt[1]}${letter}${lt[3]}${p.slice(lt[0].length)}` : p;
+    }
+    // Sub-items (a), (b) … likewise (r14 condone delay: "(a) (c) (e) (f)").
+    const sub = /^(\s*)\(([a-z])\)(\s)/.exec(p);
+    if (sub) {
+      small = small ? String.fromCharCode(small.charCodeAt(0) + 1) : sub[2] === 'a' ? 'a' : '';
+      if (small) return `${sub[1]}(${small})${sub[3]}${p.slice(sub[0].length)}`;
+    } else small = '';
+    if (!/^\s*(?:\([0-9a-z]{1,4}\)|[a-z][.)]|[ivx]+[.)])\s/.test(p)) letter = '';
     // A heading the model numbered ("6. GROUNDS") is a heading, not a paragraph.
     const bare = p.replace(NUMBERED, '');
     if (bare !== p && SECTION_HEADING(bare)) return bare.trim();
@@ -291,6 +312,8 @@ function renumberFrom(lines: string[], next: number): string[] {
 }
 
 const GAP_RE = /\[to be drafted\]/g;
+/** A sentence that only makes sense after the one before it. */
+const LEANS_BACK = /^\s*(?:He|She|They|These|Those|Such|It(?!\s+is\s+(?:\w+\s+)?submitted))\b/;
 const GAP_LEAD = /^\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))?\s*$/;
 
 /**
@@ -306,8 +329,16 @@ export function settleGaps(paragraphs: string[], keepNumbers = false): string[] 
   const out: string[] = [];
   for (const para of paragraphs) {
     if (!para.includes(GAP)) { out.push(para); continue; }
-    const lead = NUMBERED.exec(para)?.[0] ?? '';
-    const text = para.slice(lead.length).replace(GAP_RE, (gap, at: number, all: string) => {
+    // A ground letter is a label too (r14: "D. [to be drafted]" printed as "9. D.").
+    const lead = /^\s*(?:\d+[A-Z]?|[A-Z])\s*[.)]\s+/.exec(para)?.[0] ?? '';
+    let body = para.slice(lead.length);
+    if (body.startsWith(GAP)) {
+      // A cut opening takes the sentences that lean on it ("He may show …", r14 para 5).
+      const rest = sentencesOf(body.slice(GAP.length));
+      while (rest.length && LEANS_BACK.test(rest[0]!)) rest.shift();
+      body = (rest.length ? GAP : '') + rest.join('');
+    }
+    const text = body.replace(GAP_RE, (gap, at: number, all: string) => {
       const before = all.slice(0, at);
       const after = all.slice(at + gap.length);
       const label = /^\s*([A-Za-z][A-Za-z ,'()/-]{2,60}):\s*$/.exec(before)?.[1];
@@ -319,6 +350,26 @@ export function settleGaps(paragraphs: string[], keepNumbers = false): string[] 
     else if (keepNumbers && lead) out.push(`${lead}[reply to this paragraph to be provided]`);
     // A heading over only the dropped slot ("SCHEDULE OF THE SUIT PROPERTY") goes with it.
     else if (out.length && SECTION_HEADING(out[out.length - 1]!) && !NUMBERED.test(out[out.length - 1]!)) out.pop();
+  }
+  return out;
+}
+
+const DATED_GAP = /\[[^\]]*?\bfrom (\d{2}\.\d{2}\.\d{4}) to (\d{2}\.\d{2}\.\d{4})[^\]]*\]/g;
+
+/**
+ * A dated gap the skeleton names ("[cause of delay from 12.07.2026 to 20.07.2026 to
+ * be provided]") must come out explained (a sentence with both dates) or still named
+ * (r14 condone delay: three such stretches vanished). A lost one goes back after the
+ * first sub-item, else the first paragraph, that mentions its start date.
+ */
+export function restoreDatedGaps(paragraphs: string[], skeletonBody: string): string[] {
+  const out = [...paragraphs];
+  for (const [marker, from, to] of skeletonBody.matchAll(DATED_GAP)) {
+    if (out.some((p) => sentencesOf(p).some((s) => s.includes(from!) && s.includes(to!)))) continue;
+    const at = [out.findIndex((p) => /^\s*\([a-z]\)/.test(p) && p.includes(from!)), out.findIndex((p) => p.includes(from!))]
+      .find((i) => i !== -1) ?? out.length - 1;
+    if (at >= 0) out[at] = `${out[at]!.trimEnd()} ${marker}`;
+    else out.push(marker);
   }
   return out;
 }
@@ -370,11 +421,13 @@ const MUST_PLEAD: Record<string, string> = {
   // 2026-11-07: the composer wrote "Section 13(1)(ia)" against a skeleton that said
   // only "s.13(1)", so the guard stripped it and the compose fell back every time.
   divorce_contested: '- The ground by its clause exactly as the skeleton writes it (e.g. "Section 13(1)(ia) of the Hindu Marriage Act, 1955") — never a bare "Section 13" / "Section 13(1)", never "(i-a)".\n- Each instance with its date as the skeleton gives it; that there is no collusion, connivance or condonation; the jurisdiction fact under Section 19.\n- No judgment named or paraphrased ("as observed by the Supreme Court in …") unless it is in the Authorities list; argue cruelty from the instances themselves (r12: a cut case name left "in Smt. [gap]").',
+  // r14: the brief's reasons for not seeking a divorce were dropped.
+  judicial_separation: '- Why the petitioner seeks judicial separation and not a divorce, in the reasons the facts or the advocate\'s account give (e.g. religious belief, the welfare of the child) — whenever they give any.\n- Nothing about registration of the marriage unless the facts state it.',
   divorce_mutual_first: '- Living separately for one year or more immediately before presentation; that they have not been able to live together; that they have mutually agreed the marriage be dissolved — Section 13B(1).\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
   divorce_mutual_second: '- The second motion is moved not earlier than six months and not later than eighteen months after the PRESENTATION of the first-motion petition — Section 13B(2); consent continues.\n- That the petition is not presented or prosecuted in collusion, and that no other proceeding between the parties about the marriage is pending, as the skeleton states.',
-  succession_certificate: '- The personal law and the heirs exactly as the skeleton states; every other heir is a respondent. Describe each heir by relation to the deceased ("the son of the deceased"; a widow petitioner\'s children are "their children", never "her other children").\n- Keep the respondents\' numbering exactly as the skeleton gives it (e.g. the daughter as Respondent 1, the son as Respondent 2). Schedule I is printed at the foot of the petition: never write a schedule heading or the schedule of debts/securities into the body.',
+  succession_certificate: '- The personal law and the heirs exactly as the skeleton states; every other heir is a respondent. Describe each heir by relation to the deceased ("the son of the deceased"; a widow petitioner\'s children are "their children", never "her other children").\n- Keep the respondents\' numbering exactly as the skeleton gives it (e.g. the daughter as Respondent 1, the son as Respondent 2). Schedule I is printed at the foot of the petition: never write a schedule heading or the schedule of debts/securities into the body.\n- The petitioner\'s age, and that the deceased made no nomination, whenever the skeleton states them.',
   specific_performance: '- Readiness and willingness to perform, continuously from the agreement to date (Section 16(c) Specific Relief Act).\n- Where the property lies (territorial jurisdiction for immovable property is Section 16 CPC, not Section 20).\n- Refund of the earnest / advance money as alternative relief, which must be specifically claimed (Section 22(2) Specific Relief Act).',
-  ejectment: '- That the premises are outside the Tamil Nadu Regulation of Rights and Responsibilities of Landlords and Tenants Act, 2017, or why the civil court has jurisdiction — only if the facts say so.\n- A description of the suit property (schedule).',
+  ejectment: '- That the premises are outside the Tamil Nadu Regulation of Rights and Responsibilities of Landlords and Tenants Act, 2017, or why the civil court has jurisdiction — only if the facts say so.\n- The suit property described in words from the facts. The SCHEDULE is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body.',
   // r12: the composer wrote its own "SCHEDULE" heading over a "[to be drafted]" slot.
   permanent_injunction: '- The suit property described in words from the facts (extent, survey numbers, village, any well or structure) and the plaintiff\'s possession of it on the date of suit. The SCHEDULE is printed after the plaint from the facts: never write a schedule heading or schedule paragraph in the body.',
   mact_claim: '- The compensation figures and heads exactly as the skeleton computes them; do not describe or re-derive the method (multiplicand, future prospects, deduction) yourself.\n- The deceased / injured by NAME and each claimant\'s relationship and dependency; every legal representative is a claimant or a respondent; a minor claimant sues by the next friend the skeleton names.\n- The respondents in the skeleton\'s order (driver, owner, insurer); the place of the accident as the jurisdiction fact.\n- Filed within six months of the accident (Section 166(3) Motor Vehicles Act) — only as the facts give the dates.',
@@ -688,7 +741,7 @@ function toParagraphs(text: string): string[] {
   // paragraph that numberBody can't see into.
   // "Rs. 0" is draft-now's sentinel for a missing figure, never a pleaded one.
   return normaliseComposedMarkdown(text).replace(/\bRs\.?\s*0(?:\/-)?(?![\d,.]*\d)/g, 'Rs. [amount to be provided]')
-    .split(/\n{2,}|\n(?=\s*(?:\d{1,3}[A-Z]?\s*[.)]|\([0-9a-z]{1,4}\))\s)/)
+    .split(/\n{2,}|\n(?=\s*(?:\d{1,3}[A-Z]?\s*[.)]|[A-Z][.)]|\([0-9a-z]{1,4}\))\s)/)
     .map((t) => t.trim())
     .filter(Boolean);
 }
@@ -812,7 +865,8 @@ export async function composeAndVerify(args: {
       // The delay is the skeleton's computed count, never the advocate's estimate
       // (r13: "a delay of about 115 days" beside the computed 118).
       ...(args.docType === 'condone_delay_petition'
-        ? introducedParticulars(paragraphs.join('\n'), [skeleton, factText]).filter((p) => p.kind === 'days')
+        // r14: the skeleton alone - the extractor copied "about 115 days" into a fact too.
+        ? introducedParticulars(paragraphs.join('\n'), [skeleton]).filter((p) => p.kind === 'days')
         : []),
     ];
     if (introduced.length) {
@@ -831,6 +885,10 @@ export async function composeAndVerify(args: {
       ...unauthorisedCases(paragraphs, authorities, [skeleton, factText]),
       // An Act named as another ("Nagarik Suraksha Sanhita (BNS)").
       ...misnamedActs(paragraphs),
+      // A negative fact nobody stated (r14: "The marriage was not registered.").
+      ...paragraphs.flatMap((p) => sentencesOf(p))
+        .filter((x) => UNSTATED.some(([says, topic]) => says.test(x) && !topic.test(account || factText)))
+        .map((x) => x.trim()),
     ];
     if (uncited.length) {
       const s = stripSentences(paragraphs, uncited, GAP);
@@ -926,7 +984,7 @@ export async function composeAndVerify(args: {
   }
   if (!checked.ok) return reject(checked.reason);
   const removed = checked.removed;
-  const settled = settleGaps(checked.paragraphs, reply);
+  const settled = reply ? settleGaps(checked.paragraphs, reply) : restoreDatedGaps(settleGaps(checked.paragraphs), body);
   const paragraphs = reply ? settled : numberBody(settled, seg.startNumber);
 
   const prayer = renumberFrom(prayerLines, lastNumber(paragraphs, seg.startNumber - 1) + 1);
@@ -935,9 +993,12 @@ export async function composeAndVerify(args: {
   const lastPara = lastNumber(spliced, 0);
   // Every such line: a writ carries both the verification and the affidavit (r10).
   const recounted: Array<{ from: string; to: string }> = [];
+  // The indigent petition's annexed plaint verifies ITS OWN paragraphs, not the
+  // composed petition's (r14: "paragraphs 1 to 6 of the plaint" of a 4-paragraph plaint).
+  const annexedPlaint = (t: string) => args.docType === 'indigent_application' && /\bof the (?:proposed )?plaint\b/i.test(t);
   const newTail = tail.map((t) => {
     const m = PARAS_RANGE.exec(t);
-    if (!m || !lastPara || Number(m[2]) === lastPara) return t;
+    if (!m || !lastPara || Number(m[2]) === lastPara || annexedPlaint(t)) return t;
     // A second, legal-advice range numbers the skeleton's paragraphs, not the composed
     // ones (r12: "paras 1 to 14 … and paras 10 to 11 … on legal advice" overlapped).
     const to = t.replace(PARAS_RANGE, `$1${lastPara}`).replace(LEGAL_RANGE, 'the legal submissions therein are true on legal advice');

@@ -179,6 +179,10 @@ def build(
         "suit_date": filing_date.isoformat(),
         "knowledge_para_last": 7,
         "suit_premises": suit_premises,
+        # r14: the body refers to "the Schedule below" - it is always printed, from the
+        # property description, after the plaint (never left to the composer).
+        "schedule_property": (lambda s: s[:1].upper() + s[1:])(
+            re.sub(r"^(?:a|an|the)\s+", "", suit_premises.strip().rstrip("."), flags=re.I)),
         "lease_ref": lease_ref,
         "lease_expiry_date": lease_expiry_date,
         "s106_notice_ref": s106_notice_ref,

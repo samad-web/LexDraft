@@ -27,7 +27,9 @@ ADAPTER = Adapter(
         # --- matter dimension (required unconditionally) ---
         FieldSpec("matter_type", "enum",
                   enum_values=("s138", "civil_suit", "bail", "writ", "other")),
-        FieldSpec("affidavit_kind", "enum",
+        # r14: optional - the kind only drops the prayer of a s.145 proof affidavit, and a
+        # required enum no placeholder can fill sent a general affidavit to the AI fallback.
+        FieldSpec("affidavit_kind", "enum", required=False, default=None,
                   enum_values=("s145_proof", "supporting", "interlocutory")),
         # --- deponent ---
         FieldSpec("deponent_name", "string"),

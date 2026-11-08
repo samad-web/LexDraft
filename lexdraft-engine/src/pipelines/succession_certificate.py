@@ -83,6 +83,8 @@ def build(
     # cause-title header (DPC book pp.56-57). Optional.
     petitioner_parentage: Optional[str] = None,
     petitioner_address: Optional[str] = None,
+    petitioner_age: Optional[int] = None,
+    no_nominee: bool = False,              # the deceased nominated no one for the securities
     grant_court: Optional[str] = None,
     city: Optional[str] = None,
     respondent_name: Optional[str] = None,
@@ -158,7 +160,9 @@ def build(
              for r in (respondents or []) if (r.get("relation") or r.get("name"))]
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner_name, "parentage": petitioner_parentage,
-                       "address": petitioner_address},
+                       "address": petitioner_address,
+                       "age": petitioner_age if petitioner_age and petitioner_age > 0 else None},
+        "no_nominee": no_nominee,
         "respondent_name": respondent_name,
         "grant_court": grant_court,
         "city": city,

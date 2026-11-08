@@ -26,3 +26,4 @@
 ## Known issues
 - 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.
 - eFiling Overview tiles are still portal-style (light tiles in dark mode) until redesign step 2.
+- 2026-11-08 (r14) - place fallback fills only signing/filing places (place, place_of_execution, execution_place, city, court_place, verification_place), never factual ones (accident_place, marriage_place); affidavit_kind is optional (engine-doc-contract.json needs regenerating).

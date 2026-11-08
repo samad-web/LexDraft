@@ -136,12 +136,16 @@ def build(
         records_of.append(d[:m.start()] if m else d)
         if m:
             records_court.append(m.group(1).strip(" ."))
-    if kind == "records" and not records_of:
+    if kind == "records" and not any(case_parts(r) for r in records_of):
         # r13: the case to call for came in the case reference / purpose, not as a document.
-        main = parts[0][1:] if parts else None
-        records_of = list(dict.fromkeys(
-            f"{label.split()[-1]} No. {no} of {year}" for label, no, year in case_parts(f"{case_ref} {purpose}")
-            if (no, year) != main))
+        # r14: the extractor puts the memo's own case in cc_no/cc_year and the case to
+        # call for in case_ref - so "own case" is cc_no/cc_year when given.
+        main = (cc_no, full_year) if cc_no and full_year else parts[0][1:] if parts else None
+        found = list(dict.fromkeys(
+            f"{label.split()[-1]} No. {no} of {year}"
+            for label, no, year in case_parts(" ".join([case_ref, purpose, *docs]))
+            if (no, year4(year)) != main))
+        records_of = found or records_of
     own = {re.sub(r"\W+", "", court_name.lower()), re.sub(r"\W+", "", court_name_clean.lower())} - {""}
     others = [c for c in records_court if not any(o and o in re.sub(r"\W+", "", c.lower()) for o in own)]
     role = applicant_role.strip().title()
