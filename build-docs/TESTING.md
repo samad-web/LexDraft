@@ -104,3 +104,8 @@
 ## Choice fields no longer refuse a draft — 2026-11-08
 - `tests/service/test_enum_tolerance.py`: 15 passed. Blank/off-list divorce basis derived from the stated places, gap when none is in the court's town, valid values kept; DV category read from the incident.
 - Full engine suite 2133 + 7 passed after a test-only fix (wrong line match). API 803 passed; 1 failure is `anthropic-failover`, caused by another session's uncommitted `anthropic-client.ts`.
+
+## Last checklist re-drafts — 2026-11-08 (Claude Code route)
+- Re-drafted: divorce_contested, dv_application, counter_affidavit, s138_complaint, writ_petition. All on the engine, none on the AI fallback.
+- Rechecked only the failed items, plus the added facts the reviewer listed: divorce 13, DV 14, counter 4 and 13, s138 11, writ 13 pass. No full re-score by an independent reviewer. Drafts: `benchmark-h2h/difai-v4/`.
+- Counter-affidavit `stance` was a third case of the same refusal: `test_enum_tolerance.py` now 18 passed; engine service + pipelines 1405 passed; API 804 passed, 1 failure (`anthropic-failover`, another session's uncommitted edit).
