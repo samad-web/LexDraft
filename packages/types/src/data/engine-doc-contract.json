@@ -151,7 +151,7 @@
         ],
         "key": "affidavit_kind",
         "kind": "enum",
-        "required": true
+        "required": false
       },
       {
         "key": "deponent_name",
@@ -417,7 +417,6 @@
     ],
     "required": [
       "address",
-      "affidavit_kind",
       "age",
       "attestor",
       "body_paras",
@@ -10351,8 +10350,10 @@
       "law_of_succession",
       "next_of_kin",
       "no_impediment_s370",
+      "no_nominee",
       "no_prior_application",
       "petitioner_address",
+      "petitioner_age",
       "petitioner_name",
       "petitioner_parentage",
       "petitioner_relation",
@@ -10459,6 +10460,16 @@
       {
         "key": "petitioner_address",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "int",
+        "required": false
+      },
+      {
+        "key": "no_nominee",
+        "kind": "bool",
         "required": false
       },
       {
