@@ -112,3 +112,5 @@
 
 ## Attached formats: blanks fit their sentence — 2026-11-08
 - `test_attached_format_fit.py` 14 passed, `blank-sentence.test.ts` 4 passed. Engine 2157 passed; API 808 passed, 1 failure (`anthropic-failover`, another session's uncommitted edit).
+- Word formats re-run on the Claude Code route (`benchmark-h2h/attached/v2/`): all 5 drafted; figures, ordinals, typed clause numbers, subject line and demand sentence now correct. Left: RTI addressee still repeats "Public Information Officer"; compromise heading "THE DISTRICT MUNSIF COURT". Read by me, no independent re-score.
+- PDF/scan NOT tested: the first of 3 permitted API reads was refused by Anthropic (400, credit balance too low on the local key), so the run stopped. Samples ready in `benchmark-h2h/attached/formats-scan/`; runner `attach-scan.mjs`.
