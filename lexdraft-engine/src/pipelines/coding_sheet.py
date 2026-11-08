@@ -24,6 +24,7 @@ Hard requirements (each refuses, no partial output):
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 from enum import Enum
 from typing import Any, Dict, Optional, Sequence
 
@@ -93,6 +94,7 @@ def build(
     respondents: Sequence[str] = (),
     counsel_enrolment_no: Optional[str] = None,
     nature_of_relief: Optional[str] = None,
+    filing_date: Optional[date] = None,
 ) -> CodingSheetResult:
     """Assemble the registry coding sheet, or refuse."""
 
@@ -156,5 +158,8 @@ def build(
         "respondent_rows": [r.strip() for r in respondents if r and r.strip()] or [respondent_name],
         "counsel_enrolment_no": counsel_enrolment_no,
         "nature_of_relief": nature_of_relief,
+        # b4: counsel's signature block — "Chennai" / "Madurai" for the seat, a date line.
+        "sign_place": "Madurai" if "madurai" in (court_place or "").lower() else "Chennai",
+        "filing_date": filing_date.isoformat() if filing_date else None,
     }
     return CodingSheetResult(refused=False, context=context)

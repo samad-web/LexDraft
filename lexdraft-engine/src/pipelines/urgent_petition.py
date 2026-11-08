@@ -49,6 +49,22 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _prejudice(stated: Optional[str], grounds: str, application: str) -> str:
+    """The prejudice if the hearing is not advanced (b4 item 7)."""
+    s = (stated or "").strip().rstrip(".")
+    if s:
+        return s[:1].upper() + s[1:] + "."
+    if not grounds:
+        return ""
+    app = application.strip() or "the application"
+    if re.search(r"\b(construct|build|erect|demolish|excavat|alter)", grounds, re.I):
+        return (f"If the construction is allowed to proceed before {app} is heard, the nature of the "
+                f"suit property will be altered irretrievably and {app} itself will be rendered "
+                "infructuous, causing irreparable loss and hardship to the petitioner.")
+    return (f"Unless {app} is heard at an early date, it will be rendered infructuous, causing "
+            "irreparable loss and hardship to the petitioner.")
+
+
 def build(
     *,
     petitioner_name: str,
@@ -66,6 +82,9 @@ def build(
     petitioner_role: Optional[str] = None,    # "plaintiff" / "defendant" in the suit
     # interim order pending the advanced hearing, e.g. "direct the parties to maintain status quo"
     interim_prayer: Optional[str] = None,
+    # the harm if the hearing waits; derived from the grounds when not given (b4).
+    prejudice: Optional[str] = None,
+    filing_date: Optional[date] = None,     # today, filled by the intake; the date line
 ) -> UrgentPetitionResult:
     """Assemble the s.151 CPC urgent-listing petition, or refuse."""
 
@@ -124,7 +143,8 @@ def build(
         "court_name": court,
         "case_ref": case_ref,
         "court_place": court_at,
-        "petition_date": petition_date.isoformat() if petition_date is not None else None,
+        "prejudice": _prejudice(prejudice, grounds, underlying_application),
+        "petition_date": (petition_date or filing_date).isoformat() if (petition_date or filing_date) else None,
         "place": place,
     }
     return UrgentPetitionResult(refused=False, context=context)

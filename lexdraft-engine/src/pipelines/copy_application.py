@@ -71,6 +71,17 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _doc_phrase(d: CopyDocRow) -> str:
+    """'Judgment and decree' + '10.10.2026' -> 'the judgment and decree dated 10.10.2026'."""
+    desc = d.description.strip().rstrip(".;")
+    if re.match(r"(judgment|decree|order|deposition|plaint|written statement|exhibit)", desc, re.I):
+        desc = desc[:1].lower() + desc[1:]
+    date_ = (d.date_of_document or "").strip()
+    if date_ and date_ not in desc:
+        desc += f" dated {date_}"
+    return desc if re.match(r"(the|a|an)\s", desc, re.I) else f"the {desc}"
+
+
 def build(
     *,
     # All optional — this is a FILL-IN COURT FORM (the advocate's printed form has
@@ -174,6 +185,8 @@ def build(
         "copy_word": ("copies" if plural else "copy") if n_docs else "",
         "doc_word": ("documents" if n_docs > 1 else "document") if n_docs else "",
         "purpose": purpose,
+        # b4: the documents named in the body too, not only in the Word table.
+        "doc_list": "; ".join(_doc_phrase(d) for d in documents if d.description.strip()),
         "os_no": os_no,
         "os_year": os_year,
         "place": place,
