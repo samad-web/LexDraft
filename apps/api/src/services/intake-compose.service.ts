@@ -486,7 +486,7 @@ const MUST_PLEAD: Record<string, string> = {
   adjournment_petition: '- A reason the law accepts. Counsel being engaged in another court is NOT by itself a ground (proviso to Order XVII Rule 1 CPC) — if that is the only reason given, plead it plainly and leave "[to be drafted]" for any other cause.',
   written_statement: '- A specific traverse of each allegation; a bare "denies each and every allegation" is an evasive denial (Order VIII Rules 3–5 CPC).\n- Where the plaint claims interest at a rate, deny that rate specifically, as the skeleton does ("the claim for interest at 24% p.a. is denied as excessive and not agreed") — a bare "not admitted" of the interest allegation is not enough.',
   // r17: the prayer's concrete period was dropped back to "such time as the Court may fix".
-  writ_petition: '- A mandamus prayer gives the period exactly as the skeleton does ("within a period of eight weeks from the date of receipt of a copy of this order, or within such time as this Hon\'ble Court may fix") — never only "such time as this Hon\'ble Court may fix".',
+  writ_petition: '- A mandamus prayer gives the period exactly as the skeleton does ("within a period of eight weeks from the date of receipt of a copy of this order, or within such time as this Hon\'ble Court may fix") — never only "such time as this Hon\'ble Court may fix".\n- Where the facts fix when the cause arose, say in one paragraph that the petition is brought without delay or laches, giving that date and the time since; no reason the facts do not give.',
   // r12: a private respondent swearing for himself got "duly authorised" filler in the reply to para 1.
   counter_affidavit: '- A specific traverse of each paragraph. The deponent\'s competence is already sworn above the para-wise reply; never restate it there. Call the answering party "the respondent" (with its number only when there are several respondents).',
 };
@@ -516,7 +516,7 @@ const B2_MUST_PLEAD: Record<string, string> = {
   transfer_petition: '- The deponent\'s age in the affidavit exactly as the skeleton has it.',
   o39_r2a_application: '- Never write that a list of properties "is attached": the respondent\'s property is set out, or named as a gap, as the skeleton does.',
   contempt_petition: '- A judgment is cited complete (full case title and citation) within one sentence, or not at all.',
-  counter_affidavit: '- Answer each paragraph\'s allegation with the respondent\'s own case from the facts (e.g. to a wall-building allegation: the land is the respondent\'s own and the wall was completed before the suit) — never a bare "not admitted" where the facts give an answer.\n- The prayer is to dismiss the petition with costs.',
+  counter_affidavit: '- Answer each paragraph\'s allegation with the respondent\'s own case from the facts (e.g. to a wall-building allegation: the land is the respondent\'s own and the wall was completed before the suit) — never a bare "not admitted" where the facts give an answer.\n- In the reply to the paragraph claiming the disputed right, state the respondent\'s title and each document the facts give against it (e.g. the sale deed, patta and FMB) in that reply itself, not only in a later one.\n- The prayer is to dismiss the petition with costs.',
 };
 
 const GUIDES: Record<ComposeFamily, string> = {

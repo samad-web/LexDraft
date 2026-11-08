@@ -40,7 +40,7 @@ function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
 
-import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreDatedGaps, anchorOpening, guideFor } from '../intake-compose.service';
+import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreKeptPara, restoreDatedGaps, anchorOpening, guideFor } from '../intake-compose.service';
 import { sentencesOf } from '../../lib/draft-guards';
 
 // A real engine bail render: banners, numbered body with "[to be drafted]" gaps,
@@ -714,6 +714,17 @@ describe('r14 compose defects', () => {
     // an explained gap (both dates in one sentence) is left alone
     expect(restoreDatedGaps(['From 08.10.2026 to 07.11.2026 the papers were prepared.'], skeleton.split(' [cause of delay from 12')[0] + ' [cause of delay from 08.10.2026 to 07.11.2026 to be provided]'))
       .toEqual(['From 08.10.2026 to 07.11.2026 the papers were prepared.']);
+  });
+
+  it('test_s138_complaint_territorial_jurisdiction_para_kept: compose cannot drop the s.142(2) paragraph', () => {
+    const skeleton = '1. The accused issued the cheque.\n12. The Complainant submits that this Hon\'ble Court has the necessary territorial jurisdiction inasmuch as the collecting bank is at Guindy.\n13. The notice was served.';
+    const para = skeleton.split('\n')[1]!;
+    expect(restoreKeptPara(['1. The accused issued the cheque.'], skeleton, 's138_complaint')).toEqual(['1. The accused issued the cheque.', para]);
+    const kept = ['12. This Court has territorial jurisdiction as the bank is at Guindy.'];
+    expect(restoreKeptPara(kept, skeleton, 's138_complaint')).toBe(kept);
+    const other = ['1. Nothing about it.'];
+    expect(restoreKeptPara(other, skeleton, 'plaint')).toBe(other);
+    expect(restoreKeptPara(other, '1. No such paragraph.', 's138_complaint')).toBe(other);
   });
 
   it('test_judicial_separation_no_invented_registration: "not registered" is cut unless the advocate raised it', async () => {
