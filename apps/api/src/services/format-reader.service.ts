@@ -16,6 +16,7 @@ import mammoth from 'mammoth';
 import type Anthropic from '@anthropic-ai/sdk';
 import { env } from '../env';
 import { anthropic, usageFrom } from '../lib/anthropic-client';
+import { claudeCodeComplete, devViaClaudeCode } from '../lib/claude-code-dev';
 import type { NormalizedUsage } from '../lib/llm-usage';
 import { LABEL_TO_ENGINE_DOC } from '../lib/engine-field-map';
 import { engineClient, type EngineFormatContract } from './engine-client.service';
@@ -126,25 +127,41 @@ export const formatReader = {
     const blocks = await sourceBlocks(input.fileName, input.mime, input.data);
     const model = env.FORMAT_READER_MODEL;
 
-    const stream = anthropic().beta.messages.stream({
-      model,
-      max_tokens: 64_000,
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
-      system: c.system_prompt,
-      output_config: { effort: 'high', format: { type: 'json_schema', schema: c.schema } },
-      messages: [{
-        role: 'user',
-        content: [...blocks, { type: 'text', text: instructions(c, input.titleHint ?? '') }],
-      }],
-    });
-    const message = await stream.finalMessage();
-    if (message.stop_reason === 'refusal') throw new FormatReadError('The reader declined this file.');
-    if (message.stop_reason === 'max_tokens') throw new FormatReadError('The format is too long to read in one go.');
-    const text = message.content
-      .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
+    let text: string;
+    let usage: NormalizedUsage;
+    // Dev: a Word/text format is plain text already, so it goes through the local
+    // Claude Code route like every other call (no API credit needed).
+    // shortcut: PDFs and images still need the API's document/image input.
+    if (devViaClaudeCode() && blocks.every((b) => b.type === 'text')) {
+      const out = await claudeCodeComplete({
+        model,
+        system: `${c.system_prompt}\n\nReply with ONLY one JSON object matching this JSON schema, no prose, no code fence:\n${JSON.stringify(c.schema)}`,
+        user: [...blocks.map((b) => (b as { text: string }).text), instructions(c, input.titleHint ?? '')].join('\n\n'),
+      });
+      text = out.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
+      usage = out;
+    } else {
+      const stream = anthropic().beta.messages.stream({
+        model,
+        max_tokens: 64_000,
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system: c.system_prompt,
+        output_config: { effort: 'high', format: { type: 'json_schema', schema: c.schema } },
+        messages: [{
+          role: 'user',
+          content: [...blocks, { type: 'text', text: instructions(c, input.titleHint ?? '') }],
+        }],
+      });
+      const message = await stream.finalMessage();
+      if (message.stop_reason === 'refusal') throw new FormatReadError('The reader declined this file.');
+      if (message.stop_reason === 'max_tokens') throw new FormatReadError('The format is too long to read in one go.');
+      text = message.content
+        .filter((b): b is Anthropic.Beta.Messages.BetaTextBlock => b.type === 'text')
+        .map((b) => b.text)
+        .join('');
+      usage = usageFrom(message.usage as unknown as Anthropic.Usage);
+    }
     let raw: Record<string, any>;
     try {
       raw = JSON.parse(text);
@@ -168,8 +185,6 @@ export const formatReader = {
       blocks: checked.blocks,
     };
     const equivalentType = String(raw.equivalent_existing_doc_type ?? '').trim();
-    const usage = usageFrom(message.usage as unknown as Anthropic.Usage);
-
     return {
       isLegalFormat: raw.is_legal_format !== false,
       title,
