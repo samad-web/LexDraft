@@ -84,3 +84,7 @@
 - Civil-suit review (2026-11-07): engine tests/service/test_civil_suit_review.py +22 (one per defect, drafted from the suite briefs via /v1/draft); goldens updated for plaint, summary_suit, ejectment, specific_performance, consumer_complaint, indigent_application (intended text only); test_plaint interest tests updated (no longer 'statutory'). Engine 1760 passed; API vitest 705 passed; tsc clean.
 - 2026-11-07 - r13 fixes: engine tests/service/test_r13_competes.py +12; API intake-compose +3 (labels in order, no estimated delay, account numbers). Updated (decision change, not weakening): hrcp own-occupation tests in test_r12_civil_quality / test_phase3_coverage (no clause (g) / verify note), indigent R1/R2 string (adds parentage gap), s80 bare-ground test (no-notice facts state the ground; unknown ground stays a gap).
 - 2026-11-08 - r14 fixes: engine tests/service/test_r14_competes.py +8 (1977 pass; ejectment golden updated for the schedule); API +7 (engine-field-map place/flags, intake-compose lettered grounds, dated gaps, registration, plaint count) - 726 pass, tsc clean.
+
+## Deadline alerts (features/limitation-alerts.md, task-alerts.md) — 2026-11-08
+- apps/api/src/services/__tests__/deadline-alerts.test.ts: 10 pass (limitation days 90/30/7/1/0 only; each task priority fires on exactly its days; tones + email flags; IST date at 00:30 IST; owner vs firm-admin recipients; a second run the same day sends nothing).
+- Both alert SELECTs run read-only on the local dev DB (PG16): valid on the real schema (1 limitation due locally).

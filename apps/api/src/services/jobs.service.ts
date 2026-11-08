@@ -464,6 +464,13 @@ jobs.register('efiling.track.manual', async () => {
   await runEfilingTracking({ slot: 'manual' });
 });
 
+// Limitation + task deadline alerts. Hourly 9 AM-9 PM IST: dedupe keys make the
+// later runs send only what a missed 9 AM run (server down) would have sent.
+jobs.register('deadline.alerts', async () => {
+  const { runDeadlineAlerts } = await import('./deadline-alerts.service');
+  await runDeadlineAlerts();
+}, { cron: '0 9-21 * * *', tz: 'Asia/Kolkata' });
+
 interface EcourtsSyncRetryPayload {
   slot: 'morning' | 'evening' | 'manual';
   runDate: string;
