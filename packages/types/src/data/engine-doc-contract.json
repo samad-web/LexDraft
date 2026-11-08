@@ -8,11 +8,13 @@
       "court_place",
       "hearing_date",
       "petition_date",
+      "petitioner_age",
       "petitioner_name",
       "petitioner_role",
       "place",
       "posted_for",
-      "respondent_name"
+      "respondent_name",
+      "suit_nature"
     ],
     "fields": [
       {
@@ -72,6 +74,16 @@
       },
       {
         "key": "petitioner_role",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "suit_nature",
         "kind": "string",
         "required": false
       }
@@ -605,6 +617,7 @@
       "offence_sections",
       "place",
       "police_station",
+      "prior_suretyship",
       "property_particulars",
       "state_name",
       "surety_address",
@@ -711,6 +724,11 @@
       },
       {
         "key": "surety_occupation",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prior_suretyship",
         "kind": "string",
         "required": false
       },
@@ -1158,6 +1176,11 @@
           },
           {
             "key": "count",
+            "kind": "string",
+            "required": false
+          },
+          {
+            "key": "pages",
             "kind": "string",
             "required": false
           }
@@ -1905,6 +1928,7 @@
       "appeal_lies",
       "basis",
       "condone_delay_petition_filed",
+      "consequential_relief",
       "copy_applied_date",
       "copy_ready_date",
       "court_name",
@@ -2033,6 +2057,11 @@
         "key": "stay_of_proceedings_sought",
         "kind": "bool",
         "required": false
+      },
+      {
+        "key": "consequential_relief",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -2057,6 +2086,7 @@
       "court_place",
       "crime_no",
       "detaining_authority",
+      "filing_date",
       "in_jail",
       "is_hcp",
       "lower_court_details",
@@ -2207,6 +2237,11 @@
       {
         "key": "nature_of_relief",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -2819,6 +2854,11 @@
             "key": "text",
             "kind": "string",
             "required": false
+          },
+          {
+            "key": "allegation",
+            "kind": "string",
+            "required": false
           }
         ],
         "key": "para_replies",
@@ -2994,6 +3034,7 @@
   "court_warrant": {
     "all": [
       "accused_address",
+      "accused_gender",
       "accused_name",
       "addressed_to",
       "amount_due",
@@ -3120,6 +3161,11 @@
       {
         "key": "return_date",
         "kind": "date",
+        "required": false
+      },
+      {
+        "key": "accused_gender",
+        "kind": "string",
         "required": false
       }
     ],
@@ -4676,6 +4722,7 @@
       "post_decree_interest_rate",
       "prior_applications",
       "property_schedule",
+      "salary_bank",
       "suit_no"
     ],
     "fields": [
@@ -4788,6 +4835,11 @@
         "key": "employer",
         "kind": "string",
         "required": false
+      },
+      {
+        "key": "salary_bank",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -4827,6 +4879,7 @@
       "recipient_mode",
       "recipient_name",
       "statutory_minimum_days",
+      "subject",
       "transaction_narrative"
     ],
     "fields": [
@@ -4924,6 +4977,11 @@
         "key": "place",
         "kind": "string",
         "required": true
+      },
+      {
+        "key": "subject",
+        "kind": "string",
+        "required": false
       }
     ],
     "required": [
@@ -5226,11 +5284,13 @@
   "indigent_application": {
     "all": [
       "applicant_address",
+      "applicant_age",
       "applicant_name",
       "applicant_parentage",
       "cause_of_action",
       "city",
       "civil_court",
+      "co_heirs",
       "filing_date",
       "indigency_particulars",
       "indigency_pleaded",
@@ -5369,6 +5429,16 @@
       {
         "key": "share_claimed",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "applicant_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "co_heirs",
+        "kind": "string_list",
         "required": false
       }
     ],
@@ -5536,7 +5606,9 @@
       "no_connivance",
       "no_undue_delay",
       "petitioner_address",
+      "petitioner_age",
       "petitioner_name",
+      "petitioner_occupation",
       "petitioner_parentage",
       "place",
       "respondent_address",
@@ -5646,6 +5718,16 @@
       },
       {
         "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_occupation",
         "kind": "string",
         "required": false
       },
@@ -5848,6 +5930,7 @@
       "policy_valid_on_accident",
       "rash_negligent_pleaded",
       "treatment_expenses",
+      "tribunal_name",
       "tribunal_place",
       "vehicle_number",
       "victim_age",
@@ -5985,6 +6068,11 @@
       },
       {
         "key": "tribunal_place",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "tribunal_name",
         "kind": "string",
         "required": false
       },
@@ -6700,6 +6788,7 @@
       "property_list_attached",
       "respondent_had_knowledge",
       "respondent_name",
+      "respondent_properties",
       "suit_ref"
     ],
     "fields": [
@@ -6742,6 +6831,11 @@
         "key": "property_list_attached",
         "kind": "bool",
         "required": true
+      },
+      {
+        "key": "respondent_properties",
+        "kind": "string_list",
+        "required": false
       },
       {
         "key": "filing_date",
@@ -7999,6 +8093,7 @@
       "case_ref",
       "court_name",
       "court_place",
+      "deponent_description",
       "documents",
       "filing_date",
       "petition_date",
@@ -8082,6 +8177,11 @@
       },
       {
         "key": "accused_gender",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
         "kind": "string",
         "required": false
       }
@@ -8447,7 +8547,9 @@
       "no_collusion",
       "no_undue_delay",
       "petitioner_address",
+      "petitioner_age",
       "petitioner_name",
+      "petitioner_occupation",
       "petitioner_parentage",
       "place",
       "respondent_address",
@@ -8539,6 +8641,16 @@
       },
       {
         "key": "respondent_address",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_age",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "petitioner_occupation",
         "kind": "string",
         "required": false
       },
@@ -9364,7 +9476,8 @@
       "filing_date",
       "petition_date",
       "place",
-      "post_for"
+      "post_for",
+      "restore_sought"
     ],
     "fields": [
       {
@@ -9423,6 +9536,11 @@
         "required": false
       },
       {
+        "key": "restore_sought",
+        "kind": "bool",
+        "required": false
+      },
+      {
         "key": "case_nature",
         "kind": "string",
         "required": false
@@ -9461,10 +9579,13 @@
     "all": [
       "absence_not_wanton",
       "absence_reason",
+      "accused_gender",
       "accused_name",
       "case_ref",
       "complainant_name",
       "court_place",
+      "deponent_description",
+      "filing_date",
       "hearing_date",
       "identity_not_disputed",
       "magistrate_designation",
@@ -9525,6 +9646,21 @@
       {
         "key": "identity_not_disputed",
         "kind": "bool",
+        "required": false
+      },
+      {
+        "key": "accused_gender",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "deponent_description",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
@@ -11510,6 +11646,7 @@
       "grounds",
       "no_other_transfer_petition",
       "petitioner_address",
+      "petitioner_age",
       "petitioner_name",
       "petitioner_parentage",
       "place",
@@ -11584,6 +11721,11 @@
         "required": false
       },
       {
+        "key": "petitioner_age",
+        "kind": "string",
+        "required": false
+      },
+      {
         "key": "petitioner_address",
         "kind": "string",
         "required": false
@@ -11609,6 +11751,7 @@
       "case_ref",
       "court_name",
       "court_place",
+      "filing_date",
       "interim_prayer",
       "orders_prayed",
       "petition_date",
@@ -11616,6 +11759,7 @@
       "petitioner_role",
       "place",
       "posted_date",
+      "prejudice",
       "respondent_name",
       "underlying_application",
       "urgency_grounds"
@@ -11684,6 +11828,16 @@
       {
         "key": "interim_prayer",
         "kind": "string",
+        "required": false
+      },
+      {
+        "key": "prejudice",
+        "kind": "string",
+        "required": false
+      },
+      {
+        "key": "filing_date",
+        "kind": "date",
         "required": false
       }
     ],
