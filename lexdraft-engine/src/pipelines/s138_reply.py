@@ -110,7 +110,8 @@ def build(
         # the lettered A-D block, so compose rewrote only A-B and the brief's lines
         # plus orphan "C."/"D." reached the reply verbatim (suite r10).
         "defence_slot": _one_paragraph(defence_narrative),
-        "cheques_to_return": (cheques_to_return or "").strip() or None,
+        # The value follows "to return ..." mid-sentence.
+        "cheques_to_return": re.sub(r"^(?:Both|The|All|Said)\b", lambda m: m[0].lower(), (cheques_to_return or "").strip()) or None,
         "return_within_days": return_within_days if return_within_days > 0 else 7,
         "liability_denied": liability_denied,
         "cheque_in_discharge_denied": cheque_in_discharge_denied,

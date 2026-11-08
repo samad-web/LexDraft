@@ -130,14 +130,13 @@ export const formatReader = {
 
     let text: string;
     let usage: NormalizedUsage;
-    // Dev: a Word/text format is plain text already, so it goes through the local
-    // Claude Code route like every other call (no API credit needed).
-    // shortcut: PDFs and images still need the API's document/image input.
-    if (devViaClaudeCode() && blocks.every((b) => b.type === 'text')) {
+    // Dev: every format goes through the local Claude Code route (no API credit needed).
+    if (devViaClaudeCode()) {
       const out = await claudeCodeComplete({
         model,
         system: `${c.system_prompt}\n\nReply with ONLY one JSON object matching this JSON schema, no prose, no code fence:\n${JSON.stringify(c.schema)}`,
-        user: [...blocks.map((b) => (b as { text: string }).text), instructions(c, input.titleHint ?? '')].join('\n\n'),
+        user: [...blocks.flatMap((b) => (b.type === 'text' ? [b.text] : [])), instructions(c, input.titleHint ?? '')].join('\n\n'),
+        attachments: blocks.filter((b) => b.type !== 'text'),
       });
       text = out.text.trim().replace(/^```(?:json)?\s*|\s*```$/g, '');
       usage = out;

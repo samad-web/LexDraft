@@ -51,19 +51,24 @@ export async function claudeCodeComplete(opts: {
   system: string;
   user: string;
   model: string;
+  /** PDF / image content blocks, sent ahead of the user text. */
+  attachments?: unknown[];
 }): Promise<{ text: string } & NormalizedUsage> {
   const dir = mkdtempSync(join(tmpdir(), 'difai-cc-'));
   const systemFile = join(dir, 'system.txt');
   writeFileSync(systemFile, opts.system, 'utf8');
   const childEnv = { ...process.env };
   delete childEnv.ANTHROPIC_API_KEY;
+  // Only the CLI's stream-json input carries non-text blocks.
+  const streaming = Boolean(opts.attachments?.length);
   try {
     const stdout = await new Promise<string>((resolve, reject) => {
       const child = spawn(claudeBin(), [
         '-p', '--model', opts.model,
         '--system-prompt-file', systemFile,
         '--tools', '',
-        '--output-format', 'json',
+        '--output-format', streaming ? 'stream-json' : 'json',
+        ...(streaming ? ['--input-format', 'stream-json', '--verbose'] : []),
         '--no-session-persistence',
         '--setting-sources', '',
         '--strict-mcp-config',
@@ -80,9 +85,11 @@ export async function claudeCodeComplete(opts: {
         if (code === 0) resolve(out);
         else reject(new Error(`claude-code-dev: exit ${code}: ${(err || out).slice(0, 300)}`));
       });
-      child.stdin.end(opts.user);
+      child.stdin.end(streaming
+        ? `${JSON.stringify({ type: 'user', message: { role: 'user', content: [...opts.attachments!, { type: 'text', text: opts.user }] } })}\n`
+        : opts.user);
     });
-    const parsed = JSON.parse(stdout) as CliResult;
+    const parsed = JSON.parse(streaming ? stdout.split('\n').filter((l) => l.includes('"type":"result"')).pop() ?? '{}' : stdout) as CliResult;
     if (parsed.is_error) throw new Error(`claude-code-dev: ${String(parsed.result).slice(0, 300)}`);
     const u = parsed.usage ?? {};
     return {

@@ -39,3 +39,4 @@
 - Compose (2026-11-08): s.138 complaint's territorial-jurisdiction para restored by code if dropped; counter-affidavit documents and writ delay rules; counter stance tolerant; affidavit jurat dated today.
 - Attached formats (2026-11-08): each blank is read with its sentence so the value fits; typed clause numbers kept; hints beside blanks dropped; "Rs. 110000," grouped (bug hit every format); "the 5" -> "the 5th"; "1 month(s)" resolved.
 - Attached formats (2026-11-08): a failed PDF/photo read shows a plain message; the provider's billing or key text only goes to the log.
+- fix(attached-formats): in dev, PDFs and photos are read through the Claude Code route (`attachments` via stream-json), not the API. Court heading no longer doubles "COURT"; a blank opening its line sees the line above; s138_reply cheques read mid-sentence; composer no longer writes sentences or end tags only to hold a gap.

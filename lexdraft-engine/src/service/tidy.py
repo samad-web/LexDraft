@@ -50,6 +50,8 @@ def court_heading(text: str) -> str:
     if not m:
         return text
     head, court, district, city = m.groups()
+    # "COURT OF THE DISTRICT MUNSIF COURT" says court twice; "... DISTRICT COURT" does not.
+    court = re.sub(r"\b(MUNSIF|JUDGE|MAGISTRATE)\s+COURT\b", r"\1", court, flags=re.IGNORECASE)
     low = court.lower()
     d = re.sub(r"^\s*\(DISTRICT\s+|\)$", "", district, flags=re.IGNORECASE).strip()
     c = city.lstrip(", ").strip()

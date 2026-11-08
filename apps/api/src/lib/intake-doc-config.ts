@@ -475,10 +475,14 @@ function humanise(key: string): string {
 /** The text around a format's blank ("{{ key }}"), for fitting the value to its sentence. */
 export function blankSentence(blocks: Array<{ text?: string }>, key: string): string | undefined {
   const rx = new RegExp(String.raw`\{\{\s*${key}\s*\}\}`);
-  const text = blocks.find((b) => rx.test(b.text ?? ''))?.text;
-  if (!text) return undefined;
+  const i = blocks.findIndex((b) => rx.test(b.text ?? ''));
+  if (i < 0) return undefined;
+  const text = blocks[i]!.text!;
   const at = text.search(rx);
-  return text.slice(Math.max(0, at - 90), at + key.length + 90).trim();
+  const around = text.slice(Math.max(0, at - 90), at + key.length + 90).trim();
+  // A blank opening its line can repeat the line above ("The Public Information Officer,").
+  const above = text.slice(0, at).trim() ? '' : blocks[i - 1]?.text?.slice(-90).trim();
+  return above ? `${above} / ${around}` : around;
 }
 
 export function intakeSectionsFromDescribe(desc: EngineDescribe): IntakeSectionSpec[] {

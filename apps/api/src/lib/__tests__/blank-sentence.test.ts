@@ -7,6 +7,10 @@ describe('blankSentence — an attached format\'s blank seen in its sentence', (
     expect(blankSentence(blocks, 'demand')).toBe('I call upon you to {{demand}} within 15 days.');
     expect(blankSentence(blocks, 'addressee')).toBe('To, {{ addressee }}');
   });
+  it('shows the line above a blank that opens its line, so its words are not repeated', () => {
+    expect(blankSentence([{ text: 'The Public Information Officer,' }, { text: '{{ office }}' }], 'office'))
+      .toBe('The Public Information Officer, / {{ office }}');
+  });
   it('is undefined for a field no block uses', () => {
     expect(blankSentence(blocks, 'other')).toBeUndefined();
   });
