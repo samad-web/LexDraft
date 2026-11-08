@@ -78,7 +78,8 @@ import {
   type EngineDescribe,
 } from '../lib/intake-doc-config';
 import { aiUsageService } from './ai-usage.service';
-import { claudeComplete } from '../lib/anthropic-client';
+import { AiUnavailableError, claudeComplete, isAccountFailure } from '../lib/anthropic-client';
+import { composeOpenDraft, OpenDraftRefused, type OpenDraftResult } from './open-draft.service';
 import { grokComplete } from '../lib/grok-client';
 
 // Reserved keys stored in facts_json but never part of the engine form.
@@ -99,7 +100,12 @@ const K_BNS_CONCORDANCE = '__bnsConcordance';
 /** A format the advocate attached in the draft chat ("draft in this format"),
  *  read into an engine spec once and kept on THIS conversation only. */
 const K_FORMAT = '__attachedFormat';
-const RESERVED = new Set([K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE, K_FORMAT]);
+const K_OPEN = '__openDraft';
+const RESERVED = new Set([K_OPEN, K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE, K_FORMAT]);
+
+/** Label suffix for a document with no format here, drafted by open-draft.service. */
+export const OPEN_DRAFT_SUFFIX = ' (open draft)';
+export const isOpenDraftLabel = (label: string): boolean => label.endsWith(OPEN_DRAFT_SUFFIX);
 
 /** Label suffix for a conversation drafting in an attached format. */
 export const ATTACHED_FORMAT_SUFFIX = ' (attached format)';
@@ -234,6 +240,8 @@ interface StoredState {
   bnsConcordance: BnsConcordanceEntry[];
   /** Set only when drafting in a format attached in the chat. */
   format?: AttachedFormat;
+  /** Set once an open draft exists. */
+  open?: OpenDraftResult;
 }
 
 function unpack(facts: Record<string, unknown>): StoredState {
@@ -253,6 +261,7 @@ function unpack(facts: Record<string, unknown>): StoredState {
     lastExtractFailed: Boolean(facts[K_LAST_EXTRACT_FAILED]),
     bnsConcordance: parseBnsConcordance(facts[K_BNS_CONCORDANCE]),
     ...(facts[K_FORMAT] ? { format: facts[K_FORMAT] as AttachedFormat } : {}),
+    ...(facts[K_OPEN] ? { open: facts[K_OPEN] as OpenDraftResult } : {}),
   };
 }
 
@@ -282,6 +291,7 @@ function pack(s: StoredState, docLabel: string): Record<string, unknown> {
     [K_LAST_EXTRACT_FAILED]: s.lastExtractFailed,
     [K_BNS_CONCORDANCE]: s.bnsConcordance,
     ...(s.format ? { [K_FORMAT]: s.format } : {}),
+    ...(s.open ? { [K_OPEN]: s.open } : {}),
   };
 }
 
@@ -688,6 +698,7 @@ async function resolveDoc(
   firmId: string | null = null,
   matterId: string | null = null,
 ): Promise<ResolvedDoc | null> {
+  if (isOpenDraftLabel(docLabel)) return { docType: 'open_draft', sections: [] };
   // A firm's OWN format ("<title> (firm format)"): its fields come from the stored
   // spec, never from the engine registry, and only this firm can resolve it.
   if (isFirmFormatLabel(docLabel) && !LABEL_TO_ENGINE_DOC[docLabel]) {
@@ -745,6 +756,57 @@ async function resolveDoc(
     logger.warn({ err, docType }, 'intake: engine doc-types fetch failed');
   }
   return null;
+}
+
+/** What an open draft may model its layout and phrasing on: the firm's formats, then the built-ins. */
+async function openStyles(firmId: string | null): Promise<{ styleOptions: string[]; styleOf: (label: string) => Promise<string> }> {
+  const firm = await firmFormatsService.list(firmId, { approvedOnly: true });
+  const text = (blocks: Array<{ text?: string }>) => blocks.map((b) => b.text ?? '').join('\n');
+  return {
+    styleOptions: [...firm.map((f) => f.label), ...routableLabels()],
+    styleOf: async (label) => {
+      const own = firm.find((f) => f.label === label);
+      if (own) return text(own.spec.blocks as Array<{ text?: string }>);
+      try {
+        const out = await engineClient.blank({ docType: LABEL_TO_ENGINE_DOC[label]! });
+        return 'blocks' in out ? text(out.blocks) : '';
+      } catch (err) {
+        logger.warn({ err, label }, 'open draft: style model unavailable');
+        return '';
+      }
+    },
+  };
+}
+
+/** The state the screen shows for an open draft. The Word file is rebuilt from its text. */
+async function openState(sheet: FactSheet, docLabel: string, state: StoredState): Promise<IntakeState> {
+  const open = state.open!;
+  let composed: { docxBase64: string; blocks: Array<{ key: string; text: string }> } | null = null;
+  try {
+    composed = await engineClient.composeDocx(open.lines);
+  } catch (err) {
+    logger.warn({ err, docLabel }, 'open draft: Word file failed; returning text-only draft');
+  }
+  return {
+    matterId: sheet.matterId,
+    version: sheet.version,
+    docLabel,
+    status: 'generated',
+    transcript: state.transcript,
+    factSheet: [],
+    questions: [],
+    directEntryFields: [],
+    refusal: null,
+    draft: {
+      blocks: composed?.blocks.length ? composed.blocks : open.lines.map((text, i) => ({ key: `p${i}`, text })),
+      signals: { review_banner: '', unverified_marker: '' },
+      unfilledSlots: [],
+      docxBase64: composed?.docxBase64 ?? null,
+    },
+    draftedBy: 'open',
+    draftNotes: open.notes,
+    sourceText: state.sourceText,
+  } as IntakeState;
 }
 
 /** Every intake read by matter id goes through this (audit 2026-11-07). */
@@ -938,6 +1000,7 @@ export const intakeService = {
   async routable(docLabel: string, firmId: string | null = null): Promise<boolean> {
     // Cheap synchronous check first: a label with no engine mapping (and not a
     // firm format) is never routable and needs no engine round-trip.
+    if (isOpenDraftLabel(docLabel)) return true;
     if (!LABEL_TO_ENGINE_DOC[docLabel] && !isFirmFormatLabel(docLabel) && !isAttachedFormatLabel(docLabel)) return false;
     // An attached format resolves only with its own matter, which every call
     // after the start carries; resolveDoc enforces that (and the firm) per call.
@@ -1051,7 +1114,7 @@ export const intakeService = {
     }
     if (!label && notListed) {
       logger.info({ doc: notListed, firmId: ctx.firmId }, 'open_draft_requested');
-      throw new IntakeUnavailableError(`There is no format for "${notListed}" on the list yet. Attach your own format for it, or pick one from Formats.`);
+      label = `${notListed}${OPEN_DRAFT_SUFFIX}`;
     }
     if (!label) {
       throw new IntakeError('could not determine the document type from the description');
@@ -1148,6 +1211,7 @@ export const intakeService = {
     const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
+    if (isOpenDraftLabel(docLabel)) return state.open ? openState(current, docLabel, state) : this._openDraft(matterId, docLabel, state, ctx);
     // If the last read FAILED and nothing is on record, a "Draft now" would fill
     // EVERY required field with a [placeholder] and emit a hollow all-gaps shell —
     // misleading, because the advocate DID supply the facts (we just couldn't read
@@ -1188,6 +1252,7 @@ export const intakeService = {
     const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
+    if (isOpenDraftLabel(docLabel)) return openState(current, docLabel, state);
 
     const applied: string[] = [];
     for (const [key, raw] of Object.entries(edits)) {
@@ -1232,10 +1297,39 @@ export const intakeService = {
     const current = await ownedSheet(matterId, ctx);
     if (!current) throw new IntakeError(`no intake for matter ${matterId}`);
     const state = unpack(current.facts);
+    if (isOpenDraftLabel(docLabel)) return openState(current, docLabel, state);
     // Passive reload: re-check the engine outcome and re-render, but make NO
     // model call (no new questions) and do not advance ask counts. The advocate
     // sees where they left off — the last questions are already in the transcript.
     return this._evaluate(matterId, docLabel, doc, specs, state, ctx, { phrase: false, bumpAsks: false, persist: false });
+  },
+
+  /** Draft (or, with a draft on record, re-draft) a document with no format here. */
+  async _openDraft(matterId: string, docLabel: string, state: StoredState, ctx: RunCtx, instruction?: string): Promise<IntakeState> {
+    const advocateSaid = state.transcript.filter((t) => t.role === 'advocate').map((t) => t.text).join('\n\n').slice(0, 20_000);
+    const title = state.open?.title ?? docLabel.slice(0, -OPEN_DRAFT_SUFFIX.length);
+    let open: OpenDraftResult;
+    try {
+      open = await composeOpenDraft({
+        title,
+        advocateSaid,
+        sourceText: state.sourceText,
+        authorities: authoritiesBlock(await gatherAuthorities({ docType: 'open_draft', docLabel: title, facts: {}, account: advocateSaid })),
+        ...(await openStyles(ctx.firmId)),
+        ...(state.open ? { followUp: { previous: state.open, instruction: instruction ?? 'New documents were attached. Use them.' } } : {}),
+        today: todayIso(),
+        onUsage: (u) => recordUsage(ctx, u),
+      });
+    } catch (err) {
+      if (err instanceof OpenDraftRefused) throw new IntakeUnavailableError(err.message);
+      if (isAccountFailure(err)) throw new AiUnavailableError();
+      logger.error({ err, docLabel }, 'open draft failed');
+      throw new IntakeUnavailableError('This document could not be drafted just now. Please try again shortly.');
+    }
+    state.open = open;
+    state.transcript.push({ role: 'assistant', text: `I have drafted the ${open.title}.` });
+    const sheet = await factSheetService.revise(matterId, pack(state, docLabel), ctx);
+    return openState(sheet, docLabel, state);
   },
 
   // ---- the core turn ------------------------------------------------------
@@ -1257,6 +1351,7 @@ export const intakeService = {
 
     // What the advocate said this turn.
     state.transcript.push({ role: 'advocate', text: message });
+    if (isOpenDraftLabel(docLabel)) return this._openDraft(matterId, docLabel, state, ctx, message);
 
     // Which fields the last assistant turn asked about (so extraction can assign a
     // bare answer like "gowtham" to the right field). Recorded on the state when the
@@ -1699,6 +1794,7 @@ export const intakeService = {
     ctx: RunCtx,
     opts: { phrase: boolean; bumpAsks?: boolean; preface?: string[]; persist?: boolean; draftNow?: boolean; compose?: boolean },
   ): Promise<IntakeState> {
+    if (isOpenDraftLabel(docLabel)) return this._openDraft(matterId, docLabel, state, ctx); // new documents were attached
     const persist = opts.persist ?? true;
     // For a vakalatnama, the court FORMAT (criminal / civil / small_causes) comes
     // ONLY from what the advocate typed in the DRAFT CHAT — the CASE does not

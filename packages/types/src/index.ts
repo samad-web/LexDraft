@@ -792,7 +792,7 @@ export interface IntakeState {
   bnsConcordance?: Array<{ old: string; new: string; toAct: 'BNS' | 'BNSS' | 'BSA'; change: string }>;
   /** Who produced `draft`: the engine (court template) or, when the engine's
    *  checks would block a "Draft now", Claude from the facts on record. */
-  draftedBy?: 'engine' | 'ai';
+  draftedBy?: 'engine' | 'ai' | 'open';
   /** Points to address before filing (the engine's findings that did not block
    *  the draft). Shown in the "Before filing" checklist. */
   draftNotes?: string[];

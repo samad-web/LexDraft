@@ -995,6 +995,11 @@ describe('intake — a matter opens only for its own firm (audit 2026-11-07)', (
   });
 });
 
+vi.mock('../open-draft.service', () => ({
+  OpenDraftRefused: class extends Error {},
+  composeOpenDraft: vi.fn(async () => ({ title: 'Family Settlement Deed', kind: 'deed', blueprint: null, lines: ['THIS DEED', 'WITNESSETH'], notes: ['check'] })),
+}));
+
 describe('intake loop — auto-detect the format (startAuto)', () => {
   it('classifies the opening brief and runs intake for the detected label', async () => {
     classifyQueue.push({ label: 'Notice u/s 138 NI Act', confidence: 'high' });
@@ -1022,9 +1027,12 @@ describe('intake loop — auto-detect the format (startAuto)', () => {
 
   it('never substitutes a format when the classifier says the document is not listed', async () => {
     classifyQueue.push({ label: null, confidence: 'low', notListed: 'Family Settlement Deed' } as never);
-    await expect(
-      intakeService.startAuto('The two brothers want the sale of the land and the gift recorded by agreement.', CTX),
-    ).rejects.toThrow(/no format for "Family Settlement Deed"/);
+    const state = await intakeService.startAuto('The two brothers want the sale of the land and the gift recorded by agreement.', CTX);
+    expect(state.docLabel).toBe('Family Settlement Deed (open draft)');
+    expect(state.draftedBy).toBe('open');
+    expect(state.status).toBe('generated');
+    expect(state.draftNotes).toEqual(['check']);
+    expect(state.draft!.blocks.map((b) => b.text)).toEqual(['THIS DEED', 'WITNESSETH']);
   });
 
   it('throws IntakeError when neither the classifier nor keywords can decide', async () => {
