@@ -803,3 +803,22 @@ describe('r15 compose defects', () => {
     expect(numberBody(settled, 1)).toEqual(['A. The courts below failed to consider the defence.', 'B. Both courts held the presumption unrebutted.']);
   });
 });
+
+// r17: the 5 v2 benchmark checklist items the compose step dropped (the engine carries the wording).
+describe('r17 must-plead checklist items', () => {
+  it('test_s138_complaint_item4: s.141 "at the time the offence was committed"', () => {
+    expect(guideFor('s138_complaint')).toContain('in charge of and responsible to the company for the conduct of its business at the time the offence was committed');
+  });
+  it('test_s138_complaint_item10: one month under s.142(1)(b)', () => {
+    expect(guideFor('s138_complaint')).toContain('within one month of the date the cause of action arose under clause (c) of the proviso to Section 138, as Section 142(1)(b) requires');
+  });
+  it("test_permanent_injunction_item3: the defendant's relationship", () => {
+    expect(guideFor('permanent_injunction')).toContain("the plaintiff's cousin");
+  });
+  it('test_written_statement_item7: the interest rate is denied', () => {
+    expect(guideFor('written_statement')).toContain('the claim for interest at 24% p.a. is denied as excessive and not agreed');
+  });
+  it('test_writ_petition_item10: the mandamus period', () => {
+    expect(guideFor('writ_petition')).toContain('within a period of eight weeks from the date of receipt of a copy of this order');
+  });
+});

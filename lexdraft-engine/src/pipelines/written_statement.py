@@ -64,6 +64,26 @@ def _with_article(objection: str, claim: str) -> str:
     return f"{objection.rstrip(' .')}. The claim is governed by {art}." if art else objection
 
 
+# "with interest at 24% p.a." / "interest at the rate of 18 per cent per annum" (r17).
+_INTEREST_RATE = re.compile(
+    r"\binterest\b[^.;%]{0,40}?\b(\d{1,2}(?:\.\d+)?)\s*(?:%|per\s*cent)"
+    r"(\s*(?:p\.?\s*a\.?|per\s+annum|p\.?\s*m\.?|per\s+month))?", re.I)
+
+
+def _interest_denial(*texts: str) -> Optional[str]:
+    """A plaint claiming interest at a rate: that rate is specifically denied."""
+    m = next((m for t in texts if t for m in [_INTEREST_RATE.search(t)] if m), None)
+    if not m:
+        return None
+    unit = (m.group(2) or "").strip().lower().replace(" ", "")
+    unit = {"pa": " p.a.", "p.a": " p.a.", "p.a.": " p.a.", "perannum": " p.a.",
+            "pm": " p.m.", "p.m": " p.m.", "p.m.": " p.m.", "permonth": " p.m."}.get(unit, "")
+    rate = f"{m.group(1)}%{unit}"
+    return (f"The plaintiff's claim for interest at {rate} is denied as excessive and not agreed. "
+            f"The defendant never agreed to pay interest at {rate}, and the plaintiff is not "
+            "entitled to interest at that rate or at any rate.")
+
+
 def _o8r1_delay(served: date, filed: date) -> Optional[str]:
     """Order VIII Rule 1 CPC: a WS after 30 days from service explains the delay."""
     days = (filed - served).days
@@ -138,6 +158,8 @@ def build(
     city: Optional[str] = None,
     additional_pleas: Sequence[str] = (),
     summons_served_date: Optional[date] = None,
+    # what the plaint claims ("Rs. 3,50,000 with interest at 24% p.a.") (r17).
+    plaint_claims: str = "",
 ) -> WrittenStatementResult:
     """Assemble the written statement, or refuse."""
 
@@ -198,6 +220,9 @@ def build(
     pleas = [p.strip() for p in additional_pleas if p.strip()]
     if any(_LIMITATION.search(o.text) for o in preliminary_objections):
         pleas.append(_NO_ACKNOWLEDGMENT)
+    interest = _interest_denial(plaint_claims or "", *(m.text for m in ordered), *pleas)
+    if interest and not any(re.search(r"\binterest\b.*\bdenied\b.*\bexcessive", p, re.I) for p in pleas):
+        pleas.append(interest)
     delay = _o8r1_delay(summons_served_date, filing_date) if summons_served_date else None
     if delay:
         pleas.append(delay)

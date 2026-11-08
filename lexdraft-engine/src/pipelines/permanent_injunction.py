@@ -17,6 +17,7 @@ Hard requirements (each refuses, no partial output):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
@@ -62,6 +63,15 @@ def _refuse(reason: str, *, code: str, fields: tuple = (),
     )
 
 
+def _relationship(rels: Optional[Sequence[str]], i: int) -> Optional[str]:
+    """'the plaintiff's cousin' / 'cousin of the plaintiff' -> 'cousin' (r17)."""
+    r = str(rels[i] if rels and i < len(rels) else "").strip().rstrip(".")
+    r = re.sub(r"^(?:is\s+)?(?:the\s+)?(?:plaintiff'?s|his|her)\s+", "", r, flags=re.I)
+    r = re.sub(r"\s+of\s+the\s+plaintiff$", "", r, flags=re.I)
+    r = re.sub(r"^(?:the|a|an)\s+", "", r, flags=re.I).strip()
+    return r if r and not r.startswith("[") else None  # an unknown relation is not pleaded
+
+
 def build(
     *,
     plaintiff_name: str,
@@ -83,6 +93,8 @@ def build(
     plaintiff_age: Optional[str] = None,
     plaintiff_occupation: Optional[str] = None,
     defendant_addresses: Optional[Sequence[str]] = None,
+    # each defendant's relationship to the plaintiff, from the brief ("cousin").
+    defendant_relationships: Optional[Sequence[str]] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
 ) -> PermanentInjunctionResult:
@@ -133,7 +145,8 @@ def build(
             {"name": n,
              "address": (defendant_addresses[i]
                          if defendant_addresses and i < len(defendant_addresses)
-                         else None)}
+                         else None),
+             "relationship": _relationship(defendant_relationships, i)}
             for i, n in enumerate(defendant_names)
         ],
         "civil_court": civil_court,

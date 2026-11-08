@@ -72,6 +72,7 @@ ADAPTER = Adapter(
         # The defendant's own case beyond the para-wise traverse (r12).
         FieldSpec("additional_pleas", "string_list", required=False, default=()),
         FieldSpec("summons_served_date", "date", required=False, default=None),
+        FieldSpec("plaint_claims", "string", required=False, default=""),
     ),
     slots=(),
 )

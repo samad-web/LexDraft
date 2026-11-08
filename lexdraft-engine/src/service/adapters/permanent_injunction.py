@@ -26,6 +26,7 @@ ADAPTER = Adapter(
         FieldSpec("plaintiff_age", "string", required=False, default=None),
         FieldSpec("plaintiff_occupation", "string", required=False, default=None),
         FieldSpec("defendant_addresses", "string_list", required=False, default=None),
+        FieldSpec("defendant_relationships", "string_list", required=False, default=None),
         FieldSpec("civil_court", "string", required=False, default=None),
         FieldSpec("city", "string", required=False, default=None),
     ),

@@ -60,6 +60,26 @@ _VAGUE_TIME = re.compile(
 _REPRESENTATION_DATED = re.compile(r"\brepresentation\s+dated\s+(\d{2}\.\d{2}\.\d{4})", re.I)
 
 
+# A period the relief itself states ("... within four weeks") moves into the prayer's
+# compliance clause (r17); none stated -> eight weeks, the Madras High Court's usual.
+_CONCRETE_TIME = re.compile(
+    r"[\s,]*(?:with)?in\s+(?:a\s+period\s+of\s+)?((?:\d{1,3}|one|two|three|four|five|six|seven|eight|nine|"
+    r"ten|eleven|twelve)\s+(?:days?|weeks?|months?))(?:\s+from\s+[^,;]*)?\s*$", re.I)
+_DEFAULT_PERIOD = "eight weeks"
+
+
+def _compliance_period(relief: str, period: Optional[str]) -> Tuple[str, str]:
+    """(relief without its own period, the period the prayer gives)."""
+    m = _CONCRETE_TIME.search(relief)
+    stated = re.sub(r"^(?:with)?in\s+(?:a\s+period\s+of\s+)?", "", (period or "").strip(),
+                    flags=re.I).rstrip(" .")
+    if stated.startswith("["):
+        stated = ""
+    if m:
+        relief = relief[:m.start()].rstrip(" ,;")
+    return relief, stated or (m.group(1) if m else _DEFAULT_PERIOD)
+
+
 def _mandamus_relief(relief: str, representation_date: Optional[date], *texts: str) -> str:
     """'consider the petitioner's representation and sanction pension within a time
     frame' -> 'consider the petitioner's representation dated 10.06.2026 and sanction
@@ -181,6 +201,8 @@ def build(
     relief_sought: str = "",
     petitioner_description: str = "",
     representation_date: Optional[date] = None,
+    # the period the respondent is to comply in ("four weeks"); default eight weeks.
+    compliance_period: Optional[str] = None,
 ) -> WritResult:
     """Assemble the Article 226 writ petition, or refuse.
 
@@ -279,6 +301,7 @@ def build(
         return _refuse(str(exc), code="writ_verification_invalid",
                        fields=("no_similar_petition",))
 
+    mandamus_relief, period = _compliance_period(relief_clause(relief_sought), compliance_period)
     context: Dict[str, Any] = {
         "petitioner": {"name": petitioner.name},
         "respondents": [{"serial": r.serial, "name": ", ".join([r.name, *r.address_lines]),
@@ -308,9 +331,10 @@ def build(
         "grounds_slot": grounds_narrative if grounds_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "place": place,
-        "relief_sought": (_mandamus_relief(relief_clause(relief_sought), representation_date,
+        "relief_sought": (_mandamus_relief(mandamus_relief, representation_date,
                                            prior_demand_and_refusal, facts_narrative)
                           if writ_type is WritType.MANDAMUS else relief_clause(relief_sought)),
+        "compliance_period": period,
         # A TN Government servant's pension rests on the Tamil Nadu Pension Rules, 1978.
         "statutory_basis": ("the Tamil Nadu Pension Rules, 1978"
                             if re.search(r"\bpension", f"{relief_sought} {legal_right}", re.I)

@@ -609,6 +609,8 @@ def build(
         "cause_of_action_date": coa,
         "cause_of_action_date_body": body_date(coa),
         "filing_deadline": window.filing_deadline,
+        # s.142(1)(b): the last day of the one month from the cause of action (r17).
+        "filing_deadline_body": body_date(window.filing_deadline),
         "filing_date": filing_date,
         "condonation_required": condonation_required,
         "condonation_section": _CONDONATION_SECTION if condonation_required else None,

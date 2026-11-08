@@ -167,7 +167,7 @@ WRIT = {
 
 def test_writ_petition_pension_statutory_basis():
     text = _text("writ_petition", WRIT, allow_placeholders=True)
-    assert "in accordance with the Tamil Nadu Pension Rules, 1978, within such time" in text
+    assert "in accordance with the Tamil Nadu Pension Rules, 1978, within a period of eight weeks" in text  # r17 period
     assert "under the Tamil Nadu Pension Rules, 1978;" in text
     # not for a non-pension writ, nor against a non-TN authority
     assert "Pension Rules" not in _text("writ_petition", {**WRIT, "relief_sought": "issue patta"}, allow_placeholders=True)
@@ -177,7 +177,8 @@ def test_writ_petition_clean_prayer():
     text = _text("writ_petition", WRIT, allow_placeholders=True)
     assert ("directing the respondents to consider the petitioner's representation dated 10.06.2026 and "
             "sanction pension and terminal benefits in accordance with the Tamil Nadu Pension Rules, 1978, "
-            "within such time as this Hon'ble Court may fix") in text
+            "within a period of eight weeks from the date of receipt of a copy of this order, "  # r17
+            "or within such time as this Hon'ble Court may fix") in text
     assert "time frame" not in text
     dated = _text("writ_petition", {**WRIT, "facts_narrative": "", "representation_date": "2026-06-10"},
                   allow_placeholders=True)
