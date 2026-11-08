@@ -21,13 +21,23 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional, Sequence
 
+from ..components.prayer import relief_clause
 from ..verify.refusals import Refusal, Severity
+from ._court import gender_of
 
 TEMPLATE = "permanent_injunction.docx"
 SPEC = "dpc-14-16"
 
 _LLM_SLOT_PLACEHOLDER = "[to be drafted]"
 _VAGUE_ACTS = {"", "interfere", "disturb", "trouble", "harass", "do anything"}
+
+
+def _restrained(names: Sequence[str]) -> str:
+    if len(names) != 1:
+        return "the defendants, their men, agents, servants and all persons claiming under them"
+    g = gender_of(names[0])
+    his, him = ("his", "him") if g == "m" else ("her", "her") if g == "f" else ("their", "them")
+    return f"the defendant, {his} men, agents, servants and all persons claiming under {him}"
 
 
 @dataclass(frozen=True)
@@ -70,6 +80,8 @@ def build(
     # cause-title header (DPC book pp.14-16). Optional.
     plaintiff_parentage: Optional[str] = None,
     plaintiff_address: Optional[str] = None,
+    plaintiff_age: Optional[str] = None,
+    plaintiff_occupation: Optional[str] = None,
     defendant_addresses: Optional[Sequence[str]] = None,
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
@@ -86,7 +98,7 @@ def build(
         )
 
     # 2. the restrained act must be specific.
-    act = act_restrained.strip()
+    act = relief_clause(act_restrained, after_restraining=True)
     if not act or act.rstrip(".").lower() in _VAGUE_ACTS:
         return _refuse(
             "the prayer is not specific: the act sought to be restrained must be "
@@ -112,7 +124,11 @@ def build(
 
     context: Dict[str, Any] = {
         "plaintiff": {"name": plaintiff_name, "parentage": plaintiff_parentage,
+                      "age": str(plaintiff_age or "").strip() or None,
+                      "occupation": (plaintiff_occupation or "").strip() or None,
                       "address": plaintiff_address},
+        # the prayer names who is restrained: the defendant, his men and agents.
+        "restrained": _restrained(defendant_names),
         "defendants": [
             {"name": n,
              "address": (defendant_addresses[i]

@@ -23,6 +23,7 @@ from ..rules import dual_code_router as router
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal
 from . import _code_framework as cf
+from ._court import parentage
 from ._state_party import bare_crime_no
 
 TEMPLATE = "default_bail.docx"
@@ -122,7 +123,7 @@ def build(
 
     context: Dict[str, Any] = {
         "accused": {"name": accused_name, "age": age, "occupation": occupation,
-                    "address": address, "parentage": accused_parentage},
+                    "address": address, "parentage": parentage(accused_parentage, accused_name)},
         # cause-title header fields (render only when present).
         "bail_court": bail_court,
         "city": city,

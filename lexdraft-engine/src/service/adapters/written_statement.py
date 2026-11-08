@@ -71,6 +71,7 @@ ADAPTER = Adapter(
         FieldSpec("city", "string", required=False, default=None),
         # The defendant's own case beyond the para-wise traverse (r12).
         FieldSpec("additional_pleas", "string_list", required=False, default=()),
+        FieldSpec("summons_served_date", "date", required=False, default=None),
     ),
     slots=(),
 )

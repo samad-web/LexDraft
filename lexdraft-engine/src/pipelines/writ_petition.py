@@ -19,6 +19,7 @@ LLM slots are paragraphs 3 (facts) and 6 (grounds) only.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
@@ -27,6 +28,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from ..factsheet import Party
 from ..components import cause_title as ct
 from ..components import verification as ver
+from ..components.date_format import body_date
 from ..components.prayer import relief_clause
 from ..verify.refusals import Refusal, Severity
 
@@ -46,6 +48,29 @@ def _letter(index: int) -> str:
         if n < 0:
             break
     return label
+
+
+# The mandamus prayer already ends "within such time as this Hon'ble Court may fix":
+# the brief's own vague period ("within a time frame") doubled it (H2H writ r16).
+_VAGUE_TIME = re.compile(
+    r"[\s,]*(?:with)?in\s+(?:a\s+)?(?:reasonable\s+|stipulated\s+|specified\s+|fixed\s+|definite\s+)?"
+    r"(?:time(?:[\s-]?(?:frame|limit|bound(?:\s+manner)?))?|period)(?:\s+fixed\s+by\s+this\s+hon'ble\s+court)?\s*$"
+    r"|[\s,]*(?:in\s+a\s+)?time[\s-]bound\s+manner\s*$|[\s,]*expeditiously\s*$",
+    re.I)
+_REPRESENTATION_DATED = re.compile(r"\brepresentation\s+dated\s+(\d{2}\.\d{2}\.\d{4})", re.I)
+
+
+def _mandamus_relief(relief: str, representation_date: Optional[date], *texts: str) -> str:
+    """'consider the petitioner's representation and sanction pension within a time
+    frame' -> 'consider the petitioner's representation dated 10.06.2026 and sanction
+    pension': the date from the field, else as the facts state it."""
+    r = _VAGUE_TIME.sub("", relief).rstrip(" ,;")
+    if re.search(r"\brepresentation\b", r, re.I) and not re.search(r"\brepresentation\s+dated\b", r, re.I):
+        found = next((m.group(1) for t in texts if t for m in [_REPRESENTATION_DATED.search(t)] if m), None)
+        when = body_date(representation_date) if representation_date else found
+        if when:
+            r = re.sub(r"\brepresentation\b", f"representation dated {when}", r, count=1, flags=re.I)
+    return r
 
 
 class WritType(Enum):
@@ -155,6 +180,7 @@ def build(
     # memo of parties and the supporting affidavit.
     relief_sought: str = "",
     petitioner_description: str = "",
+    representation_date: Optional[date] = None,
 ) -> WritResult:
     """Assemble the Article 226 writ petition, or refuse.
 
@@ -282,7 +308,14 @@ def build(
         "grounds_slot": grounds_narrative if grounds_narrative.strip()
                         else _LLM_SLOT_PLACEHOLDER,
         "place": place,
-        "relief_sought": relief_clause(relief_sought),
+        "relief_sought": (_mandamus_relief(relief_clause(relief_sought), representation_date,
+                                           prior_demand_and_refusal, facts_narrative)
+                          if writ_type is WritType.MANDAMUS else relief_clause(relief_sought)),
+        # A TN Government servant's pension rests on the Tamil Nadu Pension Rules, 1978.
+        "statutory_basis": ("the Tamil Nadu Pension Rules, 1978"
+                            if re.search(r"\bpension", f"{relief_sought} {legal_right}", re.I)
+                            and any("tamil nadu" in r.name.lower() for r in respondents)
+                            else None),
         "petitioner_description": petitioner_description.strip().rstrip("."),
     }
     return WritResult(refused=False, context=context)

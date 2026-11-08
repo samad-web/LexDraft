@@ -93,6 +93,7 @@ ADAPTER = Adapter(
         FieldSpec("grounds_list", "string_list", required=False, default=None),
         FieldSpec("relief_sought", "string", required=False, default=""),
         FieldSpec("petitioner_description", "string", required=False, default=""),
+        FieldSpec("representation_date", "date", required=False, default=None),
     ),
     slots=("facts_narrative", "grounds_narrative"),
 )

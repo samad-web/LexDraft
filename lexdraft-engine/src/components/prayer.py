@@ -108,12 +108,25 @@ _RELIEF_LEAD = re.compile(
     r"|direct(?:ing)?\s+the\s+respondents?\s+to\s+|to\s+)",
     re.I)
 
+# "Restraining the defendant and his men from interfering ..." after the template's
+# own "restraining them from" read "restraining them from Restraining the defendant".
+_RESTRAIN_LEAD = re.compile(
+    r"^\s*(?:(?:a\s+)?(?:decree|order)\s+(?:of\s+)?(?:permanent\s+)?injunction\s+)?"
+    r"(?:to\s+)?restrain(?:ing|s)?\s+(?:the\s+)?(?:defendants?|respondents?|them|him|her)\b[^.;]*?\bfrom\s+",
+    re.I)
 
-def relief_clause(text: str) -> str:
+
+def relief_clause(text: str, *, after_restraining: bool = False) -> str:
     """Free-text relief as it must read after "pleased to ..." / "directing the
     respondents to ...": "To dismiss I.A. 5." -> "dismiss I.A. 5"; "A direction
-    to the respondent to issue patta." -> "issue patta". Acronyms keep their case."""
-    t = _RELIEF_LEAD.sub("", (text or "").strip()).rstrip(" .,;")
+    to the respondent to issue patta." -> "issue patta". With after_restraining
+    (the template already says "restraining them from"), "Restraining the
+    defendant and his men from interfering with X" -> "interfering with X".
+    Acronyms keep their case."""
+    t = (text or "").strip()
+    if after_restraining:
+        t = _RESTRAIN_LEAD.sub("", t)
+    t = _RELIEF_LEAD.sub("", t).rstrip(" .,;")
     if t[:1].isupper() and not t[1:2].isupper():
         t = t[0].lower() + t[1:]
     return t

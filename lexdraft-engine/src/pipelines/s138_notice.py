@@ -231,7 +231,11 @@ def build(
         "demand_amount": demand_amount,
         "demand_words": rupees_in_words(demand_amount),
         "compliance_days": compliance_days,
-        "dispatch_mode": dispatch_mode,
+        # The statutory notice goes by RPAD (proof of service for the complaint) unless
+        # the advocate chose another mode; a draft-now "[...]" gap is not a mode.
+        "dispatch_mode": (dispatch_mode.strip()
+                          if dispatch_mode.strip() and not dispatch_mode.strip().startswith("[")
+                          else "Registered Post with Acknowledgement Due"),
         "dispatch_tracking_placeholder": dispatch_tracking_placeholder,
         "place": place,
     }

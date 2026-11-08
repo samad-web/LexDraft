@@ -32,6 +32,7 @@ from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence
 
+from ..components.date_format import body_date
 from ..verify.refusals import Refusal, Severity
 
 TEMPLATE = "written_statement.docx"
@@ -44,6 +45,40 @@ _NO_ACKNOWLEDGMENT = (
     "was acknowledged in writing in his handwriting or signed by him, as Section 19 of that "
     "Act requires for a fresh period of limitation. No fresh period of limitation has "
     "therefore begun, and the suit is barred by limitation.")
+# The Article the claim falls under, from the claim itself (Schedule, Limitation Act).
+_ARTICLES = (
+    (re.compile(r"promissory\s+note|pro-?note", re.I),
+     "Article 35 of the Schedule to the Limitation Act, 1963, which allows three years "
+     "from the date of the promissory note"),
+    (re.compile(r"\blent\b|\bloan\b|\bborrow", re.I),
+     "Article 19 of the Schedule to the Limitation Act, 1963, which allows three years "
+     "from the date the loan was made"),
+)
+
+
+def _with_article(objection: str, claim: str) -> str:
+    """A limitation objection names the Article that bars the suit (r16)."""
+    if not _LIMITATION.search(objection) or re.search(r"\bArticle\s+\d", objection, re.I):
+        return objection
+    art = next((a for rx, a in _ARTICLES if rx.search(claim)), None)
+    return f"{objection.rstrip(' .')}. The claim is governed by {art}." if art else objection
+
+
+def _o8r1_delay(served: date, filed: date) -> Optional[str]:
+    """Order VIII Rule 1 CPC: a WS after 30 days from service explains the delay."""
+    days = (filed - served).days
+    if days <= 30:
+        return None
+    late = days - 30
+    within = ("within the outer limit of 90 days allowed by its proviso"
+              if days <= 90 else "and beyond the 90 days allowed by its proviso")
+    return (f"The summons in the suit was served on the defendant on {body_date(served)}, and "
+            f"this written statement is filed on {body_date(filed)}, {days} days after service: "
+            f"{late} day{'s' if late != 1 else ''} beyond the 30 days in Order VIII Rule 1 of "
+            f"the Code of Civil Procedure, 1908, {within}. The delay was caused by [cause of "
+            "the delay in filing the written statement to be provided], and was neither wilful "
+            "nor wanton. The defendant prays that this Hon'ble Court may be pleased to condone "
+            "the delay and receive this written statement on file.")
 
 
 class Stance(Enum):
@@ -102,6 +137,7 @@ def build(
     civil_court: Optional[str] = None,
     city: Optional[str] = None,
     additional_pleas: Sequence[str] = (),
+    summons_served_date: Optional[date] = None,
 ) -> WrittenStatementResult:
     """Assemble the written statement, or refuse."""
 
@@ -162,6 +198,10 @@ def build(
     pleas = [p.strip() for p in additional_pleas if p.strip()]
     if any(_LIMITATION.search(o.text) for o in preliminary_objections):
         pleas.append(_NO_ACKNOWLEDGMENT)
+    delay = _o8r1_delay(summons_served_date, filing_date) if summons_served_date else None
+    if delay:
+        pleas.append(delay)
+    claim = " ".join([*(o.text for o in preliminary_objections), *(m.text for m in ordered), *pleas])
     first = max([plaint_para_count] + [m.plaint_para for m in ordered]) + 1
 
     context: Dict[str, Any] = {
@@ -174,7 +214,7 @@ def build(
         "case_year": filing_date.year,
         "ws_date": filing_date.isoformat(),
         "plaint_para_count": plaint_para_count,
-        "preliminary_objections": [{"text": o.text}
+        "preliminary_objections": [{"text": _with_article(o.text, claim)}
                                    for o in preliminary_objections],
         "merit_replies": [{"plaint_para": m.plaint_para, "stance": m.stance.value,
                            "text": m.text} for m in ordered],

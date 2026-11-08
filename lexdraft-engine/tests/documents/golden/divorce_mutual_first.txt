@@ -2,13 +2,13 @@
 IN THE COURT OF THE PRINCIPAL JUDGE, FAMILY COURT
 F.C.O.P. No. ______ of 2024
 
-1. Anita
-2. Rakesh                          ... Petitioners
+1. Anita, Hindu, residing at [address of petitioner 1 to be provided].
+2. Rakesh, Hindu, residing at [address of petitioner 2 to be provided].                          ... Petitioners
 
 JOINT PETITION FILED UNDER SECTION 13B OF THE HINDU MARRIAGE ACT, 1955 FOR DISSOLUTION OF MARRIAGE BY A DECREE OF DIVORCE BY MUTUAL CONSENT — FIRST MOTION
 
 MOST RESPECTFULLY SHOWETH:
-1. The marriage between Anita and Rakesh was solemnised on 2015-01-01 at Chennai.
+1. Both the petitioners are Hindus and are governed by the Hindu Marriage Act, 1955. The marriage between Anita and Rakesh was solemnised on 2015-01-01 at Chennai.
 2. The parties have been living separately since 2022-01-01, a period of one year or more.
 3. The parties have not been able to live together.
 4. The parties have freely and mutually agreed that the marriage should be dissolved.
@@ -19,6 +19,7 @@ MOST RESPECTFULLY SHOWETH:
 6. The consent is free and without coercion, fraud or undue influence.
 7. This petition is not presented or prosecuted in collusion between the parties, and there has been no unnecessary or improper delay in instituting it.
 8. No other proceeding between the parties in respect of the marriage is pending before any court. [confirm before filing]
+9. This Hon'ble Court has jurisdiction to entertain this petition under Section 19 of the Hindu Marriage Act, 1955.
 
 PRAYER:
 It is therefore prayed that this Hon'ble Court may be pleased to:

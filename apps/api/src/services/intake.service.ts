@@ -2686,8 +2686,13 @@ const NARRATIVE_FIELD = /(?:^|_)(legal_right|public_duty|prior_demand|alternativ
 
 export function placeholderFor(spec: IntakeFieldSpec): string {
   // The writ's filing year ("W.P. No. ___ of 2026") is the year it is drafted in (r10);
-  // the day and month of signing stay for the advocate.
+  // r16: so are the day and month it is signed and verified ("8th" / "November").
   if (spec.key === 'year') return todayIso().slice(0, 4);
+  if (spec.key === 'day') {
+    const d = Number(todayIso().slice(8, 10));
+    return `${d}${d % 100 >= 11 && d % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][d % 10] ?? 'th')}`;
+  }
+  if (spec.key === 'month') return new Date(`${todayIso()}T00:00:00Z`).toLocaleString('en-GB', { month: 'long', timeZone: 'UTC' });
   if ((spec.type === 'text' || spec.type === 'textarea') && NARRATIVE_FIELD.test(spec.key)) return '[to be drafted]';
   const label = (spec.label || spec.key).toLowerCase();
   if (spec.type === 'date') return `[${label} — to be confirmed]`;

@@ -1155,7 +1155,20 @@ describe('markSyntheticDates — draft-now sentinel-date marking (real engine ou
 describe('writ_petition draft-now date placeholders', () => {
   it('writ_petition: the filing year is the current year, not "[year to be provided]" (r10)', () => {
     expect(placeholderFor({ key: 'year', label: 'Year', type: 'text', required: true })).toBe(String(new Date().toISOString().slice(0, 4)));
-    expect(placeholderFor({ key: 'day', label: 'Day', type: 'text', required: true })).toBe('[day to be provided]');
+  });
+  // r16 (user): the petition, verification and affidavit are dated the filing day, not "[day to be provided]".
+  it('test_writ_petition_dated: day and month of signing are today', () => {
+    vi.useFakeTimers({ now: new Date('2026-11-08T06:00:00Z') });
+    try {
+      expect(placeholderFor({ key: 'day', label: 'Day', type: 'text', required: true })).toBe('8th');
+      expect(placeholderFor({ key: 'month', label: 'Month', type: 'text', required: true })).toBe('November');
+      vi.setSystemTime(new Date('2026-11-22T06:00:00Z'));
+      expect(placeholderFor({ key: 'day', label: 'Day', type: 'text', required: true })).toBe('22nd');
+      vi.setSystemTime(new Date('2026-11-11T06:00:00Z'));
+      expect(placeholderFor({ key: 'day', label: 'Day', type: 'text', required: true })).toBe('11th');
+    } finally {
+      vi.useRealTimers();
+    }
   });
   it('injunction: the ex parte notice-futility averment is drafted from the facts, not a "[... to be provided]" gap (r10)', () => {
     expect(placeholderFor({ key: 'notice_futility', label: 'Notice futility', type: 'text', required: false })).toBe('[to be drafted]');

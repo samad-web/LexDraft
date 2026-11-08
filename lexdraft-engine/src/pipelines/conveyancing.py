@@ -152,6 +152,14 @@ def gap(value: Any, what: str) -> Any:
     return value if value else f"[{what} to be provided]"
 
 
+def attesting(witnesses: Sequence[str]) -> List[str]:
+    """The execution block always carries two attesting-witness slots (1. / 2.): a
+    named witness is printed, a draft-now "[...]" gap or a missing one is a slot."""
+    named = [w.strip() for w in witnesses or () if w and w.strip() and not w.strip().startswith("[")]
+    return named + [f"[name, parentage and address of witness {i} to be provided]"
+                    for i in range(len(named) + 1, 3)]
+
+
 def _lower1(s: str) -> str:
     return s[:1].lower() + s[1:]
 
@@ -233,7 +241,7 @@ def build_will(
                                               "residuary legatee"),
                     revokes_prior_wills=revokes_prior_wills,
                     executor_name=executor_name,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="will.docx", context=ctx)
 
 
@@ -333,7 +341,7 @@ def build_power_of_attorney(
                                      for e in excluded],
                     schedule_property=schedule_property.strip(),
                     executed_abroad=executed_abroad,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="power_of_attorney.docx", context=ctx)
 
 
@@ -466,7 +474,7 @@ def build_agreement_for_sale(
                     earnest_money=earnest_money, earnest_mode=payment_mode(earnest_mode),
                     completion_months=completion_months, period=period,
                     advance_clause=advance_clause, balance_clause=balance_clause,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="agreement_for_sale.docx", context=ctx)
 
 
@@ -561,7 +569,7 @@ def build_sale_deed(
                     balance_paid_mode=payment_mode(balance_paid_mode),
                     prior_title_recital=prior_title_recital,
                     to_be_registered=to_be_registered,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="sale_deed.docx", context=ctx)
 
 
@@ -671,7 +679,7 @@ def build_lease_deed(
                     registration_note=registration_note,
                     monthly_rent=monthly_rent, escalation_note=escalation_note,
                     security_deposit=security_deposit, notice_months=notice_months,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="lease_deed.docx", context=ctx)
 
 
@@ -730,7 +738,7 @@ def build_mortgage_deed(
                     repayment=gap(repayment_terms, "repayment terms"),
                     property_desc=property_desc, principal=principal,
                     interest_rate=interest_rate, repayment_terms=repayment_terms,
-                    purpose_recital=purpose_recital, witnesses=list(witnesses))
+                    purpose_recital=purpose_recital, witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="mortgage_deed.docx", context=ctx)
 
 
@@ -805,7 +813,7 @@ def build_partnership_deed(
                                       if p.remuneration > 0],
                     equal_shares=len({p.share_pct for p in partners}) == 1,
                     banking_mode=banking_mode.strip(),
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="partnership_deed.docx", context=ctx)
 
 
@@ -866,7 +874,7 @@ def build_dissolution_deed(
                     accounts_settled=accounts_settled,
                     records_custodian=gap(records_custodian or continuing_partner,
                                           "partner keeping the records"),
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="dissolution_deed.docx", context=ctx)
 
 
@@ -942,7 +950,7 @@ def build_relinquishment_deed(
                     releasors_share=_lower1(re.sub(r"\s+shares?\s*$", "",
                                                    gap(releasors_share, "share relinquished"))),
                     for_consideration=for_consideration,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="relinquishment_deed.docx", context=ctx)
 
 
@@ -1008,5 +1016,5 @@ def build_gift_deed(
                     possession_delivered=possession_delivered,
                     to_be_registered=to_be_registered,
                     prior_title_recital=prior_title_recital,
-                    witnesses=list(witnesses))
+                    witnesses=attesting(witnesses))
     return DeedResult(refused=False, template="gift_deed.docx", context=ctx)

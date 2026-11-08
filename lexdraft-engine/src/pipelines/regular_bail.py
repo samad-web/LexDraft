@@ -32,6 +32,7 @@ from ..rules import bail_bar_detector as bars
 from ..verify import tables as _reg
 from ..verify.refusals import Refusal, Severity
 from . import _code_framework as cf
+from ._court import parentage
 from ._state_party import bare_crime_no
 
 TEMPLATE = "regular_bail.docx"
@@ -181,7 +182,7 @@ def build(
     context: Dict[str, Any] = {
         "accused": {"name": accused_name, "age": age, "occupation": occupation,
                     "address": address, "prison": prison,
-                    "parentage": accused_parentage},
+                    "parentage": parentage(accused_parentage, accused_name)},
         "fir_no": bare_crime_no(fir_no),  # template prints its own "Crime No."
         "police_station": police_station,
         "district": district,
