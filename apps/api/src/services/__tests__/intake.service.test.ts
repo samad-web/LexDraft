@@ -1035,6 +1035,16 @@ describe('intake loop — auto-detect the format (startAuto)', () => {
     expect(state.draft!.blocks.map((b) => b.text)).toEqual(['THIS DEED', 'WITNESSETH']);
   });
 
+  it('reopens an open draft with its label and notes, without another model call', async () => {
+    classifyQueue.push({ label: null, confidence: 'low', notListed: 'Family Settlement Deed' } as never);
+    const first = await intakeService.startAuto('The brothers want the family property recorded.', CTX);
+    const { composeOpenDraft } = await import('../open-draft.service');
+    const calls = vi.mocked(composeOpenDraft).mock.calls.length;
+    const again = await intakeService.load(first.matterId, first.docLabel, CTX);
+    expect(again).toMatchObject({ draftedBy: 'open', status: 'generated', draftNotes: ['check'] });
+    expect(vi.mocked(composeOpenDraft).mock.calls.length).toBe(calls);
+  });
+
   it('throws IntakeError when neither the classifier nor keywords can decide', async () => {
     classifyQueue.push({ label: null, confidence: 'low' });
     await expect(

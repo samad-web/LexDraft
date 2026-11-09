@@ -45,3 +45,4 @@
 - feat(open-drafting): F2. A document with no format here is drafted by blueprint, draft, review and repair, modelled on the firm's formats or the closest built-in. No database change.
 - feat(open-drafting): F3. Judgments from memory are removed; provisions our sources cannot confirm are listed to verify; invented dates and figures and misnamed Acts go back for repair.
 - feat(open-drafting): F4. Word layout follows the kind of document; court layout stays the default.
+- feat(open-drafting): F5. The screen says when a draft had no verified format and shows the points to confirm and citations to verify.

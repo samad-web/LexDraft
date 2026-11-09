@@ -158,6 +158,8 @@ The draft must read as if a practising Tamil Nadu advocate wrote it, ready for t
 
 **Acceptance:** note and lists are visible on first render and after reload; open drafts can be edited, saved and exported; browser check in light and dark.
 
+**Known limit:** a browser reload clears any unsaved draft, as it does for every format. The API's `load` returns the label and notes, but the screen does not call it today, so a saved draft reopened later shows no label.
+
 ---
 
 ## F6. Proof it competes

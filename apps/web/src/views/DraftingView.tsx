@@ -29,6 +29,7 @@ import { DateConfirmModal } from '@/components/DateConfirmModal';
 import { AIDisclaimerModal } from '@/components/AIDisclaimerModal';
 import { DocTemplatesModal } from '@/components/DocTemplatesModal';
 import { LiveDetailsPanel, missingDetailCount } from '@/components/engine/LiveDetailsPanel';
+import { OpenDraftNote } from '@/components/engine/OpenDraftNote';
 import { DraftRevisePanel, type RedraftRequest } from '@/components/DraftRevisePanel';
 import { DraftReviewPanel } from '@/components/DraftReviewPanel';
 import { DocumentAskPanel } from '@/components/DocumentAskPanel';
@@ -2277,6 +2278,8 @@ export function DraftingView() {
                 <LetterheadPicker label="" value={letterheadChoice} onChange={setLetterheadChoice} className="dw-letterhead" />
               </section>
 
+              {engineSession && !askOpen && <OpenDraftNote state={engineSession} />}
+
               {/* MISSING DETAILS — live: typing re-drafts the document (in the
                   popup while it's open, here once it's closed) */}
               {engineSession && engineSession.status === 'generated' && !askOpen && (
@@ -2306,6 +2309,7 @@ export function DraftingView() {
                       <Icon name="close" size={14} />
                     </button>
                   </div>
+                  <OpenDraftNote state={engineSession} />
                   {(engineSession.draftNotes?.length ?? 0) > 0 && (
                     <ul className="dw-ask-pop-notes">
                       {engineSession.draftNotes!.map((n) => <li key={n}>{n}</li>)}
