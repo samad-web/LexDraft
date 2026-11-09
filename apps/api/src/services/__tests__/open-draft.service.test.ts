@@ -154,6 +154,22 @@ describe('law and citation safety', () => {
     expect(r.notes[0]).toMatch(/not in your instructions: 12.03.2021/);
   });
 
+  it('treats today written as the document date as invented', async () => {
+    replies.push(BLUEPRINT, 'Date: 08.11.2026\n<<END>>', NO_ISSUES, 'Date: [date to be provided]\n<<END>>');
+    const r = await composeOpenDraft(input());
+    expect(prompts[3]!.user).toContain('08.11.2026');
+    expect(r.lines).toEqual(['Date: [date to be provided]']);
+    expect(r.notes.join(' ')).not.toMatch(/not in your instructions/);
+  });
+
+  it('drops a note the review found to misstate the law, and keeps the rest', async () => {
+    replies.push(BLUEPRINT, 'X\n<<END>>', JSON.stringify({ issues: [], wrongNotes: [1] }));
+    const r = await composeOpenDraft(input());
+    expect(prompts[2]!.user).toContain('1. Needs registration');
+    expect(r.notes).not.toContain('Needs registration if it creates rights.');
+    expect(r.notes).toContain('Formality: Stamp duty');
+  });
+
   it('does not question a date the advocate gave', async () => {
     replies.push(BLUEPRINT, 'Executed on 12.03.2021.\n<<END>>', NO_ISSUES);
     const r = await composeOpenDraft(input({ advocateSaid: 'Deed of 12.03.2021.' }));
