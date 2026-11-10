@@ -47,3 +47,4 @@
 - feat(open-drafting): F4. Word layout follows the kind of document; court layout stays the default.
 - feat(open-drafting): F5. The screen says when a draft had no verified format and shows the points to confirm and citations to verify.
 - fix(open-drafting): F6 findings. Today's date is never the document date; inferred places bracketed; computable figures worked out; no saved limitation unless stated; section cited alone unless certain; review drops notes that misstate the law; picker judges by the main relief.
+- fix(drafting): stand-in dates read "[date to be provided]", one gap style the missing-details panel recognises.

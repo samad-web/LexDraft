@@ -336,7 +336,7 @@ const NOTICE_DOCS = new Set(['s138_notice', 'general_notice', 's106_notice']);
 
 /** Value for ONE missing required date during draft-now: today for an "as on"
  *  anchor or the document's own date (real values, not gaps), else the marked
- *  stand-in, recorded in `synthetic` so the text shows "[DATE TO BE CONFIRMED]". */
+ *  stand-in, recorded in `synthetic` so the text shows "[date to be provided]". */
 export function fillMissingDate(
   formKey: string,
   base: string,
@@ -1872,7 +1872,7 @@ export const intakeService = {
       // conservative, non-arbitrary stand-in (it can only ever make a validity
       // check MORE permissive, never assert an earlier/later date than what's
       // actually on record) — and remember which engine value we synthesised so
-      // we can swap it for a visible "[DATE TO BE CONFIRMED]" marker in the
+      // we can swap it for a visible "[date to be provided]" marker in the
       // RENDERED text afterwards. This never fabricates a distinct date; it
       // marks the gap honestly while still letting the document generate.
       // A sentinel ISO date to stand in for a missing REQUIRED date so the document
@@ -1882,7 +1882,7 @@ export const intakeService = {
       // s.138 COMPLAINT has no flat cheque_date) still get a stand-in and draft-now
       // doesn't dead-end into the blocking "couldn't find these" message. Only if the
       // advocate supplied NO date at all do we fall back to today's date; every use is
-      // marked "[DATE TO BE CONFIRMED]" in the rendered text, so no invented date shows.
+      // marked "[date to be provided]" in the rendered text, so no invented date shows.
       const anyStoredDate = (): string | undefined => {
         if (state.form.cheque_date) return state.form.cheque_date;
         for (const [k, v] of Object.entries(state.form)) {
@@ -2859,7 +2859,7 @@ export function markSyntheticDates(
     patterns.push(new RegExp(`\\b(?:${isoRaw}|${dmy}|${long})\\b`, 'g'));
   }
   if (!patterns.length) return outcome;
-  const MARK = '[DATE TO BE CONFIRMED]';
+  const MARK = '[date to be provided]';
   // The cheque-particulars idiom SPECIFICALLY: "Cheque No. <digits> … dated
   // <date>". Deliberately narrower than "cheque…dated" alone — the memo-date
   // sentence ("memo dated <date>") also contains the words "cheque" and "dated"

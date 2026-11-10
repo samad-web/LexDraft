@@ -958,7 +958,7 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
       { key: 'a', text: `The cause of action arose on ${d}.${m}.${y}.` },
       { key: 'b', text: `Date: ${td}.${tm}.${ty}` },
     ] } as never, synthetic);
-    expect(out.blocks[0]!.text).toContain('[DATE TO BE CONFIRMED]');
+    expect(out.blocks[0]!.text).toContain('[date to be provided]');
     expect(out.blocks[1]!.text).toBe(`Date: ${td}.${tm}.${ty}`);
   });
 
@@ -1158,17 +1158,17 @@ describe('markSyntheticDates — draft-now sentinel-date marking (real engine ou
   it('marks the synthetic notice/presentation/memo/received dates', () => {
     const marked = markSyntheticDates(outcome, new Set(['2026-04-16']));
     const byKey = Object.fromEntries(marked.blocks.map((b) => [b.key, b.text]));
-    expect(byKey.p8).toContain('[DATE TO BE CONFIRMED]');
-    expect(byKey.p25).toContain('[DATE TO BE CONFIRMED]');
-    expect(byKey.p26).toContain('[DATE TO BE CONFIRMED]');
-    expect(byKey.p27).toContain('[DATE TO BE CONFIRMED]');
+    expect(byKey.p8).toContain('[date to be provided]');
+    expect(byKey.p25).toContain('[date to be provided]');
+    expect(byKey.p26).toContain('[date to be provided]');
+    expect(byKey.p27).toContain('[date to be provided]');
   });
 
   it('does NOT mask the TRUE cheque date in the cheque-particulars line', () => {
     const marked = markSyntheticDates(outcome, new Set(['2026-04-16']));
     const byKey = Object.fromEntries(marked.blocks.map((b) => [b.key, b.text]));
     expect(byKey.p23).toContain('Cheque No. 000105 dated 2026-04-16');
-    expect(byKey.p23).not.toContain('[DATE TO BE CONFIRMED]');
+    expect(byKey.p23).not.toContain('[date to be provided]');
   });
 
   it('is a no-op when there are no synthetic dates', () => {
