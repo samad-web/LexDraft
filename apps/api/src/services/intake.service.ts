@@ -79,7 +79,7 @@ import {
 } from '../lib/intake-doc-config';
 import { aiUsageService } from './ai-usage.service';
 import { AiUnavailableError, claudeComplete, isAccountFailure } from '../lib/anthropic-client';
-import { composeOpenDraft, OpenDraftRefused, type OpenDraftResult } from './open-draft.service';
+import { answerQuestion, composeOpenDraft, OpenDraftRefused, type OpenDraftResult, type QuestionAnswer } from './open-draft.service';
 import { grokComplete } from '../lib/grok-client';
 
 // Reserved keys stored in facts_json but never part of the engine form.
@@ -939,6 +939,17 @@ async function aiFallbackDraft(
 /** The advocate explicitly named a document type that can't be drafted here. */
 export class IntakeUnavailableError extends IntakeError {}
 
+/** Not a failure: the message was a question, answered instead of starting a draft. */
+export class IntakeAnswered extends Error {
+  constructor(public readonly answer: QuestionAnswer & { draftOffer?: string }) { super('answered'); }
+}
+
+/** Text that asks something rather than describing a matter or naming a document to draft. */
+export function looksLikeQuestion(text: string): boolean {
+  const t = text.trim();
+  return /\?$/.test(t) || /^(what|which|who|whom|whose|when|where|why|how|is|are|was|were|can|could|may|must|should|shall|does|do|did|will|would|within|explain|define|tell me)\b/i.test(t);
+}
+
 /**
  * The document the advocate EXPLICITLY asked for ("… draft an affidavit for this
  * case", "prepare a vakalatnama"), as the phrase after the verb. The LAST such
@@ -1093,8 +1104,11 @@ export const intakeService = {
     // When the advocate named a document, a FACT word in the brief ("gift deed",
     // "notice") must never pick the format — only the named phrase is classified.
     const classifyText = requestedName ?? forKeyword;
+    // A question ("is registration compulsory for ...?") names a document without
+    // asking for one: the keyword shortcut would start that format, so the model decides.
+    const asked = !requested && looksLikeQuestion(forKeyword);
     const instructionLabel = requestedLabel
-      ?? (!requested && instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
+      ?? (!requested && !asked && instruction?.trim() ? keywordGuessLabel(instruction.trim(), labels) : null);
     if (instructionLabel) {
       label = instructionLabel;
       confidence = 'high';
@@ -1108,6 +1122,15 @@ export const intakeService = {
         ...(ctx.provider ? { provider: ctx.provider } : {}),
         onUsage: (u) => recordUsage(ctx, u),
       });
+      if (asked && guess.question) {
+        const answer = await answerQuestion({
+          question: forKeyword,
+          authorities: await gatherAuthorities({ docType: 'question', docLabel: guess.label ?? '', facts: {}, account: forKeyword }),
+          today: todayIso(),
+          onUsage: (u) => recordUsage(ctx, u),
+        }).catch((err: unknown) => { throw isAccountFailure(err) ? new AiUnavailableError() : err; });
+        throw new IntakeAnswered({ ...answer, ...(guess.label ? { draftOffer: guess.label } : {}) });
+      }
       notListed = guess.notListed;
       label = guess.label ?? (notListed ? null : keywordGuessLabel(classifyText, labels));
       confidence = guess.label ? guess.confidence : 'low';

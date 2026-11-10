@@ -198,7 +198,7 @@ vi.mock('../../lib/grok-client', () => ({
   },
 }));
 
-import { intakeService, markSyntheticDates, placeholderFor } from '../intake.service';
+import { IntakeAnswered, intakeService, looksLikeQuestion, markSyntheticDates, placeholderFor } from '../intake.service';
 import { factSheetService } from '../factsheet.service';
 import { env } from '../../env';
 
@@ -997,6 +997,7 @@ describe('intake — a matter opens only for its own firm (audit 2026-11-07)', (
 
 vi.mock('../open-draft.service', () => ({
   OpenDraftRefused: class extends Error {},
+  answerQuestion: vi.fn(async () => ({ text: 'Yes, under Section 17.', verify: [] })),
   composeOpenDraft: vi.fn(async () => ({ title: 'Family Settlement Deed', kind: 'deed', blueprint: null, lines: ['THIS DEED', 'WITNESSETH'], notes: ['check'] })),
 }));
 
@@ -1033,6 +1034,32 @@ describe('intake loop — auto-detect the format (startAuto)', () => {
     expect(state.status).toBe('generated');
     expect(state.draftNotes).toEqual(['check']);
     expect(state.draft!.blocks.map((b) => b.text)).toEqual(['THIS DEED', 'WITNESSETH']);
+  });
+
+  it('answers a question instead of starting a draft, and creates no matter', async () => {
+    classifyQueue.push({ label: 'Sale Deed', confidence: 'low', question: true } as never);
+    const create = vi.spyOn(factSheetService, 'create');
+    // The keyword shortcut would start the Sale Deed format from "sale deed" in the instruction.
+    const err = await intakeService.startAuto('Can a minor execute a sale deed?', CTX, 'Can a minor execute a sale deed?').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(IntakeAnswered);
+    expect((err as IntakeAnswered).answer).toEqual({ text: 'Yes, under Section 17.', verify: [], draftOffer: 'Sale Deed' });
+    expect(create).not.toHaveBeenCalled();
+    create.mockRestore();
+  });
+
+  it('routes a brief the classifier calls a question when it is not shaped like one', async () => {
+    classifyQueue.push({ label: 'Notice u/s 138 NI Act', confidence: 'high', question: true } as never);
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'recipient_name', code: 'required', message: 'x' }] });
+    const state = await intakeService.startAuto('A cheque for 5 lakh bounced last week.', CTX);
+    expect(state.docLabel).toBe('Notice u/s 138 NI Act');
+  });
+
+  it('a question-shaped request to draft still drafts', async () => {
+    extractQueue.push(patch([]));
+    engineQueue.push({ kind: 'issues', issues: [{ field: 'recipient_name', code: 'required', message: 'x' }] });
+    const state = await intakeService.startAuto('Can you draft a notice u/s 138 for my client?', CTX);
+    expect(state.docLabel).toBe('Notice u/s 138 NI Act');
   });
 
   it('reopens an open draft with its label and notes, without another model call', async () => {
@@ -1197,5 +1224,14 @@ describe('writ_petition draft-now date placeholders', () => {
   });
   it('injunction: the ex parte notice-futility averment is drafted from the facts, not a "[... to be provided]" gap (r10)', () => {
     expect(placeholderFor({ key: 'notice_futility', label: 'Notice futility', type: 'text', required: false })).toBe('[to be drafted]');
+  });
+});
+
+describe('looksLikeQuestion', () => {
+  it.each(['What is the limitation for a money suit?', 'Within how many days must a s.34 petition be filed', 'Explain default bail', 'Is registration compulsory for a partition deed in Tamil Nadu?'])('a question: %s', (t) => {
+    expect(looksLikeQuestion(t)).toBe(true);
+  });
+  it.each(['A cheque for 5 lakh bounced last week.', 'Draft a sale deed for 2 cents in S.F. No. 12', 'Island property partition between brothers'])('not a question: %s', (t) => {
+    expect(looksLikeQuestion(t)).toBe(false);
   });
 });

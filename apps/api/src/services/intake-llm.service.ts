@@ -796,7 +796,7 @@ export const intakeLlm = {
     instruction?: string;
     provider?: 'xai' | 'anthropic';
     onUsage?: (u: NormalizedUsage & { provider: Provider; model: string }) => void;
-  }): Promise<{ label: string | null; confidence: 'high' | 'medium' | 'low'; notListed?: string }> {
+  }): Promise<{ label: string | null; confidence: 'high' | 'medium' | 'low'; notListed?: string; question?: boolean }> {
     const provider = resolveProvider(args.provider);
     const labelSet = new Set(args.labels);
     if (!args.brief.trim() || args.labels.length === 0) {
@@ -812,7 +812,7 @@ You MUST return a docLabel copied VERBATIM from this list — never invent one:
 ${args.labels.map((l) => `- ${l}`).join('\n')}
 
 Output ONLY a JSON object (no prose, no fence):
-{ "docLabel": "<one label copied exactly from the list, or empty string>", "confidence": "high" | "medium" | "low", "notListed": "<the name of the legal document needed, only when it is not on the list; otherwise empty>" }
+{ "docLabel": "<one label copied exactly from the list, or empty string>", "confidence": "high" | "medium" | "low", "notListed": "<the name of the legal document needed, only when it is not on the list; otherwise empty>", "question": true | false }
 
 Rules:
 - The advocate's OWN INSTRUCTION is authoritative. If it names or clearly implies a document type, pick THAT — even when an attached reference document is a DIFFERENT type. (A matter often INCLUDES a document of one type — e.g. a s.138 NOTICE already on file — while the advocate is asking you to draft the NEXT document — e.g. the s.138 COMPLAINT. Never let the attached document's type override what the advocate asked to draft.)
@@ -822,6 +822,7 @@ Rules:
   - the pre-litigation demand NOTICE (default when the advocate just describes the bounced cheque and wants to demand payment) -> the s.138 NOTICE label.
   - the court COMPLAINT (when the advocate says "complaint", "case", "prosecute", "file", or the 15-day notice period has already lapsed) -> the s.138 COMPLAINT label.
 - Arrest/custody seeking release -> a bail label; apprehending arrest -> anticipatory bail.
+- "question" is true only when the advocate asks about the law or practice (a limitation period, a section, what a document must contain, a difference between two things) and does not describe a client's matter or ask for a document. Then docLabel is the listed document the question is about, or empty, and notListed is empty. A matter described with a question ("my client was arrested yesterday, can we get bail?") is not a question: route it.
 - If you truly cannot tell, return an empty docLabel with confidence "low" (do not guess wildly).
 - The docLabel MUST match a list entry character-for-character.`;
     // Lead with the advocate's own instruction (authoritative), THEN the matter
@@ -838,8 +839,9 @@ Rules:
         tokensIn: result.tokensIn, tokensOut: result.tokensOut,
         cacheRead: result.cacheRead, cacheWrite: result.cacheWrite,
       });
-      const obj = parseJsonLoose<{ docLabel?: string; confidence?: string; notListed?: string }>(result.text);
+      const obj = parseJsonLoose<{ docLabel?: string; confidence?: string; notListed?: string; question?: boolean }>(result.text);
       const raw = typeof obj?.docLabel === 'string' ? obj.docLabel.trim() : '';
+      if (obj?.question === true) return { label: labelSet.has(raw) ? raw : null, confidence: 'low', question: true };
       const notListed = !raw && typeof obj?.notListed === 'string' ? obj.notListed.trim().slice(0, 120) : '';
       if (notListed) return { label: null, confidence: 'low', notListed };
       const conf: 'high' | 'medium' | 'low' =

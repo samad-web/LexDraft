@@ -32,9 +32,21 @@ export function useIntakeStart() {
 /** Begin a conversation with NO format chosen — the opening description is
  *  classified into an engine document, and the returned state names the detected
  *  format (detectedDocLabel) so the UI can confirm/override it. */
+/** A question typed in the Draft box, answered instead of drafted. */
+export interface DraftBoxAnswer { text: string; verify: string[]; draftOffer?: string }
+
+/** Thrown by start-auto when the message was a question: no matter was created. */
+export class QuestionAnswered extends Error {
+  constructor(public readonly answer: DraftBoxAnswer) { super('answered'); }
+}
+
 export function useIntakeStartAuto() {
   return useMutation<IntakeState, Error, { message: string; instruction?: string }>({
-    mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/start-auto', req),
+    mutationFn: async (req) => {
+      const r = await api.post<IntakeState | { answer: DraftBoxAnswer }>('/drafting/engine/intake/start-auto', req);
+      if ('answer' in r) throw new QuestionAnswered(r.answer);
+      return r;
+    },
   });
 }
 

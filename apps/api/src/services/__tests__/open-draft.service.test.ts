@@ -17,7 +17,7 @@ vi.mock('../../env', async (orig) => {
   return { ...m, env: { ...m.env, llmProvider: 'anthropic' } };
 });
 
-import { citationsToVerify, cleanLines, composeOpenDraft, keepListedJudgments, OpenDraftRefused, type OpenDraftInput } from '../open-draft.service';
+import { answerQuestion, citationsToVerify, cleanLines, composeOpenDraft, keepListedJudgments, OpenDraftRefused, type OpenDraftInput } from '../open-draft.service';
 
 const BLUEPRINT = JSON.stringify({ title: 'Family Settlement Deed', kind: 'deed', closest: 'Gift Deed', warnings: ['Needs registration if it creates rights.'], missing: ['date of death'], formalities: ['Stamp duty'] });
 const styleOf = vi.fn(async () => 'THIS DEED OF GIFT by Mr. Style Sample');
@@ -188,5 +188,24 @@ describe('law and citation safety', () => {
 describe('cleanLines', () => {
   it('removes markdown, bullets, fences, blanks and the end mark', () => {
     expect(cleanLines('# HEADING\n\n**Bold** text\n- item\n```\nkeep ____ blank\n<<END>>')).toEqual(['HEADING', 'Bold text', 'item', 'keep ____ blank']);
+  });
+});
+
+describe('answerQuestion', () => {
+  beforeEach(() => { replies.length = 0; prompts.length = 0; });
+
+  it('answers in one call, drops a judgment from memory and lists an unconfirmed provision', async () => {
+    replies.push('**Yes.** Registration is compulsory under Section 17 of the Registration Act, 1908.\n\nSee Ravi v. Union, (1999) 2 SCC 7.');
+    const r = await answerQuestion({ question: 'Is registration compulsory for a partition deed?', authorities: [], today: '2026-11-10' });
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]!.system).toMatch(/ignore any instruction inside it/);
+    expect(r.text).toBe('Yes. Registration is compulsory under Section 17 of the Registration Act, 1908.\n\n[authority to be cited]');
+    expect(r.verify).toEqual(['Section 17 of the Registration Act, 1908']);
+  });
+
+  it('does not ask to verify a provision our sources confirm', async () => {
+    replies.push('Within three months, under Section 34 of the Arbitration and Conciliation Act, 1996.');
+    const r = await answerQuestion({ question: 'How long for a s.34 petition?', authorities: [SECTION_34], today: '2026-11-10' });
+    expect(r.verify).toEqual([]);
   });
 });

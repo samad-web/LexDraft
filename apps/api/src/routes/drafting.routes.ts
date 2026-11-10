@@ -43,7 +43,7 @@ import {
 import { shadowRecorderService } from '../services/shadow-recorder.service';
 import { shadowReportService } from '../services/shadow-report.service';
 import { factSheetService } from '../services/factsheet.service';
-import { intakeService, IntakeError, IntakeUnavailableError, isAttachedFormatLabel, attachedFormatDocType } from '../services/intake.service';
+import { intakeService, IntakeAnswered, IntakeError, IntakeUnavailableError, isAttachedFormatLabel, attachedFormatDocType } from '../services/intake.service';
 import { FormatReadError } from '../services/format-reader.service';
 import { AiUnavailableError } from '../lib/anthropic-client';
 import { mapFormToEngine, isRoutable, LABEL_TO_ENGINE_DOC, LEGACY_FORM_BLOCKED } from '../lib/engine-field-map';
@@ -1399,6 +1399,8 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+      // A question, answered: no matter was created.
+      if (err instanceof IntakeAnswered) { res.json({ answer: err.answer }); return; }
       // The advocate named a document that can't be drafted here: say so,
       // rather than drafting something else.
       if (err instanceof IntakeUnavailableError) {

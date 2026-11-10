@@ -24,6 +24,8 @@ import {
   useIntakeReply,
   useIntakeAttach,
   useIntakeDraftNow,
+  QuestionAnswered,
+  type DraftBoxAnswer,
 } from '@/hooks/useIntake';
 import { contextToBriefPreamble, type DraftCaseContext } from '@/lib/draft-case-context';
 import { useCreateDocument } from '@/hooks/useDocuments';
@@ -32,6 +34,7 @@ import { DictateButton } from '../DictateButton';
 import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
 import { draftErrorMessage } from '../../lib/draft-error';
+import { QuestionAnswerNote } from './QuestionAnswerNote';
 
 // Focus the composer on open only with a mouse; on phones that pops the
 // keyboard over half the screen before the advocate has read anything.
@@ -223,6 +226,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const [language, setLanguage] = useState<string>(LANGUAGES[0]);
   const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answer, setAnswer] = useState<DraftBoxAnswer | null>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
   // On phones the message can land under the bottom dock; bring it into view.
   useEffect(() => {
@@ -377,6 +381,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     setFormatTouched(false);
     setUseBns(false);
     setError(null);
+    setAnswer(null);
   };
 
   // Put the brief of the current draft back in the box, read from the API's
@@ -407,6 +412,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   const submit = async () => {
     if (!canSubmit) return;
     setError(null);
+    setAnswer(null);
     setNeeds(null);
     const message = prompt.trim();
     // A hint the engine folds into the brief so the model phrasing honours it.
@@ -529,6 +535,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       reset();
       onClose();
     } catch (err) {
+      if (err instanceof QuestionAnswered) { setAnswer(err.answer); return; }
       const status = (err as { response?: { status?: number } })?.response?.status;
       const code = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
       if (code === 'format_unusable' || code === 'format_read_failed') {
@@ -775,6 +782,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
         </div>
 
         {error && <p ref={errorRef} className="draftbot-modal__error" role="alert">{error}</p>}
+        <QuestionAnswerNote answer={answer} />
         {needs && (
           <NeededFieldsPanel
             key={`${needs.matterId}:${needs.version}`}
@@ -983,6 +991,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </div>
         )}
         {error && <p ref={errorRef} className="dc-error" role="alert">{error}</p>}
+        <QuestionAnswerNote answer={answer} />
         {needs && (
           <NeededFieldsPanel
             key={`${needs.matterId}:${needs.version}`}
