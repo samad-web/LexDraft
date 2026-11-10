@@ -73,10 +73,10 @@ beforeAll(async () => {
   const base = { court: 'Madras HC', stage: 'Pleadings', client: 'Client A', status: 'Active' as const, next: '2026-12-01', type: 'civil' as const, visibleToClient: false };
   caseX = (await casesService.create({ ...base, cnr: 'CNR/X/1', title: 'Handed v. Over' }, firmA.id)).id;
   caseY = (await casesService.create({ ...base, cnr: 'CNR/Y/1', title: 'Secret v. Matter' }, firmA.id)).id;
-  [{ id: docX }] = await sql<Array<{ id: string }>>`
-    insert into documents (firm_id, case_id, case_label, name, type) values (${firmA.id}::uuid, ${caseX}::uuid, 'X', 'Plaint X', 'Plaint') returning id`;
-  [{ id: docY }] = await sql<Array<{ id: string }>>`
-    insert into documents (firm_id, case_id, case_label, name, type) values (${firmA.id}::uuid, ${caseY}::uuid, 'Y', 'Plaint Y', 'Plaint') returning id`;
+  docX = (await sql<Array<{ id: string }>>`
+    insert into documents (firm_id, case_id, case_label, name, type) values (${firmA.id}::uuid, ${caseX}::uuid, 'X', 'Plaint X', 'Plaint') returning id`)[0]!.id;
+  docY = (await sql<Array<{ id: string }>>`
+    insert into documents (firm_id, case_id, case_label, name, type) values (${firmA.id}::uuid, ${caseY}::uuid, 'Y', 'Plaint Y', 'Plaint') returning id`)[0]!.id;
   await sql`insert into clients (firm_id, name) values (${firmA.id}::uuid, 'Firm A Client')`;
   await sql`
     insert into case_notes (firm_id, case_id, author_user_id, visibility, title, body) values
