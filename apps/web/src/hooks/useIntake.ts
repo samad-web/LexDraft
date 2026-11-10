@@ -40,6 +40,15 @@ export class QuestionAnswered extends Error {
   constructor(public readonly answer: DraftBoxAnswer) { super('answered'); }
 }
 
+/** Which document the text is for and the facts it still lacks. Never rewrites the text. */
+export interface BriefCheck { docLabel: string | null; title: string; missing: string[]; question: boolean }
+
+export function useCheckBrief() {
+  return useMutation<BriefCheck, Error, { message: string }>({
+    mutationFn: (req) => api.post<BriefCheck>('/drafting/engine/intake/check-brief', req),
+  });
+}
+
 export function useIntakeStartAuto() {
   return useMutation<IntakeState, Error, { message: string; instruction?: string }>({
     mutationFn: async (req) => {

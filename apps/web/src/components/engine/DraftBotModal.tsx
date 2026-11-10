@@ -25,8 +25,11 @@ import {
   useIntakeAttach,
   useIntakeDraftNow,
   QuestionAnswered,
+  useCheckBrief,
+  type BriefCheck,
   type DraftBoxAnswer,
 } from '@/hooks/useIntake';
+import { BriefCheckNote } from './BriefCheckNote';
 import { contextToBriefPreamble, type DraftCaseContext } from '@/lib/draft-case-context';
 import { useCreateDocument } from '@/hooks/useDocuments';
 import { useUIStore } from '@/store/ui';
@@ -207,6 +210,8 @@ function fileToAttachment(file: File): Promise<IntakeAttachmentFile> {
 export function DraftBotModal({ open, onClose, inline, docLabel, preset, selectedTitle, onChangeFormat, onClearFormat, onDrafted, onActiveLabel, activeLabel, caseContext, caseNotes, unreadableDocs, restoreFrom }: Props) {
   const start = useIntakeStart();
   const startAuto = useIntakeStartAuto();
+  const checkBrief = useCheckBrief();
+  const [briefCheck, setBriefCheck] = useState<BriefCheck | null>(null);
   const startFormat = useIntakeStartFormat();
   const reply = useIntakeReply();
   const attach = useIntakeAttach();
@@ -382,6 +387,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     setUseBns(false);
     setError(null);
     setAnswer(null);
+    setBriefCheck(null);
   };
 
   // Put the brief of the current draft back in the box, read from the API's
@@ -413,6 +419,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
     if (!canSubmit) return;
     setError(null);
     setAnswer(null);
+    setBriefCheck(null);
     setNeeds(null);
     const message = prompt.trim();
     // A hint the engine folds into the brief so the model phrasing honours it.
@@ -928,9 +935,22 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
                   </li>
                 ))}
               </ul>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={busy || checkBrief.isPending || prompt.trim().length < 10}
+                title="Lists the facts this document still needs. Your text is not changed."
+                onClick={() => {
+                  setError(null);
+                  checkBrief.mutate({ message: prompt.trim() }, { onSuccess: setBriefCheck, onError: (err) => setError(draftErrorMessage(err)) });
+                }}
+              >
+                {checkBrief.isPending ? 'Checking…' : 'Check what’s missing'}
+              </button>
             </div>
           </div>
         </div>
+        <BriefCheckNote check={briefCheck} />
 
         {(files.length > 0 || (caseContext && usableCaseNotes > 0)) && (
           <div className="dc-files">

@@ -1,5 +1,6 @@
 # Changelog
 
+- Draft box "Check what's missing" (2026-11-10): lists up to 6 facts the detected document still needs; the advocate's text is never rewritten.
 - Draft box answers questions (2026-11-10): a legal question gets a short answer (one call, grounded on our law sources, unconfirmed sections listed to verify, recalled judgments removed) instead of starting a wrong format or a paid open draft. No matter is created.
 - Android app 2.2 (code 13) loads https://difai.sirahdigital.in, so web deploys update the app on next open; offline/unreachable shows a bundled "Try again" page.
 - Dictate works in the Android app (device speech recogniser via Capacitor plugin; website unchanged). 2.1-preview.3.

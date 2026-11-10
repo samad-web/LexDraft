@@ -101,3 +101,6 @@ F1 → F2 → F3 → F4 → F5 → F6. F3 needs F2's draft; F5 needs F2 and F3's
 - **Goal:** a legal question typed in the Draft box gets a short answer, not an intake for a wrong format or a paid open draft. Test 2026-11-10: 0/12 questions answered (8 wrong intakes, 4 full open drafts).
 - **Scope:** Draft box (DraftBotModal → start-auto) only. Out: a chat assistant, follow-up Q&A threads, answers inside an existing conversation.
 - **Build:** one feature, `features/draft-box-questions.md`. Question-shaped text skips the keyword shortcut; the classifier flags a question; one answer call grounded on our law sources; UI shows the answer with an offer to draft.
+
+# Check what's missing in the Draft box (approved 2026-11-10)
+- User asked for a prompt enhancer; chose "show what's missing" over an AI rewrite (a rewrite can change facts). Button always available with text. Detail: `features/brief-check.md`.

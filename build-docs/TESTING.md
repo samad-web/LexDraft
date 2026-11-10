@@ -133,3 +133,8 @@
 - Live (local API, Agent SDK): 12/12 questions answered, 0 matters created (before: 0/12, 8 wrong intakes, 4 paid open drafts). Spot-checked law: BNSS s.482, CPC s.148A 90 days, A&C s.34 3 months + 30 days, TN Court-Fees Act s.37 — correct; promissory note answer hedges on the Article number.
 - Regression: route-check 113/113 (83 known + 30 open). Full API 865 pass; 1 fail = anthropic-failover, caused by another session's uncommitted anthropic-client.ts. Web 76/76.
 - Found during the run: the dev API was serving stale code until the stack was restarted (OneDrive tsx watch).
+
+## Check what's missing — 2026-11-10 (Claude Code route)
+- Unit: check-brief 5/5 (label kept to list, ≤6 trimmed items, question → none, no-rewrite + injection rule in prompt, non-JSON safe); BriefCheckNote 3/3.
+- Live: 4 briefs (s.138, loan notice, sale deed, a question) → right document, concrete missing facts, none already given; ~12 s each.
+- Regression: API 870 pass (1 known anthropic-failover fail from another session's uncommitted anthropic-client.ts); web 79/79.

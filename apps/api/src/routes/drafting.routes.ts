@@ -1420,6 +1420,23 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
   }
 });
 
+// Before drafting: name the document the text is for and list the facts it lacks.
+// Never rewrites the advocate's text. No matter is created.
+draftingRouter.post('/engine/intake/check-brief', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
+  try {
+    const parsed = z.object({ message: z.string().trim().min(10).max(CASE_CONTEXT_MAX) }).parse(req.body);
+    const userId = req.user?.id;
+    if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
+    const firmId = await firmIdForUser(userId);
+    await aiQuotaService.assertCanGenerate(firmId, userId);
+    res.json(await intakeService.checkBrief(parsed.message, { firmId, userId }));
+  } catch (err) {
+    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
+    if (handleIntakeError(err, res)) return;
+    next(err);
+  }
+});
+
 // Begin a conversation that drafts in a format the advocate attached in the chat.
 // The format is read into an engine spec for THIS conversation only (not saved).
 draftingRouter.post('/engine/intake/start-format', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {

@@ -1152,6 +1152,12 @@ export const intakeService = {
     };
   },
 
+  /** What the advocate's text is for and the facts it still lacks. Creates no matter. */
+  async checkBrief(message: string, ctx: RunCtx) {
+    const firmLabels = (await firmFormatsService.list(ctx.firmId, { approvedOnly: true })).map((f) => f.label);
+    return intakeLlm.checkBrief({ brief: message, labels: [...routableLabels(), ...firmLabels], onUsage: (u) => recordUsage(ctx, u) });
+  },
+
   /**
    * Start a conversation that drafts IN THE ADVOCATE'S OWN FORMAT, attached in the
    * chat ("draft in this format"). The file is read into an engine spec by the same
