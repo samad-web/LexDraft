@@ -1,5 +1,7 @@
 # Changelog
 
+- Co-Counsel lockdown (2026-11-10): an outside advocate gets exactly one case. Share link/QR is bound to their WhatsApp number (a forwarded link is refused); existing DifAi users accept from the link (was a dead end); "Remove access" on the Co-counsel tab and "Leave this matter" for the guest; guests see the matter chat only from the day they joined; expired links show Expired. Removed the unused email-invite and cross-firm-user API paths. Migration 0101.
+
 - Draft box "Check what's missing" (2026-11-10): lists up to 6 facts the detected document still needs; the advocate's text is never rewritten.
 - Draft box answers questions (2026-11-10): a legal question gets a short answer (one call, grounded on our law sources, unconfirmed sections listed to verify, recalled judgments removed) instead of starting a wrong format or a paid open draft. No matter is created.
 - Android app 2.2 (code 13) loads https://difai.sirahdigital.in, so web deploys update the app on next open; offline/unreachable shows a bundled "Try again" page.

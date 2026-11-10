@@ -10,7 +10,7 @@
 import type { AuthResponse } from '@lexdraft/types';
 
 export type HandoverTargetKind = 'in_firm_user' | 'existing_external_user' | 'new_external_invite' | 'open_link';
-export type HandoverStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
+export type HandoverStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired' | 'revoked';
 export type HandoverUrgency = 'normal' | 'urgent';
 
 export interface HandoverRequest {
@@ -40,27 +40,17 @@ export interface HandoverRequest {
   shareToken?: string;
 }
 
-/** Target is either an existing DifAi user (in-firm or cross-firm,
- *  resolved by id), a not-yet-onboarded external advocate identified by
- *  contact details (legacy email-first path, still supported), or `open`
- *  for a shareable link/QR with no recipient known until they accept. */
+/** Target is a teammate in the caller's own firm (resolved by id), or `open`:
+ *  a share link/QR bound to the recipient's WhatsApp number. Only the person
+ *  who proves that number by OTP can accept it (co-counsel-lockdown.md). */
 export type HandoverTarget =
   | { existingUserId: string }
-  | { name: string; email: string; phone?: string }
-  | { open: true };
+  | { open: true; phone: string };
 
 export interface CreateHandoverRequestInput {
   target: HandoverTarget;
   reason?: string;
   urgency?: HandoverUrgency;
-}
-
-/** Public preview + accept payload for an open-link invite - the recipient
- *  is unknown until they fill this in themselves. */
-export interface AcceptOpenLinkInput {
-  name: string;
-  email: string;
-  password: string;
 }
 
 export interface CaseGuestGrant {

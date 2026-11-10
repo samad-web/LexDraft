@@ -8,8 +8,8 @@ import {
 } from '../lib/errors';
 import { assignmentsService, isHeadRole, type Actor } from './assignments.service';
 import { authService } from './auth.service';
-import { emailService } from './email.service';
 import { notificationsStore } from './notifications.service';
+import { normalizePhone } from './phone-otp.service';
 import { generateId, generateToken, isoPlusDays } from './invitations.service';
 import { firmIdForUser } from './tenant';
 import type {
@@ -35,20 +35,21 @@ import type {
 // account yet. Same-firm handover already exists (assignments.service.ts) and
 // is reused here unchanged when the target turns out to be a teammate.
 //
-// Three target shapes (see handover_target_kind, migration 0073):
-//   - in_firm_user            -> delegate straight to assignmentsService.setCaseLead
-//   - existing_external_user  -> notify; they accept while logged in
-//   - new_external_invite     -> create an `invitations` row (kind=
-//                                'co_counsel_handover'); accepting creates
-//                                their account AND the guest grant together
+// Two target shapes (build-docs/features/co-counsel-lockdown.md):
+//   - in_firm_user  -> delegate straight to assignmentsService.setCaseLead
+//   - open_link     -> an `invitations` row (kind='co_counsel_handover')
+//                      bound to the recipient's WhatsApp number. Only a
+//                      person who proves that number by OTP can accept -
+//                      a new advocate (account created) or an existing
+//                      DifAi user whose verified phone matches.
+// (existing_external_user / new_external_invite are legacy rows only.)
 //
-// A cross-firm accept never joins the referring firm - it provisions the
-// receiving advocate their own trial Solo firm (authService.registerCoCounselGuest)
-// and grants them read-only access to exactly this one case via
-// `case_guest_grants` (tenant.ts::hasCaseAccess). This is Phase 1: read-only
-// (case summary, notes) guest access + a static upgrade CTA. See the approved
-// plan (co-counsel handover) for the Phase 2 scope (write-access parity,
-// real payment capture).
+// A cross-firm accept never joins the referring firm. The guest's only access
+// is one active `case_guest_grants` row = one case, read through the
+// guest-scoped queries below. Every firm-scoped route resolves the guest to
+// their own firm, so the referring firm's other cases, clients and documents
+// stay unreachable. Revoke / leave flips the grant and drops the guest's
+// case_assignments row (their matter-chat membership) in one transaction.
 // =============================================================================
 
 const INVITATION_TTL_DAYS = 7;
@@ -158,6 +159,13 @@ export const coCounselService = {
     if (!firmId) return [];
     const sql = db();
     if (!sql) return [];
+    // A link past its 7 days must not keep reading "Waiting to accept".
+    await sql`
+      update handover_requests hr set status = 'expired', resolved_at = now()
+      from invitations i
+      where i.id = hr.invitation_id and hr.source_firm_id = ${firmId}::uuid
+        and hr.status = 'pending' and i.expires_at < now()
+    `;
     const rows = await sql<HandoverRow[]>`
       ${sql.unsafe(HANDOVER_SELECT)}
       where hr.source_firm_id = ${firmId}::uuid
@@ -194,32 +202,32 @@ export const coCounselService = {
     const actorName = actorRow?.name ?? 'A colleague';
     const actorFirmName = actorRow?.firm_name ?? matter.title;
 
-    // Target shape 0: open link/QR - no recipient known yet. Creates a
-    // passwordless-until-accepted invitation with no email; the referring
-    // advocate shares the link/QR themselves via whatever channel they like.
-    // The accepting person supplies their own name/email/password later.
+    // Share link/QR bound to the recipient's WhatsApp number. The referring
+    // advocate sends it however they like; a forwarded copy is useless to
+    // anyone who can't pass the OTP for that number.
     if ('open' in input.target) {
+      const phone = normalizePhone(input.target.phone);
       const invitationId = generateId();
       const token = generateToken();
       const expiresAt = isoPlusDays(INVITATION_TTL_DAYS);
       await sql`
         insert into invitations (
           id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
-          status, token, expires_at, message, kind, case_id
+          status, token, expires_at, message, kind, case_id, phone
         ) values (
           ${invitationId}, ${firmId}::uuid, null, 'Of Counsel', ${actorFirmName},
           ${actor.id}::uuid, ${actorName},
           'pending', ${token}, ${expiresAt}, ${input.reason ?? null},
-          'co_counsel_handover', ${caseId}::uuid
+          'co_counsel_handover', ${caseId}::uuid, ${phone}
         )
       `;
       const [inserted] = await sql<Array<{ id: string }>>`
         insert into handover_requests (
           case_id, source_firm_id, requested_by, target_kind,
-          invitation_id, reason, urgency
+          target_phone, invitation_id, reason, urgency
         ) values (
           ${caseId}::uuid, ${firmId}::uuid, ${actor.id}::uuid, 'open_link',
-          ${invitationId}, ${input.reason ?? null}, ${input.urgency ?? 'normal'}
+          ${phone}, ${invitationId}, ${input.reason ?? null}, ${input.urgency ?? 'normal'}
         )
         returning id
       `;
@@ -227,122 +235,29 @@ export const coCounselService = {
       return { ...fromRow(row), shareToken: token };
     }
 
-    // Target shape 1: explicit existing-user id.
-    if ('existingUserId' in input.target) {
-      const targetUserId = input.target.existingUserId;
-      const [targetUser] = await sql<Array<{ id: string; name: string; email: string; firm_id: string | null }>>`
-        select id, name, email, firm_id from users where id = ${targetUserId}::uuid and status = 'active' limit 1
-      `;
-      if (!targetUser) throw new BadRequestError('Target user not found');
-
-      if (targetUser.firm_id === firmId) {
-        // Same firm - this is today's in-firm handover. Delegate, then log
-        // an already-accepted audit row so the two flows show up in one list.
-        await assignmentsService.setCaseLead({ caseId, firmId, targetUserId, actor });
-        const [inserted] = await sql<Array<{ id: string }>>`
-          insert into handover_requests (
-            case_id, source_firm_id, requested_by, target_kind, target_user_id,
-            status, resolved_at
-          ) values (
-            ${caseId}::uuid, ${firmId}::uuid, ${actor.id}::uuid, 'in_firm_user', ${targetUserId}::uuid,
-            'accepted', now()
-          )
-          returning id
-        `;
-        return fromRow(await fetchHandoverById(sql, inserted!.id));
-      }
-
-      // Cross-firm, existing account - notify and let them accept explicitly.
-      const [inserted] = await sql<Array<{ id: string }>>`
-        insert into handover_requests (
-          case_id, source_firm_id, requested_by, target_kind, target_user_id,
-          target_name, target_email, reason, urgency
-        ) values (
-          ${caseId}::uuid, ${firmId}::uuid, ${actor.id}::uuid, 'existing_external_user', ${targetUserId}::uuid,
-          ${targetUser.name}, ${targetUser.email}, ${input.reason ?? null}, ${input.urgency ?? 'normal'}
-        )
-        returning id
-      `;
-      const created = fromRow(await fetchHandoverById(sql, inserted!.id));
-
-      const recipientFirmId = await firmIdForUser(targetUserId);
-      if (recipientFirmId) {
-        await notificationsStore.create({
-          firmId: recipientFirmId,
-          userId: targetUserId,
-          title: `Case handover request: ${matter.title}`,
-          body: `${actorName} has asked you to take over "${matter.title}" (${matter.cnr}).`,
-          tone: 'amber',
-          view: 'co-counsel',
-        });
-      }
-      await emailService.send({
-        to: targetUser.email,
-        subject: `Case handover request: ${matter.title}`,
-        body:
-          `You've been asked to take over the matter "${matter.title}" (${matter.cnr}).\n\n` +
-          (input.reason ? `Reason: ${input.reason}\n\n` : '') +
-          `Sign in to DifAi and open Co-Counsel requests to accept or decline.`,
-      });
-      return created;
-    }
-
-    // Target shape 2: brand-new external advocate, identified by contact info.
-    const { name, email, phone } = input.target;
-    const normalizedEmail = email.toLowerCase().trim();
-
-    const [existingByEmail] = await sql<Array<{ id: string; firm_id: string | null }>>`
-      select id, firm_id from users where lower(email) = ${normalizedEmail} limit 1
+    // Teammate in the caller's own firm only. Outside advocates always go
+    // through the phone-bound link above.
+    const targetUserId = input.target.existingUserId;
+    const [targetUser] = await sql<Array<{ id: string }>>`
+      select id from users
+      where id = ${targetUserId}::uuid and status = 'active' and firm_id = ${firmId}::uuid
+      limit 1
     `;
-    if (existingByEmail) {
-      // They already have an account after all - route through the
-      // existing-user path so we don't create a duplicate account later.
-      return coCounselService.requestHandover({
-        caseId,
-        firmId,
-        actor,
-        input: { ...input, target: { existingUserId: existingByEmail.id } },
-      });
+    if (!targetUser) {
+      throw new BadRequestError('Pick a colleague in your firm, or share a link with an advocate outside it');
     }
-
-    const invitationId = generateId();
-    const token = generateToken();
-    const expiresAt = isoPlusDays(INVITATION_TTL_DAYS);
-    await sql`
-      insert into invitations (
-        id, firm_id, email, role, firm_name, invited_by_id, invited_by_name,
-        status, token, expires_at, message, kind, case_id, phone, invited_name
-      ) values (
-        ${invitationId}, ${firmId}::uuid, ${normalizedEmail}, 'Of Counsel', ${actorFirmName},
-        ${actor.id}::uuid, ${actorName},
-        'pending', ${token}, ${expiresAt}, ${input.reason ?? null},
-        'co_counsel_handover', ${caseId}::uuid, ${phone ?? null}, ${name}
-      )
-    `;
-
-    const [insertedRow] = await sql<Array<{ id: string }>>`
+    await assignmentsService.setCaseLead({ caseId, firmId, targetUserId, actor });
+    const [inserted] = await sql<Array<{ id: string }>>`
       insert into handover_requests (
-        case_id, source_firm_id, requested_by, target_kind,
-        target_name, target_email, target_phone, invitation_id, reason, urgency
+        case_id, source_firm_id, requested_by, target_kind, target_user_id,
+        status, resolved_at
       ) values (
-        ${caseId}::uuid, ${firmId}::uuid, ${actor.id}::uuid, 'new_external_invite',
-        ${name}, ${normalizedEmail}, ${phone ?? null}, ${invitationId}, ${input.reason ?? null}, ${input.urgency ?? 'normal'}
+        ${caseId}::uuid, ${firmId}::uuid, ${actor.id}::uuid, 'in_firm_user', ${targetUserId}::uuid,
+        'accepted', now()
       )
       returning id
     `;
-    const row = await fetchHandoverById(sql, insertedRow!.id);
-    const created = fromRow(row);
-
-    await emailService.send({
-      to: normalizedEmail,
-      subject: `${actorName} needs you to take over a matter on DifAi`,
-      body:
-        `You've been invited to take over the matter "${matter.title}" (${matter.cnr}) on DifAi.\n\n` +
-        (input.reason ? `Reason: ${input.reason}\n\n` : '') +
-        `Accept here: /co-counsel/accept/${token}\n\n` +
-        `This link expires in ${INVITATION_TTL_DAYS} days.`,
-    });
-    return created;
+    return fromRow(await fetchHandoverById(sql, inserted!.id));
   },
 
   async cancelHandover(id: string, firmId: string | null, userId: string): Promise<HandoverRequest> {
@@ -377,53 +292,58 @@ export const coCounselService = {
   },
 
   /**
-   * Existing user (possibly cross-firm) accepting a handover request they
-   * were notified about. Creates the guest grant in a transaction; does not
-   * touch the accepting user's own firm_id.
+   * Revoke an accepted cross-firm handover (requester or firm head). The
+   * guest loses the case page, the guest list entry and the matter chat at
+   * once; the referring firm keeps everything.
    */
-  async acceptExisting(requestId: string, acceptingUserId: string): Promise<AcceptHandoverResult> {
+  async revokeHandover(id: string, firmId: string | null, actor: Actor): Promise<HandoverRequest> {
+    if (!firmId) throw new NotFoundError('Handover request not found');
     const sql = db();
-    if (!sql) throw new UnprocessableEntityError('Database not configured');
-
-    const [reqRow] = await sql<Array<{
-      id: string; case_id: string; source_firm_id: string; target_user_id: string | null; status: HandoverStatus;
+    if (!sql) throw new NotFoundError('Handover request not found');
+    const [existing] = await sql<Array<{
+      requested_by: string; status: HandoverStatus; target_kind: HandoverTargetKind;
+      target_user_id: string | null; case_id: string; case_title: string;
     }>>`
-      select id, case_id, source_firm_id, target_user_id, status from handover_requests
-      where id = ${requestId}::uuid limit 1
+      select hr.requested_by, hr.status, hr.target_kind, hr.target_user_id, hr.case_id, c.title as case_title
+      from handover_requests hr join cases c on c.id = hr.case_id
+      where hr.id = ${id}::uuid and hr.source_firm_id = ${firmId}::uuid limit 1
     `;
-    if (!reqRow) throw new NotFoundError('Handover request not found');
-    if (reqRow.status !== 'pending') throw new ConflictError(`This request is ${reqRow.status}`);
-    if (reqRow.target_user_id !== acceptingUserId) {
-      throw new ForbiddenError('This handover request was not sent to you');
+    if (!existing) throw new NotFoundError('Handover request not found');
+    if (existing.status !== 'accepted' || existing.target_kind === 'in_firm_user' || !existing.target_user_id) {
+      throw new ConflictError('Only an accepted handover to an outside advocate can be revoked');
     }
+    if (existing.requested_by !== actor.id && !isHeadRole(actor)) {
+      throw new ForbiddenError('Only the requester or a firm head can remove access');
+    }
+    await endGuestAccess(sql, existing.case_id, existing.target_user_id);
 
-    const grant = await sql.begin(async (tx) => {
-      const [g] = await tx<Array<{
-        id: string; case_id: string; guest_user_id: string; granting_firm_id: string;
-        handover_request_id: string | null; status: string; created_at: Date; revoked_at: Date | null;
-      }>>`
-        insert into case_guest_grants (case_id, guest_user_id, granting_firm_id, handover_request_id)
-        values (${reqRow.case_id}::uuid, ${acceptingUserId}::uuid, ${reqRow.source_firm_id}::uuid, ${reqRow.id}::uuid)
-        on conflict (case_id, guest_user_id) do update set status = 'active', revoked_at = null
-        returning id, case_id, guest_user_id, granting_firm_id, handover_request_id, status, created_at, revoked_at
-      `;
-      await tx`
-        insert into case_assignments (case_id, user_id, role_on_case)
-        values (${reqRow.case_id}::uuid, ${acceptingUserId}::uuid, 'collaborator')
-        on conflict (case_id, user_id) do nothing
-      `;
-      await tx`update handover_requests set status = 'accepted', resolved_at = now() where id = ${reqRow.id}::uuid`;
-      return g!;
-    });
+    const guestFirmId = await firmIdForUser(existing.target_user_id);
+    if (guestFirmId) {
+      await notificationsStore.create({
+        firmId: guestFirmId,
+        userId: existing.target_user_id,
+        title: `Access removed: ${existing.case_title}`,
+        body: `The referring firm has removed your access to "${existing.case_title}".`,
+        tone: 'amber',
+        view: 'co-counsel',
+      });
+    }
+    return fromRow(await fetchHandoverById(sql, id));
+  },
 
-    const recipientFirmId = await firmIdForUser(acceptingUserId);
-    const isPaidFirm = recipientFirmId ? await hasActivePaidPlan(recipientFirmId) : false;
-    return { grant: grantFromRow(grant), upsell: { eligible: !isPaidFirm } };
+  /** The guest drops a case themselves. Same effect as a revoke. */
+  async leaveGuestCase(userId: string, caseId: string): Promise<void> {
+    const sql = db();
+    if (!sql || !(await assertGuestGrant(sql, userId, caseId))) throw new NotFoundError('Case not found');
+    await endGuestAccess(sql, caseId, userId);
   },
 
   /** Public token lookup - safe subset only, no internal ids. */
   async lookupInviteByToken(token: string): Promise<{
-    caseTitle: string; caseCnr: string; invitedName: string | null; sourceFirmName: string; reason: string | null; expiresAt: string; requiresEmail: boolean;
+    caseTitle: string; caseCnr: string; invitedName: string | null; sourceFirmName: string; reason: string | null; expiresAt: string;
+    /** Last 4 digits of the WhatsApp number the link is bound to, so the
+     *  recipient knows which number to verify. Null on legacy rows. */
+    phoneHint: string | null;
   }> {
     const sql = db();
     if (!sql) throw new NotFoundError('Invitation not found');
@@ -433,9 +353,9 @@ export const coCounselService = {
     `;
     const [row] = await sql<Array<{
       case_title: string; case_cnr: string; invited_name: string | null; firm_name: string;
-      message: string | null; status: string; expires_at: Date; email: string | null;
+      message: string | null; status: string; expires_at: Date; phone: string | null;
     }>>`
-      select c.title as case_title, c.cnr as case_cnr, i.invited_name, i.firm_name, i.message, i.status, i.expires_at, i.email
+      select c.title as case_title, c.cnr as case_cnr, i.invited_name, i.firm_name, i.message, i.status, i.expires_at, i.phone
       from invitations i
       join cases c on c.id = i.case_id
       where i.token = ${token} and i.kind = 'co_counsel_handover'
@@ -451,7 +371,7 @@ export const coCounselService = {
       sourceFirmName: row.firm_name,
       reason: row.message,
       expiresAt: row.expires_at.toISOString(),
-      requiresEmail: !row.email,
+      phoneHint: row.phone ? row.phone.slice(-4) : null,
     };
   },
 
@@ -463,25 +383,12 @@ export const coCounselService = {
   async acceptByToken(token: string, body: AcceptHandoverByTokenInput): Promise<AcceptHandoverResult> {
     const sql = db();
     if (!sql) throw new UnprocessableEntityError('Database not configured');
+    const invRow = await loadPendingInvite(sql, token);
 
-    const [invRow] = await sql<Array<{
-      id: string; case_id: string; firm_id: string; email: string | null; status: string; expires_at: Date;
-    }>>`
-      select id, case_id, firm_id, email, status, expires_at from invitations
-      where token = ${token} and kind = 'co_counsel_handover' limit 1
-    `;
-    if (!invRow) throw new NotFoundError('Invitation not found');
-    if (invRow.status !== 'pending') throw new ConflictError(`This invitation is ${invRow.status}`);
-    if (invRow.expires_at.getTime() < Date.now()) throw new ConflictError('This invitation has expired');
-    if (!invRow.case_id) throw new UnprocessableEntityError('Invitation has no linked case');
-
-    // Open-link invites (migration 0074) have no email on file - the
-    // advocate's Google email becomes their account email. Email-first
-    // invites may only be claimed by the Google account for that address.
+    // Every check happens BEFORE the account exists, so a refused link never
+    // leaves a stray account behind.
     const { google, phone } = await authService.verifiedSignup(body.signupToken);
-    if (invRow.email && invRow.email.toLowerCase() !== google.email) {
-      throw new ForbiddenError(`This invitation was sent to ${invRow.email}. Continue with the Google account for that email.`);
-    }
+    assertClaimant(invRow, { phone, email: google.email });
 
     const auth = await authService.registerCoCounselGuest({
       name: body.name.trim(),
@@ -489,46 +396,31 @@ export const coCounselService = {
       googleSub: google.sub,
       phone,
     });
-    const newUser = auth.user;
+    const grant = await claimInvite(sql, invRow.id, auth.user.id, true);
+    return { auth, grant: grantFromRow(grant), upsell: { eligible: true } };
+  },
 
-    const [reqRow] = await sql<Array<{ id: string }>>`
-      select id from handover_requests where invitation_id = ${invRow.id} limit 1
+  /**
+   * A signed-in DifAi user accepting a link. Their account's verified
+   * WhatsApp number must be the one the link is bound to. They keep their
+   * own firm; the grant is the only thing that changes.
+   */
+  async acceptByTokenAsUser(token: string, userId: string): Promise<AcceptHandoverResult> {
+    const sql = db();
+    if (!sql) throw new UnprocessableEntityError('Database not configured');
+    const invRow = await loadPendingInvite(sql, token);
+    const [user] = await sql<Array<{ firm_id: string | null; email: string; phone: string | null; phone_verified_at: Date | null }>>`
+      select firm_id, email, phone, phone_verified_at from users where id = ${userId}::uuid and status = 'active' limit 1
     `;
+    if (!user) throw new NotFoundError('Account not found');
+    if (user.firm_id === invRow.firm_id) {
+      throw new ConflictError('You are in the firm that shared this matter - open it from your Cases list');
+    }
+    assertClaimant(invRow, { phone: user.phone_verified_at ? user.phone : null, email: user.email });
 
-    const grant = await sql.begin(async (tx) => {
-      const [g] = await tx<Array<{
-        id: string; case_id: string; guest_user_id: string; granting_firm_id: string;
-        handover_request_id: string | null; status: string; created_at: Date; revoked_at: Date | null;
-      }>>`
-        insert into case_guest_grants (case_id, guest_user_id, granting_firm_id, handover_request_id)
-        values (${invRow.case_id}::uuid, ${newUser.id}::uuid, ${invRow.firm_id}::uuid, ${reqRow?.id ?? null})
-        returning id, case_id, guest_user_id, granting_firm_id, handover_request_id, status, created_at, revoked_at
-      `;
-      await tx`
-        insert into case_assignments (case_id, user_id, role_on_case)
-        values (${invRow.case_id}::uuid, ${newUser.id}::uuid, 'collaborator')
-        on conflict (case_id, user_id) do nothing
-      `;
-      await tx`update invitations set status = 'accepted', accepted_at = now() where id = ${invRow.id}`;
-      if (reqRow) {
-        await tx`
-          update handover_requests
-          set status = 'accepted', resolved_at = now(), target_user_id = ${newUser.id}::uuid, attributed_signup = true
-          where id = ${reqRow.id}::uuid
-        `;
-      }
-      await tx`
-        update users set acquired_via = 'co_counsel_handover', acquired_via_handover_id = ${reqRow?.id ?? null}
-        where id = ${newUser.id}::uuid
-      `;
-      return g!;
-    });
-
-    return {
-      auth,
-      grant: grantFromRow(grant),
-      upsell: { eligible: true },
-    };
+    const grant = await claimInvite(sql, invRow.id, userId, false);
+    const isPaidFirm = user.firm_id ? await hasActivePaidPlan(user.firm_id) : false;
+    return { grant: grantFromRow(grant), upsell: { eligible: !isPaidFirm } };
   },
 
   /** Read-only case summary for a cross-firm guest - deliberately narrower
@@ -668,6 +560,109 @@ async function hasActivePaidPlan(firmId: string): Promise<boolean> {
     select plan_status from firms where id = ${firmId}::uuid limit 1
   `;
   return row?.plan_status === 'active';
+}
+
+type Sql = NonNullable<ReturnType<typeof db>>;
+
+interface InviteRow {
+  id: string; case_id: string; firm_id: string; email: string | null; phone: string | null;
+  status: string; expires_at: Date;
+}
+
+async function loadPendingInvite(sql: Sql, token: string): Promise<InviteRow> {
+  const [inv] = await sql<InviteRow[]>`
+    select id, case_id, firm_id, email, phone, status, expires_at from invitations
+    where token = ${token} and kind = 'co_counsel_handover' limit 1
+  `;
+  if (!inv) throw new NotFoundError('Invitation not found');
+  if (inv.status !== 'pending') throw new ConflictError(`This invitation is ${inv.status}`);
+  if (inv.expires_at.getTime() < Date.now()) throw new ConflictError('This invitation has expired');
+  if (!inv.case_id) throw new UnprocessableEntityError('Invitation has no linked case');
+  return inv;
+}
+
+/** Only the intended advocate may claim a link: the WhatsApp number it is
+ *  bound to (current links), else the email it was sent to (legacy
+ *  email-first rows). A legacy open link with neither is refused outright -
+ *  it was claimable by anyone, so the sender must issue a new one. */
+export function assertClaimant(inv: Pick<InviteRow, 'phone' | 'email'>, who: { phone: string | null; email: string }): void {
+  if (inv.phone) {
+    if (who.phone !== inv.phone) {
+      throw new ForbiddenError(`This link is for the WhatsApp number ending ${inv.phone.slice(-4)}. Verify that number to accept.`);
+    }
+    return;
+  }
+  if (inv.email) {
+    if (inv.email.toLowerCase() !== who.email.toLowerCase()) {
+      throw new ForbiddenError(`This invitation was sent to ${inv.email}. Continue with the Google account for that email.`);
+    }
+    return;
+  }
+  throw new ForbiddenError('This link is no longer valid. Ask the advocate who shared it for a new one.');
+}
+
+type GrantRow = Parameters<typeof grantFromRow>[0];
+
+/** Grant + chat membership + request/invite resolution in one transaction.
+ *  The invite row is locked, so two people racing on one link can't both win. */
+async function claimInvite(sql: Sql, invitationId: string, userId: string, newAccount: boolean): Promise<GrantRow> {
+  return sql.begin(async (tx) => {
+    const [inv] = await tx<Array<{ case_id: string; firm_id: string; status: string }>>`
+      select case_id, firm_id, status from invitations where id = ${invitationId} for update
+    `;
+    if (!inv || inv.status !== 'pending') throw new ConflictError('This invitation has already been used');
+    const [req] = await tx<Array<{ id: string }>>`
+      select id from handover_requests where invitation_id = ${invitationId} limit 1
+    `;
+    const [g] = await tx<GrantRow[]>`
+      insert into case_guest_grants (case_id, guest_user_id, granting_firm_id, handover_request_id)
+      values (${inv.case_id}::uuid, ${userId}::uuid, ${inv.firm_id}::uuid, ${req?.id ?? null})
+      on conflict (case_id, guest_user_id) do update
+        set status = 'active', revoked_at = null, created_at = now(), handover_request_id = excluded.handover_request_id
+      returning id, case_id, guest_user_id, granting_firm_id, handover_request_id, status, created_at, revoked_at
+    `;
+    await tx`
+      insert into case_assignments (case_id, user_id, role_on_case)
+      values (${inv.case_id}::uuid, ${userId}::uuid, 'collaborator')
+      on conflict (case_id, user_id) do nothing
+    `;
+    await tx`update invitations set status = 'accepted', accepted_at = now() where id = ${invitationId}`;
+    if (req) {
+      await tx`
+        update handover_requests
+        set status = 'accepted', resolved_at = now(), target_user_id = ${userId}::uuid,
+            target_name = (select name from users where id = ${userId}::uuid),
+            attributed_signup = ${newAccount}
+        where id = ${req.id}::uuid
+      `;
+    }
+    if (newAccount) {
+      await tx`
+        update users set acquired_via = 'co_counsel_handover', acquired_via_handover_id = ${req?.id ?? null}
+        where id = ${userId}::uuid
+      `;
+    }
+    return g!;
+  });
+}
+
+/** Revoke / leave: grant off, chat membership gone, request marked revoked. */
+async function endGuestAccess(sql: Sql, caseId: string, userId: string): Promise<void> {
+  await sql.begin(async (tx) => {
+    await tx`
+      update case_guest_grants set status = 'revoked', revoked_at = now()
+      where case_id = ${caseId}::uuid and guest_user_id = ${userId}::uuid and status = 'active'
+    `;
+    await tx`
+      delete from case_assignments
+      where case_id = ${caseId}::uuid and user_id = ${userId}::uuid and role_on_case <> 'lead'
+    `;
+    await tx`
+      update handover_requests set status = 'revoked', resolved_at = now()
+      where case_id = ${caseId}::uuid and target_user_id = ${userId}::uuid and status = 'accepted'
+        and target_kind <> 'in_firm_user'
+    `;
+  });
 }
 
 /** True when `userId` holds an active case_guest_grants row for `caseId`.

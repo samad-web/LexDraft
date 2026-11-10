@@ -1,5 +1,11 @@
 # Testing
 
+## Co-Counsel lockdown — 2026-11-10 (features/co-counsel-lockdown.md)
+- New `co-counsel.integration.test.ts` (local PG16, throwaway schema): 13/13 — AC1 guest gets no firm-A case/document/client via firm-scoped services, guest view shows shared notes only, other case 404; AC2 forwarded link refused for another verified number (incl. new-account path: no stray account); AC3 existing user accepts onto own firm, single use; AC4 revoke → case page/list/chat gone, firm member unaffected, only requester/head; AC5 leave; AC6 chat from grant date only; AC7 expiry; AC8 cross-firm existingUserId → 400; AC9 teammate handoff unchanged.
+- `co-counsel.service.test.ts` 12/12 (incl. `assertClaimant`). Passed first run; no logic fixes needed.
+- Regression: API unit 874 pass / 1 fail (`anthropic-failover` xAI case — uncommitted anthropic-client.ts change, not this feature); API integration 62/64 (0042 migration not idempotent; signUp role=group tier 'Firm' vs 'Practice') — both unrelated, see clean-checkout check below; web 79/79 (untracked e2e/landing.spec.ts picked up by vitest).
+- tsc: api + web clean on changed files.
+
 ## Mobile live web (2.2, versionCode 13) — 2026-11-04, Samsung via adb
 - Pass: 2.2 opens the live site; the launch splash plays (Powered by Sirah Digital, courtroom), then the current welcome screen (no landing page).
 - Pass: airplane mode → bundled offline.html "Can't reach DifAi / Try again".

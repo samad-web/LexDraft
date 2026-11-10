@@ -226,16 +226,32 @@ async function loadConversation(conversationId: string): Promise<ConversationRow
   return rows[0];
 }
 
+/** Matter-thread access. A co-counsel guest (user outside the matter's firm)
+ *  needs an active case_guest_grants row as well as the assignment, and sees
+ *  only messages from their grant date on (co-counsel-lockdown.md). */
+async function matterAccess(conv: ConversationRow, userId: string): Promise<{ member: boolean; since: Date | null }> {
+  const sql = requireSql();
+  const [row] = await sql<Array<{ guest: boolean; since: Date | null }>>`
+    select (u.firm_id is distinct from c.firm_id) as guest, g.created_at as since
+    from case_assignments ca
+    join users u on u.id = ca.user_id
+    join cases c on c.id = ca.case_id
+    left join case_guest_grants g
+      on g.case_id = ca.case_id and g.guest_user_id = ca.user_id and g.status = 'active'
+    where ca.case_id = ${conv.case_id}::uuid and ca.user_id = ${userId}::uuid
+    limit 1
+  `;
+  if (!row) return { member: false, since: null };
+  if (!row.guest) return { member: true, since: null };
+  return row.since ? { member: true, since: row.since } : { member: false, since: null };
+}
+
 /** The viewer's membership role, or null when they can't see the conversation. */
 async function membership(conv: ConversationRow, userId: string): Promise<'admin' | 'member' | null> {
   const sql = requireSql();
   if (conv.kind === 'matter') {
-    const rows = await sql<Array<{ user_id: string }>>`
-      select user_id from case_assignments
-      where case_id = ${conv.case_id}::uuid and user_id = ${userId}::uuid
-      limit 1
-    `;
-    return rows.length > 0 ? 'member' : null;
+    const access = await matterAccess(conv, userId);
+    return access.member ? 'member' : null;
   }
   const rows = await sql<Array<{ role: 'admin' | 'member' }>>`
     select role from conversation_members
@@ -297,17 +313,23 @@ async function summaries(viewer: Viewer, conversationId?: string): Promise<Summa
   const matterHasMessages = conversationId ? sql`` : sql`and c.last_message_at is not null`;
   return sql<SummaryRow[]>`
     with mine as (
-      select c.id, cm.role as my_role, cm.last_read_at, cm.muted
+      select c.id, cm.role as my_role, cm.last_read_at, cm.muted, null::timestamptz as since
       from conversations c
       join conversation_members cm
         on cm.conversation_id = c.id and cm.user_id = ${viewer.id}::uuid and cm.left_at is null
       where c.kind in ('direct', 'group') ${only}
       union all
-      select c.id, 'member' as my_role, cm.last_read_at, coalesce(cm.muted, false) as muted
+      -- Matter threads: firm members, or co-counsel guests with an active
+      -- grant, who only see messages from their grant date on.
+      select c.id, 'member' as my_role, cm.last_read_at, coalesce(cm.muted, false) as muted,
+             case when c.firm_id = vu.firm_id then null else g.created_at end as since
       from conversations c
       join case_assignments ca on ca.case_id = c.case_id and ca.user_id = ${viewer.id}::uuid
+      join users vu on vu.id = ${viewer.id}::uuid
+      left join case_guest_grants g
+        on g.case_id = c.case_id and g.guest_user_id = ${viewer.id}::uuid and g.status = 'active'
       left join conversation_members cm on cm.conversation_id = c.id and cm.user_id = ${viewer.id}::uuid
-      where c.kind = 'matter' ${only} ${matterHasMessages}
+      where c.kind = 'matter' and (c.firm_id = vu.firm_id or g.id is not null) ${only} ${matterHasMessages}
     )
     select c.id, c.kind, c.case_id, c.title, c.last_message_at, mine.muted, mine.my_role,
            cs.title as case_title,
@@ -318,6 +340,7 @@ async function summaries(viewer: Viewer, conversationId?: string): Promise<Summa
            (select count(*)::int from messages m
              where m.conversation_id = c.id
                and m.created_at > coalesce(mine.last_read_at, '-infinity'::timestamptz)
+               and m.created_at >= coalesce(mine.since, '-infinity'::timestamptz)
                and m.author_id is distinct from ${viewer.id}::uuid
                and m.deleted_for_everyone_at is null
                and not exists (select 1 from message_hidden h where h.message_id = m.id and h.user_id = ${viewer.id}::uuid)
@@ -326,6 +349,7 @@ async function summaries(viewer: Viewer, conversationId?: string): Promise<Summa
              where mm.user_id = ${viewer.id}::uuid and m.conversation_id = c.id
                and m.created_at > coalesce(mine.last_read_at, '-infinity'::timestamptz)
                and m.deleted_for_everyone_at is null
+               and m.created_at >= coalesce(mine.since, '-infinity'::timestamptz)
            ) as mentioned_unread
     from mine
     join conversations c on c.id = mine.id
@@ -334,6 +358,7 @@ async function summaries(viewer: Viewer, conversationId?: string): Promise<Summa
       select m.body, (m.deleted_for_everyone_at is not null) as deleted, u.name as author_name
       from messages m left join users u on u.id = m.author_id
       where m.conversation_id = c.id
+        and m.created_at >= coalesce(mine.since, '-infinity'::timestamptz)
         and not exists (select 1 from message_hidden h where h.message_id = m.id and h.user_id = ${viewer.id}::uuid)
       order by m.created_at desc
       limit 1
@@ -626,14 +651,16 @@ export const teamChatService = {
   },
 
   async listMessages(viewer: Viewer, conversationId: string, before?: string): Promise<MessagePage> {
-    await requireAccess(conversationId, viewer);
+    const { conv } = await requireAccess(conversationId, viewer);
     const sql = requireSql();
     const cursor = before
       ? sql`and m.created_at < (select created_at from messages where id = ${before}::uuid)`
       : sql``;
+    const since = conv.kind === 'matter' ? (await matterAccess(conv, viewer.id)).since : null;
+    const fromJoin = since ? sql`and m.created_at >= ${since}` : sql``;
     const rows = await sql<MessageRow[]>`
       ${sql.unsafe(MESSAGE_SELECT)}
-      where m.conversation_id = ${conversationId}::uuid ${cursor}
+      where m.conversation_id = ${conversationId}::uuid ${cursor} ${fromJoin}
         and not exists (select 1 from message_hidden h where h.message_id = m.id and h.user_id = ${viewer.id}::uuid)
       order by m.created_at desc
       limit ${PAGE_SIZE + 1}

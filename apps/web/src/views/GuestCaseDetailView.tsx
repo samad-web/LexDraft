@@ -8,10 +8,12 @@
  * Styles: .cs-* (globals.css + styles/chambers/case.css).
  */
 
-import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { EmptyState, ErrorState, Icon, Skeleton } from '@lexdraft/ui';
-import { useGuestCaseDetail } from '@/hooks/useCoCounsel';
+import { useGuestCaseDetail, useLeaveGuestCase } from '@/hooks/useCoCounsel';
 import { PageHeader } from '@/components/PageHeader';
+import { useUIStore } from '@/store/ui';
 
 const BACK = { label: 'Co-Counsel', to: '/app/co-counsel' };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -47,6 +49,19 @@ function GuestNextDate({ next }: { next: string | null }) {
 export function GuestCaseDetailView() {
   const { caseId } = useParams<{ caseId: string }>();
   const { data, isLoading, isError } = useGuestCaseDetail(caseId);
+  const leave = useLeaveGuestCase();
+  const navigate = useNavigate();
+  const showToast = useUIStore((s) => s.showToast);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+
+  const onLeave = () => {
+    if (!caseId) return;
+    if (!confirmLeave) { setConfirmLeave(true); return; }
+    leave.mutate(caseId, {
+      onSuccess: () => { showToast({ type: 'sage', text: 'You left this matter' }); navigate(BACK.to, { replace: true }); },
+      onError: () => showToast({ type: 'vermillion', text: 'Could not leave this matter. Try again.' }),
+    });
+  };
 
   if (isLoading) {
     return (
@@ -66,7 +81,7 @@ export function GuestCaseDetailView() {
         <PageHeader title="Co-Counsel matter" back={BACK} />
         <ErrorState
           title="Can't open this matter"
-          description="This handover may have been revoked, or the link is no longer valid."
+          description="Access to this matter was removed, or you left it. Ask the advocate who shared it if you still need it."
         />
       </div>
     );
@@ -98,10 +113,13 @@ export function GuestCaseDetailView() {
 
       <div className="cs-guest-note" role="note">
         <Icon name="shield" size={16} />
-        <span>
-          You have read-only access to this matter. You can view hearings, shared notes, and
-          document names, but can&rsquo;t edit anything here yet.
+        <span style={{ flex: 1 }}>
+          You have read-only access to this one matter: its hearings, shared notes and document
+          names. Nothing else in {summary.grantedBy} is visible to you.
         </span>
+        <button type="button" className="btn btn-sm" onClick={onLeave} disabled={leave.isPending}>
+          {confirmLeave ? 'Confirm leave' : 'Leave this matter'}
+        </button>
       </div>
 
       <div className="cs-guest-grid">

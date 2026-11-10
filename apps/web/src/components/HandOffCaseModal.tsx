@@ -7,9 +7,9 @@
  * Two target modes:
  *   - Teammate: same dropdown/flow as CaseLeadHandover (existingUserId).
  *   - Outside advocate: generates a shareable link + QR code (`open_link`
- *     target kind) with no recipient known up front - A shares it however
- *     they like (WhatsApp, in person, etc). No email is collected or sent
- *     by DifAi; B supplies their own identity when they open the link.
+ *     target kind) bound to B's WhatsApp number. A shares it however they
+ *     like; only someone who passes the OTP for that number can accept, so
+ *     a forwarded link is useless to anyone else.
  */
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -39,6 +39,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
 
   const [mode, setMode] = useState<Mode>('teammate');
   const [teammateId, setTeammateId] = useState('');
+  const [phone, setPhone] = useState('');
   const [reason, setReason] = useState('');
   const [urgency, setUrgency] = useState<'normal' | 'urgent'>('urgent');
   const [link, setLink] = useState<HandoverRequest | null>(null);
@@ -62,6 +63,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
   const reset = () => {
     setMode('teammate');
     setTeammateId('');
+    setPhone('');
     setReason('');
     setUrgency('urgent');
     setLink(null);
@@ -86,7 +88,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
       // External: generate the shareable link/QR. Stay in the modal so the
       // advocate can copy/scan it before closing - this isn't a terminal
       // action like the teammate path, so we don't auto-close.
-      const created = await requestHandover.mutateAsync({ target: { open: true }, reason: reason.trim() || undefined, urgency });
+      const created = await requestHandover.mutateAsync({ target: { open: true, phone: phone.trim() }, reason: reason.trim() || undefined, urgency });
       setLink(created);
     } catch (err) {
       const msg =
@@ -129,7 +131,8 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
     }
   };
 
-  const canSubmit = mode === 'teammate' ? !!teammateId : true;
+  // Server normalises/validates; this only keeps the button off until 10 digits are in.
+  const canSubmit = mode === 'teammate' ? !!teammateId : phone.replace(/\D/g, '').length >= 10;
 
   // Once a link has been generated, the modal shows the share step instead
   // of the form - there's nothing left to fill in.
@@ -140,7 +143,7 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
         onClose={handleClose}
         eyebrow="Handover"
         title="Share this link"
-        description="Send it to the advocate however you like - WhatsApp, SMS, in person. Opening it lets them set up their own free DifAi account and take over this case."
+        description="Send it to the advocate however you like - WhatsApp, SMS, in person. They get read access to this case only, and nothing else in your firm."
         footer={<button type="button" className="btn btn-primary" onClick={handleClose}>Done</button>}
       >
         <div className="cs-share">
@@ -169,7 +172,8 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
             <button type="button" className="btn" onClick={() => { void handleCopyLink(); }}>Copy</button>
           </div>
           <p className="cs-hint" style={{ margin: 0 }}>
-            This link works once and expires in 7 days.
+            Only the WhatsApp number ending {link.targetPhone?.slice(-4) ?? '····'} can accept. The link works once and
+            expires in 7 days. You can remove their access any time from the Co-counsel tab.
           </p>
         </div>
       </Modal>
@@ -222,11 +226,24 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
           </select>
         </Field>
       ) : (
-        <p className="body-xs muted" style={{ marginTop: -4 }}>
-          You&rsquo;ll get a link and QR code to share with the advocate however you like. Opening it
-          lets them set up their own free DifAi account and get read access to this case - no
-          email needed from you.
-        </p>
+        <Field
+          label="THEIR WHATSAPP NUMBER"
+          required
+          wide
+          help="Only this number can accept the link. They get read access to this one case - no other cases, clients or documents of your firm."
+        >
+          <input
+            id="handoff-phone"
+            className="input"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="98765 43210"
+            required
+          />
+        </Field>
       )}
 
       <Field label="REASON" wide help="Shown to the receiving advocate so they can step in without a call.">

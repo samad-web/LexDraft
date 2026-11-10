@@ -29,15 +29,12 @@ const TokenParam = z.object({
   token: z.string().regex(/^[A-Za-z0-9_-]{20,128}$/, 'Invalid token shape'),
 });
 
+// Outside advocates only via a link bound to their WhatsApp number (the
+// service normalises it and rejects non-Indian numbers).
 const CreateBody = z.object({
   target: z.union([
-    z.object({ existingUserId: z.string().uuid() }),
-    z.object({
-      name: z.string().min(1).max(200),
-      email: z.string().email(),
-      phone: z.string().max(30).optional(),
-    }),
-    z.object({ open: z.literal(true) }),
+    z.object({ existingUserId: z.string().uuid() }).strict(),
+    z.object({ open: z.literal(true), phone: z.string().min(10).max(30) }).strict(),
   ]),
   reason: z.string().max(1000).optional(),
   urgency: z.enum(['normal', 'urgent']).optional(),
@@ -126,19 +123,49 @@ coCounselRouter.post(
 );
 
 coCounselRouter.post(
-  '/requests/:id/accept',
+  '/requests/:id/revoke',
+  requireFeature('matter.view'),
   validate({ params: uuidParam }),
   async (req, res, next) => {
     try {
       const userId = req.user?.id;
       if (!userId) throw new UnauthorizedError();
-      const result = await coCounselService.acceptExisting((req.params as { id: string }).id, userId);
-      res.status(201).json(result);
+      const firmId = await firmIdForUser(userId);
+      const actor = { id: userId, role: req.user!.role, isSuperadmin: req.user!.isSuperadmin };
+      res.json(await coCounselService.revokeHandover((req.params as { id: string }).id, firmId, actor));
     } catch (err) { next(err); }
   },
 );
 
-// ---- Guest-scoped read access (Phase 1: case summary only) -------------------
+// A signed-in DifAi user accepting a share link. No feature gate: accepting
+// a handover always stays open, even on a free account.
+coCounselRouter.post(
+  '/accept/by-token/:token/as-me',
+  tokenLookupLimiter,
+  validate({ params: TokenParam }),
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new UnauthorizedError();
+      res.status(201).json(await coCounselService.acceptByTokenAsUser((req.params as { token: string }).token, userId));
+    } catch (err) { next(err); }
+  },
+);
+
+// ---- Guest-scoped read access ------------------------------------------------
+
+coCounselRouter.post(
+  '/guest-cases/:caseId/leave',
+  validate({ params: z.object({ caseId: z.string().uuid() }) }),
+  async (req, res, next) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new UnauthorizedError();
+      await coCounselService.leaveGuestCase(userId, (req.params as { caseId: string }).caseId);
+      res.status(204).end();
+    } catch (err) { next(err); }
+  },
+);
 
 coCounselRouter.get('/guest-cases', async (req, res, next) => {
   try {

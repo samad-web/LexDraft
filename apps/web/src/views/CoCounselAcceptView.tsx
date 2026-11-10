@@ -9,9 +9,9 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
-import { useAcceptCoCounselByToken, useCoCounselInviteByToken } from '@/hooks/useCoCounsel';
+import { useAcceptCoCounselAsMe, useAcceptCoCounselByToken, useCoCounselInviteByToken } from '@/hooks/useCoCounsel';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
-import type { SignInResult } from '@/lib/auth-types';
+import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 
@@ -23,15 +23,31 @@ export function CoCounselAcceptView() {
 
   const { data, isLoading, isError, error } = useCoCounselInviteByToken(token);
   const accept = useAcceptCoCounselByToken();
+  const acceptAsMe = useAcceptCoCounselAsMe();
+  const signedInUser = useAuthStore((s) => s.user);
 
   const [name, setName] = useState('');
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
 
-  // Already a DifAi user: this link is for new advocates, so sign them in;
-  // the handover itself is accepted from inside the app.
-  const handleExisting = (_resp: SignInResult) => {
-    showToast({ type: 'cobalt', text: 'You already have a DifAi account - accept the handover from inside the app.' });
-    navigate('/app/dashboard', { replace: true });
+  // Existing DifAi user: accept onto their own account. The server checks
+  // their verified WhatsApp number against the one this link is bound to.
+  const acceptExisting = () => {
+    if (!token) return;
+    acceptAsMe.mutate(token, {
+      onSuccess: (result) => {
+        showToast({ type: 'sage', text: 'Matter added to your Co-Counsel list' });
+        navigate(`/app/co-counsel/${result.grant.caseId}`, { replace: true });
+      },
+      onError: (err) => showToast({ type: 'vermillion', text: (err as Error)?.message || 'Couldn’t accept this handover.' }),
+    });
+  };
+  const handleExisting = (resp: SignInResult) => {
+    if (isMfaChallenge(resp)) {
+      showToast({ type: 'cobalt', text: 'Finish signing in, then open this link again.' });
+      navigate('/auth', { replace: true });
+      return;
+    }
+    acceptExisting();
   };
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
@@ -154,12 +170,28 @@ export function CoCounselAcceptView() {
                 </p>
               )}
               <p className="body-xs muted" style={{ marginTop: 12 }}>
-                Accepting creates your own free DifAi account and gives you read access to this
-                one matter - its hearings, notes, and documents. You can upgrade to a full plan any time.
+                You get read access to this one matter - its hearings, shared notes and document list.
+                {data.phoneHint && <> Only the WhatsApp number ending <strong>{data.phoneHint}</strong> can accept.</>}
               </p>
             </div>
 
-            {!verified ? (
+            {signedInUser && !verified ? (
+              <div className="col" style={{ gap: 10 }}>
+                {acceptAsMe.isError && (
+                  <div role="alert" className="body-sm" style={{ color: 'var(--danger)' }}>
+                    {(acceptAsMe.error as Error | null)?.message ?? 'Couldn’t accept this handover.'}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-lg"
+                  disabled={acceptAsMe.isPending}
+                  onClick={acceptExisting}
+                >
+                  {acceptAsMe.isPending ? 'Accepting…' : `Accept as ${signedInUser.name}`}
+                </button>
+              </div>
+            ) : !verified ? (
               <GoogleWhatsAppVerify
                 onSignedIn={handleExisting}
                 onVerified={(v) => { setVerified(v); setName(v.profile.name); }}

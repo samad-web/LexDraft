@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@lexdraft/ui';
-import { useCancelHandover, useHandoverRequests, type HandoverRequest } from '@/hooks/useCoCounsel';
+import { useCancelHandover, useHandoverRequests, useRevokeHandover, type HandoverRequest } from '@/hooks/useCoCounsel';
 import { useCan } from '@/hooks/useFirmAdmin';
 import { useTeammates } from '@/hooks/useAssignments';
 import { CaseLeadHandover } from '../CaseLeadHandover';
@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<HandoverRequest['status'], string> = {
   declined: 'Declined',
   cancelled: 'Cancelled',
   expired: 'Expired',
+  revoked: 'Access removed',
 };
 
 const KIND_LABEL: Record<HandoverRequest['targetKind'], string> = {
@@ -30,7 +31,7 @@ const KIND_LABEL: Record<HandoverRequest['targetKind'], string> = {
 };
 
 function who(r: HandoverRequest): string {
-  if (r.targetKind === 'open_link') return 'Anyone with the link';
+  if (r.targetKind === 'open_link' && !r.targetName) return r.targetPhone ? `WhatsApp ··${r.targetPhone.slice(-4)}` : 'Share link';
   return r.targetName || r.targetEmail || r.targetPhone || 'Advocate';
 }
 
@@ -47,6 +48,8 @@ function fmtDate(iso: string | null): string {
 export function CaseCoCounselTab({ caseId, caseTitle }: { caseId: string; caseTitle: string }) {
   const requests = useHandoverRequests();
   const cancel = useCancelHandover();
+  const revoke = useRevokeHandover();
+  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const canHandOff = useCan('co_counsel.handover');
   const showToast = useUIStore((s) => s.showToast);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -69,6 +72,19 @@ export function CaseCoCounselTab({ caseId, caseTitle }: { caseId: string; caseTi
       }),
     });
   };
+
+  // Two clicks: "Remove access" arms it, "Confirm remove" sends it.
+  const onRevoke = (r: HandoverRequest) => {
+    if (confirmRevoke !== r.id) { setConfirmRevoke(r.id); return; }
+    revoke.mutate(r.id, {
+      onSuccess: () => { setConfirmRevoke(null); showToast({ type: 'sage', text: 'Access removed' }); },
+      onError: (err) => showToast({
+        type: 'vermillion',
+        text: (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'Could not remove access',
+      }),
+    });
+  };
+  const actions = { onCancel, cancelling: cancel.isPending, onRevoke, revoking: revoke.isPending, confirmRevoke };
 
   return (
     <div className="cs-cc-wrap">
@@ -105,8 +121,8 @@ export function CaseCoCounselTab({ caseId, caseTitle }: { caseId: string; caseTi
         </div>
       ) : (
         <>
-          {active.length > 0 && <RequestList title="On this matter" items={active} onCancel={onCancel} cancelling={cancel.isPending} />}
-          {past.length > 0 && <RequestList title="Earlier invites" items={past} onCancel={onCancel} cancelling={cancel.isPending} />}
+          {active.length > 0 && <RequestList title="On this matter" items={active} {...actions} />}
+          {past.length > 0 && <RequestList title="Earlier invites" items={past} {...actions} />}
         </>
       )}
 
@@ -117,12 +133,15 @@ export function CaseCoCounselTab({ caseId, caseTitle }: { caseId: string; caseTi
 }
 
 function RequestList({
-  title, items, onCancel, cancelling,
+  title, items, onCancel, cancelling, onRevoke, revoking, confirmRevoke,
 }: {
   title: string;
   items: HandoverRequest[];
   onCancel: (r: HandoverRequest) => void;
   cancelling: boolean;
+  onRevoke: (r: HandoverRequest) => void;
+  revoking: boolean;
+  confirmRevoke: string | null;
 }) {
   return (
     <section>
@@ -133,11 +152,11 @@ function RequestList({
       <ul className="adv-list">
         {items.map((r) => {
           const name = who(r);
-          const contact = r.targetKind !== 'open_link' && r.targetName ? (r.targetEmail || r.targetPhone || '') : '';
+          const contact = r.targetName ? (r.targetEmail || r.targetPhone || '') : '';
           return (
             <li key={r.id} className="cs-cc-row">
               <span className="adv-avatar adv-avatar-sm">
-                {r.targetKind === 'open_link' ? <Icon name="globe" size={15} /> : initials(name)}
+                {r.targetKind === 'open_link' && !r.targetName ? <Icon name="globe" size={15} /> : initials(name)}
               </span>
               <span className="adv-row-main">
                 <span className="adv-row-title">{name}</span>
@@ -152,6 +171,11 @@ function RequestList({
               {r.status === 'pending' && (
                 <button type="button" className="btn btn-sm" onClick={() => onCancel(r)} disabled={cancelling}>
                   Cancel
+                </button>
+              )}
+              {r.status === 'accepted' && r.targetKind !== 'in_firm_user' && (
+                <button type="button" className="btn btn-sm" onClick={() => onRevoke(r)} disabled={revoking}>
+                  {confirmRevoke === r.id ? 'Confirm remove' : 'Remove access'}
                 </button>
               )}
             </li>
