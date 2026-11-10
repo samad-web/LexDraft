@@ -63,7 +63,8 @@ def _suit_nature(text: Optional[str]) -> Optional[str]:
     t = t[0].lower() + t[1:]
     if re.match(r"(?:a|an|the)\s", t):
         return t
-    return ("a " + t) if t.startswith("suit") else f"a suit for {re.sub(r'^for\s+', '', t)}"
+    # Python 3.11 (the server image) allows no backslash inside an f-string expression.
+    return ("a " + t) if t.startswith("suit") else "a suit for " + re.sub(r"^for\s+", "", t)
 
 
 def build(
