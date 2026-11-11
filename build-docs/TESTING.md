@@ -1,5 +1,11 @@
 # Testing
 
+## Bar Council verification, phase 3 (rolls + recent-enrolment councils) — 2026-11-11
+- `bar-councils.test.ts` 19/19: added Uttarakhand table (transferred advocate with two numbers), Rajasthan date list + batch rows, P&H PDF page (serial+number cell, wrapped name, address dropped), J&K CIS page (JK/number/year items, nearby name), and "every live/roll council has a lookup/source".
+- Parsers on the real PDFs: P&H 112,561 / 112,561 number cells parsed; J&K 9,709 / 9,752 (99.6%; misses are odd rows). 18k P&H one-word names are genuine (the roll prints one name).
+- Real import into the local DB (migration 0103 applied locally): 92 s, P&H 112,561 + J&K 9,709 rows; 3 random entries per council looked up by number: own name -> verified, wrong name -> name_mismatch. 72 names contain "@" = the roll's alias marker, no phones/emails stored.
+- Live: Uttarakhand (359 entries) and Rajasthan (7,048 entries) - own name -> verified, wrong name -> name_mismatch, unknown number -> not_found.
+
 ## Bar Council verification, phase 2 (live councils) — 2026-11-11
 - `bar-councils.test.ts` 15/15: added 2-digit years (KAR/123/85 = 1985), glued prefixes (MS1234/2019), alphanumeric prefixes with padded numbers, exact match for unparseable numbers, inactive statuses (Death, Retired, Voluntary Suspended, Transfered, Non practice), and parsers for Karnataka JSON, Gujarat {Data}, AP HTML table (fixtures shaped like the real replies, made-up people).
 - Live check against the councils (one real roll entry per council held in memory, nothing stored): Karnataka own name -> verified, wrong name -> name_mismatch; Gujarat same; AP own name -> inactive (entry listed "Died"), wrong name -> name_mismatch.

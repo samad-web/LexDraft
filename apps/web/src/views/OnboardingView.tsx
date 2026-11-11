@@ -494,7 +494,7 @@ export function OnboardingView() {
                   </div>
                 )}
                 {!student && council?.mode === 'otp' && enrolment.length >= 3 && <TnBarVerify enrolmentNo={enrolment} />}
-                {!student && council?.mode === 'live' && enrolment.length >= 3 && <LiveBarVerify key={`${council.id}:${enrolment}`} council={council} enrolmentNo={enrolment} />}
+                {!student && (council?.mode === 'live' || council?.mode === 'roll') && enrolment.length >= 3 && <LiveBarVerify key={`${council.id}:${enrolment}`} council={council} enrolmentNo={enrolment} />}
                 {!student && council?.mode === 'none' && (
                   <p className="body-xs" style={{ margin: 0, color: 'var(--text-secondary)' }}>{council.note} Your account works normally and shows as unverified.</p>
                 )}

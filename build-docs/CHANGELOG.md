@@ -1,5 +1,7 @@
 # Changelog
 
+- Bar Council verification, phase 3 (2026-11-11): Punjab & Haryana and J&K advocates are checked against the councils' published roll PDFs, imported monthly (1st, 02:30 IST; only enrolment no. + name kept). Uttarakhand and Rajasthan checked live against their recent-enrolment lists (older enrolments not published by those councils). Migration 0103.
+
 - Bar Council verification, phase 2 (2026-11-11): automatic roll check for Karnataka, Andhra Pradesh and Gujarat ("Check with the Bar Council" in onboarding, and again when onboarding finishes). New "inactive" outcome for advocates the roll lists as died, retired, suspended or transferred. Kerala and MP block automated checks; UP not built (result layout unconfirmed).
 
 - Bar Council verification, phase 1 (2026-11-11): onboarding asks advocates for their State Bar Council (all 24 listed). Tamil Nadu & Puducherry advocates can verify on the spot: DifAi runs the council's own search, the council SMSes them an OTP, and the record (name, enrolment no./date, status) must match their number and name. Other councils are saved as "no automatic check" for now. Admin → Users shows BAR VERIFIED / UNVERIFIED. Migration 0102 (applied locally only).

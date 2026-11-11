@@ -10,7 +10,7 @@ import { api } from '@/lib/api';
 // automatic check yet, the council's note explains why.
 // =============================================================================
 
-export interface BarCouncilOption { id: string; name: string; mode: 'otp' | 'live' | 'none'; note?: string }
+export interface BarCouncilOption { id: string; name: string; mode: 'otp' | 'live' | 'roll' | 'none'; note?: string }
 type BarStatus = 'verified' | 'inactive' | 'not_found' | 'name_mismatch' | 'unavailable' | 'unsupported';
 interface BarRecord { name: string; enrolmentNo: string; enrolmentDate?: string }
 
@@ -59,7 +59,7 @@ function ResultBox({ status, record, onRetry }: { status: BarStatus; record?: Ba
   );
 }
 
-/** Councils with a public search DifAi can query directly (Karnataka, AP, Gujarat). */
+/** Councils DifAi checks from its side: a public search or an imported roll. */
 export function LiveBarVerify({ council, enrolmentNo }: { council: BarCouncilOption; enrolmentNo: string }) {
   const check = useMutation({
     mutationFn: () => api.post<{ status: BarStatus; record?: BarRecord }>('/me/bar-verification/check', { council: council.id, enrolmentNo }),
@@ -69,7 +69,7 @@ export function LiveBarVerify({ council, enrolmentNo }: { council: BarCouncilOpt
     <div style={boxStyle}>
       <span className="body-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
         DifAi checks your enrolment number on the Bar Council of {council.name}&rsquo;s public roll. You can skip this; we also check
-        when you finish.
+        when you finish.{council.note ? ` ${council.note}` : ''}
       </span>
       <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} disabled={check.isPending} onClick={() => check.mutate()}>
         {check.isPending ? 'Checking the roll…' : 'Check with the Bar Council'}

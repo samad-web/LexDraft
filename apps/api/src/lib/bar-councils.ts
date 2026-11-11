@@ -7,10 +7,12 @@
  *          the advocate types it (Tamil Nadu).
  *   live - the council's public search answers a server request
  *          (lib/bar-council-lookups.ts).
+ *   roll - the council publishes its roll as a PDF; DifAi imports it monthly
+ *          (lib/bar-roll-import.ts) and checks against the copy.
  *   none - no automatic check: the council publishes no online roll, its
  *          site blocks automated requests, or the lookup is not built yet.
  */
-export type BarCouncilMode = 'otp' | 'live' | 'none';
+export type BarCouncilMode = 'otp' | 'live' | 'roll' | 'none';
 
 /** What a council's roll says about one advocate. */
 export interface BarRecord {
@@ -26,6 +28,7 @@ export interface BarCouncil {
   id: string;
   name: string;
   mode: BarCouncilMode;
+  /** Why there is no check, or what the check covers. */
   note?: string;
 }
 
@@ -45,10 +48,10 @@ export const BAR_COUNCILS: BarCouncil[] = [
   { id: 'up', name: 'Uttar Pradesh', mode: 'none', note: NOT_YET },
   // Its firewall refuses automated requests; not worked around.
   { id: 'mp', name: 'Madhya Pradesh', mode: 'none', note: BLOCKED },
-  { id: 'punjab_haryana', name: 'Punjab & Haryana', mode: 'none', note: NOT_YET },
-  { id: 'jk', name: 'Jammu & Kashmir and Ladakh', mode: 'none', note: NOT_YET },
-  { id: 'uttarakhand', name: 'Uttarakhand', mode: 'none', note: NOT_YET },
-  { id: 'rajasthan', name: 'Rajasthan', mode: 'none', note: NOT_YET },
+  { id: 'punjab_haryana', name: 'Punjab & Haryana', mode: 'roll' },
+  { id: 'jk', name: 'Jammu & Kashmir and Ladakh', mode: 'roll', note: "Checked against the High Court's published list, which uses the new JK/number/year format." },
+  { id: 'uttarakhand', name: 'Uttarakhand', mode: 'live', note: "The council publishes only this year's enrolments online, so earlier enrolments cannot be checked yet." },
+  { id: 'rajasthan', name: 'Rajasthan', mode: 'live', note: 'The council publishes only its latest enrolment batches online, so earlier enrolments cannot be checked yet.' },
   { id: 'maharashtra_goa', name: 'Maharashtra & Goa', mode: 'none', note: NO_ROLL },
   { id: 'delhi', name: 'Delhi', mode: 'none', note: NO_ROLL },
   { id: 'wb', name: 'West Bengal', mode: 'none', note: NO_ROLL },

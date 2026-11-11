@@ -4,7 +4,8 @@
 - Phase 1 built: council list, Tamil Nadu OTP check, onboarding + admin badge, migration 0102 (local only).
 - Phase 2 built: live lookups for Karnataka, AP, Gujarat (lib/bar-council-lookups.ts); new status `inactive` (roll says died/retired/suspended/transferred/non-practice).
 - Excluded: Kerala (directory refuses non-browser clients) and MP (firewall blocks automated requests) - not worked around; UP deferred (no result table seen for test numbers, HTTP only); Telangana skipped (robots.txt).
-- Next: roll imports (Punjab & Haryana, J&K, Uttarakhand, Rajasthan).
+- Phase 3 built: monthly PDF roll import for Punjab & Haryana (bcph.co.in electoral roll) and J&K (High Court CIS list, new JK/number/year numbers only) into `bar_roll_entries` (0103, no. + name only); live lookups for Uttarakhand (this year only) and Rajasthan (latest batches only).
+- Known limit: roll PDF file names carry a year/date; when a council republishes under a new name the import logs a failure and keeps the old copy until the URL in lib/bar-roll-import.ts is updated.
 
 ## Purpose
 - Confirm a signing-up advocate is really on a State Bar Council roll: their enrolment number exists and the name matches.

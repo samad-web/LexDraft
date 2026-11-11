@@ -59,6 +59,37 @@ export function parseAndhra(html: string): BarRecord[] {
   return out;
 }
 
+// ---- Uttarakhand (barcouncilofuttarakhand.org/enrollment-list/): one static table
+// of this year's enrolments - S.No., Enroll. No., Name, Father's Name, Address.
+// A transferred advocate's cell also carries the old number ("R 1234/2015 Dt. ... U.K. 123/2026").
+export function parseUttarakhand(html: string): BarRecord[] {
+  const out: BarRecord[] = [];
+  for (const row of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...row[1]!.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)].map((m) => stripTags(m[1]!));
+    if (cells.length < 3) continue;
+    for (const m of cells[1]!.matchAll(/([A-Z](?:\.?\s?[A-Z])?\.?)\s*(\d{1,6}\s*\/\s*\d{2,4})/g)) {
+      out.push({ name: cells[2] ?? '', enrolmentNo: `${m[1]!.replace(/[.\s]/g, '')}/${m[2]!.replace(/\s/g, '')}` });
+    }
+  }
+  return out;
+}
+
+// ---- Rajasthan (barcouncilofrajasthan.org): the server publishes only the latest
+// enrolment batches - a date list, then { d: [{ EnrNo, EnrDt, Adv }] } per date.
+export function parseRajasthanDates(text: string): string[] {
+  let body: { d?: unknown[] };
+  try { body = JSON.parse(text); } catch { return []; }
+  return [...String(body.d?.[1] ?? '').matchAll(/data-id='([^']+)'/g)].map((m) => m[1]!);
+}
+
+export function parseRajasthanBatch(text: string): BarRecord[] {
+  let body: { d?: Array<Record<string, unknown>> };
+  try { body = JSON.parse(text); } catch { return []; }
+  return (body.d ?? []).flatMap((r) => (str(r.EnrNo) ? [{ name: str(r.Adv) ?? '', enrolmentNo: str(r.EnrNo)!, enrolmentDate: str(r.EnrDt) }] : []));
+}
+
+const RJ = 'https://www.barcouncilofrajasthan.org/VB/Enrolment/EnrollAdvSearch.aspx';
+
 export interface LiveLookup {
   source: string;
   lookup: (enrolmentNo: string) => Promise<BarRecord[]>;
@@ -74,6 +105,24 @@ export const LIVE_LOOKUPS: Record<string, LiveLookup> = {
     source: 'barcouncilofgujarat.org',
     lookup: async (no) => parseGujarat(await post('https://barcouncilofgujarat.org/AdvocateVerificationStatusDetail',
       JSON.stringify({ EnrollmentNumber: no }), 'application/json')),
+  },
+  uttarakhand: {
+    source: 'barcouncilofuttarakhand.org',
+    lookup: async () => {
+      const res = await fetch('https://www.barcouncilofuttarakhand.org/enrollment-list/', {
+        headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`barcouncilofuttarakhand.org answered ${res.status}`);
+      return parseUttarakhand(await res.text());
+    },
+  },
+  rajasthan: {
+    source: 'barcouncilofrajasthan.org',
+    lookup: async () => {
+      const dates = parseRajasthanDates(await post(`${RJ}/LoadEnrollDtProcess`, '{}', 'application/json; charset=utf-8'));
+      const batches = await Promise.all(dates.map((d) => post(`${RJ}/LoadProcess`, JSON.stringify({ EnrollDt: d }), 'application/json; charset=utf-8')));
+      return batches.flatMap(parseRajasthanBatch);
+    },
   },
   ap: {
     source: 'barcouncilap.org',

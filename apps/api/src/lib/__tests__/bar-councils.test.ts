@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BAR_COUNCILS, isInactiveStatus, namesMatch, parseEnrolment, sameEnrolment } from '../bar-councils';
-import { LIVE_LOOKUPS, parseAndhra, parseGujarat, parseKarnataka } from '../bar-council-lookups';
+import { LIVE_LOOKUPS, parseAndhra, parseGujarat, parseKarnataka, parseRajasthanBatch, parseRajasthanDates, parseUttarakhand } from '../bar-council-lookups';
+import { parseJkCisPage, parsePunjabHaryanaPage, ROLL_SOURCES } from '../bar-roll-import';
 import { decide, findAdvocateRecords } from '../../services/bar-verification.service';
 
 describe('enrolment numbers', () => {
@@ -92,9 +93,55 @@ describe('live council parsers', () => {
     expect(parseAndhra(html)).toEqual([{ name: 'K. RAMA RAO', enrolmentNo: 'AP/12/2001', enrolmentDate: '05-06-2001', status: 'Non practice' }]);
     expect(parseAndhra('<table><tr><th>Enrollment no.</th></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr></table>')).toEqual([]);
   });
-  it('every live council has a lookup and no other council claims one', () => {
-    const live = BAR_COUNCILS.filter((c) => c.mode === 'live').map((c) => c.id).sort();
-    expect(live).toEqual(Object.keys(LIVE_LOOKUPS).sort());
+  it('Uttarakhand table, incl. a transferred advocate with two numbers', () => {
+    const html = '<table><tr><th>S. No.</th><th>Enroll. No.</th><th>Name</th></tr>'
+      + '<tr><td>1</td><td>U.K. 101/2026</td><td>Meena Rawat</td><td>X</td><td>Dehradun</td></tr>'
+      + '<tr><td>2</td><td>R 1234/2015 Dt. 12.10.2015 U.K. 102/2026</td><td>Arun Negi</td><td>Y</td><td>Haldwani</td></tr></table>';
+    const rows = parseUttarakhand(html);
+    expect(rows.map((r) => r.enrolmentNo)).toEqual(['UK/101/2026', 'R/1234/2015', 'UK/102/2026']);
+    expect(decide(rows, 'U.K. 102/2026', 'Arun Negi').status).toBe('verified');
+    expect(decide(rows, 'U.K.101/2026', 'Arun Negi').status).toBe('name_mismatch');
+  });
+  it("Rajasthan date list and batch rows (name carries the father's name)", () => {
+    const dates = JSON.stringify({ d: ['Done', "<option data-id='01-11-2026 00:00:00'>01 Nov 2026</option><option data-id='24-10-2026 00:00:00'>24 Oct 2026</option>"] });
+    expect(parseRajasthanDates(dates)).toEqual(['01-11-2026 00:00:00', '24-10-2026 00:00:00']);
+    const rows = parseRajasthanBatch(JSON.stringify({ d: [{ __type: 'x', SNo: '1', EnrNo: 'R/5012/2026', EnrDt: '01 Nov 2026', Adv: 'SH. VIKRAM SINGH S/O SH. RAM SINGH' }] }));
+    expect(decide(rows, 'R/5012/2026', 'Vikram Singh').status).toBe('verified');
+    expect(parseRajasthanDates('not json')).toEqual([]);
+  });
+  it('every live council has a lookup, every roll council a source, and nothing else claims one', () => {
+    expect(BAR_COUNCILS.filter((c) => c.mode === 'live').map((c) => c.id).sort()).toEqual(Object.keys(LIVE_LOOKUPS).sort());
+    expect(BAR_COUNCILS.filter((c) => c.mode === 'roll').map((c) => c.id).sort()).toEqual(ROLL_SOURCES.map((r) => r.council).sort());
+  });
+});
+
+// PDF pages as text items at the real column positions, made-up people.
+describe('PDF roll parsers', () => {
+  it('Punjab & Haryana: serial+number cell, name column, wrapped name, address dropped', () => {
+    const items = [
+      { x: 29, y: 947, str: 'Sr.No. StateRollNo' }, { x: 137, y: 947, str: 'AdvocateName' },
+      { x: 48, y: 935, str: '1 PH/1234/2010' }, { x: 137, y: 935, str: 'GURPREET SINGH' }, { x: 256, y: 935, str: 'H NO 12 SECTOR 9' }, { x: 432, y: 935, str: 'DIST COURT LUDHIANA' },
+      { x: 48, y: 922, str: '2 P/567/1998' }, { x: 137, y: 922, str: 'HARPREET KAUR' }, { x: 256, y: 922, str: '# 45 MODEL TOWN' },
+      { x: 137, y: 910, str: 'SANDHU' }, { x: 256, y: 910, str: 'PATIALA' },
+      { x: 43, y: 898, str: '10 PH/23456/2015' }, { x: 137, y: 898, str: 'RAJINDER' },
+    ];
+    expect(parsePunjabHaryanaPage(items)).toEqual([
+      { enrolmentNo: 'PH/1234/2010', num: 1234, name: 'GURPREET SINGH' },
+      { enrolmentNo: 'P/567/1998', num: 567, name: 'HARPREET KAUR SANDHU' },
+      { enrolmentNo: 'PH/23456/2015', num: 23456, name: 'RAJINDER' },
+    ]);
+  });
+  it('J&K High Court CIS list: JK + number + year items, name on a nearby baseline', () => {
+    const items = [
+      { x: 232, y: 521, str: 'YEAR :: 2015' },
+      { x: 37, y: 510, str: '1' }, { x: 55, y: 510, str: 'V.L.NO 123 & 1.1.1985' }, { x: 330, y: 510, str: 'Mr. Bashir Ahmad Dar' }, { x: 469, y: 510, str: 'Father Name' }, { x: 620, y: 510, str: 'Srinagar' },
+      { x: 232, y: 508, str: 'JK' }, { x: 275, y: 508, str: '7' }, { x: 283, y: 508, str: '2015' },
+      { x: 330, y: 488, str: 'Ms. Sana Mir' }, { x: 232, y: 487, str: 'JK' }, { x: 249, y: 487, str: '345' }, { x: 283, y: 487, str: '2016' },
+    ];
+    expect(parseJkCisPage(items)).toEqual([
+      { enrolmentNo: 'JK/7/2015', num: 7, name: 'Mr. Bashir Ahmad Dar' },
+      { enrolmentNo: 'JK/345/2016', num: 345, name: 'Ms. Sana Mir' },
+    ]);
   });
 });
 

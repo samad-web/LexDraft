@@ -12,8 +12,9 @@ import { chromium, type Browser, type BrowserContext, type Page, type Response }
 import { db } from '../db/client';
 import { logger } from '../logger';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
-import { barCouncil, isInactiveStatus, namesMatch, sameEnrolment, type BarRecord } from '../lib/bar-councils';
-import { LIVE_LOOKUPS } from '../lib/bar-council-lookups';
+import { barCouncil, isInactiveStatus, namesMatch, parseEnrolment, sameEnrolment, type BarRecord } from '../lib/bar-councils';
+import { LIVE_LOOKUPS, type LiveLookup } from '../lib/bar-council-lookups';
+import { fetchRoll, ROLL_SOURCES } from '../lib/bar-roll-import';
 
 export type { BarRecord };
 
@@ -74,6 +75,54 @@ async function save(userId: string, council: string, status: BarStatus, source: 
       bar_verified_at = ${status === 'verified' ? new Date() : null}
     where id = ${userId}::uuid
   `;
+}
+
+// ---- imported rolls (Punjab & Haryana, J&K) --------------------------------
+
+function rollLookup(councilId: string): LiveLookup {
+  const src = ROLL_SOURCES.find((r) => r.council === councilId);
+  return {
+    source: src ? new URL(src.url).host : 'imported roll',
+    lookup: async (no) => {
+      const sql = db();
+      const p = parseEnrolment(no);
+      if (!sql) throw new Error('Database not configured');
+      const [any] = await sql`select 1 from bar_roll_entries where council = ${councilId} limit 1`;
+      // Never imported yet: that is "can't check right now", not "not on the roll".
+      if (!any) throw new Error(`${councilId} roll not imported yet`);
+      if (!p) return [];
+      const rows = await sql<{ enrolment_no: string; name: string }[]>`
+        select enrolment_no, name from bar_roll_entries where council = ${councilId} and num = ${p.num}`;
+      return rows.map((r) => ({ name: r.name, enrolmentNo: r.enrolment_no }));
+    },
+  };
+}
+
+/** Monthly job: re-import every PDF roll. A roll that parses to almost nothing
+ *  (layout changed, wrong file) keeps the previous copy. */
+export async function importBarRolls(): Promise<Record<string, number>> {
+  const sql = db();
+  if (!sql) throw new Error('Database not configured');
+  const counts: Record<string, number> = {};
+  for (const src of ROLL_SOURCES) {
+    try {
+      const entries = await fetchRoll(src);
+      if (entries.length < 1000) throw new Error(`only ${entries.length} entries parsed`);
+      const source = new URL(src.url).pathname.split('/').pop() ?? src.url;
+      await sql.begin(async (tx) => {
+        await tx`delete from bar_roll_entries where council = ${src.council}`;
+        for (let i = 0; i < entries.length; i += 2000) {
+          const rows = entries.slice(i, i + 2000).map((e) => ({ council: src.council, enrolment_no: e.enrolmentNo, num: e.num, name: e.name, source }));
+          await tx`insert into bar_roll_entries ${tx(rows, 'council', 'enrolment_no', 'num', 'name', 'source')}`;
+        }
+      });
+      counts[src.council] = entries.length;
+    } catch (err) {
+      logger.error({ err, council: src.council }, 'bar roll import failed; previous copy kept');
+      counts[src.council] = -1;
+    }
+  }
+  return counts;
 }
 
 // ---- browser sessions (one per advocate, closed after use or 10 min) ------
@@ -197,11 +246,13 @@ export const barVerificationService = {
     return result;
   },
 
-  /** Councils with a live lookup (Karnataka, AP, Gujarat): ask the council and save the outcome. */
+  /** Councils checked from our side: a live lookup (Karnataka, AP, Gujarat, Uttarakhand,
+   *  Rajasthan) or the imported roll copy (Punjab & Haryana, J&K). Saves the outcome. */
   async checkLive(userId: string, councilId: string, enrolmentNo: string): Promise<{ status: BarStatus; record?: BarRecord }> {
-    const live = LIVE_LOOKUPS[councilId];
+    const mode = barCouncil(councilId)?.mode;
+    const live = mode === 'live' ? LIVE_LOOKUPS[councilId] : mode === 'roll' ? rollLookup(councilId) : undefined;
     const sql = db();
-    if (!live || barCouncil(councilId)?.mode !== 'live') throw new BadRequestError('Your Bar Council has no automatic check.');
+    if (!live) throw new BadRequestError('Your Bar Council has no automatic check.');
     if (!sql) throw new HttpError(503, 'Database not configured');
     const [u] = await sql<{ name: string }[]>`select name from users where id = ${userId}::uuid`;
     if (!u) throw new NotFoundError('User not found');
@@ -230,7 +281,7 @@ export const barVerificationService = {
     const sql = db();
     if (!council || !sql) return;
     if (council.mode === 'none') { await save(userId, council.id, 'unsupported', null); return; }
-    if (council.mode === 'live') {
+    if (council.mode === 'live' || council.mode === 'roll') {
       // Never hold up onboarding on a council website; the result lands on the user row.
       if (enrolmentNo) void barVerificationService.checkLive(userId, council.id, enrolmentNo).catch(() => undefined);
       return;

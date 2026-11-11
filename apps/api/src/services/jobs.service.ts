@@ -336,6 +336,13 @@ jobs.register<TitleReportExtractPayload>('title-report.extract', async (data) =>
 // wipe-and-replaces court_judges (see judges-roster.service.ts). Slow-moving
 // data — weekly is plenty. Idempotent: the sync is a single transaction.
 // Schedule: Sundays 03:00 IST (off-peak, alongside the other nightly jobs).
+// Bar Council rolls published only as PDFs (Punjab & Haryana, J&K High Court):
+// re-import monthly, 1st at 02:30 IST. See bar-verification.service importBarRolls.
+jobs.register('bar.rolls.import', async () => {
+  const { importBarRolls } = await import('./bar-verification.service');
+  logger.info({ counts: await importBarRolls() }, 'bar.rolls.import complete');
+}, { cron: '30 2 1 * *', tz: 'Asia/Kolkata', expireInSeconds: 60 * 60 });
+
 jobs.register('judges.roster.sync', async () => {
   const { syncHighCourtJudges } = await import('./judges-roster.service');
   const summary = await syncHighCourtJudges();
