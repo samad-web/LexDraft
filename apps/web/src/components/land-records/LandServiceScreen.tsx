@@ -44,12 +44,9 @@ const FORM_OF: Record<LandService, LandFormShape> = {
 const URBAN_ORDER: LandListField[] = ['district', 'taluk', 'village', 'ward', 'block', 'survey', 'subdiv'];
 const RURAL_ORDER: LandListField[] = ['district', 'taluk', 'village'];
 
-function readMobile(): string {
-  try { return localStorage.getItem(MOBILE_KEY) ?? ''; } catch { return ''; }
-}
-function saveMobile(v: string): void {
-  try { localStorage.setItem(MOBILE_KEY, v); } catch { /* private mode */ }
-}
+// The mobile number is never remembered: a shared browser would offer one
+// advocate's number to the next. Clear what earlier versions saved.
+try { localStorage.removeItem(MOBILE_KEY); } catch { /* private mode */ }
 
 export function LandServiceScreen({ service, onHome, initialApplicationId, onFollow }: {
   service: LandService;
@@ -80,7 +77,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
   const [subdivText, setSubdivText] = useState('');
   const [applicationId, setApplicationId] = useState(initialApplicationId ?? '');
   const [refNo, setRefNo] = useState('');
-  const [mobile, setMobile] = useState(readMobile);
+  const [mobile, setMobile] = useState('');
   const [otpSent, setOtpSent] = useState<string | null>(null);
   const [otp, setOtp] = useState('');
   const [captchaImg, setCaptchaImg] = useState<string | null>(null);
@@ -289,7 +286,6 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
 
   const onGetOtp = (): void => {
     if (!session || !ready || !/^[6-9]\d{9}$/.test(mobile)) return;
-    saveMobile(mobile);
     setMessage(null);
     // A revived search gets the survey typed again by the server (fillForm).
     withSession((id) => sendOtp.mutateAsync({ sessionId: id, mobile, fields: fields() }), picks).then(
@@ -538,6 +534,7 @@ export function LandServiceScreen({ service, onHome, initialApplicationId, onFol
                 className="input"
                 style={{ maxWidth: 220 }}
                 inputMode="numeric"
+                autoComplete="off"
                 maxLength={10}
                 placeholder="Mobile No(10 digit)"
                 aria-label="Mobile No(10 digit)"
