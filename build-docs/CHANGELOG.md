@@ -63,3 +63,4 @@
 - 2026-11-11 fix(land-records): FMB sketch shown in a viewer/iframe (blob or embed) is fetched as the PDF, never printed; Download PDF also at the top; nav label "TN Land Records".
 - 2026-11-11 fix(land-records): OTP mobile number no longer remembered in the browser (was shown to every account on that browser).
 - 2026-11-11 fix(land-records): result print drops trailing blank pages (Patta came out as 2 pages, 2nd blank).
+- 2026-11-11 fix(land-records): Patta result = extract + the FMB sketch the site embeds under it (kept as it arrives, single-use), as page 2; viewer frame no longer prints blank.

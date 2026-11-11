@@ -86,13 +86,15 @@ let browser: Browser;
 async function open(path: string, routes: Record<string, (body: string) => string>): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext();
   await ctx.addInitScript('window.__name = window.__name || function (f) { return f; };');
-  await ctx.route(`${FX}/**`, async (route) => {
+  const page = await ctx.newPage();
+  // Page-level, so it answers before the service's own context route (whose
+  // capture fetches from the real network).
+  await page.route(`${FX}/**`, async (route) => {
     const url = new URL(route.request().url());
     const handler = routes[url.pathname.replace('/fx', '')];
     const html = handler ? handler(route.request().postData() ?? '') : '<html><body>not found</body></html>';
     await route.fulfill({ status: 200, contentType: 'text/html', body: html });
   });
-  const page = await ctx.newPage();
   await page.goto(`${FX}${path}`);
   return { ctx, page };
 }
@@ -158,6 +160,29 @@ describe('OTP services follow the site', () => {
     const text = await pdfText(pdf);
     expect(text).toContain('Government of Tamil Nadu');
     expect(text).toContain('K. Ramesh');
+    await ctx.close();
+  });
+
+  // Needs a browser with a PDF viewer, as production runs (CHROMIUM_PATH); the
+  // headless shell never loads an <embed> PDF.
+  it.skipIf(!process.env.CHROMIUM_PATH)('patta: the FMB sketch the page embeds under the extract follows it as page 2 (single-use link)', async () => {
+    pdfServed = 0;
+    const routes = pattaRoutes('ok');
+    const { ctx, page } = await open('/patta', {
+      ...routes,
+      '/result': () => resultPage.replace('</section>', `</section><embed type="application/pdf" width="600" height="800" src="${SKETCH}/sketch.pdf">`),
+    });
+    const id = __testing.adoptPage(page, ctx, 'patta', USER);
+    const out = await verifyLandOtp(id, USER, '123456');
+    expect(out.status).toBe('ok');
+    const pdf = landSessionPdf(id, USER).pdf;
+    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(pdf) }).promise;
+    expect(doc.numPages).toBe(2);
+    const pageText = async (n: number) => (await (await doc.getPage(n)).getTextContent()).items.map((i) => ('str' in i ? i.str : '')).join(' ');
+    expect(await pageText(1)).toContain('K. Ramesh');
+    expect(await pageText(2)).toContain('FMB Sketch 685/10');
+    expect(pdfServed).toBe(1);
     await ctx.close();
   });
 

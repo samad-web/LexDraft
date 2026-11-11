@@ -966,110 +966,121 @@ async function submitAndRead(s: Session): Promise<LandResult> {
   const { page } = s;
   const from = s.dialogs.length;
   const popup = cfg.popup ? s.context.waitForEvent('page', { timeout: 40_000 }).catch(() => null) : null;
-  // The sketch window's document link is single-use, and Chromium's PDF
-  // viewer keeps the bytes to itself - so keep them as they pass through.
+  // A sketch link is single-use (the FMB sketch window, or the one the Patta
+  // page embeds under the extract), and Chromium's PDF viewer keeps the bytes
+  // to itself - so keep any PDF as it passes through.
   const sketch: { pdf: Buffer | null } = { pdf: null };
   const keepSketch = async (route: Route): Promise<void> => {
+    const req = route.request();
     // A new window's first request has no page yet - that is the sketch.
     let fromPopup = true;
-    try { fromPopup = route.request().frame().page() !== page; } catch { /* no page yet */ }
-    if (!fromPopup) return route.fallback();
-    const res = await route.fetch().catch(() => null);
-    if (!res) return route.abort();
+    let mainDoc = false;
+    try {
+      const frame = req.frame();
+      fromPopup = frame.page() !== page;
+      mainDoc = frame === page.mainFrame() && req.isNavigationRequest();
+    } catch { /* no page yet */ }
+    // On the result page: only what it embeds (frames, embed/object, XHR),
+    // never its own navigation.
+    const wanted = cfg.popup ? fromPopup : !mainDoc && ['document', 'other', 'xhr', 'fetch'].includes(req.resourceType());
+    if (!wanted) return route.fallback();
+    // A frame's redirect must reach the browser, or its URL would be wrong.
+    const res = await route.fetch(req.isNavigationRequest() ? { maxRedirects: 0 } : undefined).catch(() => null);
+    if (!res) return route.fallback();
     const body = await res.body();
     const at = body.indexOf('%PDF-');
     if (at >= 0 && at < 1024) sketch.pdf = body.subarray(at);
     return route.fulfill({ response: res, body });
   };
-  if (cfg.popup) await s.context.route('**/*', keepSketch);
-  const download = page.waitForEvent('download', { timeout: 40_000 }).catch(() => null);
-  // Any new document in the main frame counts - the site posts back to the
-  // same URL on a second try, so "URL changed" is not enough.
-  const nav = page.waitForEvent('framenavigated', { predicate: (f) => f === page.mainFrame(), timeout: 40_000 })
-    .then(async () => {
-      await page.waitForLoadState('domcontentloaded', { timeout: 30_000 }).catch(() => {});
+  await s.context.route('**/*', keepSketch);
+  try {
+    const download = page.waitForEvent('download', { timeout: 40_000 }).catch(() => null);
+    // Any new document in the main frame counts - the site posts back to the
+    // same URL on a second try, so "URL changed" is not enough.
+    const nav = page.waitForEvent('framenavigated', { predicate: (f) => f === page.mainFrame(), timeout: 40_000 })
+      .then(async () => {
+        await page.waitForLoadState('domcontentloaded', { timeout: 30_000 }).catch(() => {});
+        return true;
+      }, () => false);
+
+    await reassertForm(s);
+    // Click what a person clicks: the visible control in the site's Submit
+    // block - a real submit button, or FMB / TSLR sketch's
+    // `onclick="return validate_fmb('en')"` / validate_tslr button (AJAX, then
+    // the sketch opens in a new window; there is no form post on those pages).
+    const clicked = await page.evaluate(() => {
+      const visible = (el: { offsetParent: unknown } | null) => Boolean(el && el.offsetParent !== null);
+      const inSub = [...(document.querySelectorAll('#sub_id input[type="submit"], #sub_id input[type="button"], #sub_id button') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
+      const btn = inSub ?? [...(document.querySelectorAll('form input[type="submit"], form button[type="submit"]') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
+      if (!btn) return false;
+      btn.click();
       return true;
-    }, () => false);
+    });
+    if (!clicked) throw new LandRecordsError(502, 'The Land Records page has no Submit button where expected - start again.');
+    // The site reports problems with alert() (e.g. on the sketch pages).
+    const alerted = (async () => {
+      for (let i = 0; i < 400; i++) {
+        if (s.dialogs.length > from) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return false;
+    })();
 
-  await reassertForm(s);
-  // Click what a person clicks: the visible control in the site's Submit
-  // block - a real submit button, or FMB / TSLR sketch's
-  // `onclick="return validate_fmb('en')"` / validate_tslr button (AJAX, then
-  // the sketch opens in a new window; there is no form post on those pages).
-  const clicked = await page.evaluate(() => {
-    const visible = (el: { offsetParent: unknown } | null) => Boolean(el && el.offsetParent !== null);
-    const inSub = [...(document.querySelectorAll('#sub_id input[type="submit"], #sub_id input[type="button"], #sub_id button') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
-    const btn = inSub ?? [...(document.querySelectorAll('form input[type="submit"], form button[type="submit"]') as Iterable<{ offsetParent: unknown; click: () => void }>)].find(visible);
-    if (!btn) return false;
-    btn.click();
-    return true;
-  });
-  if (!clicked) throw new LandRecordsError(502, 'The Land Records page has no Submit button where expected - start again.');
-  // The site reports problems with alert() (e.g. on the sketch pages).
-  const alerted = (async () => {
-    for (let i = 0; i < 400; i++) {
-      if (s.dialogs.length > from) return true;
-      await new Promise((r) => setTimeout(r, 100));
-    }
-    return false;
-  })();
-
-  if (cfg.popup) {
-    // FMB / TSLR sketch: the site asks Collabland for a token and opens the
-    // sketch in a new window - keep that window's document.
-    const opened = await Promise.race([
-      popup,
-      nav.then((moved) => (moved ? null : new Promise<null>(() => {}))),
-      alerted.then((a) => (a ? null : new Promise<null>(() => {}))),
-    ]);
-    try {
+    if (cfg.popup) {
+      // FMB / TSLR sketch: the site asks Collabland for a token and opens the
+      // sketch in a new window - keep that window's document.
+      const opened = await Promise.race([
+        popup,
+        nav.then((moved) => (moved ? null : new Promise<null>(() => {}))),
+        alerted.then((a) => (a ? null : new Promise<null>(() => {}))),
+      ]);
       if (opened) return await readPopup(s, opened, sketch);
-    } finally {
-      await s.context.unroute('**/*', keepSketch).catch(() => {});
+      const msg = lastDialog(s, from);
+      if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`, /otp/i.test(msg) ? 'OTP_REJECTED' : 'LAND_RECORDS');
     }
-    const msg = lastDialog(s, from);
-    if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`, /otp/i.test(msg) ? 'OTP_REJECTED' : 'LAND_RECORDS');
+    const navigated = await Promise.race([nav, download.then(() => false), alerted.then((a) => (a ? false : new Promise<boolean>(() => {})))]);
+    const dl = navigated ? null : await Promise.race([download, page.waitForTimeout(1500).then(() => null)]);
+    if (dl) {
+      const path = await dl.path();
+      const { readFile } = await import('node:fs/promises');
+      const bytes = path ? await readFile(path) : null;
+      if (!bytes || bytes.indexOf('%PDF-') < 0) throw new LandRecordsError(502, 'Land Records returned an unexpected file.');
+      s.pdf = bytes.subarray(bytes.indexOf('%PDF-'));
+      s.result = { title: cfg.title, fields: [], sections: [], text: 'The document was downloaded from Land Records.', hasPdf: true };
+      return s.result;
+    }
+    if (!navigated) {
+      const msg = lastDialog(s, from);
+      throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'Land Records did not answer - try again.');
+    }
+    // When the site rejects the request it posts its own form back with a
+    // message (its `.fadeout` slot, or inline text): "Invalid otp",
+    // "Incorrect Value(enter the same as shown)", ... That page is never a
+    // result - report its message instead (seen live 2026-10-24: "Invalid otp"
+    // was shown to an advocate as if it were the chitta).
+    const postedBack = await page.evaluate(() => {
+      const isForm = Boolean(document.querySelector('#sendtpid, #otpno, #captEntr, #captcha, #applicationid'))
+        && Boolean(document.querySelector('form input[type="submit"], #sub_id'));
+      if (!isForm) return null;
+      const slot = [...(document.querySelectorAll('.fadeout, font[color="red"], .normal_text_red, .errormsg') as Iterable<{ innerText?: string }>)]
+        .map((e) => (e.innerText ?? '').replace(/\s+/g, ' ').trim())
+        .filter((t) => t && t.length < 200 && !/fields are mandatory/i.test(t));
+      const body = (document.body?.innerText ?? '').replace(/\s+/g, ' ');
+      const known = /Invalid otp[^.]*|Incorrect Value\s*\(enter the same as shown\)|Invalid (?:captcha|authentication value)|No (?:record|data)s? found[^.]*/i.exec(body);
+      return known?.[0] ?? slot[0] ?? 'The request was not accepted';
+    }).catch(() => null);
+    if (postedBack) {
+      logger.info({ service: s.service, message: postedBack.slice(0, 120) }, 'tn-land: site posted its form back');
+      const code = /otp/i.test(postedBack) ? 'OTP_REJECTED'
+        : /incorrect value|authentication|captcha/i.test(postedBack) ? 'CAPTCHA_REJECTED' : 'LAND_RECORDS';
+      if (code === 'OTP_REJECTED') s.mobile = null;
+      throw new LandRecordsError(400, `Land Records: ${postedBack}`, code);
+    }
+    await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
+    return await readResultPage(s, sketch);
+  } finally {
+    await s.context.unroute('**/*', keepSketch).catch(() => {});
   }
-  const navigated = await Promise.race([nav, download.then(() => false), alerted.then((a) => (a ? false : new Promise<boolean>(() => {})))]);
-  const dl = navigated ? null : await Promise.race([download, page.waitForTimeout(1500).then(() => null)]);
-  if (dl) {
-    const path = await dl.path();
-    const { readFile } = await import('node:fs/promises');
-    const bytes = path ? await readFile(path) : null;
-    if (!bytes || bytes.indexOf('%PDF-') < 0) throw new LandRecordsError(502, 'Land Records returned an unexpected file.');
-    s.pdf = bytes.subarray(bytes.indexOf('%PDF-'));
-    s.result = { title: cfg.title, fields: [], sections: [], text: 'The document was downloaded from Land Records.', hasPdf: true };
-    return s.result;
-  }
-  if (!navigated) {
-    const msg = lastDialog(s, from);
-    throw new LandRecordsError(400, msg ? `Land Records: ${msg}` : 'Land Records did not answer - try again.');
-  }
-  // When the site rejects the request it posts its own form back with a
-  // message (its `.fadeout` slot, or inline text): "Invalid otp",
-  // "Incorrect Value(enter the same as shown)", ... That page is never a
-  // result - report its message instead (seen live 2026-10-24: "Invalid otp"
-  // was shown to an advocate as if it were the chitta).
-  const postedBack = await page.evaluate(() => {
-    const isForm = Boolean(document.querySelector('#sendtpid, #otpno, #captEntr, #captcha, #applicationid'))
-      && Boolean(document.querySelector('form input[type="submit"], #sub_id'));
-    if (!isForm) return null;
-    const slot = [...(document.querySelectorAll('.fadeout, font[color="red"], .normal_text_red, .errormsg') as Iterable<{ innerText?: string }>)]
-      .map((e) => (e.innerText ?? '').replace(/\s+/g, ' ').trim())
-      .filter((t) => t && t.length < 200 && !/fields are mandatory/i.test(t));
-    const body = (document.body?.innerText ?? '').replace(/\s+/g, ' ');
-    const known = /Invalid otp[^.]*|Incorrect Value\s*\(enter the same as shown\)|Invalid (?:captcha|authentication value)|No (?:record|data)s? found[^.]*/i.exec(body);
-    return known?.[0] ?? slot[0] ?? 'The request was not accepted';
-  }).catch(() => null);
-  if (postedBack) {
-    logger.info({ service: s.service, message: postedBack.slice(0, 120) }, 'tn-land: site posted its form back');
-    const code = /otp/i.test(postedBack) ? 'OTP_REJECTED'
-      : /incorrect value|authentication|captcha/i.test(postedBack) ? 'CAPTCHA_REJECTED' : 'LAND_RECORDS';
-    if (code === 'OTP_REJECTED') s.mobile = null;
-    throw new LandRecordsError(400, `Land Records: ${postedBack}`, code);
-  }
-  await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
-  return readResultPage(s);
 }
 
 /** The slice of a DOM element the result reader touches (no dom lib here). */
@@ -1151,7 +1162,15 @@ export async function dropTrailingBlankPages(pdf: Buffer): Promise<Buffer> {
   return Buffer.from(await out.save());
 }
 
-async function readResultPage(s: Session): Promise<LandResult> {
+/** `first` followed by every page of `second`. */
+async function appendPdf(first: Buffer, second: Buffer): Promise<Buffer> {
+  const out = await PDFDocument.load(first);
+  const add = await PDFDocument.load(second, { ignoreEncryption: true });
+  for (const p of await out.copyPages(add, add.getPageIndices())) out.addPage(p);
+  return Buffer.from(await out.save());
+}
+
+async function readResultPage(s: Session, kept: { pdf: Buffer | null }): Promise<LandResult> {
   const { page } = s;
   const read = await page.evaluate(() => {
     const txt = (el: { innerText?: string } | null) => (el?.innerText ?? '').replace(/\s+/g, ' ').trim();
@@ -1192,18 +1211,24 @@ async function readResultPage(s: Session): Promise<LandResult> {
   });
   const invalid = /INVALID ACCESS TO THE SITE/i.test(read.text);
   if (invalid) throw new LandRecordsError(502, 'Land Records ended the session - start again.');
-  // Some results are a document, not a page (an order copy / F-Line
-  // statement embedded or linked as a PDF). A print of the page would show
-  // that frame blank, so fetch the document itself in the same session.
-  s.pdf = await embeddedPdf(s);
-  const documentOnly = Boolean(s.pdf) && read.fields.length === 0 && read.sections.length === 0;
-  if (!s.pdf) {
+  // A document the page shows in a frame: the whole result (an order copy /
+  // F-Line statement) or the sketch under the extract (Patta shows the FMB).
+  // Its frame prints blank, so use the document itself - kept as it arrived,
+  // else fetched in the same session.
+  await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
+  const framed = await page.evaluate(() => Boolean(document.querySelector('embed, object, iframe'))).catch(() => false);
+  for (let i = 0; framed && i < 30 && !kept.pdf; i++) await page.waitForTimeout(100);
+  const doc = kept.pdf ?? await embeddedPdf(s);
+  const documentOnly = Boolean(doc) && read.fields.length === 0 && read.sections.length === 0;
+  s.pdf = documentOnly ? doc : null;
+  if (!documentOnly) {
     try {
       // The government template as the site shows it: its emblem and QR
       // loaded, laid out with its screen styles rather than print ones.
-      await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
+      if (doc) await page.addStyleTag({ content: 'embed, object, iframe { display: none !important; }' });
       await page.emulateMedia({ media: 'screen' });
-      s.pdf = await dropTrailingBlankPages(await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', bottom: '8mm', left: '6mm', right: '6mm' } }));
+      const printed = await dropTrailingBlankPages(await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', bottom: '8mm', left: '6mm', right: '6mm' } }));
+      s.pdf = doc ? await appendPdf(printed, doc).catch((err) => { logger.warn({ err }, 'tn-land: framed document not added'); return printed; }) : printed;
     } catch (err) {
       logger.warn({ err }, 'tn-land: pdf print failed');
       s.pdf = null;
@@ -1313,7 +1338,7 @@ export const __testing = {
   readResultFromPage: (page: Page, service: LandService = 'patta') => readResultPage({
     id: 'fixture', userId: 'fixture', service, page, dialogs: [], summary: {}, picks: {}, busy: false, otpVerified: false, formFields: null, result: null, pdf: null, mobile: null,
     browser: null as unknown as Browser, context: null as unknown as BrowserContext, idleTimer: setTimeout(() => {}, 0),
-  }),
+  }, { pdf: null }),
   /** Register an already-open page as a session at the OTP step (flow tests
    *  against fixture pages that behave like the site's). */
   adoptPage: (page: Page, context: BrowserContext, service: LandService, userId: string, mobile = '9876543210'): string => {
