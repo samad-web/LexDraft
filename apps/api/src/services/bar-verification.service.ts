@@ -12,23 +12,17 @@ import { chromium, type Browser, type BrowserContext, type Page, type Response }
 import { db } from '../db/client';
 import { logger } from '../logger';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
-import { barCouncil, namesMatch, sameEnrolment } from '../lib/bar-councils';
+import { barCouncil, isInactiveStatus, namesMatch, sameEnrolment, type BarRecord } from '../lib/bar-councils';
+import { LIVE_LOOKUPS } from '../lib/bar-council-lookups';
+
+export type { BarRecord };
 
 const TN_URL = 'https://www.bctnpy.org/verify/advocate';
 const TN_SOURCE = 'bctnpy.org';
 const SESSION_TTL_MS = 10 * 60 * 1000;
 const STEP_TIMEOUT_MS = 30_000;
 
-export type BarStatus = 'verified' | 'not_found' | 'name_mismatch' | 'unavailable' | 'unsupported';
-
-export interface BarRecord {
-  name: string;
-  enrolmentNo: string;
-  enrolmentDate?: string;
-  fatherName?: string;
-  status?: string;
-  copStatus?: string;
-}
+export type BarStatus = 'verified' | 'inactive' | 'not_found' | 'name_mismatch' | 'unavailable' | 'unsupported';
 
 /** Pull advocate records out of whatever shape the council's API returns
  *  (a list for searches, `{ record }` for the detail call). */
@@ -56,12 +50,13 @@ export function findAdvocateRecords(payload: unknown): BarRecord[] {
   return out;
 }
 
-/** Verified only when the council has this enrolment number under this name. */
+/** Verified only when the council has this enrolment number under this name,
+ *  and the roll does not say the advocate died, retired, was suspended, etc. */
 export function decide(records: BarRecord[], enrolmentNo: string, name: string): { status: BarStatus; record?: BarRecord } {
   const same = records.filter((r) => sameEnrolment(r.enrolmentNo, enrolmentNo));
   if (!same.length) return { status: 'not_found' };
   const named = same.filter((r) => r.name && namesMatch(r.name, name));
-  if (named.length) return { status: 'verified', record: named[0] };
+  if (named.length) return { status: isInactiveStatus(named[0]!.status) ? 'inactive' : 'verified', record: named[0] };
   // A detail-less row (no name) can't prove anything either way.
   return { status: same.some((r) => r.name) ? 'name_mismatch' : 'not_found', record: same[0] };
 }
@@ -202,6 +197,28 @@ export const barVerificationService = {
     return result;
   },
 
+  /** Councils with a live lookup (Karnataka, AP, Gujarat): ask the council and save the outcome. */
+  async checkLive(userId: string, councilId: string, enrolmentNo: string): Promise<{ status: BarStatus; record?: BarRecord }> {
+    const live = LIVE_LOOKUPS[councilId];
+    const sql = db();
+    if (!live || barCouncil(councilId)?.mode !== 'live') throw new BadRequestError('Your Bar Council has no automatic check.');
+    if (!sql) throw new HttpError(503, 'Database not configured');
+    const [u] = await sql<{ name: string }[]>`select name from users where id = ${userId}::uuid`;
+    if (!u) throw new NotFoundError('User not found');
+    const no = enrolmentNo.trim().toUpperCase();
+    let records: BarRecord[];
+    try {
+      records = await live.lookup(no);
+    } catch (err) {
+      logger.warn({ err, councilId }, 'bar-verify: live lookup failed');
+      await save(userId, councilId, 'unavailable', live.source);
+      return { status: 'unavailable' };
+    }
+    const result = decide(records, no, u.name);
+    await save(userId, councilId, result.status, live.source, result.record);
+    return result;
+  },
+
   /**
    * Onboarding finished: store the advocate's council. Councils with no
    * automatic check become 'unsupported'. A Tamil Nadu result is kept only if
@@ -213,6 +230,11 @@ export const barVerificationService = {
     const sql = db();
     if (!council || !sql) return;
     if (council.mode === 'none') { await save(userId, council.id, 'unsupported', null); return; }
+    if (council.mode === 'live') {
+      // Never hold up onboarding on a council website; the result lands on the user row.
+      if (enrolmentNo) void barVerificationService.checkLive(userId, council.id, enrolmentNo).catch(() => undefined);
+      return;
+    }
     const [u] = await sql<{ bar_council: string | null; bar_record: BarRecord | null }[]>`
       select bar_council, bar_record from users where id = ${userId}::uuid`;
     const stillValid = u?.bar_council === council.id && !!u.bar_record && !!enrolmentNo

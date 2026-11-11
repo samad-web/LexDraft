@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
 import { readIntro } from '@/lib/intro';
-import { TnBarVerify, useBarCouncils } from '@/components/BarCouncilVerify';
+import { LiveBarVerify, TnBarVerify, useBarCouncils } from '@/components/BarCouncilVerify';
 
 // =============================================================================
 // /onboarding - shown once, right after a new account is created. Three steps
@@ -494,6 +494,7 @@ export function OnboardingView() {
                   </div>
                 )}
                 {!student && council?.mode === 'otp' && enrolment.length >= 3 && <TnBarVerify enrolmentNo={enrolment} />}
+                {!student && council?.mode === 'live' && enrolment.length >= 3 && <LiveBarVerify key={`${council.id}:${enrolment}`} council={council} enrolmentNo={enrolment} />}
                 {!student && council?.mode === 'none' && (
                   <p className="body-xs" style={{ margin: 0, color: 'var(--text-secondary)' }}>{council.note} Your account works normally and shows as unverified.</p>
                 )}

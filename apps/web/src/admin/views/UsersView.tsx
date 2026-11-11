@@ -49,6 +49,7 @@ function profileLine(u: AdminUserSummary): string {
 
 const BAR_STATUS_LABEL: Record<string, string> = {
   verified: 'Verified',
+  inactive: 'On the roll but not practising',
   not_found: 'Not found on the roll',
   name_mismatch: 'Name does not match the roll',
   unavailable: 'Council site did not answer',

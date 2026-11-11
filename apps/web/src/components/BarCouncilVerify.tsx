@@ -10,8 +10,8 @@ import { api } from '@/lib/api';
 // automatic check yet, the council's note explains why.
 // =============================================================================
 
-export interface BarCouncilOption { id: string; name: string; mode: 'otp' | 'none'; note?: string }
-type BarStatus = 'verified' | 'not_found' | 'name_mismatch' | 'unavailable' | 'unsupported';
+export interface BarCouncilOption { id: string; name: string; mode: 'otp' | 'live' | 'none'; note?: string }
+type BarStatus = 'verified' | 'inactive' | 'not_found' | 'name_mismatch' | 'unavailable' | 'unsupported';
 interface BarRecord { name: string; enrolmentNo: string; enrolmentDate?: string }
 
 export function useBarCouncils() {
@@ -24,6 +24,7 @@ export function useBarCouncils() {
 
 const RESULT_TEXT: Record<BarStatus, string> = {
   verified: 'Verified with the Bar Council.',
+  inactive: 'The Bar Council lists this enrolment as not practising (for example retired, suspended or transferred). Your account stays unverified.',
   not_found: 'The Bar Council has no advocate with this enrolment number. Check the number and try again.',
   name_mismatch: 'The Bar Council lists this number under a different name. You can continue; your account stays unverified.',
   unavailable: 'The Bar Council website did not answer. You can continue and verify later from Settings.',
@@ -38,6 +39,45 @@ const boxStyle = {
   flexDirection: 'column' as const,
   gap: 12,
 };
+
+function ResultBox({ status, record, onRetry }: { status: BarStatus; record?: BarRecord; onRetry: () => void }) {
+  return (
+    <div style={boxStyle} role="status">
+      <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {status === 'verified' && <Icon name="check" size={14} />}
+        {RESULT_TEXT[status]}
+      </strong>
+      {record && (
+        <span className="body-xs mono" style={{ color: 'var(--text-secondary)' }}>
+          {[record.name, record.enrolmentNo, record.enrolmentDate].filter(Boolean).join(' · ')}
+        </span>
+      )}
+      {status !== 'verified' && (
+        <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={onRetry}>Try again</button>
+      )}
+    </div>
+  );
+}
+
+/** Councils with a public search DifAi can query directly (Karnataka, AP, Gujarat). */
+export function LiveBarVerify({ council, enrolmentNo }: { council: BarCouncilOption; enrolmentNo: string }) {
+  const check = useMutation({
+    mutationFn: () => api.post<{ status: BarStatus; record?: BarRecord }>('/me/bar-verification/check', { council: council.id, enrolmentNo }),
+  });
+  if (check.data) return <ResultBox status={check.data.status} record={check.data.record} onRetry={() => check.reset()} />;
+  return (
+    <div style={boxStyle}>
+      <span className="body-sm" style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        DifAi checks your enrolment number on the Bar Council of {council.name}&rsquo;s public roll. You can skip this; we also check
+        when you finish.
+      </span>
+      <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} disabled={check.isPending} onClick={() => check.mutate()}>
+        {check.isPending ? 'Checking the roll…' : 'Check with the Bar Council'}
+      </button>
+      {check.isError && <span role="alert" className="body-xs">{check.error.message}</span>}
+    </div>
+  );
+}
 
 /** Tamil Nadu OTP check. `enrolmentNo` comes from the form around it. */
 export function TnBarVerify({ enrolmentNo }: { enrolmentNo: string }) {
@@ -55,26 +95,7 @@ export function TnBarVerify({ enrolmentNo }: { enrolmentNo: string }) {
   });
 
   const result = finish.data;
-  if (result) {
-    return (
-      <div style={boxStyle} role="status">
-        <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {result.status === 'verified' && <Icon name="check" size={14} />}
-          {RESULT_TEXT[result.status]}
-        </strong>
-        {result.record && (
-          <span className="body-xs mono" style={{ color: 'var(--text-secondary)' }}>
-            {[result.record.name, result.record.enrolmentNo, result.record.enrolmentDate].filter(Boolean).join(' · ')}
-          </span>
-        )}
-        {result.status !== 'verified' && (
-          <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => { finish.reset(); setSession(null); }}>
-            Try again
-          </button>
-        )}
-      </div>
-    );
-  }
+  if (result) return <ResultBox status={result.status} record={result.record} onRetry={() => { finish.reset(); setSession(null); }} />;
 
   return (
     <div style={boxStyle}>

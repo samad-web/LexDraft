@@ -54,3 +54,18 @@ barVerificationRouter.post('/tn/otp', signInLimiter, async (req, res, next) => {
     next(err);
   }
 });
+
+const LiveCheck = z.object({
+  council: z.string().max(40),
+  enrolmentNo: z.string().min(3).max(40),
+}).strict();
+
+// Karnataka / AP / Gujarat: one request to the council's public search.
+barVerificationRouter.post('/check', otpSendLimiter, async (req, res, next) => {
+  try {
+    const body = LiveCheck.parse(req.body);
+    res.json(await barVerificationService.checkLive(req.user!.id, body.council, body.enrolmentNo));
+  } catch (err) {
+    next(err);
+  }
+});

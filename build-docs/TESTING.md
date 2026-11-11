@@ -1,5 +1,10 @@
 # Testing
 
+## Bar Council verification, phase 2 (live councils) — 2026-11-11
+- `bar-councils.test.ts` 15/15: added 2-digit years (KAR/123/85 = 1985), glued prefixes (MS1234/2019), alphanumeric prefixes with padded numbers, exact match for unparseable numbers, inactive statuses (Death, Retired, Voluntary Suspended, Transfered, Non practice), and parsers for Karnataka JSON, Gujarat {Data}, AP HTML table (fixtures shaped like the real replies, made-up people).
+- Live check against the councils (one real roll entry per council held in memory, nothing stored): Karnataka own name -> verified, wrong name -> name_mismatch; Gujarat same; AP own name -> inactive (entry listed "Died"), wrong name -> name_mismatch.
+- Found: Kerala's directory returns 405 to any non-browser client and MP's firewall blocks automated POSTs; both left as "no automatic check" (not worked around). UP's reply showed no result table for test numbers, so UP stays "coming soon".
+
 ## Bar Council verification, phase 1 (Tamil Nadu) — 2026-11-11 (features/bar-council-verification.md)
 - New `bar-councils.test.ts` 8/8: enrolment parsing/equality (prefix, leading zeros, separators, year), name matching (initials, titles, run-together, different person rejected), TN payload reading (list and `{record}`), verify only on number + name, nameless row proves nothing, council list sanity. Passed first run.
 - Live page dry run (bctnpy.org, nothing submitted, no OTP sent): every selector the service uses exists; search defaults to "Enrolment Number".
