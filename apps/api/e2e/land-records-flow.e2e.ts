@@ -18,7 +18,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
-  __testing, landSessionPdf, loadSubdivisions, selectLandField, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
+  __testing, dropTrailingBlankPages, landSessionPdf, loadSubdivisions, selectLandField, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
 } from '../src/services/tn-land-records.service';
 
 const FX = 'https://eservices.tn.gov.in/fx';
@@ -371,5 +371,21 @@ describe('OTP services follow the site', () => {
     expect(await code(verifyLandOtp(id, USER, '123456'))).toBe('OTP_REJECTED');
     expect(Date.now() - t0).toBeLessThan(5000);
     await ctx.close();
+  });
+});
+
+describe('result print', () => {
+  it('a trailing blank page is dropped; pages with content are kept', async () => {
+    const { PDFDocument, StandardFonts } = await import('pdf-lib');
+    const make = async (texts: string[]) => {
+      const d = await PDFDocument.create();
+      const font = await d.embedFont(StandardFonts.Helvetica);
+      for (const t of texts) { const p = d.addPage(); if (t) p.drawText(t, { x: 50, y: 700, font }); }
+      return Buffer.from(await d.save());
+    };
+    const count = async (b: Buffer) => (await PDFDocument.load(b)).getPageCount();
+    expect(await count(await dropTrailingBlankPages(await make(['Patta 977', '', ''])))).toBe(1);
+    expect(await count(await dropTrailingBlankPages(await make(['Patta 977', 'page two'])))).toBe(2);
+    expect(await count(await dropTrailingBlankPages(await make(['']))) ).toBe(1);
   });
 });

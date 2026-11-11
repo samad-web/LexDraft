@@ -163,3 +163,4 @@
 - Regression: API 870 pass (1 known anthropic-failover fail from another session's uncommitted anthropic-client.ts); web 79/79.
 - 2026-11-11 - Land Records sketch + Tamil fix: flow fixtures 12/12 on Playwright's headless shell AND full Chromium (CHROMIUM_PATH, as prod). New: single-use sketch PDF is kept byte-for-byte, served once.
 - 2026-11-11 land-records e2e 13/13 (headless shell + full Chrome); new: blob-embedded sketch window -> exact PDF.
+- 2026-11-11 land-records e2e 14/14 both browsers; new: trailing blank page trim (checked on a real Patta print: 2 -> 1 page).

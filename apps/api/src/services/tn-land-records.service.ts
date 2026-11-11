@@ -1,3 +1,4 @@
+import { PDFDocument } from 'pdf-lib';
 import { chromium, type Browser, type BrowserContext, type Frame, type Page, type Route } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
@@ -1128,6 +1129,28 @@ async function embeddedPdf(s: Session): Promise<Buffer | null> {
 }
 
 /** Read the rendered result as plain text and print it to PDF. */
+/** A print can spill a blank last page (the page's trailing space); drop
+ *  trailing pages with no text and no image. */
+export async function dropTrailingBlankPages(pdf: Buffer): Promise<Buffer> {
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(pdf), isEvalSupported: false }).promise;
+  const imageOps = new Set([pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintInlineImageXObject, pdfjs.OPS.paintImageMaskXObject]);
+  let keep = doc.numPages;
+  while (keep > 1) {
+    const page = await doc.getPage(keep);
+    const text = (await page.getTextContent()).items.some((i) => 'str' in i && i.str.trim());
+    const image = (await page.getOperatorList()).fnArray.some((op) => imageOps.has(op));
+    if (text || image) break;
+    keep -= 1;
+  }
+  const total = doc.numPages;
+  await doc.destroy();
+  if (keep === total) return pdf;
+  const out = await PDFDocument.load(pdf);
+  for (let i = total - 1; i >= keep; i--) out.removePage(i);
+  return Buffer.from(await out.save());
+}
+
 async function readResultPage(s: Session): Promise<LandResult> {
   const { page } = s;
   const read = await page.evaluate(() => {
@@ -1180,7 +1203,7 @@ async function readResultPage(s: Session): Promise<LandResult> {
       // loaded, laid out with its screen styles rather than print ones.
       await page.waitForLoadState('load', { timeout: 15_000 }).catch(() => {});
       await page.emulateMedia({ media: 'screen' });
-      s.pdf = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', bottom: '8mm', left: '6mm', right: '6mm' } });
+      s.pdf = await dropTrailingBlankPages(await page.pdf({ format: 'A4', printBackground: true, margin: { top: '8mm', bottom: '8mm', left: '6mm', right: '6mm' } }));
     } catch (err) {
       logger.warn({ err }, 'tn-land: pdf print failed');
       s.pdf = null;

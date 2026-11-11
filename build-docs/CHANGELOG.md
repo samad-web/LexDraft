@@ -62,3 +62,4 @@
 - Land Records fixes: Tamil extracts (Patta) printed as boxes on the server - Tamil/Devanagari Noto fonts added to the API image; FMB/TSLR sketch kept as the PDF the site sent (its link is single-use) instead of a print of Chromium's PDF viewer.
 - 2026-11-11 fix(land-records): FMB sketch shown in a viewer/iframe (blob or embed) is fetched as the PDF, never printed; Download PDF also at the top; nav label "TN Land Records".
 - 2026-11-11 fix(land-records): OTP mobile number no longer remembered in the browser (was shown to every account on that browser).
+- 2026-11-11 fix(land-records): result print drops trailing blank pages (Patta came out as 2 pages, 2nd blank).
