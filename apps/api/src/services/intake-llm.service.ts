@@ -90,16 +90,34 @@ function providerTag(provider: Provider): string {
   return 'fallback:none';
 }
 
-async function complete(provider: Provider, system: string, user: string, maxTokens: number): Promise<LlmResult> {
-  if (provider === 'anthropic') return callClaude(system, user, maxTokens, intakeModelFor('anthropic'));
+// Thinking depth per intake task (features/ai-cost-efficiency.md). Drafting,
+// checkBrief and every other feature keep the model default. Gate-tested on 12
+// benchmark briefs: classify/phrase at low matched default exactly. Extract at
+// medium put "C.C. No. 412 of 2025" in cc_no and dropped case_ref, so it stays
+// at the default.
+type IntakeTask = 'classify' | 'phrase' | 'extract';
+type Effort = 'low' | 'medium' | 'high';
+const INTAKE_EFFORT: Partial<Record<IntakeTask, Effort>> = { classify: 'low', phrase: 'low' };
+
+/** Effort for this task, or undefined = model default. Only the 5-series takes it. */
+export function intakeEffort(task: IntakeTask, model: string): Effort | undefined {
+  if (env.INTAKE_EFFORT_TUNED !== 'true' || !/^claude-[a-z]+-5/.test(model)) return undefined;
+  return INTAKE_EFFORT[task];
+}
+
+async function complete(provider: Provider, system: string, user: string, maxTokens: number, task?: IntakeTask): Promise<LlmResult> {
+  if (provider === 'anthropic') {
+    const model = intakeModelFor('anthropic');
+    return callClaude(system, user, maxTokens, model, task && intakeEffort(task, model));
+  }
   if (provider === 'xai') return callGrok(system, user, maxTokens, intakeModelFor('xai'));
   throw new Error('LLM disabled');
 }
 
-async function callClaude(system: string, user: string, maxTokens: number, model: string): Promise<LlmResult> {
+async function callClaude(system: string, user: string, maxTokens: number, model: string, effort?: Effort): Promise<LlmResult> {
   if (devViaClaudeCode()) {
     // Development only: the developer's own Claude login, unmetered (zero usage).
-    return { text: (await claudeCodeComplete({ system, user, model })).text, stopReason: 'end_turn', tokensIn: 0, tokensOut: 0 };
+    return { text: (await claudeCodeComplete({ system, user, model, ...(effort ? { effort } : {}) })).text, stopReason: 'end_turn', tokensIn: 0, tokensOut: 0 };
   }
   return withRetry(
     // Goes through the shared SDK client (auth, prompt-cache defaults, error
@@ -117,6 +135,7 @@ async function callClaude(system: string, user: string, maxTokens: number, model
           max_tokens: maxTokens,
           system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content: user }],
+          ...(effort ? { output_config: { effort } } : {}),
         }));
       } catch (err) {
         // Reshape SDK API errors into HttpRetryError so withRetry() still
@@ -677,7 +696,7 @@ export const intakeLlm = {
       let raw: string;
       let stopReason: string | undefined;
       try {
-        const result = await complete(provider, sys, user, CAPS[attempt]!);
+        const result = await complete(provider, sys, user, CAPS[attempt]!, 'extract');
         raw = result.text;
         stopReason = result.stopReason;
         args.onUsage?.({
@@ -758,7 +777,7 @@ export const intakeLlm = {
     if (provider === 'none' || args.issues.length === 0) return [];
     try {
       const { system, user } = buildPhrasePrompt(args);
-      const result = await complete(provider, system, user, 1000);
+      const result = await complete(provider, system, user, 1000, 'phrase');
       args.onUsage?.({
         provider, model: intakeModelFor(provider),
         tokensIn: result.tokensIn, tokensOut: result.tokensOut,
@@ -833,7 +852,7 @@ Rules:
       : `# The advocate's matter\n${args.brief.slice(0, 8000)}`;
 
     try {
-      const result = await complete(provider, system, user, 200);
+      const result = await complete(provider, system, user, 200, 'classify');
       args.onUsage?.({
         provider, model: intakeModelFor(provider),
         tokensIn: result.tokensIn, tokensOut: result.tokensOut,

@@ -27,6 +27,8 @@ const ANTHROPIC_HAIKU: ModelPrice = { inputPerMTok: 1, outputPerMTok: 5 };
 const ANTHROPIC_SONNET_5_5: ModelPrice = { inputPerMTok: 2, outputPerMTok: 10 };
 const ANTHROPIC_OPUS_5_5: ModelPrice = { inputPerMTok: 4, outputPerMTok: 20 };
 const XAI_GROK: ModelPrice = { inputPerMTok: 3, outputPerMTok: 15 };
+// OpenAI list price (openai.com/api/pricing, 2026-11-11): Contract Review.
+const OPENAI_GPT_5_5: ModelPrice = { inputPerMTok: 5, outputPerMTok: 30 };
 
 /** Conservative fallback when a model id isn't recognised - use Sonnet rates. */
 export const DEFAULT_PRICING: ModelPrice = ANTHROPIC_SONNET;
@@ -41,6 +43,7 @@ const EXACT: Record<string, ModelPrice> = {
   'claude-opus-4-7': ANTHROPIC_OPUS,
   'claude-opus-4-6': ANTHROPIC_OPUS,
   'grok-4': XAI_GROK,
+  'gpt-5.5': OPENAI_GPT_5_5,
 };
 
 /** Resolve a model id (possibly null / version-suffixed) to a price card. */

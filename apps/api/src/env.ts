@@ -55,6 +55,9 @@ const Schema = z.object({
   // drafting provider/model above. Leave blank to reuse the drafting model.
   INTAKE_PROVIDER: z.enum(['anthropic', 'xai', '']).default(''),
   INTAKE_MODEL: z.string().default(''),
+  /** 'true' = intake classify/phrase/extract run at a lower Claude effort
+   *  (features/ai-cost-efficiency.md). 'false' = model default, as before. */
+  INTAKE_EFFORT_TUNED: z.enum(['true', 'false']).default('true'),
   // Postgres / Supabase. Optional - when blank the API falls back to its
   // in-memory store (the demo mode). Provide a Supabase pooled URI in prod.
   DATABASE_URL: z.string().optional().default(''),

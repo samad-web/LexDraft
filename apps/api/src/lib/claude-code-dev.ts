@@ -53,6 +53,8 @@ export async function claudeCodeComplete(opts: {
   model: string;
   /** PDF / image content blocks, sent ahead of the user text. */
   attachments?: unknown[];
+  /** Same meaning as the API's output_config.effort. Omitted = CLI default. */
+  effort?: 'low' | 'medium' | 'high';
 }): Promise<{ text: string } & NormalizedUsage> {
   const dir = mkdtempSync(join(tmpdir(), 'difai-cc-'));
   const systemFile = join(dir, 'system.txt');
@@ -65,6 +67,7 @@ export async function claudeCodeComplete(opts: {
     const stdout = await new Promise<string>((resolve, reject) => {
       const child = spawn(claudeBin(), [
         '-p', '--model', opts.model,
+        ...(opts.effort ? ['--effort', opts.effort] : []),
         '--system-prompt-file', systemFile,
         '--tools', '',
         '--output-format', streaming ? 'stream-json' : 'json',

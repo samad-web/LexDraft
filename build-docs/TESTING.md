@@ -165,3 +165,4 @@
 - 2026-11-11 land-records e2e 13/13 (headless shell + full Chrome); new: blob-embedded sketch window -> exact PDF.
 - 2026-11-11 land-records e2e 14/14 both browsers; new: trailing blank page trim (checked on a real Patta print: 2 -> 1 page).
 - 2026-11-11 land-records e2e 15/15 full Chrome (14 + 1 skipped on headless shell: embed needs a PDF viewer); fixtures now page-level routes.
+- 2026-11-11 ai-cost-efficiency: `intake-effort.test.ts` 7 pass (effort low for classify/phrase on CLI and API; extract and checkBrief send none; switch off sends none; pre-5 models send none; gpt-5.5 priced $5/$30). Quality gate, dev route, 12 briefs b1–b4, default×2 vs tuned: classify 12/12 same, phrase 24/24 questions; extract at medium lost `case_ref` on recall_petition (cc_no took the full ref) → extract kept at default. API 900 passed, 1 failing (`anthropic-failover`, another session's uncommitted anthropic-client edit).

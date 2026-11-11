@@ -1,5 +1,7 @@
 # Changelog
 
+- AI cost efficiency (2026-11-11): intake document-type pick and question wording run Sonnet 5.5 at `low` effort (less hidden thinking billed as output). Fact extraction, drafting and every other feature unchanged. Quality gate on 12 benchmark briefs: same results as before; extraction at `medium` failed the gate and was not shipped. Admin AI-usage now prices gpt-5.5 at $5/$30 (was shown at about half). `INTAKE_EFFORT_TUNED=false` turns it off.
+
 - Bar Council verification, phase 3 (2026-11-11): Punjab & Haryana and J&K advocates are checked against the councils' published roll PDFs, imported monthly (1st, 02:30 IST; only enrolment no. + name kept). Uttarakhand and Rajasthan checked live against their recent-enrolment lists (older enrolments not published by those councils). Migration 0103.
 
 - Bar Council verification, phase 2 (2026-11-11): automatic roll check for Karnataka, Andhra Pradesh and Gujarat ("Check with the Bar Council" in onboarding, and again when onboarding finishes). New "inactive" outcome for advocates the roll lists as died, retired, suspended or transferred. Kerala and MP block automated checks; UP not built (result layout unconfirmed).
