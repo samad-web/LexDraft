@@ -161,3 +161,4 @@
 - Unit: check-brief 5/5 (label kept to list, ≤6 trimmed items, question → none, no-rewrite + injection rule in prompt, non-JSON safe); BriefCheckNote 3/3.
 - Live: 4 briefs (s.138, loan notice, sale deed, a question) → right document, concrete missing facts, none already given; ~12 s each.
 - Regression: API 870 pass (1 known anthropic-failover fail from another session's uncommitted anthropic-client.ts); web 79/79.
+- 2026-11-11 - Land Records sketch + Tamil fix: flow fixtures 12/12 on Playwright's headless shell AND full Chromium (CHROMIUM_PATH, as prod). New: single-use sketch PDF is kept byte-for-byte, served once.

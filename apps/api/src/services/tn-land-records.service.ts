@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
 import { HttpError } from '../lib/errors';
@@ -965,6 +965,22 @@ async function submitAndRead(s: Session): Promise<LandResult> {
   const { page } = s;
   const from = s.dialogs.length;
   const popup = cfg.popup ? s.context.waitForEvent('page', { timeout: 40_000 }).catch(() => null) : null;
+  // The sketch window's document link is single-use, and Chromium's PDF
+  // viewer keeps the bytes to itself - so keep them as they pass through.
+  const sketch: { pdf: Buffer | null } = { pdf: null };
+  const keepSketch = async (route: Route): Promise<void> => {
+    // A new window's first request has no page yet - that is the sketch.
+    let fromPopup = true;
+    try { fromPopup = route.request().frame().page() !== page; } catch { /* no page yet */ }
+    if (!fromPopup) return route.fallback();
+    const res = await route.fetch().catch(() => null);
+    if (!res) return route.abort();
+    const body = await res.body();
+    const at = body.indexOf('%PDF-');
+    if (at >= 0 && at < 1024) sketch.pdf = body.subarray(at);
+    return route.fulfill({ response: res, body });
+  };
+  if (cfg.popup) await s.context.route('**/*', keepSketch);
   const download = page.waitForEvent('download', { timeout: 40_000 }).catch(() => null);
   // Any new document in the main frame counts - the site posts back to the
   // same URL on a second try, so "URL changed" is not enough.
@@ -1005,7 +1021,11 @@ async function submitAndRead(s: Session): Promise<LandResult> {
       nav.then((moved) => (moved ? null : new Promise<null>(() => {}))),
       alerted.then((a) => (a ? null : new Promise<null>(() => {}))),
     ]);
-    if (opened) return readPopup(s, opened);
+    try {
+      if (opened) return await readPopup(s, opened, sketch);
+    } finally {
+      await s.context.unroute('**/*', keepSketch).catch(() => {});
+    }
     const msg = lastDialog(s, from);
     if (msg) throw new LandRecordsError(400, `Land Records: ${msg}`, /otp/i.test(msg) ? 'OTP_REJECTED' : 'LAND_RECORDS');
   }
@@ -1178,19 +1198,31 @@ async function readResultPage(s: Session): Promise<LandResult> {
   return s.result;
 }
 
-async function readPopup(s: Session, popup: Page): Promise<LandResult> {
+async function readPopup(s: Session, popup: Page, sketch: { pdf: Buffer | null }): Promise<LandResult> {
   const cfg = LAND_SERVICES[s.service];
   let bytes: Buffer | null = null;
   try {
     // The window may have finished loading before we looked, so ask it what
-    // it holds rather than waiting for its response.
-    await popup.waitForLoadState('domcontentloaded', { timeout: 30_000 });
-    const type = await popup.evaluate(() => document.contentType ?? '').catch(() => '');
-    if (/pdf/i.test(type)) {
+    // it holds rather than waiting for its response. A PDF it was sent may
+    // never "load" (a browser can treat it as a download) - that is enough.
+    const arrived = (async () => { for (let i = 0; i < 300 && !sketch.pdf; i++) await new Promise((r) => setTimeout(r, 100)); })();
+    await Promise.race([popup.waitForLoadState('domcontentloaded', { timeout: 30_000 }), arrived]);
+    bytes = sketch.pdf;
+    const type = bytes ? '' : await popup.evaluate(() => document.contentType ?? '').catch(() => '');
+    // A PDF (shown by the viewer, or embedded in a page): the document as it
+    // arrived, never a print of the viewer.
+    const holdsDocument = !bytes && (/pdf/i.test(type) || await popup.evaluate(() => Boolean(document.querySelector('embed, object, iframe'))).catch(() => false));
+    if (holdsDocument) {
+      await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
+      for (let i = 0; i < 30 && !sketch.pdf; i++) await popup.waitForTimeout(100);
+      bytes = sketch.pdf;
+    }
+    if (!bytes && /pdf/i.test(type)) {
       // A PDF viewer page: fetch the document itself in the same session.
       bytes = await fetchInPage(popup, popup.url());
     }
-    if (!bytes) {
+    // A print of the PDF viewer is its toolbar, not the sketch - never use it.
+    if (!bytes && !/pdf/i.test(type)) {
       await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
       // Collabland draws the sketch with script; give it a moment.
       await popup.waitForTimeout(800);
@@ -1200,6 +1232,7 @@ async function readPopup(s: Session, popup: Page): Promise<LandResult> {
   } catch (err) {
     logger.warn({ err }, 'tn-land: sketch window failed');
   }
+  bytes ??= sketch.pdf;
   await popup.close().catch(() => {});
   if (!bytes || bytes.indexOf('%PDF-') < 0) throw new LandRecordsError(502, 'The sketch did not open from Land Records - try again.');
   s.pdf = bytes.subarray(bytes.indexOf('%PDF-'));

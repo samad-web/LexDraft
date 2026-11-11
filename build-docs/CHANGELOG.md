@@ -59,3 +59,4 @@
 - fix(open-drafting): F6 findings. Today's date is never the document date; inferred places bracketed; computable figures worked out; no saved limitation unless stated; section cited alone unless certain; review drops notes that misstate the law; picker judges by the main relief.
 - fix(drafting): stand-in dates read "[date to be provided]", one gap style the missing-details panel recognises.
 - fix(engine): adjournment petition f-string broke the Python 3.11 server image; guard test added.
+- Land Records fixes: Tamil extracts (Patta) printed as boxes on the server - Tamil/Devanagari Noto fonts added to the API image; FMB/TSLR sketch kept as the PDF the site sent (its link is single-use) instead of a print of Chromium's PDF viewer.

@@ -9,10 +9,13 @@
  *     form posted back with "Invalid otp" in its .fadeout slot
  *   - Order Copy: #sub_id holds a captcha (#captEntr) + submit
  *   - FMB sketch: #sub_id holds a button (validate_fmb) -> alert, or a new
- *     window with the sketch
+ *     window with the sketch (served by a local server: the service re-requests
+ *     the sketch window's documents itself, so route fixtures can't serve it)
  * The real service code drives them (no live site, no OTP sent, no DB).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import {
   __testing, landSessionPdf, loadSubdivisions, selectLandField, sendLandOtp, submitLandCaptcha, verifyLandOtp, LandRecordsError,
@@ -53,7 +56,7 @@ const otpForm = (opts: { action: string; sub: string; extraTop?: string; message
   function validate_fmb(mode) {
     setTimeout(function () {
       if (mode === 'alert') alert('Invalid OTP');
-      else window.open('${FX}/sketch', '_blank');
+      else window.open(mode, '_blank');
     }, 300);
     return false;
   }
@@ -96,8 +99,32 @@ async function code(p: Promise<unknown>): Promise<string> {
   try { await p; return 'resolved'; } catch (e) { return e instanceof LandRecordsError ? e.code : String(e); }
 }
 
-beforeAll(async () => { browser = await chromium.launch({ headless: true }); });
-afterAll(async () => { await browser?.close(); });
+// The sketch window's server. /sketch.pdf is single-use, like Collabland's link.
+let sketchServer: Server;
+let SKETCH = '';
+let sketchPdf: Buffer;
+let pdfServed = 0;
+
+beforeAll(async () => {
+  // CHROMIUM_PATH = production's full Chromium (with its PDF viewer).
+  browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
+  const p = await browser.newPage();
+  await p.setContent('<h1>FMB Sketch 685/10</h1>');
+  sketchPdf = await p.pdf({ format: 'A4' });
+  await p.close();
+  sketchServer = createServer((req, res) => {
+    if (req.url === '/sketch.pdf' && pdfServed++ === 0) {
+      res.writeHead(200, { 'content-type': 'application/pdf' }).end(sketchPdf);
+    } else if (req.url === '/sketch.html') {
+      res.writeHead(200, { 'content-type': 'text/html' }).end('<!doctype html><html><body><h1>FMB Sketch</h1><svg width="200" height="100"><rect width="200" height="100"/></svg></body></html>');
+    } else {
+      res.writeHead(200, { 'content-type': 'text/html' }).end('<html><body>Link expired</body></html>');
+    }
+  });
+  await new Promise<void>((r) => sketchServer.listen(0, '127.0.0.1', r));
+  SKETCH = `http://127.0.0.1:${(sketchServer.address() as AddressInfo).port}`;
+});
+afterAll(async () => { await browser?.close(); sketchServer?.close(); });
 
 describe('OTP services follow the site', () => {
   const pattaRoutes = (resultMode: 'ok' | 'invalid') => ({
@@ -291,14 +318,27 @@ describe('OTP services follow the site', () => {
 
   it('FMB: the site button opens the sketch window -> PDF', async () => {
     const { ctx, page } = await open('/fmb', {
-      '/fmb': () => otpForm({ action: `${FX}/never`, sub: '<input type="button" onclick="return validate_fmb(\'ok\');" value="Submit">' }),
-      '/sketch': () => '<!doctype html><html><body><h1>FMB Sketch</h1><svg width="200" height="100"><rect width="200" height="100"/></svg></body></html>',
+      '/fmb': () => otpForm({ action: `${FX}/never`, sub: `<input type="button" onclick="return validate_fmb('${SKETCH}/sketch.html');" value="Submit">` }),
       '/never': () => otpForm({ action: `${FX}/never`, sub: '', message: 'Invalid otp' }),
     });
     const id = __testing.adoptPage(page, ctx, 'fmb', USER);
     const out = await verifyLandOtp(id, USER, '123456');
     expect(out.status).toBe('ok');
-    expect(landSessionPdf(id, USER).pdf.subarray(0, 5).toString()).toBe('%PDF-');
+    const sketch = await pdfText(landSessionPdf(id, USER).pdf);
+    expect(sketch).toContain('FMB Sketch');
+    await ctx.close();
+  });
+
+  it('FMB: a single-use sketch PDF is kept as it arrived, never a print of the PDF viewer', async () => {
+    pdfServed = 0;
+    const { ctx, page } = await open('/fmb', {
+      '/fmb': () => otpForm({ action: `${FX}/never`, sub: `<input type="button" onclick="return validate_fmb('${SKETCH}/sketch.pdf');" value="Submit">` }),
+    });
+    const id = __testing.adoptPage(page, ctx, 'fmb', USER);
+    const out = await verifyLandOtp(id, USER, '123456');
+    expect(out.status).toBe('ok');
+    expect(landSessionPdf(id, USER).pdf.equals(sketchPdf)).toBe(true);
+    expect(pdfServed).toBe(1);
     await ctx.close();
   });
 

@@ -102,7 +102,8 @@ WORKDIR /app
 # breaks and page count) match:
 #   - font-carlito   -> Calibri  (same metrics)
 #   - ttf-liberation  -> Liberation Mono/Serif/Sans (Courier/Times/Arial metrics)
-#   - font-noto       -> Devanagari/Tamil coverage for Indian-language party names.
+#   - font-noto + font-noto-tamil/-devanagari -> Indian scripts (party names; Tamil
+#     Land Records extracts print as boxes without font-noto-tamil).
 # font-caladea (Cambria substitute) was DROPPED from this list (2026-10): it no
 # longer exists in Alpine's repo at all (confirmed via `apk search caladea` /
 # `apk search crosextra` returning nothing - not a rename, genuinely removed
@@ -125,6 +126,8 @@ RUN apk add --no-cache tini wget \
       font-carlito \
       ttf-liberation \
       font-noto \
+      font-noto-tamil \
+      font-noto-devanagari \
       chromium \
       nss \
  && ln -s "$(command -v chromium || command -v chromium-browser)" /usr/local/bin/lexdraft-chromium \
