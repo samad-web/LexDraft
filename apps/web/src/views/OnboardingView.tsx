@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
 import { readIntro } from '@/lib/intro';
+import { TnBarVerify, useBarCouncils } from '@/components/BarCouncilVerify';
 
 // =============================================================================
 // /onboarding - shown once, right after a new account is created. Three steps
@@ -210,6 +211,9 @@ export function OnboardingView() {
   // Step 3
   const [docType, setDocType] = useState<DocType>('bar_council_id');
   const [docNumber, setDocNumber] = useState('');
+  const [barCouncil, setBarCouncil] = useState('');
+  const [enrolmentNo, setEnrolmentNo] = useState('');
+  const councils = useBarCouncils().data?.councils ?? [];
   const idDoc = useUpload('id');
   const idInput = useRef<HTMLInputElement>(null);
   const [gstin, setGstin] = useState('');
@@ -222,11 +226,17 @@ export function OnboardingView() {
   const practice = plan === 'practice';
   const docOptions = DOC_TYPES[student ? 'student' : 'advocate'];
   const doc = docOptions.find((d) => d.value === docType) ?? docOptions[0]!;
+  // The Bar Council ID / enrolment certificate number *is* the enrolment number; other IDs need it separately.
+  const barDoc = doc.value === 'bar_council_id' || doc.value === 'enrolment_certificate';
+  const enrolment = (barDoc ? docNumber : enrolmentNo).replace(/\s/g, '').toUpperCase();
+  const council = councils.find((c) => c.id === barCouncil);
 
   const problem =
     step === 1 ? (practice && !firm.trim() ? 'Enter your firm name'
       : student && !college.trim() ? 'Enter your college or university' : null)
-    : step === 2 ? (docNumberProblem(doc.value, docNumber)
+    : step === 2 ? ((!student && !barCouncil ? 'Choose your State Bar Council' : null)
+      ?? (!student && !barDoc && enrolment.length < 3 ? 'Enter your enrolment number' : null)
+      ?? docNumberProblem(doc.value, docNumber)
       ?? (gstin.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(gstin.trim().toUpperCase()) ? 'Enter a valid GSTIN or leave it empty' : null)
       ?? (pincode.trim() && !/^\d{6}$/.test(pincode.trim()) ? 'Enter a valid 6-digit pincode' : null)
       ?? (idDoc.busy || logo.busy ? 'Uploading…' : null))
@@ -244,6 +254,8 @@ export function OnboardingView() {
         kind: plan === 'free' ? kind : undefined,
         firm: student ? undefined : firm.trim() || undefined,
         primaryCourt: student ? undefined : primaryCourt.trim() || undefined,
+        barCouncil: student ? undefined : barCouncil || undefined,
+        enrolment: student ? undefined : enrolment || undefined,
         practiceAreas: areas.length ? areas.join(', ') : undefined,
         teamSize: practice ? teamSize || undefined : undefined,
         college: student ? college.trim() || undefined : undefined,
@@ -466,6 +478,25 @@ export function OnboardingView() {
                 We verify every {student ? 'student' : 'advocate'} to keep DifAi trusted{student ? '.' : ', and use your address and GSTIN for GST-compliant invoices.'}
               </p>
               <div className="card" style={{ padding: 28, marginTop: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {!student && (
+                  <div className="onb-grid-2">
+                    <Field label="State Bar Council" required htmlFor="onb-council">
+                      <select id="onb-council" className="input" value={barCouncil} onChange={(e) => setBarCouncil(e.target.value)}>
+                        <option value="">Select…</option>
+                        {councils.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    </Field>
+                    {!barDoc && (
+                      <Field label="Enrolment number" required htmlFor="onb-enrol">
+                        <input id="onb-enrol" className="input mono" value={enrolmentNo} onChange={(e) => setEnrolmentNo(e.target.value)} placeholder="MS/1234/2018" />
+                      </Field>
+                    )}
+                  </div>
+                )}
+                {!student && council?.mode === 'otp' && enrolment.length >= 3 && <TnBarVerify enrolmentNo={enrolment} />}
+                {!student && council?.mode === 'none' && (
+                  <p className="body-xs" style={{ margin: 0, color: 'var(--text-secondary)' }}>{council.note} Your account works normally and shows as unverified.</p>
+                )}
                 <div className="onb-grid-2">
                   <Field label="Document type" htmlFor="onb-doctype">
                     <select id="onb-doctype" className="input" value={doc.value} onChange={(e) => { setDocType(e.target.value as DocType); setDocNumber(''); }}>

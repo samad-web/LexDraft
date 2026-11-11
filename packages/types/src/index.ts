@@ -1109,6 +1109,9 @@ export interface AdminUserSummary {
   idDocumentType?: string | null;
   idDocumentNumber?: string | null;
   hasIdDocument?: boolean;
+  /** Bar Council check (migration 0102): council id + verified | not_found | name_mismatch | unavailable | unsupported, null = not checked. */
+  barCouncil?: string | null;
+  barVerificationStatus?: string | null;
   gstin?: string | null;
   addressLine?: string | null;
   pincode?: string | null;
@@ -1204,6 +1207,8 @@ export interface AdminBillingSummary {
  *  /onboarding after the account is created. */
 export interface OnboardingCompleteRequest {
   plan: 'free' | 'solo' | 'practice';
+  /** Advocates: State Bar Council id (apps/api/src/lib/bar-councils.ts). */
+  barCouncil?: string;
   cycle?: BillingCycle;
   /** Free plan only: advocate or law student. */
   kind?: 'advocate' | 'student';

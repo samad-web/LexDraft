@@ -50,6 +50,7 @@ import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
 import { billingRouter } from './billing.routes';
 import { onboardingRouter } from './onboarding.routes';
+import { barVerificationRouter } from './bar-verification.routes';
 import { notificationsRouter } from './notifications.routes';
 import { teamChatRouter } from './team-chat.routes';
 import { meMfaRouter } from './me-mfa.routes';
@@ -204,6 +205,7 @@ apiRouter.use('/diary-assistant', requireAuth, requireActivePlan, diaryAssistant
 apiRouter.use('/archive',     requireAuth, requireActivePlan, archiveRouter);
 apiRouter.use('/physical-documents', requireAuth, requireActivePlan, physicalDocumentsRouter);
 apiRouter.use('/analytics',   requireAuth, requireActivePlan, analyticsRouter);
+apiRouter.use('/me/bar-verification', requireAuth, barVerificationRouter);
 apiRouter.use('/me',          requireAuth, meRouter);
 // Plan & billing (Dodo Payments). Mixed: the webhook and renew-checkout are
 // public, the rest require auth. No requireActivePlan so lapsed firms can pay.

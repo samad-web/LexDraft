@@ -47,6 +47,16 @@ function profileLine(u: AdminUserSummary): string {
   return [...parts, place].filter(Boolean).join(' · ');
 }
 
+const BAR_STATUS_LABEL: Record<string, string> = {
+  verified: 'Verified',
+  not_found: 'Not found on the roll',
+  name_mismatch: 'Name does not match the roll',
+  unavailable: 'Council site did not answer',
+  unsupported: 'Council has no automatic check',
+};
+const barStatus = (u: AdminUserSummary): string =>
+  u.barVerificationStatus ? BAR_STATUS_LABEL[u.barVerificationStatus] ?? u.barVerificationStatus : u.barCouncil ? 'Not checked yet' : '';
+
 /** Every sign-up detail, in the order the panel and the CSV show them. */
 function detailRows(u: AdminUserSummary): [string, string][] {
   return [
@@ -58,6 +68,8 @@ function detailRows(u: AdminUserSummary): [string, string][] {
     ['Role', u.role],
     ['Firm', u.firmName ?? ''],
     ['Enrolment no.', u.enrolment ?? ''],
+    ['Bar Council', u.barCouncil ?? ''],
+    ['Bar Council check', barStatus(u)],
     ['Primary court', u.primaryCourt ?? ''],
     ['Practice areas', u.practiceAreas ?? ''],
     ['College', u.college ?? ''],
@@ -310,6 +322,11 @@ export function UsersView() {
                   </button>
                   {u.isSuperadmin && <span className="badge badge-vermillion mono" style={{ marginLeft: 8, fontSize: 9 }}>SUPER</span>}
                   {u.accountType && <span className="badge mono" style={{ marginLeft: 8, fontSize: 9 }}>{ACCOUNT_TYPE_LABEL[u.accountType]}</span>}
+                  {u.barCouncil && (
+                    <span className="badge mono" title={barStatus(u)} style={{ marginLeft: 8, fontSize: 9 }}>
+                      {u.barVerificationStatus === 'verified' ? 'BAR VERIFIED' : 'UNVERIFIED'}
+                    </span>
+                  )}
                   <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>
                     {[u.role, u.firmName].filter(Boolean).join(' · ')}
                   </div>

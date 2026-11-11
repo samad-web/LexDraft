@@ -19,6 +19,7 @@ const Complete = z.object({
   college: z.string().max(200).optional(),
   studyYear: z.string().max(40).optional(),
   teamSize: z.string().max(40).optional(),
+  barCouncil: z.string().max(40).optional(),
   idDocumentType: z.enum(['bar_council_id', 'enrolment_certificate', 'student_id', 'aadhaar', 'pan']).optional(),
   idDocumentNumber: z.string().max(60).optional(),
   idDocumentKey: z.string().max(300).optional(),

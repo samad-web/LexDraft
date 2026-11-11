@@ -1,5 +1,11 @@
 # Testing
 
+## Bar Council verification, phase 1 (Tamil Nadu) — 2026-11-11 (features/bar-council-verification.md)
+- New `bar-councils.test.ts` 8/8: enrolment parsing/equality (prefix, leading zeros, separators, year), name matching (initials, titles, run-together, different person rejected), TN payload reading (list and `{record}`), verify only on number + name, nameless row proves nothing, council list sanity. Passed first run.
+- Live page dry run (bctnpy.org, nothing submitted, no OTP sent): every selector the service uses exists; search defaults to "Enrolment Number".
+- Not run: a real end-to-end TN check (needs a real enrolment number + the advocate's phone for the council's OTP). The council's result keys (fullName, bcteno, bcteDate, status) come from its page code, not a live response.
+- Regression: API unit 882 pass / 1 fail (`anthropic-failover`, pre-existing, see 2026-11-10); web tsc 0.
+
 ## Co-Counsel lockdown — 2026-11-10 (features/co-counsel-lockdown.md)
 - New `co-counsel.integration.test.ts` (local PG16, throwaway schema): 13/13 — AC1 guest gets no firm-A case/document/client via firm-scoped services, guest view shows shared notes only, other case 404; AC2 forwarded link refused for another verified number (incl. new-account path: no stray account); AC3 existing user accepts onto own firm, single use; AC4 revoke → case page/list/chat gone, firm member unaffected, only requester/head; AC5 leave; AC6 chat from grant date only; AC7 expiry; AC8 cross-firm existingUserId → 400; AC9 teammate handoff unchanged.
 - `co-counsel.service.test.ts` 12/12 (incl. `assertClaimant`). Passed first run; no logic fixes needed.

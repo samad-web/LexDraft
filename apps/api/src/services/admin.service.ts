@@ -152,6 +152,9 @@ interface UserRow {
   id_document_type?: string | null;
   id_document_number?: string | null;
   has_id_document?: boolean | null;
+  /** Migration 0102. */
+  bar_council?: string | null;
+  bar_verification_status?: string | null;
   gstin?: string | null;
   address_line?: string | null;
   pincode?: string | null;
@@ -222,6 +225,8 @@ function rowToUserSummary(r: UserRow): AdminUserSummary {
     idDocumentType: r.id_document_type ?? null,
     idDocumentNumber: r.id_document_number ?? null,
     hasIdDocument: !!r.has_id_document,
+    barCouncil: r.bar_council ?? null,
+    barVerificationStatus: r.bar_verification_status ?? null,
     gstin: r.gstin ?? null,
     addressLine: r.address_line ?? null,
     pincode: r.pincode ?? null,
@@ -284,6 +289,7 @@ export const adminService = {
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
              f.renews_at, f.billing_cycle, f.selected_plan,
              u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.bar_council, u.bar_verification_status,
              u.gstin, u.address_line, u.pincode
         from users u left join firms f on f.id = u.firm_id
         where u.firm_id = ${id}::uuid
@@ -583,6 +589,7 @@ export const adminService = {
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
              f.renews_at, f.billing_cycle, f.selected_plan,
              u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.bar_council, u.bar_verification_status,
              u.gstin, u.address_line, u.pincode
       from users u
       left join firms f on f.id = u.firm_id
@@ -690,6 +697,7 @@ export const adminService = {
              f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
              f.renews_at, f.billing_cycle, f.selected_plan,
              u.id_document_type, u.id_document_number, (u.id_document_key is not null) as has_id_document,
+             u.bar_council, u.bar_verification_status,
              u.gstin, u.address_line, u.pincode
       from users u left join firms f on f.id = u.firm_id
       where u.id = ${id}::uuid limit 1

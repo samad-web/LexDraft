@@ -1,5 +1,7 @@
 # Changelog
 
+- Bar Council verification, phase 1 (2026-11-11): onboarding asks advocates for their State Bar Council (all 24 listed). Tamil Nadu & Puducherry advocates can verify on the spot: DifAi runs the council's own search, the council SMSes them an OTP, and the record (name, enrolment no./date, status) must match their number and name. Other councils are saved as "no automatic check" for now. Admin → Users shows BAR VERIFIED / UNVERIFIED. Migration 0102 (applied locally only).
+
 - Co-Counsel lockdown (2026-11-10): an outside advocate gets exactly one case. Share link/QR is bound to their WhatsApp number (a forwarded link is refused); existing DifAi users accept from the link (was a dead end); "Remove access" on the Co-counsel tab and "Leave this matter" for the guest; guests see the matter chat only from the day they joined; expired links show Expired. Removed the unused email-invite and cross-firm-user API paths. Migration 0101.
 
 - Draft box "Check what's missing" (2026-11-10): lists up to 6 facts the detected document still needs; the advocate's text is never rewritten.
