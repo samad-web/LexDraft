@@ -12,12 +12,12 @@ const TIMEOUT_MS = 20_000;
 const str = (v: unknown): string | undefined => (v == null || String(v).trim() === '' ? undefined : String(v).trim());
 const stripTags = (h: string): string => h.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 
-async function post(url: string, body: string, contentType: string): Promise<string> {
+async function post(url: string, body: string, contentType: string, timeoutMs = TIMEOUT_MS): Promise<string> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': contentType, 'User-Agent': UA },
     body,
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`${new URL(url).host} answered ${res.status}`);
   return res.text();
@@ -126,7 +126,8 @@ export const LIVE_LOOKUPS: Record<string, LiveLookup> = {
   },
   ap: {
     source: 'barcouncilap.org',
+    // Its search takes 20-32 s per answer (measured 2026-11-11 from the server and a laptop).
     lookup: async (no) => parseAndhra(await post('https://barcouncilap.org/wp-admin/admin-ajax.php',
-      new URLSearchParams({ action: 'get_details_enrl', enumber: no }).toString(), 'application/x-www-form-urlencoded')),
+      new URLSearchParams({ action: 'get_details_enrl', enumber: no }).toString(), 'application/x-www-form-urlencoded', 45_000)),
   },
 };
