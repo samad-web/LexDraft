@@ -56,6 +56,15 @@ const otpForm = (opts: { action: string; sub: string; extraTop?: string; message
   function validate_fmb(mode) {
     setTimeout(function () {
       if (mode === 'alert') alert('Invalid OTP');
+      else if (mode.indexOf('blob:') === 0) {
+        // The page holds the sketch itself and shows it in a new window as a blob.
+        var w = window.open('', '_blank');
+        var bin = atob(mode.slice(5)), bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        setTimeout(function () {
+          w.document.write('<embed type="application/pdf" width="800" height="600" src="' + URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })) + '">');
+        }, 200);
+      }
       else window.open(mode, '_blank');
     }, 300);
     return false;
@@ -339,6 +348,17 @@ describe('OTP services follow the site', () => {
     expect(out.status).toBe('ok');
     expect(landSessionPdf(id, USER).pdf.equals(sketchPdf)).toBe(true);
     expect(pdfServed).toBe(1);
+    await ctx.close();
+  });
+
+  it('FMB: a sketch the page embeds as a blob in a new window is that PDF, never a print of the viewer', async () => {
+    const { ctx, page } = await open('/fmb', {
+      '/fmb': () => otpForm({ action: `${FX}/never`, sub: `<input type="button" onclick="return validate_fmb('blob:${sketchPdf.toString('base64')}');" value="Submit">` }),
+    });
+    const id = __testing.adoptPage(page, ctx, 'fmb', USER);
+    const out = await verifyLandOtp(id, USER, '123456');
+    expect(out.status).toBe('ok');
+    expect(landSessionPdf(id, USER).pdf.equals(sketchPdf)).toBe(true);
     await ctx.close();
   });
 

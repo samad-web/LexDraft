@@ -60,3 +60,4 @@
 - fix(drafting): stand-in dates read "[date to be provided]", one gap style the missing-details panel recognises.
 - fix(engine): adjournment petition f-string broke the Python 3.11 server image; guard test added.
 - Land Records fixes: Tamil extracts (Patta) printed as boxes on the server - Tamil/Devanagari Noto fonts added to the API image; FMB/TSLR sketch kept as the PDF the site sent (its link is single-use) instead of a print of Chromium's PDF viewer.
+- 2026-11-11 fix(land-records): FMB sketch shown in a viewer/iframe (blob or embed) is fetched as the PDF, never printed; Download PDF also at the top; nav label "TN Land Records".

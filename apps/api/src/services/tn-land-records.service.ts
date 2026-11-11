@@ -1,4 +1,4 @@
-import { chromium, type Browser, type BrowserContext, type Page, type Route } from 'playwright';
+import { chromium, type Browser, type BrowserContext, type Frame, type Page, type Route } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import { logger } from '../logger';
 import { HttpError } from '../lib/errors';
@@ -1081,7 +1081,7 @@ interface PageEl {
 
 /** Fetch a URL from inside the page, as its own scripts would - same
  *  cookies and session as the visit. Null on failure. */
-async function fetchInPage(page: Page, url: string): Promise<Buffer | null> {
+async function fetchInPage(page: Page | Frame, url: string): Promise<Buffer | null> {
   const b64 = await page.evaluate(async (u) => {
     const r = await fetch(u, { credentials: 'include' });
     if (!r.ok) return null;
@@ -1217,15 +1217,29 @@ async function readPopup(s: Session, popup: Page, sketch: { pdf: Buffer | null }
       for (let i = 0; i < 30 && !sketch.pdf; i++) await popup.waitForTimeout(100);
       bytes = sketch.pdf;
     }
-    if (!bytes && /pdf/i.test(type)) {
-      // A PDF viewer page: fetch the document itself in the same session.
-      bytes = await fetchInPage(popup, popup.url());
-    }
-    // A print of the PDF viewer is its toolbar, not the sketch - never use it.
-    if (!bytes && !/pdf/i.test(type)) {
+    // A PDF in the window or in a frame of it (the site can show the sketch
+    // in an iframe, even as a blob: URL): fetch that document in the same
+    // session. Printing it would only print the viewer's toolbar.
+    let viewer = false;
+    if (!bytes) {
       await popup.waitForLoadState('load', { timeout: 30_000 }).catch(() => {});
-      // Collabland draws the sketch with script; give it a moment.
+      // Collabland draws the sketch (or writes its viewer) with script; give it a moment.
       await popup.waitForTimeout(800);
+    }
+    for (const frame of bytes ? [] : popup.frames()) {
+      const kind = await frame.evaluate(() => document.contentType ?? '').catch(() => '');
+      const pdfEmbed = await frame.evaluate(() => {
+        const el = document.querySelector('embed[type*="pdf"], object[type*="pdf"]');
+        return el ? el.getAttribute('src') ?? el.getAttribute('data') ?? document.URL : null;
+      }).catch(() => null);
+      if (!/pdf/i.test(kind) && !pdfEmbed) continue;
+      viewer = true;
+      bytes = await fetchInPage(frame, /pdf/i.test(kind) ? frame.url() : new URL(pdfEmbed!, frame.url()).toString());
+      if (bytes && bytes.indexOf('%PDF-') >= 0) break;
+      bytes = null;
+    }
+    bytes ??= sketch.pdf;
+    if (!bytes && !viewer && !/pdf/i.test(type)) {
       await popup.emulateMedia({ media: 'screen' });
       bytes = await popup.pdf({ format: 'A4', printBackground: true });
     }

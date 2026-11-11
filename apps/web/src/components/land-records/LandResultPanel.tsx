@@ -108,6 +108,13 @@ export function LandResultPanel({ sessionId, service, result, applicationId, onF
       <div className="card col lr-card" style={{ gap: 16, padding: 18 }}>
         <span className="ct-eyebrow" style={{ textAlign: 'center' }}>Land Records · fetched live</span>
         <h2 className="lr-result-title">{result.title}</h2>
+        {result.hasPdf ? (
+          <div className="row" style={{ justifyContent: 'center' }}>
+            <button type="button" className="btn" onClick={() => void download()} disabled={downloading}>
+              {downloading ? 'Preparing…' : 'Download PDF'}
+            </button>
+          </div>
+        ) : null}
         {!result.hasPdf || docFailed ? parsed : !doc ? (
           <p className="body-md muted" role="status" style={{ margin: 0, textAlign: 'center' }}><Spinner size={12} /> Loading the government document…</p>
         ) : (

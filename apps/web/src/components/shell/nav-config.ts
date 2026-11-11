@@ -95,7 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       { id: 'ecourts', label: 'eCourts', icon: 'ecourts', to: '/app/ecourts', requiresFeature: 'matter.view' },
       { id: 'efiling', label: 'eFiling', icon: 'efiling', to: '/app/efiling', requiresFeature: 'matter.view' },
-      { id: 'land-records', label: 'Land Records', icon: 'map', to: '/app/land-records', requiresFeature: 'matter.view' },
+      { id: 'land-records', label: 'TN Land Records', icon: 'map', to: '/app/land-records', requiresFeature: 'matter.view' },
     ],
   },
   {
@@ -267,7 +267,7 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   causelist:  { title: 'Hearings',        eyebrow: 'Cause list' },
   ecourts:    { title: 'eCourts',         eyebrow: 'Case search & court records' },
   efiling:    { title: 'eFiling',         eyebrow: 'National e-Filing portal' },
-  'land-records': { title: 'Land Records', eyebrow: 'Tamil Nadu Land Records eServices' },
+  'land-records': { title: 'TN Land Records', eyebrow: 'Tamil Nadu Land Records eServices' },
   stamp:      { title: 'Court Fee & Stamp', eyebrow: 'Stamp duty report (PDF)' },
   archive:    { title: 'Documents',       eyebrow: 'Closed matters' },
   firm:       { title: 'Firm Overview',   eyebrow: 'Chambers performance' },
