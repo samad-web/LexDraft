@@ -19,7 +19,7 @@ import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
-import { CycleToggle, PlanCards, SIGNUP_PLANS } from '@/components/PlanCards';
+import { CycleToggle, PlanCards, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
@@ -118,6 +118,8 @@ export function AuthView() {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const renewCheckout = useRenewCheckout();
   const [renewPlan, setRenewPlan] = useState<PaidPlanId>('solo');
+  const [renewSeats, setRenewSeats] = useState(2);
+  const chamberPlan = SIGNUP_PLANS.find((p) => p.id === 'practice')!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
   // Sign-up form. The landing page's "What's your name?" pre-fills the name.
   const signupStart = useEmailSignupStart();
@@ -483,12 +485,17 @@ export function AuthView() {
                     onSelect={(id) => setRenewPlan(id as PaidPlanId)}
                     compact
                   />
+                  {renewPlan === 'practice' && (
+                    <SeatPicker plan={chamberPlan} cycle={cycle} seats={renewSeats} min={2} onChange={setRenewSeats} />
+                  )}
                   {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
                   <button
                     type="button"
                     className="btn btn-primary btn-block"
                     disabled={renewCheckout.isPending}
-                    onClick={() => renewCheckout.mutate({ renewToken, plan: renewPlan, cycle })}
+                    onClick={() => renewCheckout.mutate(
+                      renewPlan === 'practice' ? { renewToken, plan: renewPlan, cycle, seats: renewSeats } : { renewToken, plan: renewPlan, cycle },
+                    )}
                   >
                     {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}
                   </button>

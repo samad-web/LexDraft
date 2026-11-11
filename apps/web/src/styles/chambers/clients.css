@@ -1152,3 +1152,20 @@
   [data-ui='chambers'] .cm-clients-tbl td:first-child { max-width: 220px; }
   [data-ui='chambers'] .cm-portal-actions { white-space: normal; flex-wrap: wrap; }
 }
+
+/* Drafts meter (pricing v2): monochrome, a thin track under one line of text. */
+[data-ui='chambers'] .cm-meter { display: flex; flex-direction: column; gap: 8px; }
+[data-ui='chambers'] .cm-meter-row { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+[data-ui='chambers'] .cm-meter-track { height: 4px; border-radius: 999px; background: var(--border-subtle); overflow: hidden; }
+[data-ui='chambers'] .cm-meter-fill { display: block; height: 100%; background: var(--text-primary); }
+[data-ui='chambers'] .cm-meter-note { margin: 0; font-size: 12.5px; color: var(--text-primary); font-weight: 600; }
+[data-ui='chambers'] .cm-meter--compact .cm-meter-row { font-size: 12px; color: var(--text-tertiary); }
+[data-ui='chambers'] .cm-usage {
+  padding: 18px 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+[data-ui='chambers'] .cm-seats { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+[data-ui='chambers'] .cm-seats select { min-height: 36px; padding: 0 10px; border: 1px solid var(--border-default, var(--border-subtle)); border-radius: var(--radius-md, 8px); background: var(--bg-surface); color: var(--text-primary); font: inherit; }
+[data-ui='chambers'] .cm-seats-total { color: var(--text-secondary); font-variant-numeric: tabular-nums; }

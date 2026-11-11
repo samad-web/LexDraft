@@ -18,14 +18,14 @@ export function CapExceededModal() {
 
   const { title, description, primaryLabel } = describeCap(cap);
   // No purchase prompts in the Android app (Play payments policy).
-  const upgradeTarget = cap.planTier === 'Firm' || isNativeApp() ? null : '/app/settings';
+  const upgradeTarget = cap.planTier === 'Firm' || isNativeApp() ? null : '/app/billing';
 
   return (
     <Modal
       open
       onClose={hide}
       title={title}
-      eyebrow={cap.kind === 'ai_quota' ? 'AI generation cap' : 'Seat cap'}
+      eyebrow={cap.kind === 'ai_quota' ? 'Monthly drafts' : 'Seat cap'}
       description={description}
       width={500}
       footer={
@@ -59,7 +59,7 @@ export function CapExceededModal() {
           {cap.planTier && (
             <div>
               <div className="eyebrow">Plan</div>
-              <div className="body-md">{cap.planTier}</div>
+              <div className="body-md">{planLabel(cap.planTier)}</div>
             </div>
           )}
           {cap.kind === 'ai_quota' && cap.resetsAt && (
@@ -81,11 +81,11 @@ function describeCap(cap: CapPromptModel): {
 } {
   if (cap.kind === 'ai_quota') {
     return {
-      title: 'Monthly AI drafts used up',
+      title: 'Drafting limit reached',
       description:
-        cap.planTier === 'Firm'
-          ? `You've used all ${cap.cap} AI drafts on your Firm plan this cycle. Drafts will be available again at your next renewal.`
-          : `You've used all ${cap.cap} AI drafts on your ${cap.planTier ?? 'current'} plan this cycle. Upgrade for a higher monthly cap, or wait for the cycle to renew.`,
+        `You've made all ${cap.cap} drafts on your ${planLabel(cap.planTier)} plan this month.`
+        + (cap.resetsAt ? ` Your limit renews on ${formatDate(cap.resetsAt)}.` : '')
+        + (cap.planTier === 'Firm' ? '' : ' Upgrade for more.'),
       primaryLabel: 'Upgrade plan',
     };
   }
@@ -106,4 +106,10 @@ function formatDate(iso: string): string {
   } catch {
     return iso.slice(0, 10);
   }
+}
+
+/** Plan names as advocates see them (`Practice` is sold as Chamber). */
+function planLabel(tier: string | null | undefined): string {
+  if (!tier) return 'current';
+  return tier === 'Practice' ? 'Chamber' : tier;
 }

@@ -191,6 +191,9 @@ const Schema = z.object({
   DODO_PRODUCT_SOLO_ANNUAL: z.string().optional().default(''),
   DODO_PRODUCT_PRACTICE_MONTHLY: z.string().optional().default(''),
   DODO_PRODUCT_PRACTICE_ANNUAL: z.string().optional().default(''),
+  /** Dodo add-on ids for each extra Chamber advocate beyond the 2 included. */
+  DODO_ADDON_CHAMBER_SEAT_MONTHLY: z.string().optional().default(''),
+  DODO_ADDON_CHAMBER_SEAT_ANNUAL: z.string().optional().default(''),
   /** Self-serve email + password sign-up. New accounts are meant to come in
    *  through Google + WhatsApp OTP, so this is off in production unless set
    *  to 'true'; outside production it stays on unless set to 'false' (the
@@ -337,6 +340,10 @@ export const env = {
     products: {
       solo: { monthly: parsed.data.DODO_PRODUCT_SOLO_MONTHLY, annual: parsed.data.DODO_PRODUCT_SOLO_ANNUAL },
       practice: { monthly: parsed.data.DODO_PRODUCT_PRACTICE_MONTHLY, annual: parsed.data.DODO_PRODUCT_PRACTICE_ANNUAL },
+    },
+    chamberSeatAddon: {
+      monthly: parsed.data.DODO_ADDON_CHAMBER_SEAT_MONTHLY,
+      annual: parsed.data.DODO_ADDON_CHAMBER_SEAT_ANNUAL,
     },
   },
   passwordSignupEnabled: parsed.data.NODE_ENV === 'production'

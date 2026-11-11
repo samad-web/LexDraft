@@ -12,8 +12,8 @@ export const FREE_PLAN_ENDS_AT = new Date('2027-06-01T23:59:59+05:30');
 /** Stored files per free account. */
 export const FREE_STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
 
-/** Free accounts have no AI drafting cap; this stands in for "unlimited". */
-export const FREE_AI_MONTHLY_CAP = 1_000_000;
+/** Drafts per advocate per month on a free account (pricing v2, migration 0104). */
+export const FREE_AI_MONTHLY_CAP = 30;
 
 export type FreePlanSwitch = 'team_chat' | 'analytics' | 'limitation' | 'co_counsel';
 

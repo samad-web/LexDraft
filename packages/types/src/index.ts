@@ -1142,6 +1142,13 @@ export interface BillingPlan {
   features: string[];
   /** Can be bought online right now (product configured). */
   purchasable: boolean;
+  /** Drafts each advocate can make per month; null = custom (firm). */
+  draftsPerMonth: number | null;
+  /** Whether the shown price includes 18% GST; null = no price shown. */
+  gst: 'inclusive' | 'exclusive' | null;
+  /** Per-advocate pricing (Chamber): seats in the base price, the most bought
+   *  online, and the price of each extra advocate. Absent for one-seat plans. */
+  seats?: { included: number; max: number; extraMonthlyInr: number; extraAnnualMonthlyInr: number };
 }
 
 export interface BillingStateResponse {
@@ -1156,6 +1163,8 @@ export interface BillingStateResponse {
     selectedPlan: BillingPlanId | null;
     /** True once a Dodo subscription is attached. */
     subscribed: boolean;
+    /** Advocate seats the firm has (Chamber: 2 + extra seats bought). */
+    seats: number;
   };
   /** Online payment set up on the server. */
   paymentsEnabled: boolean;
@@ -1166,6 +1175,18 @@ export interface BillingStateResponse {
 export interface BillingCheckoutRequest {
   plan: PaidPlanId;
   cycle: BillingCycle;
+  /** Chamber only: advocates to pay for, 2-8. */
+  seats?: number;
+}
+
+/** GET /me/ai-quota: drafts used this cycle against the advocate's limit. */
+export interface AiQuotaStatus {
+  cap: number;
+  used: number;
+  remaining: number;
+  cycleStart: string;
+  cycleEnd: string;
+  planTier: FirmPlanTier | null;
 }
 
 export type BillingEventKind =

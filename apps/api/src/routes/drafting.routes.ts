@@ -1396,6 +1396,7 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         parsed.instruction,
       );
+      void aiQuotaService.countIntakeDraft(firmId, userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1457,6 +1458,7 @@ draftingRouter.post('/engine/intake/start-format', requireFeature('drafting.ai')
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         { save: parsed.save === true },
       );
+      void aiQuotaService.countIntakeDraft(firmId, userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1486,6 +1488,7 @@ draftingRouter.post('/engine/intake/start', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.start(parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       }, parsed.preset);
+      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1507,6 +1510,7 @@ draftingRouter.post('/engine/intake/reply', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.reply(parsed.matterId, parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       });
+      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1529,6 +1533,7 @@ draftingRouter.post('/engine/intake/draft-now', requireFeature('drafting.ai'), l
         ...ctx,
         ...(parsed.language ? { language: parsed.language } : {}),
       });
+      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
@@ -1582,6 +1587,7 @@ draftingRouter.post('/engine/intake/attach', requireFeature('drafting.ai'), llmG
       const state = await intakeService.attach(
         parsed.matterId, parsed.docLabel, parsed.files, parsed.caption ?? '', ctx,
       );
+      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
       res.json(state);
     } catch (err) {
       if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }

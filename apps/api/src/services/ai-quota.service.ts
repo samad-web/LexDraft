@@ -16,6 +16,7 @@
 
 import { db } from '../db/client';
 import { FREE_AI_MONTHLY_CAP } from '../lib/free-plan';
+import { logger } from '../logger';
 
 export type PlanTier = 'Solo' | 'Practice' | 'Firm';
 
@@ -38,10 +39,10 @@ export class AiQuotaExceededError extends Error {
 }
 
 // Demo-mode (no DATABASE_URL) cap fallbacks. These mirror the seed values in
-// migration 0045 so dev behaviour without Postgres approximates production.
+// migration 0104 so dev behaviour without Postgres approximates production.
 const DEMO_CAP_BY_TIER: Record<PlanTier, number> = {
-  Solo: 20,
-  Practice: 200,
+  Solo: 50,
+  Practice: 40,
   Firm: 1000,
 };
 
@@ -55,6 +56,7 @@ function calendarMonthBoundsUtc(now = new Date()): { start: Date; end: Date } {
 // dev. Keyed by userId, value is a list of generation timestamps within the
 // current cycle. Cleaned lazily on read.
 const memUsage = new Map<string, number[]>();
+const memKeys = new Set<string>();
 
 interface UsageRow {
   cycle_start: Date;
@@ -132,7 +134,7 @@ export const aiQuotaService = {
       from bounds b
     `;
 
-    // Free launch accounts draft without a monthly cap (lib/free-plan.ts).
+    // Free launch accounts have their own monthly limit (lib/free-plan.ts).
     const cap = row?.free_plan ? FREE_AI_MONTHLY_CAP : (row?.cap ?? 0);
     const used = Number(row?.used ?? 0);
     const cycleStart = row?.cycle_start ?? new Date();
@@ -187,6 +189,45 @@ export const aiQuotaService = {
          ${meta.provider ?? null}, ${meta.docType ?? null},
          ${meta.draftId ?? null})
     `;
+  },
+
+  /**
+   * Count one finished draft under a stable key (intake: `intake:<matter>:<doc>`).
+   * The same key never counts twice, so editing or re-rendering that draft is
+   * free and a new draft is not (migration 0104 unique index).
+   */
+  async recordOnce(
+    firmId: string | null,
+    userId: string,
+    sourceKey: string,
+    docType: string | null = null,
+  ): Promise<void> {
+    const sql = db();
+    if (!sql) {
+      if (memKeys.has(sourceKey)) return;
+      memKeys.add(sourceKey);
+      return this.record(firmId, userId, 'generate', { docType });
+    }
+    await sql`
+      insert into ai_generations (firm_id, user_id, kind, doc_type, source_key)
+      values (${firmId}, ${userId}::uuid, 'generate', ${docType}, ${sourceKey})
+      on conflict (source_key) where source_key is not null do nothing
+    `;
+  },
+
+  /**
+   * One finished intake document = one draft against the monthly limit. Keyed
+   * per matter + document, so edits and re-renders of that draft are free.
+   * Fire-and-forget: a failed count is logged and never fails the draft.
+   */
+  countIntakeDraft(
+    firmId: string | null,
+    userId: string,
+    state: { status: string; matterId: string; docLabel: string },
+  ): Promise<void> {
+    if (state.status !== 'generated') return Promise.resolve();
+    return this.recordOnce(firmId, userId, `intake:${state.matterId}:${state.docLabel}`, state.docLabel)
+      .catch((err) => logger.warn({ err, matterId: state.matterId }, 'intake draft count failed'));
   },
 
   /**

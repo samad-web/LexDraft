@@ -27,13 +27,15 @@
 - 2026-11-07 r13 — HRCP own-occupation ground is pleaded by its words under s.21(2) with no clause letter and no verify note (clause numbering after TN Act 19 of 2022 unconfirmed).
 - 2026-11-11 — AI cost: stay on Sonnet 5.5; cut cost only where a quality gate shows no change. Intake classify/phrase at effort `low`; extraction stays default (failed at `medium`). Switch: INTAKE_EFFORT_TUNED. features/ai-cost-efficiency.md.
 
+- 2026-11-11 — Pricing v2 phase A approved and built before payments go live (user: Dodo confirmed it accepts DifAi). Launch Dodo in test mode first, then live. Draft limits per advocate: Free 30, Solo 50, Chamber 40. Chamber ₹2,999/₹2,399 for 2 advocates + ₹899/₹719 per extra (Dodo add-on), online up to 8. Solo incl. GST, Chamber +18% GST. Intake drafts now counted once per matter+document (migration 0104, `ai_generations.source_key`). Internal plan id stays `practice`.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
 - Deploy only when the user says "deploy".
 
 ## Open questions
-- none. (eFiling redesign plan approved 2026-11-03.)
+- none.
 
 ## Known issues
 - 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.
@@ -41,3 +43,5 @@
 - 2026-11-08 (r14) - place fallback fills only signing/filing places (place, place_of_execution, execution_place, city, court_place, verification_place), never factual ones (accident_place, marriage_place); affidavit_kind is optional (engine-doc-contract.json needs regenerating).
 - 2026-11-08 (r15) - indigent unnamed respondents are numbered gaps "[name of respondent N to be provided]" (r12/r13 tests updated from unnumbered); co-heirs joined only if the brief names them (not built: no co-heir field). condone_delay: a "(i)"/"(v)"/"(x)" first sub-item is treated as roman and not re-lettered. affidavit before an authority: para 1 "I am the deponent herein and the applicant before the <authority>, ..." (shared/affidavit.docx standalone_role).
 - 2026-11-08 (b1-b4 v2) - interest with no stated agreement is pleaded as "the rate claimed by the plaintiff" (RATE_DOC_GAP only when the facts state an agreement); summary suit limitation is never a gap: Art. 35 on a cheque/bill/note, Art. 19 for a loan, Art. 55 otherwise; withBriefSignals backfills what the extractor drops (appeal particulars, agreement_registered, indigent value/share/property/co-heirs). copy_application 7 stays a named gap by decision. New optional fields need engine-doc-contract.json regenerated.
+- 2026-11-08 - Decision: format reader falls back to OpenAI when the Anthropic read fails (user has no Anthropic API credit). Exception to Sonnet-only. Advocates' uploaded formats then go to OpenAI. Anthropic's own read path remains untested until that key has credit.
+- 2026-11-09 - Open drafting built and tested locally (F1-F6), not deployed. Round 2: 94.9% vs plain AI 92.9%; invented facts 6 vs 49; wrong law 15 vs 13, mostly in notes. Law accuracy is the open gap: our sources do not confirm most provisions, so advocates must verify. Saved open drafts reopen without the label.

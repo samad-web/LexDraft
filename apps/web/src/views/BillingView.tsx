@@ -3,13 +3,19 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse } from '@lexdraft/types';
-import { CycleToggle, PlanCards } from '@/components/PlanCards';
+import { CycleToggle, PlanCards, SeatPicker } from '@/components/PlanCards';
+import { DraftMeter } from '@/components/DraftMeter';
 import { useBilling, useStartCheckout } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '-';
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** Plan names as advocates see them (`Practice` is sold as Chamber). */
+function tierLabel(tier: string | null): string {
+  return tier === 'Practice' ? 'Chamber' : tier ?? '';
 }
 
 /** The plan the account is on, in the same ids the plan cards use. */
@@ -22,12 +28,14 @@ function currentPlanId(c: BillingStateResponse['current']): BillingPlanId | null
 }
 
 function statusLine(c: BillingStateResponse['current']): string {
+  const tier = tierLabel(c.planTier);
   if (c.freePlan) return `Free plan · free till ${formatDate(c.trialEndsAt)}`;
-  if (c.planStatus === 'trial') return `${c.planTier} trial · ends ${formatDate(c.trialEndsAt)}`;
-  if (c.planStatus === 'past_due') return `${c.planTier} · payment due. Update your payment to keep access.`;
-  if (c.planStatus === 'cancelled') return `${c.planTier} · cancelled`;
+  if (c.planStatus === 'trial') return `${tier} trial · ends ${formatDate(c.trialEndsAt)}`;
+  if (c.planStatus === 'past_due') return `${tier} · payment due. Update your payment to keep access.`;
+  if (c.planStatus === 'cancelled') return `${tier} · cancelled`;
   const cycle = c.billingCycle === 'annual' ? 'yearly' : c.billingCycle === 'monthly' ? 'monthly' : null;
-  return `${c.planTier}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
+  const seats = c.planTier === 'Practice' ? ` · ${c.seats} advocates` : '';
+  return `${tier}${seats}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
 }
 
 export function BillingView() {
@@ -41,6 +49,7 @@ export function BillingView() {
   const checkout = useStartCheckout();
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [selected, setSelected] = useState<BillingPlanId | null>(null);
+  const [seats, setSeats] = useState(2);
   const native = isNativeApp();
 
   const current = data ? currentPlanId(data.current) : null;
@@ -62,6 +71,11 @@ export function BillingView() {
     if (data?.current.billingCycle) setCycle(data.current.billingCycle);
   }, [data?.current.billingCycle]);
 
+  // A Chamber firm starts the picker at the advocates it already pays for.
+  useEffect(() => {
+    if (data?.current.planTier === 'Practice') setSeats(Math.min(8, Math.max(2, data.current.seats)));
+  }, [data?.current.planTier, data?.current.seats]);
+
   const clearReturn = () => {
     const next = new URLSearchParams(params);
     next.delete('checkout');
@@ -69,7 +83,8 @@ export function BillingView() {
   };
 
   const chosen = data?.plans.find((p) => p.id === selected) ?? null;
-  const sameAsNow = !!chosen && chosen.id === current && paid && data?.current.billingCycle === cycle;
+  const sameAsNow = !!chosen && chosen.id === current && paid && data?.current.billingCycle === cycle
+    && (chosen.id !== 'practice' || data?.current.seats === seats);
 
   return (
     <div className="col stagger cm-billing" style={{ gap: 24 }}>
@@ -115,7 +130,7 @@ export function BillingView() {
             <div>
               <div className="cm-label">Current plan</div>
               <div className="cm-current-plan">
-                {data.current.freePlan ? 'Free' : data.current.planTier}
+                {data.current.freePlan ? 'Free' : tierLabel(data.current.planTier)}
                 <span className={data.current.planStatus === 'active' ? 'cm-pill cm-pill--ink' : 'cm-pill cm-pill--line'}>
                   {STATUS_WORD[data.current.planStatus ?? ''] ?? data.current.planStatus ?? 'Free'}
                 </span>
@@ -138,6 +153,10 @@ export function BillingView() {
               </div>
               {!native && <div className="cm-current-note">UPI, cards and netbanking via Dodo Payments</div>}
             </div>
+          </section>
+
+          <section className="cm-usage" aria-label="Drafts this month">
+            <DraftMeter />
           </section>
 
           {/* Android app: plan status only. No plan picker or checkout until Play
@@ -168,12 +187,17 @@ export function BillingView() {
               {chosen.id === 'firm' && (
                 <button type="button" className="btn btn-primary" onClick={() => navigate('/signup?intent=demo')}>Book a demo</button>
               )}
+              {chosen.seats && (
+                <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
+              )}
               {(chosen.id === 'solo' || chosen.id === 'practice') && (
                 <button
                   type="button"
                   className="btn btn-primary"
                   disabled={sameAsNow || !data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
-                  onClick={() => checkout.mutate({ plan: chosen.id as 'solo' | 'practice', cycle })}
+                  onClick={() => checkout.mutate(
+                    chosen.id === 'practice' ? { plan: 'practice', cycle, seats } : { plan: 'solo', cycle },
+                  )}
                 >
                   {checkout.isPending ? 'Opening payment…' : `Upgrade to ${chosen.name}`}
                 </button>

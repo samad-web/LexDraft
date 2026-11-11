@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
-  BillingCheckoutRequest, BillingStateResponse, OnboardingCompleteRequest, OnboardingCompleteResponse,
+  AiQuotaStatus, BillingCheckoutRequest, BillingStateResponse, OnboardingCompleteRequest, OnboardingCompleteResponse,
 } from '@lexdraft/types';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
@@ -11,6 +11,15 @@ export function useBilling(opts: { refetchInterval?: number | false } = {}) {
     queryKey: ['billing'],
     queryFn: () => api.get<BillingStateResponse>('/billing'),
     refetchInterval: opts.refetchInterval,
+  });
+}
+
+/** Drafts used this cycle against the advocate's monthly limit (/api/me/ai-quota). */
+export function useAiQuota() {
+  return useQuery({
+    queryKey: ['ai-quota'],
+    queryFn: () => api.get<AiQuotaStatus>('/me/ai-quota'),
+    staleTime: 60_000,
   });
 }
 

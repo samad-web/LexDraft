@@ -1,5 +1,14 @@
 # Changelog
 
+- Pricing v2 phase A (2026-11-11), not yet deployed:
+  - Drafts made through intake now count toward the monthly limit, once per matter and document.
+  - New limits per advocate: Free 30, Solo 50, Chamber 40.
+  - Practice is now sold as **Chamber**: ₹2,999 for 2 advocates plus ₹899 per extra advocate, up to 8, with a seat picker at checkout and on the renew screen. Seats are set only from Dodo's add-on quantity in the webhook.
+  - Solo shows "incl. GST" and Chamber "+18% GST".
+  - The billing page has a drafts meter with a notice at 80%.
+  - The limit-reached modal names the renewal date and links to /app/billing.
+  - New env vars `DODO_ADDON_CHAMBER_SEAT_{MONTHLY,ANNUAL}`. Migration 0104.
+
 - AI cost efficiency (2026-11-11): intake document-type pick and question wording run Sonnet 5.5 at `low` effort (less hidden thinking billed as output). Fact extraction, drafting and every other feature unchanged. Quality gate on 12 benchmark briefs: same results as before; extraction at `medium` failed the gate and was not shipped. Admin AI-usage now prices gpt-5.5 at $5/$30 (was shown at about half). `INTAKE_EFFORT_TUNED=false` turns it off.
 
 - Bar Council verification, phase 3 (2026-11-11): Punjab & Haryana and J&K advocates are checked against the councils' published roll PDFs, imported monthly (1st, 02:30 IST; only enrolment no. + name kept). Uttarakhand and Rajasthan checked live against their recent-enrolment lists (older enrolments not published by those councils). Migration 0103.

@@ -12,6 +12,8 @@ export const billingRouter: Router = Router();
 const Checkout = z.object({
   plan: z.enum(['solo', 'practice']),
   cycle: z.enum(['monthly', 'annual']),
+  /** Chamber only: advocates to pay for. */
+  seats: z.number().int().min(2).max(8).optional(),
 }).strict();
 
 billingRouter.get('/', requireAuth, async (req, res, next) => {
@@ -25,7 +27,7 @@ billingRouter.get('/', requireAuth, async (req, res, next) => {
 billingRouter.post('/checkout', requireAuth, async (req, res, next) => {
   try {
     const body = Checkout.parse(req.body);
-    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle));
+    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle, body.seats));
   } catch (err) {
     next(err);
   }
@@ -37,7 +39,7 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
   try {
     const body = Checkout.extend({ renewToken: z.string().min(20).max(4096) }).strict().parse(req.body);
     const userId = verifyRenewToken(body.renewToken);
-    res.json(await billingService.startCheckout(userId, body.plan, body.cycle));
+    res.json(await billingService.startCheckout(userId, body.plan, body.cycle, body.seats));
   } catch (err) {
     next(err);
   }

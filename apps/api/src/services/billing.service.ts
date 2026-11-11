@@ -22,8 +22,15 @@ import { invalidatePermissionsCache } from './permissions.service';
 
 const PAID: Record<PaidPlanId, { tier: FirmPlanTier; monthlyInr: number; annualMonthlyInr: number }> = {
   solo:     { tier: 'Solo',     monthlyInr: 1499, annualMonthlyInr: 1199 },
-  practice: { tier: 'Practice', monthlyInr: 4999, annualMonthlyInr: 3999 },
+  practice: { tier: 'Practice', monthlyInr: 2999, annualMonthlyInr: 2399 },
 };
+
+/** Chamber (internally `practice`): price covers 2 advocates; each extra one
+ *  is a Dodo add-on on the same subscription. Online purchase goes up to 8. */
+export const CHAMBER_SEATS = { included: 2, max: 8, extraMonthlyInr: 899, extraAnnualMonthlyInr: 719 } as const;
+
+/** Monthly drafts per advocate (mirrors plan_ai_caps, migration 0104). */
+const DRAFTS = { free: 30, solo: 50, practice: 40 } as const;
 
 /** Only the account owner (the person who signed up) buys or changes the plan. */
 const OWNER_ROLES = new Set(['Solo Advocate', 'Managing Partner']);
@@ -42,36 +49,66 @@ export function billingPlans(): BillingPlan[] {
     {
       id: 'free', name: 'Free', for: 'Solo advocates & law students',
       monthlyInr: 0, annualMonthlyInr: 0, note: 'Free till 1 June 2027',
-      features: ['Unlimited AI drafting', 'Cases, hearings & eCourts sync', 'Diary and documents', '1 GB storage'],
-      purchasable: false,
+      features: [`${DRAFTS.free} drafts a month`, 'Cases, hearings & eCourts sync', 'Diary and documents', '1 GB storage'],
+      purchasable: false, draftsPerMonth: DRAFTS.free, gst: null,
     },
     {
       id: 'solo', name: 'Solo', for: 'One advocate, everything unlocked',
-      monthlyInr: PAID.solo.monthlyInr, annualMonthlyInr: PAID.solo.annualMonthlyInr, note: 'Billed monthly or yearly',
-      features: ['Everything in Free', 'Limitation tracker', 'Co-counsel handover', 'Practice analytics', 'Team chat', 'Unlimited storage'],
-      purchasable: can('solo'),
+      monthlyInr: PAID.solo.monthlyInr, annualMonthlyInr: PAID.solo.annualMonthlyInr, note: 'Incl. GST · billed monthly or yearly',
+      features: [`${DRAFTS.solo} drafts a month`, 'Everything in Free', 'Limitation tracker', 'Co-counsel handover', 'Practice analytics', 'Team chat', 'Unlimited storage'],
+      purchasable: can('solo'), draftsPerMonth: DRAFTS.solo, gst: 'inclusive',
     },
     {
-      id: 'practice', name: 'Practice', for: 'Law firms · two to eight advocates',
-      monthlyInr: PAID.practice.monthlyInr, annualMonthlyInr: PAID.practice.annualMonthlyInr, note: '14-day free trial · no card needed',
-      features: ['Everything in Solo', 'Up to eight seats', 'Roles and permissions', 'Firm dashboard', 'Priority support'],
-      purchasable: can('practice'),
+      id: 'practice', name: 'Chamber', for: 'Chambers and firms · two to eight advocates',
+      monthlyInr: PAID.practice.monthlyInr, annualMonthlyInr: PAID.practice.annualMonthlyInr,
+      note: '+18% GST · 2 advocates included · 14-day free trial',
+      features: [`${DRAFTS.practice} drafts per advocate a month`, 'Everything in Solo',
+        `Extra advocate ₹${CHAMBER_SEATS.extraMonthlyInr}/month, up to ${CHAMBER_SEATS.max}`, 'Roles and permissions', 'Firm dashboard', 'Priority support'],
+      purchasable: can('practice'), draftsPerMonth: DRAFTS.practice, gst: 'exclusive',
+      seats: { included: CHAMBER_SEATS.included, max: CHAMBER_SEATS.max,
+        extraMonthlyInr: CHAMBER_SEATS.extraMonthlyInr, extraAnnualMonthlyInr: CHAMBER_SEATS.extraAnnualMonthlyInr },
     },
     {
       id: 'firm', name: 'Firm', for: 'Nine advocates and above',
       monthlyInr: null, annualMonthlyInr: null, note: 'Custom pricing · book a demo',
       features: ['Unlimited seats', 'SSO and audit logs', 'Dedicated success manager', 'Bespoke integrations'],
-      purchasable: false,
+      purchasable: false, draftsPerMonth: null, gst: null,
     },
   ];
 }
 
-function mrrFor(plan: PaidPlanId, cycle: BillingCycle): number {
-  return cycle === 'annual' ? PAID[plan].annualMonthlyInr : PAID[plan].monthlyInr;
+/** Rupees a month for the plan; Chamber adds each advocate beyond the 2 included. */
+export function mrrFor(plan: PaidPlanId, cycle: BillingCycle, seats: number = CHAMBER_SEATS.included): number {
+  const annual = cycle === 'annual';
+  const base = annual ? PAID[plan].annualMonthlyInr : PAID[plan].monthlyInr;
+  if (plan !== 'practice') return base;
+  const extra = Math.max(0, seats - CHAMBER_SEATS.included);
+  return base + extra * (annual ? CHAMBER_SEATS.extraAnnualMonthlyInr : CHAMBER_SEATS.extraMonthlyInr);
 }
 
-function amountFor(plan: PaidPlanId, cycle: BillingCycle): number {
-  return cycle === 'annual' ? PAID[plan].annualMonthlyInr * 12 : PAID[plan].monthlyInr;
+function amountFor(plan: PaidPlanId, cycle: BillingCycle, seats?: number): number {
+  return mrrFor(plan, cycle, seats) * (cycle === 'annual' ? 12 : 1);
+}
+
+/**
+ * Chamber seats from a Dodo subscription payload: 2 + the seat add-on quantity.
+ * Returns null (keep the firm's seats) when the payload has no add-on list or
+ * carries an add-on we don't know - an unknown id must never wipe seats.
+ */
+export function chamberSeatsFrom(addons: unknown): number | null {
+  if (!Array.isArray(addons)) return null;
+  const known = new Set([env.dodo.chamberSeatAddon.monthly, env.dodo.chamberSeatAddon.annual].filter(Boolean));
+  let extra = 0;
+  for (const a of addons as Array<Record<string, unknown>>) {
+    const id = typeof a?.addon_id === 'string' ? a.addon_id : '';
+    const qty = Number(a?.quantity);
+    if (!known.has(id) || !Number.isInteger(qty) || qty < 0) {
+      logger.warn({ addonId: id, quantity: a?.quantity }, 'dodo webhook: unknown add-on, seats left unchanged');
+      return null;
+    }
+    extra += qty;
+  }
+  return CHAMBER_SEATS.included + extra;
 }
 
 async function logEvent(e: {
@@ -92,6 +129,7 @@ interface OwnerRow {
   firm_id: string | null; plan_tier: FirmPlanTier | null; plan_status: BillingStateResponse['current']['planStatus'];
   free_plan: boolean; trial_ends_at: Date | null; renews_at: Date | null; billing_cycle: BillingCycle | null;
   selected_plan: BillingPlanId | null; dodo_customer_id: string | null; dodo_subscription_id: string | null;
+  seats: number | null; members: number;
 }
 
 async function loadUser(userId: string): Promise<OwnerRow> {
@@ -100,7 +138,9 @@ async function loadUser(userId: string): Promise<OwnerRow> {
   const [row] = await sql<OwnerRow[]>`
     select u.id as user_id, u.name, u.email, u.phone, u.role, u.firm_id,
            f.plan_tier, f.plan_status, coalesce(f.free_plan, false) as free_plan, f.trial_ends_at,
-           f.renews_at, f.billing_cycle, f.selected_plan, f.dodo_customer_id, f.dodo_subscription_id
+           f.renews_at, f.billing_cycle, f.selected_plan, f.dodo_customer_id, f.dodo_subscription_id, f.seats,
+           ((select count(*)::int from users m where m.firm_id = u.firm_id and m.status = 'active')
+            + (select count(*)::int from invitations i where i.firm_id = u.firm_id and i.status = 'pending')) as members
     from users u left join firms f on f.id = u.firm_id
     where u.id = ${userId}::uuid
   `;
@@ -139,40 +179,57 @@ export const billingService = {
         billingCycle: u.billing_cycle,
         selectedPlan: u.selected_plan,
         subscribed: !!u.dodo_subscription_id,
+        seats: u.seats ?? 1,
       },
       paymentsEnabled: paymentsEnabled(),
       canManage: OWNER_ROLES.has(u.role),
     };
   },
 
-  /** Opens a Dodo checkout for the user's firm and returns its URL. */
-  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle): Promise<{ checkoutUrl: string }> {
+  /** Opens a Dodo checkout for the user's firm and returns its URL. Chamber
+   *  takes `seats` (2-8 advocates); other plans ignore it. */
+  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle, seats?: number): Promise<{ checkoutUrl: string }> {
+    const wanted = plan === 'practice' ? (seats ?? CHAMBER_SEATS.included) : 1;
+    if (plan === 'practice' && (!Number.isInteger(wanted) || wanted < CHAMBER_SEATS.included || wanted > CHAMBER_SEATS.max)) {
+      throw new BadRequestError(`Choose between ${CHAMBER_SEATS.included} and ${CHAMBER_SEATS.max} advocates.`, { code: 'invalid_seats' });
+    }
+    const extraSeats = Math.max(0, wanted - CHAMBER_SEATS.included);
     const u = await loadUser(userId);
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
     if (!OWNER_ROLES.has(u.role)) {
       throw new ForbiddenError('Only the account owner can change the plan.', { code: 'billing_owner_only' });
     }
-    if (!paymentsEnabled() || !productId(plan, cycle)) {
+    if (!paymentsEnabled() || !productId(plan, cycle) || (extraSeats > 0 && !env.dodo.chamberSeatAddon[cycle])) {
       throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });
     }
-    if (u.dodo_subscription_id && u.plan_status === 'active' && u.selected_plan === plan && u.billing_cycle === cycle) {
+    if (plan === 'practice' && u.members > wanted) {
+      throw new BadRequestError(
+        `Your practice has ${u.members} members and pending invitations. Choose at least ${u.members} advocates, or remove members first.`,
+        { code: 'seats_below_members' },
+      );
+    }
+    if (u.dodo_subscription_id && u.plan_status === 'active' && u.selected_plan === plan && u.billing_cycle === cycle
+        && (plan !== 'practice' || u.seats === wanted)) {
       throw new BadRequestError('You are already on this plan.');
     }
     const base = env.webPublicBaseUrl.replace(/\/$/, '');
     const session = await dodo<{ session_id: string; checkout_url: string | null }>('/checkouts', {
-      product_cart: [{ product_id: productId(plan, cycle), quantity: 1 }],
+      product_cart: [{
+        product_id: productId(plan, cycle), quantity: 1,
+        ...(extraSeats > 0 ? { addons: [{ addon_id: env.dodo.chamberSeatAddon[cycle], quantity: extraSeats }] } : {}),
+      }],
       customer: u.dodo_customer_id
         ? { customer_id: u.dodo_customer_id }
         : { email: u.email, name: u.name, ...(u.phone ? { phone_number: u.phone } : {}) },
       billing_address: { country: 'IN' },
       return_url: `${base}/app/billing?checkout=done`,
       cancel_url: `${base}/app/billing?checkout=cancelled`,
-      metadata: { firm_id: u.firm_id, user_id: u.user_id, plan, cycle },
+      metadata: { firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted) },
     });
     if (!session.checkout_url) throw new HttpError(502, 'The payment page could not be opened. Please try again.');
     await logEvent({
       firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle,
-      amountInr: amountFor(plan, cycle), providerRef: session.session_id,
+      amountInr: amountFor(plan, cycle, wanted), providerRef: session.session_id,
     });
     return { checkoutUrl: session.checkout_url };
   },
@@ -261,6 +318,10 @@ export const billingService = {
           logger.warn({ type, firmId, product: data.product_id }, 'dodo webhook: unknown product, skipping');
           return;
         }
+        // Chamber seats come only from Dodo's add-on quantity, never the browser.
+        const paidSeats = plan === 'practice' ? chamberSeatsFrom(data.addons) : null;
+        const [cur] = await sql<{ seats: number | null }[]>`select seats from firms where id = ${firmId}::uuid`;
+        const seatsNow = paidSeats ?? cur?.seats ?? CHAMBER_SEATS.included;
         await sql`
           update firms set
             plan_tier = ${PAID[plan].tier}::firm_plan_tier,
@@ -270,14 +331,15 @@ export const billingService = {
             renews_at = ${nextBilling},
             billing_cycle = ${cycle},
             selected_plan = ${plan},
-            mrr_inr = ${mrrFor(plan, cycle)},
+            mrr_inr = ${mrrFor(plan, cycle, seatsNow)},
+            seats = coalesce(${paidSeats}, seats),
             dodo_subscription_id = coalesce(${subscriptionId}, dodo_subscription_id),
             dodo_customer_id = coalesce(${customerId}, dodo_customer_id)
           where id = ${firmId}::uuid
         `;
         const kind: BillingEventKind = type === 'subscription.renewed' ? 'renewed'
           : type === 'subscription.plan_changed' ? 'plan_changed' : 'subscription_active';
-        await logEvent({ ...base, kind, amountInr: amountFor(plan, cycle) });
+        await logEvent({ ...base, kind, amountInr: amountFor(plan, cycle, seatsNow) });
         break;
       }
       case 'subscription.on_hold':

@@ -67,7 +67,7 @@ describe('billing plans', () => {
     const plans = billing.billingPlans();
     expect(plans.map((p) => p.id)).toEqual(['free', 'solo', 'practice', 'firm']);
     expect(plans.find((p) => p.id === 'solo')?.monthlyInr).toBe(1499);
-    expect(plans.find((p) => p.id === 'practice')?.annualMonthlyInr).toBe(3999);
+    expect(plans.find((p) => p.id === 'practice')?.annualMonthlyInr).toBe(2399); // pricing v2 (Chamber)
     expect(plans.every((p) => !p.purchasable)).toBe(true);
   });
 });
