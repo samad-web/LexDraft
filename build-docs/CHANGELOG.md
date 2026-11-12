@@ -75,3 +75,4 @@
 - 2026-11-11 fix(land-records): OTP mobile number no longer remembered in the browser (was shown to every account on that browser).
 - 2026-11-11 fix(land-records): result print drops trailing blank pages (Patta came out as 2 pages, 2nd blank).
 - 2026-11-11 fix(land-records): Patta result = extract + the FMB sketch the site embeds under it (kept as it arrives, single-use), as page 2; viewer frame no longer prints blank.
+- 2026-11-12 fix(navigation): Back returns to the previous tab instead of leaving the page. Tabs on the case page, Settings, People & Roles, Workload & Profitability, Calculators and Research now live in the URL as history entries (useUrlTab); Land Records keeps the open service while on My applications and adds a back button to it.

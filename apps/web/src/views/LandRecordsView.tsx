@@ -5,7 +5,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { PillNav } from '@/components/PillNav';
 import { LandServiceScreen } from '@/components/land-records/LandServiceScreen';
 import { LandApplicationsPanel } from '@/components/land-records/LandApplicationsPanel';
-import { LAND_MENU } from '@/components/land-records/LandUi';
+import { LAND_MENU, LandTitleBar } from '@/components/land-records/LandUi';
 import { prepareLandRecords, useAddLandApplication, type LandService } from '@/hooks/useLandRecords';
 
 // =============================================================================
@@ -55,6 +55,12 @@ export function LandRecordsView() {
 
   const go = (next: Record<string, string>): void => setParams(next);
   const home = (): void => go({});
+  // My applications keeps the open service (and its Application Id) in the
+  // URL, so Services and the back button return to where the advocate was.
+  const openApplications = (): void =>
+    go({ tab: 'applications', ...(service ? { service } : {}), ...(prefillApp ? { app: prefillApp } : {}) });
+  const backToServices = (): void =>
+    go({ ...(service ? { service } : {}), ...(prefillApp ? { app: prefillApp } : {}) });
 
   return (
     <div className="col ct ct-land" style={{ gap: 20, maxWidth: 1240 }}>
@@ -71,13 +77,20 @@ export function LandRecordsView() {
             { id: 'applications', label: 'My applications' },
           ]}
           value={tab}
-          onChange={(t) => (t === 'applications' ? go({ tab: 'applications' }) : home())}
+          onChange={(t) => (t === 'applications' ? openApplications() : backToServices())}
           ariaLabel="Land Records menu"
         />
       </div>
 
       {tab === 'applications' ? (
-        <LandApplicationsPanel onCheck={(a) => go({ service: 'app-status', app: a.applicationId })} />
+        <>
+          <LandTitleBar
+            title="My applications"
+            backLabel={service ? TILE[service].title : 'All services'}
+            onHome={backToServices}
+          />
+          <LandApplicationsPanel onCheck={(a) => go({ service: 'app-status', app: a.applicationId })} />
+        </>
       ) : service ? (
         <LandServiceScreen
           key={`${service}:${prefillApp ?? ''}`}

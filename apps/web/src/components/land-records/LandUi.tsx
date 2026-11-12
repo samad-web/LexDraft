@@ -46,11 +46,11 @@ export const LAND_MENU: ReadonlyArray<LandServiceMeta> = [
 export const landMeta = (id: LandService): LandServiceMeta => LAND_MENU.find((m) => m.id === id)!;
 
 /** Service screen heading: back to all services, the site's page title, source. */
-export function LandTitleBar({ title, onHome }: { title: string; onHome: () => void }) {
+export function LandTitleBar({ title, onHome, backLabel = 'All services' }: { title: string; onHome: () => void; backLabel?: string }) {
   return (
     <div className="lr-titlebar">
       <button type="button" className="btn btn-sm" onClick={onHome}>
-        <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} /> All services
+        <Icon name="chevron" size={14} style={{ transform: 'rotate(180deg)' }} /> {backLabel}
       </button>
       <span className="lr-titlebar-name">{title}</span>
       <span className="lr-titlebar-src">Land Records · eservices.tn.gov.in</span>

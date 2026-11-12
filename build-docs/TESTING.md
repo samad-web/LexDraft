@@ -173,3 +173,8 @@
 - Full API suite: 917 pass. 1 failure, `anthropic-failover` "answers from xAI", comes from other uncommitted work in `anthropic-client.ts`, not this change. It was checked in a clean worktree (see CHANGELOG).
 - Not automated: AC4 (redraft/review/ask/research never call `countIntakeDraft`; checked by grep), AC7 (the migration only lowers the floor function; the trigger only raises seats), AC9 and AC10 (UI: the meter is on /app/billing, Android shows it without buy buttons).
 
+
+## Back across tabs — 2026-11-12
+- Unit: `apps/web/src/hooks/__tests__/useUrlTab.test.ts` (4) — tab read from ?tab=, default when absent, unknown ignored, custom key (?mode=). Pass.
+- Browser (Playwright, mocked API): Settings Account→Letterhead→Privacy, then Back ×3 → Letterhead, Account, previous page; Land Records Services→My applications, Back ×2 → Services, previous page. No page errors.
+- Regression: web vitest 14 files / 83 tests pass; tsc clean.

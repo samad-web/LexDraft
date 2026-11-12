@@ -23,6 +23,7 @@ import {
 import { LetterheadsPanel } from '@/components/letterhead/LetterheadsPanel';
 import { LANGUAGES, findLanguage } from '@/lib/languages';
 import { useUpdatePreferences } from '@/hooks/useMePreferences';
+import { useUrlTab } from '@/hooks/useUrlTab';
 
 type TabId = 'account' | 'letterhead' | 'privacy';
 
@@ -31,13 +32,14 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'letterhead', label: 'Letterhead' },
   { id: 'privacy', label: 'Privacy & Data' },
 ];
+const TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 export function SettingsView() {
   // Tabbed layout - "Account" holds the existing identity/security/session
   // cards, "Privacy & Data" holds the DPDP §11 surface (export, consents,
   // deletion). Routing-level deeplinks aren't wired yet; local state is fine
   // since these are sibling concerns on the same screen.
-  const [tab, setTab] = useState<TabId>('account');
+  const [tab, setTab] = useUrlTab<TabId>(TAB_IDS, 'account');
 
   return (
     <div className="col stagger fm-view fm-settings">

@@ -14,8 +14,10 @@ import { PageHeader } from '@/components/PageHeader';
 
 type ScopeKind = 'all' | 'central' | 'state';
 import { useUIStore } from '@/store/ui';
+import { useUrlTab } from '@/hooks/useUrlTab';
 
 type Mode = 'ask' | 'corpus';
+const MODES: readonly Mode[] = ['ask', 'corpus'];
 
 const SUGGESTIONS: string[] = [];
 
@@ -43,13 +45,12 @@ export function ResearchView() {
   const signPdf = useSignedPdfUrl();
   const showToast = useUIStore((s) => s.showToast);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [mode, setMode] = useState<Mode>(searchParams.get('mode') === 'corpus' ? 'corpus' : 'ask');
+  // The mode lives in the URL as a history entry, so Back steps between them.
+  const [urlMode, setUrlMode] = useUrlTab<Mode>(MODES, 'ask', 'mode');
   // No answer backend on this deployment: lead with statute search and drop
   // the Ask tab, rather than a question box that only says "not configured".
   const canAsk = useResearchStatus().data?.ask !== false;
-  useEffect(() => {
-    if (!canAsk) setMode('corpus');
-  }, [canAsk]);
+  const mode: Mode = canAsk ? urlMode : 'corpus';
   const [query, setQuery] = useState<string>(searchParams.get('q') ?? '');
   const [followUp, setFollowUp] = useState<string>('');
 
@@ -104,13 +105,7 @@ export function ResearchView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKind, scopeState]);
 
-  const switchMode = (next: Mode) => {
-    setMode(next);
-    const np = new URLSearchParams(searchParams);
-    if (next === 'corpus') np.set('mode', 'corpus');
-    else np.delete('mode');
-    setSearchParams(np, { replace: true });
-  };
+  const switchMode = (next: Mode) => setUrlMode(next);
 
   const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

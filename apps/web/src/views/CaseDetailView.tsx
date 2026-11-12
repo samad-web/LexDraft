@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { MoreMenu } from '@/components/MoreMenu';
 import { CaseBillingTab, CaseFilingsTab, CaseHearingsTab, CaseWorkTab, belongsToMatter } from '@/components/case/CaseTabs';
 import { useCan } from '@/hooks/useFirmAdmin';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import {
   useCase,
   useCases,
@@ -55,7 +56,7 @@ const CASE_TABS = [
   { id: 'discussion',   label: 'Team chat' },
 ] as const;
 type CaseTab = (typeof CASE_TABS)[number]['id'];
-const isCaseTab = (t: string | null): t is CaseTab => CASE_TABS.some((x) => x.id === t);
+const CASE_TAB_IDS: readonly CaseTab[] = CASE_TABS.map((t) => t.id);
 
 export function CaseDetailView() {
   const { id } = useParams<{ id: string }>();
@@ -71,16 +72,9 @@ export function CaseDetailView() {
   const [editOpen, setEditOpen] = useState(false);
   const [diaryAll, setDiaryAll] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const urlTab = searchParams.get('tab');
-  const [activeTab, setActiveTabState] = useState<CaseTab>(isCaseTab(urlTab) ? urlTab : 'overview');
-  // Keep the tab in the URL so refresh / back / shared links land on it.
-  const setActiveTab = (t: CaseTab) => {
-    setActiveTabState(t);
-    const next = new URLSearchParams(searchParams);
-    if (t === 'overview') next.delete('tab'); else next.set('tab', t);
-    setSearchParams(next, { replace: true });
-  };
+  const [searchParams] = useSearchParams();
+  // The tab lives in the URL as a history entry, so Back steps through tabs.
+  const [activeTab, setActiveTab] = useUrlTab<CaseTab>(CASE_TAB_IDS, 'overview');
   const hasTeamChat = useHasTeamChat();
   const canBill = useCan('billing.view');
   const canDraft = useCan('drafting.ai');
@@ -107,7 +101,7 @@ export function CaseDetailView() {
 
   useEffect(() => {
     if (!focusEcourts || !data) return;
-    setActiveTabState('overview');
+    setActiveTab('overview');
     const t = window.setTimeout(() => {
       document.getElementById('ecourts-connection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 150);

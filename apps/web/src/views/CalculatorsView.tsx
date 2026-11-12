@@ -7,6 +7,7 @@ import { INDIA_STATES_BY_CODE } from '@/lib/india-states';
 import { exportPdf, escapeReportHtml } from '@/lib/export-doc';
 import { resolveLetterhead } from '@/lib/letterhead-resolve';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
+import { useUrlTab } from '@/hooks/useUrlTab';
 import {
   useCalculatorStates,
   useCourtFee,
@@ -21,6 +22,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'court-fee',   label: 'Court fee' },
   { id: 'stamp-duty',  label: 'Stamp duty' },
 ];
+const TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 // Human labels for the camelCase instrument keys in state-fees.json. Anything
 // not listed here falls back to a title-cased version of the key so a new
@@ -471,11 +473,8 @@ function CalcSheet({
 }
 
 export function CalculatorsView() {
-  // ?tab=stamp-duty / ?tab=court-fee lets other screens (eFiling) link here.
-  const [tab, setTab] = useState<TabId>(() => {
-    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
-    return TABS.some((t) => t.id === q) ? (q as TabId) : 'court-fee';
-  });
+  // ?tab=stamp-duty lets other screens (eFiling) link here; Back steps through tabs.
+  const [tab, setTab] = useUrlTab<TabId>(TAB_IDS, 'court-fee');
   const { data: states = [], isLoading: statesLoading, isError: statesError } = useCalculatorStates();
 
   return (

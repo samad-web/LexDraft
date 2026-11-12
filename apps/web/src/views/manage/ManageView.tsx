@@ -8,6 +8,7 @@ import { ManageInvitationsPanel } from './ManageInvitationsPanel';
 import { ManageRolesPanel } from './ManageRolesPanel';
 import { ManagePracticeGroupsPanel } from './ManagePracticeGroupsPanel';
 import { ManageAuditPanel } from './ManageAuditPanel';
+import { useUrlTab } from '@/hooks/useUrlTab';
 
 type TabId = 'users' | 'roles' | 'groups' | 'invitations' | 'audit';
 
@@ -18,6 +19,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: 'invitations', label: 'Invitations' },
   { id: 'audit',       label: 'Audit' },
 ];
+const TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 /**
  * Firm-Admin Console - User Management section per spec §7.
@@ -28,7 +30,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
  */
 export function ManageView() {
   const features = useMeFeatures();
-  const [tab, setTab] = useState<TabId>('users');
+  const [tab, setTab] = useUrlTab<TabId>(TAB_IDS, 'users');
 
   if (features.isLoading) {
     return <div className="fm-loading">Checking access…</div>;

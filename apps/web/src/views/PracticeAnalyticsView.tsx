@@ -7,6 +7,7 @@ import {
   type WorkloadMember,
 } from '@/hooks/usePracticeAnalytics';
 import { PageHeader } from '@/components/PageHeader';
+import { useUrlTab } from '@/hooks/useUrlTab';
 
 function AnalyticsTabSkeleton() {
   return (
@@ -45,6 +46,7 @@ const TABS: ReadonlyArray<TabDef> = [
   { id: 'workload',      label: 'Workload fairness',  hint: 'Open matters and hearings split across your team.' },
   { id: 'profitability', label: 'Profitability',      hint: 'Realised revenue against expenses, per matter.' },
 ];
+const TAB_IDS: readonly TabId[] = TABS.map((t) => t.id);
 
 function formatInr(inr: number): string {
   if (Math.abs(inr) >= 10_000_000) return `${inr < 0 ? '-' : ''}₹${Math.abs(inr / 10_000_000).toFixed(2)} Cr`;
@@ -53,7 +55,7 @@ function formatInr(inr: number): string {
 }
 
 export function PracticeAnalyticsView() {
-  const [tab, setTab] = useState<TabId>('workload');
+  const [tab, setTab] = useUrlTab<TabId>(TAB_IDS, 'workload');
   const activeTab = TABS.find((t) => t.id === tab) ?? TABS[0]!;
 
   return (
