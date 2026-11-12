@@ -53,7 +53,7 @@ const registry: RegisteredJob[] = [];
  *  - ecourts.sync.daily (02:00) -> replaced by ecourts.sync.morning/evening
  *  - hearings.reminders.daily (02:30) -> now runs after the 09:00 sync
  *  - tn-land.reminders.morning/evening -> Land Records reminders dropped (user, 2026-10-24) */
-const RETIRED_SCHEDULES = ['ecourts.sync.daily', 'hearings.reminders.daily', 'tn-land.reminders.morning', 'tn-land.reminders.evening'];
+const RETIRED_SCHEDULES = ['ecourts.sync.daily', 'hearings.reminders.daily', 'tn-land.reminders.morning', 'tn-land.reminders.evening', 'bar.rolls.import'];
 let boss: PgBoss | null = null;
 let starting: Promise<PgBoss | null> | null = null;
 
@@ -336,12 +336,7 @@ jobs.register<TitleReportExtractPayload>('title-report.extract', async (data) =>
 // wipe-and-replaces court_judges (see judges-roster.service.ts). Slow-moving
 // data — weekly is plenty. Idempotent: the sync is a single transaction.
 // Schedule: Sundays 03:00 IST (off-peak, alongside the other nightly jobs).
-// Bar Council rolls published only as PDFs (Punjab & Haryana, J&K High Court):
-// re-import monthly, 1st at 02:30 IST. See bar-verification.service importBarRolls.
-jobs.register('bar.rolls.import', async () => {
-  const { importBarRolls } = await import('./bar-verification.service');
-  logger.info({ counts: await importBarRolls() }, 'bar.rolls.import complete');
-}, { cron: '30 2 1 * *', tz: 'Asia/Kolkata', expireInSeconds: 60 * 60 });
+// bar.rolls.import retired 2026-11-12: Bar Council verification is off at sign-up.
 
 jobs.register('judges.roster.sync', async () => {
   const { syncHighCourtJudges } = await import('./judges-roster.service');

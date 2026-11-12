@@ -1,5 +1,7 @@
 # Changelog
 
+- Bar Council verification off (2026-11-12): sign-up no longer asks for the State Bar Council or runs any enrolment check; advocates still enter their ID/enrolment number. Monthly roll import retired. Verification code left in the repo, unused.
+
 - Pricing v2 phase A (2026-11-11), not yet deployed:
   - Drafts made through intake now count toward the monthly limit, once per matter and document.
   - New limits per advocate: Free 30, Solo 50, Chamber 40.

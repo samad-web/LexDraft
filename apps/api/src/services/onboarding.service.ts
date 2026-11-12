@@ -3,7 +3,6 @@ import { db } from '../db/client';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
 import { authService, resolveSystemRoleId } from './auth.service';
-import { barVerificationService } from './bar-verification.service';
 import { billingService } from './billing.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidatePlanStatusCache } from './plan-status.service';
@@ -110,7 +109,6 @@ export const onboardingService = {
         where id = ${userId}::uuid
       `;
     });
-    if (!student) await barVerificationService.afterOnboarding(userId, input.barCouncil, clean(input.enrolment));
     invalidatePermissionsCache(userId);
     invalidatePlanStatusCache(userId);
     await billingService.recordSignup(userId, input.plan, cycle).catch(() => undefined);
