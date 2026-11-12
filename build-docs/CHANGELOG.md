@@ -1,5 +1,7 @@
 # Changelog
 
+- Draft PDF on WhatsApp (2026-11-12): the Share card has "Share PDF on WhatsApp", which sends the draft as a PDF file (same PDF as Download PDF: preview filing PDF, else engine .docx with edits via LibreOffice, else rasterised copy) with a short covering note. Android app: native share sheet. Chrome/Edge/phones: Web Share with files. Other browsers (no file sharing): the PDF downloads and WhatsApp opens with the note so the advocate attaches it. The text button is now "Send as text on WhatsApp".
+
 - Draft share on WhatsApp (2026-11-12): the draft's Share card has "Send on WhatsApp for review" next to Email. It sends the same covering note and plain-text draft through wa.me. Drafts over 65,000 characters are cut, with a note asking the client to get the full copy by email.
 
 - Bar Council verification off (2026-11-12): sign-up no longer asks for the State Bar Council or runs any enrolment check; advocates still enter their ID/enrolment number. Monthly roll import retired. Verification code left in the repo, unused.

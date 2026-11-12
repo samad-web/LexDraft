@@ -39,7 +39,8 @@ import type { BlankForm } from '@/hooks/useFormatLibrary';
 import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
-import { exportPdf, exportDocx } from '@/lib/export-doc';
+import { exportPdf, exportDocx, renderPdfBlob } from '@/lib/export-doc';
+import { shareFile } from '@/lib/native';
 import { canEmbedPdf } from '@/lib/pdf-embed';
 // pdf.js is only needed where the browser can't show the PDF itself.
 const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
@@ -231,6 +232,7 @@ export function DraftingView() {
   const [draftDate, setDraftDate] = useState<string>(todayIso());
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'PDF' | 'DOCX' | null>(null);
+  const [sharingPdf, setSharingPdf] = useState(false);
   // Letterhead choice for the client-side (working-copy) exports, surfaced as an
   // inline control in the toolbar next to the download buttons so the advocate
   // decides with/without letterhead BEFORE the download dialog opens.
@@ -1275,6 +1277,55 @@ export function DraftingView() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'PDF export failed';
       showToast({ type: 'cobalt', text: msg });
+    }
+  };
+
+  /** The draft as a PDF, from the same sources as Download PDF: the preview's
+   *  filing PDF, else the engine .docx (with edits) via LibreOffice, else the
+   *  rasterised HTML copy. */
+  const draftPdfBlob = async (): Promise<Blob> => {
+    if (previewPdfUrl && !hasLocalEdits) return (await fetch(previewPdfUrl)).blob();
+    const docxB64 = hasLocalEdits ? await editedEngineDocx() : engineDocxBase64;
+    if (docxB64) {
+      try {
+        return await api.postBlob('/drafting/engine/docx-to-pdf', { docxBase64: docxB64, fileName: `${activeDocType}-${draftDate}` });
+      } catch {
+        // Server render unavailable: fall through to the rasterised copy.
+      }
+    }
+    const letterhead =
+      letterheadChoice === undefined ? undefined
+      : letterheadChoice === null   ? null
+      : await resolveLetterhead(letterheadChoice);
+    return renderPdfBlob({ title: activeDocType, bodyHtml: previewHtml, dated: draftDate, letterhead });
+  };
+
+  /** Send the draft PDF itself (not pasted text) to the client on WhatsApp. */
+  const sharePdfOnWhatsApp = async () => {
+    if (!hasOutput || streaming || sharingPdf) return;
+    setSharingPdf(true);
+    const fileName = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
+    const note = `Dear Sir/Madam,\n\nPlease find attached the draft of the ${activeDocType.toLowerCase()} for your review.\n\nKindly revert with your comments.\n\nRegards,`;
+    try {
+      const blob = await draftPdfBlob();
+      // Phone / app / Chrome & Edge: the share sheet sends the file straight to WhatsApp.
+      if ((await shareFile(blob, fileName, note)) !== 'fallback') return;
+      // No file sharing here (e.g. Firefox desktop). wa.me can't carry a file, so
+      // download the PDF and open WhatsApp with the note for the advocate to attach it.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      window.open(`https://wa.me/?text=${encodeURIComponent(note)}`, '_blank', 'noopener,noreferrer');
+      showToast({ type: 'sage', text: 'PDF downloaded. Attach it in the WhatsApp chat.' });
+    } catch {
+      showToast({ type: 'cobalt', text: 'Could not prepare the PDF to share' });
+    } finally {
+      setSharingPdf(false);
     }
   };
 
@@ -2438,7 +2489,18 @@ export function DraftingView() {
                     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
                   }}
                 >
-                  <Icon name="chat" size={14} /> Send on WhatsApp for review
+                  <Icon name="chat" size={14} /> Send as text on WhatsApp
+                </button>
+                <button
+                  className="btn dw-wide"
+                  type="button"
+                  title="Send this draft as a PDF file to the client on WhatsApp"
+                  style={{ marginTop: 8 }}
+                  disabled={sharingPdf || streaming}
+                  aria-busy={sharingPdf}
+                  onClick={() => void sharePdfOnWhatsApp()}
+                >
+                  <Icon name="file" size={14} /> {sharingPdf ? 'Preparing PDF…' : 'Share PDF on WhatsApp'}
                 </button>
               </section>
             </aside>

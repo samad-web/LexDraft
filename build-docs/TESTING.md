@@ -1,5 +1,10 @@
 # Testing
 
+## Draft PDF on WhatsApp — 2026-11-12
+- `share-file.test.ts` 7/7: Android app shares the cached PDF + note; dismissed sheet = cancelled; browser shares a PDF File + note; no file sharing / no Web Share / expired click activation = fallback (download + wa.me); AbortError = cancelled.
+- Failures found: 2 test-side (Node has no FileReader; afterEach unstubbed it). Fixed in the test, no app logic change.
+- Regression: full web vitest 90/90; tsc clean on touched files. Not tried on a real phone yet.
+
 ## Bar Council verification, phase 3 (rolls + recent-enrolment councils) — 2026-11-11
 - `bar-councils.test.ts` 19/19: added Uttarakhand table (transferred advocate with two numbers), Rajasthan date list + batch rows, P&H PDF page (serial+number cell, wrapped name, address dropped), J&K CIS page (JK/number/year items, nearby name), and "every live/roll council has a lookup/source".
 - Parsers on the real PDFs: P&H 112,561 / 112,561 number cells parsed; J&K 9,709 / 9,752 (99.6%; misses are odd rows). 18k P&H one-word names are genuine (the roll prints one name).

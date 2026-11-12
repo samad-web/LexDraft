@@ -234,6 +234,11 @@ function safeFilename(title: string): string {
  *  an explicit resolved letterhead (e.g. from a picker) to override the
  *  default. */
 export async function exportPdf(payload: ExportPayload): Promise<void> {
+  triggerBlobDownload(await renderPdfBlob(payload), `${safeFilename(payload.title)}.pdf`);
+}
+
+/** Same PDF as exportPdf, returned as a Blob (e.g. to share it) instead of downloaded. */
+export async function renderPdfBlob(payload: ExportPayload): Promise<Blob> {
   const resolved = await resolveLetterheadIfNeeded(payload);
   const html = buildDocumentHtml(resolved);
 
@@ -302,8 +307,7 @@ export async function exportPdf(payload: ExportPayload): Promise<void> {
       heightLeft -= pageHeight;
     }
 
-    const blob = pdf.output('blob');
-    triggerBlobDownload(blob, `${safeFilename(payload.title)}.pdf`);
+    return pdf.output('blob');
   } finally {
     cleanup();
   }

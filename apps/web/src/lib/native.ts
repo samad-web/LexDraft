@@ -34,18 +34,43 @@ function safeFileName(name: string): string {
   return cleaned || `lexdraft-${Date.now()}`;
 }
 
+/** Write a file to the app cache and open the Android share sheet with it. */
+async function shareBlobNative(blob: Blob, fileName: string, text?: string): Promise<void> {
+  const { uri } = await Filesystem.writeFile({
+    path: `downloads/${safeFileName(fileName)}`,
+    data: await blobToBase64(blob),
+    directory: Directory.Cache,
+    recursive: true,
+  });
+  await Share.share({ title: fileName, text, files: [uri] });
+}
+
+/**
+ * Hand a file to the device's share sheet (WhatsApp, mail, Drive...).
+ * 'fallback' = this browser can't share files (or the click's user activation
+ * expired while the file was being prepared); the caller should download it instead.
+ */
+export async function shareFile(blob: Blob, fileName: string, text?: string): Promise<'shared' | 'cancelled' | 'fallback'> {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await shareBlobNative(blob, fileName, text);
+      return 'shared';
+    }
+    const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
+    if (typeof navigator.canShare !== 'function' || !navigator.canShare({ files: [file] })) return 'fallback';
+    await navigator.share({ files: [file], text });
+    return 'shared';
+  } catch (err) {
+    if (err instanceof Error && (err.name === 'AbortError' || /cancel/i.test(err.message))) return 'cancelled';
+    return 'fallback';
+  }
+}
+
 async function shareDownload(href: string, fileName: string): Promise<void> {
   try {
     const res = await fetch(href);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await blobToBase64(await res.blob());
-    const { uri } = await Filesystem.writeFile({
-      path: `downloads/${safeFileName(fileName)}`,
-      data,
-      directory: Directory.Cache,
-      recursive: true,
-    });
-    await Share.share({ title: fileName, files: [uri] });
+    await shareBlobNative(await res.blob(), fileName);
   } catch (err) {
     // Share sheet dismissed is not an error worth surfacing.
     if (err instanceof Error && /cancel/i.test(err.message)) return;
