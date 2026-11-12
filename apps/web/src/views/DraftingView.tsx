@@ -2419,13 +2419,26 @@ export function DraftingView() {
                   title="Email this draft to the client for review"
                   onClick={() => {
                     const subject = `${activeDocType} - ${draftDate}`;
-                    const text = htmlToPlainText(displayHtml);
-                    const body = `Dear Sir/Madam,\n\nPlease find below the draft of the ${activeDocType.toLowerCase()} for your review.\n\n---\n\n${text}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
-                    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(reviewMessage(activeDocType, displayHtml))}`;
                     showToast({ type: 'sage', text: 'Mail client opened with draft attached' });
                   }}
                 >
                   <Icon name="mail" size={14} /> Email to client for review
+                </button>
+                <button
+                  className="btn dw-wide"
+                  type="button"
+                  title="Send this draft to the client on WhatsApp for review"
+                  style={{ marginTop: 8 }}
+                  onClick={() => {
+                    // WhatsApp caps a message at 65,536 characters; longer drafts are cut with a note.
+                    const MAX = 65_000;
+                    let text = reviewMessage(activeDocType, displayHtml);
+                    if (text.length > MAX) text = `${text.slice(0, MAX)}\n\n[Draft too long for one WhatsApp message. Please ask for the full copy by email.]`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  <Icon name="chat" size={14} /> Send on WhatsApp for review
                 </button>
               </section>
             </aside>
@@ -2889,4 +2902,9 @@ function EmptyState({ docType, completion, onGenerate }: EmptyStateProps) {
       </button>
     </div>
   );
+}
+
+/** Covering note + plain-text draft, shared by the Email and WhatsApp buttons. */
+function reviewMessage(docType: string, html: string): string {
+  return `Dear Sir/Madam,\n\nPlease find below the draft of the ${docType.toLowerCase()} for your review.\n\n---\n\n${htmlToPlainText(html)}\n\n---\n\nKindly revert with your comments.\n\nRegards,`;
 }

@@ -1,5 +1,7 @@
 # Changelog
 
+- Draft share on WhatsApp (2026-11-12): the draft's Share card has "Send on WhatsApp for review" next to Email. It sends the same covering note and plain-text draft through wa.me. Drafts over 65,000 characters are cut, with a note asking the client to get the full copy by email.
+
 - Bar Council verification off (2026-11-12): sign-up no longer asks for the State Bar Council or runs any enrolment check; advocates still enter their ID/enrolment number. Monthly roll import retired. Verification code left in the repo, unused.
 
 - Pricing v2 phase A (2026-11-11), not yet deployed:
