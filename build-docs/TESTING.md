@@ -203,3 +203,7 @@
   - Failed payment could not be produced in test mode (Razorpay approved every UPI Autopay mandate whatever ID was typed); covered by unit tests only.
   - Web: "Payment received" banner tick icon was stretched into a black bar (.cm-notice > span flex:1 hit the icon); fixed.
   - Test subscriptions cancelled in Razorpay; both local test practices reset to Free.
+
+## GST invoices — 2026-11-13 (features/gst-invoices.md)
+- `gst-invoices.test.ts` 14 tests: AC3 GSTIN checksum (Sirah's valid), place of supply order, CGST+SGST vs IGST adding to the paisa, FY switch at 1 Apr IST, amount in words; AC1/AC2 numbering DIF/26-27/000007 in one transaction, redelivery no-op, lost race rolls back, out-of-state GSTIN -> IGST; webhook charged -> invoice for payment.amount; AC4 every GST field in the PDF HTML + escaping; AC5 other firm's id not found; AC6 no seller config -> nothing written. All pass.
+- Real PDF rendered with Chromium from the template and checked by eye (sample in OneDrive: "DifAi Sample GST Invoice.pdf").

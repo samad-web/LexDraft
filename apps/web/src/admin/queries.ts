@@ -51,6 +51,9 @@ export const useAdminUsers = (filter: { firmId?: string; status?: UserStatus; q?
 export const useAdminBilling = () =>
   useQuery({ queryKey: adminKeys.billing, queryFn: adminApi.billing, refetchInterval: 60_000 });
 
+export const useAdminInvoices = () =>
+  useQuery({ queryKey: [...adminKeys.billing, 'invoices'], queryFn: adminApi.billingInvoices });
+
 export const useFreePlanSwitches = () =>
   useQuery({ queryKey: adminKeys.freePlanSwitches, queryFn: adminApi.freePlanSwitches });
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AiQuotaStatus, BillingCheckoutRequest, BillingStateResponse, OnboardingCompleteRequest, OnboardingCompleteResponse,
+  SubscriptionInvoice,
 } from '@lexdraft/types';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
@@ -21,6 +22,26 @@ export function useAiQuota() {
     queryFn: () => api.get<AiQuotaStatus>('/me/ai-quota'),
     staleTime: 60_000,
   });
+}
+
+/** GST tax invoices for the practice's subscription payments (owner only). */
+export function useSubscriptionInvoices(enabled: boolean) {
+  return useQuery({
+    queryKey: ['billing', 'invoices'],
+    queryFn: () => api.get<{ items: SubscriptionInvoice[] }>('/billing/invoices').then((r) => r.items),
+    enabled,
+  });
+}
+
+/** Downloads one invoice PDF (the request needs the session, so not a plain link). */
+export async function downloadSubscriptionInvoice(inv: SubscriptionInvoice): Promise<void> {
+  const blob = await api.getBlob(`/billing/invoices/${inv.id}/pdf`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${inv.invoiceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 /** Opens Razorpay checkout (via /api/billing/pay) for the chosen plan. */

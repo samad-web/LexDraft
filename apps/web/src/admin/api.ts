@@ -1,5 +1,6 @@
 import { api } from '@/lib/api';
 import type {
+  SubscriptionInvoice,
   AdminAiUsageResponse,
   AdminComposeQualityResponse,
   AdminCreateFirmRequest,
@@ -55,6 +56,10 @@ export const adminApi = {
   // ---- free launch plan switches --------------------------------------
   billing: () =>
     api.get<{ summary: AdminBillingSummary; events: AdminBillingEvent[] }>('/admin/billing'),
+  billingInvoices: () =>
+    api.get<{ items: Array<SubscriptionInvoice & { firmId: string; practice: string | null }> }>('/admin/billing/invoices')
+      .then((r) => r.items),
+  billingInvoicePdf: (id: string) => api.getBlob(`/admin/billing/invoices/${id}/pdf`),
   freePlanSwitches: () =>
     api.get<{ items: FreePlanSwitchState[] }>('/admin/free-plan/switches').then((r) => r.items),
   setFreePlanSwitch: (key: FreePlanSwitchState['key'], enabled: boolean) =>

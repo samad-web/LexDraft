@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
 import { billingService } from '../services/billing.service';
+import { subscriptionInvoiceService } from '../services/subscription-invoice.service';
+import { sendInvoicePdf } from './billing.routes';
 import { storage } from '../services/storage.service';
 import { db } from '../db/client';
 import { aiUsageReportService } from '../services/ai-usage-report.service';
@@ -157,6 +159,25 @@ adminRouter.get('/billing', async (_req, res, next) => {
   try {
     const [summary, events] = await Promise.all([billingService.adminSummary(), billingService.adminEvents()]);
     res.json({ summary, events });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GST invoices issued for subscriptions (all firms).
+adminRouter.get('/billing/invoices', async (_req, res, next) => {
+  try {
+    res.json({ items: await subscriptionInvoiceService.listAll() });
+  } catch (err) {
+    next(err);
+  }
+});
+
+adminRouter.get('/billing/invoices/:id/pdf', async (req, res, next) => {
+  try {
+    const inv = await subscriptionInvoiceService.find(String(req.params.id), null);
+    if (!inv) { res.status(404).json({ error: 'Invoice not found' }); return; }
+    sendInvoicePdf(res, inv.invoice_no, await subscriptionInvoiceService.pdf(inv));
   } catch (err) {
     next(err);
   }

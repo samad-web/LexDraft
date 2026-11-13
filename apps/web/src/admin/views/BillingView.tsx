@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Select, Skeleton } from '@lexdraft/ui';
 import type { AdminBillingEvent, BillingEventKind } from '@lexdraft/types';
-import { useAdminBilling } from '../queries';
+import { useAdminBilling, useAdminInvoices } from '../queries';
+import { adminApi } from '../api';
 
 // =============================================================================
 // Billing - self-serve plan sign-ups and payments (Razorpay). The rows
@@ -25,7 +26,7 @@ const KIND_LABEL: Record<BillingEventKind, string> = {
 
 const PLAN_LABEL: Record<string, string> = { free: 'Free', solo: 'Solo', practice: 'Practice', firm: 'Firm' };
 
-const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -42,8 +43,18 @@ function nowOn(e: AdminBillingEvent): string {
   return [e.planTier, e.planStatus && e.planStatus !== 'active' ? e.planStatus.replace('_', ' ') : null].filter(Boolean).join(' · ');
 }
 
+async function downloadPdf(id: string, invoiceNo: string): Promise<void> {
+  const url = URL.createObjectURL(await adminApi.billingInvoicePdf(id));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${invoiceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 export function BillingView() {
   const { data, isLoading } = useAdminBilling();
+  const { data: invoices } = useAdminInvoices();
   const [filter, setFilter] = useState<Filter>('');
 
   const events = useMemo(() => {
@@ -158,6 +169,31 @@ export function BillingView() {
           )}
         </tbody>
       </table>
+
+      <section className="col" style={{ gap: 12 }}>
+        <h2 className="eyebrow" style={{ margin: 0 }}>GST invoices issued</h2>
+        <table className="tbl">
+          <thead>
+            <tr><th>Date</th><th>Invoice no.</th><th>Practice</th><th>Plan</th><th>Total</th><th>GST</th><th /></tr>
+          </thead>
+          <tbody>
+            {(invoices ?? []).map((inv) => (
+              <tr key={inv.id}>
+                <td style={{ fontSize: 12, whiteSpace: 'nowrap' }}>{formatWhen(inv.issuedAt)}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{inv.invoiceNo}</td>
+                <td style={{ fontSize: 12 }}>{inv.practice ?? '-'}</td>
+                <td style={{ fontSize: 12 }}>{PLAN_LABEL[inv.plan] ?? inv.plan}<span className="muted"> · {inv.cycle === 'annual' ? 'yearly' : 'monthly'}</span></td>
+                <td className="mono" style={{ fontSize: 12 }}>{inr(inv.totalInr)}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{inr(inv.taxInr)}</td>
+                <td><button type="button" className="btn btn-ghost btn-sm" onClick={() => void downloadPdf(inv.id, inv.invoiceNo)}>PDF</button></td>
+              </tr>
+            ))}
+            {invoices && invoices.length === 0 && (
+              <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>No invoices yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }

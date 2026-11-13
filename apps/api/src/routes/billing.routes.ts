@@ -1,8 +1,10 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth';
 import { signInLimiter } from '../middleware/rateLimit';
 import { billingService } from '../services/billing.service';
+import { subscriptionInvoiceService } from '../services/subscription-invoice.service';
+import { NotFoundError } from '../lib/errors';
 import { verifyRenewToken } from '../services/auth.service';
 
 // Mounted WITHOUT requireActivePlan: a firm whose trial or plan has lapsed
@@ -44,6 +46,35 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
     next(err);
   }
 });
+
+// GST tax invoices: the account owner's own firm only.
+billingRouter.get('/invoices', requireAuth, async (req, res, next) => {
+  try {
+    const firmId = await billingService.ownerFirmId(req.user!.id);
+    res.json({ items: await subscriptionInvoiceService.listForFirm(firmId) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+billingRouter.get('/invoices/:id/pdf', requireAuth, async (req, res, next) => {
+  try {
+    const firmId = await billingService.ownerFirmId(req.user!.id);
+    const inv = await subscriptionInvoiceService.find(String(req.params.id), firmId);
+    if (!inv) throw new NotFoundError('Invoice not found');
+    sendInvoicePdf(res, inv.invoice_no, await subscriptionInvoiceService.pdf(inv));
+  } catch (err) {
+    next(err);
+  }
+});
+
+export function sendInvoicePdf(res: Response, invoiceNo: string, pdf: Buffer): void {
+  res
+    .set('Cache-Control', 'private, no-store')
+    .set('Content-Disposition', `attachment; filename="${invoiceNo.replace(/[^A-Za-z0-9-]/g, '_')}.pdf"`)
+    .type('application/pdf')
+    .send(pdf);
+}
 
 // The page that opens Razorpay Checkout for a subscription. Public: the link is
 // what checkout hands back, signed in or not (renew from the sign-in page).

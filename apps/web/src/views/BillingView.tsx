@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
-import type { BillingCycle, BillingPlanId, BillingStateResponse } from '@lexdraft/types';
+import type { BillingCycle, BillingPlanId, BillingStateResponse, SubscriptionInvoice } from '@lexdraft/types';
 import { CycleToggle, PlanCards, SeatPicker } from '@/components/PlanCards';
 import { DraftMeter } from '@/components/DraftMeter';
-import { useBilling, useStartCheckout } from '@/hooks/useBilling';
+import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 
 function formatDate(iso: string | null): string {
@@ -36,6 +36,62 @@ function statusLine(c: BillingStateResponse['current']): string {
   const cycle = c.billingCycle === 'annual' ? 'yearly' : c.billingCycle === 'monthly' ? 'monthly' : null;
   const seats = c.planTier === 'Practice' ? ` · ${c.seats} advocates` : '';
   return `${tier}${seats}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
+}
+
+const PLAN_NAME: Record<string, string> = { solo: 'Solo', practice: 'Chamber' };
+
+/** GST tax invoices for this practice's payments, newest first. Hidden until there is one. */
+function SubscriptionInvoices() {
+  const { data: items } = useSubscriptionInvoices(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!items?.length) return null;
+  const download = async (inv: SubscriptionInvoice) => {
+    setBusy(inv.id);
+    setFailed(null);
+    try {
+      await downloadSubscriptionInvoice(inv);
+    } catch {
+      setFailed(inv.id);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <section aria-label="Invoices" style={{ marginTop: 24 }}>
+      <h2 className="cm-plans-title" style={{ marginBottom: 12 }}>Invoices</h2>
+      <div className="card cm-table-card">
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Invoice no.</th>
+              <th className="col-hide-mobile">Plan</th>
+              <th style={{ textAlign: 'right' }}>Amount (incl. GST)</th>
+              <th aria-label="Download" />
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((inv) => (
+              <tr key={inv.id}>
+                <td>{formatDate(inv.issuedAt)}</td>
+                <td>{inv.invoiceNo}</td>
+                <td className="col-hide-mobile">
+                  {PLAN_NAME[inv.plan] ?? inv.plan}{inv.plan === 'practice' ? ` · ${inv.seats} advocates` : ''} · {inv.cycle === 'annual' ? 'yearly' : 'monthly'}
+                </td>
+                <td style={{ textAlign: 'right' }}>₹{inv.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                <td className="cm-row-actions">
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy === inv.id} onClick={() => void download(inv)}>
+                    {busy === inv.id ? 'Preparing…' : failed === inv.id ? 'Retry' : 'Download PDF'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
 }
 
 export function BillingView() {
@@ -158,6 +214,8 @@ export function BillingView() {
           <section className="cm-usage" aria-label="Drafts this month">
             <DraftMeter />
           </section>
+
+          {data.canManage && <SubscriptionInvoices />}
 
           {/* Android app: plan status only. No plan picker or checkout until Play
               Billing exists (Play payments policy). */}

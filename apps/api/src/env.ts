@@ -187,6 +187,16 @@ const Schema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+  /** Seller printed on DifAi's GST tax invoices (Sirah Digital). Blank GSTIN =
+   *  invoices are not issued (logged); payments still work. */
+  INVOICE_SELLER_LEGAL_NAME: z.string().optional().default(''),
+  INVOICE_SELLER_TRADE_NAME: z.string().optional().default(''),
+  INVOICE_SELLER_GSTIN: z.string().optional().default(''),
+  INVOICE_SELLER_ADDRESS: z.string().optional().default(''),
+  INVOICE_SELLER_EMAIL: z.string().optional().default(''),
+  INVOICE_SELLER_PHONE: z.string().optional().default(''),
+  INVOICE_SAC: z.string().optional().default('998315'),
+  INVOICE_PREFIX: z.string().regex(/^[A-Z]{1,4}$/).optional().default('DIF'),
   /** Self-serve email + password sign-up. New accounts are meant to come in
    *  through Google + WhatsApp OTP, so this is off in production unless set
    *  to 'true'; outside production it stays on unless set to 'false' (the

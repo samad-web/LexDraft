@@ -10,6 +10,7 @@ import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { BadRequestError, ForbiddenError, HttpError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidatePermissionsCache } from './permissions.service';
+import { subscriptionInvoiceService } from './subscription-invoice.service';
 
 // =============================================================================
 // Self-serve billing through Razorpay Subscriptions (migrations 0096 + 0105).
@@ -193,7 +194,7 @@ const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
 
 type RzpSubscription = {
   id?: string; plan_id?: string; status?: string; quantity?: number; paid_count?: number; created_at?: number;
-  current_end?: number | null; customer_id?: string | null; notes?: Record<string, unknown> | unknown[];
+  current_start?: number | null; current_end?: number | null; customer_id?: string | null; notes?: Record<string, unknown> | unknown[];
 };
 
 /** Cancels a duplicate subscription immediately. Already-cancelled is fine; the
@@ -280,6 +281,15 @@ export const billingService = {
       amountInr: amountFor(plan, cycle, wanted), providerRef: sub.id,
     });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${sub.id}` };
+  },
+
+  /** The firm whose invoices this user may see: only the account owner's. */
+  async ownerFirmId(userId: string): Promise<string> {
+    const u = await loadUser(userId);
+    if (!u.firm_id || !OWNER_ROLES.has(u.role)) {
+      throw new ForbiddenError('Only the account owner can see invoices.', { code: 'billing_owner_only' });
+    }
+    return u.firm_id;
   },
 
   /** Plan picked on the first sign-up step. */
@@ -453,6 +463,17 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
             razorpay_customer_id = coalesce(${sub.customer_id ?? null}, razorpay_customer_id)
           where id = ${firmId}::uuid
         `;
+        // GST tax invoice for every successful charge (first and renewals). If it
+        // throws, the webhook answers 500 and Razorpay redelivers: the plan update
+        // above is safe to repeat and the invoice is idempotent on the payment id.
+        if (type === 'subscription.charged' && typeof payment.id === 'string') {
+          await subscriptionInvoiceService.issueForPayment({
+            firmId, paymentId: payment.id, amountPaise: Number(payment.amount), subscriptionId,
+            plan, cycle, seats,
+            periodStart: typeof sub.current_start === 'number' ? new Date(sub.current_start * 1000) : null,
+            periodEnd,
+          });
+        }
         // Razorpay sends `charged` for the first payment too, beside `activated`:
         // only a later charge is a renewal, else the first would count twice.
         if (type === 'subscription.charged' && (sub.paid_count ?? 0) <= 1) break;

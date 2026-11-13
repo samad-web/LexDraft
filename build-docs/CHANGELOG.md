@@ -110,3 +110,7 @@
 ## fix(razorpay-billing) — 2026-11-13 (2)
 - Plan change: when the new subscription starts, the replaced one is cancelled at once (safety net if the end-of-cycle cancel didn't take).
 - Billing banner tick icon no longer stretches across the row.
+
+## feat(gst-invoices) — 2026-11-13
+- Every successful Razorpay subscription charge gets a GST tax invoice from Sirah Digital (DIF/FY/serial, gapless), CGST+SGST in Tamil Nadu else IGST, PDF in DifAi format.
+- Owners: Invoices list + PDF on Plan & Billing. Superadmin: GST invoices list in /admin/billing. Migration 0106 (additive).

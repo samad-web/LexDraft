@@ -1189,6 +1189,19 @@ export interface AiQuotaStatus {
   planTier: FirmPlanTier | null;
 }
 
+/** A GST tax invoice DifAi (Sirah Digital) issued for a subscription charge. */
+export interface SubscriptionInvoice {
+  id: string;
+  invoiceNo: string;
+  issuedAt: string;
+  plan: string;
+  cycle: string;
+  seats: number;
+  /** Amount charged, GST included. */
+  totalInr: number;
+  taxInr: number;
+}
+
 export type BillingEventKind =
   | 'signup' | 'checkout_started' | 'subscription_active' | 'renewed'
   | 'plan_changed' | 'payment_failed' | 'on_hold' | 'cancelled' | 'expired';
