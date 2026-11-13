@@ -17,8 +17,8 @@ const ldOf = (html) => JSON.parse(html.match(/<script type="application\/ld\+jso
 const nginx = read('nginx.conf');
 const SPA_RE = new RegExp(nginx.match(/location ~ (\^\/\([^)]*\)\(\/\|\$\))/)[1]);
 
-describe('CTR rules for every page', () => {
-  for (const p of published) {
+describe('CTR rules for every page (drafts too, so they are ready to publish)', () => {
+  for (const p of PAGES) {
     it(`${p.slug}: title <= 60 chars and names the brand`, () => {
       expect(p.title.length).toBeLessThanOrEqual(60);
       expect(p.title).toContain('DifAi');
@@ -40,7 +40,7 @@ describe('CTR rules for every page', () => {
 });
 
 describe('rendered page is complete without JavaScript', () => {
-  for (const p of published) {
+  for (const p of PAGES) {
     const html = renderPage(p, published);
     it(`${p.slug}: title, description, canonical, h1, answer`, () => {
       expect(html).toContain(`<link rel="canonical" href="${ORIGIN}/${p.slug}" />`);
@@ -61,6 +61,21 @@ describe('rendered page is complete without JavaScript', () => {
     expect(article['@type']).toBe('Article');
     expect(article.citation).toHaveLength(1);
   });
+  for (const g of PAGES.filter((p) => p.kind === 'guide')) {
+    it(`${g.slug}: guide cites official sources, is dated and has an error link`, () => {
+      expect(g.sources.length).toBeGreaterThan(0);
+      for (const s of g.sources) expect(s.url).toMatch(/^https:\/\/(www\.indiacode\.nic\.in|[a-z]+\.ecourts\.gov\.in|ecourts\.gov\.in)\//);
+      const html = renderPage(g, published);
+      expect(html).toContain(`Last checked ${g.updated}`);
+      expect(html).toContain('Report it</a>');
+      expect(ldOf(html)['@graph'][0]['@type']).toBe('Article');
+    });
+    it(`${g.slug}: links into a DifAi page that exists`, () => {
+      const links = [...g.body.matchAll(/href="\/([a-z0-9-]+)"/g)].map((m) => m[1]);
+      expect(links.length).toBeGreaterThan(0);
+      for (const l of links) expect(PAGES.map((p) => p.slug)).toContain(l);
+    });
+  }
   it('escapes HTML in titles', () => {
     expect(renderPage({ ...published[0], title: 'A <b> & "c"' }, published)).toContain('A &lt;b&gt; &amp; &quot;c&quot;');
   });

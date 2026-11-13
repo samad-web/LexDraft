@@ -232,4 +232,235 @@ export const PAGES = [
 <p>Email <a href="mailto:support@sirahdigital.in">support@sirahdigital.in</a>.</p>`,
     cta: 'Start using DifAi',
   },
+
+  // ---- Guides: draft until the user has read each one (decision 2026-11-13).
+  // Quotes are from the bare Acts; links go to the Act's India Code record.
+  {
+    slug: 'how-to-send-legal-notice-india',
+    kind: 'guide',
+    draft: true,
+    nav: null,
+    crumb: 'How to send a legal notice',
+    updated: '2026-11-13',
+    title: 'How to Send a Legal Notice in India: Step by Step | DifAi',
+    description:
+      'What a legal notice must contain, when the law makes one compulsory, how to send it by registered post, and what to do if the other side ignores it.',
+    h1: 'How to send a legal notice in India',
+    answer:
+      "Draft the notice on an advocate's letterhead stating the parties, the facts, the legal basis of the claim, the exact demand and a deadline to comply, then send it by Registered Post AD or Speed Post and keep the receipts. Many civil claims need no notice by law, but suits against the Government (Section 80 CPC) and cheque bounce cases (Section 138 NI Act) do.",
+    body: `
+<h2>When the law makes a notice compulsory</h2>
+<table>
+<tr><th>Situation</th><th>Provision</th><th>Time</th></tr>
+<tr><td>Suing the Government or a public officer</td><td>Section 80, Code of Civil Procedure, 1908</td><td>Wait two months after delivery before filing the suit</td></tr>
+<tr><td>Cheque dishonoured</td><td>Section 138, Negotiable Instruments Act, 1881</td><td>Send within 30 days of the return memo; drawer gets 15 days to pay</td></tr>
+<tr><td>Ending a lease or tenancy</td><td>Section 106, Transfer of Property Act, 1882</td><td>15 days for a month-to-month lease; six months for a year-to-year agricultural or manufacturing lease, unless the contract or local law says otherwise</td></tr>
+</table>
+<p>State rent control laws can change the tenancy rules, so check the law for the property's location. See the guides on <a href="/section-80-cpc-notice">Section 80 CPC notices</a> and <a href="/cheque-bounce-notice-section-138">cheque bounce notices</a>.</p>
+<h2>What the notice should contain</h2>
+<ol>
+<li>Name and address of the sender (your client) and of each recipient.</li>
+<li>The facts in date order: the agreement, the payment or act, and what went wrong.</li>
+<li>The legal basis: the contract clause or statute the claim rests on.</li>
+<li>The demand: the exact amount or action, with interest and costs shown separately.</li>
+<li>A deadline to comply, and what your client will do if it is ignored.</li>
+<li>Date, place, and the advocate's signature on the letterhead.</li>
+</ol>
+<h2>How to send it</h2>
+<p>Send it by Registered Post with Acknowledgment Due, or Speed Post, to the recipient's last known address, and keep the postal receipt, tracking printout and returned acknowledgment card. Under Section 27 of the General Clauses Act, 1897, where a Central Act requires service by post, service is deemed effected "by properly addressing, pre-paying and posting by registered post, a letter containing the document". Courts often apply the same presumption to notices sent by registered post even where no Act requires it. Sending a copy by email as well does no harm.</p>
+<h2>If the other side ignores it</h2>
+<p>An unanswered notice does not stop you suing, and an ordinary notice does not extend limitation. Only a notice the law requires before suing, such as a Section 80 notice, has its period left out of the count, under Section 15(2) of the Limitation Act, 1963. Track the limitation date from the day the claim arose. See <a href="/limitation-period-money-recovery-suit">limitation for money recovery suits</a>.</p>`,
+    faq: [
+      { q: 'Is a legal notice compulsory before filing a civil suit?', a: 'Not in general. It is compulsory before suing the Government or a public officer (Section 80 CPC), before a cheque bounce complaint (Section 138 NI Act), and to end a lease under Section 106 of the Transfer of Property Act. Otherwise it is optional but usual.' },
+      { q: 'Can I send a legal notice without an advocate?', a: 'Yes. Any person can send a notice in their own name. An advocate drafts it so the facts, the legal basis and the demand are stated correctly, because the notice is usually filed with the case later.' },
+      { q: 'What if the notice comes back unclaimed or refused?', a: 'Keep the returned envelope unopened. Courts generally treat a properly addressed registered notice that was refused or left unclaimed as served, unless the recipient proves otherwise.' },
+    ],
+    sources: [
+      { label: 'Code of Civil Procedure, 1908, Section 80 (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2191' },
+      { label: 'Negotiable Instruments Act, 1881, Section 138 (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2189' },
+      { label: 'Transfer of Property Act, 1882, Section 106 (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/12924' },
+      { label: 'General Clauses Act, 1897, Section 27 (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2328' },
+      { label: 'Limitation Act, 1963, Section 15(2) (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/1565' },
+    ],
+    cta: 'Draft a legal notice with DifAi',
+  },
+  {
+    slug: 'section-80-cpc-notice',
+    kind: 'guide',
+    draft: true,
+    nav: null,
+    crumb: 'Section 80 CPC notice',
+    updated: '2026-11-13',
+    title: 'Section 80 CPC Notice to Government: Format & Rules | DifAi',
+    description:
+      'Who must receive a Section 80 CPC notice, what it must state, the two-month wait before you sue, and when a court lets you sue without one.',
+    h1: 'Section 80 CPC notice: suing the Government',
+    answer:
+      "Section 80 of the Code of Civil Procedure bars a suit against the Government, or against a public officer for an act done in official capacity, until two months after a written notice is delivered. The notice must state the cause of action, the plaintiff's name, description and residence, and the relief claimed, and the plaint must say the notice was delivered.",
+    body: `
+<h2>What Section 80(1) says</h2>
+<blockquote>No suits shall be instituted against the Government … or against a public officer in respect of any act purporting to be done by such public officer in his official capacity, until the expiration of two months next after notice in writing has been delivered to, or left at the office of [the officer named below] … stating the cause of action, the name, description and place of residence of the plaintiff and the relief which he claims; and the plaint shall contain a statement that such notice has been delivered or left.</blockquote>
+<h2>Who the notice goes to</h2>
+<table>
+<tr><th>Suit against</th><th>Deliver to</th></tr>
+<tr><td>Central Government (not a railway)</td><td>A Secretary to that Government</td></tr>
+<tr><td>Central Government, relating to a railway</td><td>The General Manager of that railway</td></tr>
+<tr><td>A State Government</td><td>A Secretary to that Government, or the Collector of the district</td></tr>
+<tr><td>A public officer</td><td>The officer personally, or left at their office</td></tr>
+</table>
+<p>The Code also names the officer for the Government of Jammu and Kashmir. When the right recipient is unclear, advocates often send copies to every likely one.</p>
+<h2>Suing without waiting: Section 80(2)</h2>
+<p>For urgent or immediate relief, the court may give leave to file without notice, or before the two months end. It must not grant relief, interim or otherwise, until the Government or officer has had a reasonable chance to show cause. If the court finds no urgency, it returns the plaint to be presented after complying with Section 80(1).</p>
+<h2>Defects in the notice: Section 80(3)</h2>
+<p>A suit is not dismissed only for an error or defect in the notice if it gave the plaintiff's name, description and residence so they can be identified, reached the right office, and substantially showed the cause of action and the relief claimed.</p>
+<h2>Limitation</h2>
+<p>The two-month notice period is left out when counting limitation for the suit, under Section 15(2) of the Limitation Act, 1963.</p>
+<p>DifAi drafts Section 80 notices to the right recipient, with the cause of action and relief stated: see <a href="/legal-notice-drafting">legal notice drafting</a>.</p>`,
+    faq: [
+      { q: 'How long must I wait after a Section 80 notice?', a: 'Two months from the date the notice is delivered or left at the office, unless the court gives leave under Section 80(2) for urgent relief.' },
+      { q: 'Does Section 80 apply to suits against government companies?', a: 'Not usually. Section 80 covers the Government and public officers. A company owned by the Government is generally a separate legal person, so check whether it counts as the Government for your claim.' },
+      { q: 'What must the plaint say about the notice?', a: 'Section 80(1) requires the plaint to state that the notice was delivered or left. Attach a copy of the notice and the proof of delivery.' },
+    ],
+    sources: [
+      { label: 'Code of Civil Procedure, 1908, Section 80 (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2191' },
+      { label: 'Limitation Act, 1963, Section 15(2) (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/1565' },
+    ],
+    cta: 'Draft a Section 80 notice with DifAi',
+  },
+  {
+    slug: 'cheque-bounce-notice-section-138',
+    kind: 'guide',
+    draft: true,
+    nav: null,
+    crumb: 'Cheque bounce notice (Section 138)',
+    updated: '2026-11-13',
+    title: 'Cheque Bounce Notice under Section 138: Time Limits | DifAi',
+    description:
+      'Send the notice within 30 days of the return memo, allow 15 days to pay, then file within a month. The Section 138 NI Act timeline, step by step.',
+    h1: 'Cheque bounce notice under Section 138 NI Act',
+    answer:
+      "Under Section 138 of the Negotiable Instruments Act, the payee must send a written demand notice to the drawer within 30 days of receiving the bank's return memo. If the drawer does not pay within 15 days of receiving the notice, an offence is made out, and the complaint must be filed within one month after those 15 days end (Section 142).",
+    body: `
+<h2>The timeline</h2>
+<table>
+<tr><th>Step</th><th>Time allowed</th><th>Provision</th></tr>
+<tr><td>Present the cheque to the bank</td><td>Within six months of its date, or within its validity, whichever is earlier (cheques are valid for three months under RBI rules)</td><td>Section 138, proviso (a)</td></tr>
+<tr><td>Send the demand notice</td><td>Within 30 days of the bank's information that the cheque was returned unpaid</td><td>Section 138, proviso (b)</td></tr>
+<tr><td>Drawer pays</td><td>Within 15 days of receiving the notice</td><td>Section 138, proviso (c)</td></tr>
+<tr><td>File the complaint</td><td>Within one month of the day the 15 days end; the court may accept a later complaint for sufficient cause</td><td>Section 142(1)(b)</td></tr>
+</table>
+<h2>What the Act says about the notice</h2>
+<blockquote>(b) the payee or the holder in due course of the cheque, as the case may be, makes a demand for the payment of the said amount of money by giving a notice in writing, to the drawer of the cheque, within thirty days of the receipt of information by him from the bank regarding the return of the cheque as unpaid; and<br />(c) the drawer of such cheque fails to make the payment of the said amount of money … within fifteen days of the receipt of the said notice.</blockquote>
+<h2>What to put in the notice</h2>
+<ul>
+<li>Cheque number, date, amount and the bank and branch it was drawn on.</li>
+<li>The debt or liability the cheque was given for.</li>
+<li>Date of presentation, date of the return memo, and the reason given, such as "funds insufficient".</li>
+<li>A demand for the cheque amount within 15 days of receipt. Show any claim for interest or costs separately, so the demand for the cheque amount stays clear.</li>
+</ul>
+<h2>Penalty and where to file</h2>
+<p>The offence is punishable "with imprisonment for a term which may be extended to two years, or with fine which may extend to twice the amount of the cheque, or with both". For a cheque deposited through an account, the complaint is filed where the payee's bank branch is, under Section 142(2). The court may order the drawer to pay interim compensation of up to 20% of the cheque amount, under Section 143A.</p>
+<p>DifAi drafts the demand notice and the reply, and its <a href="/limitation-calculator">limitation calculator</a> tracks each Section 138 deadline. See <a href="/legal-notice-drafting">legal notice drafting</a>.</p>`,
+    faq: [
+      { q: 'What is the time limit to send a cheque bounce notice?', a: "30 days from receiving the bank's return memo or other information that the cheque was returned unpaid, under Section 138(b) of the NI Act." },
+      { q: 'What happens if the drawer pays within 15 days?', a: 'No offence under Section 138 is made out, because the offence needs the drawer to fail to pay within 15 days of receiving the notice.' },
+      { q: 'Can I file the complaint after one month?', a: 'Only with an application to condone the delay. The proviso to Section 142(1)(b) lets the court take a late complaint if you show sufficient cause.' },
+    ],
+    sources: [
+      { label: 'Negotiable Instruments Act, 1881, Sections 138, 142 and 143A (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2189' },
+    ],
+    cta: 'Draft a cheque bounce notice with DifAi',
+  },
+  {
+    slug: 'case-status-by-cnr-number',
+    kind: 'guide',
+    draft: true,
+    nav: null,
+    crumb: 'Case status by CNR number',
+    updated: '2026-11-13',
+    checkedAgainst: 'the official eCourts websites',
+    title: 'Check Case Status by CNR Number: Web, App, SMS | DifAi',
+    description:
+      'Find any District or High Court case on eCourts with its 16-character CNR number: on the website, in the eCourts app, or by SMS to 9766899899.',
+    h1: 'How to check case status by CNR number',
+    answer:
+      'To check a case by CNR number, open services.ecourts.gov.in, choose the CNR Number search, enter the 16-character CNR without hyphens or spaces, type the captcha and search. You can also SMS ECOURTS followed by a space and the CNR number to 9766899899, or use the eCourts Services app. High Court cases are on hcservices.ecourts.gov.in.',
+    body: `
+<h2>What a CNR number is</h2>
+<p>The CNR (Case Number Record) is a unique 16-character code eCourts gives each case, such as <em>MHAU019999992015</em>, the example eCourts itself uses. It stays the same for the life of the case, even when the case number changes on transfer.</p>
+<h2>Three ways to check</h2>
+<table>
+<tr><th>Method</th><th>How</th></tr>
+<tr><td>Website</td><td><a href="https://services.ecourts.gov.in/ecourtindia_v6/" rel="noopener">services.ecourts.gov.in</a> for District and Taluka courts, or <a href="https://hcservices.ecourts.gov.in/" rel="noopener">hcservices.ecourts.gov.in</a> for High Courts. Enter the CNR and the captcha.</td></tr>
+<tr><td>SMS</td><td>Send <strong>ECOURTS &lt;CNR number&gt;</strong> to <strong>9766899899</strong>, as listed on ecourts.gov.in.</td></tr>
+<tr><td>App</td><td>The official eCourts Services app lets you save cases and check them again.</td></tr>
+</table>
+<h2>No CNR number?</h2>
+<p>On the same website you can search by party name, case number, filing number, FIR number, advocate name, Act or case type, after choosing the state, district and court complex. The result shows the CNR, which you can note for next time.</p>
+<h2>What the status shows</h2>
+<p>The next hearing date, the stage of the case, the court and judge, the parties and advocates, the hearing history, and orders and judgments where the court has uploaded them.</p>
+<h2>Checking many cases every day</h2>
+<p>Checking each case by hand with a captcha takes time once you have dozens. <a href="/ecourts-case-status">DifAi tracks cases by CNR</a> automatically, twice a day, and sends one summary of what changed.</p>`,
+    faq: [
+      { q: 'Where do I find the CNR number of my case?', a: 'It is shown on the eCourts case status page and on orders downloaded from eCourts. If you only know the parties or case number, search eCourts by those and the result shows the CNR.' },
+      { q: 'Does the CNR number work for High Court cases?', a: 'Yes. High Court cases on eCourts also have CNR numbers. Search them on hcservices.ecourts.gov.in.' },
+      { q: 'Is checking case status on eCourts free?', a: 'Yes. The eCourts website and app are free. The SMS service costs a normal SMS from your phone.' },
+    ],
+    sources: [
+      { label: 'eCourts District Court services (services.ecourts.gov.in)', url: 'https://services.ecourts.gov.in/ecourtindia_v6/' },
+      { label: 'eCourts High Court services (hcservices.ecourts.gov.in)', url: 'https://hcservices.ecourts.gov.in/' },
+      { label: 'eCourts portal: case status by SMS (ecourts.gov.in)', url: 'https://ecourts.gov.in/ecourts2.0/' },
+    ],
+    cta: 'Track your cases by CNR with DifAi',
+  },
+  {
+    slug: 'limitation-period-money-recovery-suit',
+    kind: 'guide',
+    draft: true,
+    nav: null,
+    crumb: 'Limitation for money recovery',
+    updated: '2026-11-13',
+    title: 'Limitation Period for Money Recovery Suit in India | DifAi',
+    description:
+      'Three years for most money suits, but the start date depends on the claim: loan, demand loan, goods sold, or an open account. Articles 1, 14, 19, 21.',
+    h1: 'Limitation period for a money recovery suit',
+    answer:
+      'A suit to recover money in India must usually be filed within three years under the Limitation Act, 1963. What changes is when the three years start: from the date of the loan (Articles 19 and 21), the delivery of goods (Article 14), or the right to sue accruing (Article 113). A signed acknowledgment or part payment before expiry restarts the period.',
+    body: `
+<h2>Common money claims (Schedule, Limitation Act, 1963)</h2>
+<table>
+<tr><th>Article</th><th>Description of suit</th><th>Period</th><th>Time runs from</th></tr>
+<tr><td>1</td><td>Balance due on a mutual, open and current account, with reciprocal demands</td><td>Three years</td><td>Close of the year in which the last item is admitted or entered in the account</td></tr>
+<tr><td>14</td><td>Price of goods sold and delivered, no fixed period of credit</td><td>Three years</td><td>Date of delivery of the goods</td></tr>
+<tr><td>15</td><td>Price of goods sold and delivered, on a fixed period of credit</td><td>Three years</td><td>When the period of credit expires</td></tr>
+<tr><td>19</td><td>Money payable for money lent</td><td>Three years</td><td>When the loan is made</td></tr>
+<tr><td>21</td><td>Money lent under an agreement that it is payable on demand</td><td>Three years</td><td>When the loan is made</td></tr>
+<tr><td>22</td><td>Money deposited, payable on demand</td><td>Three years</td><td>When the demand is made</td></tr>
+<tr><td>113</td><td>Any suit with no period provided elsewhere in the Schedule</td><td>Three years</td><td>When the right to sue accrues</td></tr>
+</table>
+<p>Article 21 surprises people: for a loan payable on demand, time runs from the date of the loan, not from the demand.</p>
+<h2>What restarts the period</h2>
+<ul>
+<li><strong>Acknowledgment (Section 18):</strong> a written acknowledgment of the debt, signed by the debtor before the period expires, starts a fresh period from the date it was signed.</li>
+<li><strong>Part payment (Section 19):</strong> a payment towards the debt or interest, made before the period expires, starts a fresh period from the payment. The payment must be acknowledged in the payer's handwriting or a writing signed by them.</li>
+</ul>
+<h2>Rules to remember</h2>
+<ul>
+<li><strong>A late suit is dismissed</strong> even if the defendant does not raise limitation (Section 3).</li>
+<li><strong>Section 5 condonation does not apply to suits.</strong> It covers appeals and applications only.</li>
+<li><strong>If the court is closed</strong> on the last day, you may file on the day it reopens (Section 4).</li>
+<li><strong>Summary suits</strong> under Order XXXVII CPC, on written contracts and negotiable instruments, have the same limitation as an ordinary suit for the claim.</li>
+</ul>
+<p>Work out the date and track it with the <a href="/limitation-calculator">DifAi limitation calculator</a>.</p>`,
+    faq: [
+      { q: 'What is the limitation period to recover money lent?', a: 'Three years from the date the loan was made, under Article 19, or Article 21 if the loan was payable on demand.' },
+      { q: 'Does sending a legal notice extend limitation?', a: 'No. An ordinary demand notice does not extend limitation. A signed acknowledgment of the debt (Section 18) or a part payment (Section 19) made before expiry does.' },
+      { q: 'Can the court condone delay in filing a money suit?', a: 'No. Section 5 of the Limitation Act applies to appeals and applications, not suits. A suit filed after limitation is dismissed under Section 3.' },
+    ],
+    sources: [
+      { label: 'Limitation Act, 1963: Sections 3, 4, 5, 18, 19 and the Schedule (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/1565' },
+      { label: 'Code of Civil Procedure, 1908, Order XXXVII (India Code)', url: 'https://www.indiacode.nic.in/handle/123456789/2191' },
+    ],
+    cta: 'Track limitation deadlines with DifAi',
+  },
 ];

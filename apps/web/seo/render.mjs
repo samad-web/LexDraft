@@ -156,7 +156,7 @@ export function renderPage(page, published) {
     : '';
   const checked =
     page.kind === 'guide'
-      ? `<p class="note">Last checked ${esc(page.updated)} against the bare Act. This is general information, not legal advice. Spotted an error? <a href="mailto:support@sirahdigital.in?subject=${encodeURIComponent(`Error on /${page.slug}`)}">Report it</a>.</p>`
+      ? `<p class="note">Last checked ${esc(page.updated)} against ${esc(page.checkedAgainst ?? 'the bare Act')}. This is general information, not legal advice. Spotted an error? <a href="mailto:support@sirahdigital.in?subject=${encodeURIComponent(`Error on /${page.slug}`)}">Report it</a>.</p>`
       : '';
   const related = `<h2>More from ${BRAND}</h2><ul>${others
     .map((p) => `<li><a href="/${p.slug}">${esc(p.h1)}</a></li>`)
