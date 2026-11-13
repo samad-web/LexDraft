@@ -76,7 +76,7 @@ const FEATURES: FeatureItem[] = [
 ];
 
 const TRUST_POINTS: string[] = [
-  '200+ Indian-format templates',
+  '84 court-ready Indian formats',
   'Central + state statutes indexed',
   'CNR-linked matter records',
   'NEFT / UPI reconciliation',
@@ -85,19 +85,19 @@ const TRUST_POINTS: string[] = [
 const FAQ_ITEMS: FaqItem[] = [
   {
     q: 'Where is my data stored?',
-    a: 'On Indian servers, in compliance with the DPDP Act 2023. Backups are encrypted at rest and in transit. Firm-tier customers can opt for on-premise deployment.',
+    a: 'In India, on our servers in Mumbai, in compliance with the DPDP Act 2023. Backups are encrypted at rest and in transit.',
   },
   {
-    q: 'Which courts and tribunals are supported?',
-    a: 'CNR-linked matter records work for any District Court, High Court, or the Supreme Court. Tribunal records cover NCLT, NCLAT, ITAT, CESTAT, DRT, and consumer commissions.',
+    q: 'Which courts are supported?',
+    a: 'Case tracking works for District Courts and High Courts through eCourts: add the CNR number and DifAi syncs hearings twice a day. Drafting covers petitions before tribunals and commissions too.',
   },
   {
     q: 'How does e-filing actually work?',
-    a: 'DifAi generates the court-ready PDF with the right margins, fonts, and pagination, then hands off to the relevant portal’s submission flow. Where APIs exist, we file directly; where they don’t, the file is opened with a one-click upload helper.',
+    a: 'DifAi prepares the court-ready PDF, then signs in to the eCourts eFiling portal with your own login and fills the case details for you. You complete the Aadhaar eSign, court-fee payment and final submit on the portal.',
   },
   {
     q: 'Do you support regional languages?',
-    a: 'English drafting is fully supported today. Hindi templates ship with the Practice plan. Marathi, Tamil, Kannada, and Bengali drafting are on the 2026 roadmap.',
+    a: 'Drafting is in English today. Mock Arguments can answer in Hindi, Tamil and other Indian languages. Drafting in regional languages is planned.',
   },
   {
     q: 'Can I export my data if I leave?',
