@@ -82,3 +82,12 @@
 - 2026-11-11 fix(land-records): result print drops trailing blank pages (Patta came out as 2 pages, 2nd blank).
 - 2026-11-11 fix(land-records): Patta result = extract + the FMB sketch the site embeds under it (kept as it arrives, single-use), as page 2; viewer frame no longer prints blank.
 - 2026-11-12 fix(navigation): Back returns to the previous tab instead of leaving the page. Tabs on the case page, Settings, People & Roles, Workload & Profitability, Calculators and Research now live in the URL as history entries (useUrlTab); Land Records keeps the open service while on My applications and adds a back button to it.
+
+## feat(seo-pages) — 2026-11-13
+- 8 prerendered public pages (6 feature pages, FAQ, About) from `apps/web/seo/pages.mjs`; static HTML, no JS, per-page canonical/OG/JSON-LD (WebPage, BreadcrumbList, FAQPage).
+- Build writes `404.html`, `sitemap.xml`, `llms.txt` (`node seo/prerender.mjs` after `vite build`; not in the Android build).
+- nginx: real 404 for unknown paths, SPA prefixes keep the app shell, trailing slash 301.
+- robots.txt allows search and AI bots; landing links all pages.
+
+## fix(landing-claims) — 2026-11-13
+- Landing states 84 formats, eFiling hand-off, English drafting, data in Mumbai, District/High Court tracking.

@@ -183,3 +183,10 @@
 - Unit: `apps/web/src/hooks/__tests__/useUrlTab.test.ts` (4) — tab read from ?tab=, default when absent, unknown ignored, custom key (?mode=). Pass.
 - Browser (Playwright, mocked API): Settings Account→Letterhead→Privacy, then Back ×3 → Letterhead, Account, previous page; Land Records Services→My applications, Back ×2 → Services, previous page. No page errors.
 - Regression: web vitest 14 files / 83 tests pass; tsc clean.
+
+## SEO pages (F1 prerender, F2 technical, F4 CTR rules) — 2026-11-13
+- `apps/web/seo/seo.test.mjs` + `claims.test.mjs`: 79 pass. Covers title ≤60 / description 120–155 / answer 40–70 words, canonical + single h1 + JSON-LD per page, sitemap = published pages only, llms.txt, 404 noindex, every App.tsx route prefix still served the app shell, no slug swallowed by an SPA route, landing links every page, Android build skips prerender.
+- Failures found: 5 descriptions over 155 chars (Google truncates) → rewritten.
+- Real nginx 1.27 in Docker against a real build: 13 SPA routes 200, 8 pages 200, `/nope` and `/wp-login.php` 404, llms.txt text/plain, sitemap text/xml. Found and fixed: `/faq/` was 404 → 301 to `/faq`; the 301 used an absolute http URL (would double-hop behind TLS) → `absolute_redirect off`.
+- Landing footer link → `/faq` does a full page load (not swallowed by React Router). Phone 390px: no horizontal scroll.
+- Full web suite: 169/169.
