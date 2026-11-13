@@ -104,3 +104,31 @@ F1 → F2 → F3 → F4 → F5 → F6. F3 needs F2's draft; F5 needs F2 and F3's
 
 # Check what's missing in the Draft box (approved 2026-11-10)
 - User asked for a prompt enhancer; chose "show what's missing" over an AI rewrite (a rewrite can change facts). Button always available with text. Detail: `features/brief-check.md`.
+# PLAN — SEO, AEO and click-through rate (approved 2026-11-13)
+
+## Goal and scope
+- Rank for what Indian advocates search, get DifAi quoted by AI answer engines, and earn the click when we appear.
+- Out of scope: paid ads, a blog CMS, bulk AI-written articles, fake ratings, any API/DB change.
+
+## Project memory that applies
+- Domain is difai.sirahdigital.in only; GSC + Bing already verified; `#seo-static` live on `/`.
+- Black and white UI; landing design untouched. Android app must not show marketing pages.
+- Pricing v2 is pushed but not deployed, so the pricing page waits for it.
+
+## Where this plan pushes back
+- AI crawlers don't run JS: today they see one short block on `/` and nothing else. Prerendered pages come first.
+- CTR is engineered and measured, not promised; it depends on rank first.
+- Several landing claims may be untrue (200+ templates, direct e-filing, Hindi, 2026 language roadmap, Indian servers). AI engines repeat them. Confirm before we scale.
+
+## Features (detail: `features/seo-aeo.md`)
+1. F1 Prerendered public pages from one content file.
+2. F2 Technical fixes: real 404s, robots for AI bots, llms.txt, per-page canonical/OG/breadcrumbs, generated sitemap.
+3. F3 Content: 6 feature pages, pricing/faq/about, 5 advocate-reviewed answer guides.
+4. F4 CTR: title/description rules enforced by tests, GSC baseline and 4/8-week rewrites.
+5. F5 Off-site: profiles + mentions (you), copy drafted by me.
+
+## Build order
+F2 → F1 → F4 rules → F3 (feature pages first, guides after your review) → F5. Each tested and committed on its own.
+
+## Needs from you
+- Approval; answers to the claim check; training-bot choice; who reviews the legal guides.

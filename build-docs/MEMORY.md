@@ -31,6 +31,7 @@
 - 2026-11-11 — AI cost: stay on Sonnet 5.5; cut cost only where a quality gate shows no change. Intake classify/phrase at effort `low`; extraction stays default (failed at `medium`). Switch: INTAKE_EFFORT_TUNED. features/ai-cost-efficiency.md.
 
 - 2026-11-11 — Pricing v2 phase A approved and built before payments go live (user: Dodo confirmed it accepts DifAi). Launch Dodo in test mode first, then live. Draft limits per advocate: Free 30, Solo 50, Chamber 40. Chamber ₹2,999/₹2,399 for 2 advocates + ₹899/₹719 per extra (Dodo add-on), online up to 8. Solo incl. GST, Chamber +18% GST. Intake drafts now counted once per matter+document (migration 0104, `ai_generations.source_key`). Internal plan id stays `practice`.
+- 2026-11-13 - SEO/AEO plan approved. AI training bots allowed in robots.txt (as well as search bots). Landing claims rewritten to what code supports: 84 court-ready formats + any document on request (not "200+"); eFiling fills the real portal, advocate eSigns/pays/submits (not "direct API filing"); English drafting, Mock Arguments in Hindi and more (no Hindi templates); data stored in India (Mumbai VPS - verified). Legal answer guides: quote + link the bare-act section, "Last checked" date, "Report an error" link, no named reviewer claimed; user skims each before publish.
 
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
