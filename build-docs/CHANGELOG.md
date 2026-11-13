@@ -1,5 +1,20 @@
 # Changelog
 
+- Draft PDF on WhatsApp (2026-11-12): the Share card has "Share PDF on WhatsApp", which sends the draft as a PDF file (same PDF as Download PDF: preview filing PDF, else engine .docx with edits via LibreOffice, else rasterised copy) with a short covering note. Android app: native share sheet. Chrome/Edge/phones: Web Share with files. Other browsers (no file sharing): the PDF downloads and WhatsApp opens with the note so the advocate attaches it. The text button is now "Send as text on WhatsApp".
+
+- Draft share on WhatsApp (2026-11-12): the draft's Share card has "Send on WhatsApp for review" next to Email. It sends the same covering note and plain-text draft through wa.me. Drafts over 65,000 characters are cut, with a note asking the client to get the full copy by email.
+
+- Bar Council verification off (2026-11-12): sign-up no longer asks for the State Bar Council or runs any enrolment check; advocates still enter their ID/enrolment number. Monthly roll import retired. Verification code left in the repo, unused.
+
+- Pricing v2 phase A (2026-11-11), not yet deployed:
+  - Drafts made through intake now count toward the monthly limit, once per matter and document.
+  - New limits per advocate: Free 30, Solo 50, Chamber 40.
+  - Practice is now sold as **Chamber**: ₹2,999 for 2 advocates plus ₹899 per extra advocate, up to 8, with a seat picker at checkout and on the renew screen. Seats are set only from Dodo's add-on quantity in the webhook.
+  - Solo shows "incl. GST" and Chamber "+18% GST".
+  - The billing page has a drafts meter with a notice at 80%.
+  - The limit-reached modal names the renewal date and links to /app/billing.
+  - New env vars `DODO_ADDON_CHAMBER_SEAT_{MONTHLY,ANNUAL}`. Migration 0104.
+
 - AI cost efficiency (2026-11-11): intake document-type pick and question wording run Sonnet 5.5 at `low` effort (less hidden thinking billed as output). Fact extraction, drafting and every other feature unchanged. Quality gate on 12 benchmark briefs: same results as before; extraction at `medium` failed the gate and was not shipped. Admin AI-usage now prices gpt-5.5 at $5/$30 (was shown at about half). `INTAKE_EFFORT_TUNED=false` turns it off.
 
 - Bar Council verification, phase 3 (2026-11-11): Punjab & Haryana and J&K advocates are checked against the councils' published roll PDFs, imported monthly (1st, 02:30 IST; only enrolment no. + name kept). Uttarakhand and Rajasthan checked live against their recent-enrolment lists (older enrolments not published by those councils). Migration 0103.
@@ -66,3 +81,13 @@
 - 2026-11-11 fix(land-records): OTP mobile number no longer remembered in the browser (was shown to every account on that browser).
 - 2026-11-11 fix(land-records): result print drops trailing blank pages (Patta came out as 2 pages, 2nd blank).
 - 2026-11-11 fix(land-records): Patta result = extract + the FMB sketch the site embeds under it (kept as it arrives, single-use), as page 2; viewer frame no longer prints blank.
+- 2026-11-12 fix(navigation): Back returns to the previous tab instead of leaving the page. Tabs on the case page, Settings, People & Roles, Workload & Profitability, Calculators and Research now live in the URL as history entries (useUrlTab); Land Records keeps the open service while on My applications and adds a back button to it.
+
+## feat(seo-pages) — 2026-11-13
+- 8 prerendered public pages (6 feature pages, FAQ, About) from `apps/web/seo/pages.mjs`; static HTML, no JS, per-page canonical/OG/JSON-LD (WebPage, BreadcrumbList, FAQPage).
+- Build writes `404.html`, `sitemap.xml`, `llms.txt` (`node seo/prerender.mjs` after `vite build`; not in the Android build).
+- nginx: real 404 for unknown paths, SPA prefixes keep the app shell, trailing slash 301.
+- robots.txt allows search and AI bots; landing links all pages.
+
+## fix(landing-claims) — 2026-11-13
+- Landing states 84 formats, eFiling hand-off, English drafting, data in Mumbai, District/High Court tracking.

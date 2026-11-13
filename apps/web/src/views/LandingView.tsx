@@ -164,20 +164,34 @@ const PRICING: PricingPlan[] = [
   },
 ];
 
+// Footer links React Router owns; the rest load as static pages.
+const SPA_HREF = /^\/(auth|signup|privacy|delete-account)(\/|\?|$)/;
+
 const FOOTER_GROUPS: FooterGroup[] = [
   {
     h: 'Product',
     l: [
       { label: 'Features', href: '#features' },
       { label: 'Pricing', href: '#pricing' },
-      { label: 'FAQ', href: '#faq' },
+      { label: 'FAQ', href: '/faq' },
       { label: 'Sign in', href: '/auth' },
+    ],
+  },
+  {
+    h: 'Tools',
+    l: [
+      { label: 'Legal notices', href: '/legal-notice-drafting' },
+      { label: 'Plaints & petitions', href: '/plaint-drafting' },
+      { label: 'eCourts case status', href: '/ecourts-case-status' },
+      { label: 'Contract review', href: '/contract-review' },
+      { label: 'Limitation calculator', href: '/limitation-calculator' },
+      { label: 'Advocate diary', href: '/advocate-diary' },
     ],
   },
   {
     h: 'Company',
     l: [
-      { label: 'About', href: '#trial' },
+      { label: 'About', href: '/about' },
       { label: 'Careers', href: 'mailto:careers@lexdraft.in' },
       { label: 'Press', href: 'mailto:press@lexdraft.in' },
       { label: 'Contact', href: 'mailto:partners@lexdraft.in?subject=DifAi' },
@@ -451,10 +465,11 @@ export function LandingView() {
     if (href.startsWith('#')) {
       e.preventDefault();
       goAnchor(href);
-    } else if (href.startsWith('/')) {
+    } else if (SPA_HREF.test(href)) {
       e.preventDefault();
       navigate(href);
     }
+    // Other '/' links are prerendered pages (seo/pages.mjs): full page load.
   };
 
   // Lenis lifecycle — momentum-based wheel/trackpad smoothing, scoped to the

@@ -1,6 +1,6 @@
 # Feature: SEO + AEO + click-through rate
 
-Status: **approved 2026-11-13** (decisions in MEMORY.md: training bots allowed, accurate claim wording, source-cited guides). Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
+Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature pages + FAQ + About built; pricing page waits for pricing v2 deploy; 5 guides pending (user skims before publish). Decisions in MEMORY.md.. Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
 
 ## Purpose
 - Rank on Google/Bing for what Indian advocates search ("legal notice drafting software", "ecourts case status app", "limitation period calculator India"), not only for "DifAi".

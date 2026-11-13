@@ -1,5 +1,10 @@
 # Testing
 
+## Draft PDF on WhatsApp — 2026-11-12
+- `share-file.test.ts` 7/7: Android app shares the cached PDF + note; dismissed sheet = cancelled; browser shares a PDF File + note; no file sharing / no Web Share / expired click activation = fallback (download + wa.me); AbortError = cancelled.
+- Failures found: 2 test-side (Node has no FileReader; afterEach unstubbed it). Fixed in the test, no app logic change.
+- Regression: full web vitest 90/90; tsc clean on touched files. Not tried on a real phone yet.
+
 ## Bar Council verification, phase 3 (rolls + recent-enrolment councils) — 2026-11-11
 - `bar-councils.test.ts` 19/19: added Uttarakhand table (transferred advocate with two numbers), Rajasthan date list + batch rows, P&H PDF page (serial+number cell, wrapped name, address dropped), J&K CIS page (JK/number/year items, nearby name), and "every live/roll council has a lookup/source".
 - Parsers on the real PDFs: P&H 112,561 / 112,561 number cells parsed; J&K 9,709 / 9,752 (99.6%; misses are odd rows). 18k P&H one-word names are genuine (the roll prints one name).
@@ -166,3 +171,22 @@
 - 2026-11-11 land-records e2e 14/14 both browsers; new: trailing blank page trim (checked on a real Patta print: 2 -> 1 page).
 - 2026-11-11 land-records e2e 15/15 full Chrome (14 + 1 skipped on headless shell: embed needs a PDF viewer); fixtures now page-level routes.
 - 2026-11-11 ai-cost-efficiency: `intake-effort.test.ts` 7 pass (effort low for classify/phrase on CLI and API; extract and checkBrief send none; switch off sends none; pre-5 models send none; gpt-5.5 priced $5/$30). Quality gate, dev route, 12 briefs b1–b4, default×2 vs tuned: classify 12/12 same, phrase 24/24 questions; extract at medium lost `case_ref` on recall_petition (cc_no took the full ref) → extract kept at default. API 900 passed, 1 failing (`anthropic-failover`, another session's uncommitted anthropic-client edit).
+
+## Pricing v2 phase A — 2026-11-11
+- `apps/api/src/services/__tests__/pricing-v2.test.ts`, 17 tests, all pass. They cover AC1 (intake counted once; a new doc counts; gathering/refused don't; DB insert ignores a repeated key), AC2 (Solo #51 refused with reset date), AC3 (free 30), AC5 (seats 5 → add-on qty 3; seats 2 → no add-on; webhook qty 3 → seats 5 + MRR; unknown add-on keeps seats), AC6 (1, 9 and 2.5 → 400; fewer seats than members → 400) and AC8 (API prices/GST/limits; web SIGNUP_PLANS equals billingPlans()).
+- `billing.test.ts`: the Practice yearly price assertion was changed from 3999 to 2399. The price changed on purpose; the test was stale.
+- Full API suite: 917 pass. 1 failure, `anthropic-failover` "answers from xAI", comes from other uncommitted work in `anthropic-client.ts`, not this change. It was checked in a clean worktree (see CHANGELOG).
+- Not automated: AC4 (redraft/review/ask/research never call `countIntakeDraft`; checked by grep), AC7 (the migration only lowers the floor function; the trigger only raises seats), AC9 and AC10 (UI: the meter is on /app/billing, Android shows it without buy buttons).
+
+
+## Back across tabs — 2026-11-12
+- Unit: `apps/web/src/hooks/__tests__/useUrlTab.test.ts` (4) — tab read from ?tab=, default when absent, unknown ignored, custom key (?mode=). Pass.
+- Browser (Playwright, mocked API): Settings Account→Letterhead→Privacy, then Back ×3 → Letterhead, Account, previous page; Land Records Services→My applications, Back ×2 → Services, previous page. No page errors.
+- Regression: web vitest 14 files / 83 tests pass; tsc clean.
+
+## SEO pages (F1 prerender, F2 technical, F4 CTR rules) — 2026-11-13
+- `apps/web/seo/seo.test.mjs` + `claims.test.mjs`: 79 pass. Covers title ≤60 / description 120–155 / answer 40–70 words, canonical + single h1 + JSON-LD per page, sitemap = published pages only, llms.txt, 404 noindex, every App.tsx route prefix still served the app shell, no slug swallowed by an SPA route, landing links every page, Android build skips prerender.
+- Failures found: 5 descriptions over 155 chars (Google truncates) → rewritten.
+- Real nginx 1.27 in Docker against a real build: 13 SPA routes 200, 8 pages 200, `/nope` and `/wp-login.php` 404, llms.txt text/plain, sitemap text/xml. Found and fixed: `/faq/` was 404 → 301 to `/faq`; the 301 used an absolute http URL (would double-hop behind TLS) → `absolute_redirect off`.
+- Landing footer link → `/faq` does a full page load (not swallowed by React Router). Phone 390px: no horizontal scroll.
+- Full web suite: 169/169.
