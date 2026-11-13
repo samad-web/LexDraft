@@ -118,7 +118,7 @@ describe('internal links and crawl rules', () => {
   });
   it('robots.txt allows public pages, blocks the app, points at the sitemap', () => {
     const robots = read('public/robots.txt');
-    expect(robots).toMatch(/User-agent: \*\nAllow: \//);
+    expect(robots).toMatch(/User-agent: \*\r?\nAllow: \//);
     expect(robots).toContain('Disallow: /app/');
     expect(robots).toContain(`Sitemap: ${ORIGIN}/sitemap.xml`);
   });
