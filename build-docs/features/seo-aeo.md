@@ -1,6 +1,6 @@
 # Feature: SEO + AEO + click-through rate
 
-Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature pages + FAQ + About built; pricing page waits for pricing v2 deploy; 5 guides written as `draft: true` 2026-11-13 (legal notice, s.80 CPC, s.138 NI, CNR status, money-suit limitation), not built until the user approves each. Decisions in MEMORY.md.. Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
+Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature pages + FAQ + About built; pricing page waits for pricing v2 deploy; 5 guides (legal notice, s.80 CPC, s.138 NI, CNR status, money-suit limitation) approved and published 2026-11-13; linked from the landing static block. Decisions in MEMORY.md.. Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
 
 ## Purpose
 - Rank on Google/Bing for what Indian advocates search ("legal notice drafting software", "ecourts case status app", "limitation period calculator India"), not only for "DifAi".
