@@ -192,9 +192,20 @@ function hexEqual(given: string, expected: string): boolean {
 const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
 
 type RzpSubscription = {
-  id?: string; plan_id?: string; status?: string; quantity?: number; paid_count?: number;
+  id?: string; plan_id?: string; status?: string; quantity?: number; paid_count?: number; created_at?: number;
   current_end?: number | null; customer_id?: string | null; notes?: Record<string, unknown> | unknown[];
 };
+
+/** Cancels a duplicate subscription immediately. Already-cancelled is fine; the
+ *  payment it took has to be refunded from the Razorpay dashboard. */
+async function cancelNow(subscriptionId: string, firmId: string): Promise<void> {
+  try {
+    await razorpay('POST', `/subscriptions/${subscriptionId}/cancel`, { cancel_at_cycle_end: 0 });
+  } catch {
+    // razorpay() already logged the API error (e.g. already cancelled).
+  }
+  logger.warn({ firmId, subscriptionId }, 'razorpay: duplicate subscription cancelled - refund its payment in the dashboard');
+}
 
 export const billingService = {
   plans: billingPlans,
@@ -330,9 +341,15 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     if (!secret) throw new HttpError(503, 'Billing webhook secret not configured');
     const sig = String(headers['x-razorpay-signature'] ?? '');
     const id = String(headers['x-razorpay-event-id'] ?? '');
-    if (!rawBody || !sig || !id) throw new UnauthorizedError('Missing webhook signature');
+    if (!rawBody || !sig || !id) {
+      logger.warn({ hasBody: !!rawBody, hasSignature: !!sig, hasEventId: !!id }, 'razorpay webhook: missing signature parts');
+      throw new UnauthorizedError('Missing webhook signature');
+    }
     const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-    if (!hexEqual(sig, expected)) throw new UnauthorizedError('Bad webhook signature');
+    if (!hexEqual(sig, expected)) {
+      logger.warn({ eventId: id, bodyBytes: rawBody.length }, 'razorpay webhook: bad signature (check RAZORPAY_WEBHOOK_SECRET matches the dashboard)');
+      throw new UnauthorizedError('Bad webhook signature');
+    }
     return id;
   },
 
@@ -393,6 +410,25 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
         if (!plan || !cycle || !seats) {
           logger.warn({ type, firmId, planId: sub.plan_id }, 'razorpay webhook: unknown plan, skipping');
           return;
+        }
+        // Two live subscriptions that are not a planned plan change (the owner
+        // paid two checkouts): the newest one wins, the other is stopped now.
+        // A late retry for the older one must never switch the firm back.
+        const [cur] = await sql<{ razorpay_subscription_id: string | null }[]>`
+          select razorpay_subscription_id from firms where id = ${firmId}::uuid`;
+        const current = cur?.razorpay_subscription_id ?? null;
+        if (current && subscriptionId && current !== subscriptionId && notes.replaces !== current) {
+          const other = await razorpay<RzpSubscription & { created_at?: number }>('GET', `/subscriptions/${current}`);
+          const otherLive = !['cancelled', 'completed', 'expired'].includes(String(other.status));
+          if (otherLive && (other.created_at ?? 0) > (sub.created_at ?? 0)) {
+            await cancelNow(subscriptionId, firmId);
+            await logEvent({ ...base, kind: 'cancelled' });
+            return;
+          }
+          if (otherLive) {
+            await cancelNow(current, firmId);
+            await logEvent({ ...base, providerRef: current, webhookId: null, kind: 'cancelled' });
+          }
         }
         await sql`
           update firms set

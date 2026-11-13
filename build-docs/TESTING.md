@@ -196,4 +196,7 @@
 - `razorpay-billing.test.ts` 25 tests: AC1/AC4 checkout plan + seats + GST amount, plan reuse, invalid/below-member seats, owner-only; AC5 plan change (start_at, replaces, cancel at cycle end); AC1/AC3 webhook plan/seats/MRR/renewal, first charge not a renewal, later charge renewed, AC2 redelivery no-op, unknown plan skipped; AC7 halted, cancelled keeps paid time, ended Solo back to free, old replaced sub ignored; pay page + callback signature; AC9 test key ignored in prod. All pass.
 - `billing.test.ts` (Razorpay webhook signature) 5 + `pricing-v2.test.ts` 8: pass. Dodo-only tests removed with Dodo.
 - Full API suite in a clean worktree: all pass (see commit).
-- Not yet run: a real Razorpay test-mode payment (needs the owner's test keys).
+- Test-mode run with the owner (2026-11-13), local app + tunnel: Solo ₹1,499 and Chamber 3 × ₹4,599.64 paid with UPI success@razorpay; checkout return worked. Chamber run 3: webhooks 200, firm -> Practice active, 3 seats, renews 13 Dec, MRR 3,898, one `subscription_active` event (first charge not counted as renewal).
+  - Found: webhook saved without a secret -> Razorpay sends unsigned events, and its RETRIES of those stay unsigned even after a secret is added (signature fixed at event creation). Fix = set the secret when creating the webhook; stuck test subscriptions cancelled and re-bought. Added a log line saying which signature part is missing.
+  - Found: two checkouts paid before the first was confirmed -> two live subscriptions. Fix: the newest wins, the other is cancelled at once (refund in dashboard); a late retry for the older one never switches the firm back. 4 tests added (razorpay-billing.test.ts now 29).
+  - Still to run: failed payment (failure@razorpay), cancellation from the dashboard.

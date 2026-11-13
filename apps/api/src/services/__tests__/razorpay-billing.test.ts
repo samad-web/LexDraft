@@ -222,6 +222,62 @@ describe('AC1/AC3/AC4 webhook sets the plan from what Razorpay charged', () => {
   });
 });
 
+describe('Found in Razorpay test-mode run (2026-11-13): two paid checkouts', () => {
+  const rows = (current: string) => (t: string) =>
+    t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'practice', cycle: 'monthly', seats: 3 }]
+      : t.includes('select razorpay_subscription_id from firms') ? [{ razorpay_subscription_id: current }] : [];
+  const ev = (id: string, createdAt: number) => ({
+    event: 'subscription.activated',
+    payload: { subscription: { entity: { id, plan_id: 'plan_c', created_at: createdAt, current_end: 1_900_000_000, notes: { firm_id: 'f1' } } } },
+  });
+  /** Razorpay stub: GET returns the other subscription; cancel succeeds or fails. */
+  function stub(other: { status: string; created_at: number }, cancelFails = false) {
+    const fetchMock = vi.fn(async (url: string, init?: { method?: string }) => {
+      if (init?.method === 'GET') return new Response(JSON.stringify({ id: 'sub_cur', ...other }), { status: 200 });
+      return cancelFails ? new Response('{"error":{"description":"already cancelled"}}', { status: 400 })
+        : new Response('{}', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const cancelled = () => fetchMock.mock.calls.filter((c) => String(c[0]).endsWith('/cancel')).map((c) => String(c[0]));
+    return { cancelled };
+  }
+  const switched = () => h.calls.some((c) => /update firms set\s+plan_tier/.test(c.text));
+
+  it('a newer paid subscription wins: the older live one is cancelled now and the firm switches', async () => {
+    h.useFakeDb = true;
+    h.rows = rows('sub_cur');
+    const { cancelled } = stub({ status: 'active', created_at: 100 });
+    await billing.billingService.handleWebhook('evt_d1', ev('sub_newer', 200));
+    expect(cancelled()).toEqual([expect.stringMatching(/\/subscriptions\/sub_cur\/cancel$/)]);
+    expect(switched()).toBe(true);
+  });
+
+  it('a late retry for an older subscription is cancelled and never switches the firm back', async () => {
+    h.useFakeDb = true;
+    h.rows = rows('sub_cur');
+    const { cancelled } = stub({ status: 'active', created_at: 300 });
+    await billing.billingService.handleWebhook('evt_d2', ev('sub_older', 200));
+    expect(cancelled()).toEqual([expect.stringMatching(/\/subscriptions\/sub_older\/cancel$/)]);
+    expect(switched()).toBe(false);
+  });
+
+  it('the other one is already cancelled: nothing to cancel, the firm switches', async () => {
+    h.useFakeDb = true;
+    h.rows = rows('sub_cur');
+    const { cancelled } = stub({ status: 'cancelled', created_at: 300 });
+    await billing.billingService.handleWebhook('evt_d3', ev('sub_x', 200));
+    expect(cancelled()).toEqual([]);
+    expect(switched()).toBe(true);
+  });
+
+  it('a cancel that Razorpay refuses (already cancelled) does not fail the webhook', async () => {
+    h.useFakeDb = true;
+    h.rows = rows('sub_cur');
+    stub({ status: 'active', created_at: 300 }, true);
+    await expect(billing.billingService.handleWebhook('evt_d4', ev('sub_older', 200))).resolves.toBeUndefined();
+  });
+});
+
 describe('AC7 failed renewal and cancellation', () => {
   const sameSub = (t: string) => (t.includes('select razorpay_subscription_id from firms') ? [{ razorpay_subscription_id: 'sub_new123' }] : []);
   const ev = (event: string, currentEnd: number | null, planId = 'plan_s') => ({

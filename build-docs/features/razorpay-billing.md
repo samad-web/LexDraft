@@ -1,6 +1,6 @@
 # Feature: Razorpay billing (replaces Dodo Payments)
 
-Status: **built, awaiting Razorpay test keys for the live test-mode run** (approved 2026-11-13). Owner decision: quit Dodo Payments, move to Razorpay. Prices are unchanged (current Solo / Chamber catalogue in `billing.service.ts`); v4 prices go in once confirmed. Migration 0105 applied locally only.
+Status: **built; test-mode payment verified 2026-11-13 (Chamber 3 seats activated by webhook)** (approved 2026-11-13). Owner decision: quit Dodo Payments, move to Razorpay. Prices are unchanged (current Solo / Chamber catalogue in `billing.service.ts`); v4 prices go in once confirmed. Migration 0105 applied locally only.
 
 ## Purpose
 - Take subscription and top-up payments through Razorpay instead of Dodo.
@@ -51,6 +51,8 @@ Status: **built, awaiting Razorpay test keys for the live test-mode run** (appro
 | Docs | `MEMORY.md`, `PLAN.md`, `TESTING.md`, `CHANGELOG.md`, `pricing-v2.md` | |
 
 ## Edge cases and failure modes
+- **Two paid checkouts (found in testing):** the newest subscription wins and the other is cancelled at once; its payment is refunded from the dashboard. A late retry for the older one is ignored.
+- **Webhook secret:** it must be set when the webhook is created. Events created without one stay unsigned on every retry.
 - **Forged or replayed webhooks:** bad signature → 401. A duplicate event id → 200 with no effect.
 - **Webhook before the Checkout return, or Checkout return without a webhook:** only the webhook changes the plan. The page polls `GET /billing` until it does, with a "Payment received, activating…" state.
 - **UPI Autopay:**

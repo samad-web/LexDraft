@@ -101,3 +101,7 @@
 - Plan change = new subscription from the renewal date; old one cancelled at cycle end once the new one is authorised (no double charge, works with UPI Autopay).
 - Kept from the Dodo test run: Solo refused for a practice with members; first charge not logged as a renewal.
 - Test keys ignored in production. Billing, admin and privacy text say Razorpay. `DODO_*` env removed.
+
+## fix(razorpay-billing) — 2026-11-13
+- Two paid checkouts no longer leave two live subscriptions: the newest wins, the other is cancelled at once (refund from the dashboard); stale retries can't switch the plan back.
+- Webhook signature failures log which part is missing (no secret values).
