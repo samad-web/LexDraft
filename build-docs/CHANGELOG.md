@@ -90,6 +90,7 @@
 - robots.txt allows search and AI bots; landing links all pages.
 
 ## feat(seo-guides) — 2026-11-13
+- Published: user approved all 5; `draft` removed, linked from index.html. 13 pages prerendered, sitemap 14 URLs. Web suite 204/204.
 - 5 source-cited answer guides in `apps/web/seo/pages.mjs`, all `draft: true` (not in build, sitemap or llms.txt) until approved. Tests extend to drafts.
 
 ## fix(landing-claims) — 2026-11-13

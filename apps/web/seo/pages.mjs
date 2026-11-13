@@ -233,12 +233,11 @@ export const PAGES = [
     cta: 'Start using DifAi',
   },
 
-  // ---- Guides: draft until the user has read each one (decision 2026-11-13).
+  // ---- Guides: approved by the user and published 2026-11-13.
   // Quotes are from the bare Acts; links go to the Act's India Code record.
   {
     slug: 'how-to-send-legal-notice-india',
     kind: 'guide',
-    draft: true,
     nav: null,
     crumb: 'How to send a legal notice',
     updated: '2026-11-13',
@@ -287,7 +286,6 @@ export const PAGES = [
   {
     slug: 'section-80-cpc-notice',
     kind: 'guide',
-    draft: true,
     nav: null,
     crumb: 'Section 80 CPC notice',
     updated: '2026-11-13',
@@ -330,7 +328,6 @@ export const PAGES = [
   {
     slug: 'cheque-bounce-notice-section-138',
     kind: 'guide',
-    draft: true,
     nav: null,
     crumb: 'Cheque bounce notice (Section 138)',
     updated: '2026-11-13',
@@ -374,7 +371,6 @@ export const PAGES = [
   {
     slug: 'case-status-by-cnr-number',
     kind: 'guide',
-    draft: true,
     nav: null,
     crumb: 'Case status by CNR number',
     updated: '2026-11-13',
@@ -416,7 +412,6 @@ export const PAGES = [
   {
     slug: 'limitation-period-money-recovery-suit',
     kind: 'guide',
-    draft: true,
     nav: null,
     crumb: 'Limitation for money recovery',
     updated: '2026-11-13',
