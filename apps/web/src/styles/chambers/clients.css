@@ -705,7 +705,7 @@
   box-shadow: var(--shadow-card);
   font-size: 14px;
 }
-[data-ui='chambers'] .cm-notice > span { flex: 1; min-width: 0; }
+[data-ui='chambers'] .cm-notice > span:not(.cm-notice-icon) { flex: 1; min-width: 0; }
 [data-ui='chambers'] .cm-notice-icon {
   display: inline-flex;
   align-items: center;

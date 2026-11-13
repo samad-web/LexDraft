@@ -430,6 +430,14 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
             await logEvent({ ...base, providerRef: current, webhookId: null, kind: 'cancelled' });
           }
         }
+        // A planned plan change has started: make sure the replaced subscription
+        // can't charge again, even if its end-of-cycle cancel never took effect.
+        const replaced = typeof notes.replaces === 'string' ? notes.replaces : null;
+        if (type === 'subscription.activated' && replaced && SUBSCRIPTION_ID.test(replaced) && replaced !== subscriptionId) {
+          try {
+            await razorpay('POST', `/subscriptions/${replaced}/cancel`, { cancel_at_cycle_end: 0 });
+          } catch { /* already cancelled at its cycle end: nothing to do */ }
+        }
         await sql`
           update firms set
             plan_tier = ${PAID[plan].tier}::firm_plan_tier,

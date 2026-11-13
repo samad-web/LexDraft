@@ -106,3 +106,7 @@
 ## fix(razorpay-billing) — 2026-11-13
 - Two paid checkouts no longer leave two live subscriptions: the newest wins, the other is cancelled at once (refund from the dashboard); stale retries can't switch the plan back.
 - Webhook signature failures log which part is missing (no secret values).
+
+## fix(razorpay-billing) — 2026-11-13 (2)
+- Plan change: when the new subscription starts, the replaced one is cancelled at once (safety net if the end-of-cycle cancel didn't take).
+- Billing banner tick icon no longer stretches across the row.

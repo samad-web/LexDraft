@@ -159,6 +159,22 @@ describe('AC5 plan change: one subscription replaces the other at the period end
     expect(body('/cancel')).toEqual({ cancel_at_cycle_end: 1 });
   });
 
+  it('when the new subscription starts, the replaced one is stopped at once (safety net), and a refusal is tolerated', async () => {
+    h.useFakeDb = true;
+    h.rows = (t) => (t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'practice', cycle: 'monthly', seats: 2 }]
+      : t.includes('select razorpay_subscription_id from firms') ? [{ razorpay_subscription_id: 'sub_old999' }] : []);
+    const fetchMock = vi.fn(async () => new Response('{"error":{"description":"already cancelled"}}', { status: 400 }));
+    vi.stubGlobal('fetch', fetchMock);
+    await billing.billingService.handleWebhook('evt_act_new', {
+      event: 'subscription.activated',
+      payload: { subscription: { entity: { id: 'sub_new123', plan_id: 'plan_x', current_end: 1_900_000_000, notes: { firm_id: 'f1', replaces: 'sub_old999' } } } },
+    });
+    const call = fetchMock.mock.calls[0] as unknown as [string, { body: string }];
+    expect(call[0]).toMatch(/\/subscriptions\/sub_old999\/cancel$/);
+    expect(JSON.parse(call[1].body)).toEqual({ cancel_at_cycle_end: 0 });
+    expect(h.calls.some((c) => /update firms set\s+plan_tier/.test(c.text))).toBe(true);
+  });
+
   it('the same plan again is refused', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({ plan_status: 'active', razorpay_subscription_id: 'sub_old999', billing_cycle: 'monthly', seats: 2 });
