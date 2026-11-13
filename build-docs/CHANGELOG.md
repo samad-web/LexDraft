@@ -91,3 +91,10 @@
 
 ## fix(landing-claims) — 2026-11-13
 - Landing states 84 formats, eFiling hand-off, English drafting, data in Mumbai, District/High Court tracking.
+
+## feat(razorpay-billing) — 2026-11-13
+- Razorpay replaces Dodo Payments (Dodo never went live). Checkout = Razorpay subscription + `/api/billing/pay/:id` page (Razorpay Checkout, redirect back via `/api/billing/callback`); plan changes only on the signed webhook `/api/billing/webhook` (X-Razorpay-Signature, event id idempotent).
+- Migration 0105 (additive, local only): `firms.razorpay_*`, `razorpay_plans` (one Razorpay plan per plan/cycle/advocates/price, created on first purchase).
+- Plan change = new subscription from the renewal date; old one cancelled at cycle end once the new one is authorised (no double charge, works with UPI Autopay).
+- Kept from the Dodo test run: Solo refused for a practice with members; first charge not logged as a renewal.
+- Test keys ignored in production. Billing, admin and privacy text say Razorpay. `DODO_*` env removed.

@@ -3,6 +3,9 @@
 process.env['NODE_ENV'] = 'test';
 process.env['JWT_SECRET'] = process.env['JWT_SECRET'] || 'test-secret-32-bytes-minimum-aaaaaaaa';
 process.env['DATABASE_URL'] = process.env['DATABASE_URL'] || '';
+// Unit tests never reach Razorpay with a real key from a developer's .env:
+// payments start switched off, and a test that needs them sets fake keys itself.
+for (const k of ['RAZORPAY_KEY_ID', 'RAZORPAY_KEY_SECRET', 'RAZORPAY_WEBHOOK_SECRET']) process.env[k] = '';
 process.env['STORAGE_DRIVER'] = process.env['STORAGE_DRIVER'] || 'local';
 process.env['STORAGE_LOCAL_DIR'] = process.env['STORAGE_LOCAL_DIR'] || './.test-uploads';
 process.env['STORAGE_PUBLIC_BASE_URL'] = process.env['STORAGE_PUBLIC_BASE_URL'] || 'http://localhost:4000';

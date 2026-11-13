@@ -4,7 +4,7 @@ import type { AdminBillingEvent, BillingEventKind } from '@lexdraft/types';
 import { useAdminBilling } from '../queries';
 
 // =============================================================================
-// Billing - self-serve plan sign-ups and payments (Dodo Payments). The rows
+// Billing - self-serve plan sign-ups and payments (Razorpay). The rows
 // worth acting on are checkouts that never turned into a payment: the owner's
 // WhatsApp number is one click away.
 // =============================================================================
@@ -67,7 +67,7 @@ export function BillingView() {
 
   const s = data?.summary;
   const tiles: Array<[string, string, string]> = s ? [
-    ['Paying firms', String(s.payingFirms), 'Active Dodo subscriptions'],
+    ['Paying firms', String(s.payingFirms), 'Active Razorpay subscriptions'],
     ['Monthly revenue', inr(s.mrrInr), 'Yearly plans counted per month'],
     ['Trials ending', String(s.trialsEndingSoon), 'Firm trials ending in 7 days'],
     ['Follow up', String(s.abandonedCheckouts), 'Opened checkout, not paying (30 days)'],
@@ -79,7 +79,7 @@ export function BillingView() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Billing</div>
         <h1 className="display-md">Plans and payments</h1>
         <p className="muted" style={{ fontSize: 13, marginTop: 8, maxWidth: 640, lineHeight: 1.55 }}>
-          Every plan picked at sign-up, every checkout opened and every payment from Dodo Payments.
+          Every plan picked at sign-up, every checkout opened and every payment from Razorpay.
           &ldquo;Follow up&rdquo; lists people who opened the payment page but are not paying yet.
         </p>
       </header>

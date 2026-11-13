@@ -43,7 +43,7 @@ export function BillingView() {
   const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
   const returned = params.get('checkout');
-  // Back from Dodo: the plan flips when the webhook lands, so poll briefly.
+  // Back from Razorpay: the plan flips when the webhook lands, so poll briefly.
   const [waiting, setWaiting] = useState(returned === 'done');
   const { data, isLoading } = useBilling({ refetchInterval: waiting ? 3000 : false });
   const checkout = useStartCheckout();
@@ -151,7 +151,7 @@ export function BillingView() {
               <div className="cm-current-v">
                 {data.current.billingCycle === 'annual' ? 'Yearly' : data.current.billingCycle === 'monthly' ? 'Monthly' : 'Not set up'}
               </div>
-              {!native && <div className="cm-current-note">UPI, cards and netbanking via Dodo Payments</div>}
+              {!native && <div className="cm-current-note">UPI, cards and netbanking via Razorpay</div>}
             </div>
           </section>
 
@@ -181,7 +181,7 @@ export function BillingView() {
                   sameAsNow ? 'You are already on this plan.'
                     : !data.paymentsEnabled || !chosen.purchasable
                       ? 'Online payment is being switched on. Please try again soon.'
-                      : `Pay securely on Dodo Payments (UPI, cards, netbanking). Your plan switches as soon as the payment goes through.`
+                      : `Pay securely with Razorpay (UPI Autopay, cards, netbanking). Your plan switches as soon as the payment goes through.`
                 )}
               </span>
               {chosen.id === 'firm' && (

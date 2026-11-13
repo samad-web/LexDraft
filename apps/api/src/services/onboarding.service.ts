@@ -13,7 +13,7 @@ import { storage } from './storage.service';
 // from Google + a verified WhatsApp number + a password; the plan and practice
 // details are picked here, then the firm is set up to match:
 //   free     -> Solo tier, free launch plan till FREE_PLAN_ENDS_AT
-//   solo     -> same as free until Dodo confirms the payment (webhook)
+//   solo     -> same as free until Razorpay confirms the payment (webhook)
 //   practice -> Practice tier, 14-day trial, owner becomes Managing Partner
 // =============================================================================
 

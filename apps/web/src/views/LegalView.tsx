@@ -85,7 +85,7 @@ export function PrivacyPolicyView() {
         <li><strong>AI model provider</strong> (Anthropic): the text needed to generate a draft or answer is sent for processing. It is not used to train their models.</li>
         <li><strong>Google:</strong> if you choose Google sign-in.</li>
         <li><strong>WhatsApp messaging provider:</strong> your phone number, to deliver verification codes.</li>
-        <li><strong>Payment processor</strong> (Dodo Payments): to process subscription payments.</li>
+        <li><strong>Payment processor</strong> (Razorpay Software Pvt. Ltd.): to process subscription payments.</li>
         <li><strong>Hosting provider:</strong> our servers and database.</li>
       </ul>
       <p>We may also disclose data where required by law or a valid order of a court or authority.</p>

@@ -23,7 +23,7 @@ export function useAiQuota() {
   });
 }
 
-/** Opens Dodo's hosted checkout for the chosen plan. */
+/** Opens Razorpay checkout (via /api/billing/pay) for the chosen plan. */
 export function useStartCheckout() {
   return useMutation({
     mutationFn: (body: BillingCheckoutRequest) => api.post<{ checkoutUrl: string }>('/billing/checkout', body),
@@ -41,7 +41,7 @@ export function useRenewCheckout() {
 }
 
 /** Finishes /onboarding: plan + practice details. Swaps in the updated user
- *  (role, plan) and, for Solo, hands back Dodo's payment page. */
+ *  (role, plan) and, for Solo, hands back the Razorpay payment page. */
 export function useCompleteOnboarding() {
   const qc = useQueryClient();
   return useMutation({

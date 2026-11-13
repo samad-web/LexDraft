@@ -207,7 +207,7 @@ apiRouter.use('/physical-documents', requireAuth, requireActivePlan, physicalDoc
 apiRouter.use('/analytics',   requireAuth, requireActivePlan, analyticsRouter);
 apiRouter.use('/me/bar-verification', requireAuth, barVerificationRouter);
 apiRouter.use('/me',          requireAuth, meRouter);
-// Plan & billing (Dodo Payments). Mixed: the webhook and renew-checkout are
+// Plan & billing (Razorpay). Mixed: the webhook, pay page, callback and renew-checkout are
 // public, the rest require auth. No requireActivePlan so lapsed firms can pay.
 apiRouter.use('/billing', billingRouter);
 // Post-sign-up onboarding (plan + practice details). Auth only, no plan gate.

@@ -190,3 +190,9 @@
 - Real nginx 1.27 in Docker against a real build: 13 SPA routes 200, 8 pages 200, `/nope` and `/wp-login.php` 404, llms.txt text/plain, sitemap text/xml. Found and fixed: `/faq/` was 404 → 301 to `/faq`; the 301 used an absolute http URL (would double-hop behind TLS) → `absolute_redirect off`.
 - Landing footer link → `/faq` does a full page load (not swallowed by React Router). Phone 390px: no horizontal scroll.
 - Full web suite: 169/169.
+
+## Razorpay billing — 2026-11-13 (features/razorpay-billing.md)
+- `razorpay-billing.test.ts` 25 tests: AC1/AC4 checkout plan + seats + GST amount, plan reuse, invalid/below-member seats, owner-only; AC5 plan change (start_at, replaces, cancel at cycle end); AC1/AC3 webhook plan/seats/MRR/renewal, first charge not a renewal, later charge renewed, AC2 redelivery no-op, unknown plan skipped; AC7 halted, cancelled keeps paid time, ended Solo back to free, old replaced sub ignored; pay page + callback signature; AC9 test key ignored in prod. All pass.
+- `billing.test.ts` (Razorpay webhook signature) 5 + `pricing-v2.test.ts` 8: pass. Dodo-only tests removed with Dodo.
+- Full API suite in a clean worktree: all pass (see commit).
+- Not yet run: a real Razorpay test-mode payment (needs the owner's test keys).

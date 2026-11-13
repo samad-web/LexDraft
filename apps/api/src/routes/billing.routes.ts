@@ -45,12 +45,33 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
   }
 });
 
-// Dodo Payments webhook (Standard Webhooks signature). Public.
+// The page that opens Razorpay Checkout for a subscription. Public: the link is
+// what checkout hands back, signed in or not (renew from the sign-in page).
+billingRouter.get('/pay/:subscriptionId', (req, res) => {
+  const html = billingService.payPage(req.params.subscriptionId);
+  if (!html) { res.status(404).type('text/plain').send('Payment link not found.'); return; }
+  res
+    .set('Cache-Control', 'no-store')
+    // Razorpay's checkout opens popups (bank pages, UPI apps) that must reach back.
+    .set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups')
+    .set('Content-Security-Policy',
+      "default-src 'none'; script-src 'unsafe-inline' https://checkout.razorpay.com; style-src 'unsafe-inline'; " +
+      "frame-src https://api.razorpay.com https://checkout.razorpay.com; connect-src https://*.razorpay.com; " +
+      "img-src https: data:; form-action https://*.razorpay.com 'self'")
+    .type('html').send(html);
+});
+
+// Razorpay Checkout posts here after paying (callback_url, form-encoded). Public.
+billingRouter.post('/callback', (req, res) => {
+  res.redirect(303, billingService.checkoutReturn((req.body ?? {}) as Record<string, unknown>));
+});
+
+// Razorpay webhook (X-Razorpay-Signature over the raw body). Public.
 billingRouter.post('/webhook', async (req, res, next) => {
   try {
-    const webhookId = billingService.verifyWebhook(req.rawBody, req.headers);
-    // Handled before answering: a failure returns 500 so Dodo retries.
-    await billingService.handleWebhook(webhookId, req.body as { type?: string; data?: Record<string, unknown> });
+    const eventId = billingService.verifyWebhook(req.rawBody, req.headers);
+    // Handled before answering: a failure returns 500 so Razorpay retries.
+    await billingService.handleWebhook(eventId, req.body as Parameters<typeof billingService.handleWebhook>[1]);
     res.json({ received: true });
   } catch (err) {
     next(err);

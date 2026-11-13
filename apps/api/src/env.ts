@@ -181,19 +181,12 @@ const Schema = z.object({
    *  separated (web client first; add the Android client id when the native
    *  app gets Google sign-in). Blank disables Google sign-in. */
   GOOGLE_CLIENT_IDS: z.string().optional().default(''),
-  /** Dodo Payments (self-serve plan upgrades). Blank API key = online
-   *  payment off; the plan page says so instead of offering checkout. */
-  DODO_PAYMENTS_API_KEY: z.string().optional().default(''),
-  DODO_PAYMENTS_WEBHOOK_SECRET: z.string().optional().default(''),
-  DODO_PAYMENTS_ENVIRONMENT: z.enum(['test_mode', 'live_mode']).default('test_mode'),
-  /** Dodo product ids, one per plan + cycle (subscription products). */
-  DODO_PRODUCT_SOLO_MONTHLY: z.string().optional().default(''),
-  DODO_PRODUCT_SOLO_ANNUAL: z.string().optional().default(''),
-  DODO_PRODUCT_PRACTICE_MONTHLY: z.string().optional().default(''),
-  DODO_PRODUCT_PRACTICE_ANNUAL: z.string().optional().default(''),
-  /** Dodo add-on ids for each extra Chamber advocate beyond the 2 included. */
-  DODO_ADDON_CHAMBER_SEAT_MONTHLY: z.string().optional().default(''),
-  DODO_ADDON_CHAMBER_SEAT_ANNUAL: z.string().optional().default(''),
+  /** Razorpay (self-serve plan upgrades). Blank key = online payment off; the
+   *  plan page says so instead of offering checkout. rzp_test_ keys are ignored
+   *  in production so a test card can never unlock a paid plan there. */
+  RAZORPAY_KEY_ID: z.string().optional().default(''),
+  RAZORPAY_KEY_SECRET: z.string().optional().default(''),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
   /** Self-serve email + password sign-up. New accounts are meant to come in
    *  through Google + WhatsApp OTP, so this is off in production unless set
    *  to 'true'; outside production it stays on unless set to 'false' (the
@@ -331,21 +324,17 @@ export const env = {
     parsed.data.NODE_ENV !== 'production'
     && parsed.data.DEV_AUTH_AUTO_PROVISION === 'true',
   googleClientIds: parsed.data.GOOGLE_CLIENT_IDS.split(',').map((s) => s.trim()).filter(Boolean),
-  dodo: {
-    apiKey: parsed.data.DODO_PAYMENTS_API_KEY,
-    webhookSecret: parsed.data.DODO_PAYMENTS_WEBHOOK_SECRET,
-    baseUrl: parsed.data.DODO_PAYMENTS_ENVIRONMENT === 'live_mode'
-      ? 'https://live.dodopayments.com'
-      : 'https://test.dodopayments.com',
-    products: {
-      solo: { monthly: parsed.data.DODO_PRODUCT_SOLO_MONTHLY, annual: parsed.data.DODO_PRODUCT_SOLO_ANNUAL },
-      practice: { monthly: parsed.data.DODO_PRODUCT_PRACTICE_MONTHLY, annual: parsed.data.DODO_PRODUCT_PRACTICE_ANNUAL },
-    },
-    chamberSeatAddon: {
-      monthly: parsed.data.DODO_ADDON_CHAMBER_SEAT_MONTHLY,
-      annual: parsed.data.DODO_ADDON_CHAMBER_SEAT_ANNUAL,
-    },
-  },
+  razorpay: (() => {
+    const testKeyInProd = parsed.data.NODE_ENV === 'production' && parsed.data.RAZORPAY_KEY_ID.startsWith('rzp_test_');
+    const on = !testKeyInProd && !!parsed.data.RAZORPAY_KEY_ID && !!parsed.data.RAZORPAY_KEY_SECRET;
+    return {
+      keyId: on ? parsed.data.RAZORPAY_KEY_ID : '',
+      keySecret: on ? parsed.data.RAZORPAY_KEY_SECRET : '',
+      webhookSecret: parsed.data.RAZORPAY_WEBHOOK_SECRET,
+      testKeyInProd,
+      baseUrl: 'https://api.razorpay.com/v1',
+    };
+  })(),
   passwordSignupEnabled: parsed.data.NODE_ENV === 'production'
     ? parsed.data.PASSWORD_SIGNUP === 'true'
     : parsed.data.PASSWORD_SIGNUP !== 'false',
