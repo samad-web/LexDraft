@@ -89,6 +89,9 @@
 - nginx: real 404 for unknown paths, SPA prefixes keep the app shell, trailing slash 301.
 - robots.txt allows search and AI bots; landing links all pages.
 
+## feat(seo-guides) — 2026-11-13
+- 5 source-cited answer guides in `apps/web/seo/pages.mjs`, all `draft: true` (not in build, sitemap or llms.txt) until approved. Tests extend to drafts.
+
 ## fix(landing-claims) — 2026-11-13
 - Landing states 84 formats, eFiling hand-off, English drafting, data in Mumbai, District/High Court tracking.
 
