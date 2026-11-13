@@ -3,6 +3,7 @@ import type { SubscriptionInvoice } from '@lexdraft/types';
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
+import { planLabel } from '../lib/plans';
 
 // =============================================================================
 // GST tax invoices for DifAi subscriptions (features/gst-invoices.md, 0106).
@@ -105,14 +106,14 @@ function seller(): Seller | null {
 interface Buyer { name: string; practice: string | null; gstin: string | null; address: string | null; state: string | null; email: string | null; phone: string | null }
 
 interface InvoiceRow {
-  id: string; invoice_no: string; firm_id: string; razorpay_payment_id: string; plan: string; cycle: string; seats: number;
+  id: string; invoice_no: string; firm_id: string; razorpay_payment_id: string; plan: string; cycle: string; seats: number; munshi_seats: number | null;
   period_start: Date | null; period_end: Date | null; buyer: Buyer; seller: Seller; place_of_supply: string; sac: string;
   taxable_paise: number; cgst_paise: number; sgst_paise: number; igst_paise: number; total_paise: number; issued_at: Date;
 }
 
 function toDto(r: InvoiceRow): SubscriptionInvoice {
   return {
-    id: r.id, invoiceNo: r.invoice_no, issuedAt: r.issued_at.toISOString(), plan: r.plan, cycle: r.cycle, seats: r.seats,
+    id: r.id, invoiceNo: r.invoice_no, issuedAt: r.issued_at.toISOString(), plan: r.plan, cycle: r.cycle, seats: r.seats, munshiSeats: r.munshi_seats ?? 0,
     totalInr: r.total_paise / 100, taxInr: (r.cgst_paise + r.sgst_paise + r.igst_paise) / 100,
   };
 }
@@ -124,7 +125,7 @@ export const subscriptionInvoiceService = {
    *  null when the seller isn't configured or it already exists. */
   async issueForPayment(p: {
     firmId: string; paymentId: string; amountPaise: number; subscriptionId: string | null;
-    plan: string; cycle: string; seats: number; periodStart: Date | null; periodEnd: Date | null; at?: Date;
+    plan: string; cycle: string; seats: number; munshi?: number; periodStart: Date | null; periodEnd: Date | null; at?: Date;
   }): Promise<string | null> {
     const sql = db();
     if (!sql) return null;
@@ -163,10 +164,10 @@ export const subscriptionInvoiceService = {
         const no = `${env.INVOICE_PREFIX}/${fy}/${String(seq).padStart(6, '0')}`;
         const [row] = await tx<{ id: string }[]>`
           insert into subscription_invoices (invoice_no, fy, seq, firm_id, razorpay_payment_id, razorpay_subscription_id,
-            plan, cycle, seats, period_start, period_end, buyer, seller, place_of_supply, sac,
+            plan, cycle, seats, munshi_seats, period_start, period_end, buyer, seller, place_of_supply, sac,
             taxable_paise, cgst_paise, sgst_paise, igst_paise, total_paise)
           values (${no}, ${fy}, ${seq}, ${p.firmId}::uuid, ${p.paymentId}, ${p.subscriptionId},
-            ${p.plan}, ${p.cycle}, ${p.seats}, ${p.periodStart}, ${p.periodEnd}, ${tx.json(buyer as never)}, ${tx.json(s as never)},
+            ${p.plan}, ${p.cycle}, ${p.seats}, ${p.munshi ?? 0}, ${p.periodStart}, ${p.periodEnd}, ${tx.json(buyer as never)}, ${tx.json(s as never)},
             ${`${pos}-${STATES[pos]}`}, ${env.INVOICE_SAC},
             ${tax.taxable}, ${tax.cgst}, ${tax.sgst}, ${tax.igst}, ${p.amountPaise})
           on conflict (razorpay_payment_id) do nothing
@@ -224,13 +225,12 @@ export const subscriptionInvoiceService = {
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const inr = (paise: number) => `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const day = (d: Date | null) => (d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }) : '');
-const PLAN_NAMES: Record<string, string> = { solo: 'Solo', practice: 'Chamber' };
 
 /** DifAi's invoice: black and white, every field a GST tax invoice needs. */
 function invoiceHtml(r: InvoiceRow): string {
   const s = r.seller;
   const b = r.buyer;
-  const plan = `DifAi ${PLAN_NAMES[r.plan] ?? r.plan} plan${r.plan === 'practice' ? `, ${r.seats} advocates` : ''}, billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`;
+  const plan = `DifAi ${planLabel(r.plan, r.seats, r.munshi_seats ?? 0)}, billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`;
   const period = r.period_start || r.period_end ? `Service period: ${day(r.period_start)} – ${day(r.period_end)}` : '';
   const taxRows = r.igst_paise
     ? `<tr><td>IGST @ 18%</td><td class="n">${inr(r.igst_paise)}</td></tr>`

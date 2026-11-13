@@ -14,6 +14,7 @@ import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
 import { systemRoleNameFor, unusablePasswordHash } from './auth.service';
+import { MUNSHI_ROLES } from '../lib/plans';
 
 const INVITATION_TTL_DAYS = 7;
 // Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
@@ -108,39 +109,55 @@ const INVITATION_SELECT = `
   from invitations
 `;
 
-interface SeatRow { seats: number; used: number }
+interface SeatRow { seats: number; munshi_seats: number | null; used: number; munshi_used: number }
 
 /**
- * Reject when (active users + pending invites) would exceed the firm's seat
- * cap. Counted at invite time so admins get clean feedback before sending the
- * email. Re-checked at accept() time to catch races where multiple invites
- * land in the same window.
+ * Reject when adding one person with `role` would not fit the seats paid for
+ * (pricing v4): advocates fit in advocate seats (firms.seats); a Munshi
+ * (Paralegal / Legal Secretary) fits in a Munshi seat or a spare advocate seat.
+ * Counts active users + pending invites. Checked at invite time so admins get
+ * clean feedback before sending the email, and again at accept() time (then
+ * without the invite being accepted, which is already counted as pending).
  *
  * Returns silently when firmId is null (dev fallback firm or unauthenticated
  * paths). Returns silently when DATABASE_URL is unset (demo mode).
  */
-async function assertSeatCapNotExceeded(firmId: string | null): Promise<void> {
+export async function assertSeatCapNotExceeded(firmId: string | null, role: string, acceptingInviteId?: string): Promise<void> {
   if (!firmId) return;
   const sql = db();
   if (!sql) return;
+  const skip = acceptingInviteId ?? null;
+  const munshiRoles = MUNSHI_ROLES as string[];
   const [row] = await sql<SeatRow[]>`
     select
-      f.seats,
+      f.seats, f.munshi_seats,
       ((select count(*)::int from users
         where firm_id = ${firmId}::uuid and status = 'active')
        + (select count(*)::int from invitations
-          where firm_id = ${firmId}::uuid and status = 'pending')) as used
+          where firm_id = ${firmId}::uuid and status = 'pending'
+            and (${skip}::text is null or id::text <> ${skip}::text))) as used,
+      ((select count(*)::int from users
+        where firm_id = ${firmId}::uuid and status = 'active' and role = any(${munshiRoles}))
+       + (select count(*)::int from invitations
+          where firm_id = ${firmId}::uuid and status = 'pending' and role = any(${munshiRoles})
+            and (${skip}::text is null or id::text <> ${skip}::text))) as munshi_used
     from firms f
     where f.id = ${firmId}::uuid
     limit 1
   `;
   if (!row) return;
-  if (row.used >= row.seats) {
+  const munshiSeats = row.munshi_seats ?? 0;
+  const isMunshi = MUNSHI_ROLES.includes(role);
+  const advocates = row.used - row.munshi_used + (isMunshi ? 0 : 1);
+  if (advocates > row.seats || row.used + 1 > row.seats + munshiSeats) {
+    const cap = row.seats + munshiSeats;
     throw Object.assign(
       new Error(
-        `Seat cap reached (${row.used} of ${row.seats}). Upgrade your plan to invite more advocates.`,
+        isMunshi
+          ? `No Munshi seat left (${row.used} of ${cap} seats used). Add a Munshi seat in Plan & Billing to invite more staff.`
+          : `Seat cap reached (${row.used - row.munshi_used} of ${row.seats} advocate seats). Upgrade your plan to invite more advocates.`,
       ),
-      { status: 402, code: 'seat_cap_exceeded', cap: row.seats, used: row.used },
+      { status: 402, code: 'seat_cap_exceeded', cap, used: row.used },
     );
   }
 }
@@ -248,7 +265,7 @@ export const invitationsService = {
     // Enforce seat cap before allocating the invite. Failing here keeps the
     // pending-invites table free of unfillable entries and gives the admin
     // an actionable 402 with the current usage in the error payload.
-    await assertSeatCapNotExceeded(firmId);
+    await assertSeatCapNotExceeded(firmId, input.role);
 
     let role: string = input.role;
     if (input.role === 'Other') {
@@ -446,7 +463,7 @@ export const invitationsService = {
     // this invite while it was pending, but if seats were reduced or another
     // invite was accepted in the meantime, we want a clean 402 rather than a
     // silently overpopulated firm.
-    await assertSeatCapNotExceeded(firmId);
+    await assertSeatCapNotExceeded(firmId, inv.role, inv.id);
 
     // The invite is addressed to one inbox; only the Google account for that
     // email may claim it.

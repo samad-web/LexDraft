@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlan, BillingPlanId, OnboardingCompleteRequest } from '@lexdraft/types';
 import { Wordmark } from '@/components/brand/Logo';
-import { SIGNUP_PLANS } from '@/components/PlanCards';
+import { MunshiPicker, planTotal, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useCompleteOnboarding } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
@@ -23,12 +23,13 @@ type Kind = 'advocate' | 'student';
 type DocType = NonNullable<OnboardingCompleteRequest['idDocumentType']>;
 
 const STEPS: Array<{ title: string; sub: string }> = [
-  { title: 'Choose a plan', sub: 'Free for advocates & students' },
+  { title: 'Choose a plan', sub: 'From ₹199 a month' },
   { title: 'Your practice', sub: 'Name, logo and practice areas' },
   { title: 'Verification', sub: 'ID document, GST and address' },
 ];
 
 const PLAN_ICON: Record<BillingPlanId, Parameters<typeof Icon>[0]['name']> = {
+  sanad: 'draft', vakalat: 'clients', brief: 'sparkle', associates: 'members', partners: 'building',
   free: 'draft', solo: 'clients', practice: 'members', firm: 'building',
 };
 
@@ -132,7 +133,8 @@ function useUpload(kind: 'logo' | 'id') {
 
 function PlanCard({ plan, cycle, selected, popular, onSelect }: { plan: BillingPlan; cycle: BillingCycle; selected: boolean; popular?: boolean; onSelect: () => void }) {
   const monthly = plan.monthlyInr;
-  const perMonth = monthly && cycle === 'annual' ? plan.annualMonthlyInr ?? monthly : monthly;
+  const annual = cycle === 'annual' && !!plan.annualInr;
+  const yearlySaving = monthly && plan.annualInr ? monthly * 12 - plan.annualInr : 0;
   return (
     <button type="button" className="onb-plan" aria-pressed={selected} onClick={onSelect}>
       {popular && (
@@ -161,13 +163,13 @@ function PlanCard({ plan, cycle, selected, popular, onSelect }: { plan: BillingP
       </div>
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
         <span style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700 }}>
-          {monthly === null ? 'Custom' : monthly === 0 ? 'Free' : inr(perMonth!)}
+          {monthly === null ? 'Custom' : monthly === 0 ? 'Free' : inr(annual ? plan.annualInr! : monthly)}
         </span>
-        {!!monthly && <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>/mo</span>}
+        {!!monthly && <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{annual ? '/yr' : '/mo'}{plan.seats ? ' per advocate' : ''}</span>}
       </div>
       <span style={{ fontSize: 12, color: 'var(--text-secondary)', minHeight: 18 }}>
-        {monthly && plan.annualMonthlyInr
-          ? <>{cycle === 'annual' ? '' : 'or '}{inr(plan.annualMonthlyInr * 12)}/yr · <strong style={{ color: 'var(--text-primary)' }}>save {inr((monthly - plan.annualMonthlyInr) * 12)}</strong></>
+        {monthly && plan.annualInr
+          ? <>{annual ? 'Billed yearly' : <>or {inr(plan.annualInr)}/yr</>} · <strong style={{ color: 'var(--text-primary)' }}>save {inr(yearlySaving)}</strong> · incl. GST</>
           : plan.note}
       </span>
       <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '12px 0 4px' }} />
@@ -178,9 +180,7 @@ function PlanCard({ plan, cycle, selected, popular, onSelect }: { plan: BillingP
           </li>
         ))}
       </ul>
-      {plan.id === 'practice' && (
-        <span className="mono" style={{ marginTop: 10, fontSize: 10, color: 'var(--text-secondary)' }}>14-DAY FREE TRIAL · NO CARD</span>
-      )}
+      <span style={{ marginTop: 10, fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>{plan.meaning}</span>
     </button>
   );
 }
@@ -193,8 +193,10 @@ export function OnboardingView() {
   const intro = useMemo(() => readIntro(), []);
 
   const [step, setStep] = useState<Step>(0);
-  const [plan, setPlan] = useState<BillingPlanId>(intro.size === 'team' || intro.size === 'firm' ? 'practice' : 'free');
+  const [plan, setPlan] = useState<BillingPlanId>(intro.size === 'team' || intro.size === 'firm' ? 'associates' : 'vakalat');
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
+  const [seats, setSeats] = useState(2);
+  const [munshi, setMunshi] = useState(0);
   // Pre-picked from the sign-in page's left tab (Advocate / Law student).
   const [kind, setKind] = useState<Kind>(intro.kind === 'student' ? 'student' : 'advocate');
   // Step 2
@@ -219,8 +221,9 @@ export function OnboardingView() {
   const [stateName, setStateName] = useState('');
   const [pincode, setPincode] = useState('');
 
-  const student = plan === 'free' && kind === 'student';
-  const practice = plan === 'practice';
+  const practice = plan === 'associates';
+  const student = !practice && kind === 'student';
+  const chosen = SIGNUP_PLANS.find((p) => p.id === plan);
   const docOptions = DOC_TYPES[student ? 'student' : 'advocate'];
   const doc = docOptions.find((d) => d.value === docType) ?? docOptions[0]!;
   // The Bar Council ID / enrolment certificate number *is* the enrolment number; other IDs need it separately.
@@ -241,12 +244,14 @@ export function OnboardingView() {
   const q = areaSearch.trim().toLowerCase();
 
   const finish = () => {
-    if (plan === 'firm') return;
+    if (plan !== 'sanad' && plan !== 'vakalat' && plan !== 'brief' && plan !== 'associates') return;
     complete.mutate(
       {
         plan,
-        cycle: plan === 'free' ? undefined : cycle,
-        kind: plan === 'free' ? kind : undefined,
+        cycle,
+        seats: practice ? seats : undefined,
+        munshi: munshi || undefined,
+        kind: practice ? undefined : kind,
         firm: student ? undefined : firm.trim() || undefined,
         primaryCourt: student ? undefined : primaryCourt.trim() || undefined,
         enrolment: student ? undefined : enrolment || undefined,
@@ -275,13 +280,13 @@ export function OnboardingView() {
 
   const next = () => {
     if (problem) return;
-    if (step === 0 && plan === 'firm') { navigate('/signup?intent=demo'); return; }
+    if (step === 0 && plan === 'partners') { navigate('/signup?intent=demo'); return; }
     if (step === 0) setDocType(student ? 'student_id' : 'bar_council_id');
     if (step < 2) { setStep((step + 1) as Step); window.scrollTo({ top: 0 }); }
     else finish();
   };
 
-  const finishLabel = plan === 'solo' ? 'Continue to payment' : student ? 'Create my account' : 'Create my practice';
+  const finishLabel = chosen ? `Continue to payment · ${inr(planTotal(chosen, cycle, seats, munshi))}` : 'Continue to payment';
 
   return (
     <div className="onb">
@@ -317,7 +322,7 @@ export function OnboardingView() {
           })}
         </ol>
         <ul className="onb-side-extra" style={{ listStyle: 'none', margin: 'auto 0 0', padding: '22px 0 0', borderTop: '1px solid rgba(127,127,127,0.35)', display: 'flex', flexDirection: 'column', gap: 16, fontSize: 14 }}>
-          {([['sparkle', 'Free for advocates & law students till 1 June 2027.'], ['shield', 'Your cases and client data are encrypted.'], ['invoices', 'GST-ready invoices from day one.']] as const).map(([icon, text]) => (
+          {([['sparkle', 'Plans from ₹199 a month, GST included.'], ['shield', 'Your cases and client data are encrypted.'], ['invoices', 'GST-ready invoices from day one.']] as const).map(([icon, text]) => (
             <li key={text} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               <span style={{ width: 32, height: 32, borderRadius: 'var(--radius-md)', background: 'rgba(127,127,127,0.25)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <Icon name={icon} size={15} />
@@ -339,7 +344,7 @@ export function OnboardingView() {
               <h1 className="display-md" style={{ margin: 0 }}>Choose your plan</h1>
               <p className="body" style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: 680, lineHeight: 1.55 }}>
                 {user?.name ? `Welcome, ${user.name.split(' ')[0]}. ` : ''}
-                Solo advocates and law students are free till 1 June 2027; law firms get a 14-day free trial. You can switch any time.
+                Every plan has the full app: cases, diary, eCourts and more. Plans differ in AI drafting pages (1 page = 400 words) and seats. Prices include GST; you can switch any time.
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
                 <div role="group" aria-label="Billing cycle" style={{ display: 'inline-flex', gap: 2, padding: 4, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}>
@@ -351,22 +356,28 @@ export function OnboardingView() {
                       onClick={() => setCycle(c)}
                       style={{ padding: '8px 18px', border: 0, cursor: 'pointer', fontSize: 14, fontWeight: 600, borderRadius: 'var(--radius-full)', background: cycle === c ? 'var(--text-primary)' : 'transparent', color: cycle === c ? 'var(--bg-base)' : 'var(--text-secondary)' }}
                     >
-                      {c === 'monthly' ? 'Monthly' : <>Annual <span style={{ fontSize: 11, fontWeight: 500 }}>save 20%</span></>}
+                      {c === 'monthly' ? 'Monthly' : <>Yearly <span style={{ fontSize: 11, fontWeight: 500 }}>about 1 month free</span></>}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="onb-plans">
-                {SIGNUP_PLANS.filter((p) => p.id !== 'firm').map((p) => (
-                  <PlanCard key={p.id} plan={p} cycle={cycle} selected={plan === p.id} popular={p.id === 'solo'} onSelect={() => setPlan(p.id)} />
+                {SIGNUP_PLANS.filter((p) => p.id !== 'partners').map((p) => (
+                  <PlanCard key={p.id} plan={p} cycle={cycle} selected={plan === p.id} popular={p.id === 'vakalat'} onSelect={() => setPlan(p.id)} />
                 ))}
               </div>
+              {chosen?.purchasable && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
+                  <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
+                  <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
+                </div>
+              )}
               <p className="body-sm" style={{ marginTop: 18, color: 'var(--text-secondary)' }}>
                 A firm with 9 or more advocates?{' '}
                 <button type="button" className="auth-link" onClick={() => navigate('/signup?intent=demo')}>Book a demo</button>
                 {' '}for custom pricing.
               </p>
-              {plan === 'free' && (
+              {!practice && (
                 <div role="group" aria-label="I am" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
                   <span className="body-sm" style={{ color: 'var(--text-secondary)' }}>I am</span>
                   {(['advocate', 'student'] as const).map((k) => (
@@ -552,7 +563,7 @@ export function OnboardingView() {
             style={{ opacity: problem ? 0.4 : 1, minWidth: 180 }}
             onClick={next}
           >
-            {complete.isPending ? 'Setting up…' : step === 2 ? finishLabel : step === 0 && plan === 'firm' ? 'Book a demo' : 'Continue'}
+            {complete.isPending ? 'Setting up…' : step === 2 ? finishLabel : step === 0 && plan === 'partners' ? 'Book a demo' : 'Continue'}
             <Icon name="arrow" size={14} />
           </button>
         </div>

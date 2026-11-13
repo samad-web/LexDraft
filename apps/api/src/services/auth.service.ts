@@ -854,7 +854,7 @@ export const authService = {
       planTierForSignUpRole(input.role),
       input.intent ?? 'trial',
     );
-    const plan = input.plan ?? (input.role === 'group' ? 'practice' : 'free');
+    const plan = input.plan ?? (input.role === 'group' ? 'associates' : 'sanad');
     await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
       .catch(() => undefined);
     return { user, token: issueToken(user) };

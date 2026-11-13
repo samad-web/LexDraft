@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import type {
   AdminCreateFirmRequest,
+  BillingPlanId,
   AdminCreateFirmResponse,
   AdminUpdateBrandingRequest,
   AdminUpdateFirmRequest,
@@ -148,7 +149,7 @@ interface UserRow {
   trial_ends_at?: Date | null;
   renews_at?: Date | null;
   billing_cycle?: 'monthly' | 'annual' | null;
-  selected_plan?: 'free' | 'solo' | 'practice' | 'firm' | null;
+  selected_plan?: BillingPlanId | null;
   id_document_type?: string | null;
   id_document_number?: string | null;
   has_id_document?: boolean | null;

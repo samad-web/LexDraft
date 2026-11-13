@@ -1,5 +1,13 @@
 # Changelog
 
+- Pricing v4 plan catalogue (2026-11-13), not deployed, release together with ai-credits:
+  - Plans on sale: Sanad ₹199 (25 pages), Vakalat ₹399 (75), Brief ₹1,499 (200), Associates ₹649 per advocate (2-8, shared pages), Munshi seat ₹149, Partners on quote. Yearly ₹2,190 / ₹4,490 / ₹16,490 / ₹7,140 per advocate / ₹1,590. All GST-inclusive; one config file `apps/api/src/lib/plans.ts`. DRAFT prices.
+  - No free plan for new sign-ups: onboarding opens Razorpay at once. Existing free-launch accounts keep free till 1 Jun 2027 (migration 0107 `free_launch`).
+  - Munshi seats for Paralegal / Legal Secretary, at checkout, invite and accept. Invoices name advocates and Munshi seats.
+  - Fix: accepting an invite no longer counts that invite twice against the seat cap.
+
+- Full UI test suite (2026-11-12): Playwright tests for every web screen (public pages, sidebar, tabs, topbar, palette, CRUD, tools, mobile layout) on the local DB with E2E-* cleanup; and a phone suite that drives the installed Play Store app over adb (dock, every sidebar screen, topbar, Back, resume, task + diary write/delete on live with a cleanup sweep). Fix: Android Back now closes the search palette instead of the page behind it (not deployed).
+
 - Draft PDF on WhatsApp (2026-11-12): the Share card has "Share PDF on WhatsApp", which sends the draft as a PDF file (same PDF as Download PDF: preview filing PDF, else engine .docx with edits via LibreOffice, else rasterised copy) with a short covering note. Android app: native share sheet. Chrome/Edge/phones: Web Share with files. Other browsers (no file sharing): the PDF downloads and WhatsApp opens with the note so the advocate attaches it. The text button is now "Send as text on WhatsApp".
 
 - Draft share on WhatsApp (2026-11-12): the draft's Share card has "Send on WhatsApp for review" next to Email. It sends the same covering note and plain-text draft through wa.me. Drafts over 65,000 characters are cut, with a note asking the client to get the full copy by email.

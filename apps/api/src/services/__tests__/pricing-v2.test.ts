@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Pricing v2 phase A - tests map to the acceptance criteria (AC#) in
@@ -22,12 +20,10 @@ vi.mock('../../db/client', () => ({
   },
 }));
 
-let billing: typeof import('../billing.service');
 let quota: typeof import('../ai-quota.service');
 let freePlan: typeof import('../../lib/free-plan');
 
 beforeAll(async () => {
-  billing = await import('../billing.service');
   quota = await import('../ai-quota.service');
   freePlan = await import('../../lib/free-plan');
 });
@@ -94,26 +90,4 @@ describe('AC3 free limit 30', () => {
 // AC5/AC6 (Chamber seats at checkout and from the webhook) moved to
 // razorpay-billing.test.ts when Razorpay replaced Dodo (2026-11-13).
 
-describe('AC8 plan cards: new prices, GST label, web and API lists match', () => {
-  it('API plans carry the v2 prices, limits and GST basis', () => {
-    const plans = billing.billingPlans();
-    const by = (id: string) => plans.find((p) => p.id === id)!;
-    expect(plans.map((p) => p.id)).toEqual(['free', 'solo', 'practice', 'firm']);
-    expect(by('solo')).toMatchObject({ monthlyInr: 1499, annualMonthlyInr: 1199, gst: 'inclusive', draftsPerMonth: 50 });
-    expect(by('practice')).toMatchObject({
-      name: 'Chamber', monthlyInr: 2999, annualMonthlyInr: 2399, gst: 'exclusive', draftsPerMonth: 40,
-      seats: { included: 2, max: 8, extraMonthlyInr: 899, extraAnnualMonthlyInr: 719 },
-    });
-    expect(by('free').draftsPerMonth).toBe(30);
-  });
-
-  it('web SIGNUP_PLANS mirrors billingPlans() (except purchasable)', () => {
-    const src = fs.readFileSync(path.resolve(__dirname, '../../../../web/src/components/PlanCards.tsx'), 'utf8');
-    const start = src.indexOf('[', src.indexOf('export const SIGNUP_PLANS'));
-    const end = src.indexOf('\n];', start) + 2;
-    // A pure object literal: evaluate it as data.
-    const web = new Function(`return ${src.slice(start, end)}`)() as Array<Record<string, unknown>>;
-    const strip = (p: Record<string, unknown>) => { const { purchasable: _p, ...rest } = p; return rest; };
-    expect(web.map(strip)).toEqual(billing.billingPlans().map((p) => strip(p as unknown as Record<string, unknown>)));
-  });
-});
+// AC8 (plan cards) is superseded by pricing-v4.test.ts (v4 catalogue, 2026-11-13).

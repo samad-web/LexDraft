@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Razorpay billing - tests map to the acceptance criteria (AC#) in
-// build-docs/features/razorpay-billing.md.
+// build-docs/features/razorpay-billing.md. Plan ids moved to pricing v4
+// (features/pricing-v4.md): Chamber -> Associates, Solo -> Vakalat.
 
 type Call = { text: string; strings: TemplateStringsArray; values: unknown[] };
 const h = vi.hoisted(() => ({
@@ -50,7 +51,8 @@ function owner(over: Record<string, unknown> = {}) {
   return {
     user_id: 'u1', name: 'A', email: 'a@x.in', phone: null, role: 'Managing Partner', firm_id: 'f1',
     plan_tier: 'Practice', plan_status: 'trial', free_plan: false, trial_ends_at: null, renews_at: null,
-    billing_cycle: null, selected_plan: 'practice', razorpay_subscription_id: null, seats: 8, members: 1, ...over,
+    billing_cycle: null, selected_plan: 'associates', razorpay_subscription_id: null, seats: 8, munshi_seats: 0,
+    members: 1, munshi_members: 0, ...over,
   };
 }
 
@@ -72,38 +74,38 @@ const ownerRows = (o: Record<string, unknown>) => (t: string) =>
   (t.includes('from users u left join firms') ? [owner(o)] : []);
 
 describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan and seats', () => {
-  it('Chamber with 3 advocates: a plan priced for 3 (+18% GST), subscription notes carry the firm', async () => {
+  it('Associates with 3 advocates: a plan priced for 3 (GST included), subscription notes carry the firm', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({});
     const { body } = stubRazorpay();
-    const r = await billing.billingService.startCheckout('u1', 'practice', 'monthly', 3);
+    const r = await billing.billingService.startCheckout('u1', 'associates', 'monthly', 3);
     expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/sub_new123');
-    expect(body('/plans')).toMatchObject({ period: 'monthly', interval: 1, item: { amount: Math.round((2999 + 899) * 1.18 * 100), currency: 'INR' } });
-    expect(body('/subscriptions')).toMatchObject({ plan_id: 'plan_new1', quantity: 1, total_count: 120, notes: { firm_id: 'f1', plan: 'practice', seats: '3' } });
+    expect(body('/plans')).toMatchObject({ period: 'monthly', interval: 1, item: { amount: 3 * 649 * 100, currency: 'INR' } });
+    expect(body('/subscriptions')).toMatchObject({ plan_id: 'plan_new1', quantity: 1, total_count: 120, notes: { firm_id: 'f1', plan: 'associates', seats: '3', munshi: '0' } });
     const stored = h.calls.find((c) => /insert into razorpay_plans/.test(c.text))!;
-    expect(stored.values).toEqual(['plan_new1', 'practice', 'monthly', 3, Math.round(3898 * 1.18 * 100)]);
+    expect(stored.values).toEqual(['plan_new1', 'associates', 'monthly', 3, 0, 3 * 649 * 100]);
   });
 
   it('an existing Razorpay plan for the same price is reused, not created again', async () => {
     h.useFakeDb = true;
-    h.rows = (t) => (t.includes('from users u left join firms') ? [owner({ role: 'Solo Advocate', selected_plan: 'solo' })]
+    h.rows = (t) => (t.includes('from users u left join firms') ? [owner({ role: 'Solo Advocate', selected_plan: 'vakalat' })]
       : t.includes('from razorpay_plans') ? [{ razorpay_plan_id: 'plan_old' }] : []);
     const { fetchMock, body } = stubRazorpay();
-    await billing.billingService.startCheckout('u1', 'solo', 'annual');
+    await billing.billingService.startCheckout('u1', 'vakalat', 'annual');
     expect(fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/plans'))).toBe(false);
     expect(body('/subscriptions')).toMatchObject({ plan_id: 'plan_old', total_count: 10 });
   });
 
-  it('Solo is charged its GST-inclusive price (no GST added)', () => {
-    expect(billing.chargePaise('solo', 'monthly', 1)).toBe(149900);
-    expect(billing.chargePaise('solo', 'annual', 1)).toBe(1199 * 12 * 100);
+  it('Vakalat is charged its GST-inclusive price (no GST added)', () => {
+    expect(billing.chargePaise('vakalat', 'monthly', 1)).toBe(39900);
+    expect(billing.chargePaise('vakalat', 'annual', 1)).toBe(449000);
   });
 
-  it.each([1, 9, 2.5])('Chamber seats = %s is rejected with 400 before Razorpay is called', async (seats) => {
+  it.each([1, 9, 2.5])('Associates seats = %s is rejected with 400 before Razorpay is called', async (seats) => {
     h.useFakeDb = true;
     h.rows = ownerRows({});
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'practice', 'monthly', seats))
+    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', seats))
       .rejects.toMatchObject({ status: 400, code: 'invalid_seats' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -112,16 +114,16 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
     h.useFakeDb = true;
     h.rows = ownerRows({ members: 4 });
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'practice', 'monthly', 3))
+    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 3))
       .rejects.toMatchObject({ status: 400, code: 'seats_below_members' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('Solo is refused for a practice with 2 members', async () => {
+  it('a one-advocate plan is refused for a practice with 2 advocates', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({ role: 'Solo Advocate', members: 2 });
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'solo', 'monthly'))
+    await expect(billing.billingService.startCheckout('u1', 'vakalat', 'monthly'))
       .rejects.toMatchObject({ status: 400, code: 'seats_below_members' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -130,7 +132,7 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
     h.useFakeDb = true;
     h.rows = ownerRows({ role: 'Associate' });
     stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'practice', 'monthly', 2))
+    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2))
       .rejects.toMatchObject({ status: 403, code: 'billing_owner_only' });
   });
 });
@@ -140,9 +142,9 @@ describe('AC5 plan change: one subscription replaces the other at the period end
 
   it('a paying firm gets a new subscription starting at its renewal date, marked as replacing the old one', async () => {
     h.useFakeDb = true;
-    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'solo', plan_status: 'active', razorpay_subscription_id: 'sub_old999', renews_at: renews });
+    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'vakalat', plan_status: 'active', razorpay_subscription_id: 'sub_old999', renews_at: renews });
     const { body } = stubRazorpay();
-    await billing.billingService.startCheckout('u1', 'practice', 'monthly', 2);
+    await billing.billingService.startCheckout('u1', 'associates', 'monthly', 2);
     const sub = body('/subscriptions');
     expect(sub.start_at).toBe(Math.floor(renews.getTime() / 1000));
     expect(sub.notes.replaces).toBe('sub_old999');
@@ -161,7 +163,7 @@ describe('AC5 plan change: one subscription replaces the other at the period end
 
   it('when the new subscription starts, the replaced one is stopped at once (safety net), and a refusal is tolerated', async () => {
     h.useFakeDb = true;
-    h.rows = (t) => (t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'practice', cycle: 'monthly', seats: 2 }]
+    h.rows = (t) => (t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'associates', cycle: 'monthly', seats: 2, munshi_seats: 0 }]
       : t.includes('select razorpay_subscription_id from firms') ? [{ razorpay_subscription_id: 'sub_old999' }] : []);
     const fetchMock = vi.fn(async () => new Response('{"error":{"description":"already cancelled"}}', { status: 400 }));
     vi.stubGlobal('fetch', fetchMock);
@@ -179,14 +181,14 @@ describe('AC5 plan change: one subscription replaces the other at the period end
     h.useFakeDb = true;
     h.rows = ownerRows({ plan_status: 'active', razorpay_subscription_id: 'sub_old999', billing_cycle: 'monthly', seats: 2 });
     stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'practice', 'monthly', 2)).rejects.toMatchObject({ status: 400 });
+    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2)).rejects.toMatchObject({ status: 400 });
   });
 });
 
 describe('AC1/AC3/AC4 webhook sets the plan from what Razorpay charged', () => {
   const end = Math.floor(Date.UTC(2026, 11, 13) / 1000);
   const rows = (t: string) => (t.includes('from razorpay_plans where razorpay_plan_id')
-    ? [{ plan: 'practice', cycle: 'monthly', seats: 3 }] : []);
+    ? [{ plan: 'associates', cycle: 'monthly', seats: 3, munshi_seats: 0 }] : []);
   const update = () => h.calls.find((c) => /update firms set\s+plan_tier/.test(c.text))!;
   const logged = () => h.calls.filter((c) => /insert into billing_events/.test(c.text));
   const ev = (event: string, paid = 1) => ({
@@ -202,7 +204,7 @@ describe('AC1/AC3/AC4 webhook sets the plan from what Razorpay charged', () => {
     h.rows = rows;
     await billing.billingService.handleWebhook('evt_a1', ev('subscription.activated'));
     expect(valueAfter(update(), 'seats =')).toBe(3);
-    expect(valueAfter(update(), 'mrr_inr =')).toBe(2999 + 899);
+    expect(valueAfter(update(), 'mrr_inr =')).toBe(3 * 649);
     expect(valueAfter(update(), 'renews_at =')).toEqual(new Date(end * 1000));
     expect(valueAfter(update(), 'razorpay_subscription_id =')).toBe('sub_new123');
     expect(logged()).toHaveLength(1);
@@ -240,7 +242,7 @@ describe('AC1/AC3/AC4 webhook sets the plan from what Razorpay charged', () => {
 
 describe('Found in Razorpay test-mode run (2026-11-13): two paid checkouts', () => {
   const rows = (current: string) => (t: string) =>
-    t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'practice', cycle: 'monthly', seats: 3 }]
+    t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'associates', cycle: 'monthly', seats: 3, munshi_seats: 0 }]
       : t.includes('select razorpay_subscription_id from firms') ? [{ razorpay_subscription_id: current }] : [];
   const ev = (id: string, createdAt: number) => ({
     event: 'subscription.activated',
@@ -317,11 +319,21 @@ describe('AC7 failed renewal and cancellation', () => {
     expect(upd.values[0]).toEqual(new Date(later * 1000));
   });
 
-  it('an ended Solo goes back to the free launch plan while it lasts', async () => {
+  it('an ended one-advocate plan of a free-launch account goes back to the free launch plan while it lasts', async () => {
     h.useFakeDb = true;
-    h.rows = (t) => (t.includes('from razorpay_plans') ? [{ plan: 'solo', cycle: 'monthly', seats: 1 }] : sameSub(t));
+    h.rows = (t) => (t.includes('from razorpay_plans') ? [{ plan: 'vakalat', cycle: 'monthly', seats: 1, munshi_seats: 0 }]
+      : t.includes('select free_launch from firms') ? [{ free_launch: true }] : sameSub(t));
     await billing.billingService.handleWebhook('evt_x2', ev('subscription.cancelled', Math.floor(Date.now() / 1000) - 60));
     expect(h.calls.some((c) => /free_plan = true/.test(c.text) && /razorpay_subscription_id = null/.test(c.text))).toBe(true);
+  });
+
+  it('pricing v4: an ended plan of a new (not free-launch) account is cancelled, never made free', async () => {
+    h.useFakeDb = true;
+    h.rows = (t) => (t.includes('from razorpay_plans') ? [{ plan: 'sanad', cycle: 'monthly', seats: 1, munshi_seats: 0 }]
+      : t.includes('select free_launch from firms') ? [{ free_launch: false }] : sameSub(t));
+    await billing.billingService.handleWebhook('evt_x2b', ev('subscription.cancelled', Math.floor(Date.now() / 1000) - 60));
+    expect(h.calls.some((c) => /free_plan = true/.test(c.text))).toBe(false);
+    expect(h.calls.some((c) => /plan_status = 'cancelled'/.test(c.text))).toBe(true);
   });
 
   it('a cancellation of an older, replaced subscription does not touch the firm', async () => {

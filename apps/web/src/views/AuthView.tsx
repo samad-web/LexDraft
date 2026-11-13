@@ -19,7 +19,7 @@ import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
-import { CycleToggle, PlanCards, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
+import { CycleToggle, MunshiPicker, PlanCards, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
@@ -40,7 +40,7 @@ type Audience = 'advocate' | 'student' | 'firm';
 /** Left-panel tabs: who DifAi is for, with the line shown under them. */
 const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
   { id: 'advocate', label: 'Advocate', tagline: 'Your hearings, drafts and matters in one app.' },
-  { id: 'student', label: 'Law student', tagline: 'Draft on real court formats. Free for law students till 1 June 2027.' },
+  { id: 'student', label: 'Law student', tagline: 'Draft on real court formats. Plans from ₹199 a month.' },
   { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for your whole firm.' },
 ];
 
@@ -85,7 +85,7 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
   plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using DifAi.',
   plan_past_due:  'Your firm subscription is past due. Update billing to continue using DifAi.',
   plan_expired:   'Your firm subscription period has ended. Renew to continue using DifAi.',
-  trial_expired:  'Your free access or trial has ended. Pick a plan to keep your work.',
+  trial_expired:  'Your free access has ended, or the payment was not finished. Pick a plan to keep your work.',
 };
 
 export function AuthView() {
@@ -117,9 +117,10 @@ export function AuthView() {
   // Step 1 of sign-up: the plan, and (Free) whether advocate or student.
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const renewCheckout = useRenewCheckout();
-  const [renewPlan, setRenewPlan] = useState<PaidPlanId>('solo');
+  const [renewPlan, setRenewPlan] = useState<PaidPlanId>('vakalat');
   const [renewSeats, setRenewSeats] = useState(2);
-  const chamberPlan = SIGNUP_PLANS.find((p) => p.id === 'practice')!;
+  const [renewMunshi, setRenewMunshi] = useState(0);
+  const renewChosen = SIGNUP_PLANS.find((p) => p.id === renewPlan)!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
   // Sign-up form. The landing page's "What's your name?" pre-fills the name.
   const signupStart = useEmailSignupStart();
@@ -192,7 +193,7 @@ export function AuthView() {
   const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
   const shownAudience: Audience = firmSide ? 'firm' : audience;
-  const freeLine = audience === 'student' ? 'Free for law students till 1 June 2027' : 'Free for advocates & law students till 1 June 2027';
+  const freeLine = 'Plans from ₹199 a month, GST included';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     setMfaChallenge(null); setGoogleSignup(null); 
@@ -479,22 +480,21 @@ export function AuthView() {
                   <span>{signIn.error?.message ?? googleSignIn.error?.message} Your cases and documents are safe.</span>
                   <CycleToggle cycle={cycle} onChange={setCycle} />
                   <PlanCards
-                    plans={SIGNUP_PLANS.filter((p) => p.id === 'solo' || p.id === 'practice')}
+                    plans={SIGNUP_PLANS.filter((p) => p.purchasable)}
                     cycle={cycle}
                     selected={renewPlan}
                     onSelect={(id) => setRenewPlan(id as PaidPlanId)}
                     compact
                   />
-                  {renewPlan === 'practice' && (
-                    <SeatPicker plan={chamberPlan} cycle={cycle} seats={renewSeats} min={2} onChange={setRenewSeats} />
-                  )}
+                  <SeatPicker plan={renewChosen} cycle={cycle} seats={renewSeats} min={2} onChange={setRenewSeats} />
+                  <MunshiPicker plan={renewChosen} cycle={cycle} munshi={renewMunshi} min={0} onChange={setRenewMunshi} />
                   {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
                   <button
                     type="button"
                     className="btn btn-primary btn-block"
                     disabled={renewCheckout.isPending}
                     onClick={() => renewCheckout.mutate(
-                      renewPlan === 'practice' ? { renewToken, plan: renewPlan, cycle, seats: renewSeats } : { renewToken, plan: renewPlan, cycle },
+                      { renewToken, plan: renewPlan, cycle, munshi: renewMunshi, ...(renewPlan === 'associates' ? { seats: renewSeats } : {}) },
                     )}
                   >
                     {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}
@@ -506,7 +506,7 @@ export function AuthView() {
                   <div role="alert" style={noticeStyle}>
                     No DifAi account uses this email.{' '}
                     <button type="button" className="auth-link" onClick={() => startTrial(audience === 'firm' ? 'group' : null)}>
-                      {audience === 'firm' ? 'Start your firm’s 14-day trial' : 'Create your free account'}
+                      Create your account
                     </button>
                   </div>
                 ) : (
@@ -532,9 +532,9 @@ export function AuthView() {
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Start a 14-day free trial</button></>
+                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your firm’s account</button></>
               ) : (
-                <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your free account</button></>
+                <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button></>
               )}
             </p>
             <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
@@ -559,7 +559,7 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'firm' ? 'Free trial' : 'Create account'}</h1>
+              <h1 className="auth-title">{audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {suChallenge
                   ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
@@ -684,7 +684,7 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'firm' ? 'Free trial' : 'Create account'}</h1>
+              <h1 className="auth-title">{audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {googleSignup
                   ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`

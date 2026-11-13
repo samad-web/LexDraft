@@ -3,65 +3,83 @@ import type { CSSProperties, ReactNode } from 'react';
 import { Icon } from '@lexdraft/ui';
 
 // Plans as the sign-up page shows them before there is a session to ask the
-// api. Keep in step with billingPlans() in api/src/services/billing.service.ts.
+// api (pricing v4). Keep in step with billingPlans() in
+// api/src/services/billing.service.ts (pricing-v4.test checks they match).
 export const SIGNUP_PLANS: BillingPlan[] = [
   {
-    id: 'free', name: 'Free', for: 'Solo advocates & law students',
-    monthlyInr: 0, annualMonthlyInr: 0, note: 'Free till 1 June 2027',
-    features: ['30 drafts a month', 'Cases, hearings & eCourts sync', 'Diary and documents', '1 GB storage'],
-    purchasable: false, draftsPerMonth: 30, gst: null,
+    id: 'sanad', name: 'Sanad', for: 'Starting out · the full app with some drafting',
+    meaning: 'Sanad: the enrolment certificate every advocate gets from the Bar Council.',
+    monthlyInr: 199, annualInr: 2190, note: 'Incl. GST · billed monthly or yearly',
+    features: ['25 pages of AI drafting a month', 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Add a Munshi seat for ₹149/month'],
+    purchasable: true, pagesPerMonth: 25, gst: 'inclusive', munshi: { monthlyInr: 149, annualInr: 1590, max: 4 },
   },
   {
-    id: 'solo', name: 'Solo', for: 'One advocate, everything unlocked',
-    monthlyInr: 1499, annualMonthlyInr: 1199, note: 'Incl. GST · billed monthly or yearly',
-    features: ['50 drafts a month', 'Everything in Free', 'Limitation tracker', 'Co-counsel handover', 'Practice analytics', 'Team chat', 'Unlimited storage'],
-    purchasable: true, draftsPerMonth: 50, gst: 'inclusive',
+    id: 'vakalat', name: 'Vakalat', for: 'A practising advocate taking cases',
+    meaning: 'Vakalat: the vakalatnama a client signs so you can act in the case.',
+    monthlyInr: 399, annualInr: 4490, note: 'Incl. GST · billed monthly or yearly',
+    features: ['75 pages of AI drafting a month', 'Everything in Sanad'],
+    purchasable: true, pagesPerMonth: 75, gst: 'inclusive', munshi: { monthlyInr: 149, annualInr: 1590, max: 4 },
   },
   {
-    id: 'practice', name: 'Chamber', for: 'Chambers and firms · two to eight advocates',
-    monthlyInr: 2999, annualMonthlyInr: 2399, note: '+18% GST · 2 advocates included · 14-day free trial',
-    features: ['40 drafts per advocate a month', 'Everything in Solo', 'Extra advocate ₹899/month, up to 8', 'Roles and permissions', 'Firm dashboard', 'Priority support'],
-    purchasable: true, draftsPerMonth: 40, gst: 'exclusive',
-    seats: { included: 2, max: 8, extraMonthlyInr: 899, extraAnnualMonthlyInr: 719 },
+    id: 'brief', name: 'Brief', for: 'Heavy drafting · lowest price per page',
+    meaning: 'Brief: a case handed to an advocate. Many briefs, a busy practice.',
+    monthlyInr: 1499, annualInr: 16490, note: 'Incl. GST · billed monthly or yearly',
+    features: ['200 pages of AI drafting a month', 'Everything in Vakalat'],
+    purchasable: true, pagesPerMonth: 200, gst: 'inclusive', munshi: { monthlyInr: 149, annualInr: 1590, max: 4 },
   },
   {
-    id: 'firm', name: 'Firm', for: 'Nine advocates and above',
-    monthlyInr: null, annualMonthlyInr: null, note: 'Custom pricing · book a demo',
+    id: 'associates', name: 'Associates', for: 'Chambers with 2 to 8 advocates',
+    meaning: 'Associates: as in "X & Associates", advocates working together.',
+    monthlyInr: 649, annualInr: 7140, note: 'Per advocate · incl. GST · 2 to 8 advocates',
+    features: ['75 pages per advocate a month, shared', 'Everything in Vakalat', 'Roles and permissions', 'Firm dashboard and team chat'],
+    purchasable: true, pagesPerMonth: 75, gst: 'inclusive', munshi: { monthlyInr: 149, annualInr: 1590, max: 4 },
+    seats: { min: 2, max: 8 },
+  },
+  {
+    id: 'partners', name: 'Partners', for: 'Nine advocates and above',
+    meaning: 'Partners: the partners of a larger firm.',
+    monthlyInr: null, annualInr: null, note: 'Custom pricing · book a demo',
     features: ['Unlimited seats', 'SSO and audit logs', 'Dedicated success manager', 'Bespoke integrations'],
-    purchasable: false, draftsPerMonth: null, gst: null,
+    purchasable: false, pagesPerMonth: null, gst: null,
   },
 ];
 
-const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+/** Plan names for every id, including pre-v4 ones on old rows. */
+export const PLAN_NAME: Record<string, string> = {
+  free: 'Free', sanad: 'Sanad', vakalat: 'Vakalat', brief: 'Brief', associates: 'Associates', partners: 'Partners',
+  solo: 'Solo', practice: 'Chamber', firm: 'Firm',
+};
+
+export const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 export function planPrice(p: BillingPlan, cycle: BillingCycle): { main: string; sub: string } {
   if (p.monthlyInr === null) return { main: 'Custom', sub: p.note };
   if (p.monthlyInr === 0) return { main: 'Free', sub: p.note };
-  const perMonth = cycle === 'annual' ? p.annualMonthlyInr ?? p.monthlyInr : p.monthlyInr;
-  const gst = p.gst === 'inclusive' ? ' · incl. GST' : p.gst === 'exclusive' ? ' · +18% GST' : '';
-  return {
-    main: `${inr(perMonth)}/mo`,
-    sub: cycle === 'annual' ? `${inr(perMonth * 12)} billed yearly${gst}` : p.note,
-  };
+  const each = p.seats ? ' per advocate' : '';
+  if (cycle === 'annual' && p.annualInr) {
+    return { main: `${inr(p.annualInr)}/yr`, sub: `Billed yearly${each} · incl. GST` };
+  }
+  return { main: `${inr(p.monthlyInr)}/mo`, sub: p.note };
 }
 
-/** Chamber price for a seat count: base covers the included advocates. */
-export function chamberMonthly(p: BillingPlan, cycle: BillingCycle, seats: number): number | null {
-  if (!p.seats || p.monthlyInr === null) return null;
+/** Total per billing period for a plan with advocates and Munshi seats. */
+export function planTotal(p: BillingPlan, cycle: BillingCycle, advocates: number, munshi: number): number {
   const annual = cycle === 'annual';
-  const base = annual ? p.annualMonthlyInr ?? p.monthlyInr : p.monthlyInr;
-  const extra = Math.max(0, seats - p.seats.included);
-  return base + extra * (annual ? p.seats.extraAnnualMonthlyInr : p.seats.extraMonthlyInr);
+  const each = (annual ? p.annualInr : p.monthlyInr) ?? 0;
+  const clerk = p.munshi ? (annual ? p.munshi.annualInr : p.munshi.monthlyInr) : 0;
+  return each * (p.seats ? advocates : 1) + clerk * munshi;
 }
 
-/** Advocate count picker for Chamber checkout (2-8). */
+const per = (cycle: BillingCycle) => (cycle === 'annual' ? '/yr' : '/mo');
+
+/** Advocate count picker for Associates checkout (2-8). */
 export function SeatPicker({ plan, cycle, seats, min, onChange }: {
   plan: BillingPlan; cycle: BillingCycle; seats: number; min: number; onChange: (n: number) => void;
 }) {
   if (!plan.seats) return null;
-  const lo = Math.max(plan.seats.included, min);
-  const options = Array.from({ length: plan.seats.max - plan.seats.included + 1 }, (_, i) => plan.seats!.included + i);
-  const monthly = chamberMonthly(plan, cycle, seats) ?? 0;
+  const { min: lo0, max } = plan.seats;
+  const lo = Math.max(lo0, min);
+  const options = Array.from({ length: max - lo0 + 1 }, (_, i) => lo0 + i);
   return (
     <label className="cm-seats">
       <span>Advocates</span>
@@ -70,9 +88,26 @@ export function SeatPicker({ plan, cycle, seats, min, onChange }: {
           <option key={n} value={n} disabled={n < lo}>{n}</option>
         ))}
       </select>
-      <span className="cm-seats-total">
-        {inr(monthly)}/mo{cycle === 'annual' ? `, ${inr(monthly * 12)} billed yearly` : ''} · +18% GST
-      </span>
+      <span className="cm-seats-total">{inr(planTotal(plan, cycle, seats, 0))}{per(cycle)} · incl. GST</span>
+    </label>
+  );
+}
+
+/** Munshi (clerk) seats to add to any paid plan: diary, cause list, eCourts and documents, no AI. */
+export function MunshiPicker({ plan, cycle, munshi, min, onChange }: {
+  plan: BillingPlan; cycle: BillingCycle; munshi: number; min: number; onChange: (n: number) => void;
+}) {
+  if (!plan.munshi) return null;
+  const price = cycle === 'annual' ? plan.munshi.annualInr : plan.munshi.monthlyInr;
+  return (
+    <label className="cm-seats">
+      <span>Munshi seats</span>
+      <select value={munshi} onChange={(e) => onChange(Number(e.target.value))}>
+        {Array.from({ length: plan.munshi.max + 1 }, (_, n) => (
+          <option key={n} value={n} disabled={n < min}>{n}</option>
+        ))}
+      </select>
+      <span className="cm-seats-total">{inr(price)}{per(cycle)} each · for a clerk or secretary, no AI</span>
     </label>
   );
 }
@@ -86,7 +121,7 @@ export function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange
   return (
     <div role="group" aria-label="Billing cycle" className="cm-cycle">
       {btn('monthly', 'Monthly')}
-      {btn('annual', <>Yearly · <span className="cm-cycle-save">save 20%</span></>)}
+      {btn('annual', <>Yearly · <span className="cm-cycle-save">about 1 month free</span></>)}
     </div>
   );
 }
@@ -144,13 +179,16 @@ export function PlanCards({ plans, cycle, selected, onSelect, currentId, compact
             </span>
             <span className="cm-plan-sub">{price.sub}</span>
             {!compact && (
-              <ul className="cm-plan-feats">
-                {p.features.map((f) => (
-                  <li key={f}>
-                    <Icon name="check" size={13} /> <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="cm-plan-feats">
+                  {p.features.map((f) => (
+                    <li key={f}>
+                      <Icon name="check" size={13} /> <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <span className="cm-plan-sub">{p.meaning}</span>
+              </>
             )}
           </button>
         );

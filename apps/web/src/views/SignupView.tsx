@@ -12,7 +12,7 @@ import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India }
  * SignupView — the new landing-funnel destination at `/signup?intent=…`.
  *
  *   intent=demo  → DemoChoiceScreen   (Talk to sales / Try interactive / Book a call)
- *   intent=trial → TrialSignupForm    (14-day clock, no card)
+ *   intent=trial → SignupFormCard     (plan + payment at /onboarding, pricing v4)
  *   intent=paid  → AccountSignupForm  (same fields; lands on plan_status='active'
  *                                      so billing/checkout can flow later)
  *
@@ -401,12 +401,12 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTrial = props.intent === 'trial';
-  const eyebrow = isTrial ? 'Free for advocates & students · 14-day trial for firms' : 'Create account';
+  const eyebrow = isTrial ? 'Plans from ₹199 a month, GST included' : 'Create account';
   const headline = isTrial
     ? 'Start using DifAi'
     : 'Create your DifAi account';
   const subline = isTrial
-    ? 'Solo advocates and law students use DifAi free until 1 June 2027. Law firms get every feature for 14 days. No card needed.'
+    ? 'Create your account, then pick a plan: Sanad, Vakalat, Brief or Associates. Every plan has the full app.'
     : 'Set up your account; billing kicks in on the next page.';
   const ctaLabel = isTrial ? 'Begin trial' : 'Create account';
 
@@ -463,7 +463,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
                   className={`chip ${role === r ? 'active' : ''}`}
                   onClick={() => setRole(r)}
                 >
-                  {r === 'solo' ? 'Solo advocate · free' : r === 'student' ? 'Law student · free' : 'Law firm · 14-day trial'}
+                  {r === 'solo' ? 'Solo advocate' : r === 'student' ? 'Law student' : 'Law firm'}
                 </button>
               ))}
             </div>
@@ -481,7 +481,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
           </div>
           <div className="body-xs muted" style={{ marginTop: 4 }}>
             {isTrial
-              ? (role === 'group' ? 'Your firm gets every feature for 14 days. After that, pick a plan to keep going.' : 'Free until 1 June 2027.')
+              ? (role === 'group' ? 'Next, pick Associates for 2 to 8 advocates.' : 'Next, pick a plan from ₹199 a month.')
               : 'You can switch plans any time from Settings → Billing.'}
           </div>
         </form>

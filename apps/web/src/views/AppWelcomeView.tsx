@@ -27,7 +27,7 @@ export function AppWelcomeView() {
         <button type="button" className="btn btn-lg btn-block btn-pill" onClick={() => navigate('/signup')}>
           Create your free account
         </button>
-        <p className="welcome-note">Free for advocates &amp; law students till 1 June 2027</p>
+        <p className="welcome-note">Plans from ₹199 a month, GST included</p>
       </div>
     </main>
   );

@@ -1121,34 +1121,39 @@ export interface AdminUserSummary {
   storageLimitBytes?: number | null;
 }
 
-// ---- Self-serve billing (Dodo Payments, migration 0096) --------------------
+// ---- Self-serve billing (Razorpay, migrations 0096 + 0105 + 0107) --------------------
 
-/** Plans offered at sign-up and on the in-app plan page. */
-export type BillingPlanId = 'free' | 'solo' | 'practice' | 'firm';
+/** Plans offered at sign-up and on the in-app plan page (pricing v4).
+ *  `free` is the free launch plan (existing accounts only, till 1 Jun 2027);
+ *  `solo` / `practice` / `firm` are pre-v4 ids kept for old rows, never sold. */
+export type BillingPlanId = 'free' | 'sanad' | 'vakalat' | 'brief' | 'associates' | 'partners' | 'solo' | 'practice' | 'firm';
 export type BillingCycle = 'monthly' | 'annual';
 /** Plans that can be bought online. */
-export type PaidPlanId = 'solo' | 'practice';
+export type PaidPlanId = 'sanad' | 'vakalat' | 'brief' | 'associates';
 
 export interface BillingPlan {
   id: BillingPlanId;
   name: string;
   for: string;
-  /** Rupees per month; null = free (0) or custom (firm). */
+  /** What the plan's name means (v4 glossary), one line. */
+  meaning: string;
+  /** Rupees per month (per advocate when `seats` is set); 0 = free, null = quote. */
   monthlyInr: number | null;
-  /** Rupees per month when billed yearly. */
-  annualMonthlyInr: number | null;
-  /** Shown under the price, e.g. "Free till 1 June 2027". */
+  /** Rupees per year when billed yearly (per advocate when `seats` is set). */
+  annualInr: number | null;
+  /** Shown under the price. */
   note: string;
   features: string[];
-  /** Can be bought online right now (product configured). */
+  /** Can be bought online right now. */
   purchasable: boolean;
-  /** Drafts each advocate can make per month; null = custom (firm). */
-  draftsPerMonth: number | null;
+  /** AI drafting pages a month (per advocate when `seats` is set); null = custom. */
+  pagesPerMonth: number | null;
   /** Whether the shown price includes 18% GST; null = no price shown. */
   gst: 'inclusive' | 'exclusive' | null;
-  /** Per-advocate pricing (Chamber): seats in the base price, the most bought
-   *  online, and the price of each extra advocate. Absent for one-seat plans. */
-  seats?: { included: number; max: number; extraMonthlyInr: number; extraAnnualMonthlyInr: number };
+  /** Per-advocate plans (Associates): advocates bought online, min to max. */
+  seats?: { min: number; max: number };
+  /** Munshi (clerk) seats that can be added to this plan. */
+  munshi?: { monthlyInr: number; annualInr: number; max: number };
 }
 
 export interface BillingStateResponse {
@@ -1161,10 +1166,12 @@ export interface BillingStateResponse {
     renewsAt: string | null;
     billingCycle: BillingCycle | null;
     selectedPlan: BillingPlanId | null;
-    /** True once a Dodo subscription is attached. */
+    /** True once a Razorpay subscription is attached. */
     subscribed: boolean;
-    /** Advocate seats the firm has (Chamber: 2 + extra seats bought). */
+    /** Advocate seats the firm has paid for. */
     seats: number;
+    /** Munshi (clerk) seats the firm has paid for. */
+    munshiSeats: number;
   };
   /** Online payment set up on the server. */
   paymentsEnabled: boolean;
@@ -1175,8 +1182,10 @@ export interface BillingStateResponse {
 export interface BillingCheckoutRequest {
   plan: PaidPlanId;
   cycle: BillingCycle;
-  /** Chamber only: advocates to pay for, 2-8. */
+  /** Associates only: advocates to pay for, 2-8. */
   seats?: number;
+  /** Munshi (clerk) seats to add, 0-4. */
+  munshi?: number;
 }
 
 /** GET /me/ai-quota: drafts used this cycle against the advocate's limit. */
@@ -1197,6 +1206,7 @@ export interface SubscriptionInvoice {
   plan: string;
   cycle: string;
   seats: number;
+  munshiSeats: number;
   /** Amount charged, GST included. */
   totalInr: number;
   taxInr: number;
@@ -1240,11 +1250,16 @@ export interface AdminBillingSummary {
 /** POST /onboarding/complete - the plan and practice details picked on
  *  /onboarding after the account is created. */
 export interface OnboardingCompleteRequest {
-  plan: 'free' | 'solo' | 'practice';
+  /** A v4 paid plan. `free` is accepted only from a free-launch account. */
+  plan: 'free' | PaidPlanId;
+  /** Associates: advocates to pay for (2-8). */
+  seats?: number;
+  /** Munshi (clerk) seats to add (0-4). */
+  munshi?: number;
   /** Advocates: State Bar Council id (apps/api/src/lib/bar-councils.ts). */
   barCouncil?: string;
   cycle?: BillingCycle;
-  /** Free plan only: advocate or law student. */
+  /** Individual plans: advocate or law student. */
   kind?: 'advocate' | 'student';
   firm?: string;
   enrolment?: string;
@@ -1268,9 +1283,9 @@ export interface OnboardingCompleteRequest {
 
 export interface OnboardingCompleteResponse {
   user: User;
-  /** Solo: Dodo's payment page to open next. */
+  /** Paid plan: the Razorpay payment page to open next. */
   checkoutUrl?: string;
-  /** Solo when the payment page could not be opened; the account stays on Free. */
+  /** Paid plan when the payment page could not be opened; pay later from Plan & Billing. */
   checkoutError?: string;
 }
 

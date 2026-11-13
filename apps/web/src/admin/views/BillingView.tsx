@@ -1,3 +1,4 @@
+import { PLAN_NAME } from '@/components/PlanCards';
 import { useMemo, useState } from 'react';
 import { Select, Skeleton } from '@lexdraft/ui';
 import type { AdminBillingEvent, BillingEventKind } from '@lexdraft/types';
@@ -24,7 +25,7 @@ const KIND_LABEL: Record<BillingEventKind, string> = {
   expired: 'Expired',
 };
 
-const PLAN_LABEL: Record<string, string> = { free: 'Free', solo: 'Solo', practice: 'Practice', firm: 'Firm' };
+const PLAN_LABEL = PLAN_NAME;
 
 const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 

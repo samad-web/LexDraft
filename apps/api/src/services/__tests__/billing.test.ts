@@ -41,11 +41,9 @@ describe('billing webhook signature (AC2)', () => {
 });
 
 describe('billing plans', () => {
-  it('offers the four launch plans and nothing is purchasable without Razorpay keys', () => {
+  it('offers the v4 plans and nothing is purchasable without Razorpay keys', () => {
     const plans = billing.billingPlans();
-    expect(plans.map((p) => p.id)).toEqual(['free', 'solo', 'practice', 'firm']);
-    expect(plans.find((p) => p.id === 'solo')?.monthlyInr).toBe(1499);
-    expect(plans.find((p) => p.id === 'practice')?.annualMonthlyInr).toBe(2399); // pricing v2 (Chamber)
+    expect(plans.map((p) => p.id)).toEqual(['sanad', 'vakalat', 'brief', 'associates', 'partners']);
     expect(plans.every((p) => !p.purchasable)).toBe(true);
   });
 });

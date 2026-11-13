@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
-import type { BillingCycle, BillingPlanId, BillingStateResponse, SubscriptionInvoice } from '@lexdraft/types';
-import { CycleToggle, PlanCards, SeatPicker } from '@/components/PlanCards';
+import type { BillingCycle, BillingPlanId, BillingStateResponse, PaidPlanId, SubscriptionInvoice } from '@lexdraft/types';
+import { CycleToggle, MunshiPicker, PLAN_NAME, PlanCards, SeatPicker } from '@/components/PlanCards';
 import { DraftMeter } from '@/components/DraftMeter';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
@@ -13,32 +13,42 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-/** Plan names as advocates see them (`Practice` is sold as Chamber). */
-function tierLabel(tier: string | null): string {
-  return tier === 'Practice' ? 'Chamber' : tier ?? '';
-}
+const PAID_IDS: readonly BillingPlanId[] = ['sanad', 'vakalat', 'brief', 'associates'];
+const isPaidId = (id: BillingPlanId | null | undefined): id is PaidPlanId => !!id && PAID_IDS.includes(id);
 
 /** The plan the account is on, in the same ids the plan cards use. */
 function currentPlanId(c: BillingStateResponse['current']): BillingPlanId | null {
   if (c.freePlan) return 'free';
+  if (isPaidId(c.selectedPlan)) return c.selectedPlan;
+  // Accounts from before pricing v4.
   if (c.planTier === 'Solo') return c.subscribed ? 'solo' : 'free';
   if (c.planTier === 'Practice') return 'practice';
-  if (c.planTier === 'Firm') return 'firm';
+  if (c.planTier === 'Firm') return 'partners';
   return null;
 }
 
-function statusLine(c: BillingStateResponse['current']): string {
-  const tier = tierLabel(c.planTier);
-  if (c.freePlan) return `Free plan · free till ${formatDate(c.trialEndsAt)}`;
-  if (c.planStatus === 'trial') return `${tier} trial · ends ${formatDate(c.trialEndsAt)}`;
-  if (c.planStatus === 'past_due') return `${tier} · payment due. Update your payment to keep access.`;
-  if (c.planStatus === 'cancelled') return `${tier} · cancelled`;
-  const cycle = c.billingCycle === 'annual' ? 'yearly' : c.billingCycle === 'monthly' ? 'monthly' : null;
-  const seats = c.planTier === 'Practice' ? ` · ${c.seats} advocates` : '';
-  return `${tier}${seats}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
+/** "Associates · 3 advocates + 1 Munshi seat" / "Vakalat". */
+function planLabel(plan: string, advocates: number, munshi: number): string {
+  const adv = plan === 'associates' || plan === 'practice' ? ` · ${advocates} advocates` : '';
+  const mun = munshi > 0 ? ` + ${munshi} Munshi seat${munshi === 1 ? '' : 's'}` : '';
+  return `${PLAN_NAME[plan] ?? plan}${adv}${mun}`;
 }
 
-const PLAN_NAME: Record<string, string> = { solo: 'Solo', practice: 'Chamber' };
+/** Paid plan picked at onboarding, not paid yet (pricing v4: no free trial). */
+const paymentPending = (c: BillingStateResponse['current']) =>
+  c.planStatus === 'trial' && !c.freePlan && !c.subscribed && isPaidId(c.selectedPlan);
+
+function statusLine(c: BillingStateResponse['current']): string {
+  const id = currentPlanId(c);
+  const name = id ? PLAN_NAME[id] ?? id : '';
+  if (c.freePlan) return `Free plan · free till ${formatDate(c.trialEndsAt)}`;
+  if (paymentPending(c)) return `${name} · payment not finished yet. Pay below to keep using DifAi.`;
+  if (c.planStatus === 'trial') return `${name} trial · ends ${formatDate(c.trialEndsAt)}`;
+  if (c.planStatus === 'past_due') return `${name} · payment due. Update your payment to keep access.`;
+  if (c.planStatus === 'cancelled') return `${name} · cancelled`;
+  const cycle = c.billingCycle === 'annual' ? 'yearly' : c.billingCycle === 'monthly' ? 'monthly' : null;
+  return `${planLabel(id ?? '', c.seats, c.munshiSeats)}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
+}
 
 /** GST tax invoices for this practice's payments, newest first. Hidden until there is one. */
 function SubscriptionInvoices() {
@@ -77,7 +87,7 @@ function SubscriptionInvoices() {
                 <td>{formatDate(inv.issuedAt)}</td>
                 <td>{inv.invoiceNo}</td>
                 <td className="col-hide-mobile">
-                  {PLAN_NAME[inv.plan] ?? inv.plan}{inv.plan === 'practice' ? ` · ${inv.seats} advocates` : ''} · {inv.cycle === 'annual' ? 'yearly' : 'monthly'}
+                  {planLabel(inv.plan, inv.seats, inv.munshiSeats)} · {inv.cycle === 'annual' ? 'yearly' : 'monthly'}
                 </td>
                 <td style={{ textAlign: 'right' }}>₹{inv.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                 <td className="cm-row-actions">
@@ -106,6 +116,7 @@ export function BillingView() {
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [selected, setSelected] = useState<BillingPlanId | null>(null);
   const [seats, setSeats] = useState(2);
+  const [munshi, setMunshi] = useState(0);
   const native = isNativeApp();
 
   const current = data ? currentPlanId(data.current) : null;
@@ -127,10 +138,11 @@ export function BillingView() {
     if (data?.current.billingCycle) setCycle(data.current.billingCycle);
   }, [data?.current.billingCycle]);
 
-  // A Chamber firm starts the picker at the advocates it already pays for.
+  // The pickers start at the advocates and Munshi seats the firm already pays for.
   useEffect(() => {
     if (data?.current.planTier === 'Practice') setSeats(Math.min(8, Math.max(2, data.current.seats)));
-  }, [data?.current.planTier, data?.current.seats]);
+    if (data) setMunshi(Math.min(4, data.current.munshiSeats));
+  }, [data?.current.planTier, data?.current.seats, data?.current.munshiSeats]);
 
   const clearReturn = () => {
     const next = new URLSearchParams(params);
@@ -140,7 +152,7 @@ export function BillingView() {
 
   const chosen = data?.plans.find((p) => p.id === selected) ?? null;
   const sameAsNow = !!chosen && chosen.id === current && paid && data?.current.billingCycle === cycle
-    && (chosen.id !== 'practice' || data?.current.seats === seats);
+    && (!chosen.seats || data?.current.seats === seats) && data?.current.munshiSeats === munshi;
 
   return (
     <div className="col stagger cm-billing" style={{ gap: 24 }}>
@@ -186,7 +198,7 @@ export function BillingView() {
             <div>
               <div className="cm-label">Current plan</div>
               <div className="cm-current-plan">
-                {data.current.freePlan ? 'Free' : tierLabel(data.current.planTier)}
+                {current ? PLAN_NAME[current] ?? current : 'Free'}
                 <span className={data.current.planStatus === 'active' ? 'cm-pill cm-pill--ink' : 'cm-pill cm-pill--line'}>
                   {STATUS_WORD[data.current.planStatus ?? ''] ?? data.current.planStatus ?? 'Free'}
                 </span>
@@ -195,7 +207,7 @@ export function BillingView() {
             </div>
             <div>
               <div className="cm-label">
-                {data.current.planStatus === 'trial' || data.current.freePlan ? 'Free until' : 'Renews'}
+                {data.current.freePlan ? 'Free until' : paymentPending(data.current) ? 'Pay by' : data.current.planStatus === 'trial' ? 'Trial ends' : 'Renews'}
               </div>
               <div className="cm-current-v">
                 {formatDate(data.current.planStatus === 'trial' || data.current.freePlan ? data.current.trialEndsAt : data.current.renewsAt)}
@@ -233,31 +245,29 @@ export function BillingView() {
             <div className="cm-checkout">
               <span className="cm-checkout-text">
                 <strong>{chosen.name}</strong>
-                {chosen.id === 'free' && 'The free plan is what you get when no paid plan is active.'}
-                {chosen.id === 'firm' && 'Firms with nine or more advocates get custom pricing. Book a demo and we will set it up.'}
-                {(chosen.id === 'solo' || chosen.id === 'practice') && (
+                {chosen.id === 'partners' && 'Firms with nine or more advocates get custom pricing. Book a demo and we will set it up.'}
+                {isPaidId(chosen.id) && (
                   sameAsNow ? 'You are already on this plan.'
                     : !data.paymentsEnabled || !chosen.purchasable
                       ? 'Online payment is being switched on. Please try again soon.'
                       : `Pay securely with Razorpay (UPI Autopay, cards, netbanking). Your plan switches as soon as the payment goes through.`
                 )}
               </span>
-              {chosen.id === 'firm' && (
+              {chosen.id === 'partners' && (
                 <button type="button" className="btn btn-primary" onClick={() => navigate('/signup?intent=demo')}>Book a demo</button>
               )}
-              {chosen.seats && (
-                <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
-              )}
-              {(chosen.id === 'solo' || chosen.id === 'practice') && (
+              <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
+              <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
+              {isPaidId(chosen.id) && (
                 <button
                   type="button"
                   className="btn btn-primary"
                   disabled={sameAsNow || !data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
-                  onClick={() => checkout.mutate(
-                    chosen.id === 'practice' ? { plan: 'practice', cycle, seats } : { plan: 'solo', cycle },
+                  onClick={() => isPaidId(chosen.id) && checkout.mutate(
+                    { plan: chosen.id, cycle, munshi, ...(chosen.seats ? { seats } : {}) },
                   )}
                 >
-                  {checkout.isPending ? 'Opening payment…' : `Upgrade to ${chosen.name}`}
+                  {checkout.isPending ? 'Opening payment…' : current === chosen.id ? `Change ${chosen.name}` : `Switch to ${chosen.name}`}
                 </button>
               )}
             </div>

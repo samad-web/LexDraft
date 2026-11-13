@@ -7,8 +7,13 @@ import { onboardingService } from '../services/onboarding.service';
 export const onboardingRouter: Router = Router();
 
 const Complete = z.object({
-  plan: z.enum(['free', 'solo', 'practice']),
+  /** `free` only from a free-launch account (firms.free_launch). */
+  plan: z.enum(['free', 'sanad', 'vakalat', 'brief', 'associates']),
   cycle: z.enum(['monthly', 'annual']).optional(),
+  /** Associates: advocates to pay for. */
+  seats: z.number().int().min(2).max(8).optional(),
+  /** Munshi (clerk) seats to add. */
+  munshi: z.number().int().min(0).max(4).optional(),
   kind: z.enum(['advocate', 'student']).optional(),
   firm: z.string().max(200).optional(),
   enrolment: z.string().max(80).optional(),

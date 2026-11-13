@@ -135,7 +135,7 @@ describe('Webhook: a successful Razorpay charge issues the invoice for the amoun
   it('subscription.charged with a payment -> one invoice insert with total = payment.amount', async () => {
     const billing = await import('../billing.service');
     h.useFakeDb = true;
-    h.rows = (t) => t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'solo', cycle: 'monthly', seats: 1 }]
+    h.rows = (t) => t.includes('from razorpay_plans where razorpay_plan_id') ? [{ plan: 'vakalat', cycle: 'monthly', seats: 1, munshi_seats: 0 }]
       : t.includes('from firms f join users u') ? [{ practice: 'P', name: 'N', email: null, phone: null, gstin: null, address_line: null, pincode: null, state: null }]
       : t.includes('insert into invoice_counters') ? [{ last: 3 }]
       : t.includes('insert into subscription_invoices') ? [{ id: 'inv-w' }] : [];
@@ -143,12 +143,12 @@ describe('Webhook: a successful Razorpay charge issues the invoice for the amoun
       event: 'subscription.charged',
       payload: {
         subscription: { entity: { id: 'sub_w', plan_id: 'plan_s', paid_count: 1, current_start: 1_794_000_000, current_end: 1_796_600_000, notes: { firm_id: '00000000-0000-0000-0000-0000000000f1' } } },
-        payment: { entity: { id: 'pay_w', amount: 149900 } },
+        payment: { entity: { id: 'pay_w', amount: 39900 } },
       },
     });
     const ins = h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!;
     expect(ins.values).toContain('pay_w');
-    expect(ins.values.at(-1)).toBe(149900);
+    expect(ins.values.at(-1)).toBe(39900);
   });
 });
 

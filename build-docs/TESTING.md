@@ -5,6 +5,14 @@
 - Failures found: 2 test-side (Node has no FileReader; afterEach unstubbed it). Fixed in the test, no app logic change.
 - Regression: full web vitest 90/90; tsc clean on touched files. Not tried on a real phone yet.
 
+## Playwright full-UI suite — 2026-11-12 (features/e2e-ui-suite.md)
+- Local web (`npx playwright test`): public project 26/26 green. Signed-in projects (app, mobile) not run: `.env.e2e` account (Play review) does not exist in the local DB; needs a local account.
+- Play Store app on the user's phone (`-c playwright.android.config.ts`, 48 tests, ~65 min): 2026-11-13 two full runs, both 43 passed, 4 skipped (not in the account's sidebar), 1 failed (palette Back, below). Cleanup sweep green both runs. Web unit 169/169.
+  - FAIL (real app bug, fixed in code, not deployed): hardware Back left the search palette open and navigated the page behind it. Fix: CmdK listens for `difai:back` like NotificationPanel. Stays red on the phone until a web deploy. Local regression test added in shell.e2e.ts.
+  - FAIL (test, fixed): diary flow. Root causes, all test-side: MATTER is pre-filled (fill() now select-all + delete); MATTER's suggestion list covers the DETAIL label (fill DETAIL first; fill() verifies the value landed); keys sent while the keyboard opens are dropped (fill() waits for it); a failed `uiautomator dump` left the previous XML, read as the current screen (dump() deletes it first, retries, throws). Diary test alone: 1 passed (10.5 min incl. cleanup sweep).
+- Test-side fixes on the way: topbar/dock/footer taps must not scroll (tapPinned); tree bounds include parts under overlays (safe area); no swiping with the keyboard up (it typed "666666"); never press Back to reset (leaves the app → app lock); a Python edit wrote a literal backspace into a regex.
+- Live data: leftovers deleted by their own row buttons: task E2E-mwdag0ut, diary "…E2E-mwdcth6u", "…E2E-mwdd03b9", E2E-mwddf6k6 (by the sweep). Verified 2026-11-12: no E2E task, Court Diary back to the 3 real entries.
+
 ## Bar Council verification, phase 3 (rolls + recent-enrolment councils) — 2026-11-11
 - `bar-councils.test.ts` 19/19: added Uttarakhand table (transferred advocate with two numbers), Rajasthan date list + batch rows, P&H PDF page (serial+number cell, wrapped name, address dropped), J&K CIS page (JK/number/year items, nearby name), and "every live/roll council has a lookup/source".
 - Parsers on the real PDFs: P&H 112,561 / 112,561 number cells parsed; J&K 9,709 / 9,752 (99.6%; misses are odd rows). 18k P&H one-word names are genuine (the roll prints one name).
@@ -207,3 +215,9 @@
 ## GST invoices — 2026-11-13 (features/gst-invoices.md)
 - `gst-invoices.test.ts` 14 tests: AC3 GSTIN checksum (Sirah's valid), place of supply order, CGST+SGST vs IGST adding to the paisa, FY switch at 1 Apr IST, amount in words; AC1/AC2 numbering DIF/26-27/000007 in one transaction, redelivery no-op, lost race rolls back, out-of-state GSTIN -> IGST; webhook charged -> invoice for payment.amount; AC4 every GST field in the PDF HTML + escaping; AC5 other firm's id not found; AC6 no seller config -> nothing written. All pass.
 - Real PDF rendered with Chromium from the template and checked by eye (sample in OneDrive: "DifAi Sample GST Invoice.pdf").
+
+## Pricing v4 catalogue — 2026-11-13 (features/pricing-v4.md)
+- `pricing-v4.test.ts` 28 tests: AC1 catalogue = v4 table, web SIGNUP_PLANS mirrors it; AC2 every plan × cycle × advocates (2-8) × munshi (0-3) amount, Razorpay plan created for the exact amount with Munshi seats stored, bad munshi refused; AC3 webhook takes plan/tier/advocates/Munshi from the Razorpay plan only (notes ignored), Solo tier for individual plans, pre-v4 plans skipped; AC4 seat checks (Munshi seat or spare advocate seat; invites; accept not double-counted); AC5 invoice line; AC6 onboarding: Free refused for new accounts, kept for free-launch, Vakalat 30-min window + ₹399 checkout, Associates 3+1 = ₹2,096, payments off -> 503 with no writes.
+- Existing tests moved to v4 ids: razorpay-billing (+1: lapsed plan of a new account is cancelled, never free), billing, gst-invoices (webhook fixture), pricing-v2 (plan-card block superseded).
+- Migration 0107 applied to the local DB: 40 free firms marked free_launch; seat-check SQL run on the real DB. Found: `invitations.id` is text, the uuid cast failed -> fixed before commit.
+- Full API suite in a clean worktree: 978 passed, 0 failed; API + web typecheck clean.

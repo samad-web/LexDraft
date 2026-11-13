@@ -45,7 +45,8 @@ const SignUp = z.object({
    * Existing clients that omit it default to 'trial' so behaviour matches
    * the new self-serve funnel without breaking any current caller. */
   intent: z.enum(['trial', 'paid', 'demo']).optional(),
-  plan: z.enum(['free', 'solo', 'practice']).optional(),
+  /** Recorded only (billing_events); old app builds still send free/solo/practice. */
+  plan: z.enum(['free', 'sanad', 'vakalat', 'brief', 'associates', 'solo', 'practice']).optional(),
   billingCycle: z.enum(['monthly', 'annual']).optional(),
 }).strict();
 
@@ -80,7 +81,7 @@ const GoogleSignUp = z.object({
   studyYear: z.string().max(40).optional(),
   teamSize: z.string().max(40).optional(),
   intent: z.enum(['trial', 'paid', 'demo']).optional(),
-  plan: z.enum(['free', 'solo', 'practice']).optional(),
+  plan: z.enum(['free', 'sanad', 'vakalat', 'brief', 'associates', 'solo', 'practice']).optional(),
   billingCycle: z.enum(['monthly', 'annual']).optional(),
 }).strict();
 
