@@ -291,3 +291,5 @@
     - AC3/4: past paid-until → plan_expired (no grace); a free-launch account falls back to free.
 - Existing tests moved from subscriptions to orders: razorpay-billing (an Associates order, a yearly order, buying the same plan again allowed), pricing-v4 (order amount and notes; onboarding opens the order), brief-packs (return → `paid`). policy-pages: no "renew automatically" / Autopay / mandate.
 - Test-data bug: a fake order id shorter than Razorpay's format was ignored by the id check, so the test id was fixed (the code was right).
+
+- 2026-11-14 first live ₹199 payment (Sanad, UPI): webhook 200, plan active and paid until 14 Dec, invoice DIF/26-27/000001 (CGST + SGST). Found: the November free-launch plan credits stayed alive next to the new Sanad credits (balance 50, not 25). Fix: starting a new plan period ends earlier plan grants (packs and admin grants stay). credits.integration 12/12.

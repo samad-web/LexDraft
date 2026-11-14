@@ -106,6 +106,12 @@ async function ensurePlanGrant(tx: Tx, firmId: string, f: FirmRow, now = new Dat
     on conflict (ref) do update set
       remaining = credit_grants.remaining + greatest(excluded.amount - credit_grants.amount, 0),
       amount = greatest(credit_grants.amount, excluded.amount)`;
+  // Plan credits don't carry over (Terms): when a new plan period starts (e.g.
+  // a free-launch account starts paying mid-month, or switches plan), the
+  // previous period's plan credits end now. Brief Packs and admin grants stay.
+  await tx`
+    update credit_grants set expires_at = now()
+    where firm_id = ${firmId}::uuid and source = 'plan' and ref <> ${ref} and expires_at > now()`;
   return cycle;
 }
 

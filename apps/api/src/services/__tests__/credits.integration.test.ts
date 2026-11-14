@@ -49,6 +49,18 @@ describe('plan allowance', () => {
     expect((await creditService.balance(firmId)).allowance).toBe(200);
   });
 
+  it('found live 2026-11-14: a free-launch account that starts paying mid-month keeps only the new plan credits', async () => {
+    const sql = getIntegrationSql();
+    const f = await seedFirm('Switch Firm', 'Solo');
+    await sql`update firms set free_plan = true, plan_status = 'trial', trial_ends_at = '2027-06-01' where id = ${f.id}::uuid`;
+    expect((await creditService.balance(f.id)).balance).toBe(25); // calendar-month free grant
+    await sql`update firms set free_plan = false, plan_status = 'active', selected_plan = 'sanad',
+      renews_at = now() + interval '30 days' where id = ${f.id}::uuid`;
+    const b = await creditService.balance(f.id); // new cycle anchored on the paid-until day
+    expect(b.balance).toBe(25);
+    expect(b.allowance).toBe(25);
+  });
+
   it('a free-launch account gets 25; an unpaid v4 sign-up gets none', async () => {
     const sql = getIntegrationSql();
     const free = await seedFirm('Free Firm', 'Solo');
