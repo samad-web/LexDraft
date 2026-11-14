@@ -340,3 +340,6 @@
     - every App Suspense uses the loader;
     - index.html boot loader is added by script (the SEO copy stays readable without JS) and uses the real wordmark paths.
 - Web 297 passed, tsc clean. vite build + prerender OK; the boot loader is only in dist/index.html, not in the SEO pages.
+
+## topbar-signout (2026-11-14)
+- topbar-signout.test.ts (2 tests): the labelled button sits after the bell, and it confirms before calling the shared useSignOut. Web 299 passed, tsc clean.

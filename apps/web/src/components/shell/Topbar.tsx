@@ -9,6 +9,8 @@ import { ROUTE_TITLES, locateInNav, visibleNavGroups } from './nav-config';
 import { NotificationPanel } from './NotificationPanel';
 import { useUnreadCount } from '@/store/notifications';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useSignOut } from '@/hooks/useAuth';
+import { useConfirm } from '@/components/ConfirmDialog';
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -18,6 +20,12 @@ export function Topbar() {
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const [notifOpen, setNotifOpen] = useState(false);
+  const signOut = useSignOut();
+  const confirm = useConfirm();
+  // Asks first: the button sits next to the bell, so a stray tap shouldn't end the session.
+  const onSignOut = async () => {
+    if (await confirm({ title: 'Sign out of DifAi?', confirmLabel: 'Sign out', cancelLabel: 'Stay signed in' })) signOut();
+  };
   // Drives the server sync (poll + hydrate) and gives us API-backed mark-read
   // handlers. The unread badge still reads the store so optimistic updates and
   // any client-only notifications are reflected instantly.
@@ -159,6 +167,15 @@ export function Topbar() {
         )}
       </div>
 
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="btn btn-ghost topbar-icon"
+        aria-label="Sign out"
+        title="Sign out"
+      >
+        <Icon name="logout" />
+      </button>
     </div>
   );
 }

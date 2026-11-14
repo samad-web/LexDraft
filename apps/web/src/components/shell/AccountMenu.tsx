@@ -6,7 +6,7 @@ import { useSignOut } from '@/hooks/useAuth';
 
 /**
  * The signed-in advocate at the foot of the sidebar. Opens a small menu with
- * settings, plan, theme and sign out (sign out used to sit in the topbar).
+ * settings, plan, theme and sign out. The topbar also has a sign-out button.
  */
 export function AccountMenu({ name, detail, initials }: { name: string; detail: string; initials: string }) {
   const navigate = useNavigate();
