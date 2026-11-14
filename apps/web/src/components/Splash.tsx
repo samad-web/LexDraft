@@ -2,20 +2,39 @@ import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
 import { BRAND_PATHS as P } from '@/components/brand/Logo';
+import { useAuthStore } from '@/store/auth';
 
 /**
  * Launch animation for the Android app: "Di" grows into DifAi over an ink
- * line drawing of a working courtroom. Cold start only; tap skips.
+ * line drawing of a working courtroom. Plays on cold start, and again for
+ * 4 s right after every sign-in so the dashboard doesn't just appear. Tap skips.
  * `?splash` shows it in the browser (for screenshots).
  */
 const DURATION_MS = 2400;
+const SIGN_IN_MS = 4000;
 const REDUCED_MS = 900;
 const FADE_MS = 300;
 
-export const useSplashStore = create<{ showing: boolean; leaving: boolean }>(() => ({
+export const useSplashStore = create<{ showing: boolean; leaving: boolean; durationMs: number }>(() => ({
   showing: Capacitor.isNativePlatform() || new URLSearchParams(window.location.search).has('splash'),
   leaving: false,
+  durationMs: DURATION_MS,
 }));
+
+/** Play the animation again from the start (re-mounts, so every line redraws). */
+export function playSplash(durationMs: number): void {
+  useSplashStore.setState({ showing: false, leaving: false });
+  requestAnimationFrame(() => useSplashStore.setState({ showing: true, leaving: false, durationMs }));
+}
+
+// App only: signed out -> signed in (any route: Google, password, new account,
+// MFA code) plays the splash. A session restored at launch is not a sign-in.
+if (Capacitor.isNativePlatform()) {
+  useAuthStore.subscribe((state, prev) => {
+    // No storage layer (persist off) means no restored session to mistake for a sign-in.
+    if (state.user && !prev.user && (useAuthStore.persist?.hasHydrated() ?? true)) playSplash(SIGN_IN_MS);
+  });
+}
 
 function close() {
   if (useSplashStore.getState().leaving) return;
@@ -100,13 +119,14 @@ function Courtroom() {
 export function Splash() {
   const showing = useSplashStore((s) => s.showing);
   const leaving = useSplashStore((s) => s.leaving);
+  const durationMs = useSplashStore((s) => s.durationMs);
 
   useEffect(() => {
     if (!showing) return;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const t = setTimeout(close, reduced ? REDUCED_MS : DURATION_MS);
+    const t = setTimeout(close, reduced ? REDUCED_MS : durationMs);
     return () => clearTimeout(t);
-  }, [showing]);
+  }, [showing, durationMs]);
 
   if (!showing) return null;
   return (

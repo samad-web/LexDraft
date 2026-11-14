@@ -1,4 +1,6 @@
 # Changelog
+
+- Splash after sign-in (2026-11-14): in the Android app the launch animation now also plays for 4 s right after every sign-in (Google, password, new account, MFA), so the dashboard no longer just appears. Cold start unchanged (2.4 s); tap skips; a restored session doesn't trigger it.
 - Document encryption at rest (2026-11-14, features/document-encryption.md): uploaded documents are AES-256-GCM encrypted on the server disk (same FIELD_ENCRYPTION_KEY as PII fields) and decrypted only when the API serves a signed download. Old plaintext files still open. Production refuses an upload if the key is missing. One-time backfill: `scripts/encrypt-existing-uploads.ts` (dry run, then `--apply`).
 
 - Sign-in page (2026-11-14):
