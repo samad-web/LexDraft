@@ -36,12 +36,12 @@ import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
 type AuthTab = 'signin' | 'signup';
 type Role = 'solo' | 'student' | 'group' | 'firm';
-type Audience = 'advocate' | 'student' | 'firm';
+type Audience = 'advocate' | 'chambers' | 'firm';
 
 /** Left-panel tabs: who DifAi is for, with the line shown under them. */
 const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
   { id: 'advocate', label: 'Advocate', tagline: 'Your hearings, drafts and matters in one app.' },
-  { id: 'student', label: 'Law student', tagline: 'Draft on real court formats. Plans from ₹199 a month.' },
+  { id: 'chambers', label: 'Chambers', tagline: 'Two to eight advocates sharing matters, diary and drafts.' },
   { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for your whole firm.' },
 ];
 
@@ -171,17 +171,18 @@ export function AuthView() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
-  // Who is signing in (the left tabs: advocate, law student, firm): copy
-  // changes, and the "new here" link starts a free account (advocate /
-  // student) or a firm trial / demo (firm). The student pick is remembered so
-  // onboarding opens on the student path.
+  // Who is signing in (the left tabs follow the plans: advocate = Sanad /
+  // Vakalat / Brief, chambers = Associates for 2-8, firm = Partners for 9+).
+  // Changes the copy and the "new here" link: an advocate or chambers
+  // account, or a talk-to-us enquiry for a firm. The pick pre-selects the
+  // plan in onboarding.
   const [audience, setAudience] = useState<Audience>(() => {
     const intro = readIntro();
-    return intro.size === 'team' ? 'firm' : intro.kind === 'student' ? 'student' : 'advocate';
+    return intro.size === 'team' ? 'chambers' : intro.size === 'firm' ? 'firm' : 'advocate';
   });
   const chooseAudience = (a: Audience) => {
     setAudience(a);
-    if (a !== 'firm') saveIntro({ kind: a });
+    saveIntro({ kind: 'advocate', size: a === 'advocate' ? 'solo' : a === 'chambers' ? 'team' : 'firm' });
   };
   // Email + password sign-in; Google is offered underneath.
   const [signinEmail, setSigninEmail] = useState('');
@@ -440,7 +441,7 @@ export function AuthView() {
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">Sign in</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {audience === 'firm' ? 'Welcome back to your firm.' : audience === 'student' ? 'Welcome back.' : 'Welcome back to your practice.'}
+                {audience === 'firm' ? 'Welcome back to your firm.' : audience === 'chambers' ? 'Welcome back to your chambers.' : 'Welcome back to your practice.'}
               </p>
             </div>
             <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -450,7 +451,7 @@ export function AuthView() {
                   type="email"
                   inputMode="email"
                   autoComplete="username"
-                  placeholder={audience === 'firm' ? 'Work email' : 'Email'}
+                  placeholder={audience !== 'advocate' ? 'Work email' : 'Email'}
                   aria-label="Email"
                   required
                   value={signinEmail}
@@ -508,7 +509,7 @@ export function AuthView() {
                 (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
                     No DifAi account uses this email.{' '}
-                    <button type="button" className="auth-link" onClick={() => startTrial(audience === 'firm' ? 'group' : null)}>
+                    <button type="button" className="auth-link" onClick={() => (audience === 'firm' ? bookDemo() : startTrial(audience === 'chambers' ? 'group' : null))}>
                       Create your account
                     </button>
                   </div>
@@ -535,15 +536,17 @@ export function AuthView() {
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your firm’s account</button></>
+                <>Firm with nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button></>
+              ) : audience === 'chambers' ? (
+                <>New chambers on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your chambers’ account</button></>
               ) : (
                 <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button></>
               )}
             </p>
             <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
-              {audience === 'firm'
+              {audience === 'chambers'
                 ? 'Every feature for 14 days · no card needed'
-                : freeLine}
+                : audience === 'firm' ? 'A custom plan, set up with you' : freeLine}
             </p>
             <button
               type="button"
@@ -562,11 +565,11 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
+              <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {suChallenge
                   ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
-                  : audience === 'firm'
+                  : audience !== 'advocate'
                     ? '14 days of every feature. No card needed.'
                     : `${freeLine}.`}
               </p>
@@ -580,7 +583,7 @@ export function AuthView() {
                 {suShow('name') && <span role="alert" className="auth-field-error">{suShow('name')}</span>}
                 <label className="auth-field">
                   <Icon name="mail" size={16} />
-                  <input type="email" inputMode="email" autoComplete="email" placeholder={audience === 'firm' ? 'Work email' : 'Email'} aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
+                  <input type="email" inputMode="email" autoComplete="email" placeholder={audience !== 'advocate' ? 'Work email' : 'Email'} aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
                 </label>
                 {suShow('email') && <span role="alert" className="auth-field-error">{suShow('email')}</span>}
                 {!suProblems.email && suProblems.emailTypo && (
@@ -673,7 +676,7 @@ export function AuthView() {
               </form>
             )}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
-              Already have {audience === 'firm' ? 'a practice' : 'an account'}?{' '}
+              Already have {audience !== 'advocate' ? 'a practice' : 'an account'}?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>
           </div>
@@ -685,11 +688,11 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
+              <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {googleSignup
                   ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`
-                  : audience === 'firm'
+                  : audience !== 'advocate'
                     ? '14 days of every feature. No card needed.'
                     : `${freeLine}.`}
               </p>
