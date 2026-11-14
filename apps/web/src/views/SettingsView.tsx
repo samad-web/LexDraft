@@ -721,7 +721,7 @@ function AboutDataCard() {
             Under the Digital Personal Data Protection Act 2023 (DPDP §11) you
             have the right to access a copy of your personal data, request
             correction or erasure of inaccurate data, and seek grievance
-            redressal through our designated Data Protection Officer.
+            redressal through our Grievance Officer.
           </p>
           <p>
             Exports are generated on demand and are not retained server-side
@@ -730,9 +730,9 @@ function AboutDataCard() {
           </p>
           <p>
             For full terms, see our{' '}
-            <a href="/legal/privacy">Privacy Policy</a>{' '}
+            <a href="/privacy">Privacy Policy</a>{' '}
             and{' '}
-            <a href="/legal/terms">Terms of Service</a>
+            <a href="/terms">Terms of Service</a>
             .
           </p>
         </div>

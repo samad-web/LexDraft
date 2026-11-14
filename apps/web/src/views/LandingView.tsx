@@ -207,10 +207,10 @@ const FOOTER_GROUPS: FooterGroup[] = [
   {
     h: 'Legal',
     l: [
-      { label: 'Terms', href: 'mailto:legal@lexdraft.in?subject=Terms%20of%20Service' },
+      { label: 'Terms', href: '/terms' },
       { label: 'Privacy', href: '/privacy' },
       { label: 'Delete account', href: '/delete-account' },
-      { label: 'DPA', href: 'mailto:legal@lexdraft.in?subject=Data%20Processing%20Addendum' },
+      { label: 'DPA', href: '/privacy#data-processing' },
       { label: 'Security', href: 'mailto:security@lexdraft.in' },
     ],
   },

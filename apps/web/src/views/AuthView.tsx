@@ -633,7 +633,7 @@ export function AuthView() {
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
                 <div className="auth-actions">
                   <span className="body-xs" style={{ color: 'var(--text-tertiary)', maxWidth: 240, lineHeight: 1.5 }}>
-                    By starting you agree to DifAi&rsquo;s Terms and Privacy Policy.
+                    By starting you agree to DifAi&rsquo;s <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>Privacy Policy</a>.
                   </span>
                   <button
                     type="submit"
@@ -994,7 +994,7 @@ export function AuthView() {
         </div>
       </div>
       <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>
-        By continuing you agree to DifAi&rsquo;s terms of service and privacy policy.
+        By continuing you agree to DifAi&rsquo;s <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>terms of service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>privacy policy</a>.
       </p>
 
       {/* Trust strip - sits below the card, reinforces the legal-tech

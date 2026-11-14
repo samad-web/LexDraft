@@ -37,6 +37,8 @@
 - 2026-11-13 — Owner: quit Dodo Payments, move to Razorpay (Dodo never went live). Razorpay is a gateway, not a Merchant of Record: DifAi must issue GST invoices with its own GSTIN. Design awaiting approval: features/razorpay-billing.md.
 - 2026-11-13 — GST invoices from DifAi (owner: Sirah is GST-registered, invoices in DifAi format). Seller = SIRAH DIGITAL, GSTIN 33CVVPM9805M1ZO (Tamil Nadu): TN buyers CGST+SGST, others IGST. SAC 998315 is a placeholder until the CA confirms. Refunds need a manual credit note (v1).
 
+- 2026-11-14 legal pages: the operator is Sirah Digital, a sole proprietorship of M Mohamed Riyaz (GSTIN 33CVVPM9805M1ZO, Chennai). Arbitration seat Chennai, Madras HC. Legal text must match the app (no consent boxes, analytics or in-app cancel today) and say nothing "free" (pricing v4). Details: features/legal-pages.md.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

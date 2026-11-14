@@ -267,3 +267,16 @@
   The old 503 test encoded the previous behaviour, so it was changed to the owner's new rule.
 - munshi.integration.test.ts (real Postgres, migration 0110): the Munshi has matter/client/documents, no drafting.ai / mock arguments / matter intelligence / research; an advocate in the same firm keeps AI; a Munshi AI charge is refused, an advocate's is taken.
 - Web seo.test.mjs with V4_LIVE = true.
+
+## legal-pages (2026-11-14)
+- legal-pages.test.tsx, 9 tests mapped to AC1–6:
+    - Parts A–E present;
+    - no `[placeholder]` brackets;
+    - no "free" offer on /terms;
+    - operator, GSTIN, address, email and Grievance Officer shown;
+    - both AI providers named;
+    - mic/camera disclosed;
+    - /terms and /legal/terms routed, plus the nginx regex;
+    - links from the landing, sign-up and settings.
+- Regression: all web tests (18 files, 270 tests) and `tsc --noEmit` pass. seo.test checks the /terms SPA prefix.
+- No failures found.

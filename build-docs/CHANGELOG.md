@@ -1,5 +1,10 @@
 # Changelog
 
+- Terms + Privacy pages v1.1 (2026-11-14), not deployed:
+  - New /terms page: Terms of Service, Cookie and Device Permissions Notice, and Subscription and Refund Policy.
+  - /privacy now holds the full Privacy Policy and DPDP Notice: OpenAI named, Grievance Officer published, operator details from the GST certificate.
+  - Linked from the landing page, sign-up and Settings. The old dead `mailto:legal@lexdraft.in` and `/legal/terms` links are fixed.
+
 - Munshi role + landing v4 (2026-11-14):
   - A real **Munshi** (clerk) role: diary, cause list, hearings, eCourts, eFiling and documents, no AI. A Munshi seat (₹149) covers it.
   - The landing page and SEO pages show the v4 plans.

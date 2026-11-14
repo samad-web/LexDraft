@@ -140,7 +140,7 @@ function navHtml(pages) {
 
 function footerHtml(pages) {
   const links = pages.map((p) => `<li><a href="/${p.slug}">${esc(p.crumb)}</a></li>`).join('');
-  return `<ul><li><a href="/">${BRAND} home</a></li>${links}<li><a href="/privacy">Privacy</a></li></ul>
+  return `<ul><li><a href="/">${BRAND} home</a></li>${links}<li><a href="/terms">Terms</a></li><li><a href="/privacy">Privacy</a></li></ul>
 <p>${BRAND} is built by Sirah Digital, India. ${OFFER.line}</p>`;
 }
 
