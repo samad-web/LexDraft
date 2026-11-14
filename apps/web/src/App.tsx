@@ -25,6 +25,7 @@ import { uiFor, watchStackedTables } from '@/lib/chambers';
 // app shell (Sidebar/Topbar/banners) stays eager. Named exports are unwrapped to
 // a default via .then(...) so prop types are preserved through React.lazy.
 import { TermsConsentView } from '@/components/TermsConsent';
+import { PageLoader } from '@/components/PageLoader';
 const LandingView = lazy(() => import('@/views/LandingView').then((m) => ({ default: m.LandingView })));
 const AuthView = lazy(() => import('@/views/AuthView').then((m) => ({ default: m.AuthView })));
 const SignupView = lazy(() => import('@/views/SignupView').then((m) => ({ default: m.SignupView })));
@@ -146,12 +147,10 @@ export function App() {
   const cmdK = useUIStore((s) => s.cmdK);
   const toggleCmdK = useUIStore((s) => s.toggleCmdK);
 
-  // Shared fallback while a code-split route chunk downloads.
-  const pageFallback = (
-    <div style={{ padding: 'var(--space-9)', textAlign: 'center', color: 'var(--text-tertiary)' }}>
-      Loading…
-    </div>
-  );
+  // Shared loading screens while a code-split route chunk downloads:
+  // full-screen outside the app shell, content-column inside it.
+  const pageFallback = <PageLoader full />;
+  const contentFallback = <PageLoader />;
 
   // The "Chambers" design (styles/chambers.css) covers every screen except
   // the marketing landing page, which keeps its own look.
@@ -209,7 +208,7 @@ export function App() {
   if (isPortalRoute) {
     return (
       <>
-        <Suspense fallback={<div style={{ padding: 32, textAlign: 'center', opacity: 0.6 }}>Loading…</div>}>
+        <Suspense fallback={pageFallback}>
           <Routes>
             <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
             <Route path="/portal/login" element={<PortalLoginView />} />
@@ -332,7 +331,7 @@ export function App() {
           <Topbar />
           <main className="content" id="main-content" tabIndex={-1} key={location.pathname}>
             <SectionTabs />
-            <Suspense fallback={pageFallback}>
+            <Suspense fallback={contentFallback}>
             <Routes>
               <Route path="/app" element={<Navigate to="/app/dashboard" replace />} />
               <Route path="/app/dashboard" element={<DashboardView onNav={(v) => navigate(`/app/${v}`)} />} />

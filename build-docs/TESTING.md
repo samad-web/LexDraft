@@ -333,3 +333,10 @@
 
 ## sign-in page tidy (2026-11-14)
 - auth-art.test.tsx (2 tests): the card renders the faked system date and time (NOV 14, 5:05 PM, Saturday) with no fixed hearing; the plans line is gone. Web suite 291 passed, tsc clean.
+
+## page-loader (2026-11-14)
+- page-loader.test.tsx (3 tests):
+    - accessible status with the wordmark;
+    - every App Suspense uses the loader;
+    - index.html boot loader is added by script (the SEO copy stays readable without JS) and uses the real wordmark paths.
+- Web 297 passed, tsc clean. vite build + prerender OK; the boot loader is only in dist/index.html, not in the SEO pages.

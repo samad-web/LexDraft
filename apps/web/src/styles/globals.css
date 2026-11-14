@@ -5171,3 +5171,26 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
    would otherwise sit on top of the field being typed in. */
 html.kb-open .mobile-nav,
 html.kb-open .fab { display: none !important; }
+
+/* ---- Page loader (components/PageLoader.tsx; same look as index.html's #boot-loader) ---- */
+.page-loader {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  min-height: 50vh; width: 100%; color: var(--text-primary);
+  opacity: 0; animation: page-loader-in 200ms ease-out 180ms forwards;
+}
+/* Full-screen takes over from index.html's #boot-loader, so no fade (no blank flash). */
+.page-loader--full { min-height: 100vh; min-height: 100dvh; background: var(--bg-base); animation: none; opacity: 1; }
+.page-loader__bar {
+  position: relative; display: block; width: 120px; height: 2px; overflow: hidden;
+  border-radius: 2px; background: var(--border-subtle);
+}
+.page-loader__bar > span {
+  position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 2px;
+  background: var(--text-primary); animation: page-loader-slide 1.1s ease-in-out infinite;
+}
+@keyframes page-loader-in { to { opacity: 1; } }
+@keyframes page-loader-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) {
+  .page-loader { animation: none; opacity: 1; }
+  .page-loader__bar > span { animation: none; width: 100%; opacity: 0.35; }
+}
