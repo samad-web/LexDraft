@@ -19,7 +19,7 @@ apps/web/android
 # Secrets and per-environment config. NEVER bake these into an image.
 .env
 .env.*
-!apps/api/.env.docker
+# apps/api/.env.docker is read by compose at run time (env_file), never at build.
 !apps/api/.env.example
 
 # Local uploads & test artefacts.

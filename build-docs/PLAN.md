@@ -132,3 +132,30 @@ F2 → F1 → F4 rules → F3 (feature pages first, guides after your review) �
 
 ## Needs from you
 - Approval; answers to the claim check; training-bot choice; who reviews the legal guides.
+
+---
+
+# PLAN — Document protection beyond the server (approved 2026-11-14)
+
+## Goal and scope
+- Goal: documents stay protected after they leave DifAi (download, WhatsApp) and the server key is harder to steal.
+- For: advocates sharing drafts and case documents with clients.
+- Out of scope: encrypting typed case facts/notes in the database (option 2, user deferred); DRM (stopping a client who has the password from screenshotting or forwarding it).
+
+## Project memory
+- Builds on document encryption at rest (8e1a152, same FIELD_ENCRYPTION_KEY), WhatsApp share (372a7c2, f62cc44), signed storage links.
+- No live DB changes without approval: feature 2 needs migration 0111 (additive, new table only).
+- UI strictly black & white; red only for a mandatory issue.
+
+## Features, prioritised
+1. `features/key-lockdown.md`: key out of the app folder into a root-only secrets file; one offline backup held by the owner. Server only, no app change.
+2. `features/protected-pdf.md`: "Lock with password" on Share/Download. AES-256 password PDF (qpdf) + "Confidential – for <client> – <date>" watermark.
+3. `features/secure-share-link.md`: send a DifAi link instead of the file. Expires (default 7 days), can be revoked, optional password, view count.
+
+## Build order
+1 → 2 → 3. Each: tests, commit, push, deploy (2 and 3 rebuild api + web; 3 also needs 0111 approved).
+
+## Needs from you
+- Approve this plan.
+- Feature 1: you store the key backup (password manager); I won't print it in chat.
+- Feature 3: approve migration 0111 on prod when we get there.

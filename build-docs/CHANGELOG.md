@@ -1,4 +1,6 @@
 # Changelog
+- Key lockdown (2026-11-14, features/key-lockdown.md): FIELD_ENCRYPTION_KEY moved out of the app folder into root-only /etc/lexdraft/secrets.env (loaded via the server's docker-compose.apiport.yml); env files and DB dumps made root-only (were readable by the `ubuntu` login); .dockerignore no longer lets apps/api/.env.docker into image builds.
+
 
 - Sign-in animation on computers (2026-11-14): larger wordmark/tagline and a taller courtroom from 900 px wide (phones unchanged); for the 4 s sign-in the moves are stretched 1.6x so it finishes at ~3.2 s instead of sitting still after 2 s. Chrome's "Change your password" box is the browser's own breach warning, not DifAi.
 

@@ -1,4 +1,9 @@
 # Testing
+## Key lockdown — 2026-11-14 (features/key-lockdown.md)
+- Live server checks: secrets file identical to the old key line; api force-recreated with the key ONLY in /etc/lexdraft/secrets.env → healthy; 1/1 encrypted document decrypts; new upload encrypted on disk and reads back; public sign-in POST 400 (API up).
+- Permissions: 0 env copies or dumps readable by non-root after chmod.
+- Not yet done: old Docker build cache and 33 env backups still hold the key (root-only now); clean-up awaits user OK.
+
 ## Evidence tables — 2026-11-14 (features/evidence-tables.md)
 - Engine `test_evidence_tables.py` 9/9: list of documents -> ruled Word table (bold heading row, repeated on each page, all borders); Markdown table with rule line; read back one "| a | b |" line per row in order; uneven rows padded/folded; prose with a pipe and a lone row stay text; no-table draft unchanged; cell edit written back; splice inserts a composed table; splice over an existing table replaces it.
 - API `evidence-tables.test.ts` 5/5 + intake-compose 68/68 + open-draft 24/24.
