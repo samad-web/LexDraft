@@ -1,14 +1,30 @@
+import { useEffect, useState } from 'react';
+
 // =============================================================================
 // AuthArt - the sign-in page's left panel illustration.
 //
 // Monochrome line art (strokes/fills come from the panel's --art-* tokens, so
 // it inverts with the theme): a courthouse in the distance, a drafted
-// document with its seal, a gavel, and the next-hearing card - joined by a
-// dotted thread (draft -> hearing). Composed around the side tabs
+// document with its seal, a gavel, and a card with today's live date and
+// time - joined by a dotted thread. Composed around the side tabs
 // (centre-right) and the tagline (bottom-left), which sit on top of it.
 // =============================================================================
 
+/** Re-renders every 15 s so the card's clock stays on the current minute. */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
 export function AuthArt() {
+  const now = useNow();
+  const month = now.toLocaleDateString('en-IN', { month: 'short' }).toUpperCase();
+  const time = now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
+  const weekday = now.toLocaleDateString('en-IN', { weekday: 'long' });
   return (
     <svg
       className="auth-art-svg"
@@ -76,15 +92,15 @@ export function AuthArt() {
         </g>
       </g>
 
-      {/* Next-hearing card (bottom right, under the tabs). */}
+      {/* Live date + time card (bottom right, under the tabs). */}
       <g transform="translate(206 396)">
         <rect className="aa-card" x="0" y="0" width="204" height="86" rx="14" />
         <rect className="aa-chip" x="14" y="16" width="40" height="44" rx="8" />
-        <text className="aa-chip-m" x="34" y="32" textAnchor="middle">OCT</text>
-        <text className="aa-chip-d" x="34" y="52" textAnchor="middle">27</text>
-        <text className="aa-k" x="66" y="30">NEXT HEARING</text>
-        <text className="aa-v" x="66" y="48">10:30 · Court 4</text>
-        <text className="aa-s" x="66" y="64">Arguments · on time</text>
+        <text className="aa-chip-m" x="34" y="32" textAnchor="middle">{month}</text>
+        <text className="aa-chip-d" x="34" y="52" textAnchor="middle">{now.getDate()}</text>
+        <text className="aa-k" x="66" y="30">TODAY</text>
+        <text className="aa-v" x="66" y="48">{time}</text>
+        <text className="aa-s" x="66" y="64">{weekday}</text>
         <circle className="aa-ok" cx="186" cy="20" r="5" />
       </g>
 

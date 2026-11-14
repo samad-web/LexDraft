@@ -317,3 +317,6 @@
 - **Regression:**
     - api unit: 1037 passed. web: 289 passed. tsc clean for both.
     - api auth.integration: 5/6. "role=group → Practice" fails on origin/main too (pricing v4 maps group to a different tier); it predates this feature and is untouched.
+
+## sign-in page tidy (2026-11-14)
+- auth-art.test.tsx (2 tests): the card renders the faked system date and time (NOV 14, 5:05 PM, Saturday) with no fixed hearing; the plans line is gone. Web suite 291 passed, tsc clean.

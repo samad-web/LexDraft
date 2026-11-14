@@ -1,5 +1,9 @@
 # Changelog
 
+- Sign-in page (2026-11-14):
+  - The plans line under "Create your account" is removed.
+  - The art card shows today's live date and time instead of a fixed "Next hearing, Oct 27, 10:30, Court 4".
+
 - Sign-in tabs follow the plans (2026-11-14): Advocate · Chambers · Firm (Law student removed, no price on the page). Chambers = Associates 2-8 (14-day trial, team sign-up); Firm = Partners 9+ ("Talk to us" enquiry). The pick pre-selects the plan in onboarding.
 
 - Landing without prices (2026-11-14): Pricing section and price list in the FAQ removed from the landing page; the Pricing tab and /#pricing links open sign-in; Settings' "See plans & upgrade" opens /app/billing. Public /pricing page kept (Razorpay).

@@ -543,11 +543,6 @@ export function AuthView() {
                 <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button></>
               )}
             </p>
-            <p className="mono" style={{ textAlign: 'center', margin: '-8px 0 0', fontSize: 10, letterSpacing: '0.06em', color: 'var(--text-tertiary)' }}>
-              {audience === 'chambers'
-                ? 'Every feature for 14 days · no card needed'
-                : audience === 'firm' ? 'A custom plan, set up with you' : freeLine}
-            </p>
             <button
               type="button"
               className="btn btn-ghost btn-sm auth-firm-link"
