@@ -9,6 +9,7 @@ import {
   useUpdateFlags, useUpdatePlan,
 } from '../queries';
 import { useUIStore } from '@/store/ui';
+import { FirmCreditsCard } from './FirmCreditsCard';
 
 function adminErrorToast(showToast: ReturnType<typeof useUIStore.getState>['showToast'], fallback: string) {
   return (err: unknown) => showToast({
@@ -45,6 +46,7 @@ export function FirmDetailView() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <PlanCard firmId={firm.id} initial={firm.plan} status={firm.status} />
+          <FirmCreditsCard firmId={firm.id} />
           <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
           <RecentAuditCard entries={firm.recentAudit} />
         </div>

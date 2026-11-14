@@ -55,3 +55,11 @@
 - 2026-11-09 - Open drafting built and tested locally (F1-F6), not deployed. Round 2: 94.9% vs plain AI 92.9%; invented facts 6 vs 49; wrong law 15 vs 13, mostly in notes. Law accuracy is the open gap: our sources do not confirm most provisions, so advocates must verify. Saved open drafts reopen without the label.
 
 - 2026-11-13 — Pricing v4 in the app approved: "1a, 2a, 3 ok". (1a) New sign-ups must pick a paid plan; free launch kept only for accounts that have it (`firms.free_launch`, 0107). (2a) Munshi seat = Paralegal / Legal Secretary, no new role. (3) Build v4 first, deploy together with ai-credits. Associates = flat ₹649 per advocate. Consequences: no 14-day Associates trial; 30-minute payment window after onboarding; online payment must be on before v4 ships. Open: hide AI (drafting.basic, mock arguments) from Munshi roles? Not done, permissions unchanged.
+
+- 2026-11-14 — AI credits approved and built (0108, local only). Owner: free-launch accounts get 25 credits a month; Brief Packs ship in the same release. Decisions while building:
+    - one shared pool per firm, monthly reset even on yearly plans;
+    - a draft's pages are charged once, and only growth past them costs;
+    - locked pages are cut server-side, a locked draft can't be saved or e-filed (409 draft_locked);
+    - the mock-argument session (3) includes its turns;
+    - the matter-intel auto summary is charged 2.
+  Open for the owner: the diary briefing narrative is free (shown only while credits remain).

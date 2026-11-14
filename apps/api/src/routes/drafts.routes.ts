@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { draftsService } from '../services/drafts.service';
+import { assertNotLocked } from '../services/draft-meter.service';
 import { requireFeature } from '../services/permissions.service';
 
 const SaveInput = z.object({
@@ -46,7 +47,9 @@ draftsRouter.post('/', requireFeature('drafting.basic'), async (req, res, next) 
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    res.status(201).json(await draftsService.create(SaveInput.parse(req.body), { userId }));
+    const input = SaveInput.parse(req.body);
+    assertNotLocked(input.bodyText, input.editedHtml);
+    res.status(201).json(await draftsService.create(input, { userId }));
   } catch (err) {
     next(err);
   }
@@ -56,11 +59,9 @@ draftsRouter.put('/:id', requireFeature('drafting.basic'), async (req, res, next
   try {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ error: 'Authentication required' });
-    const updated = await draftsService.update(
-      String(req.params.id ?? ''),
-      SaveInput.parse(req.body),
-      { userId },
-    );
+    const input = SaveInput.parse(req.body);
+    assertNotLocked(input.bodyText, input.editedHtml);
+    const updated = await draftsService.update(String(req.params.id ?? ''), input, { userId });
     if (!updated) return res.status(404).json({ error: 'Draft not found' });
     res.json(updated);
   } catch (err) {

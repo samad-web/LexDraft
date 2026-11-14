@@ -21,7 +21,6 @@
 
 import { logger } from '../logger';
 import { complete, parseJsonLoose, providerModel, resolveProvider, type Provider } from '../lib/llm-drafting';
-import { aiQuotaService } from './ai-quota.service';
 import { aiUsageService } from './ai-usage.service';
 import { findIntroducedDetailed } from './draft-revise.service';
 
@@ -229,8 +228,7 @@ export const draftReviewService = {
     const provider: Provider = resolveProvider(req.provider);
     if (provider === 'none') throw new ReviewUnavailableError();
 
-    // May throw AiQuotaExceededError -> route maps to 429.
-    await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+    // Credits are charged by the route (POST /drafting/review).
 
     const user = `Document type: ${req.docType}\n\nDRAFT:\n${numbered(req.paragraphs)}`;
     // A long pleading's findings (excerpt + fix each) overran 4000 tokens and the

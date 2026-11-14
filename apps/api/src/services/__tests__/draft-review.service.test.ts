@@ -110,7 +110,8 @@ describe('draftReviewService.review', () => {
       ],
     }));
     const r = await draftReviewService.review({ docType: 'Complaint u/s 138 NI Act', paragraphs: DRAFT }, CTX);
-    expect(assertCanGenerate).toHaveBeenCalledWith('firm-1', 'user-1');
+    // Credits are charged by the route now (ai-credits.test.ts), not the service.
+    expect(assertCanGenerate).not.toHaveBeenCalled();
     expect(recordAsync).toHaveBeenCalledWith(expect.objectContaining({ feature: 'drafting', model: 'test-model' }));
     expect(calls[0]!.user).toContain('[3] 3. The Complainant issued a legal notice');
     expect(r.summary).toBe('Fit to file after two fixes.');

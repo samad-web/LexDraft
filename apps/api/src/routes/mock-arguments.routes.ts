@@ -19,6 +19,8 @@
  * LLM budget by re-submitting turns.
  */
 
+import { creditService } from '../services/credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { Router } from 'express';
 import crypto from 'node:crypto';
 import { z } from 'zod';
@@ -122,6 +124,9 @@ mockArgumentsRouter.post(
   async (req, res, next) => {
     try {
       const ctx = await ctxOrThrow(req);
+      // Distilling the upload is the first step of a session: it needs the
+      // session's 3 credits on hand (charged when the session starts).
+      await creditService.assertAvailable({ firmId: ctx.firmId, userId: ctx.userId }, CREDIT_COSTS.mock_arguments);
       const body = req.body as z.infer<typeof UploadInput>;
       const buffer = Buffer.from(body.contentBase64, 'base64');
       if (buffer.length === 0) {
@@ -206,7 +211,8 @@ mockArgumentsRouter.post(
         applicableStatutes: ms.applicableStatutes,
         priorJudgments: ms.priorJudgments,
       };
-      const session = await mockArgumentsService.createSession(
+      // One mock-arguments session: 3 credits (402 when out), refunded if it can't start.
+      const session = await creditService.withCredits({ firmId: ctx.firmId, userId: ctx.userId }, 'mock_arguments', CREDIT_COSTS.mock_arguments, () => mockArgumentsService.createSession(
         {
           ...(body.caseId ? { caseId: body.caseId } : {}),
           ...(body.uploadId ? { uploadId: body.uploadId } : {}),
@@ -218,7 +224,7 @@ mockArgumentsRouter.post(
           ...(body.languageCode ? { languageCode: body.languageCode } : {}),
         },
         ctx,
-      );
+      ));
       res.status(201).json(session);
     } catch (err) {
       next(err);

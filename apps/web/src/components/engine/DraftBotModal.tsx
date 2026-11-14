@@ -38,6 +38,8 @@ import { NeededFieldsPanel, neededFields } from './NeededFieldsPanel';
 import { Modal } from '../Modal';
 import { draftErrorMessage } from '../../lib/draft-error';
 import { QuestionAnswerNote } from './QuestionAnswerNote';
+import { CreditMeter } from '../DraftMeter';
+import { CREDIT_COSTS, creditLabel } from '../../lib/credit-costs';
 
 // Focus the composer on open only with a mouse; on phones that pops the
 // keyboard over half the screen before the advocate has read anything.
@@ -945,7 +947,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
                   checkBrief.mutate({ message: prompt.trim() }, { onSuccess: setBriefCheck, onError: (err) => setError(draftErrorMessage(err)) });
                 }}
               >
-                {checkBrief.isPending ? 'Checking…' : 'Check what’s missing'}
+                {checkBrief.isPending ? 'Checking…' : `Check what’s missing · ${creditLabel(CREDIT_COSTS.check_missing)}`}
               </button>
             </div>
           </div>
@@ -998,8 +1000,10 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
               Draft in BNS / BNSS <span className="dc-switch-hint">(2023)</span>
             </span>
           </label>
-          <button type="submit" className="btn btn-primary btn-lg dc-submit" disabled={!canSubmit}>
-            <Icon name="draft" size={16} /> {busy ? 'Drafting…' : 'Draft document'}
+          <CreditMeter compact />
+          <button type="submit" className="btn btn-primary btn-lg dc-submit" disabled={!canSubmit}
+            title="1 credit per drafted page (400 words). Pages past your credits are drafted and kept locked.">
+            <Icon name="draft" size={16} /> {busy ? 'Drafting…' : 'Draft document · 1 credit a page'}
           </button>
         </div>
 

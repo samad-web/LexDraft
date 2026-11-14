@@ -25,7 +25,7 @@ export function CapExceededModal() {
       open
       onClose={hide}
       title={title}
-      eyebrow={cap.kind === 'ai_quota' ? 'Monthly drafts' : 'Seat cap'}
+      eyebrow={cap.kind === 'credits' ? 'AI credits' : cap.kind === 'ai_quota' ? 'Monthly drafts' : 'Seat cap'}
       description={description}
       width={500}
       footer={
@@ -51,7 +51,7 @@ export function CapExceededModal() {
       <div className="col" style={{ gap: 12 }}>
         <div className="row" style={{ gap: 24, alignItems: 'baseline' }}>
           <div>
-            <div className="eyebrow">Used</div>
+            <div className="eyebrow">{cap.kind === 'credits' ? 'Needed / left' : 'Used'}</div>
             <div className="mono tabular" style={{ fontSize: 20, fontWeight: 600 }}>
               {cap.used} / {cap.cap}
             </div>
@@ -62,7 +62,7 @@ export function CapExceededModal() {
               <div className="body-md">{planLabel(cap.planTier)}</div>
             </div>
           )}
-          {cap.kind === 'ai_quota' && cap.resetsAt && (
+          {(cap.kind === 'ai_quota' || cap.kind === 'credits') && cap.resetsAt && (
             <div>
               <div className="eyebrow">Resets</div>
               <div className="body-md">{formatDate(cap.resetsAt)}</div>
@@ -79,6 +79,16 @@ function describeCap(cap: CapPromptModel): {
   description: string;
   primaryLabel: string;
 } {
+  if (cap.kind === 'credits') {
+    return {
+      title: 'Not enough AI credits',
+      description:
+        `This needs ${cap.used} credit${cap.used === 1 ? '' : 's'} and ${cap.cap} ${cap.cap === 1 ? 'is' : 'are'} left. Nothing was charged.`
+        + (cap.resetsAt ? ` Your plan's credits renew on ${formatDate(cap.resetsAt)}.` : '')
+        + (isNativeApp() ? ' Manage your plan from the DifAi website.' : ' A bigger plan or a Brief Pack adds more now.'),
+      primaryLabel: 'See plans and Brief Packs',
+    };
+  }
   if (cap.kind === 'ai_quota') {
     return {
       title: 'Drafting limit reached',

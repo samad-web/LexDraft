@@ -21,7 +21,7 @@
 
 import { env } from '../env';
 import { logger } from '../logger';
-import { aiQuotaService } from './ai-quota.service';
+import { creditService } from './credit.service';
 import { aiUsageService, type AiUsageFeature } from './ai-usage.service';
 import { offenceKbService } from './offence-kb.service';
 import {
@@ -197,8 +197,9 @@ export const draftingOrchestratorService = {
       };
     }
 
-    // Quota guard (may throw AiQuotaExceededError -> route maps to 429).
-    await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+    // At least one page of credit before any model call (402 when out). The
+    // route charges the drafted pages and locks what the balance doesn't cover.
+    await creditService.assertAvailable(ctx, 1);
 
     const recordUsage = (feature: AiUsageFeature, r: NormalizedUsage) => {
       aiUsageService.recordAsync({

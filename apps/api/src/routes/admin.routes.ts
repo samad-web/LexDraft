@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
@@ -11,6 +12,7 @@ import { composeOutcomesService } from '../services/compose-outcomes.service';
 import { templatesService } from '../services/templates.service';
 import { impersonationService } from '../services/impersonation.service';
 import { auditService } from '../services/audit.service';
+import { creditService } from '../services/credit.service';
 import { analyticsRefreshService } from '../services/analytics-refresh.service';
 
 export const adminRouter: Router = Router();
@@ -131,6 +133,36 @@ adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
   try {
     const body = UpdatePlan.parse(req.body);
     res.json(await adminService.updatePlan(req.params.id!, body, actor(req)));
+  } catch (err) { next(err); }
+});
+
+// ---- AI credits: a firm's balance, and support / goodwill grants (audited) --
+
+adminRouter.get('/firms/:id/credits', async (req, res, next) => {
+  try {
+    res.json(await creditService.balance(String(req.params.id)));
+  } catch (err) { next(err); }
+});
+
+const GrantCredits = z.object({
+  amount: z.number().min(0.5).max(1000).refine((n) => Number.isInteger(n * 2), 'in half credits'),
+  note: z.string().trim().min(3).max(300),
+  days: z.number().int().min(1).max(365).default(30),
+}).strict();
+adminRouter.post('/firms/:id/credits', async (req, res, next) => {
+  try {
+    const body = GrantCredits.parse(req.body);
+    const firmId = z.string().uuid().parse(req.params.id);
+    const ref = `admin:${crypto.randomUUID()}`;
+    await creditService.addGrant({
+      firmId, source: 'admin', amount: body.amount, ref, note: body.note, createdBy: req.user!.id,
+      expiresAt: new Date(Date.now() + body.days * 86_400_000),
+    });
+    await auditService.write({
+      actorUserId: req.user!.id, actorEmail: req.user!.email, action: 'firm.credits.grant',
+      targetType: 'firm', targetId: firmId, payload: { amount: body.amount, days: body.days, note: body.note, ref },
+    });
+    res.status(201).json(await creditService.balance(firmId));
   } catch (err) { next(err); }
 });
 

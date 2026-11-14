@@ -34,7 +34,9 @@ import { db } from '../db/client';
 import { diaryService } from './diary.service';
 import { hearingsService } from './hearings.service';
 import { limitationsService } from './limitations.service';
-import { aiQuotaService, AiQuotaExceededError } from './ai-quota.service';
+import { aiQuotaService } from './ai-quota.service';
+import { creditService, CreditsExhaustedError, type Charge } from './credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { aiUsageService } from './ai-usage.service';
 import { type NormalizedUsage } from '../lib/llm-usage';
 import { claudeComplete } from '../lib/anthropic-client';
@@ -509,8 +511,10 @@ export const diaryAssistantService = {
     const today = todayIso();
 
     if (env.llmProvider !== 'none' && ctx.userId && ctx.firmId) {
+      // ½ credit; out of credits (or the model fails) -> the free heuristic.
+      let credit: Charge | null = null;
       try {
-        await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+        credit = await creditService.charge(ctx, 'diary_assistant', CREDIT_COSTS.diary_assistant);
         const { system, user } = buildParsePrompt(text, today);
         const raw = await complete(system, user, 600, diaryUsageSink(ctx.firmId, ctx.userId));
         const obj = parseJsonLoose<ParsedCommand>(raw);
@@ -519,7 +523,9 @@ export const diaryAssistantService = {
           return buildProposal(obj, today, providerTag());
         }
         logger.warn({ raw: raw.slice(0, 200) }, 'diary-assistant parse: unparseable JSON, using heuristic');
+        await credit.refund();
       } catch (err) {
+        await credit?.refund();
         // Quota or network failure — degrade to the heuristic, never hard-fail
         // the command bar.
         logger.warn({ err }, 'diary-assistant parse: LLM failed, using heuristic');
@@ -597,7 +603,9 @@ export const diaryAssistantService = {
     let modelUsed = 'fallback:none';
     if (items.length > 0 && env.llmProvider !== 'none' && userId && firmId) {
       try {
-        await aiQuotaService.assertCanGenerate(firmId, userId);
+        // The briefing narrative is generated on its own when the diary opens,
+        // so it is not charged; it is only written while the firm has credits.
+        await creditService.assertAvailable({ firmId, userId }, 0.5);
         const roster = items
           .map((i) => {
             const days = i.daysRemaining === null ? '' : ` (${i.daysRemaining < 0 ? `${-i.daysRemaining}d overdue` : `${i.daysRemaining}d left`})`;
@@ -611,7 +619,7 @@ export const diaryAssistantService = {
       } catch (err) {
         logger.warn({ err }, 'diary-assistant briefing narrative failed; returning counts only');
         narrative = '';
-        modelUsed = err instanceof AiQuotaExceededError ? 'fallback:quota' : 'fallback:error';
+        modelUsed = err instanceof CreditsExhaustedError ? 'fallback:quota' : 'fallback:error';
       }
     }
 
@@ -660,20 +668,22 @@ export const diaryAssistantService = {
       return fallbackInsight(entryId, text);
     }
 
-    // Real analysis — guard quota (may throw -> route 429), then call.
-    await aiQuotaService.assertCanGenerate(firmId, userId);
+    // Real analysis: ½ credit (402 when out), refunded when no insight comes back.
+    const credit = await creditService.charge({ firmId, userId }, 'diary_assistant', CREDIT_COSTS.diary_assistant);
 
     let raw: string;
     try {
       const { system, user } = buildJudgmentPrompt(text);
       raw = await complete(system, user, 1200, diaryUsageSink(firmId, userId));
     } catch (err) {
+      await credit.refund();
       logger.warn({ err }, 'diary-assistant judgment LLM call failed; returning fallback');
       return fallbackInsight(entryId, text);
     }
 
     const obj = parseJsonLoose<{ summary?: string; holding?: string; followUps?: unknown }>(raw);
     if (!obj) {
+      await credit.refund();
       logger.warn({ raw: raw.slice(0, 200) }, 'diary-assistant judgment: unparseable JSON');
       return fallbackInsight(entryId, text);
     }

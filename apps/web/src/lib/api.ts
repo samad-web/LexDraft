@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { queryClient } from './queryClient';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 
@@ -9,6 +10,8 @@ interface CapErrorPayload {
   used?: number;
   resetsAt?: string;
   planTier?: string | null;
+  /** 402 credits_exhausted. */
+  details?: { balance?: number; needed?: number; resetsAt?: string };
 }
 
 // In dev the Vite proxy forwards /api/* to VITE_API_URL (default
@@ -29,8 +32,16 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// AI calls change the credit balance: refresh the meter after each one.
+const AI_PATHS = /\/(drafting|research|matter-chat|matter-intel|mock-arguments|reviews?|diary-assistant|title-reports|firm-formats|credits)\b/;
+
 apiClient.interceptors.response.use(
-  (r) => r,
+  (r) => {
+    if (r.config.method === 'post' && AI_PATHS.test(r.config.url ?? '')) {
+      void queryClient.invalidateQueries({ queryKey: ['credits'] });
+    }
+    return r;
+  },
   (err: AxiosError<CapErrorPayload>) => {
     const status = err.response?.status;
     const code = err.response?.data?.code ?? '';
@@ -65,6 +76,17 @@ apiClient.interceptors.response.use(
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/auth')) {
         window.location.assign(`/auth?reason=${encodeURIComponent(code || 'plan_inactive')}`);
       }
+    } else if (status === 402 && code === 'credits_exhausted') {
+      // Not enough AI credits for this action. Nothing was charged; the
+      // session stays valid.
+      const d = payload?.details ?? {};
+      useUIStore.getState().showCapPrompt({
+        kind: 'credits',
+        cap: Number(d.balance ?? 0),
+        used: Number(d.needed ?? 0),
+        ...(d.resetsAt ? { resetsAt: d.resetsAt } : {}),
+        planTier: null,
+      });
     } else if (status === 429 && code === 'ai_quota_exceeded') {
       // Monthly AI cap hit. Surface upgrade-or-wait modal.
       useUIStore.getState().showCapPrompt({

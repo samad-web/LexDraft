@@ -49,6 +49,7 @@ import { physicalDocumentsRouter } from './physical-documents.routes';
 import { analyticsRouter } from './analytics.routes';
 import { meRouter } from './me.routes';
 import { billingRouter } from './billing.routes';
+import { creditsRouter } from './credits.routes';
 import { onboardingRouter } from './onboarding.routes';
 import { barVerificationRouter } from './bar-verification.routes';
 import { notificationsRouter } from './notifications.routes';
@@ -159,6 +160,7 @@ apiRouter.use('/esign', esignRouter);
 // `/me*` is deliberately excluded so users can still log in to manage
 // profile / billing after their plan lapses.
 apiRouter.use('/dashboard', requireAuth, requireActivePlan, dashboardRouter);
+apiRouter.use('/credits', requireAuth, requireActivePlan, creditsRouter);
 apiRouter.use('/search', requireAuth, requireActivePlan, searchRouter);
 apiRouter.use('/firm', requireAuth, requireActivePlan, firmRouter);
 apiRouter.use('/cases', requireAuth, requireActivePlan, casesRouter);

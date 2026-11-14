@@ -13,6 +13,8 @@
 // after.
 // =============================================================================
 
+import { creditService, type Charge } from './credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import type {
   DraftFieldSpec,
   ExtractDraftFieldsRequest,
@@ -165,8 +167,8 @@ export const draftExtractService = {
       return { values: {}, modelUsed: 'fallback:none' };
     }
 
-    // Real call — guard quota (may throw -> route 429), then extract.
-    await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+    // Real call: ½ credit (402 when out), refunded if the model call fails.
+    const credit = await creditService.charge(ctx, 'extract', CREDIT_COSTS.extract);
 
     let raw: string;
     try {
@@ -180,6 +182,7 @@ export const draftExtractService = {
         cacheReadTokens: result.cacheRead, cacheWriteTokens: result.cacheWrite,
       });
     } catch (err) {
+      await credit.refund();
       logger.warn({ err }, 'draft-extract LLM call failed; returning empty extraction');
       return { values: {}, modelUsed: 'fallback:error' };
     }

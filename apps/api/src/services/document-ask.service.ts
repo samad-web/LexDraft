@@ -23,7 +23,6 @@ import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import { logger } from '../logger';
 import { complete, parseJsonLoose, providerModel, resolveProvider, type Provider } from '../lib/llm-drafting';
-import { aiQuotaService } from './ai-quota.service';
 import { aiUsageService } from './ai-usage.service';
 
 /** Upper bound on document text kept per session (~30k tokens). */
@@ -332,8 +331,7 @@ export const documentAskService = {
     const provider: Provider = resolveProvider(req.provider);
     if (provider === 'none') throw new AskUnavailableError();
 
-    // May throw AiQuotaExceededError -> route maps to 429.
-    await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+    // Credits are charged by the route (POST /drafting/document/ask).
 
     const { pages } = capPages(req.pages.filter((p) => p && typeof p.text === 'string' && p.text.trim()));
     const history = (req.history ?? []).slice(-4)

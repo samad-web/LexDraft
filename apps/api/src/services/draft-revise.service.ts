@@ -28,7 +28,8 @@
 
 import { logger } from '../logger';
 import { complete, parseJsonLoose, providerModel, resolveProvider, type Provider } from '../lib/llm-drafting';
-import { aiQuotaService } from './ai-quota.service';
+import { creditService } from './credit.service';
+import { countWords, reviseCredits } from '../lib/credit-costs';
 import { aiUsageService } from './ai-usage.service';
 import { localEdit } from '../lib/draft-local-edit';
 
@@ -310,10 +311,12 @@ export const draftReviseService = {
     const provider: Provider = resolveProvider(req.provider);
     if (provider === 'none') throw new ReviseUnavailableError();
 
-    // May throw AiQuotaExceededError -> route maps to 429.
-    await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
-
     const scope = resolveScope(req);
+    // ½ credit per page rewritten (the paragraphs in scope), min ½. 402 when
+    // out; refunded when the model call fails or its answer can't be read.
+    const inScope = scope ? req.paragraphs.slice(scope.from, scope.to + 1) : req.paragraphs;
+    const credit = await creditService.charge(ctx, 'revise', reviseCredits(countWords(inScope.join('\n'))));
+    try {
     const focusLine = scope
       ? `\nSCOPE: only paragraphs [${scope.from}]-[${scope.to}]${scope.label ? ` (the ${scope.label} section)` : ''} may change. ` +
         'You may rewrite any or all of them, split one into several (replace + insert_after) or merge them (replace + delete), ' +
@@ -336,6 +339,7 @@ export const draftReviseService = {
 
     const raw = parseJsonLoose<RawRevise>(result.text);
     if (!raw) {
+      await credit.refund();
       logger.warn({ raw: result.text.slice(0, 200) }, 'draft-revise: unparseable JSON');
       return {
         paragraphs: req.paragraphs, changed: [], inserted: 0, diff: [], added: [],
@@ -360,6 +364,10 @@ export const draftReviseService = {
       warnings: findIntroduced(req.paragraphs.join('\n'), trusted, editedTexts),
       scope,
     };
+    } catch (err) {
+      await credit.refund();
+      throw err;
+    }
   },
 };
 

@@ -225,3 +225,25 @@
 ## SEO /pricing page + pricing v4 switch — 2026-11-14
 - seo.test.mjs: CTR rules run on both `V4_LIVE` settings; V4 prices/pages/Munshi/seat range match `apps/api/src/lib/plans.ts`; /pricing is a draft exactly while v4 is off; after v4 no page says "Free for solo advocates", "14-day" or "free trial"; pricing page shows every price, says GST-inclusive, and makes no SSO/audit-log/success-manager/SLA claims.
 - Failure found: the claims check matched "As-so-ciates" as SSO (test bug, case-insensitive substring) → word boundaries. Web suite 260/260.
+
+## AI credits — 2026-11-14 (features/ai-credits.md)
+- `ai-credits.test.ts` 16 unit tests:
+    - cost table (drafting ½ steps, revise, contract review), web/API cost tables match (AC9);
+    - allowance per plan / free launch / unpaid sign-up / lapsed, monthly cycle on a yearly plan;
+    - cutBlocks / cutText / cutRecord;
+    - AC3 intake cut: one block + notice, .docx rebuilt cut, companion withheld, no .docx when it can't be rebuilt; untouched when paid;
+    - stream sends only the budget, then `locked`;
+    - AC4 lock notice → 409 draft_locked, guarded on draft save + eFiling upload;
+    - AC1 route scan: every handler behind the AI rate limit charges credits.
+- **AC1 scan, first run:** found 5 uncharged routes. Mock-argument upload is now gated on 3; turns / conclude / rerun count as included in the session; contract /extract is OCR only.
+- `credits.integration.test.ts` 10 tests on real Postgres (local PG16, throwaway schema):
+    - allowance once per cycle, upgrade adds the difference, free launch 25 / unpaid 0;
+    - 0 credits → 402 with nothing taken;
+    - failed call refunds, same ref_key charged once;
+    - AC7 two concurrent ½ charges with ½ left → exactly one;
+    - plan spent before a Brief Pack;
+    - AC3/AC5: 6-page draft with 3 credits → 1,200 words visible, page 4+ never sent, unlock 402 until credits are added, then the full text, second unlock free;
+    - re-meter free / growth charged; other firm 404.
+- **Test fixes:** document-ask / draft-review tests expected the service itself to check the old quota. The check moved to the route by design, so the expectation was updated, not removed.
+- Integration test data bug (identical paragraphs) fixed in the test.
+- Clean worktree: API 994 passed / 0 failed, credits integration 10/10, web 260/260, API + web typecheck clean.

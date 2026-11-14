@@ -160,7 +160,8 @@ describe('documentAskService.ask', () => {
       quotes: [{ page: 1, para: 3, text: 'Date of occurrence: 14.02.2026 at about 22:30 hours.' }],
     }));
     const r = await documentAskService.ask({ fileName: 'fir.pdf', pages: FIR, question: 'When did it happen?' }, CTX);
-    expect(assertCanGenerate).toHaveBeenCalledWith('firm-1', 'user-1');
+    // Credits are charged by the route now (ai-credits.test.ts), not the service.
+    expect(assertCanGenerate).not.toHaveBeenCalled();
     // The document rides in the prompt-cached system block, not the user turn.
     expect(calls[0]!.system).toContain('[p.1 para 3] Date of occurrence');
     expect(calls[0]!.system).toContain('[p.2 para 2] Sections: 303(2) BNS.');

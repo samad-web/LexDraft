@@ -63,6 +63,7 @@ import {
   type OpenItems,
 } from '@/lib/draft-blocks';
 import { ZoomPane } from '@/components/ZoomPane';
+import { LockedDraftCard } from '@/components/LockedDraftCard';
 import { draftErrorMessage } from '../lib/draft-error';
 
 const DEFAULT_DOC = 'Notice u/s 138 NI Act';
@@ -324,6 +325,8 @@ export function DraftingView() {
   );
 
   const stream = useStreamDraft();
+  // Pages past the credit balance (the server cut them; see LockedDraftCard).
+  const draftLock = engineSession?.locked ?? stream.data?.locked ?? null;
   const autoDraft = useAutoDraft();
   const showToast = useUIStore((s) => s.showToast);
   // Resolve schemas through the form-generation resolver: for doc types whose generated
@@ -2173,8 +2176,25 @@ export function DraftingView() {
 
           {hasOutput && !streaming && (
             <aside className="dw-rail">
+              {/* LOCKED PAGES (AI credits): export / share stay off until unlocked */}
+              {draftLock && (
+                <LockedDraftCard
+                  lock={draftLock}
+                  onUnlocked={async (out) => {
+                    if (engineSession?.locked && engineSession.matterId) {
+                      const full = await api.post<IntakeState>('/drafting/engine/intake/load', {
+                        matterId: engineSession.matterId, docLabel: engineSession.docLabel,
+                      });
+                      acceptEngineDraft(full, { live: true });
+                    } else if (out.text) {
+                      stream.seed({ docType: activeDocType, text: out.text, generatedAt: new Date().toISOString() });
+                    }
+                    showToast({ type: 'sage', text: 'Whole draft unlocked' });
+                  }}
+                />
+              )}
               {/* EXPORT */}
-              <section className="dc-card">
+              <section className="dc-card" hidden={!!draftLock}>
                 <div className="dc-eyebrow">Export</div>
                 {engineDocxBase64 ? (
                   <button className="btn btn-primary dw-wide" type="button" onClick={downloadEngineDocx}
@@ -2462,7 +2482,7 @@ export function DraftingView() {
               )}
 
               {/* SHARE */}
-              <section className="dc-card">
+              <section className="dc-card" hidden={!!draftLock}>
                 <div className="dc-eyebrow">Share</div>
                 <button
                   className="btn dw-wide"

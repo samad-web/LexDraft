@@ -1,5 +1,11 @@
 # Changelog
 
+- AI credits (2026-11-14), not deployed, ships with pricing v4:
+  - Every AI feature costs credits: 1 credit = one 400-word drafted page, small actions ½ to 3, contract review 6+. One shared pool per firm, monthly.
+  - Pages past the balance are drafted but locked: cut on the server, unlocked with credits; a locked draft can't be saved, downloaded or e-filed.
+  - Credit meter in the composer and Plan & Billing; "not enough credits" sheet; admin can see a firm's credits and add an audited grant.
+  - Free-launch accounts: 25 credits a month till 1 Jun 2027.
+
 - feat(seo-pricing) 2026-11-14: /pricing page with v4 prices (unpublished) and one `V4_LIVE` switch that also swaps the free-launch line on every SEO page, CTA, footer and llms.txt.
 - Pricing v4 plan catalogue (2026-11-13), not deployed, release together with ai-credits:
   - Plans on sale: Sanad ₹199 (25 pages), Vakalat ₹399 (75), Brief ₹1,499 (200), Associates ₹649 per advocate (2-8, shared pages), Munshi seat ₹149, Partners on quote. Yearly ₹2,190 / ₹4,490 / ₹16,490 / ₹7,140 per advocate / ₹1,590. All GST-inclusive; one config file `apps/api/src/lib/plans.ts`. DRAFT prices.

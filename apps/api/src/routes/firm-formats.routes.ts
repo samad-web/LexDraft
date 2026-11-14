@@ -15,7 +15,8 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
-import { aiQuotaService, AiQuotaExceededError } from '../services/ai-quota.service';
+import { creditService } from '../services/credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { aiUsageService } from '../services/ai-usage.service';
 import { EngineDisabledError, engineClient } from '../services/engine-client.service';
 import {
@@ -84,22 +85,14 @@ firmFormatsRouter.post(
       const userId = req.user?.id;
       if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
       const firmId = await firmIdForUser(userId);
-      try {
-        await aiQuotaService.assertCanGenerate(firmId, userId);
-      } catch (err) {
-        if (err instanceof AiQuotaExceededError) {
-          res.status(429).json({ error: 'AI generation quota exceeded', code: 'ai_quota_exceeded' });
-          return;
-        }
-        throw err;
-      }
       const body = req.body as z.infer<typeof ReadInput>;
-      const result = await formatReader.read({
+      // Reading a format: 2 credits (402 when out), refunded if it can't be read.
+      const result = await creditService.withCredits({ firmId, userId }, 'format_read', CREDIT_COSTS.format_read, () => formatReader.read({
         fileName: body.fileName,
         mime: body.mime,
         data: Buffer.from(body.dataBase64, 'base64'),
         ...(body.titleHint ? { titleHint: body.titleHint } : {}),
-      });
+      }));
       aiUsageService.recordAsync({
         firmId, userId, feature: 'drafting', provider: 'anthropic', model: result.usage.model,
         ...(result.usage.tokensIn !== undefined ? { tokensIn: result.usage.tokensIn } : {}),

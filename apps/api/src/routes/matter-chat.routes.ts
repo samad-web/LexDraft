@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { creditService } from '../services/credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { z } from 'zod';
 import { matterChatService } from '../services/matter-chat.service';
 import { firmIdForUser } from '../services/tenant';
@@ -132,6 +134,11 @@ matterChatRouter.post(
         return;
       }
 
+      // ½ credit per question, taken before the stream opens (402 when out) and
+      // refunded if no answer comes back.
+      const credit = await creditService.charge({ firmId, userId: req.user.id }, 'matter_chat', CREDIT_COSTS.matter_chat);
+      let answered = false;
+
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
@@ -156,7 +163,7 @@ matterChatRouter.post(
           if (aborted) return;
           if (evt.type === 'user_message')      send('user_message', evt.message);
           else if (evt.type === 'delta')        send('delta', { text: evt.text });
-          else if (evt.type === 'assistant_message') send('assistant_message', evt.message);
+          else if (evt.type === 'assistant_message') { answered = true; send('assistant_message', evt.message); }
           else if (evt.type === 'error')        send('error', { message: evt.message });
         }
       } catch (err) {
@@ -165,6 +172,7 @@ matterChatRouter.post(
         // prompts, model names) stay in server logs only.
         send('error', { message: 'Stream failed. Please retry.' });
       } finally {
+        if (!answered) await credit.refund().catch(() => undefined);
         res.end();
       }
     } catch (err) {

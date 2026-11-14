@@ -1,4 +1,6 @@
 import type { Frame, Page } from 'playwright';
+import { extractText } from '../lib/text-extraction';
+import { assertNotLocked } from './draft-meter.service';
 import { EcourtsHttpError } from '../lib/ecourts';
 import { closePortalPopups, findLink, openPortalMenu, portalPost, withPortalPage } from './efiling-live.service';
 
@@ -612,6 +614,9 @@ export interface AddFileInput extends CaseRef {
 export async function addPleadingFile(sessionId: string, userId: string, input: AddFileInput): Promise<PortalSaid & { added: AddedFile[]; pleadingNumber: string | null; signed: boolean }> {
   const body = Buffer.from(input.file.base64, 'base64');
   if (!body.length) throw new EcourtsHttpError(400, 'The file is empty.');
+  // A draft whose pages are locked (AI credits) must never be filed half done.
+  const read = await extractText({ body, mime: 'application/pdf', fileName: input.file.name }).catch(() => null);
+  if (read?.ok) assertNotLocked(read.text);
   return withPage(sessionId, userId, async (page) => {
     await ensureUploadScreen(page);
     await chooseCase(page, input);

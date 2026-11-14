@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import type {
+  DraftLock,
   DraftRequest,
   DraftResponse,
   DraftPipelineRequest,
@@ -14,6 +15,7 @@ import type {
 } from '@lexdraft/types';
 import { api, apiClient } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { useUIStore } from '@/store/ui';
 
 export type LlmProvider = 'xai' | 'anthropic';
 
@@ -158,6 +160,18 @@ export function useStreamDraft() {
 
     if (!response.ok || !response.body) {
       const msg = await response.text().catch(() => '');
+      // Out of AI credits: the same sheet the axios interceptor opens.
+      if (response.status === 402) {
+        try {
+          const j = JSON.parse(msg) as { code?: string; details?: { balance?: number; needed?: number; resetsAt?: string } };
+          if (j.code === 'credits_exhausted') {
+            useUIStore.getState().showCapPrompt({
+              kind: 'credits', cap: Number(j.details?.balance ?? 0), used: Number(j.details?.needed ?? 1),
+              ...(j.details?.resetsAt ? { resetsAt: j.details.resetsAt } : {}), planTier: null,
+            });
+          }
+        } catch { /* not JSON */ }
+      }
       setState({
         text: '',
         isStreaming: false,
@@ -172,6 +186,7 @@ export function useStreamDraft() {
     const decoder = new TextDecoder();
     let buffer = '';
     let acc = '';
+    let locked: DraftLock | undefined;
 
     // Standard streaming-reader pattern; loop exits on `done`.
     // eslint-disable-next-line no-constant-condition
@@ -206,12 +221,17 @@ export function useStreamDraft() {
               ...prev,
               stage: payload.stage === 'done' ? null : (payload as DraftStageInfo),
             }));
+          } else if (event === 'locked' && typeof payload.draftKey === 'string') {
+            // Pages past the credit balance were held back on the server.
+            locked = { draftKey: payload.draftKey, lockedCredits: Number(payload.lockedCredits) };
+            acc += `\n\n${String(payload.notice ?? '')}`;
+            setState((prev) => ({ ...prev, text: acc }));
           } else if (event === 'done') {
             setState({
               text: acc,
               isStreaming: false,
               error: null,
-              data: { docType: req.docType, text: acc, generatedAt: payload.generatedAt },
+              data: { docType: req.docType, text: acc, generatedAt: payload.generatedAt, ...(locked ? { locked } : {}) },
               stage: null,
             });
           } else if (event === 'error') {

@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { creditService } from '../services/credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { z } from 'zod';
 import { matterIntelService } from '../services/matter-intel.service';
 import { firmIdForUser, caseBelongsToFirm } from '../services/tenant';
@@ -252,12 +254,12 @@ matterIntelRouter.post(
         res.status(422).json({ error: 'No firm attached' });
         return;
       }
-      const summary = await matterIntelService.summariseDocument({
+      const summary = await creditService.withCredits({ firmId, userId: req.user.id }, 'matter_intel', CREDIT_COSTS.matter_intel, () => matterIntelService.summariseDocument({
         firmId,
         matterDocumentId: (req.params as { id: string }).id,
-        userId: req.user.id,
-        userEmail: req.user.email,
-      });
+        userId: req.user!.id,
+        userEmail: req.user!.email,
+      }));
       res.json(summary);
     } catch (err) {
       next(err);
@@ -328,12 +330,12 @@ matterIntelRouter.post(
         res.status(422).json({ error: 'No firm attached' });
         return;
       }
-      const brief = await matterIntelService.generateMatterBrief({
+      const brief = await creditService.withCredits({ firmId, userId: req.user.id }, 'matter_intel', CREDIT_COSTS.matter_intel, () => matterIntelService.generateMatterBrief({
         firmId,
         caseId: (req.params as { caseId: string }).caseId,
-        userId: req.user.id,
-        userEmail: req.user.email,
-      });
+        userId: req.user!.id,
+        userEmail: req.user!.email,
+      }));
       res.json(brief);
     } catch (err) {
       next(err);

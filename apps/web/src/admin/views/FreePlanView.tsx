@@ -31,8 +31,8 @@ export function FreePlanView() {
         <div className="eyebrow" style={{ marginBottom: 8 }}>Free plan</div>
         <h1 className="display-md">Free launch plan</h1>
         <p className="muted" style={{ fontSize: 13, marginTop: 8, maxWidth: 640, lineHeight: 1.55 }}>
-          Solo advocates and law students are free until 1 June 2027, with unlimited AI drafting and 1 GB of
-          file storage. Law firms get a 14-day trial of every feature. These switches open or lock a feature
+          Free-launch accounts (existing users only) are free until 1 June 2027, with 25 AI credits a month and 1 GB of
+          file storage. New sign-ups pick a paid plan. These switches open or lock a feature
           for every free account at once; the change applies within a minute.
         </p>
       </header>

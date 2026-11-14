@@ -503,6 +503,8 @@ export interface DraftResponse {
   docType: string;
   text: string;
   generatedAt: string;
+  /** Pages past the credit balance were cut from `text`. */
+  locked?: DraftLock;
 }
 
 // ---- Grounded drafting pipeline (reason -> BNS/BNSS sections -> draft) -------
@@ -565,6 +567,8 @@ export interface DraftPipelineResponse {
   considerInstead: Array<{ id: string; citation: string; offenceName: string; reason: string }>;
   unresolvedOffences: string[];
   draft: Record<string, string>;
+  /** Pages past the credit balance were cut from `draft`. */
+  locked?: DraftLock;
   verify: PipelineVerifyResult | null;
   /** True when VERIFY flagged unauthorised/old-law citations — block export. */
   blocked: boolean;
@@ -796,6 +800,8 @@ export interface IntakeState {
   /** Points to address before filing (the engine's findings that did not block
    *  the draft). Shown in the "Before filing" checklist. */
   draftNotes?: string[];
+  /** Pages past the credit balance: cut from `draft` and held server-side. */
+  locked?: DraftLock;
 }
 
 export interface IntakeRefusal {
@@ -1318,6 +1324,7 @@ export type AuditAction =
   | 'template.update'
   | 'template.delete'
   | 'free_plan.switch.update'
+  | 'firm.credits.grant'
   // Tenant-scoped CRUD audit actions.
   | 'case.create'      | 'case.update'      | 'case.delete' | 'case.restore' | 'case.transition' | 'case.sync_from_ecourts'
   | 'case.pipeline.node.add'  | 'case.pipeline.node.update'  | 'case.pipeline.node.delete'
@@ -3186,3 +3193,27 @@ export interface TitleReportQuotaStatus {
   planTier: UserPlan | null;
 }
 
+// ---- AI credits (migration 0108, features/ai-credits.md) --------------------
+
+/** GET /credits: the firm's shared pool. 1 credit = one 400-word page. */
+export interface CreditBalance {
+  /** Credits left now (plan + Brief Packs + admin grants). */
+  balance: number;
+  /** This month's plan allowance. */
+  allowance: number;
+  /** Used from this month's allowance. */
+  usedThisCycle: number;
+  /** Brief Pack / admin credits left (they outlast the month). */
+  topup: number;
+  /** When the plan allowance resets. */
+  resetsAt: string | null;
+  /** Demo mode (no database): nothing is metered. */
+  unlimited: boolean;
+}
+
+/** Drafted pages past the balance, held on the server until unlocked. */
+export interface DraftLock {
+  draftKey: string;
+  /** Credits needed to unlock the rest. */
+  lockedCredits: number;
+}

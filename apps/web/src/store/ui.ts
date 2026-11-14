@@ -22,7 +22,8 @@ export interface ToastModel {
  * `<CapExceededModal />` mounted at the app shell.
  */
 export interface CapPromptModel {
-  kind: 'ai_quota' | 'seat_cap';
+  /** credits: 402 credits_exhausted (cap = credits left, used = credits needed). */
+  kind: 'ai_quota' | 'seat_cap' | 'credits';
   cap: number;
   used: number;
   /** ISO timestamp when the quota resets — only meaningful for ai_quota. */

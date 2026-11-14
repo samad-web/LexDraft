@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse, PaidPlanId, SubscriptionInvoice } from '@lexdraft/types';
 import { CycleToggle, MunshiPicker, PLAN_NAME, PlanCards, SeatPicker } from '@/components/PlanCards';
-import { DraftMeter } from '@/components/DraftMeter';
+import { CreditMeter } from '@/components/DraftMeter';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 
@@ -223,8 +223,8 @@ export function BillingView() {
             </div>
           </section>
 
-          <section className="cm-usage" aria-label="Drafts this month">
-            <DraftMeter />
+          <section className="cm-usage" aria-label="AI credits this month">
+            <CreditMeter />
           </section>
 
           {data.canManage && <SubscriptionInvoices />}

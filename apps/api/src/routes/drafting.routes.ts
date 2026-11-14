@@ -28,11 +28,9 @@ import { firmIdForUser } from '../services/tenant';
 import { firmFormatsService, isFirmFormatLabel } from '../services/firm-formats.service';
 import { requireFeature } from '../services/permissions.service';
 import { draftProgress } from '../lib/draft-progress';
-import {
-  aiQuotaService,
-  AiQuotaExceededError,
-  type QuotaStatus,
-} from '../services/ai-quota.service';
+import { creditService } from '../services/credit.service';
+import { draftMeterService } from '../services/draft-meter.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { aiUsageService } from '../services/ai-usage.service';
 import {
   engineClient,
@@ -186,25 +184,6 @@ async function resolveCaseFacts(
   return Object.keys(facts).length > 0 ? facts : null;
 }
 
-/** Translate a quota-exceeded error into a 429 + Retry-After payload. The
- *  retry-after seconds is the time until the user's billing cycle ends, so
- *  clients can render "resets on <date>" without a second round trip. */
-function respondQuotaExceeded(res: Response, status: QuotaStatus): Response {
-  const resetMs = Math.max(0, new Date(status.cycleEnd).getTime() - Date.now());
-  const retryAfterSec = Math.max(1, Math.ceil(resetMs / 1000));
-  res.setHeader('Retry-After', String(retryAfterSec));
-  return res.status(429).json({
-    error: 'AI generation quota exceeded',
-    code: 'ai_quota_exceeded',
-    cap: status.cap,
-    used: status.used,
-    remaining: 0,
-    resetsAt: status.cycleEnd,
-    planTier: status.planTier,
-    upgrade: status.planTier !== 'Firm',
-  });
-}
-
 draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLimiter, async (req, res, next) => {
   try {
     const parsed = Generate.parse(req.body);
@@ -215,15 +194,8 @@ draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLim
       return;
     }
     const firmId = await firmIdForUser(userId);
-    try {
-      await aiQuotaService.assertCanGenerate(firmId, userId);
-    } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        respondQuotaExceeded(res, err.status);
-        return;
-      }
-      throw err;
-    }
+    // At least one page of credit before the model runs (402 credits_exhausted).
+      await creditService.assertAvailable({ firmId, userId }, 1);
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -240,17 +212,9 @@ draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLim
           cacheReadTokens: u.cacheRead, cacheWriteTokens: u.cacheWrite,
         }),
     });
-    try {
-      await aiQuotaService.record(firmId, userId, 'generate', {
-        provider: provider ?? env.llmProvider,
-        docType: parsed.docType,
-      });
-    } catch (err) {
-      // Dropping a quota record is non-fatal: the user already got their
-      // document, and the rate-limiter still bounds abuse within the hour.
-      logger.warn({ err, userId }, 'ai-quota record (generate) failed');
-    }
-    res.json(result);
+    // Pages beyond the balance are cut here and held for unlock.
+    const metered = await draftMeterService.text({ firmId, userId }, result.text);
+    res.json({ ...result, text: metered.text, ...(metered.locked ? { locked: metered.locked } : {}) });
   } catch (err) {
     next(err);
   }
@@ -266,15 +230,8 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
       return;
     }
     const firmId = await firmIdForUser(userId);
-    try {
-      await aiQuotaService.assertCanGenerate(firmId, userId);
-    } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        respondQuotaExceeded(res, err.status);
-        return;
-      }
-      throw err;
-    }
+    // At least one page of credit before the model runs (402 credits_exhausted).
+      await creditService.assertAvailable({ firmId, userId }, 1);
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -297,17 +254,8 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
     // Stream counts as one generation. We record on the first delta so that
     // even an aborted-mid-stream call still counts against the cap (the
     // user got partial output, the provider was billed).
-    let recorded = false;
-    const recordOnce = () => {
-      if (recorded) return;
-      recorded = true;
-      void aiQuotaService
-        .record(firmId, userId, 'stream', {
-          provider: provider ?? env.llmProvider,
-          docType: parsed.docType,
-        })
-        .catch((err) => logger.warn({ err, userId }, 'ai-quota record (stream) failed'));
-    };
+    // Deltas flow only as far as the credit balance covers; the rest is locked.
+    const meter = await draftMeterService.stream({ firmId, userId });
 
     try {
       for await (const chunk of draftingService.generateStream(draftReq, {
@@ -322,10 +270,10 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
           }),
       })) {
         if (aborted) return;
-        recordOnce();
-        send('delta', { text: chunk });
+        const out = meter.push(chunk);
+        if (out) send('delta', { text: out });
       }
-      if (!aborted) send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length });
+      if (!aborted) { await meter.finish(send); send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length }); }
     } catch (err) {
       // Log the raw error server-side, ship a generic message to the wire.
       // Provider errors (Anthropic / xAI) frequently embed prompt fragments,
@@ -356,15 +304,8 @@ draftingRouter.post('/agent/stream', requireFeature('drafting.ai'), llmGeneratio
       return;
     }
     const firmId = await firmIdForUser(userId);
-    try {
-      await aiQuotaService.assertCanGenerate(firmId, userId);
-    } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        respondQuotaExceeded(res, err.status);
-        return;
-      }
-      throw err;
-    }
+    // At least one page of credit before the model runs (402 credits_exhausted).
+      await creditService.assertAvailable({ firmId, userId }, 1);
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -384,17 +325,8 @@ draftingRouter.post('/agent/stream', requireFeature('drafting.ai'), llmGeneratio
       aborted = true;
     });
 
-    let recorded = false;
-    const recordOnce = () => {
-      if (recorded) return;
-      recorded = true;
-      void aiQuotaService
-        .record(firmId, userId, 'stream', {
-          provider: provider ?? env.llmProvider,
-          docType: parsed.docType,
-        })
-        .catch((err) => logger.warn({ err, userId }, 'ai-quota record (agent) failed'));
-    };
+    // Deltas flow only as far as the credit balance covers; the rest is locked.
+    const meter = await draftMeterService.stream({ firmId, userId });
 
     try {
       const iterator = draftAgentService.run(draftReq, {
@@ -413,10 +345,10 @@ draftingRouter.post('/agent/stream', requireFeature('drafting.ai'), llmGeneratio
       });
       for await (const chunk of iterator) {
         if (aborted) return;
-        recordOnce();
-        send('delta', { text: chunk });
+        const out = meter.push(chunk);
+        if (out) send('delta', { text: out });
       }
-      if (!aborted) send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length });
+      if (!aborted) { await meter.finish(send); send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length }); }
     } catch (err) {
       if (err instanceof NoProviderError) {
         // No key configured — degrade to the deterministic single-shot path so
@@ -424,10 +356,10 @@ draftingRouter.post('/agent/stream', requireFeature('drafting.ai'), llmGeneratio
         try {
           for await (const chunk of draftingService.generateStream(draftReq, { provider, notes, facts })) {
             if (aborted) return;
-            recordOnce();
-            send('delta', { text: chunk });
+            const out = meter.push(chunk);
+            if (out) send('delta', { text: out });
           }
-          if (!aborted) send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length });
+          if (!aborted) { await meter.finish(send); send('done', { generatedAt: new Date().toISOString(), notesUsed: notes.length }); }
         } catch (inner) {
           logger.warn({ err: inner }, 'drafting agent fallback failed');
           send('error', { message: 'Drafting failed. Please retry.' });
@@ -456,6 +388,7 @@ draftingRouter.post('/auto', requireFeature('drafting.ai'), llmGenerationLimiter
       return;
     }
     const firmId = await firmIdForUser(userId);
+    await creditService.assertAvailable({ firmId, userId }, 1);
     try {
       const result = await draftAutoService.run(
         {
@@ -467,12 +400,8 @@ draftingRouter.post('/auto', requireFeature('drafting.ai'), llmGenerationLimiter
         },
         { firmId, userId },
       );
-      res.json(result);
+      res.json({ ...result, pipeline: await draftMeterService.pipeline({ firmId, userId }, result.pipeline) });
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        respondQuotaExceeded(res, err.status);
-        return;
-      }
       throw err;
     }
   } catch (err) {
@@ -504,11 +433,11 @@ draftingRouter.post('/chat', requireFeature('drafting.ai'), llmGenerationLimiter
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
 
-    const chat = await draftChatService.converse({
+    const chat = await creditService.withCredits({ firmId, userId }, 'draft_chat', CREDIT_COSTS.draft_chat, () => draftChatService.converse({
       message: parsed.message,
       history: parsed.history ?? [],
       ...(parsed.provider ? { provider: parsed.provider } : {}),
-    });
+    }));
 
     // If the advocate is ready to draft, run the grounded engine now and return
     // the draft ALONGSIDE the chat reply, so the UI shows one assistant turn:
@@ -519,10 +448,9 @@ draftingRouter.post('/chat', requireFeature('drafting.ai'), llmGenerationLimiter
           { brief: chat.draftBrief, ...(parsed.provider ? { provider: parsed.provider } : {}) },
           { firmId, userId },
         );
-        res.json({ intent: chat.intent, reply: chat.reply, draft });
+        res.json({ intent: chat.intent, reply: chat.reply, draft: { ...draft, pipeline: await draftMeterService.pipeline({ firmId, userId }, draft.pipeline) } });
         return;
       } catch (err) {
-        if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
         throw err;
       }
     }
@@ -583,7 +511,6 @@ draftingRouter.post('/revise', requireFeature('drafting.ai'), reviseLimiter, asy
     );
     res.json(result);
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
     if (err instanceof ReviseUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
     next(err);
   }
@@ -610,9 +537,9 @@ draftingRouter.post('/review', requireFeature('drafting.ai'), llmGenerationLimit
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
     const { provider, ...rest } = parsed;
-    res.json(await draftReviewService.review({ ...rest, ...(provider ? { provider } : {}) }, { firmId, userId }));
+    res.json(await creditService.withCredits({ firmId, userId }, 'check_missing', CREDIT_COSTS.check_missing,
+      () => draftReviewService.review({ ...rest, ...(provider ? { provider } : {}) }, { firmId, userId })));
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
     if (err instanceof ReviewUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
     next(err);
   }
@@ -674,13 +601,12 @@ draftingRouter.post('/document/ask', requireFeature('drafting.ai'), documentAskL
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
     const { provider, history, ...rest } = parsed;
-    const result = await documentAskService.ask(
+    const result = await creditService.withCredits({ firmId, userId }, 'document_ask', CREDIT_COSTS.document_ask, () => documentAskService.ask(
       { ...rest, ...(history ? { history } : {}), ...(provider ? { provider } : {}) },
       { firmId, userId },
-    );
+    ));
     res.json(result);
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
     if (err instanceof AskUnavailableError) { res.status(503).json({ error: err.message, code: 'ai_unavailable' }); return; }
     next(err);
   }
@@ -714,7 +640,8 @@ draftingRouter.post('/pipeline', requireFeature('drafting.ai'), llmGenerationLim
       );
       // Respond to the advocate FIRST — the model result is what they see; shadow
       // capture is a fire-and-forget background step that never blocks or throws.
-      res.json(result);
+      // Drafted pages beyond the balance are cut (shadow capture keeps the full result).
+      res.json(await draftMeterService.pipeline({ firmId, userId }, result));
       if (parsed.shadowMatterId && parsed.shadowFields && engineClient.enabled) {
         void shadowRecorderService
           .capture({
@@ -728,10 +655,6 @@ draftingRouter.post('/pipeline', requireFeature('drafting.ai'), llmGenerationLim
           .catch((err) => logger.warn({ err }, 'shadow capture failed (non-fatal)'));
       }
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) {
-        respondQuotaExceeded(res, err.status);
-        return;
-      }
       throw err;
     }
   } catch (err) {
@@ -753,10 +676,6 @@ draftingRouter.post('/extract-fields', requireFeature('drafting.ai'), llmGenerat
     const firmId = await firmIdForUser(userId);
     res.json(await draftExtractService.extractFields(parsed, { firmId, userId }));
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) {
-      respondQuotaExceeded(res, err.status);
-      return;
-    }
     next(err);
   }
 });
@@ -1340,8 +1259,9 @@ async function intakeSetup(
     return null;
   }
   if (usesLlm) {
-    // Extractor + phraser are real model calls — guard the quota like /generate.
-    await aiQuotaService.assertCanGenerate(firmId, userId);
+    // Extractor + phraser are real model calls: at least one page of credit
+    // (402). The drafted pages are charged when the draft comes out.
+    await creditService.assertAvailable({ firmId, userId }, 1);
   }
   return { firmId, userId };
 }
@@ -1389,19 +1309,22 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
     const userId = req.user?.id;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
-    await aiQuotaService.assertCanGenerate(firmId, userId);
+    await creditService.assertAvailable({ firmId, userId }, 1);
     try {
       const state = await intakeService.startAuto(
         parsed.message,
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         parsed.instruction,
       );
-      void aiQuotaService.countIntakeDraft(firmId, userId, state);
-      res.json(state);
+      res.json(await draftMeterService.intake({ firmId: firmId, userId: userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       // A question, answered: no matter was created.
-      if (err instanceof IntakeAnswered) { res.json({ answer: err.answer }); return; }
+      if (err instanceof IntakeAnswered) {
+        // A Draft-box question answered: ½ credit (the model already ran).
+        await creditService.charge({ firmId, userId }, 'draft_chat', CREDIT_COSTS.draft_chat).catch(() => undefined);
+        res.json({ answer: err.answer });
+        return;
+      }
       // The advocate named a document that can't be drafted here: say so,
       // rather than drafting something else.
       if (err instanceof IntakeUnavailableError) {
@@ -1429,10 +1352,9 @@ draftingRouter.post('/engine/intake/check-brief', requireFeature('drafting.ai'),
     const userId = req.user?.id;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
-    await aiQuotaService.assertCanGenerate(firmId, userId);
-    res.json(await intakeService.checkBrief(parsed.message, { firmId, userId }));
+    res.json(await creditService.withCredits({ firmId, userId }, 'check_missing', CREDIT_COSTS.check_missing,
+      () => intakeService.checkBrief(parsed.message, { firmId, userId })));
   } catch (err) {
-    if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
     if (handleIntakeError(err, res)) return;
     next(err);
   }
@@ -1451,17 +1373,16 @@ draftingRouter.post('/engine/intake/start-format', requireFeature('drafting.ai')
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
     try {
-      await aiQuotaService.assertCanGenerate(firmId, userId);
-      const state = await intakeService.startWithFormat(
+      await creditService.assertAvailable({ firmId, userId }, 1 + CREDIT_COSTS.format_read);
+      // Reading the attached format: 2 credits, refunded if it can't be used.
+      const state = await creditService.withCredits({ firmId, userId }, 'format_read', CREDIT_COSTS.format_read, () => intakeService.startWithFormat(
         parsed.message,
         parsed.format,
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         { save: parsed.save === true },
-      );
-      void aiQuotaService.countIntakeDraft(firmId, userId, state);
-      res.json(state);
+      ));
+      res.json(await draftMeterService.intake({ firmId: firmId, userId: userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (err instanceof IntakeUnavailableError) {
         res.status(422).json({ error: 'format_unusable', message: err.message });
         return;
@@ -1488,10 +1409,8 @@ draftingRouter.post('/engine/intake/start', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.start(parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       }, parsed.preset);
-      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
-      res.json(state);
+      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (handleIntakeError(err, res)) return;
       throw err;
     }
@@ -1510,10 +1429,8 @@ draftingRouter.post('/engine/intake/reply', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.reply(parsed.matterId, parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       });
-      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
-      res.json(state);
+      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (handleIntakeError(err, res)) return;
       throw err;
     }
@@ -1533,10 +1450,8 @@ draftingRouter.post('/engine/intake/draft-now', requireFeature('drafting.ai'), l
         ...ctx,
         ...(parsed.language ? { language: parsed.language } : {}),
       });
-      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
-      res.json(state);
+      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (handleIntakeError(err, res)) return;
       throw err;
     }
@@ -1562,9 +1477,8 @@ draftingRouter.post('/engine/intake/edit', requireFeature('drafting.ai'), (req, 
       const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, {
         ...ctx, ...(parsed.language ? { language: parsed.language } : {}),
       }, { draftNow: parsed.draftNow === true, ...(engineOnly ? { compose: false } : {}) });
-      res.json(state);
+      res.json(await draftMeterService.intake(ctx, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (handleIntakeError(err, res)) return;
       throw err;
     }
@@ -1587,10 +1501,8 @@ draftingRouter.post('/engine/intake/attach', requireFeature('drafting.ai'), llmG
       const state = await intakeService.attach(
         parsed.matterId, parsed.docLabel, parsed.files, parsed.caption ?? '', ctx,
       );
-      void aiQuotaService.countIntakeDraft(ctx.firmId, ctx.userId, state);
-      res.json(state);
+      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
-      if (err instanceof AiQuotaExceededError) { respondQuotaExceeded(res, err.status); return; }
       if (handleIntakeError(err, res)) return;
       throw err;
     }
@@ -1638,7 +1550,7 @@ draftingRouter.post('/engine/intake/load', requireFeature('drafting.ai'), async 
     if (!ctx) return;
     try {
       const state = await intakeService.load(parsed.matterId, parsed.docLabel, ctx);
-      res.json(state);
+      res.json(await draftMeterService.intake(ctx, state));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;

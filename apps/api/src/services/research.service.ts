@@ -5,7 +5,8 @@ import { HttpError } from '../lib/errors';
 import { claudeComplete } from '../lib/anthropic-client';
 import { withRetry } from '../lib/retry';
 import { citationKey, judgmentCitationsIn } from '../lib/draft-guards';
-import { aiQuotaService } from './ai-quota.service';
+import { creditService } from './credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { aiUsageService } from './ai-usage.service';
 import { judgmentsService, type JudgmentHit } from './judgments.service';
 
@@ -228,14 +229,14 @@ async function fromJudgments(query: string, ctx: ResearchContext | null): Promis
     };
   }
 
-  // May throw AiQuotaExceededError -> route maps to 429.
-  if (ctx) await aiQuotaService.assertCanGenerate(ctx.firmId, ctx.userId);
+  // 2 credits (402 when out), refunded if the model call fails.
+  const ask = <T>(fn: () => Promise<T>) => (ctx ? creditService.withCredits(ctx, 'research', CREDIT_COSTS.research, fn) : fn());
 
   const user = `QUESTION: ${query.trim()}\n\nEXTRACTS:\n\n${sourcesBlock(hits)}`;
-  const result = await withRetry(
+  const result = await ask(() => withRetry(
     () => claudeComplete({ system: SYSTEM, user, maxTokens: 900 }),
     { onRetry: (err, attempt, waitMs) => logger.warn({ err, attempt, waitMs }, 'research Claude retry') },
-  );
+  ));
   // No 'research' usage feature exists (the admin dashboard's label map is
   // exhaustive over AiUsageFeature) — research Q&A is the same product area as
   // the statute search, so it is recorded under 'laws_search'.

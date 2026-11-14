@@ -21,6 +21,8 @@
  * limiter is sufficient.
  */
 
+import { creditService } from '../services/credit.service';
+import { contractReviewCredits, countWords } from '../lib/credit-costs';
 import { Router } from 'express';
 import { z } from 'zod';
 import { reviewService } from '../services/review.service';
@@ -94,6 +96,10 @@ reviewRouter.post('/', gate, llmGenerationLimiter, async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
     const body = Create.parse(req.body);
+    // Contract review: 6 credits up to 10 pages, then ½ a page. 402 when out;
+    // refunded when the review fails.
+    const credit = await creditService.charge({ firmId, userId: req.user?.id ?? null }, 'contract_review',
+      contractReviewCredits(countWords(body.sourceText)));
     const created = await reviewService.create({
       firmId: firmId ?? '',
       createdBy: req.user?.id ?? null,
@@ -104,7 +110,8 @@ reviewRouter.post('/', gate, llmGenerationLimiter, async (req, res, next) => {
       ...(body.caseId ? { caseId: body.caseId } : {}),
       ...(body.documentId ? { documentId: body.documentId } : {}),
       ...(body.provider ? { provider: body.provider } : {}),
-    });
+    }).catch(async (err) => { await credit.refund(); throw err; });
+    if (created.status === 'failed') await credit.refund();
     // 201 even when status='failed' - the row exists, the UI renders the
     // failure inline. Only validation / auth problems surface as 4xx.
     res.status(201).json(created);

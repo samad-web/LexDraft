@@ -39,6 +39,8 @@ import type {
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
+import { creditService } from './credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { withRetry } from '../lib/retry';
 import { extractText, SUPPORTED_NOTE_MIME_TYPES } from '../lib/text-extraction';
 import { storage } from './storage.service';
@@ -1209,12 +1211,14 @@ export async function processMatterDocument(matterDocumentId: string, firmId: st
         select id, email from users where id = ${row.ingested_by}::uuid limit 1
       `;
       if (actor) {
-        await matterIntelService.summariseDocument({
-          firmId,
-          matterDocumentId,
-          userId: actor.id,
-          userEmail: actor.email,
-        });
+        // 2 credits, like a summary asked for by hand; skipped (logged) when out.
+        await creditService.withCredits({ firmId, userId: actor.id }, 'matter_intel', CREDIT_COSTS.matter_intel, () =>
+          matterIntelService.summariseDocument({
+            firmId,
+            matterDocumentId,
+            userId: actor.id,
+            userEmail: actor.email,
+          }));
       }
     } catch (err) {
       logger.warn({ err, matterDocumentId }, 'matter-intel summary auto-trigger failed');

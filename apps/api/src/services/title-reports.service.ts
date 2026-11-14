@@ -55,6 +55,8 @@ import type {
 import { db } from '../db/client';
 import { auditService } from './audit.service';
 import { aiQuotaService } from './ai-quota.service';
+import { creditService } from './credit.service';
+import { CREDIT_COSTS } from '../lib/credit-costs';
 import { logger } from '../logger';
 
 // ---- Errors ---------------------------------------------------------------
@@ -258,13 +260,25 @@ async function create(
 ): Promise<TitleReport> {
   assertRoleCan(roleName, 'create');
 
-  // Title-report creation is counted against the shared AI-generation cap
-  // (plan_ai_caps + ai_generations) — the same cap drafting uses. The
-  // check fires before sequence-number allocation so a quota rejection
-  // doesn't burn a number. Throws AiQuotaExceededError on cap hit; the
-  // route translates that into 429 ai_quota_exceeded so the existing
-  // CapExceededModal picks it up.
-  await aiQuotaService.assertCanGenerate(firmId, userId);
+  // A title report's AI read costs ½ credit, taken here before the sequence
+  // number is allocated, so a 402 credits_exhausted doesn't burn a number.
+  // Refunded if creating the report fails.
+  const credit = await creditService.charge({ firmId, userId }, 'title_report', CREDIT_COSTS.title_report);
+  try {
+    return await createTitleReport(firmId, userId, actorEmail, roleName, dto);
+  } catch (err) {
+    await credit.refund();
+    throw err;
+  }
+}
+
+async function createTitleReport(
+  firmId: string,
+  userId: string,
+  actorEmail: string,
+  roleName: string | null,
+  dto: CreateTitleReportDto,
+): Promise<TitleReport> {
 
   const sql = db();
   const reportNumber = await allocateReportNumber(firmId);
