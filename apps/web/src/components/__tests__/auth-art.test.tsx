@@ -8,15 +8,15 @@ import { AuthArt } from '../AuthArt';
 afterEach(() => vi.useRealTimers());
 
 describe('sign-in page', () => {
-  it('the card shows the live date and time, not a fixed hearing', () => {
+  it('the hearing card shows the live date and time', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 10, 14, 17, 5));
     const html = renderToStaticMarkup(createElement(AuthArt));
     expect(html).toContain('>NOV<');
     expect(html).toContain('>14<');
     expect(html).toMatch(/>5:05 PM</);
-    expect(html).toContain('>Saturday<');
-    expect(html).not.toContain('Court 4');
+    expect(html).toContain('>HEARING TODAY<');
+    expect(html).toContain('Court 4 · Arguments');
     expect(html).not.toContain('OCT');
   });
 

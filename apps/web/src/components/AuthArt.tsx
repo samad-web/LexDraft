@@ -24,7 +24,6 @@ export function AuthArt() {
   const now = useNow();
   const month = now.toLocaleDateString('en-IN', { month: 'short' }).toUpperCase();
   const time = now.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toUpperCase();
-  const weekday = now.toLocaleDateString('en-IN', { weekday: 'long' });
   return (
     <svg
       className="auth-art-svg"
@@ -92,15 +91,15 @@ export function AuthArt() {
         </g>
       </g>
 
-      {/* Live date + time card (bottom right, under the tabs). */}
+      {/* Hearing card with today's live date and time (bottom right, under the tabs). */}
       <g transform="translate(206 396)">
         <rect className="aa-card" x="0" y="0" width="204" height="86" rx="14" />
         <rect className="aa-chip" x="14" y="16" width="40" height="44" rx="8" />
         <text className="aa-chip-m" x="34" y="32" textAnchor="middle">{month}</text>
         <text className="aa-chip-d" x="34" y="52" textAnchor="middle">{now.getDate()}</text>
-        <text className="aa-k" x="66" y="30">TODAY</text>
+        <text className="aa-k" x="66" y="30">HEARING TODAY</text>
         <text className="aa-v" x="66" y="48">{time}</text>
-        <text className="aa-s" x="66" y="64">{weekday}</text>
+        <text className="aa-s" x="66" y="64">Court 4 · Arguments</text>
         <circle className="aa-ok" cx="186" cy="20" r="5" />
       </g>
 
