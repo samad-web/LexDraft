@@ -1,4 +1,12 @@
 # Testing
+## Evidence tables — 2026-11-14 (features/evidence-tables.md)
+- Engine `test_evidence_tables.py` 9/9: list of documents -> ruled Word table (bold heading row, repeated on each page, all borders); Markdown table with rule line; read back one "| a | b |" line per row in order; uneven rows padded/folded; prose with a pipe and a lone row stay text; no-table draft unchanged; cell edit written back; splice inserts a composed table; splice over an existing table replaces it.
+- API `evidence-tables.test.ts` 5/5 + intake-compose 68/68 + open-draft 24/24.
+- Engine regression: tests/service + template drift + placeholder integrity 877/877.
+- Live drafts through the Claude Code route (no API key; all keys blanked for the run): written arguments in a maintenance case (PW-1 admissions + 3 filed documents) and a hand-loan legal notice.
+  - Found: run 1 tabulated the documents but argued the 8 admissions only in prose; run 2 tabulated the admissions but dropped the documents list. Fix: prompt names both cases (admissions summary closing written arguments; documents filed/relied on always get the list table). Run 3: both tables (9x2 admissions, 4x4 documents) in text and Word.
+  - Legal notice: no table (correct, nothing to tabulate).
+
 ## Document encryption at rest — 2026-11-14 (features/document-encryption.md)
 - `storage-encryption.test.ts` 8/8: on-disk file encrypted (no plaintext, magic header); download returns original bytes + type; fresh IV; legacy plaintext still opens; tampered file refused; wrong key refused; empty file; prod without key refuses upload and writes nothing.
 - Regression: `storage.test.ts` 6/6; full API vitest 1043 passed, 1 failed: `anthropic-failover` xAI fallback, fails on HEAD too (no xAI key locally), unrelated. tsc clean on touched files.

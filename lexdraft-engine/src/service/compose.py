@@ -29,7 +29,15 @@ from typing import List, Optional
 from docx import Document
 
 from ..imports.builder import _add_block, _page_setup
+from .tables import add_table, expand, runs_of
 from .tidy import tidy_docx
+
+_TABLE_MARK = "\x00TABLE"
+
+
+def _literal(text: str) -> str:
+    """Neutralise brace pairs so nothing reads as template syntax."""
+    return text.replace("{{", "{ {").replace("}}", "} }")
 
 _COURT = re.compile(r"^\s*(IN THE\b|BEFORE THE\b|BEFORE\s+THE\s+HON)", re.IGNORECASE)
 _VERSUS = re.compile(r"^\s*(VERSUS|VS\.?|V/S\.?|AND|-?\s*VS\s*-?)\s*$", re.IGNORECASE)
@@ -143,9 +151,18 @@ def classify_document(lines: List[str]) -> List[dict]:
 def compose_docx(lines: List[str], out_path: Path, kind: Optional[str] = None) -> Path:
     doc = Document()
     _page_setup(doc)
-    for block in (classify_document(lines) if kind in OPEN_KINDS else classify(lines)):
-        # literal text: neutralise any brace pairs so nothing reads as template syntax
-        block["text"] = block["text"].replace("{{", "{ {").replace("}}", "} }")
+    # Evidence tables (list of documents, annexures, summaries) become Word tables;
+    # each stands in the line sequence as one marker so the layout rules still see it.
+    groups = runs_of(expand(lines))
+    tables = [g for g in groups if isinstance(g, list)]
+    flat = [g if isinstance(g, str) else _TABLE_MARK for g in groups]
+    pending = iter(tables)
+    for block in (classify_document(flat) if kind in OPEN_KINDS else classify(flat)):
+        if block["text"] == _TABLE_MARK:
+            add_table(doc, [[_literal(v) for v in row] for row in next(pending)])
+            doc.add_paragraph()
+            continue
+        block["text"] = _literal(block["text"])
         _add_block(doc, block)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(str(out_path))

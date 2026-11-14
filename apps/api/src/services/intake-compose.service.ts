@@ -152,11 +152,9 @@ export function normaliseComposedMarkdown(text: string): string {
     // Drop a Markdown table separator rule ( |---|---| ).
     if (/^\s*\|?[\s:-]*\|[\s:|-]*$/.test(line) && line.includes('-')) continue;
     let l = line;
-    // A table row: strip the outer pipes, keep cells separated by " | ".
-    if (/^\s*\|.*\|\s*$/.test(l)) {
-      l = l.replace(/^\s*\|/, '').replace(/\|\s*$/, '');
-      l = l.split('|').map((c) => c.trim()).join('  |  ');
-    }
+    // A table row (an evidence table) stays a row: "| a | b |", cells trimmed. The
+    // engine lays a run of rows out as a ruled Word table (features/evidence-tables.md).
+    if (isTableRow(l)) l = `| ${l.trim().slice(1, -1).split('|').map((c) => c.trim()).join(' | ')} |`;
     // Strip **bold** / __bold__ markers (keep the text); also stray single * emphasis.
     l = l.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1');
     out.push(l);
@@ -170,7 +168,13 @@ const NUMBERED = /^\s*(\d+)([A-Z]?)\s*[.)]\s/;
 const SUB_ITEM = /^\s+\S|^\s*(?:\([0-9a-z]{1,4}\)|[A-Z][.)]|[a-z][.)]|[ivx]+[.)])\s/;
 const PRAYER = /\bPRAYER\b|\bit is (?:therefore )?(?:most )?(?:humbly |respectfully )?prayed\b/i;
 /** An un-numbered all-capitals line: a section heading ("LIST OF DOCUMENTS"). */
+/** One row of an evidence table: pipes at both ends and at least two cells. */
+export const isTableRow = (l: string): boolean => /^\s*\|.*\|.*\|\s*$/.test(l);
+/** A paragraph that is a whole table (rows joined by newlines): never numbered. */
+const isTable = (p: string): boolean => p.split('\n').every((l) => isTableRow(l));
+
 const SECTION_HEADING = (t: string): boolean => {
+  if (isTableRow(t)) return false;
   const letters = t.replace(/[^A-Za-z]/g, '');
   return letters.length >= 4 && t.trim().length <= 90
     && letters.replace(/[^A-Z]/g, '').length / letters.length > 0.85;
@@ -279,6 +283,7 @@ export function numberBody(paragraphs: string[], first: number): string[] {
   let letter = '';
   let small = '';
   return paragraphs.map((p) => {
+    if (isTable(p)) return p;
     const lt = /^(\s*)([A-Z])([.)]\s)/.exec(p);
     if (lt) {
       small = '';
@@ -681,7 +686,7 @@ HARD RULES — you argue given facts, you never discover new ones:
 - GAPS: never write a sentence just to hold a gap ("the particulars of further correspondence, if any, are …"), and leave out a matter that is merely useful and that neither the skeleton nor the rules above call for. Where a needed fact is missing, leave "[to be drafted]" for it and do NOT argue from it elsewhere — no "as pleaded above", "as set out herein", "save as stated herein" pointing at something not actually pleaded, and no ground that depends on an unpleaded fact.
 - ECONOMY: each point once. No ground repeated in a later paragraph or summary; no commentary about the document itself ("this plaint contains the particulars required by…"); no long pre-emptive rebuttals of objections nobody has raised. An application is one to two pages.
 - CASES: never name a case — not even by short name, "(supra)" or "as laid down in X" — unless it is a JUDGMENT in the Authorities list.
-- Plain text only: no Markdown, no bold, no tables. ${args.keepNumbers ? 'Keep every paragraph’s existing number exactly as in the skeleton' : `Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively`}; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
+- Plain text only: no Markdown, no bold. TABLES: only where the content is a list of evidence (a list of documents relied on or filed, an index of annexures, a list of dates and events, a summary of admissions or of evidence, a schedule of documents), set it out as a table: one row per line, cells between pipes, the first row the column headings (list of documents: | Sr. No | Date | Description of document | Remarks |; annexures: | Annexure | Description | Page |; list of dates: | Date | Event |; admissions: | Point | Admission / Position |). Written arguments or submissions that rely on several admissions or gaps in the other side's evidence end, after the arguments, with a SUMMARY OF MATERIAL ADMISSIONS table (| Point | Admission / Position |, one row per admission). Documents the brief says were filed or are relied on always get a LIST OF DOCUMENTS table near the end (not a lettered list), even when a paragraph also argues them. Never a table for anything else, and a fact missing from a cell is a [bracket]. ${args.keepNumbers ? 'Keep every paragraph’s existing number exactly as in the skeleton' : `Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively`}; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
 
   const user =
     // r13: "the ONLY … numbers" here contradicted the account rule, so complaint IDs

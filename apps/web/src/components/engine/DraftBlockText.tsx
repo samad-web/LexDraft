@@ -35,8 +35,24 @@ function isTableBlock(lines: string[]): boolean {
   return (
     lines.length >= 2 &&
     lines[0]!.trim().startsWith('|') &&
-    /^\s*\|?[\s:-]*\|[\s:|-]*$/.test(lines[1]!)
+    (RULE.test(lines[1]!) || (isTableRow(lines[0]!) && isTableRow(lines[1]!)))
   );
+}
+
+const RULE = /^\s*\|?[\s:-]*\|[\s:|-]*$/;
+/** One row of an evidence table (the engine reads each Word table row back as one). */
+export const isTableRow = (l: string): boolean => /^\s*\|.*\|.*\|\s*$/.test(l) && !RULE.test(l);
+
+/** Consecutive one-row blocks merged into one block, so a table shows as one table. */
+export function groupTableBlocks<B extends { key: string; text: string }>(blocks: ReadonlyArray<B>): B[] {
+  const out: B[] = [];
+  for (const b of blocks) {
+    const prev = out[out.length - 1];
+    if (prev && isTableRow(b.text) && prev.text.split('\n').every(isTableRow)) {
+      out[out.length - 1] = { ...prev, text: `${prev.text}\n${b.text}` };
+    } else out.push(b);
+  }
+  return out;
 }
 
 function cells(row: string): string[] {
@@ -68,7 +84,7 @@ export function DraftBlockText({ text, blockKey }: { text: string; blockKey: str
       flushPara();
       const header = cells(rest[0]!);
       const bodyRows: string[][] = [];
-      let j = 2; // skip header + separator
+      let j = RULE.test(rest[1]!) ? 2 : 1; // skip header (+ separator)
       while (j < rest.length && rest[j]!.trim().startsWith('|')) {
         bodyRows.push(cells(rest[j]!));
         j += 1;

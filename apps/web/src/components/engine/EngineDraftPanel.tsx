@@ -24,7 +24,7 @@ import { RefusalMessage } from './RefusalMessage';
 import { FormIncompleteMessage } from './FormIncompleteMessage';
 import { ReviewBanner } from './ReviewBanner';
 import { DraftRenderView } from './DraftRenderView';
-import { DraftBlockText } from './DraftBlockText';
+import { DraftBlockText, groupTableBlocks } from './DraftBlockText';
 
 interface Props {
   docLabel: string;          // e.g. "Notice u/s 138 NI Act"
@@ -163,7 +163,7 @@ export function EngineDraftPanel({
             document you approve and file.
           </p>
           <article className="engine-panel__blocks" aria-label="Drafted document (preview)">
-            {result.blocks.map((b) => (
+            {groupTableBlocks(result.blocks).map((b) => (
               <DraftBlockText key={b.key} blockKey={b.key} text={b.text} />
             ))}
           </article>

@@ -84,9 +84,20 @@ def _extract_blocks(docx_path) -> List[Dict[str, str]]:
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     names = {WD_ALIGN_PARAGRAPH.CENTER: "center", WD_ALIGN_PARAGRAPH.RIGHT: "right",
              WD_ALIGN_PARAGRAPH.JUSTIFY: "justify"}
+    from .tables import body_items, row_text, row_values
     blocks: List[Dict[str, Any]] = []
     i = 0
-    for p in Document(str(docx_path)).paragraphs:
+    for p in body_items(Document(str(docx_path))):
+        if not hasattr(p, "runs"):  # a table: one "| a | b |" line per row
+            for r, row in enumerate(p.rows):
+                values = row_values(row)
+                if any(values):
+                    block = {"key": f"p{i}", "text": row_text(values), "table": True}
+                    if r == 0:
+                        block["bold"] = True
+                    blocks.append(block)
+                i += 1
+            continue
         align = p.alignment
         if align is None and p.style is not None:
             align = p.style.paragraph_format.alignment

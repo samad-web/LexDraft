@@ -1,4 +1,6 @@
 # Changelog
+- Evidence tables (2026-11-14, features/evidence-tables.md): a list of documents, index of annexures, list of dates or summary of admissions in a draft is now a ruled table in the preview, the editor, Word and PDF, only where the content calls for one. Engine: tables.py, compose.py table blocks, blocks/edits/splices read and write table rows. API: both drafting prompts, Markdown tables kept as rows and never numbered. Web: preview and editor show the table and map edits back row by row.
+
 
 - Splash after sign-in (2026-11-14): in the Android app the launch animation now also plays for 4 s right after every sign-in (Google, password, new account, MFA), so the dashboard no longer just appears. Cold start unchanged (2.4 s); tap skips; a restored session doesn't trigger it.
 - Document encryption at rest (2026-11-14, features/document-encryption.md): uploaded documents are AES-256-GCM encrypted on the server disk (same FIELD_ENCRYPTION_KEY as PII fields) and decrypted only when the API serves a signed download. Old plaintext files still open. Production refuses an upload if the key is missing. One-time backfill: `scripts/encrypt-existing-uploads.ts` (dry run, then `--apply`).

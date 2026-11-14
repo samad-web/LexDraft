@@ -22,15 +22,58 @@ from typing import List, Optional
 from docx import Document
 from docx.text.paragraph import Paragraph
 
+from .tables import add_table, body_items, cells, expand, is_row, row_text, row_values, runs_of
+
+
+class _Row:
+    """A table row as an edit target: one display line ("| a | b |")."""
+
+    def __init__(self, row, table):
+        self.row, self.table = row, table
+        self._p = row._tr
+
+    @property
+    def text(self) -> str:
+        return row_text(row_values(self.row))
+
+    def set(self, text: str) -> None:
+        values = cells(text) if is_row(text) else [text.strip()]
+        tcs = []
+        for cell in self.row.cells:
+            if all(cell._tc is not t for t in tcs):
+                tcs.append(cell._tc)
+        for k, tc in enumerate(tcs):
+            value = values[k] if k < len(values) else ""
+            if k == len(tcs) - 1 and len(values) > len(tcs):
+                value = " ".join(values[k:])  # surplus cells fold into the last
+            para = Paragraph(tc.p_lst[0], self.table)
+            _set_text(para, value)
+            for extra in tc.p_lst[1:]:
+                tc.remove(extra)
+
+
+def _in_range(targets: List[tuple], start: int, end: int) -> List[tuple]:
+    """The targets with at least one display line in [start, end]."""
+    out, line = [], 0
+    for p, n in targets:
+        if not (line + n - 1 < start or line > end):
+            out.append((p, n))
+        line += n
+    return out
+
 
 def _targets(doc) -> List[tuple]:
-    """(paragraph, line_count) for every paragraph with text, in reading order —
-    each line of a paragraph (soft line breaks) is one display block."""
+    """(paragraph or table row, line_count) for every paragraph with text and every
+    table row with text, in reading order — each line of a paragraph (soft line
+    breaks) and each table row is one display block (see app._extract_blocks)."""
     out = []
-    for p in doc.paragraphs:
-        lines = [l for l in p.text.split("\n") if l.strip()]
+    for item in body_items(doc):
+        if hasattr(item, "rows"):
+            out.extend((_Row(r, item), 1) for r in item.rows if any(row_values(r)))
+            continue
+        lines = [l for l in item.text.split("\n") if l.strip()]
         if lines:
-            out.append((p, len(lines)))
+            out.append((item, len(lines)))
     return out
 
 
@@ -47,6 +90,9 @@ def apply_edits(docx_bytes: bytes, paragraphs: List[str]) -> Optional[bytes]:
         old_text = "\n".join(l for l in p.text.split("\n") if l.strip())
         if new_text == old_text.rstrip():
             continue  # untouched paragraph keeps every run exactly as rendered
+        if isinstance(p, _Row):
+            p.set(new_text)
+            continue
         runs = p.runs
         if not runs:
             p.add_run(new_text)
@@ -110,42 +156,68 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
     if not new or start < 0 or end < start or end >= total:
         return None
 
-    # Map the line range onto whole paragraphs.
+    # Map the line range onto whole paragraphs. A table touched by the range is
+    # replaced whole: its rows outside the range are carried over as lines.
     picked, head, tail, line = [], [], [], 0
+    touched = {id(p.table._tbl) for p, n, in _in_range(targets, start, end) if isinstance(p, _Row)}
     for p, n in targets:
         first, last = line, line + n - 1
         line += n
-        if last < start or first > end:
+        in_table = isinstance(p, _Row) and id(p.table._tbl) in touched
+        if (last < start or first > end) and not in_table:
             continue
         lines = [l for l in p.text.split("\n") if l.strip()]
-        if first < start:
-            head = lines[:start - first]
-        if last > end:
-            tail = lines[end - first + 1:]
+        if last < start:
+            head += lines
+        elif first > end:
+            tail += lines
+        else:
+            if first < start:
+                head += lines[:start - first]
+            if last > end:
+                tail = lines[end - first + 1:] + tail
         picked.append(p)
     if not picked:
         return None
-    new = head + new + tail
+    new = expand(head + new + tail)
 
+    # The body-level elements being replaced, in order (a table row stands for its table).
+    def elem(p):
+        return p.table._tbl if isinstance(p, _Row) else p._p
+
+    gone = []
+    for p in picked:
+        if all(elem(p) is not e for e in gone):
+            gone.append(elem(p))
     # Blank spacer paragraphs BETWEEN the replaced ones belonged to the old
     # skeleton's layout; left in place they show as gaps inside the new body.
-    elems = [p._p for p in doc.paragraphs]
-    first, last = elems.index(picked[0]._p), elems.index(picked[-1]._p)
-    for el in elems[first + 1:last]:
-        if el not in {p._p for p in picked} and not "".join(el.itertext()).strip():
+    body = list(doc.element.body.iterchildren())
+    first, last = body.index(gone[0]), body.index(gone[-1])
+    for el in body[first + 1:last]:
+        if all(el is not g for g in gone) and el.tag.endswith("}p") and not "".join(el.itertext()).strip():
             el.getparent().remove(el)
 
     # Every new paragraph is a clone of a MODEL from the range: body text takes the
     # template's plain body paragraph (the longest un-emphasised one), so a bold
     # sub-heading it happens to land on ("1. Description of the Complainant")
     # never makes the pleading bold; a caps heading line takes a bold one.
-    plain = [p for p in picked if not _emphasised(p)]
+    paras = [p for p in picked if not isinstance(p, _Row)]
+    plain = [p for p in paras if not _emphasised(p)]
     body_model = max(plain, key=lambda p: len(p.text)) if plain else None
-    heading_model = next((p for p in picked if _emphasised(p)), None)
-    anchor = picked[0]._p
-    for text in new:
+    heading_model = next((p for p in paras if _emphasised(p)), None)
+    anchor = gone[0]
+    for item in runs_of(new):
+        if isinstance(item, list):  # an evidence table
+            anchor.addprevious(add_table(doc, item)._tbl)
+            continue
+        text = item
         is_heading = _is_heading_text(text) and heading_model is not None
-        model = heading_model if is_heading else (body_model or picked[-1])
+        model = heading_model if is_heading else (body_model or (paras[-1] if paras else None))
+        if model is None:  # only table rows in the range: a plain paragraph
+            fresh = doc.add_paragraph()
+            anchor.addprevious(fresh._p)
+            _set_text(fresh, text)
+            continue
         clone = copy.deepcopy(model._p)
         anchor.addprevious(clone)
         p = Paragraph(clone, model._parent)
@@ -154,8 +226,8 @@ def splice_lines(docx_bytes: bytes, start: int, end: int, paragraphs: List[str])
                 r.bold = None
                 r.underline = None
         _set_text(p, _LEADING_NUMBER.sub("", text) if _auto_numbered(p) else text)
-    for p in picked:
-        p._p.getparent().remove(p._p)
+    for el in gone:
+        el.getparent().remove(el)
 
     buf = io.BytesIO()
     doc.save(buf)

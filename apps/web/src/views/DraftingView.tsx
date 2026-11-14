@@ -13,6 +13,7 @@ import { DraftCasePicker } from '@/components/DraftCasePicker';
 import { type DraftCaseContext } from '@/lib/draft-case-context';
 import { DraftMissingFields } from '@/components/DraftMissingFields';
 import { DraftBotModal } from '@/components/engine/DraftBotModal';
+import { groupTableBlocks, isTableRow } from '@/components/engine/DraftBlockText';
 import type { IntakeState } from '@lexdraft/types';
 import { useEngineStatus } from '@/hooks/useEngineDraft';
 import { useCaseNotes } from '@/hooks/useCaseNotes';
@@ -131,8 +132,16 @@ function seedDefaults(): ValuesByDoc {
  *  plain-text view, so edits still map back onto the .docx line for line. */
 function blocksToHtml(blocks: ReadonlyArray<{ text: string; align?: string; bold?: boolean }>): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  return blocks
+  // An evidence table (each row a "| a | b |" line) is shown as a table; editedParagraphs
+  // reads each row back as the same line, so edits still map onto the .docx.
+  const row = (text: string, tag: 'th' | 'td') =>
+    `<tr>${text.trim().slice(1, -1).split('|').map((c) => `<${tag}>${esc(c.trim())}</${tag}>`).join('')}</tr>`;
+  return groupTableBlocks(blocks.map((b, i) => ({ ...b, key: String(i) })))
     .map((b) => {
+      const rows = b.text.split('\n');
+      if (rows.length > 1 && rows.every(isTableRow)) {
+        return `<table class="draft-table">${rows.map((r, i) => row(r, i === 0 ? 'th' : 'td')).join('')}</table>`;
+      }
       const style = b.align && b.align !== 'left' ? ` style="text-align:${b.align}"` : '';
       const text = esc(b.text);
       return `<p${style}>${b.bold ? `<strong>${text}</strong>` : text}</p>`;
@@ -179,7 +188,14 @@ function editedParagraphs(html: string): string[] {
       if (line.trim()) out.push(line.replace(/\s+$/, ''));
     }
   };
-  doc.body.childNodes.forEach((node) => push(node.textContent ?? ''));
+  doc.body.childNodes.forEach((node) => {
+    if (node.nodeName !== 'TABLE') return push(node.textContent ?? '');
+    // one "| a | b |" line per table row, as the engine reads a Word table
+    (node as HTMLTableElement).querySelectorAll('tr').forEach((tr) => {
+      const cells = [...tr.querySelectorAll('th,td')].map((c) => (c.textContent ?? '').replace(/\s+/g, ' ').trim());
+      if (cells.some(Boolean)) out.push(`| ${cells.join(' | ')} |`);
+    });
+  });
   return out;
 }
 
