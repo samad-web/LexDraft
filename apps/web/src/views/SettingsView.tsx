@@ -207,7 +207,7 @@ function TrialStatusPanel() {
           <button
             type="button"
             className="btn btn-primary"
-            onClick={() => navigate('/#pricing')}
+            onClick={() => navigate('/app/billing')}
           >
             {isDemo ? 'Convert to real account' : 'See plans & upgrade'}
           </button>

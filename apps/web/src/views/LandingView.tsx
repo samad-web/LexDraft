@@ -1,7 +1,6 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
-import { PillNav } from '../components/PillNav';
 import { LandingHeader } from '../components/LandingHeader';
 import { LandingArt } from '../components/LandingArt';
 import { IntroModal } from '../components/IntroModal';
@@ -33,20 +32,6 @@ interface FooterGroup {
   l: FooterLink[];
 }
 
-interface PricingPlan {
-  name: string;
-  schedule: string;
-  for: string;
-  monthlyPrice: number | null;
-  /** Price for a year, billed yearly (per advocate on Associates). */
-  annualPrice: number | null;
-  customLabel?: string;
-  perSeatNote?: string;
-  features: string[];
-  cta: string;
-  featured?: boolean;
-}
-
 interface FaqItem {
   q: string;
   a: string;
@@ -58,11 +43,6 @@ const NAV_TABS: NavTab[] = [
   { id: 'pricing', label: 'Pricing' },
   { id: 'faq', label: 'FAQ' },
   { id: 'trial', label: 'Get started' },
-];
-
-const BILLING_OPTIONS = [
-  { id: 'annual' as const, label: 'Annual · −20%' },
-  { id: 'monthly' as const, label: 'Monthly' },
 ];
 
 type FeatureIconName = 'draft' | 'cases' | 'contracts' | 'billing' | 'research' | 'limitation';
@@ -106,59 +86,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'How is DifAi priced?',
-    a: 'Sanad ₹199, Vakalat ₹399 and Brief ₹1,499 a month for one advocate; Associates ₹649 per advocate for chambers of 2 to 8; a Munshi (clerk) seat ₹149. All include GST. Every plan has the full app; plans differ in AI drafting pages and seats, and Brief Packs add pages when you need more. Firms of nine or more get custom pricing.',
-  },
-];
-
-// Pricing v4 - keep in step with apps/api/src/lib/plans.ts (GST included).
-const PRICING: PricingPlan[] = [
-  {
-    name: 'Sanad',
-    schedule: 'I',
-    for: 'Starting out · the full app with some drafting',
-    monthlyPrice: 199,
-    annualPrice: 2190,
-    features: ['25 pages of AI drafting a month', 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Add a Munshi (clerk) seat for ₹149/month'],
-    cta: 'Start with Sanad',
-  },
-  {
-    name: 'Vakalat',
-    schedule: 'II',
-    for: 'A practising advocate taking cases',
-    monthlyPrice: 399,
-    annualPrice: 4490,
-    features: ['75 pages of AI drafting a month', 'Everything in Sanad'],
-    cta: 'Start with Vakalat',
-    featured: true,
-  },
-  {
-    name: 'Brief',
-    schedule: 'III',
-    for: 'Heavy drafting · lowest price per page',
-    monthlyPrice: 1499,
-    annualPrice: 16490,
-    features: ['200 pages of AI drafting a month', 'Everything in Vakalat'],
-    cta: 'Start with Brief',
-  },
-  {
-    name: 'Associates',
-    schedule: 'IV',
-    for: 'Chambers with 2 to 8 advocates',
-    monthlyPrice: 649,
-    annualPrice: 7140,
-    perSeatNote: 'Per advocate · 75 pages each a month, shared',
-    features: ['Everything in Vakalat', 'Roles and permissions', 'Firm dashboard and team chat', 'Munshi seats for your clerks'],
-    cta: 'Start with Associates',
-  },
-  {
-    name: 'Partners',
-    schedule: 'V',
-    for: 'Firms with nine advocates and above',
-    monthlyPrice: null,
-    annualPrice: null,
-    customLabel: 'Custom',
-    features: ['Unlimited seats', 'SSO and audit logs', 'Dedicated success manager', 'Bespoke integrations'],
-    cta: 'Speak with us',
+    a: 'Every plan has the full app; plans differ in AI drafting pages and seats, and Brief Packs add pages when you need more. All prices include GST, with no charge per matter or per filing. Sign in to see the plans and prices; firms of nine or more get custom pricing.',
   },
 ];
 
@@ -170,7 +98,6 @@ const FOOTER_GROUPS: FooterGroup[] = [
     h: 'Product',
     l: [
       { label: 'Features', href: '#features' },
-      { label: 'Pricing', href: '#pricing' },
       { label: 'FAQ', href: '/faq' },
       { label: 'Sign in', href: '/auth' },
     ],
@@ -322,10 +249,6 @@ function FeatureIcon({ name }: { name: FeatureIconName }) {
   }
 }
 
-function formatINR(value: number) {
-  return `₹${value.toLocaleString('en-IN')}`;
-}
-
 interface FaqRowProps {
   q: string;
   a: string;
@@ -396,7 +319,6 @@ function FaqRow({ q, a, index }: FaqRowProps) {
 export function LandingView() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabId>('home');
-  const [billing, setBilling] = useState<'annual' | 'monthly'>('annual');
   // First-visit questions (practice size, name) prefill sign-up; the landing copy stays fixed.
   const [showIntro, setShowIntro] = useState(() => { const i = readIntro(); return !i.name && !i.dismissed; });
   const scrollLockRef = useRef(false);
@@ -443,7 +365,8 @@ export function LandingView() {
   const goAnchor = (hash: string) => {
     if (!hash.startsWith('#')) return;
     const id = hash.slice(1);
-    const known: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
+    if (id === 'pricing') { goAuth(); return; }
+    const known: TabId[] = ['home', 'features', 'faq', 'trial'];
     if ((known as string[]).includes(id)) {
       goSection(id as TabId);
       return;
@@ -507,7 +430,7 @@ export function LandingView() {
   }, []);
 
   useEffect(() => {
-    const ids: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
+    const ids: TabId[] = ['home', 'features', 'faq', 'trial'];
     const elements = ids
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
@@ -571,29 +494,6 @@ export function LandingView() {
     return () => io.disconnect();
   }, []);
 
-  const pricingRows = useMemo(
-    () =>
-      PRICING.map((plan) => {
-        const isCustom = plan.monthlyPrice === null;
-        const priceDisplay = isCustom
-          ? plan.customLabel ?? 'Custom'
-          : billing === 'annual'
-          ? formatINR(plan.annualPrice ?? (plan.monthlyPrice ?? 0) * 12)
-          : formatINR(plan.monthlyPrice ?? 0);
-        const periodDisplay = isCustom
-          ? 'Talk to sales'
-          : billing === 'annual'
-          ? 'per year · incl. GST'
-          : 'per month · incl. GST';
-        const savingsLine =
-          !isCustom && billing === 'annual' && plan.monthlyPrice && plan.annualPrice
-            ? `Save ${formatINR(plan.monthlyPrice * 12 - plan.annualPrice)} / year vs monthly`
-            : null;
-        return { plan, priceDisplay, periodDisplay, savingsLine, isCustom };
-      }),
-    [billing],
-  );
-
   const pageStyle: CSSProperties = {
     background: 'var(--bg-base)',
     color: 'var(--text-primary)',
@@ -607,7 +507,8 @@ export function LandingView() {
       <LandingHeader
         tabs={NAV_TABS}
         activeTab={tab}
-        onTabChange={goSection}
+        // Plans and prices are shown after sign-in (Plan & Billing), not on the landing page.
+        onTabChange={(id) => (id === 'pricing' ? goAuth() : goSection(id))}
         onSignIn={goAuth}
         onTrial={goAuth}
       />
@@ -763,237 +664,6 @@ export function LandingView() {
               </p>
             </article>
           ))}
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section
-        id="pricing"
-        style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
-      >
-        <div
-          className="reveal lex-pricing-head"
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            marginBottom: 56,
-            paddingBottom: 32,
-            borderBottom: '1px solid var(--border-subtle)',
-            flexWrap: 'wrap',
-            gap: 24,
-          }}
-        >
-          <div style={{ maxWidth: 640 }}>
-            <div className="eyebrow" style={{ marginBottom: 12 }}>Pricing</div>
-            <h2
-              className="display"
-              style={{
-                fontSize: 'clamp(32px, 4vw, 48px)',
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-              }}
-            >
-              Four plans. No surprises.
-            </h2>
-            <p style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
-              Every plan has the full app. Plans differ in AI drafting pages (1 page = 400 words) and seats. Prices include GST; no charge per matter or per filing.
-            </p>
-          </div>
-          <PillNav
-            items={BILLING_OPTIONS}
-            value={billing}
-            onChange={setBilling}
-            ariaLabel="Billing cadence"
-          />
-        </div>
-
-        <div
-          className="lex-grid-3 reveal-stagger"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, alignItems: 'stretch' }}
-        >
-          {pricingRows.map(({ plan, priceDisplay, periodDisplay, savingsLine, isCustom }) => {
-            const featured = plan.featured === true;
-            const cardStyle: CSSProperties = {
-              background: featured ? 'var(--text-primary)' : 'var(--bg-surface)',
-              color: featured ? 'var(--bg-base)' : 'var(--text-primary)',
-              border: '1px solid var(--border-default)',
-              borderRadius: 'var(--radius-xl)',
-              padding: 'clamp(20px, 4vw, 32px)',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-              overflow: 'hidden',
-            };
-
-            return (
-              <div key={plan.name} style={cardStyle}>
-                {featured && (
-                  <div
-                    className="mono"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      padding: '8px 12px',
-                      background: 'var(--bg-base)',
-                      color: 'var(--text-primary)',
-                      fontSize: 11,
-                      letterSpacing: '0.18em',
-                      textTransform: 'uppercase',
-                      textAlign: 'center',
-                      fontWeight: 600,
-                    }}
-                  >
-                    Most popular
-                  </div>
-                )}
-                <div style={{ marginTop: featured ? 28 : 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div className="eyebrow" style={{ opacity: 0.7, marginBottom: 16 }}>
-                    Schedule {plan.schedule}
-                  </div>
-                  <div
-                    className="display"
-                    style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.015em', color: 'inherit' }}
-                  >
-                    {plan.name}
-                  </div>
-                  <div style={{ fontSize: 14, opacity: 0.75, marginTop: 4, marginBottom: 24 }}>
-                    {plan.for}
-                  </div>
-                  <div style={{ marginBottom: 24, minHeight: 132 }}>
-                    <div
-                      className="display"
-                      style={{
-                        fontSize: 'clamp(40px, 7vw, 56px)',
-                        lineHeight: 1,
-                        letterSpacing: '-0.025em',
-                        fontVariantNumeric: 'tabular-nums',
-                        color: 'inherit',
-                      }}
-                    >
-                      {priceDisplay}
-                    </div>
-                    <div
-                      className="mono"
-                      style={{
-                        fontSize: 11,
-                        marginTop: 8,
-                        opacity: 0.7,
-                        letterSpacing: '0.16em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {periodDisplay}
-                    </div>
-                    {plan.perSeatNote && !isCustom && (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          fontSize: 13,
-                          opacity: 0.75,
-                          color: 'inherit',
-                        }}
-                      >
-                        {plan.perSeatNote}
-                      </div>
-                    )}
-                    {savingsLine && (
-                      <div
-                        className="mono"
-                        style={{
-                          marginTop: 10,
-                          fontSize: 11,
-                          letterSpacing: '0.12em',
-                          textTransform: 'uppercase',
-                          opacity: 0.7,
-                          color: 'inherit',
-                        }}
-                      >
-                        {savingsLine}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => goSignup(plan.name === 'Partners' ? 'demo' : 'trial')}
-                    className="btn btn-block btn-lg"
-                    style={
-                      featured
-                        ? {
-                            background: 'var(--bg-base)',
-                            color: 'var(--text-primary)',
-                            borderColor: 'var(--bg-base)',
-                            marginBottom: 24,
-                          }
-                        : {
-                            background: 'var(--text-primary)',
-                            color: 'var(--bg-base)',
-                            borderColor: 'var(--text-primary)',
-                            marginBottom: 24,
-                          }
-                    }
-                  >
-                    {plan.cta}
-                  </button>
-                  <div
-                    style={{
-                      borderTop: `1px solid ${featured ? 'rgba(255,255,255,0.18)' : 'var(--border-subtle)'}`,
-                      paddingTop: 18,
-                    }}
-                  >
-                    <div
-                      className="eyebrow"
-                      style={{ opacity: 0.7, marginBottom: 14, color: 'inherit' }}
-                    >
-                      Included
-                    </div>
-                    <ul
-                      style={{
-                        listStyle: 'none',
-                        padding: 0,
-                        margin: 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 10,
-                      }}
-                    >
-                      {plan.features.map((f) => (
-                        <li
-                          key={f}
-                          style={{
-                            display: 'flex',
-                            gap: 10,
-                            fontSize: 14,
-                            alignItems: 'flex-start',
-                            lineHeight: 1.5,
-                          }}
-                        >
-                          <span
-                            aria-hidden
-                            style={{
-                              width: 16,
-                              height: 16,
-                              flexShrink: 0,
-                              marginTop: 3,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: 11,
-                            }}
-                          >
-                            ✓
-                          </span>
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       </section>
 
@@ -1182,7 +852,6 @@ export function LandingView() {
         @media (max-width: 640px) {
           .lex-grid-3 { grid-template-columns: 1fr !important; }
           .lex-trust-strip { grid-template-columns: 1fr 1fr !important; gap: 20px !important; }
-          .lex-pricing-head { align-items: flex-start !important; }
         }
 
         @media (prefers-reduced-motion: reduce) {
