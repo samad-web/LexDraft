@@ -1,4 +1,6 @@
 # Changelog
+
+- Website sign-in animation = 2.4 s (2026-11-14): matches the Android app's launch animation at its normal pace; the app keeps 4 s after sign-in.
 - Key lockdown (2026-11-14, features/key-lockdown.md): FIELD_ENCRYPTION_KEY moved out of the app folder into root-only /etc/lexdraft/secrets.env (loaded via the server's docker-compose.apiport.yml); env files and DB dumps made root-only (were readable by the `ubuntu` login); .dockerignore no longer lets apps/api/.env.docker into image builds.
 
 

@@ -6,13 +6,14 @@ import { useAuthStore } from '@/store/auth';
 
 /**
  * Launch animation for the Android app: "Di" grows into DifAi over an ink
- * line drawing of a working courtroom. Plays on the app's cold start, and on
- * the website and the app for 4 s right after every sign-in so the dashboard
- * doesn't just appear. Tap skips.
+ * line drawing of a working courtroom. Plays on the app's cold start (2.4 s),
+ * and right after every sign-in so the dashboard doesn't just appear: 4 s in
+ * the app, 2.4 s on the website. Tap skips.
  * `?splash` shows it in the browser (for screenshots).
  */
 const DURATION_MS = 2400;
-const SIGN_IN_MS = 4000;
+// After sign-in: 4 s in the Android app; the website matches the app's 2.4 s launch.
+const SIGN_IN_MS = Capacitor.isNativePlatform() ? 4000 : DURATION_MS;
 const REDUCED_MS = 900;
 const FADE_MS = 300;
 
