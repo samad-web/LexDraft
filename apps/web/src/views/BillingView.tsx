@@ -5,6 +5,7 @@ import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse, PaidPlanId, SubscriptionInvoice } from '@lexdraft/types';
 import { CycleToggle, MunshiPicker, PLAN_NAME, PlanCards, SeatPicker } from '@/components/PlanCards';
 import { CreditMeter } from '@/components/DraftMeter';
+import { BriefPacks } from '@/components/BriefPacks';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 
@@ -87,7 +88,7 @@ function SubscriptionInvoices() {
                 <td>{formatDate(inv.issuedAt)}</td>
                 <td>{inv.invoiceNo}</td>
                 <td className="col-hide-mobile">
-                  {planLabel(inv.plan, inv.seats, inv.munshiSeats)} · {inv.cycle === 'annual' ? 'yearly' : 'monthly'}
+                  {planLabel(inv.plan, inv.seats, inv.munshiSeats)} · {inv.cycle === 'annual' ? 'yearly' : inv.cycle === 'one-time' ? 'one-time' : 'monthly'}
                 </td>
                 <td style={{ textAlign: 'right' }}>₹{inv.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                 <td className="cm-row-actions">
@@ -134,6 +135,13 @@ export function BillingView() {
     return () => clearTimeout(t);
   }, [waiting, paid, qc]);
 
+  // Back from paying for a Brief Pack: the credits land with the webhook.
+  useEffect(() => {
+    if (returned !== 'pack-done') return;
+    const ts = [2000, 5000, 10000, 20000].map((ms) => setTimeout(() => void qc.invalidateQueries({ queryKey: ['credits'] }), ms));
+    return () => ts.forEach(clearTimeout);
+  }, [returned, qc]);
+
   useEffect(() => {
     if (data?.current.billingCycle) setCycle(data.current.billingCycle);
   }, [data?.current.billingCycle]);
@@ -176,6 +184,13 @@ export function BillingView() {
                 ? 'Payment received. Activating your plan…'
                 : 'We have not heard from the payment provider yet. Refresh in a minute; if your plan still shows the old one, write to support.'}
           </span>
+          <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
+        </div>
+      )}
+      {returned === 'pack-done' && (
+        <div role="status" className="cm-notice">
+          <span className="cm-notice-icon" aria-hidden><Icon name="check" size={14} /></span>
+          <span>Payment received. Your Brief Pack credits appear in a few seconds.</span>
           <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
         </div>
       )}
@@ -226,6 +241,8 @@ export function BillingView() {
           <section className="cm-usage" aria-label="AI credits this month">
             <CreditMeter />
           </section>
+
+          {!native && <BriefPacks packs={data.packs ?? []} canBuy={data.canManage} />}
 
           {data.canManage && <SubscriptionInvoices />}
 

@@ -1,4 +1,4 @@
-import type { BillingCycle, FirmPlanTier, PaidPlanId } from '@lexdraft/types';
+import type { BillingCycle, BriefPackId, FirmPlanTier, PaidPlanId } from '@lexdraft/types';
 
 // =============================================================================
 // Pricing v4 catalogue (build-docs/features/pricing-v4.md). DRAFT prices, not
@@ -27,6 +27,19 @@ export const PLANS: Record<PaidPlanId, PaidPlanDef> = {
 
 /** Munshi (clerk) seat: diary, cause list, eCourts and documents. Any paid plan. */
 export const MUNSHI = { monthlyInr: 149, annualInr: 1590, max: 4 } as const;
+
+/** Brief Packs: one-time AI credit top-ups, GST-inclusive, valid 12 months. */
+export const BRIEF_PACKS: Record<BriefPackId, { credits: number; priceInr: number }> = {
+  pack_25:  { credits: 25,  priceInr: 499 },
+  pack_60:  { credits: 60,  priceInr: 999 },
+  pack_130: { credits: 130, priceInr: 1999 },
+  pack_330: { credits: 330, priceInr: 4999 },
+};
+export const BRIEF_PACK_DAYS = 365;
+
+export function isBriefPack(id: unknown): id is BriefPackId {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(BRIEF_PACKS, id);
+}
 
 /** Roles a Munshi seat covers (decision 2a: existing roles, no new one). */
 export const MUNSHI_ROLES: readonly string[] = ['Paralegal', 'Legal Secretary'];
@@ -57,6 +70,7 @@ export function monthlyValueInr(plan: PaidPlanId, cycle: BillingCycle, advocates
 
 /** "Associates, 3 advocates + 1 Munshi seat" / "Vakalat". */
 export function planLabel(plan: string, advocates: number, munshi: number): string {
+  if (isBriefPack(plan)) return `Brief Pack (${BRIEF_PACKS[plan].credits} AI credits)`;
   const name = PLAN_NAMES[plan] ?? plan;
   const adv = plan === 'associates' || plan === 'practice' ? `, ${advocates} advocates` : '';
   const mun = munshi > 0 ? ` + ${munshi} Munshi seat${munshi === 1 ? '' : 's'}` : '';

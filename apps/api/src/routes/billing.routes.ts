@@ -49,6 +49,17 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
   }
 });
 
+// Brief Pack: a one-time credit top-up (owner only). Credits arrive with the webhook.
+const PackCheckout = z.object({ pack: z.enum(['pack_25', 'pack_60', 'pack_130', 'pack_330']) }).strict();
+billingRouter.post('/packs/checkout', requireAuth, async (req, res, next) => {
+  try {
+    const { pack } = PackCheckout.parse(req.body);
+    res.json(await billingService.startPackCheckout(req.user!.id, pack));
+  } catch (err) {
+    next(err);
+  }
+});
+
 // GST tax invoices: the account owner's own firm only.
 billingRouter.get('/invoices', requireAuth, async (req, res, next) => {
   try {
@@ -80,6 +91,7 @@ export function sendInvoicePdf(res: Response, invoiceNo: string, pdf: Buffer): v
 
 // The page that opens Razorpay Checkout for a subscription. Public: the link is
 // what checkout hands back, signed in or not (renew from the sign-in page).
+// A subscription (sub_…) or a Brief Pack order (order_…).
 billingRouter.get('/pay/:subscriptionId', (req, res) => {
   const html = billingService.payPage(req.params.subscriptionId);
   if (!html) { res.status(404).type('text/plain').send('Payment link not found.'); return; }

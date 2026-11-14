@@ -23,6 +23,7 @@ const KIND_LABEL: Record<BillingEventKind, string> = {
   on_hold: 'Payment on hold',
   cancelled: 'Cancelled',
   expired: 'Expired',
+  pack_bought: 'Bought a Brief Pack',
 };
 
 const PLAN_LABEL = PLAN_NAME;
@@ -71,7 +72,7 @@ export function BillingView() {
         });
       }
       case 'signup': return all.filter((e) => e.kind === 'signup');
-      case 'paid': return all.filter((e) => e.kind === 'subscription_active' || e.kind === 'renewed' || e.kind === 'plan_changed');
+      case 'paid': return all.filter((e) => e.kind === 'subscription_active' || e.kind === 'renewed' || e.kind === 'plan_changed' || e.kind === 'pack_bought');
       case 'problems': return all.filter((e) => ['payment_failed', 'on_hold', 'cancelled', 'expired'].includes(e.kind));
       default: return all;
     }

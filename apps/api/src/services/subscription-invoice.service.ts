@@ -230,7 +230,7 @@ const day = (d: Date | null) => (d ? new Date(d).toLocaleDateString('en-IN', { d
 function invoiceHtml(r: InvoiceRow): string {
   const s = r.seller;
   const b = r.buyer;
-  const plan = `DifAi ${planLabel(r.plan, r.seats, r.munshi_seats ?? 0)}, billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`;
+  const plan = `DifAi ${planLabel(r.plan, r.seats, r.munshi_seats ?? 0)}, ${r.cycle === 'one-time' ? 'one-time purchase' : `billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`}`;
   const period = r.period_start || r.period_end ? `Service period: ${day(r.period_start)} – ${day(r.period_end)}` : '';
   const taxRows = r.igst_paise
     ? `<tr><td>IGST @ 18%</td><td class="n">${inr(r.igst_paise)}</td></tr>`

@@ -1,13 +1,14 @@
 import crypto from 'node:crypto';
 import type {
   AdminBillingEvent, AdminBillingSummary, BillingCycle, BillingEventKind, BillingPlan,
-  BillingPlanId, BillingStateResponse, FirmPlanTier, PaidPlanId,
+  BillingPlanId, BillingStateResponse, BriefPack, BriefPackId, FirmPlanTier, PaidPlanId,
 } from '@lexdraft/types';
 import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
-import { isPaidPlan, MUNSHI, MUNSHI_ROLES, monthlyValueInr, periodPriceInr, planLabel, PLANS } from '../lib/plans';
+import { BRIEF_PACK_DAYS, BRIEF_PACKS, isBriefPack, isPaidPlan, MUNSHI, MUNSHI_ROLES, monthlyValueInr, periodPriceInr, planLabel, PLANS } from '../lib/plans';
+import { creditService } from './credit.service';
 import { BadRequestError, ForbiddenError, HttpError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidatePermissionsCache } from './permissions.service';
@@ -184,6 +185,12 @@ function hexEqual(given: string, expected: string): boolean {
 }
 
 const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
+const ORDER_ID = /^order_[A-Za-z0-9]{6,40}$/;
+
+export function briefPacks(): BriefPack[] {
+  const can = paymentsEnabled();
+  return (Object.keys(BRIEF_PACKS) as BriefPackId[]).map((id) => ({ id, ...BRIEF_PACKS[id], purchasable: can }));
+}
 
 type RzpSubscription = {
   id?: string; plan_id?: string; status?: string; quantity?: number; paid_count?: number; created_at?: number;
@@ -201,6 +208,35 @@ async function cancelNow(subscriptionId: string, firmId: string): Promise<void> 
   logger.warn({ firmId, subscriptionId }, 'razorpay: duplicate subscription cancelled - refund its payment in the dashboard');
 }
 
+/** Grants a paid Brief Pack: exactly once (grant ref + invoice are unique on the
+ *  payment id), only for the pack's exact price, as read from our own order. */
+async function grantBriefPack(eventId: string, payment: { id: string; order_id: string; amount?: unknown }): Promise<void> {
+  const sql = db();
+  if (!sql) return;
+  const order = await razorpay<{ amount?: number; notes?: Record<string, unknown> | unknown[] }>('GET', `/orders/${payment.order_id}`);
+  const notes = (order.notes && !Array.isArray(order.notes) ? order.notes : {}) as Record<string, unknown>;
+  const pack = notes.pack;
+  const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
+  if (!isBriefPack(pack) || !firmId) return; // not one of ours
+  const want = BRIEF_PACKS[pack].priceInr * 100;
+  if (Number(payment.amount) !== want || Number(order.amount) !== want) {
+    logger.error({ paymentId: payment.id, pack, amount: payment.amount }, 'brief pack: amount does not match the pack, NOT granted');
+    return;
+  }
+  const granted = await creditService.addGrant({
+    firmId, source: 'topup', amount: BRIEF_PACKS[pack].credits, ref: `topup:${payment.id}`,
+    expiresAt: new Date(Date.now() + BRIEF_PACK_DAYS * 86_400_000), note: pack,
+  });
+  await subscriptionInvoiceService.issueForPayment({
+    firmId, paymentId: payment.id, amountPaise: want, subscriptionId: null,
+    plan: pack, cycle: 'one-time', seats: 0, periodStart: null, periodEnd: null,
+  });
+  if (granted) {
+    const userId = typeof notes.user_id === 'string' ? notes.user_id : null;
+    await logEvent({ firmId, userId, kind: 'pack_bought', plan: pack, cycle: 'one-time', amountInr: BRIEF_PACKS[pack].priceInr, providerRef: payment.id, webhookId: eventId });
+  }
+}
+
 export const billingService = {
   plans: billingPlans,
 
@@ -208,6 +244,7 @@ export const billingService = {
     const u = await loadUser(userId);
     return {
       plans: billingPlans(),
+      packs: briefPacks(),
       current: {
         planTier: u.plan_tier,
         planStatus: u.plan_status,
@@ -288,6 +325,29 @@ export const billingService = {
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${sub.id}` };
   },
 
+  /** A Brief Pack: a one-time Razorpay order for its exact price. Credits are
+   *  granted only by the signed `payment.captured` webhook. Owner only. */
+  async startPackCheckout(userId: string, pack: BriefPackId): Promise<{ checkoutUrl: string }> {
+    if (!isBriefPack(pack)) throw new BadRequestError('Unknown Brief Pack.', { code: 'invalid_pack' });
+    const u = await loadUser(userId);
+    if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
+    if (!OWNER_ROLES.has(u.role)) {
+      throw new ForbiddenError('Only the account owner can buy Brief Packs.', { code: 'billing_owner_only' });
+    }
+    if (!paymentsEnabled()) {
+      throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });
+    }
+    const p = BRIEF_PACKS[pack];
+    const order = await razorpay<{ id: string }>('POST', '/orders', {
+      amount: p.priceInr * 100,
+      currency: 'INR',
+      receipt: `pack-${crypto.randomUUID().slice(0, 30)}`,
+      notes: { firm_id: u.firm_id, user_id: u.user_id, pack },
+    });
+    await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan: pack, cycle: 'one-time', amountInr: p.priceInr, providerRef: order.id });
+    return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
+  },
+
   /** The firm whose invoices this user may see: only the account owner's. */
   async ownerFirmId(userId: string): Promise<string> {
     const u = await loadUser(userId);
@@ -307,16 +367,18 @@ export const billingService = {
     await logEvent({ firmId: u.firm_id, userId, kind: 'signup', plan, cycle });
   },
 
-  /** The small page that opens Razorpay Checkout for a subscription, then
-   *  returns to the app. Null when the id is malformed or payments are off. */
-  payPage(subscriptionId: string): string | null {
-    if (!SUBSCRIPTION_ID.test(subscriptionId) || !paymentsEnabled()) return null;
+  /** The small page that opens Razorpay Checkout for a subscription (sub_…)
+   *  or a Brief Pack order (order_…), then returns to the app. Null when the
+   *  id is malformed or payments are off. */
+  payPage(id: string): string | null {
+    const isOrder = ORDER_ID.test(id);
+    if ((!isOrder && !SUBSCRIPTION_ID.test(id)) || !paymentsEnabled()) return null;
     const base = env.webPublicBaseUrl.replace(/\/$/, '');
     const options = {
       key: env.razorpay.keyId,
-      subscription_id: subscriptionId,
+      ...(isOrder ? { order_id: id } : { subscription_id: id }),
       name: 'DifAi',
-      description: 'DifAi plan',
+      description: isOrder ? 'DifAi Brief Pack' : 'DifAi plan',
       callback_url: `${base}/api/billing/callback`,
       redirect: true,
       theme: { color: '#111111' },
@@ -342,6 +404,14 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
   checkoutReturn(body: Record<string, unknown>): string {
     const base = `${env.webPublicBaseUrl.replace(/\/$/, '')}/app/billing?checkout=`;
     const paymentId = String(body.razorpay_payment_id ?? '');
+    const orderId = String(body.razorpay_order_id ?? '');
+    if (orderId) {
+      // A Brief Pack order: signature = HMAC(order_id|payment_id).
+      const s = String(body.razorpay_signature ?? '');
+      if (!paymentId || !s || !env.razorpay.keySecret) return `${base}cancelled`;
+      const want = crypto.createHmac('sha256', env.razorpay.keySecret).update(`${orderId}|${paymentId}`).digest('hex');
+      return hexEqual(s, want) ? `${base}pack-done` : `${base}cancelled`;
+    }
     const subId = String(body.razorpay_subscription_id ?? '');
     const sig = String(body.razorpay_signature ?? '');
     if (!paymentId || !subId || !sig || !env.razorpay.keySecret) return `${base}cancelled`;
@@ -377,6 +447,15 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     const subscriptionId = sub.id ?? (typeof payment.subscription_id === 'string' ? payment.subscription_id : null);
     const notes = (sub.notes && !Array.isArray(sub.notes) ? sub.notes : {}) as Record<string, unknown>;
     const periodEnd = typeof sub.current_end === 'number' ? new Date(sub.current_end * 1000) : null;
+
+    // A Brief Pack payment (one-time order). Subscription payments also send
+    // payment.captured; those carry no pack on their order and are ignored.
+    if (type === 'payment.captured') {
+      if (typeof payment.order_id === 'string' && ORDER_ID.test(payment.order_id) && typeof payment.id === 'string') {
+        await grantBriefPack(eventId, payment as { id: string; order_id: string; amount?: unknown });
+      }
+      return;
+    }
 
     // Which firm: our notes first, else the stored subscription id.
     let firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;

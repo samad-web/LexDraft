@@ -1,5 +1,7 @@
 # Changelog
 
+- Brief Packs (2026-11-14), not deployed: buy 25 / 60 / 130 / 330 AI credits (₹499 / ₹999 / ₹1,999 / ₹4,999, GST incl., valid 12 months) on Plan & Billing. One-time Razorpay payment, credits added by the payment webhook, a GST invoice for each. Not shown in the Android app.
+
 - AI credits (2026-11-14), not deployed, ships with pricing v4:
   - Every AI feature costs credits: 1 credit = one 400-word drafted page, small actions ½ to 3, contract review 6+. One shared pool per firm, monthly.
   - Pages past the balance are drafted but locked: cut on the server, unlocked with credits; a locked draft can't be saved, downloaded or e-filed.

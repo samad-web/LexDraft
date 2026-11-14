@@ -1,6 +1,6 @@
 # Feature: Brief Packs (one-time AI credit top-ups)
 
-Status: **awaiting approval** (2026-11-14). The owner chose to ship Brief Packs in the AI-credits release. Prices are the v4 DRAFT, **not final**, and live in one config.
+Status: **built 2026-11-14** (approved 2026-11-14). The owner chose to ship Brief Packs in the AI-credits release. Prices are the v4 DRAFT, **not final**, and live in one config.
 
 ## Purpose
 - When the month's credits run out, an advocate can buy more now instead of upgrading or waiting.
@@ -29,7 +29,7 @@ Status: **awaiting approval** (2026-11-14). The owner chose to ship Brief Packs 
     - Grant: `credit_grants` with `source='topup'`, `ref='topup:<payment id>'` (unique, so a redelivery is a no-op), expiring 12 months later.
     - **GST invoice:** "DifAi Brief Pack (60 credits)", same numbering and tax split.
     - Event logged as `pack_bought`.
-- **No migration needed.** Grants, invoices and events already have the columns: invoice `plan` = pack id, `cycle` = 'one-time', `seats` = 0.
+- **Migration 0109 (additive):** only adds `pack_bought` to the `billing_events.kind` check. Grants and invoices reuse their columns: invoice `plan` = pack id, `cycle` = 'one-time', `seats` = 0.
 - **Web:**
     - "Brief Packs" on Plan & Billing, under the credit meter.
     - The locked-draft card and the credits sheet link to it.
@@ -61,3 +61,9 @@ Status: **awaiting approval** (2026-11-14). The owner chose to ship Brief Packs 
 3. A wrong amount or an unknown pack grants nothing.
 4. Pack credits are spent after the month's plan credits.
 5. Web shows the packs on Plan & Billing (hidden on Android); web and API pack lists match.
+
+## As built (2026-11-14)
+- **Shared plumbing:** the plan pay page and callback serve both kinds. `/api/billing/pay/:id` takes `sub_…` or `order_…`. The callback checks HMAC(`order_id|payment_id`) for orders and goes to `?checkout=pack-done`.
+- **Webhook:** pack id, firm and amount are read from **our own order** (`GET /orders/:id`), never from the payment. Subscription payments also send `payment.captured`; their orders carry no pack, so they are ignored.
+- **Web:** the packs come from `/api/billing` (`packs`), so there is no second list to keep in step. The card shows the price per page. Android shows no packs.
+- Migration 0109 applied locally only.

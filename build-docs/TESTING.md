@@ -248,3 +248,12 @@
 - Integration test data bug (identical paragraphs) fixed in the test.
 - Clean worktree: API 994 passed / 0 failed, credits integration 10/10, web 260/260, API + web typecheck clean.
 - 2026-11-14 diary briefing charged: `diary-briefing-credits.test.ts` 3 tests (½ once, same-day re-open free with no model call, out of credits → counts only, failed model refunded). All pass.
+
+## Brief Packs — 2026-11-14 (features/brief-packs.md)
+- `brief-packs.test.ts` 14 tests:
+    - AC1: each pack's order is created for its exact paise; non-owner 403; unknown pack 400; no keys 503; the pay page uses `order_id`; HMAC(order|payment) return → pack-done, a forged one → cancelled.
+    - AC2: pack_60 paid → 60 credits, 365 days, one invoice for ₹999 `one-time`, `pack_bought` logged; a redelivery adds nothing.
+    - AC3: a wrong paid amount, a changed order amount, an unknown pack, or a subscription payment → no grant, no invoice.
+    - AC5: the pack list.
+- AC4 (plan credits before pack credits) is covered by credits.integration.test.ts.
+- Migration 0109 applied to the local DB.

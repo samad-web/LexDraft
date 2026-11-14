@@ -48,6 +48,7 @@ export const SIGNUP_PLANS: BillingPlan[] = [
 export const PLAN_NAME: Record<string, string> = {
   free: 'Free', sanad: 'Sanad', vakalat: 'Vakalat', brief: 'Brief', associates: 'Associates', partners: 'Partners',
   solo: 'Solo', practice: 'Chamber', firm: 'Firm',
+  pack_25: 'Brief Pack · 25 credits', pack_60: 'Brief Pack · 60 credits', pack_130: 'Brief Pack · 130 credits', pack_330: 'Brief Pack · 330 credits',
 };
 
 export const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;

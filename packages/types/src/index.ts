@@ -1164,6 +1164,8 @@ export interface BillingPlan {
 
 export interface BillingStateResponse {
   plans: BillingPlan[];
+  /** Brief Packs on offer (one-time credit top-ups). */
+  packs: BriefPack[];
   current: {
     planTier: FirmPlanTier | null;
     planStatus: BillingStatus | null;
@@ -1220,7 +1222,18 @@ export interface SubscriptionInvoice {
 
 export type BillingEventKind =
   | 'signup' | 'checkout_started' | 'subscription_active' | 'renewed'
-  | 'plan_changed' | 'payment_failed' | 'on_hold' | 'cancelled' | 'expired';
+  | 'plan_changed' | 'payment_failed' | 'on_hold' | 'cancelled' | 'expired' | 'pack_bought';
+
+/** Brief Packs: one-time AI credit top-ups, valid 12 months (pricing v4 draft). */
+export type BriefPackId = 'pack_25' | 'pack_60' | 'pack_130' | 'pack_330';
+export interface BriefPack {
+  id: BriefPackId;
+  credits: number;
+  /** GST-inclusive price. */
+  priceInr: number;
+  /** Can be bought online right now. */
+  purchasable: boolean;
+}
 
 /** One row of the superadmin Billing page. */
 export interface AdminBillingEvent {
