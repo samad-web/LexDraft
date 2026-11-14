@@ -1,6 +1,6 @@
 # Evidence tables (list of documents, annexures, summaries)
 
-Status: built and tested locally 2026-11-14 (approved same day); not deployed. Deferred: engine format templates that print LIST OF DOCUMENTS as lines (s.138 complaint etc., golden tests) and tab-separated plain-text copy.
+Status: built and tested locally 2026-11-14, incl. part 2 (built-in format templates, Copy as table, editor plain text); not deployed.
 
 ## Purpose
 Indian court practice sets out evidence material as a ruled table, not prose: a list of documents (Sr. No | Date | Description of document | Remarks), an index of annexures, a list of dates, or a summary of admissions (Point | Admission / Position). DifAi currently flattens these into text:

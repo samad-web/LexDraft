@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any, Mapping, Union
+from typing import Any, List, Mapping, Union
 
 from docxtpl import DocxTemplate
 from docx import Document
@@ -103,8 +103,16 @@ def extract_text(docx_path: Union[str, Path]) -> str:
 
     Deterministic: only the text and its order, which is the legally meaningful
     content golden tests pin. Trailing whitespace per line is stripped; blank
-    paragraphs are preserved as empty lines so structure is visible.
+    paragraphs are preserved as empty lines so structure is visible. A table (a list
+    of documents, dates or annexures) reads in its place as one "| a | b |" line per
+    row, the same lines the Draft page shows.
     """
-    doc = Document(str(docx_path))
-    lines = [p.text.rstrip() for p in doc.paragraphs]
+    from ..service.tables import body_items, row_text, row_values
+
+    lines: List[str] = []
+    for item in body_items(Document(str(docx_path))):
+        if hasattr(item, "rows"):
+            lines += [row_text(row_values(r)) for r in item.rows if any(row_values(r))]
+        else:
+            lines.append(item.text.rstrip())
     return "\n".join(lines).strip() + "\n"

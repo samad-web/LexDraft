@@ -226,19 +226,21 @@ SLP = {**PAYLOADS["special_leave_petition"], "impugned_court": "the Madurai Benc
 
 def test_special_leave_petition_item5_list_of_dates_from_the_brief():
     text = _text("special_leave_petition", SLP, allow_placeholders=True)
-    assert ("2011: O.S. No. 54 of 2011 on the file of the District Munsif Court, Melur.\n"
-            "2015: A.S. No. 31 of 2015 on the file of the Principal Subordinate Court, Madurai.\n"
-            "28.08.2026: the Madurai Bench of the Madras High Court in S.A. No. 412 of 2019 passed the impugned "
-            "final judgment and order.\n"
-            "15.09.2026: The certified copy of the judgment was received on 15.09.2026.") in text
+    # evidence-tables: the list of dates is a Date | Event table, one row per entry
+    assert ("| 2011 | O.S. No. 54 of 2011 on the file of the District Munsif Court, Melur. |\n"
+            "| 2015 | A.S. No. 31 of 2015 on the file of the Principal Subordinate Court, Madurai. |\n"
+            "| 28.08.2026 | the Madurai Bench of the Madras High Court in S.A. No. 412 of 2019 passed the impugned "
+            "final judgment and order. |\n"
+            "| 15.09.2026 | The certified copy of the judgment was received on 15.09.2026. |") in text
     assert "List of dates and events" not in text
 
 
 def test_special_leave_petition_item13_annexure_index():
     text = _text("special_leave_petition", SLP, allow_placeholders=True)
-    assert ("Annexure P-2: True copy of the judgment and decree in O.S. No. 54 of 2011 on the "
-            "file of the District Munsif Court, Melur.\nAnnexure P-3: True copy of the judgment and decree in "
-            "A.S. No. 31 of 2015 on the file of the Principal Subordinate Court, Madurai.") in text
+    # evidence-tables: the index of annexures is an Annexure | Description | Page table
+    assert ("| P-2 | True copy of the judgment and decree in O.S. No. 54 of 2011 on the "
+            "file of the District Munsif Court, Melur |  |\n| P-3 | True copy of the judgment and decree in "
+            "A.S. No. 31 of 2015 on the file of the Principal Subordinate Court, Madurai |  |") in text
 
 
 def test_transfer_petition_item11_deponent_age():

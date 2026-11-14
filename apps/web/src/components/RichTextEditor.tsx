@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { Icon, type IconName } from '@lexdraft/ui';
+import { isTableRow } from './engine/DraftBlockText';
 
 interface RichTextEditorProps {
   value: string;
@@ -147,16 +148,47 @@ export function plainTextToHtml(text: string): string {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
-  const blocks = text.split(/\n{2,}/);
+  // Rows of one table may arrive a blank line apart (one paragraph per line): join them.
+  const blocks: string[] = [];
+  for (const block of text.split(/\n{2,}/)) {
+    const prev = blocks[blocks.length - 1];
+    const isRows = (b: string) => b.split('\n').every(isTableRow);
+    if (prev !== undefined && isRows(block) && isRows(prev)) blocks[blocks.length - 1] = `${prev}\n${block}`;
+    else blocks.push(block);
+  }
   return blocks
     .map((block) => {
+      // An evidence table (2+ "| a | b |" rows) shows as a table, heading row first.
+      const rows = block.split('\n');
+      if (rows.length > 1 && rows.every(isTableRow)) {
+        const tr = (row: string, tag: 'th' | 'td') =>
+          `<tr>${row.trim().slice(1, -1).split('|').map((c) => `<${tag}>${escape(c.trim())}</${tag}>`).join('')}</tr>`;
+        return `<table class="draft-table">${rows.map((r, i) => tr(r, i === 0 ? 'th' : 'td')).join('')}</table>`;
+      }
       const safe = escape(block).replace(/\n/g, '<br/>');
       return `<p>${safe || '<br/>'}</p>`;
     })
     .join('');
 }
 
+/** Editor HTML -> plain text, the inverse of plainTextToHtml: one block per <p>/<div>
+ *  (blank line between), <br> a line break, and a table one "| a | b |" line per row
+ *  (the evidence-table text form the engine lays out as a Word table). */
 export function htmlToPlainText(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  return (doc.body.textContent ?? '').replace(/\s+\n/g, '\n').trim();
+  doc.querySelectorAll('br').forEach((br) => br.replaceWith('\n'));
+  const parts: string[] = [];
+  doc.body.childNodes.forEach((node) => {
+    if (node.nodeName === 'TABLE') {
+      const rows = [...(node as HTMLTableElement).querySelectorAll('tr')]
+        .map((tr) => [...tr.querySelectorAll('th,td')].map((c) => (c.textContent ?? '').replace(/\s+/g, ' ').trim()))
+        .filter((cells) => cells.some(Boolean))
+        .map((cells) => `| ${cells.join(' | ')} |`);
+      if (rows.length) parts.push(rows.join('\n'));
+      return;
+    }
+    const text = (node.textContent ?? '').replace(/[ \t]+\n/g, '\n').trim();
+    if (text) parts.push(text);
+  });
+  return parts.join('\n\n');
 }

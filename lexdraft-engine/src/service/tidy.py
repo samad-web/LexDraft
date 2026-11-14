@@ -11,7 +11,8 @@ that pin raw template rendering are unaffected:
 
   - leading blank paragraphs are removed and any run of blanks becomes one;
   - ISO dates in body paragraphs become ``dd.mm.yyyy`` (components/date_format).
-    Tables are left alone: schedules use their own ``dd-mm-yyyy`` convention;
+    Schedule tables are left alone (their own ``dd-mm-yyyy`` convention); evidence
+    tables (service/tables.add_table) are tidied like the body;
     body ``dd-mm-yyyy`` dates become ``dd.mm.yyyy`` too;
   - rupee figures get Indian grouping (``Rs. 1000000`` -> ``Rs. 10,00,000``);
   - a numbered paragraph sequence that skips a number because an optional
@@ -25,6 +26,8 @@ from pathlib import Path
 from typing import Union
 
 from docx import Document
+
+from .tables import is_evidence_table
 
 _ISO_DATE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 
@@ -129,13 +132,26 @@ def tidy_docx(path: Union[str, Path]) -> None:
         prev_blank = False
         _fix_court_heading(p)
         _renumber(p, numbering)
-        for run in p.runs:
-            text = run.text
-            text = _ISO_DATE.sub(lambda m: f"{m[3]}.{m[2]}.{m[1]}", text)
-            text = _DASH_DATE.sub(lambda m: f"{m[1]}.{m[2]}.{m[3]}", text)
-            text = _RUPEES.sub(lambda m: m[1] + indian_grouping(m[2]), text)
-            text = _DAY_OF.sub(lambda m: f"the {_ordinal(m[1])} ", text)
-            text = _PLURAL_S.sub(lambda m: f"{m[1]} {m[2]}{'' if m[1] == '1' else 's'}", text)
-            if text != run.text:
-                run.text = text
+        _tidy_runs(p)
+    # Evidence tables (a list of documents, dates, annexures) get the same dates and
+    # amounts; a hand-laid court schedule keeps its own dd-mm-yyyy convention.
+    for table in doc.tables:
+        if not is_evidence_table(table):
+            continue
+        for row in table.rows:
+            for cell in row.cells:
+                for p in cell.paragraphs:
+                    _tidy_runs(p)
     doc.save(str(path))
+
+
+def _tidy_runs(p) -> None:
+    for run in p.runs:
+        text = run.text
+        text = _ISO_DATE.sub(lambda m: f"{m[3]}.{m[2]}.{m[1]}", text)
+        text = _DASH_DATE.sub(lambda m: f"{m[1]}.{m[2]}.{m[3]}", text)
+        text = _RUPEES.sub(lambda m: m[1] + indian_grouping(m[2]), text)
+        text = _DAY_OF.sub(lambda m: f"the {_ordinal(m[1])} ", text)
+        text = _PLURAL_S.sub(lambda m: f"{m[1]} {m[2]}{'' if m[1] == '1' else 's'}", text)
+        if text != run.text:
+            run.text = text

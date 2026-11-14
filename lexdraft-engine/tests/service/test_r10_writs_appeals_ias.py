@@ -211,7 +211,8 @@ def test_counter_affidavit_sole_respondent_balance_of_convenience_documents():
     assert "1. I am the respondent herein. I am well acquainted with the facts" in text
     assert "acting on behalf" not in text and "1st respondent" not in text.lower()
     assert "The balance of convenience is not in favour of the petitioner" in text
-    assert "DOCUMENTS RELIED ON BY THE RESPONDENT:\n1. Sale deed of 2004\n2. Patta\n3. FMB sketch" in text
+    assert ("DOCUMENTS RELIED ON BY THE RESPONDENT:\n| Sr. No | Description of document |\n"
+            "| 1 | Sale deed of 2004 |\n| 2 | Patta |\n| 3 | FMB sketch |") in text  # evidence-tables
     assert "aged about ___ years" in text and "{%" not in text
 
 

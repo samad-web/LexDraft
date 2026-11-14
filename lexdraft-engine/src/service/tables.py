@@ -7,7 +7,7 @@ Word table; read back for display, every table row is one "| a | b |" line again
 from __future__ import annotations
 
 import re
-from typing import Iterator, List, Union
+from typing import Iterator, List, Optional, Union
 
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -74,6 +74,16 @@ def runs_of(lines: List[str]) -> List[Union[str, List[List[str]]]]:
     return out
 
 
+EVIDENCE_MARK = "evidence-table"
+
+
+def is_evidence_table(table: Table) -> bool:
+    """A table add_table made (a list of documents, dates, annexures, admissions) — not
+    a court schedule laid out by hand, which keeps its own conventions (service/tidy)."""
+    desc = table._tbl.tblPr.find(qn("w:tblDescription"))
+    return desc is not None and desc.get(qn("w:val")) == EVIDENCE_MARK
+
+
 def _border_all(table: Table) -> None:
     borders = OxmlElement("w:tblBorders")
     for edge in ("top", "left", "bottom", "right", "insideH", "insideV"):
@@ -81,14 +91,61 @@ def _border_all(table: Table) -> None:
         for k, v in (("val", "single"), ("sz", "4"), ("space", "0"), ("color", "000000")):
             el.set(qn(f"w:{k}"), v)
         borders.append(el)
-    table._tbl.tblPr.append(borders)
+    tbl_pr = table._tbl.tblPr
+    # schema order: tblBorders comes before shd/tblLayout/tblCellMar/tblLook/tblCaption/tblDescription
+    later = next((c for c in tbl_pr if c.tag in {qn(f"w:{t}") for t in ("shd", "tblLayout", "tblCellMar", "tblLook", "tblCaption", "tblDescription")}), None)
+    if later is not None:
+        later.addprevious(borders)
+    else:
+        tbl_pr.append(borders)
+    mark = OxmlElement("w:tblDescription")  # last child of tblPr
+    mark.set(qn("w:val"), EVIDENCE_MARK)
+    tbl_pr.append(mark)
 
 
-def add_table(doc, rows: List[List[str]]) -> Table:
+_TAG = re.compile(r"\{[{%].*?[%}]\}")
+_TEXT_WIDTH_CM = 14.6  # A4 less the 3.81 cm binding and 2.54 cm right margins
+
+
+_CM_PER_CHAR, _PAD_CM = 0.21, 0.5  # 12 pt body text, plus cell margins
+
+
+def column_widths(rows: List[List[str]]) -> List[float]:
+    """Widths in cm by content. Each column gets at least its longest unbroken word (a
+    date, a short heading such as "Sr. No"), so nothing breaks mid-word; the rest of
+    the line goes to the columns with more text. Template tags ({{ d.x }}) don't count."""
+    texts = [[_TAG.sub("", r[c]).strip() for r in rows] for c in range(len(rows[0]))]
+    def tokens(col):
+        words = [len(w) for t in col for w in t.split()]
+        head = len(col[0]) if len(col[0]) <= 10 else 0  # a short heading stays on one line
+        return max([head, *words, 1])
+    least = [_CM_PER_CHAR * tokens(col) + _PAD_CM for col in texts]
+    natural = [max(least[c], _CM_PER_CHAR * max(len(t) for t in col) + _PAD_CM) for c, col in enumerate(texts)]
+    if sum(least) >= _TEXT_WIDTH_CM:
+        return [_TEXT_WIDTH_CM * w / sum(least) for w in least]
+    if sum(natural) <= _TEXT_WIDTH_CM:
+        return [_TEXT_WIDTH_CM * w / sum(natural) for w in natural]
+    spare = _TEXT_WIDTH_CM - sum(least)
+    extra = [n - l for n, l in zip(natural, least)]
+    return [l + spare * e / sum(extra) for l, e in zip(least, extra)]
+
+
+def _fit_columns(table: Table, rows: List[List[str]]) -> None:
+    from docx.shared import Cm
+    table.autofit = False
+    for c, cm in enumerate(column_widths(rows)):
+        width = Cm(cm)
+        table._tbl.tblGrid.gridCol_lst[c].w = width  # LibreOffice (the PDF) reads the grid
+        for cell in table.columns[c].cells:
+            cell.width = width
+
+
+def add_table(doc, rows: List[List[str]], sizing: Optional[List[List[str]]] = None) -> Table:
     """A ruled table at the end of `doc`: bold heading row repeated on every page,
     rows never split across a page."""
     table = doc.add_table(rows=len(rows), cols=len(rows[0]))
     _border_all(table)
+    _fit_columns(table, rows + (sizing or []))  # sizing: sample rows for a template's tags
     for r, values in enumerate(rows):
         row = table.rows[r]
         tr_pr = row._tr.get_or_add_trPr()

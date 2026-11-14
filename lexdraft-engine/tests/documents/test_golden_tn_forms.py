@@ -319,7 +319,7 @@ def test_golden_call_for_memo(tmp_path):
     assert "CALL FOR MEMO" in txt
     assert "applied for certified copy of the following documents" in txt
     # numbered documents autofilled
-    assert "1) the complaint" in txt and "3) the cheque" in txt
+    assert "| 1 | the complaint |" in txt and "| 3 | the cheque |" in txt  # evidence-tables
     assert "Court fee of Rs." in txt
     assert "COUNSEL FOR ACCUSED" in txt
     _assert_golden("tn_call_for_memo", txt)

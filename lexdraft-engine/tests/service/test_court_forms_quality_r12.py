@@ -174,7 +174,7 @@ def test_appeal_record_cost_schedule_title_and_exhibits():
         "documents": [{"description": "Typed matter of the record", "pages_printing": "120"},
                       {"description": "Exhibits", "count": "4"}]})
     assert "APPEAL RECORD COPYING/PRINTING COST SCHEDULE" in text and "TRANSLATED" not in text
-    assert "2. Exhibits (4 in number); estimated cost:" in text
+    assert "| 2 | Exhibits (4 in number) |" in text  # evidence-tables: a table row
 
 
 _S80 = {"advocate": "Mr. A. Arun", "client": "Mr. V. Kumar",

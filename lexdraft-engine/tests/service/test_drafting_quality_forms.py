@@ -221,7 +221,8 @@ def test_appeal_record_cost_schedule_lower_court_particulars():
 def test_appeal_record_cost_schedule_costs_are_placeholders_without_rates():
     text = _text("appeal_record_cost_schedule", _ARCS)
     assert "Form 476" not in text  # unverified for a District Court A.S.: neutral label
-    assert text.count("; estimated cost: [to be computed at the rate prescribed by the Court]") == 2
+    # evidence-tables: the Estimated cost column of each of the two rows
+    assert text.count("| [to be computed at the rate prescribed by the Court] |") == 2
     assert "Total estimated cost: [to be computed at the rate prescribed by the Court]" in text
     priced = _text("appeal_record_cost_schedule", {**_ARCS, "documents": [
         {"description": "Typed matter", "cost_estimate": "Rs. 1,200"},

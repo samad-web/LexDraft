@@ -191,7 +191,7 @@ def test_succession_certificate_state_is_never_a_respondent():
 def test_slp_synopsis_limitation_and_second_appeal():
     t = _draft("special_leave_petition", impugned_in_second_appeal=True,
                list_of_dates=["14.12.2015 — impugned judgment"])
-    assert "SYNOPSIS AND LIST OF DATES" in t and "14.12.2015 — impugned judgment" in t
+    assert "SYNOPSIS AND LIST OF DATES" in t and "| 14.12.2015 | impugned judgment |" in t
     assert "LIMITATION: the period of ninety days" in t
     assert "Second Appeal under Section 100 of the Code of Civil Procedure" in t
     assert "Section 100(4) and (5) CPC" in t

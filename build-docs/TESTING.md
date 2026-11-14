@@ -1,4 +1,13 @@
 # Testing
+## Evidence tables, part 2 — 2026-11-14 (features/evidence-tables.md)
+- Built-in formats now print their lists as ruled tables: s.138 complaint (Sr. No | Date | Description | Remarks), counter affidavit and call-for memo (Sr. No | Description), appeal record cost schedule (7 columns), SLP list of dates (Date | Event) and index of annexures (Annexure | Description | Page). tools/tableize_templates.py did it (idempotent; sample rows size the columns).
+- Text read-back (extract_text, goldens) now includes tables in reading order: 8 goldens regenerated after review (list lines -> rows, same content; copy application and batta witness tables now visible). 10 tests updated from "1. X (Original)" lines to the row form, same facts asserted.
+- Found: tidy (dates dd-mm-yyyy -> dd.mm.yyyy, Rs. grouping) skipped table cells, so the s.138 list lost 01.12.2023 formatting (bundle test). Fix: evidence tables (marked by add_table) are tidied; hand-laid court schedules keep their own convention (earlier decision kept).
+- Found: table borders were written after tblLook (schema order); fixed + test. Columns now sized by content (no mid-word breaks in Sr. No / Date). PDF checked through LibreOffice: s.138 TN complaint list and the written-arguments tables render ruled, header repeated.
+- Found: htmlToPlainText merged all paragraphs into one and table cells into a run (feeds save, Sanhita replace, scan, Copy). Fixed: blocks a blank line apart, table rows as "| a | b |"; plainTextToHtml turns row blocks back into a table. Copy text now puts HTML (Word pastes a table) and plain text on the clipboard.
+- Browser check (Chromium, the app's own modules via Vite, no sign-in): table shown in an editable box, typing in a cell maps back to the same row, round trip exact, paragraphs kept apart, clipboard has text/html with a table + text/plain rows. The full signed-in check could not run: the local e2e login (.env.e2e) is rejected by the local DB.
+- Engine full suite 2178/2178.
+
 ## Password-protected PDF — 2026-11-14 (features/protected-pdf.md)
 - api `pdf-protect.test.ts` 13/13: AES-256 args + random owner password; password only via a private arg file (not argv), removed after; watermark twice on every page (decoded content streams), page count kept; Tamil name dropped not crashing; bad passwords (short/long/newline/not text), non-PDF, empty, >25 MB, corrupt PDF → 400; qpdf missing → 503, no temp files left; no output → error.
 - web `pdf-lock.test.ts` 7/7: PIN format/randomness, password rules, watermark text, note never holds the password, request headers (Tamil watermark URI-encoded), server error message shown.

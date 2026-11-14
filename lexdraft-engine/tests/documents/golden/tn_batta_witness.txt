@@ -1,8 +1,14 @@
 IN THE COURT OF City Civil Court AT Chennai
 O.S. No. 12  of 2026
+| Anand Plaintiff | Value of the claim Rs. 2,50,000 |
+| Balu Defendant | Court day 15-10-2026 |
 
 Application made by the above named Plaintiff for issue of Process (and Deposit of witness Batta Etc.)
 
+| Nature of process sought to be issued with section of law | Nature and description of person on whom or on whose property process is sought to be issued or executed | The Municipal Division or other place where the process is to be served or executed | Distance in miles from court house | Travelling Allowance for journey to and from Court house | Class of allowance | Amount | For how many days | Process fees | Remarks |
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|  |  |  |  | Rs P |  | Rs P |  | Rs P |  |
+| Summons to witness u/O.16 CPC | Dr. K. Rao, Doctor | Egmore, Chennai | 3 |  |  |  |  | 50 |  |
 
 Dated at Chennai on this the 1 day of August 2026.
 Counsel for Plaintiff

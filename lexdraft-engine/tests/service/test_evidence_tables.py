@@ -14,8 +14,8 @@ from src.service.tables import expand, is_row, runs_of
 
 DOCS = [
     "| Sr. No | Date | Description of document | Remarks |",
-    "| 01. | 13-02-2026 | Copy of CSR No.262/2026 issued by Respondent Police | Xerox |",
-    "| 02. | 29-03-2025 | Bank Transaction Details | Xerox |",
+    "| 01. | 13.02.2026 | Copy of CSR No.262/2026 issued by Respondent Police | Xerox |",
+    "| 02. | 29.03.2025 | Bank Transaction Details | Xerox |",
 ]
 
 
@@ -101,3 +101,28 @@ def test_splice_over_an_existing_table_replaces_it(tmp_path):
     doc = Document(io.BytesIO(spliced))
     assert len(doc.tables) == 1
     assert [r.cells[2].text for r in doc.tables[0].rows] == ["Description of document", "Corrected CSR copy", "Bank Transaction Details"]
+
+
+def test_evidence_table_dates_tidied_schedule_table_kept(tmp_path):
+    from docx import Document as D
+    from src.service.tables import add_table, is_evidence_table
+    from src.service.tidy import tidy_docx
+    d = D()
+    add_table(d, [["Sr. No", "Date"], ["1", "13-02-2026"], ["2", "2025-03-29"]])
+    schedule = d.add_table(rows=1, cols=1)  # a hand-laid court schedule
+    schedule.rows[0].cells[0].text = "13-02-2026"
+    path = tmp_path / "t.docx"
+    d.save(str(path))
+    tidy_docx(path)
+    doc = D(str(path))
+    assert is_evidence_table(doc.tables[0]) and not is_evidence_table(doc.tables[1])
+    assert [r.cells[1].text for r in doc.tables[0].rows] == ["Date", "13.02.2026", "29.03.2025"]
+    assert doc.tables[1].rows[0].cells[0].text == "13-02-2026"
+
+
+def test_table_properties_in_schema_order(tmp_path):
+    from docx import Document as D
+    from src.service.tables import add_table
+    t = add_table(D(), [["A", "B"], ["1", "2"]])
+    tags = [c.tag.split("}")[1] for c in t._tbl.tblPr]
+    assert tags.index("tblBorders") < tags.index("tblLook") < tags.index("tblDescription")

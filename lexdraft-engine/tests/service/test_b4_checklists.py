@@ -26,7 +26,7 @@ def test_appeal_record_cost_schedule_item5_typed_matter_pages():
         {"description": "Typed matter of the record", "pages": "120 pages"},
         {"description": "Exhibits to be copied", "count": "4"}]}
     text = _text("appeal_record_cost_schedule", sched)
-    assert "1. Typed matter of the record (120 pages); estimated cost" in text
+    assert "| 1 | Typed matter of the record (120 pages) |" in text  # evidence-tables: a table row
     assert "Form 476" not in text  # item 8 left: the form number is unverified
 
 

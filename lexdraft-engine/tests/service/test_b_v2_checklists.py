@@ -116,7 +116,7 @@ def test_condone_delay_petition_item12():
 
 def test_special_leave_petition_item13():
     text = _text("special_leave_petition", PAYLOADS["special_leave_petition"], allow_placeholders=True)
-    assert "P-1: True copy of the impugned judgment dated" in text
+    assert "| P-1 | True copy of the impugned judgment dated" in text  # evidence-tables
     assert "WP 5427/2004" in text.split("INDEX OF ANNEXURES")[1]
 
 

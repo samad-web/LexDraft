@@ -2256,7 +2256,14 @@ export function DraftingView() {
                   )}
                   <button className="btn" type="button" title="Copy the draft text to the clipboard"
                     onClick={() => {
-                      void navigator.clipboard?.writeText(htmlToPlainText(displayHtml));
+                      // HTML too, so a table pastes into Word as a table; plain text elsewhere.
+                      const plain = htmlToPlainText(displayHtml);
+                      void (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write
+                        ? navigator.clipboard.write([new ClipboardItem({
+                          'text/html': new Blob([displayHtml], { type: 'text/html' }),
+                          'text/plain': new Blob([plain], { type: 'text/plain' }),
+                        })]).catch(() => navigator.clipboard.writeText(plain))
+                        : navigator.clipboard?.writeText(plain));
                       showToast({ type: 'sage', text: 'Draft copied to clipboard' });
                     }}>
                     <Icon name="file" size={14} /> Copy text

@@ -224,7 +224,7 @@ def test_s138_complaint_company_md_is_arrayed_as_accused_no_2():
 def test_s138_complaint_document_list_has_postal_receipt_and_acknowledgement():
     text = "\n".join(_draft("s138_complaint", _COMPLAINT))
     docs = text[text.index("LIST OF DOCUMENTS"):]
-    assert "Postal receipt for dispatch of the Statutory Notice (Original)" in docs
+    assert "Postal receipt for dispatch of the Statutory Notice | Original |" in docs  # evidence-tables
     assert "Postal Acknowledgement Card / returned cover for the Statutory Notice" in docs
 
 

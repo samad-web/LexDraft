@@ -59,6 +59,15 @@ def _courts_below(texts: Sequence[str], impugned_case_ref: str) -> List[tuple]:
     return sorted(out, key=lambda x: x[0])
 
 
+_DATE_LEAD = re.compile(r"^\s*(\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|\d{4})\s*(?:[—–:-]\s*)?(.*)$", re.S)
+
+
+def _date_row(entry: str) -> Dict[str, str]:
+    """'14.12.2015 — impugned judgment' -> {date, event}; no leading date -> all event."""
+    m = _DATE_LEAD.match(entry)
+    return {"date": m.group(1), "event": m.group(2).strip()} if m and m.group(2).strip() else {"date": "", "event": entry.strip()}
+
+
 def _derived_dates(texts: Sequence[str], below: List[tuple], judgment: date,
                    impugned_court: str, impugned_case_ref: str) -> List[str]:
     """A list of dates from what is pleaded: each court below by its year, each dated
@@ -242,6 +251,8 @@ def build(
         "interim_relief_sought": interim_relief_sought,
         "synopsis": synopsis.strip(),
         "list_of_dates": dates,
+        # the same dates as Date | Event rows for the list-of-dates table
+        "date_rows": [_date_row(d) for d in dates],
         "annexures": annexures,
         "impugned_in_second_appeal": impugned_in_second_appeal,
         "substantial_questions_framed": framed,

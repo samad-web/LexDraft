@@ -7,13 +7,10 @@ Balu	... Accused
 CALL FOR MEMO
 It is submitted that the above named accused applied for certified copy of the following documents.
 
-
-1) the complaint
-
-2) the sworn statement
-
-3) the cheque
-
+| Sr. No | Description of document |
+| 1 | the complaint |
+| 2 | the sworn statement |
+| 3 | the cheque |
 
 
 For ........................................................................... and the
