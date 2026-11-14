@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useBilling } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { isNativeApp } from '@/lib/google';
 
@@ -19,6 +20,7 @@ import { isNativeApp } from '@/lib/google';
 export function TrialBanner(): JSX.Element | null {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const billing = useBilling();
   if (!user || user.planStatus !== 'trial' || !user.trialEndsAt) return null;
 
   const endsAt = new Date(user.trialEndsAt);
@@ -28,16 +30,22 @@ export function TrialBanner(): JSX.Element | null {
   const expired = msLeft <= 0;
 
   const isDemo = !!user.isDemo;
+  // Pricing v4: a paid plan chosen at sign-up, payment not finished yet.
+  const PAID = ['sanad', 'vakalat', 'brief', 'associates'];
+  const plan = billing.data?.current;
+  const unpaid = !!plan && !plan.freePlan && !plan.subscribed && !!plan.selectedPlan && PAID.includes(plan.selectedPlan);
   // The free launch plan rides the trial clock (till 1 June 2027); a 14-day
   // trial never runs this long.
-  const freePlan = !isDemo && daysLeft > 30;
+  const freePlan = !isDemo && !unpaid && daysLeft > 30;
   const urgency = expired ? 'critical' : daysLeft <= 3 ? 'warn' : 'soft';
   // Android app: no purchase prompts (Play payments policy), and the free-plan
   // strip is only an upsell, so it goes; trial countdowns stay as plain text.
   const native = isNativeApp();
   if (native && freePlan) return null;
 
-  const label = isDemo
+  const label = unpaid
+    ? expired ? 'Your payment was not finished.' : 'Your payment is not finished yet.'
+    : isDemo
     ? expired
       ? 'Your demo session has ended.'
       : daysLeft === 1
@@ -58,10 +66,10 @@ export function TrialBanner(): JSX.Element | null {
       {!native && (
         <>
           <span className="trial-banner-note">
-            {isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
+            {unpaid ? 'Pay for your plan to keep using DifAi.' : isDemo ? 'Convert to a real account to keep your work.' : freePlan ? 'Upgrade any time to unlock every feature.' : 'Pick a plan any time to keep your work.'}
           </span>
           <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>
-            {isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
+            {unpaid ? 'Pay now' : isDemo ? 'Convert' : freePlan ? 'Upgrade' : 'See plans'}
           </button>
         </>
       )}

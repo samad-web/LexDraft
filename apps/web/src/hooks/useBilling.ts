@@ -69,6 +69,11 @@ export function useCompleteOnboarding() {
     mutationFn: (body: OnboardingCompleteRequest) =>
       api.post<OnboardingCompleteResponse>('/onboarding/complete', body),
     onSuccess: (r) => {
+      // Paid plan: go straight to the Razorpay page. This must happen here, not
+      // in the view: saving the onboarded session below routes away from
+      // /onboarding at once, and a per-call onSuccess on an unmounted view
+      // never runs (new sign-ups were landing in the app unpaid).
+      if (r.checkoutUrl) { window.location.assign(r.checkoutUrl); return; }
       const { token, setSession } = useAuthStore.getState();
       if (token) setSession(r.user, token);
       void qc.invalidateQueries();

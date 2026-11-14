@@ -16,7 +16,13 @@ export function CreditMeter({ compact = false }: { compact?: boolean }) {
   const { data } = useCredits();
   if (!data || data.unlimited) return null;
   const total = data.allowance + data.topup;
-  if (total <= 0 && data.balance <= 0) return null;
+  if (total <= 0 && data.balance <= 0) {
+    return (
+      <div className={`cm-meter${compact ? ' cm-meter--compact' : ''}`}>
+        <div className="cm-meter-row"><span>No AI credits yet. They are added as soon as your plan is paid.</span></div>
+      </div>
+    );
+  }
   const usedPct = data.allowance > 0 ? Math.min(100, Math.round((data.usedThisCycle / data.allowance) * 100)) : 100;
   const reset = data.resetsAt ? ` · resets ${shortDate(data.resetsAt)}` : '';
   const label = `${fmt(data.balance)} credit${data.balance === 1 ? '' : 's'} left · ${fmt(data.usedThisCycle)} of ${fmt(data.allowance)} used this month${reset}`;

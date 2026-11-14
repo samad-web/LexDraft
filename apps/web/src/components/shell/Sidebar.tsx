@@ -5,7 +5,7 @@ import { pathMatches, visibleNavGroups } from './nav-config';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useNavHighlighter } from '@/hooks/useNavHighlighter';
-import { useMyUsage } from '@/hooks/useMyUsage';
+import { useCredits } from '@/hooks/useCredits';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { useTeamChatStream, useTeamChatUnreadTotal } from '@/hooks/useTeamChat';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
@@ -17,7 +17,7 @@ export function Sidebar() {
   const initials = (user?.name || 'AS').split(' ').map((s) => s[0]).slice(0, 2).join('');
   const navRef = useRef<HTMLElement>(null);
   const hl = useNavHighlighter(navRef);
-  const usage = useMyUsage();
+  const credits = useCredits();
   const meFeatures = useMeFeatures();
   const navGroups = useMemo(
     () => visibleNavGroups(meFeatures.data?.features ?? []),
@@ -147,34 +147,25 @@ export function Sidebar() {
         <div className="sidebar-foot">
           <div className="quota">
             <div className="quota-head">
-              <span className="quota-label">AI documents</span>
+              <span className="quota-label">AI credits</span>
               <span className="quota-count">
-                {usage.isLoading || !usage.data
-                  ? '-'
-                  : usage.data.aiDocuments.limit == null
-                    ? `${usage.data.aiDocuments.used} · Unlimited`
-                    : `${usage.data.aiDocuments.used} / ${usage.data.aiDocuments.limit}`}
+                {!credits.data ? '-' : credits.data.unlimited ? 'Unlimited' : `${credits.data.balance} left`}
               </span>
             </div>
-            {usage.data && usage.data.aiDocuments.limit != null && (
+            {credits.data && !credits.data.unlimited && credits.data.allowance > 0 && (
               <div className="quota-track">
                 <div
                   className="quota-fill"
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      Math.round((usage.data.aiDocuments.used / usage.data.aiDocuments.limit) * 100),
-                    )}%`,
-                  }}
+                  style={{ width: `${Math.min(100, Math.round((credits.data.usedThisCycle / credits.data.allowance) * 100))}%` }}
                 />
               </div>
             )}
             <div className="quota-note">
-              {usage.data?.aiDocuments.limit == null && usage.data
-                ? 'Generated this month'
-                : usage.data
-                  ? `${Math.max(0, (usage.data.aiDocuments.limit ?? 0) - usage.data.aiDocuments.used)} left this month`
-                  : 'Generated this month'}
+              {!credits.data || credits.data.unlimited
+                ? '1 credit = one drafted page'
+                : credits.data.allowance > 0
+                  ? `${credits.data.usedThisCycle} of ${credits.data.allowance} used this month`
+                  : 'Credits arrive with your plan'}
             </div>
           </div>
           <AccountMenu

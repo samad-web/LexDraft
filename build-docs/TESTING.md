@@ -282,3 +282,5 @@
 - No failures found.
 
 - 2026-11-14 refund + contact pages: `policy-pages.test.tsx` 4 tests (seller details and links; approved refund rules; Terms Part E matches with no old conflicting rule; public route + nginx + landing footer). Web suite 276/276.
+
+- 2026-11-14 found in the first live sign-up: a paid onboarding never opened Razorpay. Saving the onboarded session routed away from /onboarding before the view's per-call onSuccess ran. Fix: the redirect moved into useCompleteOnboarding's onSuccess, before setSession. Also: the sidebar showed the retired 'AI documents' count (now AI credits); the banner called an unpaid sign-up a 'trial' (now 'payment not finished'); an empty credit box showed for unpaid accounts (now a note). `onboarding-checkout.test.ts` 2 tests; web 278/278.
