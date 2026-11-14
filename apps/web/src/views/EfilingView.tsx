@@ -248,7 +248,7 @@ export function EfilingView() {
 
   if (!connection && !offline) {
     return (
-      <div className="col efiling" style={{ gap: 20, maxWidth: 1240 }} aria-label="eFiling login">
+      <div className="col efiling" style={{ gap: 20 }} aria-label="eFiling login">
         <PageHeader
           title="eFiling"
           description="Sign in with your own filing.ecourts.gov.in account to file, pay and track your cases from DifAi."
@@ -256,7 +256,7 @@ export function EfilingView() {
         {ended ? <p className="body-sm" role="status">Your eFiling session ended - the portal allows one login per account, so opening it in another browser signs DifAi out. Sign in again to continue.</p> : null}
         {/* Signed in: the screen that was asked for (?m=, ?filing=) opens, else the Overview. */}
         <PortalLoginPanel onConnected={() => setEnded(false)} />
-        <div className="row" style={{ gap: 8, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div className="row" style={{ gap: 8, alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap' }}>
           <span className="body-sm muted">No eFiling login handy? You can still prepare filings and sign in later.</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffline(true)}>Prepare without signing in</button>
         </div>
@@ -269,7 +269,7 @@ export function EfilingView() {
     : <span className="row" style={{ gap: 6, alignItems: 'center' }}><span className="dot" aria-hidden /> Not connected - preparing filings in DifAi</span>;
 
   return (
-    <div className="col efiling" style={{ gap: 20, maxWidth: 1240 }}>
+    <div className="col efiling" style={{ gap: 20 }}>
       <PageHeader
         title="eFiling"
         description="Your filing.ecourts.gov.in account inside DifAi: file, pay, track and receive every document."

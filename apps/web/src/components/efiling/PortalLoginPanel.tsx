@@ -266,7 +266,7 @@ export function PortalLoginPanel({ onConnected }: { onConnected?: () => void } =
   }
 
   return (
-    <section className="card col" aria-label="Sign In" style={{ gap: 14, width: '100%', maxWidth: 760, margin: '0 auto', padding: 'clamp(16px, 3vw, 24px)' }}>
+    <section className="card col" aria-label="Sign In" style={{ gap: 14, width: '100%', padding: 'clamp(16px, 3vw, 24px)' }}>
       <div className="row" style={{ gap: '4px 12px', alignItems: 'baseline', flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontFamily: 'var(--font-title)', fontSize: 22, fontWeight: 600 }}>Sign In</h2>
         <p className="body-sm muted" style={{ margin: 0 }}>Your filing.ecourts.gov.in account. Fields marked with * are mandatory.</p>

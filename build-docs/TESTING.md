@@ -348,3 +348,6 @@
 
 ## topbar-signout (2026-11-14)
 - topbar-signout.test.ts (2 tests): the labelled button sits after the bell, and it confirms before calling the shared useSignOut. Web 299 passed, tsc clean.
+
+## efiling-fit (2026-11-14)
+- efiling-login-width.test.ts (2 tests): no width cap or centring on the sign-in card; eFiling wrappers uncapped. Web 303 passed, tsc clean.
