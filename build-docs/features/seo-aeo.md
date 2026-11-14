@@ -1,6 +1,6 @@
 # Feature: SEO + AEO + click-through rate
 
-Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature pages + FAQ + About built; pricing page waits for pricing v2 deploy; 5 guides (legal notice, s.80 CPC, s.138 NI, CNR status, money-suit limitation) approved and published 2026-11-13; linked from the landing static block. Decisions in MEMORY.md.. Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
+Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature pages + FAQ + About built; /pricing built 2026-11-14 with v4 prices, unpublished until v4 goes live (`V4_LIVE` in seo/pages.mjs); 5 guides (legal notice, s.80 CPC, s.138 NI, CNR status, money-suit limitation) approved and published 2026-11-13; linked from the landing static block. Decisions in MEMORY.md.. Earlier work: [seo-setup memory] GSC + Bing verified, sitemap submitted, `#seo-static` block on `/` (aa19242).
 
 ## Purpose
 - Rank on Google/Bing for what Indian advocates search ("legal notice drafting software", "ecourts case status app", "limitation period calculator India"), not only for "DifAi".
@@ -23,7 +23,8 @@ Status: **F1, F2, F4 rules built 2026-11-13** (not deployed). F3: 6 feature page
    - "On Indian servers", "on-premise for Firm tier". Need to confirm where the Hostinger VPS is located.
    - Tribunal list (NCLT, ITAT, …).
    Wrong facts in an AI answer are worse than no answer. Fix these before scaling content.
-3. **Pricing page waits for the deploy.** Pricing v2 (b9f5ea9) is pushed but not live. A pricing page must show only live prices.
+3. **Pricing page waits for the deploy.** A pricing page must show only live prices. 2026-11-14: the user held the v4 deploy (prod had no Razorpay keys or invoice seller details, so v4's paid-only sign-up would lock new users out; ai-credits not built). /pricing is built with v4 prices from a `V4` mirror of `apps/api/src/lib/plans.ts` (test-enforced), behind `V4_LIVE`.
+   - **Go-live checklist (same release as pricing v4 + ai-credits):** Razorpay live keys + webhook secret in prod `.env.docker` and the webhook URL set in the Razorpay dashboard; `INVOICE_SELLER_*` (legal name, GSTIN, address, email, phone); migrations 0104-0107 (+ ai-credits') applied with approval; server back on `main`; set `V4_LIVE = true`; add `/pricing` to index.html "Learn more" (test enforces); landing pricing section updated to v4; confirm "page = 400 words" and prices are final.
 4. **What we will NOT do:** fake star ratings or `aggregateRating` without real reviews (Google penalty); bulk AI-written legal articles (Google's "scaled content abuse" policy, plus legal accuracy risk); keyword stuffing. Every guide gets an advocate review before it goes live.
 5. **FAQ schema** no longer gives rich results for commercial sites on Google (since 2023). We still add it, because AI engines and Bing read Q&A, but it won't change how the Google listing looks.
 

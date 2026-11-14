@@ -2,6 +2,8 @@
 // engines that don't run JavaScript read these files as-is; no React mounts
 // on them. Plain functions, no dependencies, so `vite build` stays unchanged.
 
+import { OFFER } from './pages.mjs';
+
 export const ORIGIN = 'https://difai.sirahdigital.in';
 export const BRAND = 'DifAi';
 const ORG_ID = `${ORIGIN}/#org`;
@@ -139,7 +141,7 @@ function navHtml(pages) {
 function footerHtml(pages) {
   const links = pages.map((p) => `<li><a href="/${p.slug}">${esc(p.crumb)}</a></li>`).join('');
   return `<ul><li><a href="/">${BRAND} home</a></li>${links}<li><a href="/privacy">Privacy</a></li></ul>
-<p>${BRAND} is built by Sirah Digital, India. Free for solo advocates and law students until 1 June 2027.</p>`;
+<p>${BRAND} is built by Sirah Digital, India. ${OFFER.line}</p>`;
 }
 
 export function renderPage(page, published) {
@@ -171,7 +173,7 @@ ${sources}
 ${checked}
 </article>
 <section class="cta"><h2 style="margin-top:0">${esc(page.cta ?? `Try ${BRAND} free`)}</h2>
-<p>Free for solo advocates and law students until 1 June 2027. Firms get a 14-day trial.</p>
+<p>${OFFER.line}</p>
 <a class="btn" href="${SIGNUP}">Create your free account</a></section>
 ${related}`;
   return layout({
@@ -214,7 +216,7 @@ export function renderLlms(published) {
       .join('\n');
   return `# ${BRAND}
 
-> ${BRAND} is legal drafting and practice management software for Indian advocates and law firms, built by Sirah Digital. It drafts notices, plaints, petitions and deeds in Indian court formats (84 built-in formats, plus any other document on request), tracks District Court and High Court cases through eCourts by CNR number, reviews contracts clause by clause, tracks limitation deadlines, and handles billing. Web and Android. Free for solo advocates and law students until 1 June 2027; firms get a 14-day trial. Data is stored in India.
+> ${BRAND} is legal drafting and practice management software for Indian advocates and law firms, built by Sirah Digital. It drafts notices, plaints, petitions and deeds in Indian court formats (84 built-in formats, plus any other document on request), tracks District Court and High Court cases through eCourts by CNR number, reviews contracts clause by clause, tracks limitation deadlines, and handles billing. Web and Android. ${OFFER.line} Data is stored in India.
 
 ## Product
 ${section('feature')}

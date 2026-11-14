@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { PAGES } from './pages.mjs';
+import { PAGES, V4, V4_LIVE, buildPages, offerFor } from './pages.mjs';
 import { ORIGIN, render404, renderLlms, renderPage, renderSitemap, schemaFor } from './render.mjs';
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
@@ -17,25 +17,67 @@ const ldOf = (html) => JSON.parse(html.match(/<script type="application\/ld\+jso
 const nginx = read('nginx.conf');
 const SPA_RE = new RegExp(nginx.match(/location ~ (\^\/\([^)]*\)\(\/\|\$\))/)[1]);
 
+// Both settings of the pricing v4 switch must pass, so flipping it is safe.
+const VARIANTS = [['now', buildPages(false)], ['after v4', buildPages(true)]];
+
 describe('CTR rules for every page (drafts too, so they are ready to publish)', () => {
-  for (const p of PAGES) {
-    it(`${p.slug}: title <= 60 chars and names the brand`, () => {
-      expect(p.title.length).toBeLessThanOrEqual(60);
-      expect(p.title).toContain('DifAi');
-    });
-    it(`${p.slug}: description 120-155 chars`, () => {
-      expect(p.description.length).toBeGreaterThanOrEqual(120);
-      expect(p.description.length).toBeLessThanOrEqual(155);
-    });
-    it(`${p.slug}: direct answer is 40-70 words`, () => {
-      expect(words(p.answer)).toBeGreaterThanOrEqual(40);
-      expect(words(p.answer)).toBeLessThanOrEqual(70);
+  for (const [label, pages] of VARIANTS) {
+    for (const p of pages) {
+      it(`${label} ${p.slug}: title <= 60 chars and names the brand`, () => {
+        expect(p.title.length).toBeLessThanOrEqual(60);
+        expect(p.title).toContain('DifAi');
+      });
+      it(`${label} ${p.slug}: description 120-155 chars`, () => {
+        expect(p.description.length).toBeGreaterThanOrEqual(120);
+        expect(p.description.length).toBeLessThanOrEqual(155);
+      });
+      it(`${label} ${p.slug}: direct answer is 40-70 words`, () => {
+        expect(words(p.answer)).toBeGreaterThanOrEqual(40);
+        expect(words(p.answer)).toBeLessThanOrEqual(70);
+      });
+    }
+    it(`${label}: titles, descriptions and slugs are unique`, () => {
+      for (const k of ['title', 'description', 'slug']) {
+        expect(new Set(pages.map((p) => p[k])).size).toBe(pages.length);
+      }
     });
   }
-  it('titles, descriptions and slugs are unique', () => {
-    for (const k of ['title', 'description', 'slug']) {
-      expect(new Set(PAGES.map((p) => p[k])).size).toBe(PAGES.length);
+});
+
+describe('pricing v4 switch', () => {
+  const plansTs = read('../api/src/lib/plans.ts');
+  const apiPlan = (id) => {
+    const m = plansTs.match(new RegExp(`${id}:\\s*\\{[^}]*monthlyInr:\\s*(\\d+),\\s*annualInr:\\s*(\\d+),\\s*pages:\\s*(\\d+)`));
+    return { monthly: +m[1], yearly: +m[2], pages: +m[3] };
+  };
+  for (const id of ['sanad', 'vakalat', 'brief', 'associates']) {
+    it(`${id} price and pages match apps/api/src/lib/plans.ts`, () => {
+      expect(apiPlan(id)).toEqual({ monthly: V4[id].monthly, yearly: V4[id].yearly, pages: V4[id].pages });
+    });
+  }
+  it('Munshi seat and Associates seat range match plans.ts', () => {
+    const m = plansTs.match(/MUNSHI = \{ monthlyInr: (\d+), annualInr: (\d+)/);
+    expect([+m[1], +m[2]]).toEqual([V4.munshi.monthly, V4.munshi.yearly]);
+    expect(plansTs).toContain(`perAdvocate: { min: ${V4.associates.min}, max: ${V4.associates.max} }`);
+  });
+  it('/pricing is published exactly when v4 is live', () => {
+    expect(buildPages(false).find((p) => p.slug === 'pricing').draft).toBe(true);
+    expect(buildPages(true).find((p) => p.slug === 'pricing').draft).toBe(false);
+    expect(PAGES.find((p) => p.slug === 'pricing').draft).toBe(!V4_LIVE);
+  });
+  it('after v4 no page promises the old free plan or a firm trial to new sign-ups', () => {
+    const text = JSON.stringify(buildPages(true)) + JSON.stringify(offerFor(true));
+    expect(text).not.toMatch(/Free for solo advocates|14-day|free trial/i);
+  });
+  it('pricing page shows every price, GST-inclusive, and makes no unconfirmed Partners claims', () => {
+    const html = renderPage(buildPages(true).find((p) => p.slug === 'pricing'), published);
+    const inr = (n) => `\u20b9${n.toLocaleString('en-IN')}`;
+    for (const k of Object.keys(V4)) {
+      expect(html).toContain(inr(V4[k].monthly));
+      expect(html).toContain(inr(V4[k].yearly));
     }
+    expect(html).toContain('include 18% GST');
+    expect(html).not.toMatch(/\bSSO\b|audit log|success manager|\bSLA\b/i);
   });
 });
 

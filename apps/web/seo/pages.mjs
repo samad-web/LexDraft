@@ -5,10 +5,43 @@
 // product does today (build-docs/MEMORY.md, 2026-11-13). `draft: true` pages
 // are not built until the user has read them.
 
-const FREE = 'Free for solo advocates till June 2027.';
+// Pricing v4 switch (build-docs/features/pricing-v4.md). Flip to true in the
+// release that takes v4 live: it swaps the offer line on every page and
+// publishes /pricing. seo.test.mjs checks both settings.
+export const V4_LIVE = false;
 
-/** @type {Array<Record<string, any>>} */
-export const PAGES = [
+// Mirrors apps/api/src/lib/plans.ts (seo.test.mjs keeps them in step).
+// Rupees, GST included; pages = AI drafting pages a month.
+export const V4 = {
+  sanad: { name: 'Sanad', monthly: 199, yearly: 2190, pages: 25 },
+  vakalat: { name: 'Vakalat', monthly: 399, yearly: 4490, pages: 75 },
+  brief: { name: 'Brief', monthly: 1499, yearly: 16490, pages: 200 },
+  associates: { name: 'Associates', monthly: 649, yearly: 7140, pages: 75, min: 2, max: 8 },
+  munshi: { name: 'Munshi seat', monthly: 149, yearly: 1590 },
+};
+const inr = (n) => `₹${n.toLocaleString('en-IN')}`;
+
+/** The offer, before and after v4 goes live. */
+export function offerFor(v4) {
+  return v4
+    ? {
+        hook: `Plans from ${inr(V4.sanad.monthly)} a month, GST included.`,
+        line: `Plans from ${inr(V4.sanad.monthly)} a month, GST included. Accounts on the free launch stay free until 1 June 2027.`,
+        cost: `Plans start at ${inr(V4.sanad.monthly)} a month, GST included. Advocates who joined during the free launch stay free until 1 June 2027.`,
+      }
+    : {
+        hook: 'Free for solo advocates till June 2027.',
+        line: 'Free for solo advocates and law students until 1 June 2027. Firms get a 14-day trial.',
+        cost: 'It is free for solo advocates and law students until 1 June 2027, and firms get a 14-day trial.',
+      };
+}
+export const OFFER = offerFor(V4_LIVE);
+
+/** @returns {Array<Record<string, any>>} */
+export function buildPages(v4 = V4_LIVE) {
+const { hook: FREE, cost: COST } = offerFor(v4);
+const plans = ['sanad', 'vakalat', 'brief'].map((k) => V4[k]);
+return [
   {
     slug: 'legal-notice-drafting',
     kind: 'feature',
@@ -198,10 +231,10 @@ export const PAGES = [
     description: `What DifAi costs, where data is stored, which courts it tracks, how eFiling works and which languages it drafts in. ${FREE}`,
     h1: 'Frequently asked questions about DifAi',
     answer:
-      'DifAi is legal drafting and practice management software for Indian advocates. It is free for solo advocates and law students until 1 June 2027, and firms get a 14-day trial. Data is stored in India. It drafts in English, tracks District and High Court cases through eCourts, and runs on the web and Android.',
+      `DifAi is legal drafting and practice management software for Indian advocates. ${COST} Data is stored in India. It drafts in English, tracks District and High Court cases through eCourts, and runs on the web and Android.`,
     body: '',
     faq: [
-      { q: 'How much does DifAi cost?', a: 'Solo advocates and law students use DifAi free until 1 June 2027. Firms get a 14-day free trial, then a paid plan.' },
+      { q: 'How much does DifAi cost?', a: v4 ? `${COST} See the pricing page for every plan.` : 'Solo advocates and law students use DifAi free until 1 June 2027. Firms get a 14-day free trial, then a paid plan.' },
       { q: 'Where is my data stored?', a: 'In India, on our servers in Mumbai, in compliance with the DPDP Act 2023. Backups are encrypted at rest and in transit.' },
       { q: 'Which courts are supported?', a: 'Case tracking works for District Courts and High Courts through eCourts. Drafting covers pleadings before courts, tribunals and commissions.' },
       { q: 'How does eFiling work?', a: 'DifAi prepares the court-ready PDF, then signs in to the eCourts eFiling portal with your own login and fills the case details. You complete the Aadhaar eSign, court-fee payment and final submit on the portal.' },
@@ -458,4 +491,53 @@ export const PAGES = [
     ],
     cta: 'Track limitation deadlines with DifAi',
   },
+  {
+    slug: 'pricing',
+    kind: 'hub',
+    draft: !v4,
+    nav: 'Pricing',
+    crumb: 'Pricing',
+    updated: '2026-11-14',
+    title: `Pricing: Legal Drafting Plans from ${inr(V4.sanad.monthly)}/Month | DifAi`,
+    description: `Sanad ${inr(V4.sanad.monthly)}, Vakalat ${inr(V4.vakalat.monthly)} and Brief ${inr(V4.brief.monthly)} a month, GST included, with AI drafting pages. Associates for chambers at ${inr(V4.associates.monthly)} per advocate.`,
+    h1: 'DifAi pricing',
+    answer: `DifAi has three plans for individual advocates: Sanad at ${inr(V4.sanad.monthly)} a month with ${V4.sanad.pages} pages of AI drafting, Vakalat at ${inr(V4.vakalat.monthly)} with ${V4.vakalat.pages} pages, and Brief at ${inr(V4.brief.monthly)} with ${V4.brief.pages} pages. Chambers of ${V4.associates.min} to ${V4.associates.max} advocates take Associates at ${inr(V4.associates.monthly)} per advocate. All prices include GST, and every plan includes case tracking, the diary and eCourts sync.`,
+    body: `
+<h2>Plans</h2>
+<table>
+<tr><th>Plan</th><th>Monthly</th><th>Yearly</th><th>AI drafting</th></tr>
+${plans.map((p) => `<tr><td><strong>${p.name}</strong></td><td>${inr(p.monthly)}</td><td>${inr(p.yearly)} (save ${inr(p.monthly * 12 - p.yearly)})</td><td>${p.pages} pages a month</td></tr>`).join('\n')}
+<tr><td><strong>Associates</strong><br />${V4.associates.min} to ${V4.associates.max} advocates</td><td>${inr(V4.associates.monthly)} per advocate</td><td>${inr(V4.associates.yearly)} per advocate</td><td>${V4.associates.pages} pages per advocate, shared</td></tr>
+<tr><td><strong>Partners</strong><br />9 advocates and above</td><td colspan="3">Custom pricing. Write to <a href="mailto:support@sirahdigital.in">support@sirahdigital.in</a>.</td></tr>
+</table>
+<p>All prices include 18% GST. Every payment comes with a GST tax invoice.</p>
+<h2>Every plan includes</h2>
+<ul>
+<li>Cases, the advocate diary and eCourts sync by CNR number</li>
+<li>eFiling help, the limitation calculator and land records</li>
+<li>84 court-ready Indian formats for drafting, and any other document on request</li>
+<li>The web app and the Android app</li>
+</ul>
+<h2>Munshi seat</h2>
+<p>Add a clerk or staff member for ${inr(V4.munshi.monthly)} a month (${inr(V4.munshi.yearly)} a year) on any paid plan. A Munshi seat covers the diary, cause list, eCourts and documents, without AI drafting.</p>
+<h2>What the names mean</h2>
+<ul>
+<li><strong>Sanad:</strong> the enrolment certificate every advocate gets from the Bar Council.</li>
+<li><strong>Vakalat:</strong> the vakalatnama a client signs so you can act in the case.</li>
+<li><strong>Brief:</strong> a case handed to an advocate. Many briefs, a busy practice.</li>
+<li><strong>Associates:</strong> as in "X &amp; Associates", advocates working together.</li>
+</ul>
+<h2>Already on the free launch?</h2>
+<p>Advocates who signed up during the free launch keep it until 1 June 2027, as promised.</p>`,
+    faq: [
+      { q: 'Do the prices include GST?', a: 'Yes. Every price on this page includes 18% GST, and each payment comes with a GST tax invoice.' },
+      { q: 'Can I change my plan later?', a: 'Yes. Pick a new plan from Billing in the app. The new plan starts at your next renewal, so you are never charged twice for the same period.' },
+      { q: 'How do I pay?', a: 'Payments go through Razorpay. You can pay monthly or yearly by UPI Autopay or card; yearly costs less.' },
+      { q: 'What is a Munshi seat?', a: `A seat for a clerk or staff member at ${inr(V4.munshi.monthly)} a month. They get the diary, cause list, eCourts and documents, but not AI drafting.` },
+    ],
+    cta: 'Choose your plan',
+  },
 ];
+}
+
+export const PAGES = buildPages();

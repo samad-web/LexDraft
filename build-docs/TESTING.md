@@ -221,3 +221,7 @@
 - Existing tests moved to v4 ids: razorpay-billing (+1: lapsed plan of a new account is cancelled, never free), billing, gst-invoices (webhook fixture), pricing-v2 (plan-card block superseded).
 - Migration 0107 applied to the local DB: 40 free firms marked free_launch; seat-check SQL run on the real DB. Found: `invitations.id` is text, the uuid cast failed -> fixed before commit.
 - Full API suite in a clean worktree: 978 passed, 0 failed; API + web typecheck clean.
+
+## SEO /pricing page + pricing v4 switch — 2026-11-14
+- seo.test.mjs: CTR rules run on both `V4_LIVE` settings; V4 prices/pages/Munshi/seat range match `apps/api/src/lib/plans.ts`; /pricing is a draft exactly while v4 is off; after v4 no page says "Free for solo advocates", "14-day" or "free trial"; pricing page shows every price, says GST-inclusive, and makes no SSO/audit-log/success-manager/SLA claims.
+- Failure found: the claims check matched "As-so-ciates" as SSO (test bug, case-insensitive substring) → word boundaries. Web suite 260/260.
