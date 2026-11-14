@@ -5,7 +5,7 @@ import { db } from '../db/client';
 import { HttpError } from '../lib/errors';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { draftCredits, FREE_LAUNCH_CREDITS, WORDS_PER_CREDIT, type CreditAction } from '../lib/credit-costs';
-import { isPaidPlan, PLANS } from '../lib/plans';
+import { isPaidPlan, MUNSHI_ROLES, PLANS } from '../lib/plans';
 import { logger } from '../logger';
 
 // =============================================================================
@@ -148,6 +148,16 @@ async function writeSpend(tx: Tx, ctx: CreditCtx, action: string, refKey: string
 }
 
 export interface Charge { refKey: string; credits: number; refund: () => Promise<void> }
+
+/** A Munshi (clerk) seat has no AI: refuse before any model call or charge. */
+async function assertNotMunshi(ctx: CreditCtx): Promise<void> {
+  const sql = db();
+  if (!sql || !ctx.userId) return;
+  const [u] = await sql<{ role: string | null }[]>`select role from users where id = ${ctx.userId}::uuid`;
+  if (u && MUNSHI_ROLES.includes(u.role ?? '')) {
+    throw new HttpError(403, 'Munshi seats do not include AI features.', { code: 'munshi_no_ai' });
+  }
+}
 const noCharge = (refKey: string): Charge => ({ refKey, credits: 0, refund: async () => undefined });
 
 export const creditService = {
@@ -186,6 +196,7 @@ export const creditService = {
     const sql = db();
     if (!sql) return noCharge(refKey); // demo mode: no metering
     if (!ctx.firmId) throw new CreditsExhaustedError({ balance: 0, needed: credits, resetsAt: null });
+    await assertNotMunshi(ctx);
     const want = halves(credits);
     const firmId = ctx.firmId;
     const out = await sql.begin(async (tx) => {
@@ -220,6 +231,7 @@ export const creditService = {
   async assertAvailable(ctx: CreditCtx, credits: number): Promise<void> {
     const sql = db();
     if (!sql) return;
+    await assertNotMunshi(ctx);
     const b = await creditService.balance(ctx.firmId);
     if (halves(b.balance) < halves(credits)) {
       throw new CreditsExhaustedError({ balance: b.balance, needed: credits, resetsAt: b.resetsAt });

@@ -15,6 +15,7 @@ const InviteRoles = z.enum([
   'Junior Associate',
   'Of Counsel',
   'Paralegal',
+  'Munshi',
   'Other',
 ]);
 

@@ -296,7 +296,7 @@ export const billingService = {
           ? per
             ? `Your practice has ${advocateMembers} advocates and pending invitations. Choose at least ${advocateMembers} advocates, or remove members first.`
             : `${PLANS[plan].name} is for one advocate, and your practice has ${advocateMembers}. Choose Associates, or remove members first.`
-          : `Your practice has ${u.munshi_members} clerks or secretaries. Add ${short} Munshi seat${short === 1 ? '' : 's'}, or remove members first.`,
+          : `Your practice has ${u.munshi_members} Munshi${u.munshi_members === 1 ? '' : 's'} (clerks). Add ${short} Munshi seat${short === 1 ? '' : 's'}, or remove members first.`,
         { code: 'seats_below_members' },
       );
     }

@@ -89,3 +89,11 @@ Status: **built 2026-11-13** (approved: "1a, 2a, 3 ok"). Owner chose "update pri
 - **Not done (needs a decision):** "AI hidden for Munshi". Paralegal / Legal Secretary already lack `drafting.ai`, but keep `drafting.basic` and `mock_arguments.use`. Removing them changes existing firms' permissions; AI pages come from the firm's shared pool anyway, so permissions were left untouched.
 - **Fixed on the way:** accepting an invite counted that invite twice, so a firm exactly at its seat count could not accept (e.g. Chamber 2 seats: owner + 1 invite).
 - **Not changed:** the landing page's pricing section (already stale pre-v2 prices; landing claims on hold). Draft meter still counts drafts until ai-credits ships (decision 3: release together).
+
+## Change 2026-11-14 (owner): a real Munshi role, interim free sign-up
+- **Munshi = the advocate's clerk**, as in practice:
+    - **What a munshi does:** keeps the diary and cause list, tracks hearings and next dates, files papers (eFiling), pays court fees, keeps the case files. No drafting, no AI.
+    - **The role:** new system role **Munshi** (migration 0110): matter view/create (diary, hearings, eFiling), client view, documents (drafting.basic for uploads), calculators, members list. No AI drafting, mock arguments, research or matter intelligence. The baseline matter-intelligence key is removed for Munshi in permissions.service. Any AI credit charge by a Munshi is refused (403 `munshi_no_ai`).
+    - **Seats:** a Munshi seat covers role `Munshi` only. **Paralegal and Legal Secretary now count as advocate seats.** This replaces decision 2a.
+- **Interim:** while production has no live Razorpay key, a new sign-up gets the free launch (25 credits a month, `free_launch` set) instead of a 503. Paid-only sign-up starts by itself once the key is set.
+- **Landing page + SEO pages** show the v4 plans (`V4_LIVE = true`). The "free account", "14-day trial" and "never charge per AI generation" claims are removed.

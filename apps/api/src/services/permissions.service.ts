@@ -123,6 +123,9 @@ const FIRM_ADMIN_FEATURES: ReadonlyArray<FeatureKey> = [
   'engagement.letters',
 ];
 
+/** AI features a Munshi never gets, even where they are baseline for everyone. */
+const MUNSHI_NO_AI: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['matter.intelligence', 'drafting.ai', 'mock_arguments.use', 'research.basic']);
+
 function demoFallbackFor(roleText: string): FeatureKey[] {
   switch (roleText) {
     case 'Solo Advocate':
@@ -148,6 +151,9 @@ function demoFallbackFor(roleText: string): FeatureKey[] {
         'matter.view', 'client.view',
         'firm.members.view',
       ];
+    case 'Munshi':
+      return [...BASELINE_FEATURES.filter((k) => !MUNSHI_NO_AI.has(k)),
+        'drafting.basic', 'matter.view', 'matter.create', 'client.view', 'tools.calculators', 'firm.members.view'];
     case 'Legal Secretary':
     case 'Intern':
       // Limited tenant access: view + drafting basics + review (as a reader/
@@ -307,6 +313,8 @@ export async function resolveFeatures(userId: string): Promise<MeFeaturesRespons
   `;
 
   const features = new Set<FeatureKey>(rows.map((r) => r.feature_key));
+  // A Munshi (clerk) seat has no AI, not even the baseline AI features.
+  if (roleRow?.name === 'Munshi') for (const k of MUNSHI_NO_AI) features.delete(k);
 
   // 3. Free launch plan: the superadmin's switches decide whether a free
   //    account gets each switched feature group, regardless of plan/role.

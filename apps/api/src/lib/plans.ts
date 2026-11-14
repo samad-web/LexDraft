@@ -41,8 +41,9 @@ export function isBriefPack(id: unknown): id is BriefPackId {
   return typeof id === 'string' && Object.prototype.hasOwnProperty.call(BRIEF_PACKS, id);
 }
 
-/** Roles a Munshi seat covers (decision 2a: existing roles, no new one). */
-export const MUNSHI_ROLES: readonly string[] = ['Paralegal', 'Legal Secretary'];
+/** The role a Munshi seat covers: the advocate's clerk (migration 0110; owner
+ *  2026-11-14 replaced decision 2a, which reused Paralegal / Legal Secretary). */
+export const MUNSHI_ROLES: readonly string[] = ['Munshi'];
 
 /** Names for every plan id, including pre-v4 ones on old rows. */
 export const PLAN_NAMES: Record<string, string> = {

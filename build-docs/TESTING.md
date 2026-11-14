@@ -257,3 +257,13 @@
     - AC5: the pack list.
 - AC4 (plan credits before pack credits) is covered by credits.integration.test.ts.
 - Migration 0109 applied to the local DB.
+
+## Munshi role + interim sign-up + landing — 2026-11-14
+- pricing-v4.test.ts 32 tests:
+    - seat tests moved to the Munshi role (Paralegal now needs an advocate seat);
+    - Munshi fallback has no AI;
+    - an AI charge by a Munshi → 403 before credits move;
+    - interim: no payment keys → a new sign-up gets the free launch (free_plan, free_launch, till 1 Jun 2027), no checkout.
+  The old 503 test encoded the previous behaviour, so it was changed to the owner's new rule.
+- munshi.integration.test.ts (real Postgres, migration 0110): the Munshi has matter/client/documents, no drafting.ai / mock arguments / matter intelligence / research; an advocate in the same firm keeps AI; a Munshi AI charge is refused, an advocate's is taken.
+- Web seo.test.mjs with V4_LIVE = true.

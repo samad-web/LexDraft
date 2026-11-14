@@ -4,7 +4,7 @@ import { Icon } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlan, BillingPlanId, OnboardingCompleteRequest } from '@lexdraft/types';
 import { Wordmark } from '@/components/brand/Logo';
 import { MunshiPicker, planTotal, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
-import { useCompleteOnboarding } from '@/hooks/useBilling';
+import { useBilling, useCompleteOnboarding } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
@@ -189,6 +189,9 @@ export function OnboardingView() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const complete = useCompleteOnboarding();
+  // Until live payments are switched on, a new account starts on the free
+  // launch plan (25 AI credits a month) instead of paying now.
+  const payOn = useBilling().data?.paymentsEnabled !== false;
   const stateOptions = useMemo(() => indiaStateOptions(), []);
   const intro = useMemo(() => readIntro(), []);
 
@@ -286,7 +289,7 @@ export function OnboardingView() {
     else finish();
   };
 
-  const finishLabel = chosen ? `Continue to payment · ${inr(planTotal(chosen, cycle, seats, munshi))}` : 'Continue to payment';
+  const finishLabel = !payOn ? 'Start free' : chosen ? `Continue to payment · ${inr(planTotal(chosen, cycle, seats, munshi))}` : 'Continue to payment';
 
   return (
     <div className="onb">
@@ -371,6 +374,11 @@ export function OnboardingView() {
                   <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
                   <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
                 </div>
+              )}
+              {!payOn && (
+                <p className="body-sm" role="status" style={{ marginTop: 18, color: 'var(--text-primary)' }}>
+                  Online payment opens soon. Until then your account is free, with 25 AI credits a month.
+                </p>
               )}
               <p className="body-sm" style={{ marginTop: 18, color: 'var(--text-secondary)' }}>
                 A firm with 9 or more advocates?{' '}

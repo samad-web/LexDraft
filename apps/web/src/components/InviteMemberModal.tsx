@@ -12,6 +12,7 @@ const ROLES: InviteRole[] = [
   'Junior Associate',
   'Of Counsel',
   'Paralegal',
+  'Munshi',
 ];
 
 type RoleChoice = InviteRole | 'Other';

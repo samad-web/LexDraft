@@ -108,7 +108,7 @@ export function MunshiPicker({ plan, cycle, munshi, min, onChange }: {
           <option key={n} value={n} disabled={n < min}>{n}</option>
         ))}
       </select>
-      <span className="cm-seats-total">{inr(price)}{per(cycle)} each · for a clerk or secretary, no AI</span>
+      <span className="cm-seats-total">{inr(price)}{per(cycle)} each · for your munshi (clerk): diary, hearings, eCourts, eFiling, no AI</span>
     </label>
   );
 }

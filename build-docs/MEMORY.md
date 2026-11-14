@@ -66,3 +66,6 @@
 - 2026-11-14 — Owner: the diary briefing narrative must cost credits (½). It is charged once per user/range/day/entries and reused on re-open, so opening the diary twice doesn't charge twice. The matter-intel auto summary stays charged (2).
 
 - 2026-11-14 — Brief Packs approved and built: one-time Razorpay orders, credits only from the signed `payment.captured` webhook after an amount check against our own order, 12-month validity, GST invoice. Migration 0109 (pack_bought event kind), local only. Owner step: tick `payment.captured` in the Razorpay webhook (test now, live at deploy).
+
+- 2026-11-14 — Owner: "follow the actual way" for Munshi. It is a real **Munshi** system role (0110): the advocate's clerk (diary, cause list, hearings, eFiling, documents), no AI. A Munshi seat covers that role only; Paralegal / Legal Secretary are advocate seats. This replaces decision 2a.
+- 2026-11-14 — Owner chose **interim free until live Razorpay keys**: new sign-ups get the free launch while payments are off, and paid-only sign-up switches on by itself once keys are set. v4 prices shown everywhere (landing + SEO `V4_LIVE`).

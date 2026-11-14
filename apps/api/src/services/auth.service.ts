@@ -103,6 +103,7 @@ export function systemRoleNameFor(roleText: string): string | null {
     case 'Junior Associate': return 'Associate';
     case 'Of Counsel':       return 'Senior Associate';
     case 'Paralegal':        return 'Paralegal';
+    case 'Munshi':           return 'Munshi';
     default:                 return null;
   }
 }

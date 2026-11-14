@@ -1,5 +1,10 @@
 # Changelog
 
+- Munshi role + landing v4 (2026-11-14):
+  - A real **Munshi** (clerk) role: diary, cause list, hearings, eCourts, eFiling and documents, no AI. A Munshi seat (₹149) covers it.
+  - The landing page and SEO pages show the v4 plans.
+  - Until live online payment is switched on, new sign-ups start on the free launch.
+
 - Brief Packs (2026-11-14), not deployed: buy 25 / 60 / 130 / 330 AI credits (₹499 / ₹999 / ₹1,999 / ₹4,999, GST incl., valid 12 months) on Plan & Billing. One-time Razorpay payment, credits added by the payment webhook, a GST invoice for each. Not shown in the Android app.
 
 - AI credits (2026-11-14), not deployed, ships with pricing v4:

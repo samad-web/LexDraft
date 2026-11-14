@@ -163,7 +163,7 @@ export async function assertSeatCapNotExceeded(firmId: string | null, role: stri
 }
 
 const PRESET_ROLES = new Set([
-  'Managing Partner', 'Senior Associate', 'Associate', 'Junior Associate', 'Of Counsel', 'Paralegal',
+  'Managing Partner', 'Senior Associate', 'Associate', 'Junior Associate', 'Of Counsel', 'Paralegal', 'Munshi',
 ]);
 
 /**

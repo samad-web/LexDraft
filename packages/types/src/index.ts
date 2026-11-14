@@ -950,7 +950,9 @@ export type InviteRole =
   | 'Associate'
   | 'Junior Associate'
   | 'Of Counsel'
-  | 'Paralegal';
+  | 'Paralegal'
+  /** The advocate's clerk: diary, hearings, eCourts, eFiling, no AI (a Munshi seat). */
+  | 'Munshi';
 
 /** Access level a custom ("Other") role inherits its permissions from.
  *  Firm Admin is deliberately not offered - invite as Managing Partner. */

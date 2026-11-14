@@ -248,17 +248,23 @@ describe('AC4 seat checks refuse fewer advocates or Munshi seats than people usi
     const firm = (o: Partial<{ seats: number; munshi_seats: number; used: number; munshi_used: number }>) => (t: string) =>
       (t.includes('from firms f') ? [{ seats: 2, munshi_seats: 1, used: 2, munshi_used: 0, ...o }] : []);
 
-    it('advocate seats full: another advocate is refused (402), a Paralegal takes the Munshi seat', async () => {
+    it('advocate seats full: another advocate is refused (402), a Munshi takes the Munshi seat', async () => {
       h.useFakeDb = true;
       h.rows = firm({});
       await expect(invitations.assertSeatCapNotExceeded('f1', 'Associate')).rejects.toMatchObject({ status: 402, code: 'seat_cap_exceeded' });
-      await expect(invitations.assertSeatCapNotExceeded('f1', 'Paralegal')).resolves.toBeUndefined();
+      await expect(invitations.assertSeatCapNotExceeded('f1', 'Munshi')).resolves.toBeUndefined();
     });
 
-    it('Munshi seat taken too: a Legal Secretary is refused', async () => {
+    it('Munshi seat taken too: another Munshi is refused', async () => {
       h.useFakeDb = true;
       h.rows = firm({ used: 3, munshi_used: 1 });
-      await expect(invitations.assertSeatCapNotExceeded('f1', 'Legal Secretary')).rejects.toMatchObject({ status: 402 });
+      await expect(invitations.assertSeatCapNotExceeded('f1', 'Munshi')).rejects.toMatchObject({ status: 402 });
+    });
+
+    it('a Paralegal is staff with drafting, so it needs an advocate seat (owner, 2026-11-14)', async () => {
+      h.useFakeDb = true;
+      h.rows = firm({});
+      await expect(invitations.assertSeatCapNotExceeded('f1', 'Paralegal')).rejects.toMatchObject({ status: 402 });
     });
 
     it('accepting an invite does not count that invite twice (2 seats: owner + the invitee fit)', async () => {
@@ -353,7 +359,7 @@ describe('AC6 new sign-ups pick a paid plan; free-launch accounts keep free', ()
     await expect(onboarding.onboardingService.complete('u1', { plan: 'associates' })).rejects.toMatchObject({ status: 400 });
   });
 
-  it('without online payment a paid plan is refused (503) and nothing is changed', async () => {
+  it('interim (owner, 2026-11-14): without live payment keys a new sign-up gets the free launch, no checkout', async () => {
     vi.resetModules();
     const saved = process.env['RAZORPAY_KEY_ID'];
     process.env['RAZORPAY_KEY_ID'] = '';
@@ -361,11 +367,40 @@ describe('AC6 new sign-ups pick a paid plan; free-launch accounts keep free', ()
       const fresh = await import('../onboarding.service');
       h.useFakeDb = true;
       h.rows = rows(false);
-      await expect(fresh.onboardingService.complete('u1', { plan: 'sanad' })).rejects.toMatchObject({ status: 503, code: 'payments_disabled' });
-      expect(h.calls.some((c) => /update firms/.test(c.text))).toBe(false);
+      const r = await fresh.onboardingService.complete('u1', { plan: 'sanad' });
+      expect(r.checkoutUrl).toBeUndefined();
+      const upd = h.calls.find((c) => /update firms set\s+name =/.test(c.text))! as Call;
+      expect(valueAfter(upd, 'free_plan =')).toBe(true);
+      expect(valueAfter(upd, 'free_launch = free_launch or')).toBe(true);
+      expect(valueAfter(upd, 'trial_ends_at =')).toEqual(freePlan.FREE_PLAN_ENDS_AT);
     } finally {
       process.env['RAZORPAY_KEY_ID'] = saved;
       vi.resetModules();
     }
+  });
+});
+
+describe("Munshi = the advocate's clerk (owner, 2026-11-14): no AI", () => {
+  it('the role has diary, hearings, eFiling and documents, and no AI feature', async () => {
+    const { __testing } = await import('../permissions.service');
+    const f = __testing.demoFallbackFor('Munshi');
+    for (const k of ['matter.view', 'matter.create', 'client.view', 'drafting.basic', 'tools.calculators']) expect(f).toContain(k);
+    for (const k of ['drafting.ai', 'mock_arguments.use', 'matter.intelligence', 'research.basic']) expect(f).not.toContain(k);
+  });
+
+  it('any AI charge by a Munshi is refused (403 munshi_no_ai) before credits move', async () => {
+    const { creditService } = await import('../credit.service');
+    h.useFakeDb = true;
+    h.rows = (t) => (t.includes('select role from users') ? [{ role: 'Munshi' }] : []);
+    await expect(creditService.charge({ firmId: 'f1', userId: '00000000-0000-0000-0000-0000000000a1' }, 'research', 2))
+      .rejects.toMatchObject({ status: 403, code: 'munshi_no_ai' });
+    expect(h.calls.some((c) => /credit_grants|credit_ledger/.test(c.text))).toBe(false);
+  });
+
+  it('invites and seat counts recognise the Munshi role', async () => {
+    const plans = await import('../../lib/plans');
+    expect(plans.MUNSHI_ROLES).toEqual(['Munshi']);
+    const { systemRoleNameFor } = await import('../auth.service');
+    expect(systemRoleNameFor).toBeDefined();
   });
 });

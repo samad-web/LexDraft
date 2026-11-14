@@ -38,7 +38,8 @@ interface PricingPlan {
   schedule: string;
   for: string;
   monthlyPrice: number | null;
-  annualMonthlyPrice: number | null;
+  /** Price for a year, billed yearly (per advocate on Associates). */
+  annualPrice: number | null;
   customLabel?: string;
   perSeatNote?: string;
   features: string[];
@@ -56,7 +57,7 @@ const NAV_TABS: NavTab[] = [
   { id: 'features', label: 'Features' },
   { id: 'pricing', label: 'Pricing' },
   { id: 'faq', label: 'FAQ' },
-  { id: 'trial', label: 'Trial' },
+  { id: 'trial', label: 'Get started' },
 ];
 
 const BILLING_OPTIONS = [
@@ -104,62 +105,59 @@ const FAQ_ITEMS: FaqItem[] = [
     a: 'Yes - at any time. One-click export of every matter, draft, contract, invoice, and document as a portable archive. No lock-in, no waiting period.',
   },
   {
-    q: 'How is DifAi priced for partnerships?',
-    a: 'Per-seat pricing with volume discounts on Practice, and bespoke contracts on Firm. We do not charge per matter, per filing, or per AI generation.',
+    q: 'How is DifAi priced?',
+    a: 'Sanad ₹199, Vakalat ₹399 and Brief ₹1,499 a month for one advocate; Associates ₹649 per advocate for chambers of 2 to 8; a Munshi (clerk) seat ₹149. All include GST. Every plan has the full app; plans differ in AI drafting pages and seats, and Brief Packs add pages when you need more. Firms of nine or more get custom pricing.',
   },
 ];
 
+// Pricing v4 - keep in step with apps/api/src/lib/plans.ts (GST included).
 const PRICING: PricingPlan[] = [
   {
-    name: 'Solo',
+    name: 'Sanad',
     schedule: 'I',
-    for: 'Independent practitioners',
-    monthlyPrice: 1499,
-    annualMonthlyPrice: 1199,
-    features: [
-      'One advocate seat',
-      'Twenty AI drafts each month',
-      'Up to five active matters',
-      'Client portal',
-      'Email correspondence support',
-    ],
-    cta: 'Start 14-day Solo trial',
+    for: 'Starting out · the full app with some drafting',
+    monthlyPrice: 199,
+    annualPrice: 2190,
+    features: ['25 pages of AI drafting a month', 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Add a Munshi (clerk) seat for ₹149/month'],
+    cta: 'Start with Sanad',
   },
   {
-    name: 'Practice',
+    name: 'Vakalat',
     schedule: 'II',
-    for: 'Practice groups · two to eight advocates',
-    monthlyPrice: 4999,
-    annualMonthlyPrice: 3999,
-    perSeatNote: '≈ ₹625 per advocate at a full team of eight',
-    features: [
-      'Up to eight seats',
-      'Two hundred AI drafts each month',
-      'Unlimited active matters',
-      'Custom templates and styles',
-      'Priority support',
-      'Analytics dashboard',
-      'Document review API',
-    ],
-    cta: 'Start 14-day Practice trial',
+    for: 'A practising advocate taking cases',
+    monthlyPrice: 399,
+    annualPrice: 4490,
+    features: ['75 pages of AI drafting a month', 'Everything in Sanad'],
+    cta: 'Start with Vakalat',
     featured: true,
   },
   {
-    name: 'Firm',
+    name: 'Brief',
     schedule: 'III',
-    for: 'Established firms · nine seats and above',
+    for: 'Heavy drafting · lowest price per page',
+    monthlyPrice: 1499,
+    annualPrice: 16490,
+    features: ['200 pages of AI drafting a month', 'Everything in Vakalat'],
+    cta: 'Start with Brief',
+  },
+  {
+    name: 'Associates',
+    schedule: 'IV',
+    for: 'Chambers with 2 to 8 advocates',
+    monthlyPrice: 649,
+    annualPrice: 7140,
+    perSeatNote: 'Per advocate · 75 pages each a month, shared',
+    features: ['Everything in Vakalat', 'Roles and permissions', 'Firm dashboard and team chat', 'Munshi seats for your clerks'],
+    cta: 'Start with Associates',
+  },
+  {
+    name: 'Partners',
+    schedule: 'V',
+    for: 'Firms with nine advocates and above',
     monthlyPrice: null,
-    annualMonthlyPrice: null,
+    annualPrice: null,
     customLabel: 'Custom',
-    features: [
-      'Unlimited seats',
-      'One thousand AI drafts each month',
-      'SSO and audit logs',
-      'Dedicated success manager',
-      'On-premise deployment available',
-      'Bespoke integrations',
-      'SLA · 99.95%',
-    ],
+    features: ['Unlimited seats', 'SSO and audit logs', 'Dedicated success manager', 'Bespoke integrations'],
     cta: 'Speak with us',
   },
 ];
@@ -582,16 +580,16 @@ export function LandingView() {
         const priceDisplay = isCustom
           ? plan.customLabel ?? 'Custom'
           : billing === 'annual'
-          ? formatINR(plan.annualMonthlyPrice ?? plan.monthlyPrice ?? 0)
+          ? formatINR(plan.annualPrice ?? (plan.monthlyPrice ?? 0) * 12)
           : formatINR(plan.monthlyPrice ?? 0);
         const periodDisplay = isCustom
           ? 'Talk to sales'
           : billing === 'annual'
-          ? 'per month, billed annually'
-          : 'per month';
+          ? 'per year · incl. GST'
+          : 'per month · incl. GST';
         const savingsLine =
-          !isCustom && billing === 'annual' && plan.monthlyPrice
-            ? `Save ${formatINR((plan.monthlyPrice - (plan.annualMonthlyPrice ?? 0)) * 12)} / year vs monthly`
+          !isCustom && billing === 'annual' && plan.monthlyPrice && plan.annualPrice
+            ? `Save ${formatINR(plan.monthlyPrice * 12 - plan.annualPrice)} / year vs monthly`
             : null;
         return { plan, priceDisplay, periodDisplay, savingsLine, isCustom };
       }),
@@ -641,7 +639,7 @@ export function LandingView() {
           </p>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
             <button className="btn btn-primary btn-lg" type="button" onClick={() => navigate('/auth?signup=1')}>
-              Create your free account
+              Create your account
             </button>
             <button
               type="button"
@@ -798,10 +796,10 @@ export function LandingView() {
                 letterSpacing: '-0.02em',
               }}
             >
-              Three plans. No surprises.
+              Four plans. No surprises.
             </h2>
             <p style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
-              Per-seat pricing with volume discounts. We never charge per matter, per filing, or per AI generation.
+              Every plan has the full app. Plans differ in AI drafting pages (1 page = 400 words) and seats. Prices include GST; no charge per matter or per filing.
             </p>
           </div>
           <PillNav
@@ -814,7 +812,7 @@ export function LandingView() {
 
         <div
           className="lex-grid-3 reveal-stagger"
-          style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, alignItems: 'stretch' }}
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, alignItems: 'stretch' }}
         >
           {pricingRows.map(({ plan, priceDisplay, periodDisplay, savingsLine, isCustom }) => {
             const featured = plan.featured === true;
@@ -850,7 +848,7 @@ export function LandingView() {
                       fontWeight: 600,
                     }}
                   >
-                    Most popular · Recommended for chambers
+                    Most popular
                   </div>
                 )}
                 <div style={{ marginTop: featured ? 28 : 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -921,7 +919,7 @@ export function LandingView() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => goSignup(plan.name === 'Firm' ? 'demo' : 'trial')}
+                    onClick={() => goSignup(plan.name === 'Partners' ? 'demo' : 'trial')}
                     className="btn btn-block btn-lg"
                     style={
                       featured
@@ -1044,7 +1042,7 @@ export function LandingView() {
             margin: '0 auto 20px',
           }}
         >
-          Fourteen-day trial. No card. Real cases.
+          From ₹199 a month. Real cases.
         </h2>
         <p
           className="lede"
@@ -1054,7 +1052,7 @@ export function LandingView() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-primary btn-lg" type="button" onClick={() => goSignup('trial')}>
-            Start free trial
+            Create your account
           </button>
           <button
             type="button"

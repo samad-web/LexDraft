@@ -67,15 +67,16 @@ export const onboardingService = {
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
     if (u.onboarded_at) throw new BadRequestError('Your practice is already set up. Change your plan from Plan & Billing.');
 
-    const free = input.plan === 'free';
     const practice = input.plan === 'associates';
     const student = !practice && input.kind === 'student';
-    if (free) {
+    // Interim (owner, 2026-11-14): until live Razorpay keys are set, a new
+    // sign-up gets the free launch plan instead of being turned away. The day
+    // payments are on, paid-only sign-up applies by itself.
+    const interimFree = input.plan !== 'free' && !paymentsEnabled();
+    const free = input.plan === 'free' || interimFree;
+    if (input.plan === 'free') {
       const [f] = await sql<{ free_launch: boolean | null }[]>`select free_launch from firms where id = ${u.firm_id}::uuid`;
       if (!f?.free_launch) throw new BadRequestError('Choose a plan to continue.', { code: 'plan_required' });
-    } else if (!paymentsEnabled()) {
-      // Nothing is changed: without online payment a new account could never become active.
-      throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });
     }
     if (practice && !clean(input.firm)) throw new BadRequestError('Enter your firm name.');
     if (student && !clean(input.college)) throw new BadRequestError('Enter your college or university.');
@@ -95,6 +96,7 @@ export const onboardingService = {
           plan_status = 'trial',
           trial_ends_at = ${trialEndsAt},
           free_plan = ${free},
+          free_launch = free_launch or ${interimFree},
           logo_key = coalesce(${ownKey(u.firm_id!, input.logoKey)}, logo_key)
         where id = ${u.firm_id}::uuid
       `;
@@ -128,7 +130,7 @@ export const onboardingService = {
     const user = await authService.getById(userId);
     if (!user) throw new NotFoundError('User not found');
 
-    if (input.plan !== 'free') {
+    if (!free && input.plan !== 'free') {
       try {
         const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.seats, input.munshi ?? 0);
         return { user, checkoutUrl };

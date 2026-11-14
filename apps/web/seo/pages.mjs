@@ -8,7 +8,7 @@
 // Pricing v4 switch (build-docs/features/pricing-v4.md). Flip to true in the
 // release that takes v4 live: it swaps the offer line on every page and
 // publishes /pricing. seo.test.mjs checks both settings.
-export const V4_LIVE = false;
+export const V4_LIVE = true;
 
 // Mirrors apps/api/src/lib/plans.ts (seo.test.mjs keeps them in step).
 // Rupees, GST included; pages = AI drafting pages a month.
