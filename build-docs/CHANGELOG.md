@@ -1,4 +1,6 @@
 # Changelog
+
+- Splash before the dashboard (2026-11-14): when the new Terms must be accepted, the 4 s app animation now plays after "I agree", not hidden behind the Terms screen; otherwise right after sign-in as before.
 - Evidence tables (2026-11-14, features/evidence-tables.md): a list of documents, index of annexures, list of dates or summary of admissions in a draft is now a ruled table in the preview, the editor, Word and PDF, only where the content calls for one. Engine: tables.py, compose.py table blocks, blocks/edits/splices read and write table rows. API: both drafting prompts, Markdown tables kept as rows and never numbered. Web: preview and editor show the table and map edits back row by row.
 
 

@@ -29,6 +29,14 @@ describe('splash after sign-in (app)', () => {
     useAuthStore.getState().setSession(user, 'token-2');
     expect(useSplashStore.getState().showing).toBe(false);
   });
+  it('with new Terms to accept: not over the Terms screen, but on "I agree"', () => {
+    useAuthStore.setState({ user: null, token: null });
+    reset();
+    useAuthStore.getState().setSession({ ...user, needsTermsAcceptance: true }, 'token-3');
+    expect(useSplashStore.getState().showing).toBe(false);
+    useAuthStore.getState().refreshUser({ ...user, needsTermsAcceptance: false });
+    expect(useSplashStore.getState()).toMatchObject({ showing: true, durationMs: 4000 });
+  });
   it('signing out does not play it', () => {
     reset();
     useAuthStore.setState({ user: null, token: null });

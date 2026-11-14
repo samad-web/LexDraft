@@ -27,12 +27,16 @@ export function playSplash(durationMs: number): void {
   requestAnimationFrame(() => useSplashStore.setState({ showing: true, leaving: false, durationMs }));
 }
 
-// App only: signed out -> signed in (any route: Google, password, new account,
-// MFA code) plays the splash. A session restored at launch is not a sign-in.
+// App only: play it right before the dashboard first appears - on sign-in (any
+// route: Google, password, new account, MFA code), or, when the new Terms must
+// be accepted first, on "I agree" (never over the Terms screen itself).
+// A session restored at launch is not a sign-in.
 if (Capacitor.isNativePlatform()) {
   useAuthStore.subscribe((state, prev) => {
+    const ready = !!state.user && !state.user.needsTermsAcceptance;
+    const wasReady = !!prev.user && !prev.user.needsTermsAcceptance;
     // No storage layer (persist off) means no restored session to mistake for a sign-in.
-    if (state.user && !prev.user && (useAuthStore.persist?.hasHydrated() ?? true)) playSplash(SIGN_IN_MS);
+    if (ready && !wasReady && (useAuthStore.persist?.hasHydrated() ?? true)) playSplash(SIGN_IN_MS);
   });
 }
 
