@@ -230,6 +230,9 @@ export interface User {
   /** Self-serve account that has not finished /onboarding yet (plan +
    *  practice details). Absent once done. */
   needsOnboarding?: boolean;
+  /** Has not agreed to the current Terms + Privacy version (consent_log).
+   *  The app shows the consent screen first. */
+  needsTermsAcceptance?: boolean;
 }
 
 export interface AuthResponse {
@@ -243,6 +246,8 @@ export interface SignInRequest {
 }
 
 export interface SignUpRequest {
+  /** The unticked-by-default Terms + Privacy box; the auth routes require true. */
+  acceptTerms?: true;
   email: string;
   password: string;
   name: string;

@@ -299,3 +299,21 @@
 - 2026-11-14 first live ₹199 payment (Sanad, UPI): webhook 200, plan active and paid until 14 Dec, invoice DIF/26-27/000001 (CGST + SGST). Found: the November free-launch plan credits stayed alive next to the new Sanad credits (balance 50, not 25). Fix: starting a new plan period ends earlier plan grants (packs and admin grants stay). credits.integration 12/12.
 
 - 2026-11-14 ₹1 test code: `test-coupon.test.ts` 7 tests (allow-listed account → ₹1 plan or pack order; the same code on another account / a wrong code / a code not configured → 400 with no Razorpay call; no code → normal price; a ₹1 test order activates the plan with MRR 0 and a ₹1 invoice; ₹1 on a normal order applies nothing).
+
+## terms-consent (2026-11-14)
+- **api `routes/__tests__/auth-terms.test.ts` (6 tests):**
+    - AC1: the 3 sign-up endpoints refuse a missing or false `acceptTerms` with a 400 that gives the reason. A control with `true` passes the schema.
+    - AC6: the API and web versions match.
+    - Fixed during the run: the per-IP sign-up limiter (5/h) answered 429. The test now stubs the limiter (it isn't the subject).
+- **api `terms-consent.integration.test.ts` (2 tests, local PG, throwaway schema):**
+    - AC2: sign-up writes a granted row with version, IP and user agent.
+    - AC3: no row → asked; an old version doesn't count; agree clears it; a later disagree asks again.
+- **web `components/__tests__/terms-consent.test.tsx` (4 tests):**
+    - AC4: the box is unticked and required.
+    - AC4: all 4 sign-up calls send `acceptTerms` and the buttons wait for the box.
+    - AC5: the gate runs before onboarding, never for superadmin or act-as.
+    - Part C wording.
+- **legal-pages.test AC6:** updated, because the sign-up notice line was intentionally replaced by `<TermsAgree>`.
+- **Regression:**
+    - api unit: 1037 passed. web: 289 passed. tsc clean for both.
+    - api auth.integration: 5/6. "role=group → Practice" fails on origin/main too (pricing v4 maps group to a different tier); it predates this feature and is untouched.

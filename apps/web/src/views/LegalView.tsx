@@ -10,20 +10,9 @@ import { Wordmark } from '@/components/brand/Logo';
 // it described something the app doesn't do (build-docs/features/legal-pages.md).
 // =============================================================================
 
-export const OPERATOR = {
-  name: 'Sirah Digital',
-  form: 'a sole proprietorship of M Mohamed Riyaz',
-  gstin: '33CVVPM9805M1ZO',
-  address: 'SY No. 203/10B, Featherlite, 200 Feet Road, Zamin Pallavaram, Chennai 600044, Tamil Nadu, India',
-  email: 'support@sirahdigital.in',
-  grievanceOfficer: 'M Mohamed Riyaz',
-  grievanceTitle: 'Proprietor, Sirah Digital',
-  city: 'Chennai',
-  highCourt: 'High Court of Judicature at Madras',
-} as const;
+import { LEGAL_EFFECTIVE, LEGAL_VERSION, OPERATOR } from '@/lib/legal';
 
-export const LEGAL_VERSION = '1.1';
-export const LEGAL_EFFECTIVE = '14 November 2026';
+export { LEGAL_EFFECTIVE, LEGAL_VERSION, OPERATOR };
 
 const linkStyle = { color: 'var(--text-primary)' };
 
@@ -335,7 +324,7 @@ export function PrivacyPolicyView() {
           ['Billing data', 'Plan, invoices, retainer ledgers, NEFT/UPI references, GST details, payment status', 'You, payment partner'],
           ['Technical data', 'IP address, device and browser type, app version, server and security logs', 'Automatically'],
           ['Support data', 'Messages and attachments you send us', 'You'],
-          ['Request records', 'Export, deletion and grievance requests you make', 'Generated'],
+          ['Request records', 'Your Terms and Privacy answers (version, time, IP address, device), and export, deletion and grievance requests you make', 'Generated'],
           ['Sign-in data (if you use Google sign-in)', 'Name, email, Google account identifier', 'Google'],
         ]}
       />
@@ -434,7 +423,8 @@ export function PrivacyPolicyView() {
       <p><strong>How to complain:</strong> first write to our Grievance Officer (below). If you are not satisfied, or do not receive a response in time, you may complain to the <strong>Data Protection Board of India</strong> through its official channel. The Act requires you to use our grievance process before approaching the Board.</p>
 
       <H3>2. Consent</H3>
-      <p>When you create an account you agree, by a clear affirmative action, to the Terms of Service and to DifAi processing your personal data as described in this notice and the Privacy Policy to provide the Service. By uploading personal data of clients and other persons, you confirm you have a lawful basis to do so and act as their Data Fiduciary. We do not send marketing messages or run usage analytics, so we ask for no optional consents. Consent is limited to the purposes stated here.</p>
+      <p>When you create an account you tick a box, which is never ticked for you, to agree to the Terms of Service and to DifAi processing your personal data as described in this notice and the Privacy Policy, and to confirm you have a lawful basis to upload personal data of clients and other persons, for whom you act as Data Fiduciary. You cannot create an account without ticking it. When these documents change in a way that needs fresh consent, the app asks you to agree or disagree before you continue; if you disagree you are signed out. We do not send marketing messages or run usage analytics, so we ask for no optional consents. Consent is limited to the purposes stated here.</p>
+      <p>We keep a record of each answer: the version you agreed or disagreed to, the time, and the IP address and device (browser) it came from. We keep it while your account exists; it is erased with your account.</p>
       <p><strong>Consent Managers.</strong> Once the Government&rsquo;s consent manager framework is in force, you may give, manage, review or withdraw consent through a registered Consent Manager, and we will honour valid requests from it.</p>
 
       <H3>3. Your rights under the DPDP Act</H3>

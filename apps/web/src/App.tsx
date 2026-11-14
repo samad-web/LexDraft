@@ -24,6 +24,7 @@ import { uiFor, watchStackedTables } from '@/lib/chambers';
 // only download when the user actually navigates to a view that needs them. The
 // app shell (Sidebar/Topbar/banners) stays eager. Named exports are unwrapped to
 // a default via .then(...) so prop types are preserved through React.lazy.
+import { TermsConsentView } from '@/components/TermsConsent';
 const LandingView = lazy(() => import('@/views/LandingView').then((m) => ({ default: m.LandingView })));
 const AuthView = lazy(() => import('@/views/AuthView').then((m) => ({ default: m.AuthView })));
 const SignupView = lazy(() => import('@/views/SignupView').then((m) => ({ default: m.SignupView })));
@@ -270,6 +271,12 @@ export function App() {
     // The superadmin console has its own username + password sign-in.
     if (isAdminRoute) return <><AdminLoginView /><Toast /></>;
     return <Navigate to="/auth" replace state={{ from: location }} />;
+  }
+
+  // Agree to the current Terms + Privacy version before anything else
+  // (features/terms-consent.md). Disagree signs the user out.
+  if (user.needsTermsAcceptance && !user.isSuperadmin && !actAs) {
+    return <><TermsConsentView /><Toast /></>;
   }
 
   // New self-serve accounts pick a plan and set up the practice first.

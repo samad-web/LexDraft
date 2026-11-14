@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { TermsAgree } from '@/components/TermsConsent';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useGoogleSignUp, useDemoRequest } from '@/hooks/useAuth';
@@ -329,17 +330,19 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
   const [name, setName] = useState('');
   const [password, setPassword] = useState({ value: '', ok: false });
+  const [agreedTerms, setAgreedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || !verified || !password.ok) return;
+    if (isSubmitting || !verified || !password.ok || !agreedTerms) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         signupToken: verified.signupToken,
         password: password.value,
         name: name.trim() || undefined,
+        acceptTerms: true,
         role: 'solo',
         intent: 'demo',
       });
@@ -373,8 +376,9 @@ function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
           </Labelled>
           <NewPasswordFields onChange={setPassword} />
+          <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
           <div style={{ marginTop: 8 }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok || !agreedTerms}>
               {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
             </button>
           </div>
@@ -398,6 +402,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const [role, setRole] = useState<'solo' | 'student' | 'group'>('solo');
   const [firm, setFirm] = useState('');
   const [password, setPassword] = useState({ value: '', ok: false });
+  const [agreedTerms, setAgreedTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTrial = props.intent === 'trial';
@@ -412,13 +417,14 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (isSubmitting || !verified || !password.ok) return;
+    if (isSubmitting || !verified || !password.ok || !agreedTerms) return;
     setIsSubmitting(true);
     try {
       await signUp.mutateAsync({
         signupToken: verified.signupToken,
         password: password.value,
         name: name.trim() || undefined,
+        acceptTerms: true,
         role,
         firm: firm.trim() || undefined,
         intent: props.intent,
@@ -474,8 +480,9 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
             </Labelled>
           )}
           <NewPasswordFields onChange={setPassword} />
+          <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
           <div style={{ marginTop: 8 }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok}>
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok || !agreedTerms}>
               {isSubmitting || signUp.isPending ? 'Creating…' : ctaLabel}
             </button>
           </div>

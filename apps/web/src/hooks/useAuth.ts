@@ -147,7 +147,7 @@ export function useEmailSignupComplete() {
   const setSession = useAuthStore((s) => s.setSession);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { signupToken: string; challengeId: string; code: string; password: string }) =>
+    mutationFn: (body: { signupToken: string; challengeId: string; code: string; password: string; acceptTerms: true }) =>
       api.post<AuthResponse>('/auth/signup/email/complete', body),
     onSuccess: (r) => {
       qc.clear();

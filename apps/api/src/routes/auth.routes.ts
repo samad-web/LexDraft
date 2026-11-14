@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { authService } from '../services/auth.service';
 import { firmEnquiriesService } from '../services/firm-enquiries.service';
@@ -8,6 +8,9 @@ import { otpSendLimiter, signInLimiter, signUpLimiter } from '../middleware/rate
 import { env } from '../env';
 import { ForbiddenError } from '../lib/errors';
 import { normalizePhone } from '../services/phone-otp.service';
+
+/** IP + user agent stored with the sign-up consent record. */
+const consentMeta = (req: Request) => ({ ip: req.ip ?? null, userAgent: req.get('user-agent')?.slice(0, 512) ?? null });
 
 /** Optional contact phone: blank, or an Indian (+91) mobile number. */
 const optionalIndianPhone = z.string().max(40).optional().transform((v, ctx) => {
@@ -25,6 +28,7 @@ const SignIn = z.object({
   password: z.string().min(1).max(128),
 }).strict();
 const SignUp = z.object({
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Agree to the Terms of Service and Privacy Policy to continue.' }) }),
   email: z.string().email().max(254),
   // Min 8 retained for backwards-compat with existing accounts. Max 128
   // blocks bcrypt-truncation-at-72 attacks and stops memory-exhaustion
@@ -66,6 +70,7 @@ const SignupOtpVerify = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 }).strict();
 const GoogleSignUp = z.object({
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Agree to the Terms of Service and Privacy Policy to continue.' }) }),
   signupToken: z.string().min(20).max(4096),
   /** Every account has a password (sign in with email + password). */
   password: z.string().min(8, 'Use at least 8 characters').max(128),
@@ -130,7 +135,7 @@ authRouter.post('/sign-up', signUpLimiter, async (req, res, next) => {
       throw new ForbiddenError('Create your account with Google.', { code: 'password_signup_disabled' });
     }
     const body = SignUp.parse(req.body);
-    res.status(201).json(await authService.signUp(body));
+    res.status(201).json(await authService.signUp(body, consentMeta(req)));
   } catch (err) {
     next(err);
   }
@@ -193,7 +198,9 @@ const EmailSignupComplete = z.object({
   challengeId: z.string().uuid(),
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
   password: z.string().min(8, 'Use at least 8 characters').max(128),
+  acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Agree to the Terms of Service and Privacy Policy to continue.' }) }),
 }).strict();
+
 
 authRouter.post('/signup/email/start', otpSendLimiter, async (req, res, next) => {
   try {
@@ -207,7 +214,7 @@ authRouter.post('/signup/email/start', otpSendLimiter, async (req, res, next) =>
 authRouter.post('/signup/email/complete', signUpLimiter, async (req, res, next) => {
   try {
     const body = EmailSignupComplete.parse(req.body);
-    res.status(201).json(await authService.completeEmailSignup(body));
+    res.status(201).json(await authService.completeEmailSignup(body, consentMeta(req)));
   } catch (err) {
     next(err);
   }
@@ -216,7 +223,7 @@ authRouter.post('/signup/email/complete', signUpLimiter, async (req, res, next) 
 authRouter.post('/google/sign-up', signUpLimiter, async (req, res, next) => {
   try {
     const body = GoogleSignUp.parse(req.body);
-    res.status(201).json(await authService.googleSignUp(body));
+    res.status(201).json(await authService.googleSignUp(body, consentMeta(req)));
   } catch (err) {
     next(err);
   }

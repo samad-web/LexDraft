@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { TermsAgree } from '@/components/TermsConsent';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, FieldError, validators } from '@lexdraft/ui';
 import {
@@ -125,6 +126,8 @@ export function AuthView() {
   // Sign-up form. The landing page's "What's your name?" pre-fills the name.
   const signupStart = useEmailSignupStart();
   const signupComplete = useEmailSignupComplete();
+  /** Terms + Privacy box, shared by the email and Google sign-up forms. Unticked by default. */
+  const [agreedTerms, setAgreedTerms] = useState(false);
   const [suName, setSuName] = useState(() => readIntro().name ?? '');
   const [suEmail, setSuEmail] = useState('');
   // 10 national digits; the field shows a fixed +91 prefix.
@@ -270,7 +273,7 @@ export function AuthView() {
   const handleSignupStart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSuTouched({ name: true, email: true, phone: true, password: true });
-    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password) return;
+    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password || !agreedTerms) return;
     signupStart.mutate(
       { name: suName.trim(), email: suEmail.trim(), phone: toE164India(suPhone) },
       { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
@@ -281,7 +284,7 @@ export function AuthView() {
     e.preventDefault();
     if (!suChallenge) return;
     signupComplete.mutate(
-      { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword },
+      { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword, acceptTerms: true },
       { onSuccess: () => navigate('/onboarding', { replace: true }) },
     );
   };
@@ -631,14 +634,12 @@ export function AuthView() {
                   We send a 6-digit code on WhatsApp to verify your number. All fields are required.
                 </span>
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
+                <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
                 <div className="auth-actions">
-                  <span className="body-xs" style={{ color: 'var(--text-tertiary)', maxWidth: 240, lineHeight: 1.5 }}>
-                    By starting you agree to DifAi&rsquo;s <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>Privacy Policy</a>.
-                  </span>
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg btn-pill auth-submit"
-                    disabled={signupStart.isPending}
+                    disabled={signupStart.isPending || !agreedTerms}
                   >
                     {signupStart.isPending ? 'Sending…' : 'Start'}
                   </button>
@@ -710,16 +711,17 @@ export function AuthView() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   minLength={8}
                 />
+                <div style={{ marginTop: 12 }}><TermsAgree checked={agreedTerms} onChange={setAgreedTerms} /></div>
               </div>
               )}
-              ready={newPassword.length >= 8}
-              notReadyText="Enter your WhatsApp number and a password"
+              ready={newPassword.length >= 8 && agreedTerms}
+              notReadyText="Enter your WhatsApp number and a password, and agree to the Terms"
               startWith={googleSignup}
               buttonText="signup_with"
               onSignedIn={handleSignedIn}
               onVerified={(v) => {
                 signUp.mutate(
-                  { signupToken: v.signupToken, password: newPassword, name: v.profile.name, role: 'solo' },
+                  { signupToken: v.signupToken, password: newPassword, name: v.profile.name, role: 'solo', acceptTerms: true },
                   { onSuccess: () => navigate('/onboarding', { replace: true }) },
                 );
               }}

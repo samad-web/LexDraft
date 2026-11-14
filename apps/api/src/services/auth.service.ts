@@ -12,6 +12,7 @@ import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
 import { billingService } from './billing.service';
 import { assertDeliverableEmail } from '../lib/email-check';
+import { TERMS_CONSENT_TYPE, TERMS_VERSION } from '../lib/legal';
 
 /**
  * Transitional response returned by signIn when the user is MFA-enrolled
@@ -80,6 +81,8 @@ interface UserRow {
   is_demo: boolean | null;
   /** Migration 0097: null until the post-sign-up onboarding is finished. */
   onboarded_at?: Date | null;
+  /** Latest consent_log answer for the current Terms version (null = never asked). */
+  terms_granted?: boolean | null;
 }
 
 /**
@@ -240,6 +243,25 @@ export function issueImpersonationToken(target: User, admin: ActAsClaim): { toke
   return { token, expiresAt };
 }
 
+export interface ConsentMeta { ip: string | null; userAgent: string | null }
+
+/** Records the Terms + Privacy agreement given at sign-up. A failure leaves
+ *  the account in place; the in-app consent gate then asks again. */
+async function recordTermsAcceptance(user: User, meta?: ConsentMeta): Promise<void> {
+  const sql = db();
+  if (!sql) return;
+  try {
+    await sql`
+      insert into consent_log (user_id, firm_id, consent_type, consent_version, granted, ip, user_agent)
+      select u.id, u.firm_id, ${TERMS_CONSENT_TYPE}, ${TERMS_VERSION}, true, ${meta?.ip ?? null}, ${meta?.userAgent ?? null}
+      from users u where u.id = ${user.id}::uuid
+    `;
+    delete user.needsTermsAcceptance;
+  } catch {
+    user.needsTermsAcceptance = true;
+  }
+}
+
 function rowToPublic(row: UserRow): User {
   const user: User = {
     id: row.id,
@@ -260,6 +282,7 @@ function rowToPublic(row: UserRow): User {
     : null;
   user.isDemo = !!row.is_demo;
   if (row.onboarded_at === null) user.needsOnboarding = true;
+  if (row.terms_granted !== true) user.needsTermsAcceptance = true;
   return user;
 }
 
@@ -267,7 +290,11 @@ const USER_SELECT_WITH_FIRM = `
   select u.id, u.name, u.email, u.role, u.is_superadmin, u.password_hash, u.google_sub, u.firm_id,
          u.enrolment, u.primary_court, u.practice_areas, u.default_language_code, u.onboarded_at,
          f.name as firm_name, f.plan_tier,
-         f.plan_status, f.trial_ends_at, f.is_demo
+         f.plan_status, f.trial_ends_at, f.is_demo,
+         (select c.granted from consent_log c
+           where c.user_id = u.id and c.consent_type = '${TERMS_CONSENT_TYPE}'
+             and c.consent_version = '${TERMS_VERSION}'
+           order by c.created_at desc limit 1) as terms_granted
   from users u
   left join firms f on f.id = u.firm_id
 `;
@@ -711,7 +738,7 @@ export const authService = {
 
   /** Verifies the WhatsApp code and creates the account. Plan and practice
    *  details follow on /onboarding. */
-  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }): Promise<AuthResponse> {
+  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }, meta?: ConsentMeta): Promise<AuthResponse> {
     let claims: { purpose?: string; name?: string; email?: string; phone?: string };
     try {
       claims = jwt.verify(input.signupToken, EMAIL_SIGNUP_TOKEN_SECRET) as typeof claims;
@@ -747,6 +774,7 @@ export const authService = {
     const sql = db();
     if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
     user.needsOnboarding = true;
+    await recordTermsAcceptance(user, meta);
     return { user, token: issueToken(user) };
   },
 
@@ -771,7 +799,7 @@ export const authService = {
   },
 
   /** Create the account for a Google user whose WhatsApp number is verified. */
-  async googleSignUp(input: GoogleSignUpInput): Promise<AuthResponse> {
+  async googleSignUp(input: GoogleSignUpInput, meta?: ConsentMeta): Promise<AuthResponse> {
     const { google, phone } = await authService.verifiedSignup(input.signupToken);
 
     const name = input.name?.trim() || google.name;
@@ -807,6 +835,7 @@ export const authService = {
       if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
       user.needsOnboarding = true;
     }
+    await recordTermsAcceptance(user, meta);
     return { user, token: issueToken(user) };
   },
 
@@ -825,7 +854,7 @@ export const authService = {
     return { google: claims.google, phone: claims.phone };
   },
 
-  async signUp(input: SignUpRequest): Promise<AuthResponse> {
+  async signUp(input: SignUpRequest, meta?: ConsentMeta): Promise<AuthResponse> {
     const existing = await findByEmail(input.email);
     if (existing) throw new ConflictError('Email already registered');
 
@@ -858,6 +887,7 @@ export const authService = {
     const plan = input.plan ?? (input.role === 'group' ? 'associates' : 'sanad');
     await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
       .catch(() => undefined);
+    await recordTermsAcceptance(user, meta);
     return { user, token: issueToken(user) };
   },
 

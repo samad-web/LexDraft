@@ -64,9 +64,12 @@ describe('legal pages', () => {
 
   it('AC6: landing, sign-up and settings link to /terms and /privacy', () => {
     expect(web('src/views/LandingView.tsx')).toContain("{ label: 'Terms', href: '/terms' }");
+    // Sign-up forms link both documents through <TermsAgree> (terms-consent);
+    // the sign-in card keeps its notice line.
     const auth = web('src/views/AuthView.tsx');
-    expect(auth.match(/href="\/terms"/g)?.length).toBe(2);
-    expect(auth.match(/href="\/privacy"/g)?.length).toBe(2);
+    expect(auth).toContain('<TermsAgree ');
+    expect(auth.match(/href="\/terms"/g)?.length).toBe(1);
+    expect(auth.match(/href="\/privacy"/g)?.length).toBe(1);
     const settings = web('src/views/SettingsView.tsx');
     expect(settings).toContain('<a href="/terms">Terms of Service</a>');
     expect(settings).not.toContain('/legal/terms');

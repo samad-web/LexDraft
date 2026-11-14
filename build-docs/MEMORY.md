@@ -40,6 +40,8 @@
 
 - 2026-11-14 legal pages: the operator is Sirah Digital, a sole proprietorship of M Mohamed Riyaz (GSTIN 33CVVPM9805M1ZO, Chennai). Arbitration seat Chennai, Madras HC. Legal text must match the app (no consent boxes, analytics or in-app cancel today) and say nothing "free" (pricing v4). Details: features/legal-pages.md.
 
+- 2026-11-14 terms-consent: Terms + Privacy agreement is stored in the existing `consent_log` (type `terms_privacy`, version = api `TERMS_VERSION` = web `LEGAL_VERSION`). Bumping the version re-asks every user. Owner chose to gate existing users (disagree = sign-out). Details: features/terms-consent.md.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
@@ -49,6 +51,7 @@
 - none.
 
 ## Known issues
+- auth.integration.test "role=group creates a Practice-tier firm" fails on main since pricing v4 (gets Firm). Decide which tier is intended, then fix the test or the mapping.
 - 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.
 - eFiling Overview tiles are still portal-style (light tiles in dark mode) until redesign step 2.
 - 2026-11-08 (r14) - place fallback fills only signing/filing places (place, place_of_execution, execution_place, city, court_place, verification_place), never factual ones (accident_place, marriage_place); affidavit_kind is optional (engine-doc-contract.json needs regenerating).
