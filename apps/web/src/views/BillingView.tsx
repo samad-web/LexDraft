@@ -48,7 +48,7 @@ function statusLine(c: BillingStateResponse['current']): string {
   if (c.planStatus === 'past_due') return `${name} · payment due. Update your payment to keep access.`;
   if (c.planStatus === 'cancelled') return `${name} · cancelled`;
   const cycle = c.billingCycle === 'annual' ? 'yearly' : c.billingCycle === 'monthly' ? 'monthly' : null;
-  return `${planLabel(id ?? '', c.seats, c.munshiSeats)}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · renews ${formatDate(c.renewsAt)}` : ''}`;
+  return `${planLabel(id ?? '', c.seats, c.munshiSeats)}${cycle ? ` · billed ${cycle}` : ''}${c.renewsAt ? ` · paid until ${formatDate(c.renewsAt)}` : ''}`;
 }
 
 /** GST tax invoices for this practice's payments, newest first. Hidden until there is one. */
@@ -111,7 +111,7 @@ export function BillingView() {
   const [params, setParams] = useSearchParams();
   const returned = params.get('checkout');
   // Back from Razorpay: the plan flips when the webhook lands, so poll briefly.
-  const [waiting, setWaiting] = useState(returned === 'done');
+  const [waiting, setWaiting] = useState(returned === 'done' || returned === 'paid');
   const { data, isLoading } = useBilling({ refetchInterval: waiting ? 3000 : false });
   const checkout = useStartCheckout();
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
@@ -159,8 +159,12 @@ export function BillingView() {
   };
 
   const chosen = data?.plans.find((p) => p.id === selected) ?? null;
-  const sameAsNow = !!chosen && chosen.id === current && paid && data?.current.billingCycle === cycle
+  // Pay per period (no Autopay): the same plan again adds a period after the
+  // current end; a different plan starts today and the days left on the
+  // current one are not carried over.
+  const renewing = !!chosen && chosen.id === current && paid
     && (!chosen.seats || data?.current.seats === seats) && data?.current.munshiSeats === munshi;
+  const switching = !!chosen && paid && !renewing;
 
   return (
     <div className="col stagger cm-billing" style={{ gap: 24 }}>
@@ -187,10 +191,10 @@ export function BillingView() {
           <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
         </div>
       )}
-      {returned === 'pack-done' && (
+      {returned === 'paid' && (
         <div role="status" className="cm-notice">
           <span className="cm-notice-icon" aria-hidden><Icon name="check" size={14} /></span>
-          <span>Payment received. Your Brief Pack credits appear in a few seconds.</span>
+          <span>Payment received. Your plan or credits update in a few seconds.</span>
           <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
         </div>
       )}
@@ -222,7 +226,7 @@ export function BillingView() {
             </div>
             <div>
               <div className="cm-label">
-                {data.current.freePlan ? 'Free until' : paymentPending(data.current) ? 'Pay by' : data.current.planStatus === 'trial' ? 'Trial ends' : 'Renews'}
+                {data.current.freePlan ? 'Free until' : paymentPending(data.current) ? 'Pay by' : data.current.planStatus === 'trial' ? 'Trial ends' : 'Paid until'}
               </div>
               <div className="cm-current-v">
                 {formatDate(data.current.planStatus === 'trial' || data.current.freePlan ? data.current.trialEndsAt : data.current.renewsAt)}
@@ -264,10 +268,11 @@ export function BillingView() {
                 <strong>{chosen.name}</strong>
                 {chosen.id === 'partners' && 'Firms with nine or more advocates get custom pricing. Book a demo and we will set it up.'}
                 {isPaidId(chosen.id) && (
-                  sameAsNow ? 'You are already on this plan.'
-                    : !data.paymentsEnabled || !chosen.purchasable
-                      ? 'Online payment is being switched on. Please try again soon.'
-                      : `Pay securely with Razorpay (UPI Autopay, cards, netbanking). Your plan switches as soon as the payment goes through.`
+                  !data.paymentsEnabled || !chosen.purchasable
+                    ? 'Online payment is being switched on. Please try again soon.'
+                    : `One payment covers one ${cycle === 'annual' ? 'year' : 'month'}; nothing is charged automatically. Pay with UPI, card or netbanking through Razorpay.`
+                      + (renewing ? ` It adds a ${cycle === 'annual' ? 'year' : 'month'} after ${formatDate(data.current.renewsAt)}.` : '')
+                      + (switching ? ' It starts today; the days left on your current plan are not carried over.' : '')
                 )}
               </span>
               {chosen.id === 'partners' && (
@@ -279,12 +284,12 @@ export function BillingView() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={sameAsNow || !data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
+                  disabled={!data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
                   onClick={() => isPaidId(chosen.id) && checkout.mutate(
                     { plan: chosen.id, cycle, munshi, ...(chosen.seats ? { seats } : {}) },
                   )}
                 >
-                  {checkout.isPending ? 'Opening payment…' : current === chosen.id ? `Change ${chosen.name}` : `Switch to ${chosen.name}`}
+                  {checkout.isPending ? 'Opening payment…' : renewing ? `Renew ${chosen.name}` : paid ? `Switch to ${chosen.name}` : `Pay for ${chosen.name}`}
                 </button>
               )}
             </div>

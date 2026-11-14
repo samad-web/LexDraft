@@ -27,8 +27,6 @@ import { subscriptionInvoiceService } from './subscription-invoice.service';
 /** Only the account owner (the person who signed up) buys or changes the plan. */
 const OWNER_ROLES = new Set(['Solo Advocate', 'Managing Partner']);
 
-/** Renewals a subscription runs for before Razorpay marks it completed. */
-const TOTAL_COUNT: Record<BillingCycle, number> = { monthly: 120, annual: 10 };
 
 export function paymentsEnabled(): boolean {
   return !!env.razorpay.keyId && !!env.razorpay.keySecret;
@@ -150,33 +148,6 @@ async function razorpay<T>(method: 'GET' | 'POST', path: string, body?: unknown)
   return JSON.parse(text) as T;
 }
 
-/** The Razorpay plan for this exact price, created the first time it is bought. */
-async function razorpayPlanId(plan: PaidPlanId, cycle: BillingCycle, seats: number, munshi: number): Promise<string> {
-  const sql = db();
-  if (!sql) throw new HttpError(503, 'Billing needs the database.');
-  const amount = chargePaise(plan, cycle, seats, munshi);
-  const find = () => sql<{ razorpay_plan_id: string }[]>`
-    select razorpay_plan_id from razorpay_plans
-    where plan = ${plan} and cycle = ${cycle} and seats = ${seats} and munshi_seats = ${munshi} and amount_paise = ${amount}
-    order by created_at limit 1`;
-  const [found] = await find();
-  if (found) return found.razorpay_plan_id;
-  const name = `DifAi ${planLabel(plan, seats, munshi)}`;
-  const created = await razorpay<{ id: string }>('POST', '/plans', {
-    period: cycle === 'annual' ? 'yearly' : 'monthly',
-    interval: 1,
-    item: { name, amount, currency: 'INR', description: `${name}, billed ${cycle === 'annual' ? 'yearly' : 'monthly'}` },
-    notes: { plan, cycle, seats: String(seats), munshi: String(munshi) },
-  });
-  await sql`
-    insert into razorpay_plans (razorpay_plan_id, plan, cycle, seats, munshi_seats, amount_paise)
-    values (${created.id}, ${plan}, ${cycle}, ${seats}, ${munshi}, ${amount})
-    on conflict do nothing`;
-  // A concurrent buyer may have created the same price first: use the oldest.
-  const [row] = await find();
-  return row?.razorpay_plan_id ?? created.id;
-}
-
 /** Constant-time compare of two hex HMACs. */
 function hexEqual(given: string, expected: string): boolean {
   const a = Buffer.from(given, 'utf8');
@@ -210,16 +181,102 @@ async function cancelNow(subscriptionId: string, firmId: string): Promise<void> 
 
 /** Grants a paid Brief Pack: exactly once (grant ref + invoice are unique on the
  *  payment id), only for the pack's exact price, as read from our own order. */
-async function grantBriefPack(eventId: string, payment: { id: string; order_id: string; amount?: unknown }): Promise<void> {
+async function handleOrderPayment(eventId: string, payment: { id: string; order_id: string; amount?: unknown }): Promise<void> {
   const sql = db();
   if (!sql) return;
   const order = await razorpay<{ amount?: number; notes?: Record<string, unknown> | unknown[] }>('GET', `/orders/${payment.order_id}`);
   const notes = (order.notes && !Array.isArray(order.notes) ? order.notes : {}) as Record<string, unknown>;
+  if (notes.kind === 'plan') return applyPlanPayment(eventId, payment, notes, Number(order.amount));
+  return grantBriefPack(eventId, payment, notes, Number(order.amount));
+}
+
+/** A month or a year later (same day; end of month when it doesn't exist). */
+export function addPeriod(from: Date, cycle: BillingCycle): Date {
+  const d = new Date(from);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + (cycle === 'annual' ? 12 : 1));
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  return d;
+}
+
+/**
+ * A paid plan period (one-time order). Exactly once per payment, only for the
+ * exact price of what our own order says was bought.
+ *  - Same plan (and seats) still active: the new period is added after the
+ *    current end, so paying early never loses days.
+ *  - A different plan, or nothing active: it starts now. Days left on a
+ *    different plan are not carried over (owner, 2026-11-14).
+ */
+async function applyPlanPayment(eventId: string, payment: { id: string; amount?: unknown }, notes: Record<string, unknown>, orderAmount: number): Promise<void> {
+  const sql = db();
+  if (!sql) return;
+  const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
+  const plan = notes.plan;
+  const cycle = notes.cycle === 'annual' ? 'annual' : notes.cycle === 'monthly' ? 'monthly' : null;
+  const seats = Number(notes.seats);
+  const munshi = Number(notes.munshi ?? 0);
+  if (!firmId || !isPaidPlan(plan) || !cycle || !Number.isInteger(seats) || seats < 1 || !Number.isInteger(munshi) || munshi < 0) {
+    logger.error({ paymentId: payment.id, notes }, 'plan payment: unreadable order notes, NOT applied');
+    return;
+  }
+  const want = chargePaise(plan, cycle, seats, munshi);
+  if (Number(payment.amount) !== want || orderAmount !== want) {
+    logger.error({ paymentId: payment.id, plan, amount: payment.amount }, 'plan payment: amount does not match the plan, NOT applied');
+    return;
+  }
+  const userId = typeof notes.user_id === 'string' ? notes.user_id : null;
+  const applied = await sql.begin(async (tx) => {
+    const [seen] = await tx<{ id: string }[]>`
+      select id from billing_events where provider_ref = ${payment.id}
+        and kind in ('subscription_active', 'renewed', 'plan_changed') limit 1`;
+    if (seen) return null;
+    const [f] = await tx<Array<{ selected_plan: string | null; plan_status: string | null; renews_at: Date | null; free_plan: boolean | null; seats: number | null; munshi_seats: number | null }>>`
+      select selected_plan, plan_status, renews_at, free_plan, seats, munshi_seats from firms where id = ${firmId}::uuid for update`;
+    if (!f) return null;
+    const now = new Date();
+    const active = f.plan_status === 'active' && !f.free_plan && !!f.renews_at && new Date(f.renews_at) > now;
+    const same = active && f.selected_plan === plan && (f.seats ?? 1) === seats && (f.munshi_seats ?? 0) === munshi;
+    const start = same ? new Date(f.renews_at!) : now;
+    const end = addPeriod(start, cycle);
+    await tx`
+      update firms set
+        plan_tier = ${PLANS[plan].tier}::firm_plan_tier,
+        plan_status = 'active',
+        free_plan = false,
+        trial_ends_at = null,
+        renews_at = ${end},
+        billing_cycle = ${cycle},
+        selected_plan = ${plan},
+        mrr_inr = ${mrrFor(plan, cycle, seats, munshi)},
+        seats = ${seats},
+        munshi_seats = ${munshi},
+        razorpay_subscription_id = null
+      where id = ${firmId}::uuid`;
+    const kind: BillingEventKind = !active ? 'subscription_active' : same ? 'renewed' : 'plan_changed';
+    await tx`
+      insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, provider, provider_ref, webhook_id)
+      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${periodPriceInr(plan, cycle, seats, munshi)}, 'razorpay', ${payment.id}, ${eventId})`;
+    return { start, end };
+  });
+  // The invoice is idempotent on the payment id: safe on a redelivery too.
+  await subscriptionInvoiceService.issueForPayment({
+    firmId, paymentId: payment.id, amountPaise: want, subscriptionId: null,
+    plan, cycle, seats, munshi, periodStart: applied?.start ?? null, periodEnd: applied?.end ?? null,
+  });
+  if (applied) {
+    invalidatePlanStatusCache();
+    invalidatePermissionsCache();
+  }
+}
+
+async function grantBriefPack(eventId: string, payment: { id: string; amount?: unknown }, notes: Record<string, unknown>, orderAmount: number): Promise<void> {
   const pack = notes.pack;
   const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
   if (!isBriefPack(pack) || !firmId) return; // not one of ours
   const want = BRIEF_PACKS[pack].priceInr * 100;
-  if (Number(payment.amount) !== want || Number(order.amount) !== want) {
+  if (Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, pack, amount: payment.amount }, 'brief pack: amount does not match the pack, NOT granted');
     return;
   }
@@ -253,7 +310,7 @@ export const billingService = {
         renewsAt: u.renews_at ? new Date(u.renews_at).toISOString() : null,
         billingCycle: u.billing_cycle,
         selectedPlan: u.selected_plan,
-        subscribed: !!u.razorpay_subscription_id,
+        subscribed: u.plan_status === 'active' && !u.free_plan && isPaidPlan(u.selected_plan),
         seats: u.seats ?? 1,
         munshiSeats: u.munshi_seats ?? 0,
       },
@@ -300,29 +357,20 @@ export const billingService = {
         { code: 'seats_below_members' },
       );
     }
-    const paying = !!u.razorpay_subscription_id && u.plan_status === 'active';
-    if (paying && u.selected_plan === plan && u.billing_cycle === cycle && u.seats === wanted && (u.munshi_seats ?? 0) === munshi) {
-      throw new BadRequestError('You are already on this plan.');
-    }
-    // A plan change starts when the current paid period ends, so nobody pays twice.
-    const startAt = paying && u.renews_at && new Date(u.renews_at).getTime() > Date.now() + 60_000
-      ? Math.floor(new Date(u.renews_at).getTime() / 1000) : null;
-    const sub = await razorpay<{ id: string }>('POST', '/subscriptions', {
-      plan_id: await razorpayPlanId(plan, cycle, wanted, munshi),
-      total_count: TOTAL_COUNT[cycle],
-      quantity: 1,
-      customer_notify: 1,
-      ...(startAt ? { start_at: startAt } : {}),
-      notes: {
-        firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi),
-        ...(paying ? { replaces: u.razorpay_subscription_id } : {}),
-      },
+    // One payment buys one month or one year; nothing renews automatically
+    // (owner, 2026-11-14). The plan is applied only by the signed
+    // payment.captured webhook (applyPlanPayment).
+    const order = await razorpay<{ id: string }>('POST', '/orders', {
+      amount: chargePaise(plan, cycle, wanted, munshi),
+      currency: 'INR',
+      receipt: `plan-${crypto.randomUUID().slice(0, 30)}`,
+      notes: { kind: 'plan', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi) },
     });
     await logEvent({
       firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle,
-      amountInr: periodPriceInr(plan, cycle, wanted, munshi), providerRef: sub.id,
+      amountInr: periodPriceInr(plan, cycle, wanted, munshi), providerRef: order.id,
     });
-    return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${sub.id}` };
+    return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },
 
   /** A Brief Pack: a one-time Razorpay order for its exact price. Credits are
@@ -378,7 +426,7 @@ export const billingService = {
       key: env.razorpay.keyId,
       ...(isOrder ? { order_id: id } : { subscription_id: id }),
       name: 'DifAi',
-      description: isOrder ? 'DifAi Brief Pack' : 'DifAi plan',
+      description: 'DifAi',
       callback_url: `${base}/api/billing/callback`,
       redirect: true,
       theme: { color: '#111111' },
@@ -410,7 +458,7 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
       const s = String(body.razorpay_signature ?? '');
       if (!paymentId || !s || !env.razorpay.keySecret) return `${base}cancelled`;
       const want = crypto.createHmac('sha256', env.razorpay.keySecret).update(`${orderId}|${paymentId}`).digest('hex');
-      return hexEqual(s, want) ? `${base}pack-done` : `${base}cancelled`;
+      return hexEqual(s, want) ? `${base}paid` : `${base}cancelled`;
     }
     const subId = String(body.razorpay_subscription_id ?? '');
     const sig = String(body.razorpay_signature ?? '');
@@ -448,11 +496,12 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     const notes = (sub.notes && !Array.isArray(sub.notes) ? sub.notes : {}) as Record<string, unknown>;
     const periodEnd = typeof sub.current_end === 'number' ? new Date(sub.current_end * 1000) : null;
 
-    // A Brief Pack payment (one-time order). Subscription payments also send
-    // payment.captured; those carry no pack on their order and are ignored.
+    // A one-time order payment: a plan period or a Brief Pack. Old Autopay
+    // subscription payments also send payment.captured; their orders carry
+    // neither, so they are ignored here.
     if (type === 'payment.captured') {
       if (typeof payment.order_id === 'string' && ORDER_ID.test(payment.order_id) && typeof payment.id === 'string') {
-        await grantBriefPack(eventId, payment as { id: string; order_id: string; amount?: unknown });
+        await handleOrderPayment(eventId, payment as { id: string; order_id: string; amount?: unknown });
       }
       return;
     }
@@ -655,7 +704,8 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     if (!sql) return { payingFirms: 0, mrrInr: 0, trialsEndingSoon: 0, abandonedCheckouts: 0, signupsByPlan: {} };
     const [paying] = await sql<{ n: number; mrr: number }[]>`
       select count(*)::int n, coalesce(sum(mrr_inr), 0)::int mrr
-      from firms where razorpay_subscription_id is not null and plan_status = 'active'`;
+      from firms where plan_status = 'active' and not coalesce(free_plan, false)
+        and selected_plan in ('sanad', 'vakalat', 'brief', 'associates')`;
     const [trials] = await sql<{ n: number }[]>`
       select count(*)::int n from firms
       where plan_status = 'trial' and not coalesce(free_plan, false)
@@ -664,7 +714,7 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
       select count(distinct e.firm_id)::int n
       from billing_events e join firms f on f.id = e.firm_id
       where e.kind = 'checkout_started' and e.created_at > now() - interval '30 days'
-        and f.razorpay_subscription_id is null`;
+        and not (f.plan_status = 'active' and not coalesce(f.free_plan, false))`;
     const byPlan = await sql<{ plan: string | null; n: number }[]>`
       select plan, count(*)::int n from billing_events
       where kind = 'signup' and created_at > now() - interval '30 days'

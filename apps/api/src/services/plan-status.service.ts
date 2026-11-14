@@ -1,4 +1,5 @@
 import { db } from '../db/client';
+import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 
 // =============================================================================
 // plan-status.service - reads firms.plan_status / renews_at for a user and
@@ -52,7 +53,16 @@ async function loadPlanState(userId: string): Promise<PlanState> {
     where u.id = ${userId}::uuid
     limit 1
   `;
-  const row = rows[0];
+  let row = rows[0];
+  if (row?.firm_id && row.plan_status === 'active' && row.renews_at && new Date(row.renews_at) < new Date()
+      && Date.now() < FREE_PLAN_ENDS_AT.getTime()) {
+    const [back] = await sql<Array<{ plan_status: PlanStatus; renews_at: Date | null; trial_ends_at: Date | null }>>`
+      update firms set free_plan = true, plan_status = 'trial', trial_ends_at = ${FREE_PLAN_ENDS_AT},
+        renews_at = null, mrr_inr = 0, selected_plan = 'free'
+      where id = ${row.firm_id}::uuid and free_launch and plan_status = 'active' and renews_at < now()
+      returning plan_status, renews_at, trial_ends_at`;
+    if (back) row = { ...row, ...back };
+  }
   return {
     firmId: row?.firm_id ?? null,
     planStatus: row?.plan_status ?? null,

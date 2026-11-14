@@ -263,13 +263,14 @@ export function TermsView() {
 
       <H3>2. Billing and renewal</H3>
       <ul>
-        <li>Paid plans are billed monthly or yearly, as you choose, in advance in INR. Prices include GST, which is shown separately on your tax invoice.</li>
-        <li>Subscriptions renew automatically at the end of each period unless cancelled. Where the payment method needs your authorisation for each charge, or RBI e-mandate rules require a pre-debit notification, we comply with those rules.</li>
-        <li>Price changes take effect at the next renewal after at least 30 days&rsquo; notice.</li>
+        <li>Paid plans are paid in advance in INR, for one month or one year at a time, as you choose. Prices include GST, which is shown separately on your tax invoice.</li>
+        <li>Nothing renews or is charged automatically. Before your paid period ends we remind you in the app; to continue, you pay for the next period yourself. Paying again for the same plan adds the new period after the current one ends.</li>
+        <li>Choosing a different plan starts it on the day you pay; days left on your previous plan are not carried over.</li>
+        <li>Price changes apply to periods bought after at least 30 days&rsquo; notice.</li>
       </ul>
 
       <H3>3. Cancellation</H3>
-      <p>You may cancel at any time by writing to {mail} from your registered email; we confirm within 2 working days. Cancellation stops the next renewal; you keep access until the end of the paid period.</p>
+      <p>There is nothing to cancel: if you do not pay for another period, your plan ends when the paid period ends, and you keep access until then. An account that joined during the launch offer then returns to that offer.</p>
 
       <H3>4. Refunds</H3>
       <ul>
@@ -542,8 +543,8 @@ export function RefundPolicyView() {
 
       <H3>Cancelling a plan</H3>
       <ul>
-        <li>The account owner can cancel at any time by writing to {mail} from the email or phone number on the account. We confirm the cancellation within 2 working days.</li>
-        <li>Cancelling stops the next renewal. Your plan, its credits and your data stay available until the end of the period already paid for.</li>
+        <li>Plans are paid for one month or one year at a time; nothing renews or is charged automatically, so there is nothing to cancel.</li>
+        <li>If you do not pay for another period, your plan ends when the paid period ends. Your plan, its credits and your data stay available until then.</li>
         <li>We do not refund the unused part of a month or a year, except as set out below.</li>
       </ul>
 

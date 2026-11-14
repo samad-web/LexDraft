@@ -69,7 +69,7 @@ afterEach(() => {
 /** Razorpay API stub: records the plan amount it was asked to create. */
 function stubRazorpay() {
   const fetchMock = vi.fn(async (url: string) => {
-    const id = url.endsWith('/plans') ? 'plan_v4' : url.endsWith('/subscriptions') ? 'sub_v4abcdef' : 'x';
+    const id = url.endsWith('/plans') ? 'plan_v4' : url.endsWith('/subscriptions') ? 'sub_v4abcdef' : url.endsWith('/orders') ? 'order_v4abcdef' : 'x';
     return new Response(JSON.stringify({ id }), { status: 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -144,15 +144,12 @@ describe('AC2 checkout charges the right amount for every plan x cycle x advocat
     expect(billing.mrrFor('associates', 'annual', 4, 2)).toBe(2645);
   });
 
-  it('the Razorpay plan is created for that exact amount and remembers the Munshi seats', async () => {
+  it('the order is for that exact amount and remembers advocates and Munshi seats', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({ role: 'Managing Partner' });
     const { body } = stubRazorpay();
     await billing.billingService.startCheckout('u1', 'associates', 'monthly', 3, 1);
-    expect(body('/plans')).toMatchObject({ item: { amount: 209600, name: 'DifAi Associates, 3 advocates + 1 Munshi seat' } });
-    expect(body('/subscriptions').notes).toMatchObject({ plan: 'associates', seats: '3', munshi: '1' });
-    const stored = h.calls.find((c) => /insert into razorpay_plans/.test(c.text))!;
-    expect(stored.values).toEqual(['plan_v4', 'associates', 'monthly', 3, 1, 209600]);
+    expect(body('/orders')).toMatchObject({ amount: 209600, notes: { kind: 'plan', plan: 'associates', seats: '3', munshi: '1' } });
   });
 
   it.each([-1, 5, 1.5])('munshi = %s is refused before Razorpay is called', async (munshi) => {
@@ -333,13 +330,13 @@ describe('AC6 new sign-ups pick a paid plan; free-launch accounts keep free', ()
     const { body } = stubRazorpay();
     const before = Date.now();
     const r = await onboarding.onboardingService.complete('u1', { plan: 'vakalat', cycle: 'monthly' });
-    expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/sub_v4abcdef');
+    expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/order_v4abcdef');
     expect(valueAfter(firmUpdate(), 'free_plan =')).toBe(false);
     expect(valueAfter(firmUpdate(), 'plan_tier =')).toBe('Solo');
     const ends = (valueAfter(firmUpdate(), 'trial_ends_at =') as Date).getTime();
     expect(ends - before).toBeGreaterThanOrEqual(onboarding.PAYMENT_WINDOW_MS - 1000);
     expect(ends - before).toBeLessThanOrEqual(onboarding.PAYMENT_WINDOW_MS + 5000);
-    expect(body('/plans').item.amount).toBe(39900);
+    expect(body('/orders').amount).toBe(39900);
   });
 
   it('Associates 3 advocates + 1 Munshi: Practice tier, owner is Managing Partner, Razorpay opens for ₹2,096', async () => {
@@ -350,7 +347,7 @@ describe('AC6 new sign-ups pick a paid plan; free-launch accounts keep free', ()
     expect(valueAfter(firmUpdate(), 'plan_tier =')).toBe('Practice');
     const userUpdate = h.calls.find((c) => /update users set\s+role =/.test(c.text))! as Call;
     expect(valueAfter(userUpdate, 'role =')).toBe('Managing Partner');
-    expect(body('/plans').item.amount).toBe(209600);
+    expect(body('/orders').amount).toBe(209600);
   });
 
   it('Associates without a firm name is refused', async () => {

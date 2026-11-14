@@ -284,3 +284,10 @@
 - 2026-11-14 refund + contact pages: `policy-pages.test.tsx` 4 tests (seller details and links; approved refund rules; Terms Part E matches with no old conflicting rule; public route + nginx + landing footer). Web suite 276/276.
 
 - 2026-11-14 found in the first live sign-up: a paid onboarding never opened Razorpay. Saving the onboarded session routed away from /onboarding before the view's per-call onSuccess ran. Fix: the redirect moved into useCompleteOnboarding's onSuccess, before setSession. Also: the sidebar showed the retired 'AI documents' count (now AI credits); the banner called an unpaid sign-up a 'trial' (now 'payment not finished'); an empty credit box showed for unpaid accounts (now a note). `onboarding-checkout.test.ts` 2 tests; web 278/278.
+
+## Pay per period (no Autopay) — 2026-11-14 (features/manual-renewal.md)
+- `manual-renewal.test.ts` 10 tests:
+    - AC2: nothing active starts now (+1 month); the same plan extends from the current end; a different plan starts today with no carry-over; a redelivered payment changes nothing; a wrong paid amount, a changed order amount or an unknown plan apply nothing; addPeriod month-end and year.
+    - AC3/4: past paid-until → plan_expired (no grace); a free-launch account falls back to free.
+- Existing tests moved from subscriptions to orders: razorpay-billing (an Associates order, a yearly order, buying the same plan again allowed), pricing-v4 (order amount and notes; onboarding opens the order), brief-packs (return → `paid`). policy-pages: no "renew automatically" / Autopay / mandate.
+- Test-data bug: a fake order id shorter than Razorpay's format was ignored by the id check, so the test id was fixed (the code was right).

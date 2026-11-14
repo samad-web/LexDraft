@@ -102,7 +102,7 @@ describe('AC1 buying a pack opens a one-time Razorpay order for exactly its pric
     expect(html).not.toContain('subscription_id');
     const good = crypto.createHmac('sha256', KEY_SECRET).update('order_abc123|pay_1').digest('hex');
     expect(billing.billingService.checkoutReturn({ razorpay_order_id: 'order_abc123', razorpay_payment_id: 'pay_1', razorpay_signature: good }))
-      .toBe('https://app.example.in/app/billing?checkout=pack-done');
+      .toBe('https://app.example.in/app/billing?checkout=paid');
     expect(billing.billingService.checkoutReturn({ razorpay_order_id: 'order_abc123', razorpay_payment_id: 'pay_1', razorpay_signature: 'f'.repeat(64) }))
       .toBe('https://app.example.in/app/billing?checkout=cancelled');
   });

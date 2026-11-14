@@ -21,7 +21,26 @@ export function TrialBanner(): JSX.Element | null {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const billing = useBilling();
-  if (!user || user.planStatus !== 'trial' || !user.trialEndsAt) return null;
+  if (!user) return null;
+  const paidEnd = billing.data?.current.subscribed && billing.data.current.renewsAt ? new Date(billing.data.current.renewsAt) : null;
+  if (paidEnd && user.planStatus === 'active') {
+    const left = Math.ceil((paidEnd.getTime() - Date.now()) / 86_400_000);
+    if (left > 7) return null;
+    const day = paidEnd.toLocaleDateString('en-IN', { day: 'numeric', month: 'long' });
+    const native = isNativeApp();
+    return (
+      <div role={left <= 1 ? 'alert' : 'status'} className={`trial-banner trial-banner--${left <= 1 ? 'critical' : 'warn'}`}>
+        <span className="trial-banner-label">{left <= 1 ? `Your plan ends today (${day}).` : `Your plan ends on ${day}.`}</span>
+        <span className="trial-banner-note">
+          {native ? 'Renew from the DifAi website to keep using DifAi.' : 'Renew to keep using DifAi. Nothing is charged automatically.'}
+        </span>
+        {!native && (
+          <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>Renew</button>
+        )}
+      </div>
+    );
+  }
+  if (user.planStatus !== 'trial' || !user.trialEndsAt) return null;
 
   const endsAt = new Date(user.trialEndsAt);
   if (Number.isNaN(endsAt.getTime())) return null;

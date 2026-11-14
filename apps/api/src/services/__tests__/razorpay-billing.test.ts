@@ -59,7 +59,7 @@ function owner(over: Record<string, unknown> = {}) {
 /** Razorpay API stub: plans and subscriptions get fixed ids; records every call. */
 function stubRazorpay() {
   const fetchMock = vi.fn(async (url: string) => {
-    const id = url.endsWith('/plans') ? 'plan_new1' : url.endsWith('/subscriptions') ? 'sub_new123' : 'x';
+    const id = url.endsWith('/plans') ? 'plan_new1' : url.endsWith('/subscriptions') ? 'sub_new123' : url.endsWith('/orders') ? 'order_new123' : 'x';
     return new Response(JSON.stringify({ id }), { status: 200 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -74,26 +74,22 @@ const ownerRows = (o: Record<string, unknown>) => (t: string) =>
   (t.includes('from users u left join firms') ? [owner(o)] : []);
 
 describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan and seats', () => {
-  it('Associates with 3 advocates: a plan priced for 3 (GST included), subscription notes carry the firm', async () => {
+  it('Associates with 3 advocates: a one-time order for one month of 3 advocates (no Autopay subscription)', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({});
-    const { body } = stubRazorpay();
+    const { fetchMock, body } = stubRazorpay();
     const r = await billing.billingService.startCheckout('u1', 'associates', 'monthly', 3);
-    expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/sub_new123');
-    expect(body('/plans')).toMatchObject({ period: 'monthly', interval: 1, item: { amount: 3 * 649 * 100, currency: 'INR' } });
-    expect(body('/subscriptions')).toMatchObject({ plan_id: 'plan_new1', quantity: 1, total_count: 120, notes: { firm_id: 'f1', plan: 'associates', seats: '3', munshi: '0' } });
-    const stored = h.calls.find((c) => /insert into razorpay_plans/.test(c.text))!;
-    expect(stored.values).toEqual(['plan_new1', 'associates', 'monthly', 3, 0, 3 * 649 * 100]);
+    expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/order_new123');
+    expect(body('/orders')).toMatchObject({ amount: 3 * 649 * 100, currency: 'INR', notes: { kind: 'plan', firm_id: 'f1', plan: 'associates', cycle: 'monthly', seats: '3', munshi: '0' } });
+    expect(fetchMock.mock.calls.some((c) => /\/(subscriptions|plans)$/.test(String(c[0])))).toBe(false);
   });
 
-  it('an existing Razorpay plan for the same price is reused, not created again', async () => {
+  it('a yearly plan is one order for the year price', async () => {
     h.useFakeDb = true;
-    h.rows = (t) => (t.includes('from users u left join firms') ? [owner({ role: 'Solo Advocate', selected_plan: 'vakalat' })]
-      : t.includes('from razorpay_plans') ? [{ razorpay_plan_id: 'plan_old' }] : []);
-    const { fetchMock, body } = stubRazorpay();
+    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'vakalat' });
+    const { body } = stubRazorpay();
     await billing.billingService.startCheckout('u1', 'vakalat', 'annual');
-    expect(fetchMock.mock.calls.some((c) => String(c[0]).endsWith('/plans'))).toBe(false);
-    expect(body('/subscriptions')).toMatchObject({ plan_id: 'plan_old', total_count: 10 });
+    expect(body('/orders')).toMatchObject({ amount: 449000, notes: { plan: 'vakalat', cycle: 'annual' } });
   });
 
   it('Vakalat is charged its GST-inclusive price (no GST added)', () => {
@@ -137,18 +133,8 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
   });
 });
 
-describe('AC5 plan change: one subscription replaces the other at the period end', () => {
+describe('AC5 (legacy Autopay subscriptions, still handled safely)', () => {
   const renews = new Date(Date.now() + 10 * 24 * 3600 * 1000);
-
-  it('a paying firm gets a new subscription starting at its renewal date, marked as replacing the old one', async () => {
-    h.useFakeDb = true;
-    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'vakalat', plan_status: 'active', razorpay_subscription_id: 'sub_old999', renews_at: renews });
-    const { body } = stubRazorpay();
-    await billing.billingService.startCheckout('u1', 'associates', 'monthly', 2);
-    const sub = body('/subscriptions');
-    expect(sub.start_at).toBe(Math.floor(renews.getTime() / 1000));
-    expect(sub.notes.replaces).toBe('sub_old999');
-  });
 
   it('once the new one is authorised, the old one is cancelled at its cycle end', async () => {
     h.useFakeDb = true;
@@ -177,11 +163,12 @@ describe('AC5 plan change: one subscription replaces the other at the period end
     expect(h.calls.some((c) => /update firms set\s+plan_tier/.test(c.text))).toBe(true);
   });
 
-  it('the same plan again is refused', async () => {
+  it('pay per period: buying the same plan again is allowed (it renews)', async () => {
     h.useFakeDb = true;
-    h.rows = ownerRows({ plan_status: 'active', razorpay_subscription_id: 'sub_old999', billing_cycle: 'monthly', seats: 2 });
-    stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2)).rejects.toMatchObject({ status: 400 });
+    h.rows = ownerRows({ plan_status: 'active', billing_cycle: 'monthly', seats: 2, renews_at: renews });
+    const { body } = stubRazorpay();
+    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2)).resolves.toHaveProperty('checkoutUrl');
+    expect(body('/orders').amount).toBe(2 * 649 * 100);
   });
 });
 

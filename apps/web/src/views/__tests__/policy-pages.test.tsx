@@ -28,7 +28,8 @@ describe('refund policy and contact pages', () => {
     expect(h).toMatch(/Sanad and Vakalat<\/strong> \(monthly or yearly\): not refundable/);
     expect(h).toContain('within 7 days of the payment and have used no more than 10 AI credits');
     expect(h).toContain('Once any of its credits are used, a Brief Pack is not refundable.');
-    expect(h).toContain('Cancelling stops the next renewal');
+    expect(h).toContain('nothing renews or is charged automatically');
+    expect(h).not.toMatch(/renew automatically|Autopay|mandate/i);
   });
 
   it('the Terms (Part E) say the same, with no older conflicting rule left', () => {
@@ -38,6 +39,8 @@ describe('refund policy and contact pages', () => {
     expect(t).not.toContain('a quarter of that period');
     expect(t).not.toContain('within 48 hours of the renewal charge');
     expect(t).toContain('href="/refund-policy"');
+    expect(t).toContain('Nothing renews or is charged automatically');
+    expect(t).not.toContain('renew automatically');
   });
 
   it('the pages are public, served by nginx, and linked from the landing footer', () => {
