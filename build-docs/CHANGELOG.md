@@ -1,4 +1,5 @@
 # Changelog
+- Document encryption at rest (2026-11-14, features/document-encryption.md): uploaded documents are AES-256-GCM encrypted on the server disk (same FIELD_ENCRYPTION_KEY as PII fields) and decrypted only when the API serves a signed download. Old plaintext files still open. Production refuses an upload if the key is missing. One-time backfill: `scripts/encrypt-existing-uploads.ts` (dry run, then `--apply`).
 
 - Sign-in page (2026-11-14):
   - The plans line under "Create your account" is removed.

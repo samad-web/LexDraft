@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { env } from '../env';
+import { decryptFile, encryptFile } from '../lib/field-crypto';
 
 export interface PresignedUpload {
   /** URL the client PUTs the binary body to. */
@@ -59,6 +60,14 @@ function safeKey(key: string): string {
   return key;
 }
 
+/** Files go to disk encrypted. Without a key, dev writes plaintext; production
+ *  refuses, so a missing key can never silently store documents in the clear. */
+function sealForDisk(body: Buffer): Buffer {
+  if (env.fieldEncryptionKey) return encryptFile(body, env.fieldEncryptionKey);
+  if (env.isProd) throw new Error('FIELD_ENCRYPTION_KEY is not set - refusing to store an unencrypted file');
+  return body;
+}
+
 function localDriver(): StorageDriver {
   const root = path.resolve(env.STORAGE_LOCAL_DIR);
   const ensureRoot = fs.mkdir(root, { recursive: true }).catch(() => undefined);
@@ -98,7 +107,7 @@ function localDriver(): StorageDriver {
     async putObject({ key, body, contentType }) {
       const p = await abs(key);
       await fs.mkdir(path.dirname(p), { recursive: true });
-      await fs.writeFile(p, body);
+      await fs.writeFile(p, sealForDisk(body));
       await fs.writeFile(p + '.meta', JSON.stringify({ contentType }));
     },
 
@@ -110,7 +119,7 @@ function localDriver(): StorageDriver {
           fs.readFile(p + '.meta', 'utf8').catch(() => '{}'),
         ]);
         const meta = JSON.parse(metaRaw) as { contentType?: string };
-        return { body, contentType: meta.contentType ?? 'application/octet-stream' };
+        return { body: decryptFile(body, env.fieldEncryptionKey ?? undefined), contentType: meta.contentType ?? 'application/octet-stream' };
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
         throw err;

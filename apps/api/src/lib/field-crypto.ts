@@ -66,3 +66,37 @@ export function hmacEmailLookup(email: string): string {
   const key = requireKey();
   return createHmac('sha256', key).update(email.trim().toLowerCase()).digest('hex');
 }
+
+// ---------------------------------------------------------------------------
+// Whole-file encryption for uploaded documents (local storage driver).
+// Layout: MAGIC(8) | iv(12) | tag(16) | ciphertext. Same key and cipher as the
+// fields above. A file without MAGIC is a legacy plaintext upload and is
+// returned unchanged, so files saved before this shipped still open.
+// ---------------------------------------------------------------------------
+
+const FILE_MAGIC = Buffer.from('DIFAIEN1', 'ascii');
+const TAG_BYTES = 16;
+
+export function isEncryptedFile(data: Buffer): boolean {
+  return data.length >= FILE_MAGIC.length + IV_BYTES + TAG_BYTES
+    && data.subarray(0, FILE_MAGIC.length).equals(FILE_MAGIC);
+}
+
+export function encryptFile(plain: Buffer, key: Buffer = requireKey()): Buffer {
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv(ALGO, key, iv);
+  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
+  return Buffer.concat([FILE_MAGIC, iv, cipher.getAuthTag(), ct]);
+}
+
+/** Throws if the file was tampered with or the key is wrong (GCM auth). */
+export function decryptFile(data: Buffer, key?: Buffer): Buffer {
+  if (!isEncryptedFile(data)) return data;
+  const k = key ?? requireKey();
+  let o = FILE_MAGIC.length;
+  const iv = data.subarray(o, (o += IV_BYTES));
+  const tag = data.subarray(o, (o += TAG_BYTES));
+  const decipher = createDecipheriv(ALGO, k, iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(data.subarray(o)), decipher.final()]);
+}

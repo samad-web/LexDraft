@@ -1,4 +1,9 @@
 # Testing
+## Document encryption at rest — 2026-11-14 (features/document-encryption.md)
+- `storage-encryption.test.ts` 8/8: on-disk file encrypted (no plaintext, magic header); download returns original bytes + type; fresh IV; legacy plaintext still opens; tampered file refused; wrong key refused; empty file; prod without key refuses upload and writes nothing.
+- Regression: `storage.test.ts` 6/6; full API vitest 1043 passed, 1 failed: `anthropic-failover` xAI fallback, fails on HEAD too (no xAI key locally), unrelated. tsc clean on touched files.
+
+
 ## Share on WhatsApp — 2026-11-14 (features/whatsapp-share.md)
 - New `whatsapp-share.test.ts` 7/7: case/hearing/invoice/document messages carry only the listed fields, skip empty ones, never notes or fees; wa.me text encoded and capped at 60,000; share sheet result passed through, fallback downloads + opens WhatsApp with the note. Existing `share-file.test.ts` 7/7.
 - Web tsc 0. Full web suite: 216 pass / 4 fail (SEO + policy-pages tests, from uncommitted legal-pages work, not this feature) - see clean checkout result in the commit.
