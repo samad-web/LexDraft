@@ -134,7 +134,7 @@ export function Splash() {
   if (!showing) return null;
   return (
     <div
-      className={`splash${leaving ? ' is-leaving' : ''}`}
+      className={`splash${durationMs > DURATION_MS ? ' is-slow' : ''}${leaving ? ' is-leaving' : ''}`}
       role="img"
       aria-label="DifAi, powered by Sirah Digital"
       onClick={close}

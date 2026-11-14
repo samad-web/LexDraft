@@ -1,5 +1,7 @@
 # Changelog
 
+- Sign-in animation on computers (2026-11-14): larger wordmark/tagline and a taller courtroom from 900 px wide (phones unchanged); for the 4 s sign-in the moves are stretched 1.6x so it finishes at ~3.2 s instead of sitting still after 2 s. Chrome's "Change your password" box is the browser's own breach warning, not DifAi.
+
 - Sign-in animation on the website (2026-11-14): the 4 s DifAi animation now plays after sign-in (or after "I agree" on the Terms screen) on the website as well as the Android app. The cold-start launch animation stays app-only.
 
 - Splash before the dashboard (2026-11-14): when the new Terms must be accepted, the 4 s app animation now plays after "I agree", not hidden behind the Terms screen; otherwise right after sign-in as before.

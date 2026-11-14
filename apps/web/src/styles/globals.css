@@ -5122,7 +5122,9 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   position: fixed; inset: 0; z-index: 2147483600;
   background: var(--bg-base); color: var(--text-primary);
   overflow: hidden; transition: opacity 300ms ease;
+  --t: 1; /* time scale for the one-off moves: 1.6 for the 4 s sign-in, so it doesn't sit still */
 }
+.splash.is-slow { --t: 1.6; }
 .splash.is-leaving { opacity: 0; }
 .splash-court {
   position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 66%;
@@ -5131,28 +5133,36 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   mask-image: linear-gradient(to bottom, transparent, #000 35%);
 }
 /* 1.05, not 1: closed shapes otherwise keep a hairline gap where they start. */
-.splash-court [pathLength] { stroke-dasharray: 1.05; stroke-dashoffset: 1.05; animation: splash-draw 1.1s cubic-bezier(.4,0,.2,1) forwards; }
+.splash-court [pathLength] { stroke-dasharray: 1.05; stroke-dashoffset: 1.05; animation: splash-draw calc(1.1s * var(--t)) cubic-bezier(.4,0,.2,1) forwards; }
 .splash-fan { transform-box: fill-box; transform-origin: center; animation: splash-spin 1.1s linear infinite; }
 .splash-scales { transform-origin: 200px 82px; animation: splash-sway 2.4s ease-in-out infinite; }
-.splash-gavel { transform-origin: 248px 164px; animation: splash-gavel .32s ease-in 1.35s 1 both; }
+.splash-gavel { transform-origin: 248px 164px; animation: splash-gavel .32s ease-in calc(1.35s * var(--t)) 1 both; }
 .splash-brand {
   position: absolute; left: 0; right: 0; top: 22%;
   display: flex; flex-direction: column; align-items: center; gap: 14px;
 }
 .splash-word { width: min(58vw, 260px); height: auto; overflow: visible; }
-.splash-slide { animation: splash-slide .55s cubic-bezier(.2,.8,.2,1) .9s both; }
-.splash-d { animation: splash-in .45s cubic-bezier(.2,.8,.2,1) .15s both; transform-box: fill-box; transform-origin: center; }
-.splash-i { animation: splash-rise .35s ease-out .4s both; }
-.splash-dot { animation: splash-drop .45s cubic-bezier(.3,1.6,.5,1) .55s both; }
-.splash-rest > * { animation: splash-rise .4s ease-out both; }
-.splash-rest > :nth-child(1), .splash-rest > :nth-child(2) { animation-delay: 1s; }
-.splash-rest > :nth-child(3) { animation-delay: 1.08s; }
-.splash-rest > :nth-child(4), .splash-rest > :nth-child(5) { animation-delay: 1.16s; }
+.splash-slide { animation: splash-slide calc(.55s * var(--t)) cubic-bezier(.2,.8,.2,1) calc(.9s * var(--t)) both; }
+.splash-d { animation: splash-in calc(.45s * var(--t)) cubic-bezier(.2,.8,.2,1) calc(.15s * var(--t)) both; transform-box: fill-box; transform-origin: center; }
+.splash-i { animation: splash-rise calc(.35s * var(--t)) ease-out calc(.4s * var(--t)) both; }
+.splash-dot { animation: splash-drop calc(.45s * var(--t)) cubic-bezier(.3,1.6,.5,1) calc(.55s * var(--t)) both; }
+.splash-rest > * { animation: splash-rise calc(.4s * var(--t)) ease-out both; }
+.splash-rest > :nth-child(1), .splash-rest > :nth-child(2) { animation-delay: calc(1s * var(--t)); }
+.splash-rest > :nth-child(3) { animation-delay: calc(1.08s * var(--t)); }
+.splash-rest > :nth-child(4), .splash-rest > :nth-child(5) { animation-delay: calc(1.16s * var(--t)); }
 .splash-by {
   margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text-tertiary); animation: splash-fade .5s ease-out 1.5s both;
+  color: var(--text-tertiary); animation: splash-fade calc(.5s * var(--t)) ease-out calc(1.5s * var(--t)) both;
 }
 .splash-by strong { color: var(--text-primary); font-weight: 600; }
+/* Computers: the phone layout leaves a small wordmark over a narrow drawing.
+   Scale both up; the courtroom keeps its proportions, just taller. */
+@media (min-width: 900px) {
+  .splash-brand { top: 14%; gap: 20px; }
+  .splash-word { width: clamp(300px, 24vw, 420px); }
+  .splash-by { font-size: 15px; letter-spacing: .18em; }
+  .splash-court { height: 72%; opacity: .2; }
+}
 @keyframes splash-draw { to { stroke-dashoffset: 0; } }
 @keyframes splash-spin { to { transform: rotate(360deg); } }
 @keyframes splash-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
