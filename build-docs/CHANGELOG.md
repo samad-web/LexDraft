@@ -1,5 +1,7 @@
 # Changelog
 
+- Owner's ₹1 test code (2026-11-14): a Code field on Plan & Billing; the owner's code makes a plan or Brief Pack ₹1 for allow-listed test accounts only.
+
 - Pay per period, no Autopay (2026-11-14): plans are bought for one month or one year as a single payment (any UPI app, card or netbanking); nothing renews automatically. A reminder appears in the last 7 days, and access ends on the paid-until date. Paying for the same plan early adds the time after the current end; a different plan starts today. Terms and refund page updated.
 
 - Refund & cancellation and Contact pages (2026-11-14): /refund-policy and /contact with Sirah Digital's details; the Terms' refund part now matches the approved rules; the landing footer's old contact links are fixed.

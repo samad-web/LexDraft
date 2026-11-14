@@ -75,3 +75,5 @@
 - 2026-11-14 — Owner approved the refund rules (Sanad/Vakalat none; Brief/Associates yearly 7 days if ≤10 credits used; packs 7 days if unused; errors in full; cancel by email). /refund-policy + /contact added for Razorpay's review. Terms Part E aligned to the same rules (another session's Terms v1.1 kept, including its 30-day price notice).
 
 - 2026-11-14 — Owner: **no Autopay**. Plans are paid per period (one month or one year) as a one-time Razorpay order; nothing renews automatically. No grace period; a reminder banner for the last 7 days; a different plan starts today with no carry-over; the same plan extends. Razorpay Subscriptions are no longer used for new purchases.
+
+- 2026-11-14 — Owner: ₹1 test code for live testing, valid only for allow-listed account emails (BILLING_TEST_COUPON + BILLING_TEST_EMAILS on the server). A real ₹1 invoice is issued; MRR records 0.

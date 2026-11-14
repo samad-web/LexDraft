@@ -187,6 +187,10 @@ const Schema = z.object({
   RAZORPAY_KEY_ID: z.string().optional().default(''),
   RAZORPAY_KEY_SECRET: z.string().optional().default(''),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default(''),
+  /** Owner's ₹1 test code (features/test-coupon.md): accepted only for the
+   *  account emails in BILLING_TEST_EMAILS (comma list). Blank = off. */
+  BILLING_TEST_COUPON: z.string().optional().default(''),
+  BILLING_TEST_EMAILS: z.string().optional().default(''),
   /** Seller printed on DifAi's GST tax invoices (Sirah Digital). Blank GSTIN =
    *  invoices are not issued (logged); payments still work. */
   INVOICE_SELLER_LEGAL_NAME: z.string().optional().default(''),
@@ -341,6 +345,8 @@ export const env = {
       keyId: on ? parsed.data.RAZORPAY_KEY_ID : '',
       keySecret: on ? parsed.data.RAZORPAY_KEY_SECRET : '',
       webhookSecret: parsed.data.RAZORPAY_WEBHOOK_SECRET,
+      testCoupon: parsed.data.BILLING_TEST_COUPON.trim().toUpperCase(),
+      testEmails: parsed.data.BILLING_TEST_EMAILS.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
       testKeyInProd,
       baseUrl: 'https://api.razorpay.com/v1',
     };

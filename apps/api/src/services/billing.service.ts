@@ -156,6 +156,18 @@ function hexEqual(given: string, expected: string): boolean {
 }
 
 const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
+
+/** The owner's ₹1 test price. Valid only when the code matches the server's
+ *  BILLING_TEST_COUPON AND the buyer's email is on BILLING_TEST_EMAILS, so a
+ *  leaked code is useless to anyone else. No code given -> false. */
+export const TEST_PRICE_PAISE = 100;
+function testCouponFor(email: string | null, coupon: string | undefined): boolean {
+  if (!coupon) return false;
+  const { testCoupon, testEmails } = env.razorpay;
+  const ok = !!testCoupon && coupon.trim().toUpperCase() === testCoupon && !!email && testEmails.includes(email.toLowerCase());
+  if (!ok) throw new BadRequestError('This code is not valid.', { code: 'invalid_coupon' });
+  return true;
+}
 const ORDER_ID = /^order_[A-Za-z0-9]{6,40}$/;
 
 export function briefPacks(): BriefPack[] {
@@ -221,7 +233,8 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
     logger.error({ paymentId: payment.id, notes }, 'plan payment: unreadable order notes, NOT applied');
     return;
   }
-  const want = chargePaise(plan, cycle, seats, munshi);
+  const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
+  const want = test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, seats, munshi);
   if (Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, plan, amount: payment.amount }, 'plan payment: amount does not match the plan, NOT applied');
     return;
@@ -249,7 +262,7 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
         renews_at = ${end},
         billing_cycle = ${cycle},
         selected_plan = ${plan},
-        mrr_inr = ${mrrFor(plan, cycle, seats, munshi)},
+        mrr_inr = ${test ? 0 : mrrFor(plan, cycle, seats, munshi)},
         seats = ${seats},
         munshi_seats = ${munshi},
         razorpay_subscription_id = null
@@ -257,7 +270,7 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
     const kind: BillingEventKind = !active ? 'subscription_active' : same ? 'renewed' : 'plan_changed';
     await tx`
       insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, provider, provider_ref, webhook_id)
-      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${periodPriceInr(plan, cycle, seats, munshi)}, 'razorpay', ${payment.id}, ${eventId})`;
+      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${test ? 1 : periodPriceInr(plan, cycle, seats, munshi)}, 'razorpay', ${payment.id}, ${eventId})`;
     return { start, end };
   });
   // The invoice is idempotent on the payment id: safe on a redelivery too.
@@ -275,7 +288,8 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   const pack = notes.pack;
   const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
   if (!isBriefPack(pack) || !firmId) return; // not one of ours
-  const want = BRIEF_PACKS[pack].priceInr * 100;
+  const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
+  const want = test ? TEST_PRICE_PAISE : BRIEF_PACKS[pack].priceInr * 100;
   if (Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, pack, amount: payment.amount }, 'brief pack: amount does not match the pack, NOT granted');
     return;
@@ -290,7 +304,7 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   });
   if (granted) {
     const userId = typeof notes.user_id === 'string' ? notes.user_id : null;
-    await logEvent({ firmId, userId, kind: 'pack_bought', plan: pack, cycle: 'one-time', amountInr: BRIEF_PACKS[pack].priceInr, providerRef: payment.id, webhookId: eventId });
+    await logEvent({ firmId, userId, kind: 'pack_bought', plan: pack, cycle: 'one-time', amountInr: test ? 1 : BRIEF_PACKS[pack].priceInr, providerRef: payment.id, webhookId: eventId });
   }
 }
 
@@ -326,7 +340,7 @@ export const billingService = {
    * another plan gets the new plan from its next renewal: the old subscription
    * is cancelled at cycle end once the new one is authorised.
    */
-  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle, seats?: number, munshi = 0): Promise<{ checkoutUrl: string }> {
+  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle, seats?: number, munshi = 0, coupon?: string): Promise<{ checkoutUrl: string }> {
     const per = PLANS[plan].perAdvocate;
     const wanted = per ? (seats ?? per.min) : 1;
     if (per && (!Number.isInteger(wanted) || wanted < per.min || wanted > per.max)) {
@@ -360,22 +374,26 @@ export const billingService = {
     // One payment buys one month or one year; nothing renews automatically
     // (owner, 2026-11-14). The plan is applied only by the signed
     // payment.captured webhook (applyPlanPayment).
+    const test = testCouponFor(u.email, coupon);
     const order = await razorpay<{ id: string }>('POST', '/orders', {
-      amount: chargePaise(plan, cycle, wanted, munshi),
+      amount: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, wanted, munshi),
       currency: 'INR',
       receipt: `plan-${crypto.randomUUID().slice(0, 30)}`,
-      notes: { kind: 'plan', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi) },
+      notes: {
+        kind: 'plan', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi),
+        ...(test ? { coupon: 'test' } : {}),
+      },
     });
     await logEvent({
       firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle,
-      amountInr: periodPriceInr(plan, cycle, wanted, munshi), providerRef: order.id,
+      amountInr: test ? 1 : periodPriceInr(plan, cycle, wanted, munshi), providerRef: order.id,
     });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },
 
   /** A Brief Pack: a one-time Razorpay order for its exact price. Credits are
    *  granted only by the signed `payment.captured` webhook. Owner only. */
-  async startPackCheckout(userId: string, pack: BriefPackId): Promise<{ checkoutUrl: string }> {
+  async startPackCheckout(userId: string, pack: BriefPackId, coupon?: string): Promise<{ checkoutUrl: string }> {
     if (!isBriefPack(pack)) throw new BadRequestError('Unknown Brief Pack.', { code: 'invalid_pack' });
     const u = await loadUser(userId);
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
@@ -386,13 +404,14 @@ export const billingService = {
       throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });
     }
     const p = BRIEF_PACKS[pack];
+    const test = testCouponFor(u.email, coupon);
     const order = await razorpay<{ id: string }>('POST', '/orders', {
-      amount: p.priceInr * 100,
+      amount: test ? TEST_PRICE_PAISE : p.priceInr * 100,
       currency: 'INR',
       receipt: `pack-${crypto.randomUUID().slice(0, 30)}`,
-      notes: { firm_id: u.firm_id, user_id: u.user_id, pack },
+      notes: { firm_id: u.firm_id, user_id: u.user_id, pack, ...(test ? { coupon: 'test' } : {}) },
     });
-    await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan: pack, cycle: 'one-time', amountInr: p.priceInr, providerRef: order.id });
+    await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan: pack, cycle: 'one-time', amountInr: test ? 1 : p.priceInr, providerRef: order.id });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },
 

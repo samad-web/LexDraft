@@ -18,6 +18,8 @@ const Checkout = z.object({
   seats: z.number().int().min(2).max(8).optional(),
   /** Munshi (clerk) seats to add. */
   munshi: z.number().int().min(0).max(4).optional(),
+  /** Owner's ₹1 test code (only for allow-listed accounts). */
+  coupon: z.string().trim().max(40).optional(),
 }).strict();
 
 billingRouter.get('/', requireAuth, async (req, res, next) => {
@@ -31,7 +33,7 @@ billingRouter.get('/', requireAuth, async (req, res, next) => {
 billingRouter.post('/checkout', requireAuth, async (req, res, next) => {
   try {
     const body = Checkout.parse(req.body);
-    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle, body.seats, body.munshi));
+    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle, body.seats, body.munshi, body.coupon || undefined));
   } catch (err) {
     next(err);
   }
@@ -50,11 +52,11 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
 });
 
 // Brief Pack: a one-time credit top-up (owner only). Credits arrive with the webhook.
-const PackCheckout = z.object({ pack: z.enum(['pack_25', 'pack_60', 'pack_130', 'pack_330']) }).strict();
+const PackCheckout = z.object({ pack: z.enum(['pack_25', 'pack_60', 'pack_130', 'pack_330']), coupon: z.string().trim().max(40).optional() }).strict();
 billingRouter.post('/packs/checkout', requireAuth, async (req, res, next) => {
   try {
-    const { pack } = PackCheckout.parse(req.body);
-    res.json(await billingService.startPackCheckout(req.user!.id, pack));
+    const { pack, coupon } = PackCheckout.parse(req.body);
+    res.json(await billingService.startPackCheckout(req.user!.id, pack, coupon || undefined));
   } catch (err) {
     next(err);
   }

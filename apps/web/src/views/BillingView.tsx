@@ -118,6 +118,7 @@ export function BillingView() {
   const [selected, setSelected] = useState<BillingPlanId | null>(null);
   const [seats, setSeats] = useState(2);
   const [munshi, setMunshi] = useState(0);
+  const [coupon, setCoupon] = useState('');
   const native = isNativeApp();
 
   const current = data ? currentPlanId(data.current) : null;
@@ -246,7 +247,7 @@ export function BillingView() {
             <CreditMeter />
           </section>
 
-          {!native && <BriefPacks packs={data.packs ?? []} canBuy={data.canManage} />}
+          {!native && <BriefPacks packs={data.packs ?? []} canBuy={data.canManage} coupon={coupon.trim()} />}
 
           {data.canManage && <SubscriptionInvoices />}
 
@@ -281,12 +282,18 @@ export function BillingView() {
               <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
               <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
               {isPaidId(chosen.id) && (
+                <label className="cm-seats">
+                  <span>Code</span>
+                  <input className="input" value={coupon} onChange={(e) => setCoupon(e.target.value)} placeholder="Optional" maxLength={40} style={{ maxWidth: 160 }} />
+                </label>
+              )}
+              {isPaidId(chosen.id) && (
                 <button
                   type="button"
                   className="btn btn-primary"
                   disabled={!data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
                   onClick={() => isPaidId(chosen.id) && checkout.mutate(
-                    { plan: chosen.id, cycle, munshi, ...(chosen.seats ? { seats } : {}) },
+                    { plan: chosen.id, cycle, munshi, ...(chosen.seats ? { seats } : {}), ...(coupon.trim() ? { coupon: coupon.trim() } : {}) },
                   )}
                 >
                   {checkout.isPending ? 'Opening payment…' : renewing ? `Renew ${chosen.name}` : paid ? `Switch to ${chosen.name}` : `Pay for ${chosen.name}`}

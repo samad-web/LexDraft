@@ -6,9 +6,9 @@ const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 
 /** Brief Packs: one-time AI credit top-ups (valid 12 months). Web only: the
  *  Android app shows no purchase UI (Play payments policy). */
-export function BriefPacks({ packs, canBuy }: { packs: BriefPack[]; canBuy: boolean }) {
+export function BriefPacks({ packs, canBuy, coupon }: { packs: BriefPack[]; canBuy: boolean; coupon?: string }) {
   const buy = useMutation({
-    mutationFn: (pack: BriefPackId) => api.post<{ checkoutUrl: string }>('/billing/packs/checkout', { pack }),
+    mutationFn: (pack: BriefPackId) => api.post<{ checkoutUrl: string }>('/billing/packs/checkout', { pack, ...(coupon ? { coupon } : {}) }),
     onSuccess: (r) => window.location.assign(r.checkoutUrl),
   });
   if (!packs.length) return null;

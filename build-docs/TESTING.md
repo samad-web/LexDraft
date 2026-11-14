@@ -293,3 +293,5 @@
 - Test-data bug: a fake order id shorter than Razorpay's format was ignored by the id check, so the test id was fixed (the code was right).
 
 - 2026-11-14 first live ₹199 payment (Sanad, UPI): webhook 200, plan active and paid until 14 Dec, invoice DIF/26-27/000001 (CGST + SGST). Found: the November free-launch plan credits stayed alive next to the new Sanad credits (balance 50, not 25). Fix: starting a new plan period ends earlier plan grants (packs and admin grants stay). credits.integration 12/12.
+
+- 2026-11-14 ₹1 test code: `test-coupon.test.ts` 7 tests (allow-listed account → ₹1 plan or pack order; the same code on another account / a wrong code / a code not configured → 400 with no Razorpay call; no code → normal price; a ₹1 test order activates the plan with MRR 0 and a ₹1 invoice; ₹1 on a normal order applies nothing).

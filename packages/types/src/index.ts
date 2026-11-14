@@ -1196,6 +1196,8 @@ export interface BillingCheckoutRequest {
   seats?: number;
   /** Munshi (clerk) seats to add, 0-4. */
   munshi?: number;
+  /** Owner's ₹1 test code; only accepted for allow-listed accounts. */
+  coupon?: string;
 }
 
 /** GET /me/ai-quota: drafts used this cycle against the advocate's limit. */
