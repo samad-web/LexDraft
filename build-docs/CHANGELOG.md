@@ -1,5 +1,7 @@
 # Changelog
 
+- Sign-in tabs follow the plans (2026-11-14): Advocate · Chambers · Firm (Law student removed, no price on the page). Chambers = Associates 2-8 (14-day trial, team sign-up); Firm = Partners 9+ ("Talk to us" enquiry). The pick pre-selects the plan in onboarding.
+
 - Landing without prices (2026-11-14): Pricing section and price list in the FAQ removed from the landing page; the Pricing tab and /#pricing links open sign-in; Settings' "See plans & upgrade" opens /app/billing. Public /pricing page kept (Razorpay).
 - Share on WhatsApp (2026-11-14, features/whatsapp-share.md): case documents (the file itself via the share sheet, else download + WhatsApp note; drafts as text), matter update from the case page's More menu (case no., court, stage, next hearing only), hearing reminder on each diary hearing, invoice details. Draft screen's PDF share now uses the same helper.
 
