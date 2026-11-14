@@ -108,7 +108,7 @@ Status: **built 2026-11-14** (approved 2026-11-14; free launch = 25 credits a mo
     - matter intel: 2 per summary (also the automatic one after upload; skipped when out) and 2 per brief regenerate.
     - title report: ½ at create.
     - diary command: ½ (falls back to the free heuristic when out); judgment analysis ½.
-- **Deviation (needs owner OK):** the diary **briefing narrative** (written automatically when the diary opens) is not charged, only shown while credits remain. Charging ½ per page view would drain credits silently.
+- **Diary briefing narrative (owner, 2026-11-14): charged ½.** It is written automatically when the diary opens, so it is charged once per user + range + day + entries (deterministic ref key) and reused when the diary is opened again. Out of credits: counts only. Matter-intel auto summary stays charged (owner).
 - **Small race accepted:** a stream sends up to the balance read at its start; a parallel spend in another tab can make that a few hundred words more than charged.
 - **UI:**
     - credit meter on Plan & Billing and in the Draft composer;

@@ -63,3 +63,4 @@
     - the mock-argument session (3) includes its turns;
     - the matter-intel auto summary is charged 2.
   Open for the owner: the diary briefing narrative is free (shown only while credits remain).
+- 2026-11-14 — Owner: the diary briefing narrative must cost credits (½). It is charged once per user/range/day/entries and reused on re-open, so opening the diary twice doesn't charge twice. The matter-intel auto summary stays charged (2).

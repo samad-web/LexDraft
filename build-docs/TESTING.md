@@ -247,3 +247,4 @@
 - **Test fixes:** document-ask / draft-review tests expected the service itself to check the old quota. The check moved to the route by design, so the expectation was updated, not removed.
 - Integration test data bug (identical paragraphs) fixed in the test.
 - Clean worktree: API 994 passed / 0 failed, credits integration 10/10, web 260/260, API + web typecheck clean.
+- 2026-11-14 diary briefing charged: `diary-briefing-credits.test.ts` 3 tests (½ once, same-day re-open free with no model call, out of credits → counts only, failed model refunded). All pass.

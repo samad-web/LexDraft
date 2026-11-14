@@ -500,6 +500,13 @@ function safeParseArray(raw: string): unknown[] {
   }
 }
 
+/** Briefings already paid for today (key -> narrative), so a repeat open is free. */
+const briefingCache = new Map<string, string>();
+function rememberBriefing(key: string, text: string): void {
+  if (briefingCache.size > 2000) briefingCache.clear();
+  briefingCache.set(key, text);
+}
+
 export const diaryAssistantService = {
   /**
    * Parse a natural-language command into a proposed action. Never writes.
@@ -602,24 +609,36 @@ export const diaryAssistantService = {
     let narrative = '';
     let modelUsed = 'fallback:none';
     if (items.length > 0 && env.llmProvider !== 'none' && userId && firmId) {
-      try {
-        // The briefing narrative is generated on its own when the diary opens,
-        // so it is not charged; it is only written while the firm has credits.
-        await creditService.assertAvailable({ firmId, userId }, 0.5);
-        const roster = items
-          .map((i) => {
-            const days = i.daysRemaining === null ? '' : ` (${i.daysRemaining < 0 ? `${-i.daysRemaining}d overdue` : `${i.daysRemaining}d left`})`;
-            return `- ${i.date}${i.time ? ` ${i.time}` : ''} [${i.kind}] ${i.title || '(unnamed)'}${i.detail ? ` — ${i.detail}` : ''}${i.forum ? ` @ ${i.forum}` : ''}${days}`;
-          })
-          .join('\n');
-        const { system, user } = buildBriefingNarrativePrompt(range, today, roster);
-        narrative = (await complete(system, user, 400, diaryUsageSink(firmId, userId))).trim();
+      const roster = items
+        .map((i) => {
+          const days = i.daysRemaining === null ? '' : ` (${i.daysRemaining < 0 ? `${-i.daysRemaining}d overdue` : `${i.daysRemaining}d left`})`;
+          return `- ${i.date}${i.time ? ` ${i.time}` : ''} [${i.kind}] ${i.title || '(unnamed)'}${i.detail ? ` — ${i.detail}` : ''}${i.forum ? ` @ ${i.forum}` : ''}${days}`;
+        })
+        .join('\n');
+      // ½ credit per briefing (owner, 2026-11-14). The same day's briefing over
+      // the same entries is charged once and reused, so re-opening the diary
+      // doesn't charge again. Out of credits -> counts only.
+      const key = `diary-briefing:${userId}:${range}:${today}:${createHash('sha256').update(roster).digest('hex').slice(0, 16)}`;
+      const cached = briefingCache.get(key);
+      if (cached) {
+        narrative = cached;
         modelUsed = providerTag();
-        recordQuota(firmId, userId, 'diary-briefing');
-      } catch (err) {
-        logger.warn({ err }, 'diary-assistant briefing narrative failed; returning counts only');
-        narrative = '';
-        modelUsed = err instanceof CreditsExhaustedError ? 'fallback:quota' : 'fallback:error';
+      } else {
+        let credit: Charge | null = null;
+        try {
+          credit = await creditService.charge({ firmId, userId }, 'diary_assistant', CREDIT_COSTS.diary_assistant, key);
+          const { system, user } = buildBriefingNarrativePrompt(range, today, roster);
+          narrative = (await complete(system, user, 400, diaryUsageSink(firmId, userId))).trim();
+          if (!narrative) throw new Error('empty briefing');
+          modelUsed = providerTag();
+          rememberBriefing(key, narrative);
+          recordQuota(firmId, userId, 'diary-briefing');
+        } catch (err) {
+          if (credit) await credit.refund().catch(() => undefined);
+          logger.warn({ err }, 'diary-assistant briefing narrative failed; returning counts only');
+          narrative = '';
+          modelUsed = err instanceof CreditsExhaustedError ? 'fallback:quota' : 'fallback:error';
+        }
       }
     }
 
