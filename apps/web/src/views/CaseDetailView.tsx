@@ -34,6 +34,8 @@ import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
 import { useTaskBoard } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
+import { useAuthStore } from '@/store/auth';
+import { caseUpdateMessage, openWhatsAppText } from '@/lib/whatsapp-share';
 import { useHasTeamChat } from '@/hooks/useTeamChat';
 import { MatterDiscussionPanel } from '@/components/team-chat/MatterDiscussionPanel';
 
@@ -62,6 +64,7 @@ export function CaseDetailView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useCase(id);
+  const me = useAuthStore((s) => s.user?.name);
   const timeline = useCaseTimeline(id);
   const parties = useCaseParties(id);
   const acts = useCaseActs(id);
@@ -274,6 +277,12 @@ export function CaseDetailView() {
               ...(canDraft ? [{ label: 'Draft a document with AI', icon: 'draft' as const, onSelect: openDraft, title: 'The case details and notes are used automatically' }] : []),
               { label: 'Upload a document', icon: 'upload', onSelect: () => setDocOpen(true) },
               { label: 'Add a task', icon: 'tasks', onSelect: () => setTaskOpen(true) },
+              {
+                label: 'Share update on WhatsApp',
+                icon: 'chat',
+                onSelect: () => openWhatsAppText(caseUpdateMessage(c, me)),
+                title: 'Case no., court, stage and next hearing only - no notes or documents',
+              },
               {
                 label: 'File online (eFiling)',
                 icon: 'efiling',

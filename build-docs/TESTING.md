@@ -1,4 +1,8 @@
 # Testing
+## Share on WhatsApp — 2026-11-14 (features/whatsapp-share.md)
+- New `whatsapp-share.test.ts` 7/7: case/hearing/invoice/document messages carry only the listed fields, skip empty ones, never notes or fees; wa.me text encoded and capped at 60,000; share sheet result passed through, fallback downloads + opens WhatsApp with the note. Existing `share-file.test.ts` 7/7.
+- Web tsc 0. Full web suite: 216 pass / 4 fail (SEO + policy-pages tests, from uncommitted legal-pages work, not this feature) - see clean checkout result in the commit.
+
 
 ## Draft PDF on WhatsApp — 2026-11-12
 - `share-file.test.ts` 7/7: Android app shares the cached PDF + note; dismissed sheet = cancelled; browser shares a PDF File + note; no file sharing / no Web Share / expired click activation = fallback (download + wa.me); AbortError = cancelled.

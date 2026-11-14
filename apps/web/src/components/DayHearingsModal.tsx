@@ -3,6 +3,8 @@ import { Icon } from '@lexdraft/ui';
 import type { CalendarHearing } from '@lexdraft/types';
 import { useCalendarDay, useDeleteHearing } from '@/hooks/useCalendar';
 import { useUIStore } from '@/store/ui';
+import { useAuthStore } from '@/store/auth';
+import { hearingMessage, openWhatsAppText } from '@/lib/whatsapp-share';
 import { Modal } from './Modal';
 
 // =============================================================================
@@ -32,6 +34,7 @@ function formatDate(iso: string): string {
 export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
   const del = useDeleteHearing();
   const showToast = useUIStore((s) => s.showToast);
+  const me = useAuthStore((s) => s.user?.name);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const dayQuery = useCalendarDay(open ? iso : undefined);
   const hearings = dayQuery.data ?? [];
@@ -123,6 +126,15 @@ export function DayHearingsModal({ open, onClose, iso, onAdd, onEdit }: Props) {
                     </>
                   ) : (
                     <>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-ghost"
+                        onClick={() => openWhatsAppText(hearingMessage({ ...h, date: formatDate(iso) }, me))}
+                        aria-label={`Send a reminder for the hearing at ${h.time} on WhatsApp`}
+                        title="Send the client a reminder on WhatsApp"
+                      >
+                        <Icon name="chat" size={12} /> WhatsApp
+                      </button>
                       <button
                         type="button"
                         className="btn btn-sm"

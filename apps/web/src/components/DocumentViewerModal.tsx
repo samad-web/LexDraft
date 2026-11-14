@@ -6,6 +6,9 @@ import { useDraft } from '@/hooks/useDrafts';
 import { useDocument, useDocumentDownloadUrl } from '@/hooks/useDocuments';
 import { canEmbedPdf } from '@/lib/pdf-embed';
 import { ZoomPane } from './ZoomPane';
+import { useAuthStore } from '@/store/auth';
+import { useUIStore } from '@/store/ui';
+import { documentNote, openWhatsAppText, shareFileOnWhatsApp } from '@/lib/whatsapp-share';
 
 const PdfPages = lazy(() => import('./PdfPages').then((m) => ({ default: m.PdfPages })));
 
@@ -128,6 +131,48 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
     window.document.body.removeChild(a);
   };
 
+  const me = useAuthStore((s) => s.user?.name);
+  const showToast = useUIStore((s) => s.showToast);
+  const [sharing, setSharing] = useState(false);
+  const matter = doc?.case && doc.case !== '-' ? doc.case : null;
+
+  /** The file itself to WhatsApp; a draft (no file) goes as text. */
+  const shareOnWhatsApp = async () => {
+    if (!doc || sharing) return;
+    if (!hasFile) {
+      const text = draftData?.bodyText?.trim()
+        || (draftData?.editedHtml ? new DOMParser().parseFromString(draftData.editedHtml, 'text/html').body.innerText.trim() : '');
+      if (text) openWhatsAppText(`${doc.name}${matter ? ` (${matter})` : ''}
+
+${text}`);
+      return;
+    }
+    const fileName = data?.fileName || `${doc.name}.pdf`;
+    const note = documentNote(doc.name, matter, me);
+    setSharing(true);
+    try {
+      let blob: Blob;
+      if (data?.fileBase64) {
+        blob = await (await fetch(`data:${data.fileMime || 'application/octet-stream'};base64,${data.fileBase64}`)).blob();
+      } else {
+        const url = downloadUrlQuery.data?.downloadUrl;
+        if (!url) throw new Error('no file url');
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        blob = await res.blob();
+      }
+      const r = await shareFileOnWhatsApp(blob, fileName, note);
+      if (r === 'downloaded') showToast({ type: 'sage', text: 'File downloaded. Attach it in the WhatsApp chat.' });
+    } catch {
+      // The file host refused a direct read (e.g. another origin): download it the normal way instead.
+      downloadFile();
+      openWhatsAppText(note);
+      showToast({ type: 'sage', text: 'File downloaded. Attach it in the WhatsApp chat.' });
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <Modal
       open={open}
@@ -138,6 +183,12 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
       width={920}
       footer={
         <>
+          {(hasFile || hasDraftBody) && (
+            <button type="button" className="btn" onClick={() => void shareOnWhatsApp()} disabled={sharing || isLoading}
+              title="Send this to a client or colleague on WhatsApp">
+              <Icon name="chat" size={14} /> {sharing ? 'Preparing…' : 'Share on WhatsApp'}
+            </button>
+          )}
           {hasFile && (
             <button type="button" className="btn" onClick={downloadFile}>
               <Icon name="download" size={14} /> Download original

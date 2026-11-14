@@ -1,5 +1,8 @@
 import type { Invoice, InvoiceStatus } from '@lexdraft/types';
+import { Icon } from '@lexdraft/ui';
 import { Modal } from './Modal';
+import { useAuthStore } from '@/store/auth';
+import { invoiceMessage, openWhatsAppText } from '@/lib/whatsapp-share';
 
 interface Props {
   open: boolean;
@@ -30,6 +33,7 @@ function daysUntil(iso: string): number {
 }
 
 export function InvoiceDetailModal({ open, invoice, onClose }: Props) {
+  const me = useAuthStore((s) => s.user?.name);
   if (!invoice) return null;
 
   const badge = STATUS_BADGE[invoice.status];
@@ -51,7 +55,23 @@ export function InvoiceDetailModal({ open, invoice, onClose }: Props) {
       title={invoice.invoiceNo}
       width={520}
       footer={
-        <button type="button" className="btn" onClick={onClose}>Close</button>
+        <>
+          <button
+            type="button"
+            className="btn"
+            title="Send the invoice details to the client on WhatsApp"
+            onClick={() => openWhatsAppText(invoiceMessage({
+              invoiceNo: invoice.invoiceNo,
+              amount: `₹${formatINR(invoice.amountInr)}`,
+              issued: formatLongDate(invoice.issuedDate),
+              due: formatLongDate(invoice.dueDate),
+              paid: invoice.status === 'paid',
+            }, me))}
+          >
+            <Icon name="chat" size={14} /> Share on WhatsApp
+          </button>
+          <button type="button" className="btn" onClick={onClose}>Close</button>
+        </>
       }
     >
       <div className="cm-invdetail">

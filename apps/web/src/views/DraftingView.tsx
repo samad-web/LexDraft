@@ -40,7 +40,7 @@ import { MyDraftsModal } from '@/components/MyDraftsModal';
 import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
 import { exportPdf, exportDocx, renderPdfBlob } from '@/lib/export-doc';
-import { shareFile } from '@/lib/native';
+import { shareFileOnWhatsApp } from '@/lib/whatsapp-share';
 import { canEmbedPdf } from '@/lib/pdf-embed';
 // pdf.js is only needed where the browser can't show the PDF itself.
 const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
@@ -1311,20 +1311,10 @@ export function DraftingView() {
     const note = `Dear Sir/Madam,\n\nPlease find attached the draft of the ${activeDocType.toLowerCase()} for your review.\n\nKindly revert with your comments.\n\nRegards,`;
     try {
       const blob = await draftPdfBlob();
-      // Phone / app / Chrome & Edge: the share sheet sends the file straight to WhatsApp.
-      if ((await shareFile(blob, fileName, note)) !== 'fallback') return;
-      // No file sharing here (e.g. Firefox desktop). wa.me can't carry a file, so
-      // download the PDF and open WhatsApp with the note for the advocate to attach it.
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      window.open(`https://wa.me/?text=${encodeURIComponent(note)}`, '_blank', 'noopener,noreferrer');
-      showToast({ type: 'sage', text: 'PDF downloaded. Attach it in the WhatsApp chat.' });
+      // Share sheet where it can carry files; else download + WhatsApp with the note to attach it.
+      if ((await shareFileOnWhatsApp(blob, fileName, note)) === 'downloaded') {
+        showToast({ type: 'sage', text: 'PDF downloaded. Attach it in the WhatsApp chat.' });
+      }
     } catch {
       showToast({ type: 'cobalt', text: 'Could not prepare the PDF to share' });
     } finally {

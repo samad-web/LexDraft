@@ -1,4 +1,6 @@
 # Changelog
+- Share on WhatsApp (2026-11-14, features/whatsapp-share.md): case documents (the file itself via the share sheet, else download + WhatsApp note; drafts as text), matter update from the case page's More menu (case no., court, stage, next hearing only), hearing reminder on each diary hearing, invoice details. Draft screen's PDF share now uses the same helper.
+
 
 - Owner's ₹1 test code (2026-11-14): a Code field on Plan & Billing; the owner's code makes a plan or Brief Pack ₹1 for allow-listed test accounts only.
 
