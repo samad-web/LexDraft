@@ -45,3 +45,15 @@ Status: built 2026-11-14. Source: owner's `DifAi_Terms_Privacy_DPDP_v1.1.pdf` (P
 - Refund "normal usage" defined as ≤ ¼ of the period's page credits.
 - Hosting region (Hostinger VPS) is not stated.
 - AI provider retention ("up to 30 days") is taken from the providers' standard API terms.
+
+## Refund page, contact page, approved refund rules (2026-11-14)
+- Razorpay's website review needs a standalone refund/cancellation page and a contact page: **/refund-policy** and **/contact** (public, in nginx's SPA list, landing footer + static index links).
+- Owner-approved refund rules:
+    - Sanad and Vakalat: no refunds.
+    - Brief and Associates yearly: within 7 days if no more than 10 AI credits were used; monthly: no refunds.
+    - Munshi seats follow their plan.
+    - Brief Packs: within 7 days if none of the pack's credits were used.
+    - Errors, including a charge after cancelling: refunded in full.
+    - Cancel by email (confirmed within 2 working days); access runs to the period end.
+- Part E of the Terms now states the same rules (the older "first purchase / quarter of credits / 48 h renewal" rules were replaced) and links to /refund-policy. Its 30-day price-change notice and 72-hour outage credit stay. Refund timeline: 7–10 working days on both pages.
+- Landing footer: the old lexdraft.in emails, the placeholder WhatsApp number and the status link are replaced with support@sirahdigital.in, /contact, /pricing and /faq.

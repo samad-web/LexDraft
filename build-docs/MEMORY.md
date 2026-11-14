@@ -71,3 +71,5 @@
 
 - 2026-11-14 — Owner: "follow the actual way" for Munshi. It is a real **Munshi** system role (0110): the advocate's clerk (diary, cause list, hearings, eFiling, documents), no AI. A Munshi seat covers that role only; Paralegal / Legal Secretary are advocate seats. This replaces decision 2a.
 - 2026-11-14 — Owner chose **interim free until live Razorpay keys**: new sign-ups get the free launch while payments are off, and paid-only sign-up switches on by itself once keys are set. v4 prices shown everywhere (landing + SEO `V4_LIVE`).
+
+- 2026-11-14 — Owner approved the refund rules (Sanad/Vakalat none; Brief/Associates yearly 7 days if ≤10 credits used; packs 7 days if unused; errors in full; cancel by email). /refund-policy + /contact added for Razorpay's review. Terms Part E aligned to the same rules (another session's Terms v1.1 kept, including its 30-day price notice).

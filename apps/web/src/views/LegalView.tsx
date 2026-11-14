@@ -48,7 +48,9 @@ function LegalPage({ title, updated, children }: { title: string; updated: strin
           style={{ marginTop: 48, paddingTop: 16, borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 16, flexWrap: 'wrap' }}
         >
           <Link to="/terms" style={linkStyle}>Terms of service</Link>
+          <Link to="/refund-policy" style={linkStyle}>Refunds and cancellation</Link>
           <Link to="/privacy" style={linkStyle}>Privacy policy</Link>
+          <Link to="/contact" style={linkStyle}>Contact</Link>
           <Link to="/delete-account" style={linkStyle}>Delete your account</Link>
           <a href={`mailto:${OPERATOR.email}`} style={linkStyle}>{OPERATOR.email}</a>
         </footer>
@@ -267,17 +269,19 @@ export function TermsView() {
       </ul>
 
       <H3>3. Cancellation</H3>
-      <p>You may cancel at any time by writing to {mail} from your registered email. Cancellation stops the next renewal; you keep access until the end of the paid period.</p>
+      <p>You may cancel at any time by writing to {mail} from your registered email; we confirm within 2 working days. Cancellation stops the next renewal; you keep access until the end of the paid period.</p>
 
       <H3>4. Refunds</H3>
       <ul>
-        <li><strong>First purchase:</strong> full refund if requested within 7 days of the first paid charge, provided you have used no more than a quarter of that period&rsquo;s page credits.</li>
-        <li><strong>Renewals:</strong> refund only if you ask within 48 hours of the renewal charge and did not use paid features since, or where we failed to provide the Service.</li>
-        <li><strong>AI credit top-ups:</strong> refundable if requested within 7 days of purchase and none of the top-up&rsquo;s credits have been used.</li>
+        <li><strong>Sanad and Vakalat</strong> (monthly or yearly): not refundable.</li>
+        <li><strong>Brief and Associates, yearly:</strong> full refund if requested within 7 days of the payment, provided no more than 10 AI credits were used since. Monthly: not refundable.</li>
+        <li><strong>Munshi seats</strong> follow the plan they were bought with.</li>
+        <li><strong>Brief Packs (AI credit top-ups):</strong> refundable if requested within 7 days of purchase and none of the pack&rsquo;s credits have been used.</li>
         <li><strong>Our failure:</strong> if the Service is unavailable for more than 72 consecutive hours in a billing period for reasons within our control, we will credit or refund the affected portion.</li>
-        <li><strong>Duplicate or erroneous charges:</strong> refunded in full.</li>
+        <li><strong>Duplicate or erroneous charges</strong>, including a charge after cancelling: refunded in full.</li>
         <li>No refund for partial periods after the above windows, except where the law requires.</li>
-        <li>Approved refunds are returned to the original payment method within 7 to 10 working days.</li>
+        <li>Approved refunds are returned to the original payment method within 7 to 10 working days, with a GST credit note.</li>
+        <li>The same rules, in full, are in our {toRefunds}.</li>
       </ul>
 
       <H3>5. Failed payments</H3>
@@ -518,6 +522,86 @@ export function DeleteAccountView() {
         You can delete individual matters, drafts, documents and other items yourself at any time from inside
         the app, without deleting your account. For anything else, write to {mail}.
       </p>
+    </LegalPage>
+  );
+}
+
+// ---- Refund and cancellation policy + contact (owner approved 2026-11-14) ----
+// Razorpay's website review needs both as their own pages. Part E of the
+// Terms carries the same refund rules and links here.
+
+const toRefunds = <Link to="/refund-policy" style={linkStyle}>Refund and Cancellation Policy</Link>;
+
+export function RefundPolicyView() {
+  return (
+    <LegalPage title="Refund and Cancellation Policy" updated={`Version ${LEGAL_VERSION} · Effective ${LEGAL_EFFECTIVE}`}>
+      <p>
+        This policy covers payments to {OPERATOR.name} (GSTIN {OPERATOR.gstin}) for DifAi plans, Munshi seats and
+        Brief Packs, paid through Razorpay. All prices include 18% GST. It forms part of our {toTerms} (Part E).
+      </p>
+
+      <H3>Cancelling a plan</H3>
+      <ul>
+        <li>The account owner can cancel at any time by writing to {mail} from the email or phone number on the account. We confirm the cancellation within 2 working days.</li>
+        <li>Cancelling stops the next renewal. Your plan, its credits and your data stay available until the end of the period already paid for.</li>
+        <li>We do not refund the unused part of a month or a year, except as set out below.</li>
+      </ul>
+
+      <H3>Refunds on plans</H3>
+      <ul>
+        <li><strong>Sanad and Vakalat</strong> (monthly or yearly): not refundable. Their low price is the trial.</li>
+        <li><strong>Brief and Associates, yearly</strong>: refundable in full if you ask within 7 days of the payment and have used no more than 10 AI credits since paying. After that, not refundable.</li>
+        <li><strong>Brief and Associates, monthly</strong>: not refundable.</li>
+        <li><strong>Munshi seats</strong> follow the plan they were bought with.</li>
+      </ul>
+
+      <H3>Refunds on Brief Packs</H3>
+      <ul>
+        <li>Refundable in full within 7 days of purchase if none of the pack&rsquo;s credits have been used.</li>
+        <li>Once any of its credits are used, a Brief Pack is not refundable.</li>
+      </ul>
+
+      <H3>Payment errors and our failures</H3>
+      <ul>
+        <li>If you were charged twice, charged after cancelling, or charged for a payment that did not go through, we refund the extra amount in full.</li>
+        <li>If the Service is unavailable for more than 72 consecutive hours in a billing period for reasons within our control, we credit or refund the affected portion.</li>
+      </ul>
+
+      <H3>How refunds are paid</H3>
+      <ul>
+        <li>Refunds go back to the original payment method through Razorpay, within 7 to 10 working days of approval, depending on your bank.</li>
+        <li>For a refunded payment we issue a GST credit note against the original tax invoice.</li>
+        <li>Credits added by a refunded payment are removed.</li>
+      </ul>
+
+      <H3>How to ask</H3>
+      <p>
+        Write to {mail} from the email or phone number on the account, with the invoice number or Razorpay
+        payment ID. We reply within 2 working days.
+      </p>
+    </LegalPage>
+  );
+}
+
+export function ContactView() {
+  return (
+    <LegalPage title="Contact us" updated={`Effective ${LEGAL_EFFECTIVE}`}>
+      <p>DifAi is built and run by {OPERATOR.name}, {OPERATOR.form}.</p>
+      <H3>Write to us</H3>
+      <p>Support, billing, refunds and privacy: {mail}. We reply within 2 working days.</p>
+      <H3>Business details</H3>
+      <ul>
+        <li>{OPERATOR.name}</li>
+        <li>GSTIN {OPERATOR.gstin}</li>
+        <li>{OPERATOR.address}</li>
+        <li>Grievance Officer: {OPERATOR.grievanceOfficer}, {OPERATOR.grievanceTitle}</li>
+      </ul>
+      <H3>Policies</H3>
+      <ul>
+        <li>{toTerms}</li>
+        <li>{toRefunds}</li>
+        <li>{toPrivacy}</li>
+      </ul>
     </LegalPage>
   );
 }

@@ -280,3 +280,5 @@
     - links from the landing, sign-up and settings.
 - Regression: all web tests (18 files, 270 tests) and `tsc --noEmit` pass. seo.test checks the /terms SPA prefix.
 - No failures found.
+
+- 2026-11-14 refund + contact pages: `policy-pages.test.tsx` 4 tests (seller details and links; approved refund rules; Terms Part E matches with no old conflicting rule; public route + nginx + landing footer). Web suite 276/276.

@@ -514,7 +514,7 @@ export function AuthView() {
                 )
               )}
               <div className="auth-actions">
-                <a className="auth-forgot" href="mailto:support@lexdraft.in?subject=Forgot%20password">Forgot password?</a>
+                <a className="auth-forgot" href="mailto:support@sirahdigital.in?subject=Forgot%20password">Forgot password?</a>
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg btn-pill auth-submit"

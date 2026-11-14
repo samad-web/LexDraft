@@ -163,7 +163,7 @@ const PRICING: PricingPlan[] = [
 ];
 
 // Footer links React Router owns; the rest load as static pages.
-const SPA_HREF = /^\/(auth|signup|privacy|delete-account)(\/|\?|$)/;
+const SPA_HREF = /^\/(auth|signup|privacy|terms|refund-policy|contact|delete-account)(\/|\?|$)/;
 
 const FOOTER_GROUPS: FooterGroup[] = [
   {
@@ -190,28 +190,26 @@ const FOOTER_GROUPS: FooterGroup[] = [
     h: 'Company',
     l: [
       { label: 'About', href: '/about' },
-      { label: 'Careers', href: 'mailto:careers@lexdraft.in' },
-      { label: 'Press', href: 'mailto:press@lexdraft.in' },
-      { label: 'Contact', href: 'mailto:partners@lexdraft.in?subject=DifAi' },
+      { label: 'Pricing', href: '/pricing' },
+      { label: 'Contact', href: '/contact' },
     ],
   },
   {
     h: 'Support',
     l: [
-      { label: 'Email support', href: 'mailto:support@lexdraft.in' },
-      { label: 'WhatsApp', href: 'https://wa.me/918045678900' },
-      { label: 'Status', href: 'https://status.lexdraft.in' },
-      { label: 'Help centre', href: 'mailto:support@lexdraft.in?subject=Help' },
+      { label: 'Email support', href: 'mailto:support@sirahdigital.in' },
+      { label: 'FAQ', href: '/faq' },
     ],
   },
   {
     h: 'Legal',
     l: [
       { label: 'Terms', href: '/terms' },
+      { label: 'Refunds and cancellation', href: '/refund-policy' },
       { label: 'Privacy', href: '/privacy' },
       { label: 'Delete account', href: '/delete-account' },
       { label: 'DPA', href: '/privacy#data-processing' },
-      { label: 'Security', href: 'mailto:security@lexdraft.in' },
+      { label: 'Security', href: 'mailto:support@sirahdigital.in?subject=Security' },
     ],
   },
 ];

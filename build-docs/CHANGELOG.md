@@ -1,5 +1,7 @@
 # Changelog
 
+- Refund & cancellation and Contact pages (2026-11-14): /refund-policy and /contact with Sirah Digital's details; the Terms' refund part now matches the approved rules; the landing footer's old contact links are fixed.
+
 - Terms + Privacy pages v1.1 (2026-11-14), not deployed:
   - New /terms page: Terms of Service, Cookie and Device Permissions Notice, and Subscription and Refund Policy.
   - /privacy now holds the full Privacy Policy and DPDP Notice: OpenAI named, Grievance Officer published, operator details from the GST certificate.

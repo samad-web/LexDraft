@@ -32,6 +32,8 @@ const SurveyView = lazy(() => import('@/views/SurveyView').then((m) => ({ defaul
 const PrivacyPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.PrivacyPolicyView })));
 const DeleteAccountView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.DeleteAccountView })));
 const TermsView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.TermsView })));
+const RefundPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.RefundPolicyView })));
+const ContactView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.ContactView })));
 const SurveyThanksView = lazy(() => import('@/views/SurveyThanksView').then((m) => ({ default: m.SurveyThanksView })));
 const DashboardView = lazy(() => import('@/views/DashboardView').then((m) => ({ default: m.DashboardView })));
 const CasesListView = lazy(() => import('@/views/CasesListView').then((m) => ({ default: m.CasesListView })));
@@ -191,6 +193,8 @@ export function App() {
     location.pathname.startsWith('/sign/') ||
     location.pathname === '/privacy' ||
     location.pathname === '/terms' ||
+    location.pathname === '/refund-policy' ||
+    location.pathname === '/contact' ||
     location.pathname === '/delete-account' ||
     location.pathname.startsWith('/legal');
 
@@ -250,6 +254,8 @@ export function App() {
             <Route path="/legal/privacy" element={<Navigate to="/privacy" replace />} />
             <Route path="/terms" element={<TermsView />} />
             <Route path="/legal/terms" element={<Navigate to="/terms" replace />} />
+            <Route path="/refund-policy" element={<RefundPolicyView />} />
+            <Route path="/contact" element={<ContactView />} />
             <Route path="/delete-account" element={<DeleteAccountView />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
