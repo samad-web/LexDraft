@@ -6,8 +6,9 @@ import { useAuthStore } from '@/store/auth';
 
 /**
  * Launch animation for the Android app: "Di" grows into DifAi over an ink
- * line drawing of a working courtroom. Plays on cold start, and again for
- * 4 s right after every sign-in so the dashboard doesn't just appear. Tap skips.
+ * line drawing of a working courtroom. Plays on the app's cold start, and on
+ * the website and the app for 4 s right after every sign-in so the dashboard
+ * doesn't just appear. Tap skips.
  * `?splash` shows it in the browser (for screenshots).
  */
 const DURATION_MS = 2400;
@@ -27,18 +28,16 @@ export function playSplash(durationMs: number): void {
   requestAnimationFrame(() => useSplashStore.setState({ showing: true, leaving: false, durationMs }));
 }
 
-// App only: play it right before the dashboard first appears - on sign-in (any
-// route: Google, password, new account, MFA code), or, when the new Terms must
-// be accepted first, on "I agree" (never over the Terms screen itself).
+// Website and app: play it right before the dashboard first appears - on
+// sign-in (any route: Google, password, new account, MFA code), or, when the
+// new Terms must be accepted first, on "I agree" (never over the Terms screen).
 // A session restored at launch is not a sign-in.
-if (Capacitor.isNativePlatform()) {
-  useAuthStore.subscribe((state, prev) => {
-    const ready = !!state.user && !state.user.needsTermsAcceptance;
-    const wasReady = !!prev.user && !prev.user.needsTermsAcceptance;
-    // No storage layer (persist off) means no restored session to mistake for a sign-in.
-    if (ready && !wasReady && (useAuthStore.persist?.hasHydrated() ?? true)) playSplash(SIGN_IN_MS);
-  });
-}
+useAuthStore.subscribe((state, prev) => {
+  const ready = !!state.user && !state.user.needsTermsAcceptance;
+  const wasReady = !!prev.user && !prev.user.needsTermsAcceptance;
+  // No storage layer (persist off) means no restored session to mistake for a sign-in.
+  if (ready && !wasReady && (useAuthStore.persist?.hasHydrated() ?? true)) playSplash(SIGN_IN_MS);
+});
 
 function close() {
   if (useSplashStore.getState().leaving) return;
