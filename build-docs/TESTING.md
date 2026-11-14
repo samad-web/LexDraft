@@ -1,4 +1,11 @@
 # Testing
+## Password-protected PDF — 2026-11-14 (features/protected-pdf.md)
+- api `pdf-protect.test.ts` 13/13: AES-256 args + random owner password; password only via a private arg file (not argv), removed after; watermark twice on every page (decoded content streams), page count kept; Tamil name dropped not crashing; bad passwords (short/long/newline/not text), non-PDF, empty, >25 MB, corrupt PDF → 400; qpdf missing → 503, no temp files left; no output → error.
+- web `pdf-lock.test.ts` 7/7: PIN format/randomness, password rules, watermark text, note never holds the password, request headers (Tamil watermark URI-encoded), server error message shown.
+- Bug found by tests: pdf-lib opens corrupt files leniently and crashed later (500). Fixed: any stamping failure → 400 "not a readable PDF".
+- Review fix: document viewer fell back to sending the UNLOCKED original when the file fetch failed; now refuses when a lock was asked for.
+- Regression: web 310/310; api 1062 passed, 1 failed (anthropic-failover xAI, pre-existing). Real qpdf lock to be verified in the api container after build.
+
 ## Key lockdown — 2026-11-14 (features/key-lockdown.md)
 - Live server checks: secrets file identical to the old key line; api force-recreated with the key ONLY in /etc/lexdraft/secrets.env → healthy; 1/1 encrypted document decrypts; new upload encrypted on disk and reads back; public sign-in POST 400 (API up).
 - Permissions: 0 env copies or dumps readable by non-root after chmod.

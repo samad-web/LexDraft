@@ -13,6 +13,7 @@ const REDACT_PATHS = [
   'req.headers["x-api-key"]',
   'req.headers["x-auth-token"]',
   'req.headers["x-anthropic-api-key"]',
+  'req.headers["x-pdf-password"]',
 
   // Request bodies - auth + admin flows
   'req.body.password',

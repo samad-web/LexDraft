@@ -116,6 +116,8 @@ WORKDIR /app
 # NOTE: verify these package names resolve in the pinned Alpine repo at build time
 # (`apk search font-carlito`); adjust if the repo names differ.
 #
+# QPDF — locks PDFs with a password (AES-256) for client sharing.
+#
 # CHROMIUM — the live eCourts / e-filing services drive a headless browser via
 # Playwright. Playwright's bundled Chromium is glibc-only, so on Alpine we use
 # the distro build and point Playwright at it through CHROMIUM_PATH. The
@@ -130,6 +132,7 @@ RUN apk add --no-cache tini wget \
       font-noto-devanagari \
       chromium \
       nss \
+      qpdf \
  && ln -s "$(command -v chromium || command -v chromium-browser)" /usr/local/bin/lexdraft-chromium \
  && /usr/local/bin/lexdraft-chromium --version \
  && addgroup -g 1001 -S lexdraft \

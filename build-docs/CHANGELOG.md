@@ -1,4 +1,6 @@
 # Changelog
+- Password-protected PDF (2026-11-14, features/protected-pdf.md): "Lock PDF with password" on the Draft Share card and in the document viewer. The server stamps "Confidential - for <client> - <date>" on every page and locks the PDF with AES-256 (qpdf, new in the api image). A random 6-digit PIN is suggested; the password is never stored or logged and the WhatsApp note says it comes separately. If locking fails, nothing unlocked is sent.
+
 
 - eFiling fits the page (2026-11-14): the eFiling sign-in card and the eFiling screens use the full content width. Before, the card was capped at 760 px and centred, and the page at 1240 px.
 

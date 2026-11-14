@@ -42,6 +42,8 @@ import { FormatPickerModal } from '@/components/FormatPickerModal';
 import { LetterheadPicker } from '@/components/letterhead/LetterheadPicker';
 import { exportPdf, exportDocx, renderPdfBlob } from '@/lib/export-doc';
 import { shareFileOnWhatsApp } from '@/lib/whatsapp-share';
+import { confidentialMark, lockPdf, lockedNote, validPdfPassword } from '@/lib/pdf-lock';
+import { PDF_LOCK_OFF, PdfLockOption, type PdfLock } from '@/components/PdfLockOption';
 import { canEmbedPdf } from '@/lib/pdf-embed';
 // pdf.js is only needed where the browser can't show the PDF itself.
 const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
@@ -250,6 +252,7 @@ export function DraftingView() {
   const [dateModalOpen, setDateModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'PDF' | 'DOCX' | null>(null);
   const [sharingPdf, setSharingPdf] = useState(false);
+  const [pdfLock, setPdfLock] = useState<PdfLock>(PDF_LOCK_OFF);
   // Letterhead choice for the client-side (working-copy) exports, surfaced as an
   // inline control in the toolbar next to the download buttons so the advocate
   // decides with/without letterhead BEFORE the download dialog opens.
@@ -1324,15 +1327,25 @@ export function DraftingView() {
     if (!hasOutput || streaming || sharingPdf) return;
     setSharingPdf(true);
     const fileName = `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`;
-    const note = `Dear Sir/Madam,\n\nPlease find attached the draft of the ${activeDocType.toLowerCase()} for your review.\n\nKindly revert with your comments.\n\nRegards,`;
+    let note = `Dear Sir/Madam,\n\nPlease find attached the draft of the ${activeDocType.toLowerCase()} for your review.\n\nKindly revert with your comments.\n\nRegards,`;
+    if (pdfLock.on && !validPdfPassword(pdfLock.password)) {
+      showToast({ type: 'amber', text: 'PDF password must be 4 to 64 characters' });
+      setSharingPdf(false);
+      return;
+    }
     try {
-      const blob = await draftPdfBlob();
+      let blob = await draftPdfBlob();
+      if (pdfLock.on) {
+        blob = await lockPdf(blob, pdfLock.password, confidentialMark(caseContext?.client));
+        note = lockedNote(note);
+      }
       // Share sheet where it can carry files; else download + WhatsApp with the note to attach it.
       if ((await shareFileOnWhatsApp(blob, fileName, note)) === 'downloaded') {
         showToast({ type: 'sage', text: 'PDF downloaded. Attach it in the WhatsApp chat.' });
       }
-    } catch {
-      showToast({ type: 'cobalt', text: 'Could not prepare the PDF to share' });
+      if (pdfLock.on) showToast({ type: 'sage', text: `PDF locked. Send the password ${pdfLock.password} to the client separately.` });
+    } catch (err) {
+      showToast({ type: 'cobalt', text: pdfLock.on && err instanceof Error ? err.message : 'Could not prepare the PDF to share' });
     } finally {
       setSharingPdf(false);
     }
@@ -2528,6 +2541,9 @@ export function DraftingView() {
                 >
                   <Icon name="file" size={14} /> {sharingPdf ? 'Preparing PDF…' : 'Share PDF on WhatsApp'}
                 </button>
+                <div style={{ marginTop: 10 }}>
+                  <PdfLockOption value={pdfLock} onChange={setPdfLock} disabled={sharingPdf} />
+                </div>
               </section>
             </aside>
           )}

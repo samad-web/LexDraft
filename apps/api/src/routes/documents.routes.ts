@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, raw } from 'express';
 import { z } from 'zod';
 import crypto from 'node:crypto';
 import type { DocumentRecord } from '@lexdraft/types';
@@ -10,6 +10,7 @@ import { validate, idParam } from '../middleware/validate';
 import { withAudit } from '../middleware/audit';
 import { requireFeature } from '../services/permissions.service';
 import { storageUsageService } from '../services/storage-usage.service';
+import { MAX_PDF_BYTES, PdfProtectError, protectPdf } from '../services/pdf-protect.service';
 
 const DocInput = z.object({
   name: z.string(),
@@ -150,6 +151,39 @@ documentsRouter.post(
 //   3. POST /documents/:id/finalize  with { storageKey, fileName, fileMime, fileSize }
 //      (or POST /documents/  with storageKey to create a new doc that owns the upload)
 // ---------------------------------------------------------------------------
+
+// Lock a PDF with a password + "Confidential" watermark (features/protected-pdf.md).
+// Body = the PDF bytes. Password in the X-Pdf-Password header (redacted from
+// logs), watermark text URI-encoded in X-Pdf-Watermark. Nothing is stored.
+documentsRouter.post(
+  '/protect-pdf',
+  requireFeature('shared.documents'),
+  raw({ type: 'application/pdf', limit: MAX_PDF_BYTES }),
+  async (req, res, next) => {
+    try {
+      if (!Buffer.isBuffer(req.body)) {
+        res.status(400).json({ error: 'Send the PDF as application/pdf' });
+        return;
+      }
+      let mark = 'Confidential';
+      try {
+        mark = decodeURIComponent(req.header('x-pdf-watermark') ?? '') || mark;
+      } catch {
+        // Bad encoding: keep the default watermark.
+      }
+      const locked = await protectPdf(req.body, req.header('x-pdf-password') ?? '', mark);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Cache-Control', 'no-store');
+      res.send(locked);
+    } catch (err) {
+      if (err instanceof PdfProtectError) {
+        res.status(err.status).json({ error: err.message });
+        return;
+      }
+      next(err);
+    }
+  },
+);
 
 documentsRouter.post('/upload-url', requireFeature('drafting.basic'), validate({ body: UploadUrlInput }), async (req, res, next) => {
   try {

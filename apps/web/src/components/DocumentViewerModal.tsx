@@ -9,6 +9,8 @@ import { ZoomPane } from './ZoomPane';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { documentNote, openWhatsAppText, shareFileOnWhatsApp } from '@/lib/whatsapp-share';
+import { confidentialMark, lockPdf, lockedNote, validPdfPassword } from '@/lib/pdf-lock';
+import { PDF_LOCK_OFF, PdfLockOption, type PdfLock } from './PdfLockOption';
 
 const PdfPages = lazy(() => import('./PdfPages').then((m) => ({ default: m.PdfPages })));
 
@@ -134,6 +136,7 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
   const me = useAuthStore((s) => s.user?.name);
   const showToast = useUIStore((s) => s.showToast);
   const [sharing, setSharing] = useState(false);
+  const [pdfLock, setPdfLock] = useState<PdfLock>(PDF_LOCK_OFF);
   const matter = doc?.case && doc.case !== '-' ? doc.case : null;
 
   /** The file itself to WhatsApp; a draft (no file) goes as text. */
@@ -148,7 +151,12 @@ ${text}`);
       return;
     }
     const fileName = data?.fileName || `${doc.name}.pdf`;
-    const note = documentNote(doc.name, matter, me);
+    let note = documentNote(doc.name, matter, me);
+    const locking = pdfLock.on && isPdf;
+    if (locking && !validPdfPassword(pdfLock.password)) {
+      showToast({ type: 'amber', text: 'PDF password must be 4 to 64 characters' });
+      return;
+    }
     setSharing(true);
     try {
       let blob: Blob;
@@ -161,9 +169,25 @@ ${text}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         blob = await res.blob();
       }
+      if (locking) {
+        try {
+          blob = await lockPdf(blob, pdfLock.password, confidentialMark(matter));
+        } catch (err) {
+          // Never fall back to sending the unlocked file when the advocate asked for a lock.
+          showToast({ type: 'cobalt', text: err instanceof Error ? err.message : 'Could not lock the PDF' });
+          return;
+        }
+        note = lockedNote(note);
+      }
       const r = await shareFileOnWhatsApp(blob, fileName, note);
       if (r === 'downloaded') showToast({ type: 'sage', text: 'File downloaded. Attach it in the WhatsApp chat.' });
+      if (locking) showToast({ type: 'sage', text: `PDF locked. Send the password ${pdfLock.password} to the client separately.` });
     } catch {
+      // A lock was asked for: never hand over the unlocked original instead.
+      if (locking) {
+        showToast({ type: 'cobalt', text: 'Could not read the file to lock it. Try again.' });
+        return;
+      }
       // The file host refused a direct read (e.g. another origin): download it the normal way instead.
       downloadFile();
       openWhatsAppText(note);
@@ -183,6 +207,9 @@ ${text}`);
       width={920}
       footer={
         <>
+          {hasFile && isPdf && (
+            <PdfLockOption value={pdfLock} onChange={setPdfLock} disabled={sharing} />
+          )}
           {(hasFile || hasDraftBody) && (
             <button type="button" className="btn" onClick={() => void shareOnWhatsApp()} disabled={sharing || isLoading}
               title="Send this to a client or colleague on WhatsApp">
