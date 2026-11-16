@@ -71,7 +71,8 @@ import { portalRouter } from './portal.routes';
 import { portalAdminRouter } from './portal-admin.routes';
 import { surveyRouter } from './survey.routes';
 import { surveyDraftRouter } from './survey-draft.routes';
-import { signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
+import { shareOpenLimiter, signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
+import { publicShareRouter, shareLinksRouter } from './share-links.routes';
 import { requireAuth, requireSuperadmin, optionalAuth } from '../middleware/auth';
 import { requireActivePlan } from '../middleware/requireActivePlan';
 
@@ -134,6 +135,10 @@ apiRouter.use('/survey', signUpLimiter, surveyRouter);
 // Client portal - its own auth (magic link → portal JWT). Internal middleware
 // gates all but /portal/auth/*.
 apiRouter.use('/portal', portalRouter);
+
+// Secure share links: /s/<token> is public (rate limited); managing links needs sign-in.
+apiRouter.use('/s', shareOpenLimiter, publicShareRouter);
+apiRouter.use('/share-links', requireAuth, requireActivePlan, shareLinksRouter);
 
 // Mixed: GET /by-token/:token + POST /by-token/:token/accept are public,
 // everything else under /invitations applies requireAuth via the router itself.

@@ -70,6 +70,16 @@ export const surveyDraftLimiter = rateLimit({
   message: { error: 'Too many draft saves from this IP. Try again later.' },
 });
 
+// Public secure share links (/api/s/:token). Per IP: slows token guessing and
+// password guessing on top of the per-link 5-wrong-passwords lock.
+export const shareOpenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Try again in a few minutes.' },
+});
+
 // Token lookup limiter for the anonymous invitation-by-token endpoint. Tokens
 // are random 20-128-char base64url strings — brute-force is infeasible at
 // any sane rate, but a tight limiter raises the bar further and protects

@@ -9,10 +9,11 @@ export interface PdfLock {
 export const PDF_LOCK_OFF: PdfLock = { on: false, password: '' };
 
 /** "Lock with password" tick box + password field, for any PDF share/download. */
-export function PdfLockOption({ value, onChange, disabled }: {
+export function PdfLockOption({ value, onChange, disabled, label = 'Lock PDF with password' }: {
   value: PdfLock;
   onChange: (v: PdfLock) => void;
   disabled?: boolean;
+  label?: string;
 }) {
   const id = useId();
   const bad = value.on && !validPdfPassword(value.password);
@@ -26,7 +27,7 @@ export function PdfLockOption({ value, onChange, disabled }: {
           disabled={disabled}
           onChange={(e) => onChange({ on: e.target.checked, password: e.target.checked ? value.password || randomPin() : value.password })}
         />
-        Lock PDF with password
+        {label}
       </label>
       {value.on && (
         <>

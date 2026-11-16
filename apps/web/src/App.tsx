@@ -34,6 +34,7 @@ const SurveyView = lazy(() => import('@/views/SurveyView').then((m) => ({ defaul
 const PrivacyPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.PrivacyPolicyView })));
 const DeleteAccountView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.DeleteAccountView })));
 const TermsView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.TermsView })));
+const ShareOpenView = lazy(() => import('@/views/ShareOpenView').then((m) => ({ default: m.ShareOpenView })));
 const RefundPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.RefundPolicyView })));
 const ContactView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.ContactView })));
 const SurveyThanksView = lazy(() => import('@/views/SurveyThanksView').then((m) => ({ default: m.SurveyThanksView })));
@@ -253,6 +254,7 @@ export function App() {
             <Route path="/privacy" element={<PrivacyPolicyView />} />
             <Route path="/legal/privacy" element={<Navigate to="/privacy" replace />} />
             <Route path="/terms" element={<TermsView />} />
+            <Route path="/s" element={<ShareOpenView />} />
             <Route path="/legal/terms" element={<Navigate to="/terms" replace />} />
             <Route path="/refund-policy" element={<RefundPolicyView />} />
             <Route path="/contact" element={<ContactView />} />

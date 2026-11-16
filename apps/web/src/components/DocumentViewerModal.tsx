@@ -11,6 +11,7 @@ import { useUIStore } from '@/store/ui';
 import { documentNote, openWhatsAppText, shareFileOnWhatsApp } from '@/lib/whatsapp-share';
 import { confidentialMark, lockPdf, lockedNote, validPdfPassword } from '@/lib/pdf-lock';
 import { PDF_LOCK_OFF, PdfLockOption, type PdfLock } from './PdfLockOption';
+import { SecureLinkShare } from './SecureLinkShare';
 
 const PdfPages = lazy(() => import('./PdfPages').then((m) => ({ default: m.PdfPages })));
 
@@ -139,6 +140,18 @@ export function DocumentViewerModal({ doc, onClose }: DocumentViewerModalProps) 
   const [pdfLock, setPdfLock] = useState<PdfLock>(PDF_LOCK_OFF);
   const matter = doc?.case && doc.case !== '-' ? doc.case : null;
 
+  /** The stored file's bytes (inline base64 or the signed download URL). */
+  const readFile = async (): Promise<Blob> => {
+    if (data?.fileBase64) {
+      return (await fetch(`data:${data.fileMime || 'application/octet-stream'};base64,${data.fileBase64}`)).blob();
+    }
+    const url = downloadUrlQuery.data?.downloadUrl;
+    if (!url) throw new Error('no file url');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.blob();
+  };
+
   /** The file itself to WhatsApp; a draft (no file) goes as text. */
   const shareOnWhatsApp = async () => {
     if (!doc || sharing) return;
@@ -159,16 +172,7 @@ ${text}`);
     }
     setSharing(true);
     try {
-      let blob: Blob;
-      if (data?.fileBase64) {
-        blob = await (await fetch(`data:${data.fileMime || 'application/octet-stream'};base64,${data.fileBase64}`)).blob();
-      } else {
-        const url = downloadUrlQuery.data?.downloadUrl;
-        if (!url) throw new Error('no file url');
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        blob = await res.blob();
-      }
+      let blob = await readFile();
       if (locking) {
         try {
           blob = await lockPdf(blob, pdfLock.password, confidentialMark(matter));
@@ -346,6 +350,15 @@ ${text}`);
           {data?.fileName}
           {typeof data?.fileSize === 'number' ? ` · ${formatBytes(data.fileSize)}` : ''}
           {data?.fileMime ? ` · ${data.fileMime}` : ''}
+        </div>
+      )}
+      {hasFile && doc && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+          <SecureLinkShare
+            disabled={isLoading}
+            note={documentNote(doc.name, matter, me).replace('Please find attached', 'Please find')}
+            getFile={async () => ({ blob: await readFile(), fileName: data?.fileName || doc.name })}
+          />
         </div>
       )}
       {!hasFile && draftData?.updatedAt && (

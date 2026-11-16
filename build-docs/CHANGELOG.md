@@ -1,4 +1,6 @@
 # Changelog
+- Secure share link (2026-11-16, features/secure-share-link.md): "Send secure link on WhatsApp" on the Draft Share card and in the document viewer. The client gets a DifAi link that expires (1/7/30 days), can need a password, counts views and can be cancelled ("Manage secure links"). Each link keeps its own encrypted file copy; a nightly job deletes copies of expired links. Token stays after # so no server log records it. Migration 0111 (new table share_links).
+
 - Evidence tables part 2 (2026-11-14): built-in formats (s.138 complaint, counter affidavit, call-for memo, appeal record cost schedule, SLP list of dates + index of annexures) print their lists as ruled tables; table dates/amounts tidied; columns sized by content; editor plain text keeps paragraphs and tables; Copy text pastes into Word as a table.
 
 - Password-protected PDF (2026-11-14, features/protected-pdf.md): "Lock PDF with password" on the Draft Share card and in the document viewer. The server stamps "Confidential - for <client> - <date>" on every page and locks the PDF with AES-256 (qpdf, new in the api image). A random 6-digit PIN is suggested; the password is never stored or logged and the WhatsApp note says it comes separately. If locking fails, nothing unlocked is sent.

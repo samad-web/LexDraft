@@ -1,4 +1,11 @@
 # Testing
+## Secure share link — 2026-11-16 (features/secure-share-link.md)
+- api `share-links.test.ts` 15/15 on the LOCAL dev Postgres (needs localhost:5433 + 0111; each test in a rolled-back transaction): exact bytes + view count; only token hash stored; expired/revoked/unknown → same 404; other firm can't list/revoke; password wrong/missing → 401, right → file; locked after 5 wrong (even right password); empty/>25 MB/bad expiry/short password refused; 200-link cap; sweep deletes expired copy; salted scrypt.
+- web `share-link.test.ts` 7/7: upload headers (Tamil name encoded), no password header when none, note has link+expiry never password, status labels, `/s#token` URL, public calls post token in body not URL.
+- Local end-to-end over HTTP (real app + local DB, temp firm deleted after): meta 200, open 200 same bytes, no-store, no password 401, right 200, bad token 404, manage without sign-in 401, rate limit hits within 30 tries.
+- Found and fixed: (1) request logs printed the token in the URL → token moved to # and request body; 0 log lines contain it. (2) nginx SPA list lacked `s` → /s would 404 in prod (seo routing test caught it).
+- Regression: web 318/318 after fix; api 1077 passed, 1 failed (anthropic-failover xAI, pre-existing).
+
 ## Evidence tables, part 2 — 2026-11-14 (features/evidence-tables.md)
 - Built-in formats now print their lists as ruled tables: s.138 complaint (Sr. No | Date | Description | Remarks), counter affidavit and call-for memo (Sr. No | Description), appeal record cost schedule (7 columns), SLP list of dates (Date | Event) and index of annexures (Annexure | Description | Page). tools/tableize_templates.py did it (idempotent; sample rows size the columns).
 - Text read-back (extract_text, goldens) now includes tables in reading order: 8 goldens regenerated after review (list lines -> rows, same content; copy application and batta witness tables now visible). 10 tests updated from "1. X (Original)" lines to the row form, same facts asserted.

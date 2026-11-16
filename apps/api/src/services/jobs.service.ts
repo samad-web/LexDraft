@@ -247,6 +247,13 @@ jobs.register('dpdp.purgeDueDeletions', async () => {
   logger.info({ purged }, 'dpdp.purgeDueDeletions complete');
 }, { cron: '45 3 * * *', tz: 'Asia/Kolkata' });
 
+// Secure share links: delete file copies of expired / revoked links (features/secure-share-link.md).
+jobs.register('shareLinks.sweep', async () => {
+  const { shareLinksService } = await import('./share-links.service');
+  const swept = await shareLinksService.sweep();
+  logger.info({ swept }, 'shareLinks.sweep complete');
+}, { cron: '15 4 * * *', tz: 'Asia/Kolkata' });
+
 jobs.register('dpdp.purgeExpiredAuditEntries', async () => {
   const { dpdpService } = await import('./dpdp.service');
   const purged = await dpdpService.purgeExpiredAuditEntries();

@@ -44,6 +44,7 @@ import { exportPdf, exportDocx, renderPdfBlob } from '@/lib/export-doc';
 import { shareFileOnWhatsApp } from '@/lib/whatsapp-share';
 import { confidentialMark, lockPdf, lockedNote, validPdfPassword } from '@/lib/pdf-lock';
 import { PDF_LOCK_OFF, PdfLockOption, type PdfLock } from '@/components/PdfLockOption';
+import { SecureLinkShare } from '@/components/SecureLinkShare';
 import { canEmbedPdf } from '@/lib/pdf-embed';
 // pdf.js is only needed where the browser can't show the PDF itself.
 const PdfPages = lazy(() => import('@/components/PdfPages').then((m) => ({ default: m.PdfPages })));
@@ -2550,6 +2551,16 @@ export function DraftingView() {
                 </button>
                 <div style={{ marginTop: 10 }}>
                   <PdfLockOption value={pdfLock} onChange={setPdfLock} disabled={sharingPdf} />
+                </div>
+                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)' }}>
+                  <SecureLinkShare
+                    disabled={!hasOutput || streaming}
+                    note={`Dear Sir/Madam,\n\nPlease find the draft of the ${activeDocType.toLowerCase()} for your review.\n\nKindly revert with your comments.\n\nRegards,`}
+                    getFile={async () => ({
+                      blob: await draftPdfBlob(),
+                      fileName: `${activeDocType.replace(/[^\w.-]+/g, '_')}-${draftDate}.pdf`,
+                    })}
+                  />
                 </div>
               </section>
             </aside>
