@@ -16,4 +16,10 @@ describe('landing Pricing menu', () => {
   it('a /#pricing link from elsewhere also lands on /pricing', () => {
     expect(src).toContain("if (id === 'pricing') { goPricing(); return; }");
   });
+
+  it('phones and tablets get a Pricing link to /pricing (the tab bar is hidden there)', () => {
+    const header = readFileSync(resolve(__dirname, '../../components/LandingHeader.tsx'), 'utf8');
+    expect(header).toContain('<a className="btn lex-landing-pricing" href="/pricing">');
+    expect(header).toMatch(/max-width: 1023px\) \{\s*\.lex-landing-pricing \{ display: inline-flex; \}/);
+  });
 });

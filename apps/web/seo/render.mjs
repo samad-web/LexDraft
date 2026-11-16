@@ -122,7 +122,7 @@ ${schema ? `<script type="application/ld+json">${JSON.stringify(schema).replace(
 <header><div class="wrap">
 <a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28" />${BRAND}</a>
 <nav class="top" aria-label="Main">${nav}</nav>
-<a class="btn" href="${SIGNUP}">Start free</a>
+<a class="btn" href="${SIGNUP}">Get started</a>
 </div></header>
 <main class="wrap">
 ${body}

@@ -1,4 +1,7 @@
 # Testing
+## Pricing link on phones — 2026-11-16
+- `landing-pricing.test.ts` 3/3 (adds the phone/tablet link). Web suite 334 pass, tsc clean. Live check: desktop Pricing tab opens /pricing with prices; phone header had no Pricing link before this fix.
+
 ## Landing Pricing menu — 2026-11-16
 - `landing-pricing.test.ts` 2/2: Pricing menu and /#pricing go to /pricing, never sign-in. Web suite 333 pass, tsc clean.
 

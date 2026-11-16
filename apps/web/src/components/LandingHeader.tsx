@@ -46,6 +46,11 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
         style={{ justifySelf: 'end', display: 'flex', gap: 10, alignItems: 'center' }}
       >
         <ThemeToggle />
+        {/* Phones and tablets hide the tab bar, so Pricing gets its own link
+            to the public /pricing page (no sign-in needed). */}
+        <a className="btn lex-landing-pricing" href="/pricing">
+          Pricing
+        </a>
         <button
           className="btn lex-landing-signin"
           type="button"
@@ -58,7 +63,9 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
         </button>
       </div>
       <style>{`
+        .lex-landing-pricing { display: none; }
         @media (max-width: 1023px) {
+          .lex-landing-pricing { display: inline-flex; }
           .lex-landing-header { padding: 16px 24px !important; }
           .lex-landing-nav { display: none; }
           .lex-landing-header { grid-template-columns: 1fr auto !important; }

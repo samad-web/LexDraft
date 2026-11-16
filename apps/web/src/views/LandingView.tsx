@@ -559,7 +559,7 @@ export function LandingView() {
             </button>
           </div>
           <div style={{ marginTop: 16, color: 'var(--text-tertiary)', fontSize: 14 }}>
-            No card required ·{' '}
+            Plans from ₹699 a month + GST ·{' '}
             <button
               type="button"
               onClick={goAuth}
