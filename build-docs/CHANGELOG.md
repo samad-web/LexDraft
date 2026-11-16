@@ -1,4 +1,6 @@
 # Changelog
+- Share several files on WhatsApp (2026-11-16, features/multi-share.md): case Documents tab gets a tick box per file, Select all, and "Share N on WhatsApp" (up to 10). Password ON by default (random PIN); turning it off needs two ticks. Secure link (default, any file type, one message with a link per file) or Attach files (PDFs locked with the PIN; Word/images blocked while a password is on). Two steps (Prepare, then Send) so the share window is never blocked. PIN shown with Copy to send separately.
+
 - Client portal + client messages removed (2026-11-16, features/remove-client-portal.md): owner decision, only advocates use DifAi. Gone: /portal sign-in and screens, Client Messages inbox + nav, dashboard client-message tile, Clients "Portal" column + tile, "Visible to client" (case), "Shared"/"Ack req'd" (documents), "Visible on client portal" (applications), client emails on new hearing/invoice. Old /portal links go to the home page. No database change (columns/tables kept, unused). Also ends the guessable firstname@123 portal passwords.
 
 - Plan cards match the app (2026-11-16): Associates plan now includes the firm dashboard (migration 0112, Practice tier; owner/partner/lead roles only, not Associates or Munshi). Partners card no longer claims SSO (not built): "Audit logs and firm analytics".

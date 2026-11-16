@@ -1,4 +1,9 @@
 # Testing
+## Share several files on WhatsApp — 2026-11-16 (features/multi-share.md)
+- web `multi-share.test.ts` 11/11: 1..10 files; weak password refused; Word/image + password + files mode blocked (names the files, points to Secure link); Word as password link OK; every PDF locked with the same PIN + watermark; no lock without password; one link per file, same PIN and expiry; first failure stops, names the file, nothing sent; rules checked before any file is fetched; message lists every file+link, never the PIN; files note.
+- `share-file.test.ts` +2 (9/9): several files reach one Android share sheet / one Web Share call.
+- Regression: web 331/331; tsc clean. No API change.
+
 ## Client portal removed — 2026-11-16 (features/remove-client-portal.md)
 - New `client-portal-removed.test.ts` 6/6: portal sign-in, dashboard, messages, documents and portal-admin endpoints no longer answer (404, or 401 from the auth guard), never 200.
 - Deleted with the feature: `portal.test.ts` (tested the removed service).

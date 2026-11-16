@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Icon, EmptyState } from '@lexdraft/ui';
 import type { DocumentRecord } from '@lexdraft/types';
 import { useDocuments, useDeleteDocument } from '@/hooks/useDocuments';
@@ -6,6 +6,8 @@ import { useUIStore } from '@/store/ui';
 import { DocumentViewerModal } from './DocumentViewerModal';
 import { NewDocumentModal } from './NewDocumentModal';
 import { Gate } from './Gate';
+import { MultiShareDialog } from './MultiShareDialog';
+import { MAX_SHARE_FILES, type ShareItem } from '@/lib/multi-share';
 
 interface Props {
   /** The matter whose documents to show — linked by case label (title). */
@@ -50,6 +52,8 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sharing, setSharing] = useState(false);
 
   const handleDelete = (doc: DocumentRecord) => {
     if (!doc.id) return;
@@ -90,6 +94,19 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
     [forMatter, filter],
   );
 
+  // Only stored files can be sent (a draft with no file has nothing to attach).
+  const shareable = useMemo(() => visible.filter((d) => d.id && d.hasFile), [visible]);
+  useEffect(() => setSelected(new Set()), [filter, matterTitle]);
+  const allTicked = shareable.length > 0 && shareable.every((d) => selected.has(d.id!));
+  const toggle = (docId: string) => setSelected((cur) => {
+    const next = new Set(cur);
+    if (next.has(docId)) next.delete(docId); else next.add(docId);
+    return next;
+  });
+  const shareItems: ShareItem[] = shareable
+    .filter((d) => selected.has(d.id!))
+    .map((d) => ({ id: d.id!, name: d.name, fileName: d.fileName || d.name, mime: d.fileMime }));
+
   return (
     <div className="cs-docs">
       <div className="cs-docs-head">
@@ -120,6 +137,33 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
         ))}
       </div>
 
+      {/* Select files to share on WhatsApp (features/multi-share.md) */}
+      {shareable.length > 0 && (
+        <Gate feature="shared.documents">
+          <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '4px 0 10px' }}>
+            <label className="body-sm" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={allTicked}
+                onChange={() => setSelected(allTicked ? new Set() : new Set(shareable.slice(0, MAX_SHARE_FILES).map((d) => d.id!)))}
+              />
+              Select all{shareable.length > MAX_SHARE_FILES ? ` (first ${MAX_SHARE_FILES})` : ''}
+            </label>
+            {selected.size > 0 && (
+              <>
+                <span className="body-sm">{selected.size} selected</span>
+                <button type="button" className="btn btn-sm btn-primary" onClick={() => setSharing(true)}
+                  disabled={selected.size > MAX_SHARE_FILES}>
+                  <Icon name="chat" size={13} /> Share {selected.size} on WhatsApp
+                </button>
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSelected(new Set())}>Clear</button>
+                {selected.size > MAX_SHARE_FILES && <span className="body-sm" role="alert">Up to {MAX_SHARE_FILES} at a time.</span>}
+              </>
+            )}
+          </div>
+        </Gate>
+      )}
+
       {/* List */}
       <div className="card cs-docs-list">
         {isLoading && (
@@ -143,6 +187,17 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
           const fileMissing = doc.kind !== 'draft' && !doc.hasFile;
           return (
           <div key={doc.id ?? `${doc.name}-${i}`} className="cs-doc">
+            {doc.id && doc.hasFile ? (
+              <input
+                type="checkbox"
+                aria-label={`Select ${doc.name} to share`}
+                checked={selected.has(doc.id)}
+                onChange={() => toggle(doc.id!)}
+                style={{ flex: 'none', width: 16, height: 16, accentColor: 'var(--text-primary)' }}
+              />
+            ) : (
+              <span aria-hidden="true" style={{ width: 16, flex: 'none' }} />
+            )}
             <button type="button" className="cs-doc-open" onClick={() => setViewing(doc)}>
               <span className="cs-line-icon" aria-hidden="true">
                 <Icon name={doc.kind === 'draft' ? 'draft' : 'documents'} size={15} />
@@ -186,6 +241,13 @@ export function CaseDocumentsPanel({ matterTitle }: Props) {
       </div>
 
       <DocumentViewerModal doc={viewing} onClose={() => setViewing(null)} />
+      <MultiShareDialog
+        open={sharing}
+        onClose={() => setSharing(false)}
+        items={shareItems}
+        forWhom={matterTitle}
+        onSent={() => { setSharing(false); setSelected(new Set()); }}
+      />
       <NewDocumentModal open={uploadOpen} onClose={() => setUploadOpen(false)} defaultCase={matterTitle} />
     </div>
   );

@@ -37,7 +37,7 @@ class FakeFileReader {
   }
 }
 
-const { shareFile } = await import('@/lib/native');
+const { shareFile, shareFiles } = await import('@/lib/native');
 
 const pdf = () => new Blob(['%PDF-1.4'], { type: 'application/pdf' });
 const NOTE = 'Please find attached the draft';
@@ -74,6 +74,23 @@ describe('Share PDF on WhatsApp — Android app', () => {
     h.native = true;
     h.nativeShareError = new Error('Share canceled');
     expect(await shareFile(pdf(), 'a.pdf', NOTE)).toBe('cancelled');
+  });
+});
+
+describe('Share several files at once', () => {
+  it('Android app: all files go to one share sheet with the note', async () => {
+    h.native = true;
+    expect(await shareFiles([{ blob: pdf(), fileName: 'a.pdf' }, { blob: pdf(), fileName: 'b.pdf' }], NOTE)).toBe('shared');
+    expect(h.nativeShares).toHaveLength(1);
+    expect(h.nativeShares[0]!.files).toEqual(['file:///cache/downloads/a.pdf', 'file:///cache/downloads/b.pdf']);
+    expect(h.nativeShares[0]!.text).toBe(NOTE);
+  });
+
+  it('browser: shares all files in one call', async () => {
+    const share = vi.fn(async (_d: ShareData) => {});
+    stubWebShare({ canShare: true, share });
+    expect(await shareFiles([{ blob: pdf(), fileName: 'a.pdf' }, { blob: pdf(), fileName: 'b.pdf' }], NOTE)).toBe('shared');
+    expect(share.mock.calls[0]![0].files!.map((f) => f.name)).toEqual(['a.pdf', 'b.pdf']);
   });
 });
 

@@ -35,34 +35,57 @@ function safeFileName(name: string): string {
 }
 
 /** Write a file to the app cache and open the Android share sheet with it. */
-async function shareBlobNative(blob: Blob, fileName: string, text?: string): Promise<void> {
-  const { uri } = await Filesystem.writeFile({
-    path: `downloads/${safeFileName(fileName)}`,
-    data: await blobToBase64(blob),
-    directory: Directory.Cache,
-    recursive: true,
-  });
-  await Share.share({ title: fileName, text, files: [uri] });
+/** Write files to the app cache and open the Android share sheet with them. */
+async function shareBlobsNative(files: Array<{ blob: Blob; fileName: string }>, text?: string): Promise<void> {
+  const uris: string[] = [];
+  for (const f of files) {
+    const { uri } = await Filesystem.writeFile({
+      path: `downloads/${safeFileName(f.fileName)}`,
+      data: await blobToBase64(f.blob),
+      directory: Directory.Cache,
+      recursive: true,
+    });
+    uris.push(uri);
+  }
+  await Share.share({ title: files.length === 1 ? files[0]!.fileName : `${files.length} files`, text, files: uris });
 }
 
+const shareBlobNative = (blob: Blob, fileName: string, text?: string) => shareBlobsNative([{ blob, fileName }], text);
+
 /**
- * Hand a file to the device's share sheet (WhatsApp, mail, Drive...).
- * 'fallback' = this browser can't share files (or the click's user activation
- * expired while the file was being prepared); the caller should download it instead.
+ * Hand one or more files to the device's share sheet (WhatsApp, mail, Drive...).
+ * 'fallback' = this browser can't share these files (or the click's user activation
+ * expired while they were being prepared); the caller should download instead.
  */
-export async function shareFile(blob: Blob, fileName: string, text?: string): Promise<'shared' | 'cancelled' | 'fallback'> {
+export async function shareFiles(
+  files: Array<{ blob: Blob; fileName: string }>,
+  text?: string,
+): Promise<'shared' | 'cancelled' | 'fallback'> {
   try {
     if (Capacitor.isNativePlatform()) {
-      await shareBlobNative(blob, fileName, text);
+      await shareBlobsNative(files, text);
       return 'shared';
     }
-    const file = new File([blob], fileName, { type: blob.type || 'application/octet-stream' });
-    if (typeof navigator.canShare !== 'function' || !navigator.canShare({ files: [file] })) return 'fallback';
-    await navigator.share({ files: [file], text });
+    const list = files.map((f) => new File([f.blob], f.fileName, { type: f.blob.type || 'application/octet-stream' }));
+    if (typeof navigator.canShare !== 'function' || !navigator.canShare({ files: list })) return 'fallback';
+    await navigator.share({ files: list, text });
     return 'shared';
   } catch (err) {
     if (err instanceof Error && (err.name === 'AbortError' || /cancel/i.test(err.message))) return 'cancelled';
     return 'fallback';
+  }
+}
+
+export const shareFile = (blob: Blob, fileName: string, text?: string) => shareFiles([{ blob, fileName }], text);
+
+/** Whether this device can hand files to a share sheet at all (native app or Web Share with files). */
+export function canShareFiles(): boolean {
+  if (Capacitor.isNativePlatform()) return true;
+  try {
+    const probe = new File(['x'], 'x.pdf', { type: 'application/pdf' });
+    return typeof navigator.canShare === 'function' && navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
   }
 }
 
