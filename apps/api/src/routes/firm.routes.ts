@@ -8,6 +8,10 @@ import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 import { firmStageAdmin } from '../services/case-pipeline.service';
 import { validate, idParam } from '../middleware/validate';
+import { requireMemberAdmin } from '../middleware/requireMemberAdmin';
+import { db } from '../db/client';
+import { NotFoundError } from '../lib/errors';
+import { MUNSHI_ROLES } from '../lib/plans';
 
 export const firmRouter: Router = Router();
 
@@ -82,6 +86,41 @@ firmRouter.patch('/users/:id', requireFeature('admin.users'), async (req, res, n
       body,
       { id: req.user!.id, email: req.user!.email },
     );
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ---- /firm/munshi ---------------------------------------------------------
+// Munshi (clerk) members: list, remove, re-activate. Open to member admins and
+// to a Solo-plan owner (features/solo-munshi.md). Re-activation is seat-checked
+// in firmAdminService.updateUser.
+firmRouter.get('/munshi', requireMemberAdmin, async (req, res, next) => {
+  try {
+    const sql = db();
+    const firmId = await firmIdForUser(req.user?.id);
+    if (!sql || !firmId) { res.json({ items: [] }); return; }
+    const items = await sql<Array<{ id: string; name: string; email: string; status: string }>>`
+      select id, name, email, status from users
+      where firm_id = ${firmId}::uuid and role = any(${MUNSHI_ROLES as string[]}) and status <> 'deactivated'
+      order by created_at`;
+    res.json({ items });
+  } catch (err) { next(err); }
+});
+
+const MunshiStatus = z.object({ status: z.enum(['active', 'deactivated']) }).strict();
+
+firmRouter.patch('/munshi/:id', requireMemberAdmin, async (req, res, next) => {
+  try {
+    const body = MunshiStatus.parse(req.body);
+    const sql = db();
+    const firmId = await firmIdForUser(req.user?.id);
+    const targetId = String(req.params.id ?? '');
+    if (!/^[0-9a-f-]{36}$/i.test(targetId)) throw new NotFoundError('Munshi not found');
+    const [t] = sql && firmId
+      ? await sql<{ role: string | null }[]>`select role from users where id = ${targetId}::uuid and firm_id = ${firmId}::uuid limit 1`
+      : [];
+    if (!t || !MUNSHI_ROLES.includes(t.role ?? '')) throw new NotFoundError('Munshi not found');
+    const result = await firmAdminService.updateUser(req.user!.id, targetId, { status: body.status }, { id: req.user!.id, email: req.user!.email });
     res.json(result);
   } catch (err) { next(err); }
 });

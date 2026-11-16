@@ -1,4 +1,5 @@
 # Changelog
+- Munshi on solo plans (2026-11-16, features/solo-munshi.md): Sanad, Vakalat and Brief owners get a "Your Munshi" box on Plan & Billing to invite, see and remove their Munshi, within the Munshi seats paid for. Seat-limit errors now reach the web app with their code.
 - Translation price + s.138 dates (2026-11-16): translating a draft costs ½ credit a page (Draft button shows 1½ credits a page for another language); s.138 complaints no longer refused over stand-in dates (dispatch = notice date; memo receipt before the notice); the dishonour date is read as the memo date; the composed body no longer adds a second list of documents.
 
 - Seat enforcement (2026-11-16, features/seat-enforcement.md): Roles & Access "Add member", role changes between advocate and Munshi, and re-activation now respect the advocate and Munshi seats paid for.

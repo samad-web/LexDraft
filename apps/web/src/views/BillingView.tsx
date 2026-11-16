@@ -6,6 +6,7 @@ import type { BillingCycle, BillingPlanId, BillingStateResponse, PaidPlanId, Sub
 import { CycleToggle, MunshiPicker, PLAN_NAME, PlanCards, SeatPicker } from '@/components/PlanCards';
 import { CreditMeter } from '@/components/DraftMeter';
 import { BriefPacks } from '@/components/BriefPacks';
+import { MunshiPanel } from '@/components/MunshiPanel';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 
@@ -248,6 +249,12 @@ export function BillingView() {
           </section>
 
           {!native && <BriefPacks packs={data.packs ?? []} canBuy={data.canManage} coupon={coupon.trim()} />}
+
+          {/* Sanad / Vakalat / Brief owner: invite and remove their Munshi here
+              (Associates and Partners use People & Roles). */}
+          {data.canManage && data.current.planTier === 'Solo' && data.current.munshiSeats > 0 && (
+            <MunshiPanel seats={data.current.munshiSeats} />
+          )}
 
           {data.canManage && <SubscriptionInvoices />}
 

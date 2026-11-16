@@ -148,5 +148,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     return;
   }
   if (shouldCapture(status)) captureAsync(req, status, err);
-  res.status(status).json({ error: message });
+  // Keep a string `code` (e.g. seat_cap_exceeded) so the web client can react.
+  const code = err && typeof err === 'object' && 'code' in err && typeof err.code === 'string' ? err.code : undefined;
+  res.status(status).json({ error: message, ...(code ? { code } : {}) });
 };

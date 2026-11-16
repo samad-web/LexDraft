@@ -1,4 +1,8 @@
 # Testing
+## Munshi on solo plans — 2026-11-16 (features/solo-munshi.md)
+- `solo-munshi.integration.test.ts` 2/2 (AC1-AC7) through real HTTP routes.
+- Found while testing: the error handler dropped `code` on legacy `.status` errors, so seat_cap_exceeded never reached the web client. Fixed in middleware/error.ts.
+- Regression: api unit 1070 pass; integration 85 pass + the same 2 pre-existing failures; web 331 pass.
 ## Translation price + s.138 dates — 2026-11-16
 - Price: translation ½ credit per 400-word page, min ½ (user). draft-translate.test 7/7 (new price test). Live via Claude Code: Telugu s.138 complaint charged 1.5 credits for translation vs 3 for the English draft.
 - s.138 dates: 2 new fillMissingDate cases (missing dispatch = notice date, not a gap; missing memo receipt = marked stand-in after the memo date and before the notice; notice delivery still dispatch + 2). Root causes: the notice-service rule matched memo_received_date ("received"); a missing dispatch took the generic stand-in (cheque date - 1). memo_date label now names the dishonour date (the reader sees labels, not hints).

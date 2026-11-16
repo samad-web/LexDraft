@@ -4,7 +4,9 @@ import { invitationsService } from '../services/invitations.service';
 import { authService } from '../services/auth.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireAuth } from '../middleware/auth';
-import { requireFeature } from '../services/permissions.service';
+import { requireMemberAdmin } from '../middleware/requireMemberAdmin';
+import { ForbiddenError, NotFoundError } from '../lib/errors';
+import { MUNSHI_ROLES } from '../lib/plans';
 import { validate } from '../middleware/validate';
 import { tokenLookupLimiter } from '../middleware/rateLimit';
 
@@ -96,10 +98,21 @@ invitationsRouter.use(requireAuth);
 // at any role including Managing Partner — a textbook privilege-escalation
 // path. `admin.users` is the canonical "manage firm members" capability and
 // is intentionally limited to Firm Admins + Practice/Firm-tier leads.
-invitationsRouter.get('/', requireFeature('admin.users'), async (req, res, next) => {
+// A Solo-plan owner (res.locals.munshiOnly) sees and manages only Munshi
+// invitations; see middleware/requireMemberAdmin.ts.
+const isMunshiRole = (r: string) => MUNSHI_ROLES.includes(r);
+async function assertMunshiInvite(res: import('express').Response, id: string, firmId: string | null): Promise<void> {
+  if (!res.locals.munshiOnly) return;
+  const inv = (await invitationsService.list(firmId)).find((i) => i.id === id);
+  if (!inv) throw new NotFoundError('Invitation not found or not pending');
+  if (!isMunshiRole(inv.role)) throw new ForbiddenError('Your plan can only manage Munshi seats.', { code: 'munshi_only' });
+}
+
+invitationsRouter.get('/', requireMemberAdmin, async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
-    res.json({ items: await invitationsService.list(firmId) });
+    const items = await invitationsService.list(firmId);
+    res.json({ items: res.locals.munshiOnly ? items.filter((i) => isMunshiRole(i.role)) : items });
   } catch (err) {
     next(err);
   }
@@ -107,11 +120,14 @@ invitationsRouter.get('/', requireFeature('admin.users'), async (req, res, next)
 
 invitationsRouter.post(
   '/',
-  requireFeature('admin.users'),
+  requireMemberAdmin,
   validate({ body: Create }),
   async (req, res, next) => {
     try {
       const body = req.body as z.infer<typeof Create>;
+      if (res.locals.munshiOnly && !isMunshiRole(body.role)) {
+        throw new ForbiddenError('Your plan can invite only a Munshi. Choose Associates to add advocates.', { code: 'munshi_only' });
+      }
       const inviter = await authService.getById(req.user!.id);
       if (!inviter) {
         res.status(401).json({ error: 'Inviter not found' });
@@ -132,11 +148,12 @@ invitationsRouter.post(
 
 invitationsRouter.delete(
   '/:id',
-  requireFeature('admin.users'),
+  requireMemberAdmin,
   validate({ params: InvitationIdParam }),
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
+      await assertMunshiInvite(res, (req.params as { id: string }).id, firmId);
       const ok = await invitationsService.cancel((req.params as { id: string }).id, firmId);
       if (!ok) {
         res.status(404).json({ error: 'Invitation not found or not pending' });
@@ -151,11 +168,12 @@ invitationsRouter.delete(
 
 invitationsRouter.post(
   '/:id/resend',
-  requireFeature('admin.users'),
+  requireMemberAdmin,
   validate({ params: InvitationIdParam }),
   async (req, res, next) => {
     try {
       const firmId = await firmIdForUser(req.user?.id);
+      await assertMunshiInvite(res, (req.params as { id: string }).id, firmId);
       const updated = await invitationsService.resend((req.params as { id: string }).id, firmId);
       if (!updated) {
         res.status(404).json({ error: 'Invitation not found or not pending' });

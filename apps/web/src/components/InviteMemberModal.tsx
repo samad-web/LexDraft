@@ -30,11 +30,14 @@ const ACCESS_LEVELS: Array<{ value: CustomRoleAccess; hint: string }> = [
 interface Props {
   open: boolean;
   onClose: () => void;
+  /** Sanad / Vakalat / Brief owner: the only role on offer is Munshi. */
+  munshiOnly?: boolean;
 }
 
-export function InviteMemberModal({ open, onClose }: Props) {
+export function InviteMemberModal({ open, onClose, munshiOnly = false }: Props) {
+  const startRole: RoleChoice = munshiOnly ? 'Munshi' : 'Associate';
   const [email, setEmail] = useState('');
-  const [role, setRole] = useState<RoleChoice>('Associate');
+  const [role, setRole] = useState<RoleChoice>(startRole);
   const [customRole, setCustomRole] = useState('');
   const [access, setAccess] = useState<CustomRoleAccess>('Associate');
   const [message, setMessage] = useState('');
@@ -50,7 +53,7 @@ export function InviteMemberModal({ open, onClose }: Props) {
   useEffect(() => {
     if (!open) {
       setEmail('');
-      setRole('Associate');
+      setRole(startRole);
       setCustomRole('');
       setAccess('Associate');
       setMessage('');
@@ -246,7 +249,8 @@ export function InviteMemberModal({ open, onClose }: Props) {
 
           <div>
             <label className="label">Role</label>
-            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            {munshiOnly && <p className="body-sm muted" style={{ margin: 0 }}>Munshi (clerk): cases, diary, hearings, eCourts, eFiling and documents. No AI.</p>}
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap' }} hidden={munshiOnly}>
               {[...ROLES, 'Other' as const].map((r) => (
                 <button
                   key={r}
