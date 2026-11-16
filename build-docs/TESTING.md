@@ -1,4 +1,7 @@
 # Testing
+## Landing pricing cards — 2026-11-16
+- `landing-pricing.test.ts` 4/4 (tab scrolls on-page, section renders SIGNUP_PLANS with the cycle switch, phone button, footer link). Web suite 335 pass, tsc clean, vite build ok.
+
 ## Pricing link on phones — 2026-11-16
 - `landing-pricing.test.ts` 3/3 (adds the phone/tablet link). Web suite 334 pass, tsc clean. Live check: desktop Pricing tab opens /pricing with prices; phone header had no Pricing link before this fix.
 

@@ -46,11 +46,11 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
         style={{ justifySelf: 'end', display: 'flex', gap: 10, alignItems: 'center' }}
       >
         <ThemeToggle />
-        {/* Phones and tablets hide the tab bar, so Pricing gets its own link
-            to the public /pricing page (no sign-in needed). */}
-        <a className="btn lex-landing-pricing" href="/pricing">
+        {/* Phones and tablets hide the tab bar, so Pricing gets its own
+            button: it scrolls to the pricing cards on this page. */}
+        <button className="btn lex-landing-pricing" type="button" onClick={() => onTabChange('pricing')}>
           Pricing
-        </a>
+        </button>
         <button
           className="btn lex-landing-signin"
           type="button"

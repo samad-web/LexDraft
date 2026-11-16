@@ -1,7 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
 import { LandingHeader } from '../components/LandingHeader';
+import { PillNav } from '../components/PillNav';
+import { SIGNUP_PLANS } from '../components/PlanCards';
 import { LandingArt } from '../components/LandingArt';
 import { IntroModal } from '../components/IntroModal';
 import { readIntro } from '../lib/intro';
@@ -90,6 +92,16 @@ const FAQ_ITEMS: FaqItem[] = [
   },
 ];
 
+// Landing pricing cards (owner, 2026-11-16): the original card design, fed
+// from the same catalogue as sign-up and Plan & Billing (pricing v5, + GST).
+type Billing = 'monthly' | 'annual';
+const BILLING_OPTIONS: ReadonlyArray<{ id: Billing; label: string }> = [
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'annual', label: 'Yearly · 1 month free' },
+];
+const SCHEDULE = ['I', 'II', 'III', 'IV'];
+const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
 // Footer links React Router owns; the rest load as static pages.
 const SPA_HREF = /^\/(auth|signup|privacy|terms|refund-policy|contact|delete-account)(\/|\?|$)/;
 
@@ -117,7 +129,7 @@ const FOOTER_GROUPS: FooterGroup[] = [
     h: 'Company',
     l: [
       { label: 'About', href: '/about' },
-      { label: 'Pricing', href: '/pricing' },
+      { label: 'Pricing', href: '#pricing' },
       { label: 'Contact', href: '/contact' },
     ],
   },
@@ -362,14 +374,10 @@ export function LandingView() {
     scrollLockTimer.current = window.setTimeout(release, supportsScrollend ? 2000 : 1500);
   };
 
-  // /pricing is a prerendered static page served by nginx, not an SPA route.
-  const goPricing = () => window.location.assign('/pricing');
-
   const goAnchor = (hash: string) => {
     if (!hash.startsWith('#')) return;
     const id = hash.slice(1);
-    if (id === 'pricing') { goPricing(); return; }
-    const known: TabId[] = ['home', 'features', 'faq', 'trial'];
+    const known: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
     if ((known as string[]).includes(id)) {
       goSection(id as TabId);
       return;
@@ -433,7 +441,7 @@ export function LandingView() {
   }, []);
 
   useEffect(() => {
-    const ids: TabId[] = ['home', 'features', 'faq', 'trial'];
+    const ids: TabId[] = ['home', 'features', 'pricing', 'faq', 'trial'];
     const elements = ids
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null);
@@ -497,6 +505,26 @@ export function LandingView() {
     return () => io.disconnect();
   }, []);
 
+  const [billing, setBilling] = useState<Billing>('monthly');
+  const pricingRows = useMemo(
+    () =>
+      SIGNUP_PLANS.map((plan, i) => {
+        const isCustom = plan.monthlyInr === null;
+        const priceDisplay = isCustom
+          ? 'Custom'
+          : billing === 'annual'
+          ? inr(plan.annualInr ?? (plan.monthlyInr ?? 0) * 11)
+          : inr(plan.monthlyInr ?? 0);
+        const periodDisplay = isCustom ? 'Talk to us' : billing === 'annual' ? 'per year + GST' : 'per month + GST';
+        const savingsLine =
+          !isCustom && billing === 'annual' && plan.monthlyInr && plan.annualInr
+            ? `Save ${inr(plan.monthlyInr * 12 - plan.annualInr)} a year vs monthly`
+            : null;
+        return { plan, schedule: SCHEDULE[i] ?? '', priceDisplay, periodDisplay, savingsLine, isCustom, featured: i === 0 };
+      }),
+    [billing],
+  );
+
   const pageStyle: CSSProperties = {
     background: 'var(--bg-base)',
     color: 'var(--text-primary)',
@@ -510,8 +538,7 @@ export function LandingView() {
       <LandingHeader
         tabs={NAV_TABS}
         activeTab={tab}
-        // Pricing opens the public /pricing page (prerendered, no sign-in needed).
-        onTabChange={(id) => (id === 'pricing' ? goPricing() : goSection(id))}
+        onTabChange={goSection}
         onSignIn={goAuth}
         onTrial={goAuth}
       />
@@ -668,6 +695,227 @@ export function LandingView() {
             </article>
           ))}
         </div>
+      </section>
+
+      {/* PRICING */}
+      <section
+        id="pricing"
+        style={{ padding: 'clamp(56px, 8vw, 96px) clamp(16px, 4vw, 48px)', maxWidth: 1320, margin: '0 auto', scrollMarginTop: 90 }}
+      >
+        <div
+          className="reveal lex-pricing-head"
+          style={{
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'space-between',
+            marginBottom: 56,
+            paddingBottom: 32,
+            borderBottom: '1px solid var(--border-subtle)',
+            flexWrap: 'wrap',
+            gap: 24,
+          }}
+        >
+          <div style={{ maxWidth: 640 }}>
+            <div className="eyebrow" style={{ marginBottom: 12 }}>Pricing</div>
+            <h2
+              className="display"
+              style={{
+                fontSize: 'clamp(32px, 4vw, 48px)',
+                fontWeight: 600,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Four plans. No surprises.
+            </h2>
+            <p style={{ marginTop: 16, color: 'var(--text-secondary)', fontSize: 16, lineHeight: 1.6 }}>
+              Every plan has the full app, including analytics. Plans differ in seats and AI credits (1 credit = one 400-word drafted page). Prices are + 18% GST; no charge per matter or per filing, and no autopay.
+            </p>
+          </div>
+          <PillNav
+            items={BILLING_OPTIONS}
+            value={billing}
+            onChange={setBilling}
+            ariaLabel="Billing cadence"
+          />
+        </div>
+
+        <div
+          className="lex-grid-3 reveal-stagger"
+          style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 24, alignItems: 'stretch' }}
+        >
+          {pricingRows.map(({ plan, schedule, priceDisplay, periodDisplay, savingsLine, isCustom, featured }) => {
+            const cardStyle: CSSProperties = {
+              background: featured ? 'var(--text-primary)' : 'var(--bg-surface)',
+              color: featured ? 'var(--bg-base)' : 'var(--text-primary)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 'var(--radius-xl)',
+              padding: 'clamp(20px, 4vw, 32px)',
+              display: 'flex',
+              flexDirection: 'column',
+              position: 'relative',
+              overflow: 'hidden',
+            };
+
+            return (
+              <div key={plan.name} style={cardStyle}>
+                {featured && (
+                  <div
+                    className="mono"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '8px 12px',
+                      background: 'var(--bg-base)',
+                      color: 'var(--text-primary)',
+                      fontSize: 11,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      textAlign: 'center',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Start here
+                  </div>
+                )}
+                <div style={{ marginTop: featured ? 28 : 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div className="eyebrow" style={{ opacity: 0.7, marginBottom: 16 }}>
+                    Schedule {schedule}
+                  </div>
+                  <div
+                    className="display"
+                    style={{ fontSize: 32, fontWeight: 600, letterSpacing: '-0.015em', color: 'inherit' }}
+                  >
+                    {plan.name}
+                  </div>
+                  <div style={{ fontSize: 14, opacity: 0.75, marginTop: 4, marginBottom: 24 }}>
+                    {plan.for}
+                  </div>
+                  <div style={{ marginBottom: 24, minHeight: 132 }}>
+                    <div
+                      className="display"
+                      style={{
+                        fontSize: 'clamp(40px, 7vw, 56px)',
+                        lineHeight: 1,
+                        letterSpacing: '-0.025em',
+                        fontVariantNumeric: 'tabular-nums',
+                        color: 'inherit',
+                      }}
+                    >
+                      {priceDisplay}
+                    </div>
+                    <div
+                      className="mono"
+                      style={{
+                        fontSize: 11,
+                        marginTop: 8,
+                        opacity: 0.7,
+                        letterSpacing: '0.16em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {periodDisplay}
+                    </div>
+                    {savingsLine && (
+                      <div
+                        className="mono"
+                        style={{
+                          marginTop: 10,
+                          fontSize: 11,
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          opacity: 0.7,
+                          color: 'inherit',
+                        }}
+                      >
+                        {savingsLine}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => goSignup(isCustom ? 'demo' : 'trial')}
+                    className="btn btn-block btn-lg"
+                    style={
+                      featured
+                        ? {
+                            background: 'var(--bg-base)',
+                            color: 'var(--text-primary)',
+                            borderColor: 'var(--bg-base)',
+                            marginBottom: 24,
+                          }
+                        : {
+                            background: 'var(--text-primary)',
+                            color: 'var(--bg-base)',
+                            borderColor: 'var(--text-primary)',
+                            marginBottom: 24,
+                          }
+                    }
+                  >
+                    {isCustom ? 'Speak with us' : `Start with ${plan.name}`}
+                  </button>
+                  <div
+                    style={{
+                      borderTop: `1px solid ${featured ? 'rgba(255,255,255,0.18)' : 'var(--border-subtle)'}`,
+                      paddingTop: 18,
+                    }}
+                  >
+                    <div
+                      className="eyebrow"
+                      style={{ opacity: 0.7, marginBottom: 14, color: 'inherit' }}
+                    >
+                      Included
+                    </div>
+                    <ul
+                      style={{
+                        listStyle: 'none',
+                        padding: 0,
+                        margin: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 10,
+                      }}
+                    >
+                      {plan.features.map((f) => (
+                        <li
+                          key={f}
+                          style={{
+                            display: 'flex',
+                            gap: 10,
+                            fontSize: 14,
+                            alignItems: 'flex-start',
+                            lineHeight: 1.5,
+                          }}
+                        >
+                          <span
+                            aria-hidden
+                            style={{
+                              width: 16,
+                              height: 16,
+                              flexShrink: 0,
+                              marginTop: 3,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 11,
+                            }}
+                          >
+                            ✓
+                          </span>
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <p className="reveal" style={{ marginTop: 28, color: 'var(--text-secondary)', fontSize: 15, lineHeight: 1.6 }}>
+          Add a Munshi (clerk) seat on any plan for ₹149 a month + GST. Need more AI credits? Add a Brief Pack any time.
+        </p>
       </section>
 
       {/* FAQ */}
@@ -838,6 +1086,8 @@ export function LandingView() {
         }
 
         @media (max-width: 1023px) {
+
+          .lex-pricing-head { align-items: flex-start !important; }
           .lex-footer { padding: 32px 32px 32px !important; }
           .lex-footer-grid { grid-template-columns: repeat(3, 1fr); gap: 36px; padding: 8px 0 40px; }
           .lex-footer-link { font-size: 15px; }

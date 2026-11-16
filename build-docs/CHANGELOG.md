@@ -1,4 +1,6 @@
 # Changelog
+- Pricing cards on the landing page (2026-11-16, owner): Pricing (desktop tab, phone button, footer link) scrolls to a pricing section on the landing page itself, in the original card design (schedule label, big price, Monthly / Yearly switch, highlighted first card, Included list), fed from the shared plan catalogue (pricing v5, + GST). No sign-in, no other page.
+
 - Pricing on phones (2026-11-16): phones and tablets get a Pricing link in the landing header (the tab bar is hidden there) that opens /pricing without sign-in. Paid-only wording: landing "No card required" -> "Plans from ₹699 a month + GST"; public pages' "Start free" -> "Get started".
 
 - Pricing without sign-in (2026-11-16): the landing page Pricing menu (and /#pricing links) open the public /pricing page instead of the sign-in screen.
