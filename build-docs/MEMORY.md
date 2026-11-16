@@ -46,6 +46,8 @@
 
 - 2026-11-16: Associates includes the firm dashboard (0112); never advertise a feature that is not built (Partners card dropped SSO).
 
+- 2026-11-16 (owner): sign-up stays paid-only. No free launch for new solo/students, no 14-day firm trial. Not advertised as features until built: compare drafts, draft approval flow, bulk e-sign, billing report, advocate usage report.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
