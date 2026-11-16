@@ -1,5 +1,5 @@
 # Changelog
-- Plan cards match the app (2026-11-16): Associates plan now includes the firm dashboard (migration 0111, Practice tier; owner/partner/lead roles only, not Associates or Munshi). Partners card no longer claims SSO (not built): "Audit logs and firm analytics".
+- Plan cards match the app (2026-11-16): Associates plan now includes the firm dashboard (migration 0112, Practice tier; owner/partner/lead roles only, not Associates or Munshi). Partners card no longer claims SSO (not built): "Audit logs and firm analytics".
 
 - Secure share link (2026-11-16, features/secure-share-link.md): "Send secure link on WhatsApp" on the Draft Share card and in the document viewer. The client gets a DifAi link that expires (1/7/30 days), can need a password, counts views and can be cancelled ("Manage secure links"). Each link keeps its own encrypted file copy; a nightly job deletes copies of expired links. Token stays after # so no server log records it. Migration 0111 (new table share_links).
 

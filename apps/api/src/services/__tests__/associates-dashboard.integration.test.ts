@@ -1,5 +1,5 @@
 /**
- * Migration 0111: the Associates plan (Practice tier) includes the firm
+ * Migration 0112: the Associates plan (Practice tier) includes the firm
  * dashboard, as its plan card says. Plan AND role must grant it.
  */
 import { describe, expect, it } from 'vitest';
