@@ -1,4 +1,8 @@
 # Testing
+## Associates firm dashboard + card copy — 2026-11-16 (features/pricing-v4.md)
+- `associates-dashboard.integration.test.ts` 2/2: Associates owner (Firm Admin) sees firm.dashboard.view; Associate and Munshi do not; analytics.firm stays Partners-only; Solo plans still have no firm dashboard.
+- Regression: munshi, permissions, credits integration (19), permissions/rbac-routes/pricing-v4 unit (81), web components (13): all pass.
+
 ## Secure share link — 2026-11-16 (features/secure-share-link.md)
 - api `share-links.test.ts` 15/15 on the LOCAL dev Postgres (needs localhost:5433 + 0111; each test in a rolled-back transaction): exact bytes + view count; only token hash stored; expired/revoked/unknown → same 404; other firm can't list/revoke; password wrong/missing → 401, right → file; locked after 5 wrong (even right password); empty/>25 MB/bad expiry/short password refused; 200-link cap; sweep deletes expired copy; salted scrypt.
 - web `share-link.test.ts` 7/7: upload headers (Tamil name encoded), no password header when none, note has link+expiry never password, status labels, `/s#token` URL, public calls post token in body not URL.

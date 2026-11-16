@@ -44,6 +44,8 @@
 
 - 2026-11-14 terms-consent: Terms + Privacy agreement is stored in the existing `consent_log` (type `terms_privacy`, version = api `TERMS_VERSION` = web `LEGAL_VERSION`). Bumping the version re-asks every user. Owner chose to gate existing users (disagree = sign-out). Details: features/terms-consent.md.
 
+- 2026-11-16: Associates includes the firm dashboard (0111); never advertise a feature that is not built (Partners card dropped SSO).
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

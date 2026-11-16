@@ -77,7 +77,7 @@ export function billingPlans(): BillingPlan[] {
       id: 'partners', name: 'Partners', for: 'Nine advocates and above',
       meaning: 'Partners: the partners of a larger firm.',
       monthlyInr: null, annualInr: null, note: 'Custom pricing · book a demo',
-      features: ['Unlimited seats', 'SSO and audit logs', 'Dedicated success manager', 'Bespoke integrations'],
+      features: ['Unlimited seats', 'Audit logs and firm analytics', 'Dedicated success manager', 'Bespoke integrations'],
       purchasable: false, pagesPerMonth: null, gst: null,
     },
   ];

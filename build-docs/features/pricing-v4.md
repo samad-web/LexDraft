@@ -97,3 +97,7 @@ Status: **built 2026-11-13** (approved: "1a, 2a, 3 ok"). Owner chose "update pri
     - **Seats:** a Munshi seat covers role `Munshi` only. **Paralegal and Legal Secretary now count as advocate seats.** This replaces decision 2a.
 - **Interim:** while production has no live Razorpay key, a new sign-up gets the free launch (25 credits a month, `free_launch` set) instead of a 503. Paid-only sign-up starts by itself once the key is set.
 - **Landing page + SEO pages** show the v4 plans (`V4_LIVE = true`). The "free account", "14-day trial" and "never charge per AI generation" claims are removed.
+
+## Change 2026-11-16 (owner): cards match the app
+- Associates card promised "Firm dashboard"; it was Partners-only. Fix: Practice plan grants firm.dashboard.view (migration 0111, additive). Role gate unchanged (Firm Admin, Partner, Practice Group Lead).
+- Partners card claimed "SSO"; not built. Text now "Audit logs and firm analytics" (PlanCards, LandingView, billing.service).

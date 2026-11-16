@@ -148,7 +148,7 @@ describe('requireFeature("matter.view")', () => {
 });
 
 // =============================================================================
-// `firm.dashboard.view` - Practice + Firm only.
+// `firm.dashboard.view` - Practice + Firm only (0111: Practice plan grants it).
 // =============================================================================
 
 describe('requireFeature("firm.dashboard.view")', () => {
