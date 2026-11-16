@@ -490,15 +490,15 @@ export function LandingView() {
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          // 8% of the element, or 120px of it for tall blocks (stacked
-          // pricing cards on phones are ~2,400px, so 8% never showed them).
-          if (entry.isIntersecting && (entry.intersectionRatio >= 0.08 || entry.intersectionRect.height >= 120)) {
+          // 8% of the element, or 40px of it for tall blocks (stacked
+          // pricing cards on phones are ~2,300px, so 8% never showed them).
+          if (entry.isIntersecting && (entry.intersectionRatio >= 0.08 || entry.intersectionRect.height >= 40)) {
             entry.target.classList.add('in');
             io.unobserve(entry.target);
           }
         }
       },
-      { rootMargin: '0px 0px -10% 0px', threshold: [0, 0.02, 0.04, 0.06, 0.08] },
+      { rootMargin: '0px 0px -10% 0px', threshold: [0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08] },
     );
 
     targets
