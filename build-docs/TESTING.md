@@ -1,4 +1,14 @@
 # Testing
+## Regional languages, end to end — 2026-11-16
+- Real API routes (local, port 4100, all API keys blank: Claude Code route only), as the user's own local account:
+  - Open-drafted written arguments, Tamil: generated, 65/68 lines Tamil (the rest case numbers / [placeholders]), 11 table rows kept, Word built, 35 s. Reopened with no language sent: identical, instant (saved choice + cache).
+  - Built-in s.138 complaint, Telugu: 47/51 lines Telugu, list-of-documents table translated (headings + cells, still 4 columns), Word built, 98 s. Live detail edit with no language sent: still Telugu, new address shown, 58 s (fresh engine re-draft); next edits 9 s and 0.5 s (cache).
+  - High Court writ with Tamil asked: English + note, no translation charge.
+  - Credits: one translation charge per document + language; reopen and edits charged nothing more.
+- Found (not translation): the s.138 fact reader took a notice dispatch date of 30.09.2026 that was not in the brief (refused, safe), and left the return-memo date as [date to be provided] though given. Needs a separate fix.
+- Found: translation costs as much as the draft (reviseCredits = 1 credit / 400 words; its comment says ½). Pricing decision pending with the user.
+- Clean-up: all test charges refunded; the 7 test matters (44 fact-sheet versions) and 2 compose-outcome rows deleted from the local DB.
+
 ## Regional languages — 2026-11-16 (features/regional-languages.md)
 - `draft-translate.test.ts` 6/6: invariants (figures, [placeholders], table cells); HC/SC kept English with a note, no model call, no charge; district-court draft translated + written into the Word file + charged once (same ref); live edit sends only changed lines; a line whose figure changes is retried then kept English with a note; English / not-generated unchanged.
 - Full API suite 1050 passed (4 skipped); web tsc clean.
