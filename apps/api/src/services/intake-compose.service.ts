@@ -664,6 +664,9 @@ function buildComposePrompt(args: {
   plan?: string;
   /** REPLY mode: paragraph numbers mirror the pleading answered — keep them. */
   keepNumbers?: boolean;
+  /** The form prints its own list of documents after the prayer (s.138 complaint):
+   *  the body must not add a second one (evidence-tables, 2026-11-16). */
+  formHasDocList?: boolean;
 }): { system: string; user: string } {
   const guide = guideFor(args.docType);
   const system = `You are a senior Indian advocate's drafting associate. You redraft the BODY of "${args.docLabel}" from a deterministic engine's skeleton, which is already legally validated: every citation, statutory averment, computation and legal conclusion in it is correct and MUST survive into your draft. Your output must read like a document actually filed by a practising advocate: thorough, well-organised and precisely argued, not a terse fill-in-the-blank form.
@@ -686,7 +689,7 @@ HARD RULES — you argue given facts, you never discover new ones:
 - GAPS: never write a sentence just to hold a gap ("the particulars of further correspondence, if any, are …"), and leave out a matter that is merely useful and that neither the skeleton nor the rules above call for. Where a needed fact is missing, leave "[to be drafted]" for it and do NOT argue from it elsewhere — no "as pleaded above", "as set out herein", "save as stated herein" pointing at something not actually pleaded, and no ground that depends on an unpleaded fact.
 - ECONOMY: each point once. No ground repeated in a later paragraph or summary; no commentary about the document itself ("this plaint contains the particulars required by…"); no long pre-emptive rebuttals of objections nobody has raised. An application is one to two pages.
 - CASES: never name a case — not even by short name, "(supra)" or "as laid down in X" — unless it is a JUDGMENT in the Authorities list.
-- Plain text only: no Markdown, no bold. TABLES: only where the content is a list of evidence (a list of documents relied on or filed, an index of annexures, a list of dates and events, a summary of admissions or of evidence, a schedule of documents), set it out as a table: one row per line, cells between pipes, the first row the column headings (list of documents: | Sr. No | Date | Description of document | Remarks |; annexures: | Annexure | Description | Page |; list of dates: | Date | Event |; admissions: | Point | Admission / Position |). Written arguments or submissions that rely on several admissions or gaps in the other side's evidence end, after the arguments, with a SUMMARY OF MATERIAL ADMISSIONS table (| Point | Admission / Position |, one row per admission). Documents the brief says were filed or are relied on always get a LIST OF DOCUMENTS table near the end (not a lettered list), even when a paragraph also argues them. Never a table for anything else, and a fact missing from a cell is a [bracket]. ${args.keepNumbers ? 'Keep every paragraph’s existing number exactly as in the skeleton' : `Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively`}; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
+- Plain text only: no Markdown, no bold. TABLES: only where the content is a list of evidence (a list of documents relied on or filed, an index of annexures, a list of dates and events, a summary of admissions or of evidence, a schedule of documents), set it out as a table: one row per line, cells between pipes, the first row the column headings (list of documents: | Sr. No | Date | Description of document | Remarks |; annexures: | Annexure | Description | Page |; list of dates: | Date | Event |; admissions: | Point | Admission / Position |). Written arguments or submissions that rely on several admissions or gaps in the other side's evidence end, after the arguments, with a SUMMARY OF MATERIAL ADMISSIONS table (| Point | Admission / Position |, one row per admission).${args.formHasDocList ? ' The form already has its own LIST OF DOCUMENTS after the prayer: never add another list or table of documents to the body.' : ' Documents the brief says were filed or are relied on get a LIST OF DOCUMENTS table at the end of the body (not a lettered list), even when a paragraph also argues them.'} Never a table for anything else, and a fact missing from a cell is a [bracket]. ${args.keepNumbers ? 'Keep every paragraph’s existing number exactly as in the skeleton' : `Number paragraphs "${args.startNumber}.", "${args.startNumber + 1}." … consecutively`}; sub-items as (a), (b) or A., B. on their own lines. Separate paragraphs with a blank line. Output ONLY the body, no preamble or commentary.`;
 
   const user =
     // r13: "the ONLY … numbers" here contradicted the account rule, so complaint IDs
@@ -910,6 +913,7 @@ export async function composeAndVerify(args: {
     ...(account ? { account } : {}),
     ...(plan ? { plan: plan.text } : {}),
     ...(reply ? { keepNumbers: true } : {}),
+    formHasDocList: args.engineBlocks.some((b) => /^\s*(LIST OF DOCUMENTS|DOCUMENTS RELIED|INDEX OF (DOCUMENTS|ANNEXURES))/i.test(b.text)),
   });
   let composedText: string;
   try {

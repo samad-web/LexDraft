@@ -13,9 +13,10 @@ vi.mock('../../lib/anthropic-client', () => ({
   },
 }));
 const charges: string[] = [];
+const amounts: number[] = [];
 vi.mock('../credit.service', () => ({
   CreditsExhaustedError: class extends Error {},
-  creditService: { charge: async (_c: unknown, _a: string, _n: number, ref: string) => { charges.push(ref); return {}; } },
+  creditService: { charge: async (_c: unknown, _a: string, n: number, ref: string) => { charges.push(ref); amounts.push(n); return {}; } },
 }));
 const written: string[][] = [];
 vi.mock('../engine-client.service', () => ({
@@ -25,6 +26,7 @@ vi.mock('../ai-usage.service', () => ({ aiUsageService: { recordAsync: () => {} 
 
 import type { IntakeState } from '@lexdraft/types';
 import { draftTranslateService, englishOnlyForum, keepsInvariants, translateLines } from '../draft-translate.service';
+import { translateCredits } from '../../lib/credit-costs';
 
 const ctx = { firmId: 'f1', userId: 'u1' };
 const state = (lines: string[], matterId = 'm1'): IntakeState => ({
@@ -33,7 +35,7 @@ const state = (lines: string[], matterId = 'm1'): IntakeState => ({
 } as unknown as IntakeState);
 
 beforeEach(() => {
-  calls.length = 0; charges.length = 0; written.length = 0;
+  calls.length = 0; charges.length = 0; amounts.length = 0; written.length = 0;
   reply = (lines) => lines.map((l) => `TA:${l}`);
 });
 
@@ -64,6 +66,14 @@ describe('regional languages', () => {
     await draftTranslateService.intake(ctx, state(lines), 'TA');
     expect(charges).toEqual(['translate:m1:Written statement:TA', 'translate:m1:Written statement:TA']); // same ref: one charge
     expect(calls).toHaveLength(1); // second render: all from cache, no model call
+  });
+
+  it('price: ½ credit per 400-word page, minimum ½ (user, 2026-11-16)', async () => {
+    const page = Array.from({ length: 400 }, (_, i) => 'word' + i).join(' ');
+    await draftTranslateService.intake(ctx, state(['IN THE COURT OF X', page, page, page], 'm-price'), 'TA'); // 3 pages + 5 words
+    expect(amounts).toEqual([2]); // 3.01 pages x ½ = 1.51 -> rounded up to the half: 2
+    expect(translateCredits(10)).toBe(0.5);
+    expect(translateCredits(800)).toBe(1);
   });
 
   it('only changed lines are sent again (live edit)', async () => {

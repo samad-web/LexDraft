@@ -39,7 +39,6 @@ afterEach(() => {
 function anthropicReply(text: string) {
   return { status: 200, body: { content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 10 } } };
 }
-
 import { intakeCompose, numberBody, segmentBlocks, replyDrift, composeNoticeFor, settleGaps, restoreKeptPara, restoreDatedGaps, anchorOpening, guideFor } from '../intake-compose.service';
 import { sentencesOf } from '../../lib/draft-guards';
 
@@ -109,6 +108,24 @@ describe('intake-compose — body-only composition', () => {
     expect(r.splice).toEqual({ start: 2, end: 8, paragraphs: texts.slice(2, -1) });
     // The bail guide reached the model.
     expect(JSON.stringify(fetchCalls[0]!.body)).toContain('GROUNDS, numbered');
+  });
+
+  it('evidence-tables: a form with its own LIST OF DOCUMENTS tells the body not to add another (2026-11-16 duplicate list)', async () => {
+    const reply = [
+      '1. The petitioner, Dinesh Kumar, aged 34, is a lorry driver residing at 47, Kamaraj Nagar, Avadi, Chennai.',
+      '2. The offence is registered under BNS s.303(2) and BNS s.317(2).',
+      '3. The petitioner was taken into custody on 2024-09-16 and, as on 2024-12-20, has been in custody for 96 days.',
+    ].join('\n\n');
+    const withList = [...BAIL, { key: 'l1', text: 'LIST OF DOCUMENTS FILED BY THE COMPLAINANT' }, { key: 'l2', text: '| 1 | 10.03.2026 | Cheque | Original |' }];
+    fetchQueue.push(anthropicReply(reply), anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    await intakeCompose.compose({ docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: withList, facts: BAIL_FACTS, provider: 'anthropic' });
+    expect(JSON.stringify(fetchCalls[0]!.body)).toContain('already has its own LIST OF DOCUMENTS');
+    fetchCalls.length = 0;
+    fetchQueue.push(anthropicReply(reply), anthropicReply('{"pass": true, "unsupported_claims": []}'));
+    await intakeCompose.compose({ docLabel: 'Regular Bail Application', docType: 'regular_bail', engineBlocks: BAIL, facts: BAIL_FACTS, provider: 'anthropic' });
+    const prompt = JSON.stringify(fetchCalls[0]!.body);
+    expect(prompt).not.toContain('already has its own LIST OF DOCUMENTS');
+    expect(prompt).toContain('get a LIST OF DOCUMENTS table at the end of the body');
   });
 
   it('writ_petition: recounts BOTH the verification and the affidavit "paras 1 to N" (r10: verification kept 12)', async () => {

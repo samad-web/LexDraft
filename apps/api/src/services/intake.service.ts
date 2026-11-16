@@ -320,7 +320,9 @@ function serviceDateSentinel(
   base: string,
   form: Record<string, string>,
 ): string {
-  if (!/(deliver|served|service|received|receipt)/i.test(formKey)) return base;
+  // Only a NOTICE is served after dispatch: the bank's memo is received BEFORE the
+  // notice that answers it (s.138 complaint run 2026-11-16 put it after and was refused).
+  if (!/(deliver|served|service|received|receipt)/i.test(formKey) || /memo|cheque|present/i.test(formKey)) return base;
   const anchorRaw = form.notice_dispatch_date || form.notice_date || form.notice_dispatch || '';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(anchorRaw))) return todayIso();
   const d = new Date(`${anchorRaw}T00:00:00Z`);
@@ -357,11 +359,28 @@ export function fillMissingDate(
   // Dates another date on record fixes (r8): a notice is dated the day it is sent; a
   // month-to-month lease ends on termination and the cause of action arises the next day.
   if (formKey === 'notice_date' && isIso(form.notice_dispatch_date)) return form.notice_dispatch_date!;
+  // ...and the other way round: a missing dispatch date is the notice's own date. A
+  // generic stand-in (the cheque date - 1) put dispatch before the notice: refused.
+  if (formKey === 'notice_dispatch_date' && isIso(form.notice_date)) return form.notice_date!;
   if (formKey === 'lease_expiry_date' && isIso(form.tenancy_end_date)) return form.tenancy_end_date!;
   if (formKey === 'cause_of_action_date' && isIso(form.tenancy_end_date)) return addDays(form.tenancy_end_date!, 1);
   // A stand-in must not equal a real date on record (or today): it is marked by value,
   // and r8 "Date: 06.11.2026" would have been marked along with the stand-in.
   const real = new Set([todayIso(), ...Object.values(form).filter(isIso)]);
+  // A missing memo-receipt date (still a marked gap) sits after the cheque came back
+  // and before the notice, so the timeline the engine checks stays possible.
+  if (/^memo_received(_date)?$/.test(formKey)) {
+    const from = [form.memo_date, form.dishonour_date, form.presentation_date].find(isIso);
+    const by = [form.notice_date, form.notice_dispatch_date].find(isIso);
+    if (from) {
+      let d = addDays(from, 1);
+      while (real.has(d)) d = addDays(d, 1);
+      if (!by || d < by) {
+        synthetic.add(d);
+        return d;
+      }
+    }
+  }
   let sv = serviceDateSentinel(formKey, base, form);
   // An application stand-in sits just before its known outcome (copy applied before
   // copy ready, r11 civil revision refused "copy_ready precedes copy_applied").

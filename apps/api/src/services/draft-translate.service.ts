@@ -13,13 +13,13 @@
 //     document is not translated and says so.
 //   - Translated lines are cached per document, so a re-render (a live edit,
 //     reopening the draft) translates only lines that changed.
-//   - Charged once per document and language, like a redraft of its pages.
+//   - Charged once per document and language: ½ credit a page (user, 2026-11-16).
 // =============================================================================
 
 import type { IntakeDraft, IntakeState } from '@lexdraft/types';
 import { env } from '../env';
 import { claudeComplete } from '../lib/anthropic-client';
-import { countWords, reviseCredits } from '../lib/credit-costs';
+import { countWords, translateCredits } from '../lib/credit-costs';
 import { logger } from '../logger';
 import { aiUsageService } from './ai-usage.service';
 import { CreditsExhaustedError, creditService } from './credit.service';
@@ -199,10 +199,10 @@ export const draftTranslateService = {
     }
     const key = `${state.matterId}:${state.docLabel}:${lang}`;
     try {
-      // Once per document and language, like redrafting its pages; later
+      // Once per document and language, ½ credit a page; later
       // re-renders (live edits, reopening) only translate changed lines.
       const words = countWords([...lines, ...(state.companionDraft?.blocks ?? []).map((b) => b.text)].join('\n'));
-      await creditService.charge(ctx, 'revise', reviseCredits(words), `translate:${key}`, { kind: 'translate', lang });
+      await creditService.charge(ctx, 'revise', translateCredits(words), `translate:${key}`, { kind: 'translate', lang });
     } catch (err) {
       if (err instanceof CreditsExhaustedError) {
         return note(state, `Not enough AI credits to translate this document into ${name}; it is shown in English.`);

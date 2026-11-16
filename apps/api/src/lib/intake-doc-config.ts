@@ -266,7 +266,9 @@ const s138Complaint: IntakeSectionSpec[] = [
         hint: 'Where the accused requested time and the parties agreed in writing to defer presentation. Leave blank if there was no deferment.',
       },
       { key: 'presentation_date', label: 'Date of (final) presentation', type: 'date', required: true, hint: 'If the cheques were re-presented after a deferment, use the last presentation date — it drives the s.138 limitation window.' },
-      { key: 'memo_date', label: 'Date printed on the return memo', type: 'date', required: true },
+      // The reader sees labels, not hints: name the dishonour date here (a memo is dated
+      // the day the cheque is returned), else "dishonoured on 07.10" was left unread.
+      { key: 'memo_date', label: 'Date printed on the return memo (the day the cheque was dishonoured / returned unpaid)', type: 'date', required: true },
       { key: 'memo_received_date', label: 'Date the complainant received the memo', type: 'date', required: true, hint: 'The limitation anchor — distinct from the date printed on the memo.' },
       {
         key: 'dishonour_reason',

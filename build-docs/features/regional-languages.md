@@ -26,7 +26,7 @@ Decision (user, 2026-11-16): **blocked**. When the document is for a High Court 
 2. **One translation step for every draft** (decided while building; it replaces writing directly in the language): the draft is finished in English, so every existing check (invented facts, citations, amounts) still runs on English text. The last step (`services/draft-translate.service.ts`, called by `finishIntake` in `drafting.routes.ts` for all 8 intake responses) translates the lines in batches of 25, with 4 calls at once. It writes them back into the court .docx through engine apply-edits, line for line, so layout and tables are unchanged. The engine now always renders English; the old glossary (`tamil.py`, `hindi.py`) is no longer called.
    - The language is saved with the matter (`__draftLanguage` in the intake state), so reopening, follow-up instructions and live edits stay in that language.
    - Translated lines are cached per document, so a live edit sends only the changed lines.
-   - Charged once per document and language (`revise` credits, ref `translate:<matter>:<doc>:<lang>`).
+   - Charged once per document and language at ½ credit per page (user, 2026-11-16; `translateCredits`, ref `translate:<matter>:<doc>:<lang>`).
 3. **Built-in formats:** the engine renders the English document as today, then translates its text in place, keeping the layout, tables and fonts. This uses the same model as drafting, in batches of runs, with a per-language legal glossary (the existing Tamil and Hindi lists seed it).
    - The glossary-only path stays as the offline fallback for Tamil and Hindi.
    - The invariants check below runs after the translation.

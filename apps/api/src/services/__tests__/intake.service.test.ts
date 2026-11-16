@@ -908,6 +908,20 @@ describe('draft-now date fill — "as on" is the drafting date, not a gap', () =
     expect([...synthetic]).toEqual(['2026-09-01']);
   });
 
+  it('s.138 complaint (2026-11-16): a missing dispatch date is the notice date, a missing memo receipt sits before the notice', async () => {
+    const { fillMissingDate } = await import('../intake.service');
+    const form = { cheque_date: '2026-10-01', presentation_date: '2026-10-05', memo_date: '2026-10-07', notice_date: '2026-10-14' };
+    const synthetic = new Set<string>();
+    // was the cheque date - 1 (30.09), before the notice: "cannot be dispatched before it is issued"
+    expect(fillMissingDate('notice_dispatch_date', '2026-10-01', form, synthetic, 's138_complaint')).toBe('2026-10-14');
+    expect(synthetic.size).toBe(0); // a real date, not a gap
+    // was the notice + 2 (16.10), after the notice: "notice cannot predate receipt of the memo"
+    expect(fillMissingDate('memo_received_date', '2026-10-01', form, synthetic, 's138_complaint')).toBe('2026-10-08');
+    expect([...synthetic]).toEqual(['2026-10-08']); // still shown as [date to be provided]
+    // a notice's delivery date still follows its dispatch (regression)
+    expect(fillMissingDate('notice_delivery_date', '2026-10-01', { ...form, notice_dispatch_date: '2026-10-14' }, synthetic, 's138_complaint')).toBe('2026-10-16');
+  });
+
   it('dates a mutual-consent motion today and gives an s.106 quit date clear 15 days', async () => {
     const { fillMissingDate } = await import('../intake.service');
     const today = new Date().toISOString().slice(0, 10);

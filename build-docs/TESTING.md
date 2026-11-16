@@ -1,4 +1,11 @@
 # Testing
+## Translation price + s.138 dates — 2026-11-16
+- Price: translation ½ credit per 400-word page, min ½ (user). draft-translate.test 7/7 (new price test). Live via Claude Code: Telugu s.138 complaint charged 1.5 credits for translation vs 3 for the English draft.
+- s.138 dates: 2 new fillMissingDate cases (missing dispatch = notice date, not a gap; missing memo receipt = marked stand-in after the memo date and before the notice; notice delivery still dispatch + 2). Root causes: the notice-service rule matched memo_received_date ("received"); a missing dispatch took the generic stand-in (cheque date - 1). memo_date label now names the dishonour date (the reader sees labels, not hints).
+- Found in the same run: the composed s.138 body added a second list of documents (evidence-tables prompt said "always"); now only when the form has none. New compose test.
+- Live via Claude Code (keys blank): the two briefs refused before now draft (EN and TE), memo 07.10, dispatch 14.10, one documents table. Test charges refunded; 4 test matters deleted.
+- Full API suite: 1052 passed, 4 skipped.
+
 ## Seat enforcement — 2026-11-16 (features/seat-enforcement.md)
 - `seat-enforcement.integration.test.ts` AC1-AC7 pass.
 - Found while testing: firm-admin role change updated role_id but not users.role, so the Munshi seat count and no-AI rule kept the old role. Fixed: users.role follows an advocate<->Munshi switch.

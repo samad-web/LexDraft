@@ -41,6 +41,12 @@ export function reviseCredits(words: number): number {
   return Math.max(0.5, roundUpHalf(words / WORDS_PER_CREDIT));
 }
 
+/** Translating a finished draft into an Indian language: ½ per page, minimum ½
+ *  (user, 2026-11-16; features/regional-languages.md). */
+export function translateCredits(words: number): number {
+  return Math.max(0.5, roundUpHalf(words / WORDS_PER_CREDIT / 2));
+}
+
 /** Contract review: 6 credits up to 10 pages, then ½ per extra page. */
 export function contractReviewCredits(words: number): number {
   const pages = Math.ceil(words / WORDS_PER_CREDIT);
