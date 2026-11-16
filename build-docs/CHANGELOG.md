@@ -1,4 +1,6 @@
 # Changelog
+- Pricing without sign-in (2026-11-16): the landing page Pricing menu (and /#pricing links) open the public /pricing page instead of the sign-in screen.
+
 - Pricing v5 (2026-11-16, features/pricing-v5.md): new plans by team size, prices + 18% GST:
     - Advocate ₹699 (150 AI credits), Chambers ₹1,699 (up to 3 advocates, 350), Firm ₹3,699 (up to 8, 750), Enterprise quote;
     - Munshi ₹149 + GST; Brief Packs ₹429–4,249 + GST.

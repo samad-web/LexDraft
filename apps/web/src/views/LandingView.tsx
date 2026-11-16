@@ -362,10 +362,13 @@ export function LandingView() {
     scrollLockTimer.current = window.setTimeout(release, supportsScrollend ? 2000 : 1500);
   };
 
+  // /pricing is a prerendered static page served by nginx, not an SPA route.
+  const goPricing = () => window.location.assign('/pricing');
+
   const goAnchor = (hash: string) => {
     if (!hash.startsWith('#')) return;
     const id = hash.slice(1);
-    if (id === 'pricing') { goAuth(); return; }
+    if (id === 'pricing') { goPricing(); return; }
     const known: TabId[] = ['home', 'features', 'faq', 'trial'];
     if ((known as string[]).includes(id)) {
       goSection(id as TabId);
@@ -507,8 +510,8 @@ export function LandingView() {
       <LandingHeader
         tabs={NAV_TABS}
         activeTab={tab}
-        // Plans and prices are shown after sign-in (Plan & Billing), not on the landing page.
-        onTabChange={(id) => (id === 'pricing' ? goAuth() : goSection(id))}
+        // Pricing opens the public /pricing page (prerendered, no sign-in needed).
+        onTabChange={(id) => (id === 'pricing' ? goPricing() : goSection(id))}
         onSignIn={goAuth}
         onTrial={goAuth}
       />

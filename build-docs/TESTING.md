@@ -1,4 +1,7 @@
 # Testing
+## Landing Pricing menu — 2026-11-16
+- `landing-pricing.test.ts` 2/2: Pricing menu and /#pricing go to /pricing, never sign-in. Web suite 333 pass, tsc clean.
+
 ## Munshi on solo plans — 2026-11-16 (features/solo-munshi.md)
 - `solo-munshi.integration.test.ts` 2/2 (AC1-AC7) through real HTTP routes.
 - Found while testing: the error handler dropped `code` on legacy `.status` errors, so seat_cap_exceeded never reached the web client. Fixed in middleware/error.ts.
