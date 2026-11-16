@@ -62,14 +62,13 @@ describe('credit costs (v4 draft table)', () => {
 });
 
 describe('monthly allowance and cycle', () => {
-  const base = { plan_tier: 'Solo' as const, plan_status: 'active', free_plan: false, selected_plan: 'vakalat', seats: 1, renews_at: null, trial_ends_at: null };
-  it('per plan; Associates per advocate; Munshi seats get none', () => {
-    expect(allowanceFor({ ...base, selected_plan: 'sanad' })).toBe(25);
-    expect(allowanceFor(base)).toBe(75);
-    expect(allowanceFor({ ...base, selected_plan: 'brief' })).toBe(200);
-    expect(allowanceFor({ ...base, plan_tier: 'Practice', selected_plan: 'associates', seats: 3 })).toBe(225);
+  const base = { plan_tier: 'Solo' as const, plan_status: 'active', free_plan: false, selected_plan: 'advocate', seats: 1, renews_at: null, trial_ends_at: null };
+  it('per plan (pricing v5): one shared pool, not per advocate; Munshi seats get none', () => {
+    expect(allowanceFor(base)).toBe(150);
+    expect(allowanceFor({ ...base, plan_tier: 'Practice', selected_plan: 'chambers', seats: 3 })).toBe(350);
+    expect(allowanceFor({ ...base, plan_tier: 'Firm', selected_plan: 'law_firm', seats: 8 })).toBe(750);
   });
-  it('free launch 25 till 1 Jun 2027, then 0; unpaid v4 sign-up 0; lapsed plan 0', () => {
+  it('free launch 25 till 1 Jun 2027, then 0; unpaid sign-up 0; lapsed plan 0', () => {
     const free = { ...base, free_plan: true, plan_status: 'trial', selected_plan: 'free' };
     expect(allowanceFor(free, new Date('2026-12-01'))).toBe(25);
     expect(allowanceFor(free, new Date('2027-06-02'))).toBe(0);

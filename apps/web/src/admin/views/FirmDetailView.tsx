@@ -45,7 +45,7 @@ export function FirmDetailView() {
           <MembersCard firm={firm} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <PlanCard firmId={firm.id} initial={firm.plan} status={firm.status} />
+          <PlanCard firmId={firm.id} initial={firm.plan} seats={firm.seats} status={firm.status} />
           <FirmCreditsCard firmId={firm.id} />
           <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
           <RecentAuditCard entries={firm.recentAudit} />
@@ -219,7 +219,7 @@ function MembersCard({ firm }: { firm: NonNullable<ReturnType<typeof useFirm>['d
 
 // ---------- plan -------------------------------------------------------------
 
-function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier: FirmPlanTier; status: BillingStatus; mrrInr: number; renewsAt: string | null }; status: FirmStatus }) {
+function PlanCard({ firmId, initial, seats: initialSeats, status }: { firmId: string; initial: { tier: FirmPlanTier; status: BillingStatus; mrrInr: number; renewsAt: string | null; creditAllowance: number | null }; seats: number; status: FirmStatus }) {
   const update = useUpdatePlan(firmId);
   const updateFirm = useUpdateFirm(firmId);
   const showToast = useUIStore((s) => s.showToast);
@@ -227,6 +227,13 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
   const [bs, setBs]       = useState<BillingStatus>(initial.status);
   const [mrr, setMrr]     = useState(initial.mrrInr);
   const [renews, setRenews] = useState(initial.renewsAt ?? '');
+  // Enterprise quote: advocate seats and a custom monthly AI credit allowance.
+  const [seats, setSeats] = useState(String(initialSeats));
+  const [credits, setCredits] = useState(initial.creditAllowance == null ? '' : String(initial.creditAllowance));
+  const seatsN = Number(seats);
+  const creditsN = credits.trim() === '' ? null : Number(credits);
+  const invalid = !Number.isInteger(seatsN) || seatsN < 1 || seatsN > 500
+    || (creditsN !== null && (!Number.isFinite(creditsN) || creditsN < 0 || creditsN > 100_000 || !Number.isInteger(creditsN * 2)));
 
   return (
     <section className="card" style={{ padding: 24 }}>
@@ -252,16 +259,29 @@ function PlanCard({ firmId, initial, status }: { firmId: string; initial: { tier
         <Field label="RENEWS ON">
           <DatePicker value={renews} onChange={setRenews} />
         </Field>
+        <Field label="ADVOCATE SEATS">
+          <input className="input" type="number" min={1} max={500} step={1} value={seats} onChange={(e) => setSeats(e.target.value)} aria-describedby="plan-seats-hint" />
+          <span id="plan-seats-hint" className="muted" style={{ fontSize: 12 }}>Set for an Enterprise quote. Self-serve plans set this on payment.</span>
+        </Field>
+        <Field label="AI CREDITS A MONTH (CUSTOM)">
+          <input className="input" type="number" min={0} step={0.5} value={credits} placeholder="Plan default" onChange={(e) => setCredits(e.target.value)} aria-describedby="plan-credits-hint" />
+          <span id="plan-credits-hint" className="muted" style={{ fontSize: 12 }}>Enterprise quote only. Leave empty for the plan&apos;s own credits. A self-serve payment clears it.</span>
+        </Field>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => update.mutate(
-            { tier, status: bs, mrrInr: mrr, renewsAt: renews || null },
-            { onError: adminErrorToast(showToast, 'Couldn’t save plan') },
-          )}
-          disabled={update.isPending}
+          onClick={() => {
+            update.mutate(
+              { tier, status: bs, mrrInr: mrr, renewsAt: renews || null, creditAllowance: creditsN },
+              { onError: adminErrorToast(showToast, 'Couldn’t save plan') },
+            );
+            if (seatsN !== initialSeats) {
+              updateFirm.mutate({ seats: seatsN }, { onError: adminErrorToast(showToast, 'Couldn’t save seats') });
+            }
+          }}
+          disabled={update.isPending || invalid}
         >
           {update.isPending ? 'Saving…' : 'Save plan'}
         </button>

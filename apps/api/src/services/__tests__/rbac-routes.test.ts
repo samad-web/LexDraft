@@ -271,13 +271,12 @@ describe('requireFeature("drafting.clauses")', () => {
 // =============================================================================
 
 describe('requireFeature("analytics.firm")', () => {
-  it('403s a Solo Advocate', async () => {
+  it('grants a Solo Advocate (analytics on every plan, pricing v5)', async () => {
     const id = await newSoloUser();
     const next = vi.fn() as unknown as NextFunction;
-    const { res, status } = mkRes();
+    const { res } = mkRes();
     await requireFeature('analytics.firm')(mkReq(id), res, next);
-    expect(status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('grants a group sign-up (firm trial covers analytics.firm)', async () => {

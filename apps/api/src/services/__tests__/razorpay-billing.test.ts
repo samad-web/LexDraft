@@ -2,8 +2,9 @@ import crypto from 'node:crypto';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Razorpay billing - tests map to the acceptance criteria (AC#) in
-// build-docs/features/razorpay-billing.md. Plan ids moved to pricing v4
-// (features/pricing-v4.md): Chamber -> Associates, Solo -> Vakalat.
+// build-docs/features/razorpay-billing.md. Plan ids and prices moved to
+// pricing v5 (features/pricing-v5.md): Associates -> Chambers / Firm (fixed
+// seats), Vakalat -> Advocate, prices + 18% GST.
 
 type Call = { text: string; strings: TemplateStringsArray; values: unknown[] };
 const h = vi.hoisted(() => ({
@@ -51,7 +52,7 @@ function owner(over: Record<string, unknown> = {}) {
   return {
     user_id: 'u1', name: 'A', email: 'a@x.in', phone: null, role: 'Managing Partner', firm_id: 'f1',
     plan_tier: 'Practice', plan_status: 'trial', free_plan: false, trial_ends_at: null, renews_at: null,
-    billing_cycle: null, selected_plan: 'associates', razorpay_subscription_id: null, seats: 8, munshi_seats: 0,
+    billing_cycle: null, selected_plan: 'chambers', razorpay_subscription_id: null, seats: 3, munshi_seats: 0,
     members: 1, munshi_members: 0, ...over,
   };
 }
@@ -74,35 +75,35 @@ const ownerRows = (o: Record<string, unknown>) => (t: string) =>
   (t.includes('from users u left join firms') ? [owner(o)] : []);
 
 describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan and seats', () => {
-  it('Associates with 3 advocates: a one-time order for one month of 3 advocates (no Autopay subscription)', async () => {
+  it('Chambers (3 advocates): a one-time order for one month, ₹1,699 + GST (no Autopay subscription)', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({});
     const { fetchMock, body } = stubRazorpay();
-    const r = await billing.billingService.startCheckout('u1', 'associates', 'monthly', 3);
+    const r = await billing.billingService.startCheckout('u1', 'chambers', 'monthly');
     expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/order_new123');
-    expect(body('/orders')).toMatchObject({ amount: 3 * 649 * 100, currency: 'INR', notes: { kind: 'plan', firm_id: 'f1', plan: 'associates', cycle: 'monthly', seats: '3', munshi: '0' } });
+    expect(body('/orders')).toMatchObject({ amount: 1699 * 118, currency: 'INR', notes: { kind: 'plan', pricing: 'v5', firm_id: 'f1', plan: 'chambers', cycle: 'monthly', seats: '3', munshi: '0' } });
     expect(fetchMock.mock.calls.some((c) => /\/(subscriptions|plans)$/.test(String(c[0])))).toBe(false);
   });
 
   it('a yearly plan is one order for the year price', async () => {
     h.useFakeDb = true;
-    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'vakalat' });
+    h.rows = ownerRows({ role: 'Solo Advocate', selected_plan: 'advocate', seats: 1 });
     const { body } = stubRazorpay();
-    await billing.billingService.startCheckout('u1', 'vakalat', 'annual');
-    expect(body('/orders')).toMatchObject({ amount: 449000, notes: { plan: 'vakalat', cycle: 'annual' } });
+    await billing.billingService.startCheckout('u1', 'advocate', 'annual');
+    expect(body('/orders')).toMatchObject({ amount: 907302, notes: { plan: 'advocate', cycle: 'annual' } });
   });
 
-  it('Vakalat is charged its GST-inclusive price (no GST added)', () => {
-    expect(billing.chargePaise('vakalat', 'monthly', 1)).toBe(39900);
-    expect(billing.chargePaise('vakalat', 'annual', 1)).toBe(449000);
+  it('Advocate is charged its price + 18% GST', () => {
+    expect(billing.chargePaise('advocate', 'monthly')).toBe(82482);
+    expect(billing.chargePaise('advocate', 'annual')).toBe(907302);
   });
 
-  it.each([1, 9, 2.5])('Associates seats = %s is rejected with 400 before Razorpay is called', async (seats) => {
+  it('an unknown plan id is rejected with 400 before Razorpay is called', async () => {
     h.useFakeDb = true;
     h.rows = ownerRows({});
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', seats))
-      .rejects.toMatchObject({ status: 400, code: 'invalid_seats' });
+    await expect(billing.billingService.startCheckout('u1', 'associates' as never, 'monthly'))
+      .rejects.toMatchObject({ status: 400, code: 'invalid_plan' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -110,7 +111,7 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
     h.useFakeDb = true;
     h.rows = ownerRows({ members: 4 });
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 3))
+    await expect(billing.billingService.startCheckout('u1', 'chambers', 'monthly'))
       .rejects.toMatchObject({ status: 400, code: 'seats_below_members' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -119,7 +120,7 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
     h.useFakeDb = true;
     h.rows = ownerRows({ role: 'Solo Advocate', members: 2 });
     const { fetchMock } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'vakalat', 'monthly'))
+    await expect(billing.billingService.startCheckout('u1', 'advocate', 'monthly'))
       .rejects.toMatchObject({ status: 400, code: 'seats_below_members' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -128,7 +129,7 @@ describe('AC1/AC4 checkout creates a Razorpay subscription for the exact plan an
     h.useFakeDb = true;
     h.rows = ownerRows({ role: 'Associate' });
     stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2))
+    await expect(billing.billingService.startCheckout('u1', 'chambers', 'monthly'))
       .rejects.toMatchObject({ status: 403, code: 'billing_owner_only' });
   });
 });
@@ -165,10 +166,10 @@ describe('AC5 (legacy Autopay subscriptions, still handled safely)', () => {
 
   it('pay per period: buying the same plan again is allowed (it renews)', async () => {
     h.useFakeDb = true;
-    h.rows = ownerRows({ plan_status: 'active', billing_cycle: 'monthly', seats: 2, renews_at: renews });
+    h.rows = ownerRows({ plan_status: 'active', billing_cycle: 'monthly', seats: 3, renews_at: renews });
     const { body } = stubRazorpay();
-    await expect(billing.billingService.startCheckout('u1', 'associates', 'monthly', 2)).resolves.toHaveProperty('checkoutUrl');
-    expect(body('/orders').amount).toBe(2 * 649 * 100);
+    await expect(billing.billingService.startCheckout('u1', 'chambers', 'monthly')).resolves.toHaveProperty('checkoutUrl');
+    expect(body('/orders').amount).toBe(1699 * 118);
   });
 });
 
@@ -186,12 +187,13 @@ describe('AC1/AC3/AC4 webhook sets the plan from what Razorpay charged', () => {
     } } },
   });
 
-  it('activated: plan, seats, MRR, renewal date and Razorpay ids are saved; one event logged', async () => {
+  it('activated: a legacy v4 Associates-3 subscription applies as Chambers (seats, MRR ex-GST, renewal, ids); one event logged', async () => {
     h.useFakeDb = true;
     h.rows = rows;
     await billing.billingService.handleWebhook('evt_a1', ev('subscription.activated'));
+    expect(valueAfter(update(), 'selected_plan =')).toBe('chambers');
     expect(valueAfter(update(), 'seats =')).toBe(3);
-    expect(valueAfter(update(), 'mrr_inr =')).toBe(3 * 649);
+    expect(valueAfter(update(), 'mrr_inr =')).toBe(1699);
     expect(valueAfter(update(), 'renews_at =')).toEqual(new Date(end * 1000));
     expect(valueAfter(update(), 'razorpay_subscription_id =')).toBe('sub_new123');
     expect(logged()).toHaveLength(1);

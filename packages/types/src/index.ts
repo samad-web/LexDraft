@@ -1034,6 +1034,8 @@ export interface FirmPlan {
   mrrInr: number;
   /** ISO date YYYY-MM-DD, or null on trial. */
   renewsAt: string | null;
+  /** Custom AI credits a month (Enterprise quote); null = the plan's own. */
+  creditAllowance: number | null;
 }
 
 /** Modules that can be toggled on/off per firm. */
@@ -1137,13 +1139,15 @@ export interface AdminUserSummary {
 
 // ---- Self-serve billing (Razorpay, migrations 0096 + 0105 + 0107) --------------------
 
-/** Plans offered at sign-up and on the in-app plan page (pricing v4).
+/** Plans offered at sign-up and on the in-app plan page (pricing v5).
  *  `free` is the free launch plan (existing accounts only, till 1 Jun 2027);
- *  `solo` / `practice` / `firm` are pre-v4 ids kept for old rows, never sold. */
-export type BillingPlanId = 'free' | 'sanad' | 'vakalat' | 'brief' | 'associates' | 'partners' | 'solo' | 'practice' | 'firm';
+ *  v4 (`sanad` ... `partners`) and pre-v4 (`solo` / `practice` / `firm`) ids are
+ *  kept for old rows and invoices, never sold. */
+export type BillingPlanId = 'free' | 'advocate' | 'chambers' | 'law_firm' | 'enterprise'
+  | 'sanad' | 'vakalat' | 'brief' | 'associates' | 'partners' | 'solo' | 'practice' | 'firm';
 export type BillingCycle = 'monthly' | 'annual';
 /** Plans that can be bought online. */
-export type PaidPlanId = 'sanad' | 'vakalat' | 'brief' | 'associates';
+export type PaidPlanId = 'advocate' | 'chambers' | 'law_firm';
 
 export interface BillingPlan {
   id: BillingPlanId;
@@ -1151,21 +1155,21 @@ export interface BillingPlan {
   for: string;
   /** What the plan's name means (v4 glossary), one line. */
   meaning: string;
-  /** Rupees per month (per advocate when `seats` is set); 0 = free, null = quote. */
+  /** Rupees per month (GST as `gst` says); 0 = free, null = quote. */
   monthlyInr: number | null;
-  /** Rupees per year when billed yearly (per advocate when `seats` is set). */
+  /** Rupees per year when billed yearly. */
   annualInr: number | null;
   /** Shown under the price. */
   note: string;
   features: string[];
   /** Can be bought online right now. */
   purchasable: boolean;
-  /** AI drafting pages a month (per advocate when `seats` is set); null = custom. */
+  /** AI credits a month, one shared pool (1 credit = one 400-word page); null = custom. */
   pagesPerMonth: number | null;
   /** Whether the shown price includes 18% GST; null = no price shown. */
   gst: 'inclusive' | 'exclusive' | null;
-  /** Per-advocate plans (Associates): advocates bought online, min to max. */
-  seats?: { min: number; max: number };
+  /** Advocate seats included (a fixed cap); null = custom. */
+  advocates?: number | null;
   /** Munshi (clerk) seats that can be added to this plan. */
   munshi?: { monthlyInr: number; annualInr: number; max: number };
 }
@@ -1198,8 +1202,6 @@ export interface BillingStateResponse {
 export interface BillingCheckoutRequest {
   plan: PaidPlanId;
   cycle: BillingCycle;
-  /** Associates only: advocates to pay for, 2-8. */
-  seats?: number;
   /** Munshi (clerk) seats to add, 0-4. */
   munshi?: number;
   /** Owner's ₹1 test code; only accepted for allow-listed accounts. */
@@ -1239,7 +1241,7 @@ export type BriefPackId = 'pack_25' | 'pack_60' | 'pack_130' | 'pack_330';
 export interface BriefPack {
   id: BriefPackId;
   credits: number;
-  /** GST-inclusive price. */
+  /** Price, GST extra. */
   priceInr: number;
   /** Can be bought online right now. */
   purchasable: boolean;
@@ -1279,10 +1281,8 @@ export interface AdminBillingSummary {
 /** POST /onboarding/complete - the plan and practice details picked on
  *  /onboarding after the account is created. */
 export interface OnboardingCompleteRequest {
-  /** A v4 paid plan. `free` is accepted only from a free-launch account. */
+  /** A paid plan. `free` is accepted only from a free-launch account. */
   plan: 'free' | PaidPlanId;
-  /** Associates: advocates to pay for (2-8). */
-  seats?: number;
   /** Munshi (clerk) seats to add (0-4). */
   munshi?: number;
   /** Advocates: State Bar Council id (apps/api/src/lib/bar-councils.ts). */
@@ -1581,6 +1581,9 @@ export interface AdminUpdatePlanRequest {
   /** Free launch plan on/off (migration 0095). Turn off when converting a
    *  free account to paid. */
   freePlan?: boolean;
+  /** Custom AI credits a month for an Enterprise quote (half credits);
+   *  null = back to the plan's own allowance. */
+  creditAllowance?: number | null;
 }
 
 export interface AdminUpdateFlagsRequest {

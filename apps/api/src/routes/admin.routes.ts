@@ -128,6 +128,8 @@ const UpdatePlan = z.object({
   mrrInr: z.number().int().min(0).optional(),
   renewsAt: z.string().nullable().optional(),
   freePlan: z.boolean().optional(),
+  /** Enterprise quote: AI credits a month (null = the plan's own allowance). */
+  creditAllowance: z.number().min(0).max(100_000).refine((n) => Number.isInteger(n * 2), 'in half credits').nullable().optional(),
 });
 adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
   try {

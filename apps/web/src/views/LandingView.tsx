@@ -86,7 +86,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'How is DifAi priced?',
-    a: 'Every plan has the full app; plans differ in AI drafting pages and seats, and Brief Packs add pages when you need more. All prices include GST, with no charge per matter or per filing. Sign in to see the plans and prices; firms of nine or more get custom pricing.',
+    a: 'Every plan has the full app; plans differ in AI credits and seats (one advocate, up to three, or up to eight), and Brief Packs add credits when you need more. Prices are plus 18% GST, with no charge per matter or per filing. Sign in to see the plans and prices; firms of nine or more get a custom quote.',
   },
 ];
 
@@ -710,7 +710,7 @@ export function LandingView() {
             margin: '0 auto 20px',
           }}
         >
-          From ₹199 a month. Real cases.
+          From ₹699 + GST a month. Real cases.
         </h2>
         <p
           className="lede"

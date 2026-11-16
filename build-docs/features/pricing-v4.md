@@ -1,5 +1,7 @@
 # Feature: Pricing v4 plan catalogue in the app (Sanad / Vakalat / Brief / Associates / Munshi)
 
+> **Superseded 2026-11-16 by pricing v5** (`features/pricing-v5.md`): Advocate / Chambers / Firm / Enterprise, prices + GST. v4 ids stay readable on old rows and invoices; migration 0113 moved every v4 firm.
+
 Status: **built 2026-11-13** (approved: "1a, 2a, 3 ok"). Owner chose "update prices first" before any deploy. Migration 0107 applied locally only. Prices are the v4 DRAFT (`OneDrive/DifAi Pricing Plan v4 - Low-Entry Credit Plans.docx`): **not final**, so they live in one config.
 
 ## Purpose

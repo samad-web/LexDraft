@@ -14,5 +14,5 @@ export const OPERATOR = {
   highCourt: 'High Court of Judicature at Madras',
 } as const;
 
-export const LEGAL_VERSION = '1.1';
-export const LEGAL_EFFECTIVE = '14 November 2026';
+export const LEGAL_VERSION = '1.2';
+export const LEGAL_EFFECTIVE = '16 November 2026';

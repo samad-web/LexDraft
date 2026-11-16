@@ -58,7 +58,9 @@ const captured = (amount: number, id = 'pay_p1') => ({
   event: 'payment.captured',
   payload: { payment: { entity: { id, order_id: 'order_PlanPay001', amount } } },
 });
-const vakalatMonth = { amount: 39900, notes: { kind: 'plan', firm_id: FIRM, user_id: 'u1', plan: 'vakalat', cycle: 'monthly', seats: '1', munshi: '0' } };
+// Pricing v5: one month of Advocate = ₹699 + 18% GST.
+const ADV = 82482;
+const advocateMonth = { amount: ADV, notes: { kind: 'plan', pricing: 'v5', firm_id: FIRM, user_id: 'u1', plan: 'advocate', cycle: 'monthly', seats: '1', munshi: '0' } };
 const update = () => h.calls.find((c) => /update firms set\s+plan_tier/.test(c.text)) as Call | undefined;
 const event = () => h.calls.find((c) => /insert into billing_events/.test(c.text)) as Call | undefined;
 const firmRow = (f: Record<string, unknown>) => (t: string) =>
@@ -71,11 +73,11 @@ describe('AC2 a paid period is applied once, with the right paid-until', () => {
   it('nothing active: starts now, paid until one month later, plan active, one invoice', async () => {
     h.useFakeDb = true;
     h.rows = firmRow({ selected_plan: 'free', plan_status: 'trial', renews_at: null, free_plan: true, seats: 1, munshi_seats: 0 });
-    stubOrder(vakalatMonth);
+    stubOrder(advocateMonth);
     const before = Date.now();
-    await billing.billingService.handleWebhook('evt_1', captured(39900));
+    await billing.billingService.handleWebhook('evt_1', captured(ADV));
     const u = update()!;
-    expect(valueAfter(u, 'selected_plan =')).toBe('vakalat');
+    expect(valueAfter(u, 'selected_plan =')).toBe('advocate');
     expect(valueAfter(u, 'free_plan =')).toBeUndefined(); // set as a literal false in SQL
     expect(u.text).toContain('free_plan = false');
     const end = valueAfter(u, 'renews_at =') as Date;
@@ -89,18 +91,18 @@ describe('AC2 a paid period is applied once, with the right paid-until', () => {
   it('same plan still active: the new month is added after the current end (paying early loses nothing)', async () => {
     h.useFakeDb = true;
     const end = new Date(Date.UTC(2099, 0, 15));
-    h.rows = firmRow({ selected_plan: 'vakalat', plan_status: 'active', renews_at: end, free_plan: false, seats: 1, munshi_seats: 0 });
-    stubOrder(vakalatMonth);
-    await billing.billingService.handleWebhook('evt_2', captured(39900));
+    h.rows = firmRow({ selected_plan: 'advocate', plan_status: 'active', renews_at: end, free_plan: false, seats: 1, munshi_seats: 0 });
+    stubOrder(advocateMonth);
+    await billing.billingService.handleWebhook('evt_2', captured(ADV));
     expect((valueAfter(update()!, 'renews_at =') as Date).toISOString()).toBe('2099-02-15T00:00:00.000Z');
     expect(event()!.values).toContain('renewed');
   });
 
   it('a different plan while active: starts today; days left are not carried over', async () => {
     h.useFakeDb = true;
-    h.rows = firmRow({ selected_plan: 'sanad', plan_status: 'active', renews_at: new Date(Date.UTC(2099, 0, 15)), free_plan: false, seats: 1, munshi_seats: 0 });
-    stubOrder(vakalatMonth);
-    await billing.billingService.handleWebhook('evt_3', captured(39900));
+    h.rows = firmRow({ selected_plan: 'chambers', plan_status: 'active', renews_at: new Date(Date.UTC(2099, 0, 15)), free_plan: false, seats: 1, munshi_seats: 0 });
+    stubOrder(advocateMonth);
+    await billing.billingService.handleWebhook('evt_3', captured(ADV));
     const end = valueAfter(update()!, 'renews_at =') as Date;
     expect(end.getTime()).toBeLessThan(Date.UTC(2099, 0, 1));
     expect(event()!.values).toContain('plan_changed');
@@ -110,20 +112,20 @@ describe('AC2 a paid period is applied once, with the right paid-until', () => {
     h.useFakeDb = true;
     h.rows = (t) => (t.includes('select id from billing_events where provider_ref') ? [{ id: 'seen' }]
       : t.includes('where razorpay_payment_id') ? [{ id: 'inv' }] : []);
-    stubOrder(vakalatMonth);
-    await billing.billingService.handleWebhook('evt_4', captured(39900));
+    stubOrder(advocateMonth);
+    await billing.billingService.handleWebhook('evt_4', captured(ADV));
     expect(update()).toBeUndefined();
     expect(h.calls.some((c) => c.text.includes('insert into subscription_invoices'))).toBe(false);
   });
 
   it.each([
-    ['a paid amount that is not the plan price', 100, vakalatMonth],
-    ['an order whose amount was changed', 39900, { ...vakalatMonth, amount: 100 }],
-    ['an unknown plan', 39900, { ...vakalatMonth, notes: { ...vakalatMonth.notes, plan: 'gold' } }],
+    ['a paid amount that is not the plan price', 100, advocateMonth],
+    ['an order whose amount was changed', ADV, { ...advocateMonth, amount: 100 }],
+    ['an unknown plan', ADV, { ...advocateMonth, notes: { ...advocateMonth.notes, plan: 'gold' } }],
   ])('%s applies nothing', async (_l, paid, order) => {
     h.useFakeDb = true;
     h.rows = firmRow({ selected_plan: 'free', plan_status: 'trial', renews_at: null, free_plan: true, seats: 1, munshi_seats: 0 });
-    stubOrder(order as typeof vakalatMonth);
+    stubOrder(order as typeof advocateMonth);
     await billing.billingService.handleWebhook('evt_5', captured(paid as number));
     expect(update()).toBeUndefined();
   });

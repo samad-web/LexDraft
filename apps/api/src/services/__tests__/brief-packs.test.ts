@@ -64,13 +64,14 @@ function stubRazorpay(order: { amount?: number; notes?: Record<string, unknown> 
 }
 
 describe('AC1 buying a pack opens a one-time Razorpay order for exactly its price', () => {
-  it.each([['pack_25', 49900], ['pack_60', 99900], ['pack_130', 199900], ['pack_330', 499900]] as const)('%s -> order of %i paise', async (pack, paise) => {
+  // Pricing v5: ₹429 / ₹849 / ₹1,699 / ₹4,249 + 18% GST.
+  it.each([['pack_25', 50622], ['pack_60', 100182], ['pack_130', 200482], ['pack_330', 501382]] as const)('%s -> order of %i paise', async (pack, paise) => {
     h.useFakeDb = true;
     h.rows = (t) => (t.includes('from users u left join firms') ? [owner()] : []);
     const { body } = stubRazorpay();
     const r = await billing.billingService.startPackCheckout('u1', pack);
     expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/order_abc123');
-    expect(body('/orders')).toMatchObject({ amount: paise, currency: 'INR', notes: { firm_id: 'f1', user_id: 'u1', pack } });
+    expect(body('/orders')).toMatchObject({ amount: paise, currency: 'INR', notes: { pricing: 'v5', firm_id: 'f1', user_id: 'u1', pack } });
   });
 
   it('a non-owner gets 403; an unknown pack 400', async () => {
@@ -116,14 +117,14 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
   const grantInsert = () => h.calls.find((c) => c.text.includes('insert into credit_grants'));
   const firmBuyer = { practice: 'P', name: 'N', email: null, phone: null, gstin: null, address_line: null, pincode: null, state: 'Tamil Nadu' };
 
-  it('pack_60 paid: 60 credits for 12 months, one GST invoice for ₹999, logged as pack_bought', async () => {
+  it('pack_60 paid: 60 credits for 12 months, one GST invoice for ₹1,001.82 (₹849 + GST), logged as pack_bought', async () => {
     h.useFakeDb = true;
     h.rows = (t) => t.includes('insert into credit_grants') ? [{ id: 'g1' }]
       : t.includes('from firms f join users u') ? [firmBuyer]
         : t.includes('insert into invoice_counters') ? [{ last: 4 }]
           : t.includes('insert into subscription_invoices') ? [{ id: 'inv-p' }] : [];
-    stubRazorpay({ amount: 99900, notes: { firm_id: '00000000-0000-0000-0000-0000000000f1', user_id: 'u1', pack: 'pack_60' } });
-    await billing.billingService.handleWebhook('evt_pk1', captured(99900));
+    stubRazorpay({ amount: 100182, notes: { pricing: 'v5', firm_id: '00000000-0000-0000-0000-0000000000f1', user_id: 'u1', pack: 'pack_60' } });
+    await billing.billingService.handleWebhook('evt_pk1', captured(100182));
     const g = grantInsert()!;
     expect(g.values).toContain(60);
     expect(g.values).toContain('topup:pay_pk1');
@@ -132,7 +133,7 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
     const inv = h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!;
     expect(inv.values).toContain('pack_60');
     expect(inv.values).toContain('one-time');
-    expect(inv.values.at(-1)).toBe(99900);
+    expect(inv.values.slice(-5)).toEqual([84900, 7641, 7641, 0, 100182]);
     expect(h.calls.find((c) => c.text.includes('insert into billing_events'))!.values).toContain('pack_bought');
   });
 
@@ -160,9 +161,9 @@ describe('AC2/AC3 credits come only from the signed webhook, once, for the right
 });
 
 describe('AC5 the packs on offer', () => {
-  it('four packs, GST-inclusive prices, offered with the plan state', () => {
+  it('four packs, prices + GST (pricing v5), offered with the plan state', () => {
     expect(billing.briefPacks().map((p) => [p.id, p.credits, p.priceInr])).toEqual([
-      ['pack_25', 25, 499], ['pack_60', 60, 999], ['pack_130', 130, 1999], ['pack_330', 330, 4999],
+      ['pack_25', 25, 429], ['pack_60', 60, 849], ['pack_130', 130, 1699], ['pack_330', 330, 4249],
     ]);
   });
 });

@@ -30,7 +30,7 @@ const ACCESS_LEVELS: Array<{ value: CustomRoleAccess; hint: string }> = [
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Sanad / Vakalat / Brief owner: the only role on offer is Munshi. */
+  /** Advocate plan owner: the only role on offer is Munshi. */
   munshiOnly?: boolean;
 }
 

@@ -53,9 +53,10 @@ describe('demoFallbackFor - Solo Advocate', () => {
     expect(f).not.toContain('matter.assign');
   });
 
-  it('denies every admin.* + firm.* + analytics.* feature', () => {
+  it('denies every admin.* + firm.* feature; analytics is on every plan (pricing v5)', () => {
     // This is the bug fix: Solo MUST NOT see firm overview, members,
-    // analytics, manage firm, audit log, role editor, billing admin.
+    // manage firm, audit log, role editor, billing admin. Owner 2026-11-16
+    // (pricing v5): the Analytics page is on every plan, so Solo gets it.
     expect(f).not.toContain('admin.users');
     expect(f).not.toContain('admin.roles');
     expect(f).not.toContain('admin.audit');
@@ -63,8 +64,8 @@ describe('demoFallbackFor - Solo Advocate', () => {
     expect(f).not.toContain('admin.practice_groups');
     expect(f).not.toContain('firm.dashboard.view');
     expect(f).not.toContain('firm.members.view');
-    expect(f).not.toContain('analytics.firm');
-    expect(f).not.toContain('reports.activity');
+    expect(f).toContain('analytics.firm');
+    expect(f).toContain('reports.activity');
     expect(f).not.toContain('reports.billing');
   });
 
@@ -152,14 +153,14 @@ describe('demoFallbackFor - restricted roles', () => {
 // =============================================================================
 
 describe('resolveFeatures - role-aware via memUsers', () => {
-  it('a freshly-provisioned Solo Advocate sees no firm.* / analytics.firm / admin.* keys', async () => {
+  it('a freshly-provisioned Solo Advocate sees no firm.* / admin.* keys, but does see analytics (pricing v5)', async () => {
     const auth = await signInForTest({ email: `solo-${Date.now()}@example.com`, password: 'p' });
     const r = await resolveFeatures(auth.user.id);
     expect(r.features).toContain('matter.view');
     expect(r.features).toContain('billing.invoice');
     expect(r.features).not.toContain('firm.dashboard.view');
     expect(r.features).not.toContain('firm.members.view');
-    expect(r.features).not.toContain('analytics.firm');
+    expect(r.features).toContain('analytics.firm');
     expect(r.features).not.toContain('admin.users');
   });
 

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon, Skeleton } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlanId, BillingStateResponse, PaidPlanId, SubscriptionInvoice } from '@lexdraft/types';
-import { CycleToggle, MunshiPicker, PLAN_NAME, PlanCards, SeatPicker } from '@/components/PlanCards';
+import { CycleToggle, gstLine, MunshiPicker, PLAN_NAME, PlanCards, planTotal } from '@/components/PlanCards';
 import { CreditMeter } from '@/components/DraftMeter';
 import { BriefPacks } from '@/components/BriefPacks';
 import { MunshiPanel } from '@/components/MunshiPanel';
@@ -15,28 +15,29 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const PAID_IDS: readonly BillingPlanId[] = ['sanad', 'vakalat', 'brief', 'associates'];
+const PAID_IDS: readonly BillingPlanId[] = ['advocate', 'chambers', 'law_firm'];
 const isPaidId = (id: BillingPlanId | null | undefined): id is PaidPlanId => !!id && PAID_IDS.includes(id);
 
 /** The plan the account is on, in the same ids the plan cards use. */
 function currentPlanId(c: BillingStateResponse['current']): BillingPlanId | null {
   if (c.freePlan) return 'free';
   if (isPaidId(c.selectedPlan)) return c.selectedPlan;
-  // Accounts from before pricing v4.
+  // Custom (Enterprise) firms and accounts from before pricing v5.
+  if (c.selectedPlan === 'enterprise' || c.planTier === 'Firm') return 'enterprise';
   if (c.planTier === 'Solo') return c.subscribed ? 'solo' : 'free';
   if (c.planTier === 'Practice') return 'practice';
-  if (c.planTier === 'Firm') return 'partners';
   return null;
 }
 
-/** "Associates · 3 advocates + 1 Munshi seat" / "Vakalat". */
+/** "Chambers · up to 3 advocates + 1 Munshi seat" / "Advocate". */
 function planLabel(plan: string, advocates: number, munshi: number): string {
-  const adv = plan === 'associates' || plan === 'practice' ? ` · ${advocates} advocates` : '';
+  const adv = plan === 'chambers' || plan === 'law_firm' ? ` · up to ${advocates} advocates`
+    : plan === 'associates' || plan === 'practice' || plan === 'enterprise' ? ` · ${advocates} advocates` : '';
   const mun = munshi > 0 ? ` + ${munshi} Munshi seat${munshi === 1 ? '' : 's'}` : '';
   return `${PLAN_NAME[plan] ?? plan}${adv}${mun}`;
 }
 
-/** Paid plan picked at onboarding, not paid yet (pricing v4: no free trial). */
+/** Paid plan picked at onboarding, not paid yet (no free trial). */
 const paymentPending = (c: BillingStateResponse['current']) =>
   c.planStatus === 'trial' && !c.freePlan && !c.subscribed && isPaidId(c.selectedPlan);
 
@@ -117,7 +118,6 @@ export function BillingView() {
   const checkout = useStartCheckout();
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [selected, setSelected] = useState<BillingPlanId | null>(null);
-  const [seats, setSeats] = useState(2);
   const [munshi, setMunshi] = useState(0);
   const [coupon, setCoupon] = useState('');
   const native = isNativeApp();
@@ -148,11 +148,10 @@ export function BillingView() {
     if (data?.current.billingCycle) setCycle(data.current.billingCycle);
   }, [data?.current.billingCycle]);
 
-  // The pickers start at the advocates and Munshi seats the firm already pays for.
+  // The Munshi picker starts at the seats the firm already pays for.
   useEffect(() => {
-    if (data?.current.planTier === 'Practice') setSeats(Math.min(8, Math.max(2, data.current.seats)));
     if (data) setMunshi(Math.min(4, data.current.munshiSeats));
-  }, [data?.current.planTier, data?.current.seats, data?.current.munshiSeats]);
+  }, [data?.current.munshiSeats]);
 
   const clearReturn = () => {
     const next = new URLSearchParams(params);
@@ -164,8 +163,7 @@ export function BillingView() {
   // Pay per period (no Autopay): the same plan again adds a period after the
   // current end; a different plan starts today and the days left on the
   // current one are not carried over.
-  const renewing = !!chosen && chosen.id === current && paid
-    && (!chosen.seats || data?.current.seats === seats) && data?.current.munshiSeats === munshi;
+  const renewing = !!chosen && chosen.id === current && paid && data?.current.munshiSeats === munshi;
   const switching = !!chosen && paid && !renewing;
 
   return (
@@ -250,8 +248,8 @@ export function BillingView() {
 
           {!native && <BriefPacks packs={data.packs ?? []} canBuy={data.canManage} coupon={coupon.trim()} />}
 
-          {/* Sanad / Vakalat / Brief owner: invite and remove their Munshi here
-              (Associates and Partners use People & Roles). */}
+          {/* Advocate plan owner: invite and remove their Munshi here
+              (Chambers, Firm and Enterprise use People & Roles). */}
           {data.canManage && data.current.planTier === 'Solo' && data.current.munshiSeats > 0 && (
             <MunshiPanel seats={data.current.munshiSeats} />
           )}
@@ -274,19 +272,18 @@ export function BillingView() {
             <div className="cm-checkout">
               <span className="cm-checkout-text">
                 <strong>{chosen.name}</strong>
-                {chosen.id === 'partners' && 'Firms with nine or more advocates get custom pricing. Book a demo and we will set it up.'}
+                {chosen.id === 'enterprise' && 'Firms with nine or more advocates get a custom quote: seats and AI credits set to your size. Talk to us and we will set it up.'}
                 {isPaidId(chosen.id) && (
                   !data.paymentsEnabled || !chosen.purchasable
                     ? 'Online payment is being switched on. Please try again soon.'
-                    : `One payment covers one ${cycle === 'annual' ? 'year' : 'month'}; nothing is charged automatically. Pay with UPI, card or netbanking through Razorpay.`
+                    : `${gstLine(planTotal(chosen, cycle, munshi))} for one ${cycle === 'annual' ? 'year' : 'month'}; nothing is charged automatically. Pay with UPI, card or netbanking through Razorpay.`
                       + (renewing ? ` It adds a ${cycle === 'annual' ? 'year' : 'month'} after ${formatDate(data.current.renewsAt)}.` : '')
                       + (switching ? ' It starts today; the days left on your current plan are not carried over.' : '')
                 )}
               </span>
-              {chosen.id === 'partners' && (
-                <button type="button" className="btn btn-primary" onClick={() => navigate('/signup?intent=demo')}>Book a demo</button>
+              {chosen.id === 'enterprise' && (
+                <button type="button" className="btn btn-primary" onClick={() => navigate('/signup?intent=demo')}>Talk to us</button>
               )}
-              <SeatPicker plan={chosen} cycle={cycle} seats={seats} min={2} onChange={setSeats} />
               <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
               {isPaidId(chosen.id) && (
                 <label className="cm-seats">
@@ -300,7 +297,7 @@ export function BillingView() {
                   className="btn btn-primary"
                   disabled={!data.paymentsEnabled || !chosen.purchasable || checkout.isPending}
                   onClick={() => isPaidId(chosen.id) && checkout.mutate(
-                    { plan: chosen.id, cycle, munshi, ...(chosen.seats ? { seats } : {}), ...(coupon.trim() ? { coupon: coupon.trim() } : {}) },
+                    { plan: chosen.id, cycle, munshi, ...(coupon.trim() ? { coupon: coupon.trim() } : {}) },
                   )}
                 >
                   {checkout.isPending ? 'Opening payment…' : renewing ? `Renew ${chosen.name}` : paid ? `Switch to ${chosen.name}` : `Pay for ${chosen.name}`}

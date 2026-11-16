@@ -1,4 +1,16 @@
 # Changelog
+- Pricing v5 (2026-11-16, features/pricing-v5.md): new plans by team size, prices + 18% GST:
+    - Advocate ₹699 (150 AI credits), Chambers ₹1,699 (up to 3 advocates, 350), Firm ₹3,699 (up to 8, 750), Enterprise quote;
+    - Munshi ₹149 + GST; Brief Packs ₹429–4,249 + GST.
+  - Checkout charges price × 1.18 to the paisa. Invoices show the price as the taxable value with CGST/SGST or IGST.
+  - Migration 0113:
+    - moves every v4 firm, keeping paid-until;
+    - analytics on every plan;
+    - Enterprise credit allowance (admin editor);
+    - exact paise on billing events;
+    - Firm seat floor 8.
+  - v4 checkouts paid after the switch are still honoured.
+  - Terms 1.2. Plan cards, onboarding, billing, sign-in, landing, /pricing and the legal pages say "+ GST" and "AI credits".
 - Munshi on solo plans (2026-11-16, features/solo-munshi.md): Sanad, Vakalat and Brief owners get a "Your Munshi" box on Plan & Billing to invite, see and remove their Munshi, within the Munshi seats paid for. Seat-limit errors now reach the web app with their code.
 - Translation price + s.138 dates (2026-11-16): translating a draft costs ½ credit a page (Draft button shows 1½ credits a page for another language); s.138 complaints no longer refused over stand-in dates (dispatch = notice date; memo receipt before the notice); the dishonour date is read as the memo date; the composed body no longer adds a second list of documents.
 

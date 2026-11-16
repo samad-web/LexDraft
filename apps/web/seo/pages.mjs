@@ -5,29 +5,28 @@
 // product does today (build-docs/MEMORY.md, 2026-11-13). `draft: true` pages
 // are not built until the user has read them.
 
-// Pricing v4 switch (build-docs/features/pricing-v4.md). Flip to true in the
-// release that takes v4 live: it swaps the offer line on every page and
+// Paid pricing switch (pricing v4, now v5: build-docs/features/pricing-v5.md).
+// True since paid plans went live: it swaps the offer line on every page and
 // publishes /pricing. seo.test.mjs checks both settings.
-export const V4_LIVE = true;
+export const PRICING_LIVE = true;
 
-// Mirrors apps/api/src/lib/plans.ts (seo.test.mjs keeps them in step).
-// Rupees, GST included; pages = AI drafting pages a month.
-export const V4 = {
-  sanad: { name: 'Sanad', monthly: 199, yearly: 2190, pages: 25 },
-  vakalat: { name: 'Vakalat', monthly: 399, yearly: 4490, pages: 75 },
-  brief: { name: 'Brief', monthly: 1499, yearly: 16490, pages: 200 },
-  associates: { name: 'Associates', monthly: 649, yearly: 7140, pages: 75, min: 2, max: 8 },
-  munshi: { name: 'Munshi seat', monthly: 149, yearly: 1590 },
+// Pricing v5. Mirrors apps/api/src/lib/plans.ts (seo.test.mjs keeps them in
+// step). Rupees a month / a year, GST extra; credits = AI credits a month.
+export const V5 = {
+  advocate: { name: 'Advocate', monthly: 699, yearly: 7689, credits: 150, seats: 1 },
+  chambers: { name: 'Chambers', monthly: 1699, yearly: 18689, credits: 350, seats: 3 },
+  law_firm: { name: 'Firm', monthly: 3699, yearly: 40689, credits: 750, seats: 8 },
+  munshi: { name: 'Munshi seat', monthly: 149, yearly: 1639 },
 };
 const inr = (n) => `₹${n.toLocaleString('en-IN')}`;
 
-/** The offer, before and after v4 goes live. */
-export function offerFor(v4) {
-  return v4
+/** The offer, before and after paid plans go live. */
+export function offerFor(live) {
+  return live
     ? {
-        hook: `Plans from ${inr(V4.sanad.monthly)} a month, GST included.`,
-        line: `Plans from ${inr(V4.sanad.monthly)} a month, GST included. Accounts on the free launch stay free until 1 June 2027.`,
-        cost: `Plans start at ${inr(V4.sanad.monthly)} a month, GST included. Advocates who joined during the free launch stay free until 1 June 2027.`,
+        hook: `Plans from ${inr(V5.advocate.monthly)} + GST a month.`,
+        line: `Plans from ${inr(V5.advocate.monthly)} + GST a month. Accounts on the free launch stay free until 1 June 2027.`,
+        cost: `Plans start at ${inr(V5.advocate.monthly)} a month plus GST. Advocates who joined during the free launch stay free until 1 June 2027.`,
       }
     : {
         hook: 'Free for solo advocates till June 2027.',
@@ -35,12 +34,12 @@ export function offerFor(v4) {
         cost: 'It is free for solo advocates and law students until 1 June 2027, and firms get a 14-day trial.',
       };
 }
-export const OFFER = offerFor(V4_LIVE);
+export const OFFER = offerFor(PRICING_LIVE);
 
 /** @returns {Array<Record<string, any>>} */
-export function buildPages(v4 = V4_LIVE) {
+export function buildPages(v4 = PRICING_LIVE) {
 const { hook: FREE, cost: COST } = offerFor(v4);
-const plans = ['sanad', 'vakalat', 'brief'].map((k) => V4[k]);
+const plans = ['advocate', 'chambers', 'law_firm'].map((k) => V5[k]);
 return [
   {
     slug: 'legal-notice-drafting',
@@ -497,20 +496,19 @@ return [
     draft: !v4,
     nav: 'Pricing',
     crumb: 'Pricing',
-    updated: '2026-11-14',
-    title: `Pricing: Legal Drafting Plans from ${inr(V4.sanad.monthly)}/Month | DifAi`,
-    description: `Sanad ${inr(V4.sanad.monthly)}, Vakalat ${inr(V4.vakalat.monthly)} and Brief ${inr(V4.brief.monthly)} a month, GST included, with AI drafting pages. Associates for chambers at ${inr(V4.associates.monthly)} per advocate.`,
+    updated: '2026-11-16',
+    title: `Pricing: Legal Drafting Plans from ${inr(V5.advocate.monthly)}/Month | DifAi`,
+    description: `Advocate ${inr(V5.advocate.monthly)}, Chambers ${inr(V5.chambers.monthly)} (3 advocates) and Firm ${inr(V5.law_firm.monthly)} (8 advocates) a month plus GST, each with AI credits and eCourts.`,
     h1: 'DifAi pricing',
-    answer: `DifAi has three plans for individual advocates: Sanad at ${inr(V4.sanad.monthly)} a month with ${V4.sanad.pages} pages of AI drafting, Vakalat at ${inr(V4.vakalat.monthly)} with ${V4.vakalat.pages} pages, and Brief at ${inr(V4.brief.monthly)} with ${V4.brief.pages} pages. Chambers of ${V4.associates.min} to ${V4.associates.max} advocates take Associates at ${inr(V4.associates.monthly)} per advocate. All prices include GST, and every plan includes case tracking, the diary and eCourts sync.`,
+    answer: `DifAi has three plans by team size: Advocate at ${inr(V5.advocate.monthly)} a month for one advocate with ${V5.advocate.credits} AI credits, Chambers at ${inr(V5.chambers.monthly)} for up to ${V5.chambers.seats} advocates with ${V5.chambers.credits} credits, and Firm at ${inr(V5.law_firm.monthly)} for up to ${V5.law_firm.seats} advocates with ${V5.law_firm.credits} credits. Prices are plus 18% GST. Firms of nine or more get an Enterprise quote.`,
     body: `
 <h2>Plans</h2>
 <table>
-<tr><th>Plan</th><th>Monthly</th><th>Yearly</th><th>AI drafting</th></tr>
-${plans.map((p) => `<tr><td><strong>${p.name}</strong></td><td>${inr(p.monthly)}</td><td>${inr(p.yearly)} (save ${inr(p.monthly * 12 - p.yearly)})</td><td>${p.pages} pages a month</td></tr>`).join('\n')}
-<tr><td><strong>Associates</strong><br />${V4.associates.min} to ${V4.associates.max} advocates</td><td>${inr(V4.associates.monthly)} per advocate</td><td>${inr(V4.associates.yearly)} per advocate</td><td>${V4.associates.pages} pages per advocate, shared</td></tr>
-<tr><td><strong>Partners</strong><br />9 advocates and above</td><td colspan="3">Custom pricing. Write to <a href="mailto:support@sirahdigital.in">support@sirahdigital.in</a>.</td></tr>
+<tr><th>Plan</th><th>Monthly</th><th>Yearly</th><th>AI credits</th></tr>
+${plans.map((p) => `<tr><td><strong>${p.name}</strong><br />${p.seats === 1 ? '1 advocate' : `up to ${p.seats} advocates`}</td><td>${inr(p.monthly)} + GST</td><td>${inr(p.yearly)} + GST (save ${inr(p.monthly * 12 - p.yearly)})</td><td>${p.credits} a month${p.seats > 1 ? ', shared' : ''}</td></tr>`).join('\n')}
+<tr><td><strong>Enterprise</strong><br />9 advocates and above</td><td colspan="3">Custom quote. Write to <a href="mailto:support@sirahdigital.in">support@sirahdigital.in</a>.</td></tr>
 </table>
-<p>All prices include 18% GST. Every payment comes with a GST tax invoice.</p>
+<p>Prices are exclusive of GST: 18% GST is added at checkout, and every payment comes with a GST tax invoice. One AI credit is one drafted page of 400 words.</p>
 <h2>Every plan includes</h2>
 <ul>
 <li>Cases, the advocate diary and eCourts sync by CNR number</li>
@@ -519,21 +517,14 @@ ${plans.map((p) => `<tr><td><strong>${p.name}</strong></td><td>${inr(p.monthly)}
 <li>The web app and the Android app</li>
 </ul>
 <h2>Munshi seat</h2>
-<p>Add a clerk or staff member for ${inr(V4.munshi.monthly)} a month (${inr(V4.munshi.yearly)} a year) on any paid plan. A Munshi seat covers the diary, cause list, eCourts and documents, without AI drafting.</p>
-<h2>What the names mean</h2>
-<ul>
-<li><strong>Sanad:</strong> the enrolment certificate every advocate gets from the Bar Council.</li>
-<li><strong>Vakalat:</strong> the vakalatnama a client signs so you can act in the case.</li>
-<li><strong>Brief:</strong> a case handed to an advocate. Many briefs, a busy practice.</li>
-<li><strong>Associates:</strong> as in "X &amp; Associates", advocates working together.</li>
-</ul>
+<p>Add a clerk or staff member for ${inr(V5.munshi.monthly)} a month (${inr(V5.munshi.yearly)} a year) plus GST on any paid plan, up to four. A Munshi seat covers the diary, cause list, eCourts and documents, without AI drafting.</p>
 <h2>Already on the free launch?</h2>
 <p>Advocates who signed up during the free launch keep it until 1 June 2027, as promised.</p>`,
     faq: [
-      { q: 'Do the prices include GST?', a: 'Yes. Every price on this page includes 18% GST, and each payment comes with a GST tax invoice.' },
-      { q: 'Can I change my plan later?', a: 'Yes. Pick a new plan from Billing in the app. The new plan starts at your next renewal, so you are never charged twice for the same period.' },
-      { q: 'How do I pay?', a: 'Payments go through Razorpay. You can pay monthly or yearly by UPI Autopay or card; yearly costs less.' },
-      { q: 'What is a Munshi seat?', a: `A seat for a clerk or staff member at ${inr(V4.munshi.monthly)} a month. They get the diary, cause list, eCourts and documents, but not AI drafting.` },
+      { q: 'Do the prices include GST?', a: 'No. Prices are exclusive of GST; 18% GST is added at checkout, and each payment comes with a GST tax invoice.' },
+      { q: 'Can I change my plan later?', a: 'Yes. Pick a new plan from Plan & Billing in the app. A different plan starts on the day you pay; paying again for the same plan adds a period after the current one.' },
+      { q: 'How do I pay?', a: 'Payments go through Razorpay by UPI, card or netbanking, for one month or one year at a time. Nothing renews automatically, and a year costs eleven months.' },
+      { q: 'What is a Munshi seat?', a: `A seat for a clerk or staff member at ${inr(V5.munshi.monthly)} a month plus GST. They get the diary, cause list, eCourts and documents, but not AI drafting.` },
     ],
     cta: 'Choose your plan',
   },

@@ -11,8 +11,8 @@ import { draftMeterService } from '../draft-meter.service';
 let firmId: string;
 let userId: string;
 
-/** A firm on Vakalat (75 credits a month), with `left` credits remaining. */
-async function firmWith(left: number, plan = 'vakalat'): Promise<void> {
+/** A firm on Advocate (150 credits a month, pricing v5), with `left` credits remaining. */
+async function firmWith(left: number, plan = 'advocate'): Promise<void> {
   const sql = getIntegrationSql();
   const firm = await seedFirm('Credits Firm', 'Solo');
   firmId = firm.id;
@@ -29,24 +29,24 @@ const balance = async () => (await creditService.balance(firmId)).balance;
 describe('plan allowance', () => {
   beforeEach(() => firmWith(75));
 
-  it('Vakalat gets 75 a month; the grant is created once per cycle', async () => {
+  it('Advocate gets 150 a month; the grant is created once per cycle', async () => {
     const sql = getIntegrationSql();
     await creditService.balance(firmId);
     await creditService.balance(firmId);
     const grants = await sql`select amount from credit_grants where firm_id = ${firmId}::uuid and source = 'plan'`;
     expect(grants).toHaveLength(1);
-    expect(Number(grants[0]!.amount)).toBe(75);
+    expect(Number(grants[0]!.amount)).toBe(150);
   });
 
   it('an upgrade mid-cycle adds the difference, not a second full grant; a downgrade keeps the bigger grant', async () => {
     const sql = getIntegrationSql();
     await creditService.charge(ctx(), 'research', 2);
-    await sql`update firms set selected_plan = 'brief' where id = ${firmId}::uuid`;
+    await sql`update firms set selected_plan = 'chambers' where id = ${firmId}::uuid`;
     const up = await creditService.balance(firmId);
-    expect(up.allowance).toBe(200);
-    expect(up.balance).toBe(198); // 73 left + 125 more
-    await sql`update firms set selected_plan = 'sanad' where id = ${firmId}::uuid`;
-    expect((await creditService.balance(firmId)).allowance).toBe(200);
+    expect(up.allowance).toBe(350);
+    expect(up.balance).toBe(273); // 73 left + 200 more
+    await sql`update firms set selected_plan = 'advocate' where id = ${firmId}::uuid`;
+    expect((await creditService.balance(firmId)).allowance).toBe(350);
   });
 
   it('found live 2026-11-14: a free-launch account that starts paying mid-month keeps only the new plan credits', async () => {
@@ -54,20 +54,20 @@ describe('plan allowance', () => {
     const f = await seedFirm('Switch Firm', 'Solo');
     await sql`update firms set free_plan = true, plan_status = 'trial', trial_ends_at = '2027-06-01' where id = ${f.id}::uuid`;
     expect((await creditService.balance(f.id)).balance).toBe(25); // calendar-month free grant
-    await sql`update firms set free_plan = false, plan_status = 'active', selected_plan = 'sanad',
+    await sql`update firms set free_plan = false, plan_status = 'active', selected_plan = 'advocate',
       renews_at = now() + interval '30 days' where id = ${f.id}::uuid`;
     const b = await creditService.balance(f.id); // new cycle anchored on the paid-until day
-    expect(b.balance).toBe(25);
-    expect(b.allowance).toBe(25);
+    expect(b.balance).toBe(150); // the free month's 25 end; only the plan's own credits
+    expect(b.allowance).toBe(150);
   });
 
-  it('a free-launch account gets 25; an unpaid v4 sign-up gets none', async () => {
+  it('a free-launch account gets 25; an unpaid sign-up gets none', async () => {
     const sql = getIntegrationSql();
     const free = await seedFirm('Free Firm', 'Solo');
     await sql`update firms set free_plan = true, plan_status = 'trial', trial_ends_at = '2027-06-01' where id = ${free.id}::uuid`;
     expect((await creditService.balance(free.id)).balance).toBe(25);
     const unpaid = await seedFirm('Unpaid Firm', 'Solo');
-    await sql`update firms set free_plan = false, plan_status = 'trial', selected_plan = 'vakalat',
+    await sql`update firms set free_plan = false, plan_status = 'trial', selected_plan = 'advocate',
       trial_ends_at = now() + interval '30 minutes' where id = ${unpaid.id}::uuid`;
     expect((await creditService.balance(unpaid.id)).balance).toBe(0);
   });

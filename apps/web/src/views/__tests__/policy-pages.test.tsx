@@ -25,7 +25,11 @@ describe('refund policy and contact pages', () => {
 
   it('the refund rules are the approved ones', () => {
     const h = html(<RefundPolicyView />);
-    expect(h).toMatch(/Sanad and Vakalat<\/strong> \(monthly or yearly\): not refundable/);
+    // Pricing v5 (owner 2026-11-16): same rules, reworded for the new plans.
+    expect(h).toMatch(/Advocate<\/strong> \(monthly or yearly\): not refundable/);
+    expect(h).toContain('Chambers and Firm, yearly');
+    expect(h).toContain('Prices are exclusive of GST; 18% GST is added at checkout.');
+    expect(h).not.toMatch(/Sanad|Vakalat|Associates|include 18% GST/);
     expect(h).toContain('within 7 days of the payment and have used no more than 10 AI credits');
     expect(h).toContain('Once any of its credits are used, a Brief Pack is not refundable.');
     expect(h).toContain('nothing renews or is charged automatically');
@@ -35,7 +39,9 @@ describe('refund policy and contact pages', () => {
   it('the Terms (Part E) say the same, with no older conflicting rule left', () => {
     const t = html(<TermsView />);
     expect(t).toContain('no more than 10 AI credits were used');
-    expect(t).toContain('Sanad and Vakalat');
+    expect(t).toContain('<strong>Advocate</strong> (monthly or yearly): not refundable');
+    expect(t).toContain('exclusive of GST');
+    expect(t).not.toMatch(/Sanad|inclusive of GST|Prices include GST/);
     expect(t).not.toContain('a quarter of that period');
     expect(t).not.toContain('within 48 hours of the renewal charge');
     expect(t).toContain('href="/refund-policy"');

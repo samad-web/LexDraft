@@ -49,8 +49,8 @@ export function TrialBanner(): JSX.Element | null {
   const expired = msLeft <= 0;
 
   const isDemo = !!user.isDemo;
-  // Pricing v4: a paid plan chosen at sign-up, payment not finished yet.
-  const PAID = ['sanad', 'vakalat', 'brief', 'associates'];
+  // A paid plan chosen at sign-up, payment not finished yet (pricing v5 ids).
+  const PAID = ['advocate', 'chambers', 'law_firm'];
   const plan = billing.data?.current;
   const unpaid = !!plan && !plan.freePlan && !plan.subscribed && !!plan.selectedPlan && PAID.includes(plan.selectedPlan);
   // The free launch plan rides the trial clock (till 1 June 2027); a 14-day

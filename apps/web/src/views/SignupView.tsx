@@ -330,12 +330,12 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isTrial = props.intent === 'trial';
-  const eyebrow = isTrial ? 'Plans from ₹199 a month, GST included' : 'Create account';
+  const eyebrow = isTrial ? 'Plans from ₹699 + GST a month' : 'Create account';
   const headline = isTrial
     ? 'Start using DifAi'
     : 'Create your DifAi account';
   const subline = isTrial
-    ? 'Create your account, then pick a plan: Sanad, Vakalat, Brief or Associates. Every plan has the full app.'
+    ? 'Create your account, then pick a plan: Advocate, Chambers or Firm. Every plan has the full app.'
     : 'Set up your account; billing kicks in on the next page.';
   const ctaLabel = 'Create account';
 
@@ -412,7 +412,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
           </div>
           <div className="body-xs muted" style={{ marginTop: 4 }}>
             {isTrial
-              ? (role === 'group' ? 'Next, pick Associates for 2 to 8 advocates.' : 'Next, pick a plan from ₹199 a month.')
+              ? (role === 'group' ? 'Next, pick Chambers (up to 3 advocates) or Firm (up to 8).' : 'Next, pick a plan from ₹699 + GST a month.')
               : 'You can switch plans any time from Settings → Billing.'}
           </div>
         </form>

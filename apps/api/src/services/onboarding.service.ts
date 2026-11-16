@@ -1,6 +1,7 @@
 import type { OnboardingCompleteRequest, OnboardingCompleteResponse } from '@lexdraft/types';
 import { db } from '../db/client';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
+import { isPaidPlan, PLANS } from '../lib/plans';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
 import { authService, resolveSystemRoleId } from './auth.service';
 import { billingService, paymentsEnabled } from './billing.service';
@@ -11,9 +12,9 @@ import { storage } from './storage.service';
 // =============================================================================
 // Post-sign-up onboarding (/onboarding, migration 0097). The account is made
 // from Google + a verified WhatsApp number + a password; the plan and practice
-// details are picked here, then the firm is set up to match (pricing v4):
-//   sanad / vakalat / brief -> Solo tier; associates -> Practice tier, owner
-//     becomes Managing Partner. No free plan and no trial: the account gets a
+// details are picked here, then the firm is set up to match (pricing v5):
+//   advocate -> Solo tier; chambers -> Practice, law_firm -> Firm tier, owner
+//     becomes Managing Partner (lib/plans.ts). No free plan and no trial: the account gets a
 //     short window to finish paying, and the Razorpay webhook makes it active.
 //   free -> only for accounts that already have the free launch plan
 //     (firms.free_launch): Solo tier, free till FREE_PLAN_ENDS_AT.
@@ -67,7 +68,8 @@ export const onboardingService = {
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
     if (u.onboarded_at) throw new BadRequestError('Your practice is already set up. Change your plan from Plan & Billing.');
 
-    const practice = input.plan === 'associates';
+    const paidPlan = isPaidPlan(input.plan) ? input.plan : null;
+    const practice = !!paidPlan && PLANS[paidPlan].seats > 1;
     const student = !practice && input.kind === 'student';
     // Interim (owner, 2026-11-14): until live Razorpay keys are set, a new
     // sign-up gets the free launch plan instead of being turned away. The day
@@ -92,7 +94,7 @@ export const onboardingService = {
       await tx`
         update firms set
           name = ${firmName},
-          plan_tier = ${practice ? 'Practice' : 'Solo'}::firm_plan_tier,
+          plan_tier = ${paidPlan ? PLANS[paidPlan].tier : 'Solo'}::firm_plan_tier,
           plan_status = 'trial',
           trial_ends_at = ${trialEndsAt},
           free_plan = ${free},
@@ -132,7 +134,7 @@ export const onboardingService = {
 
     if (!free && input.plan !== 'free') {
       try {
-        const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.seats, input.munshi ?? 0);
+        const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.munshi ?? 0);
         return { user, checkoutUrl };
       } catch (err) {
         return { user, checkoutError: (err as Error).message };

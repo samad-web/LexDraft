@@ -58,8 +58,8 @@ describe('checkout with the test code', () => {
   it('an allow-listed account pays ₹1 for a plan (code and email match case-insensitively)', async () => {
     asUser('owner@example.in');
     const { order } = stub();
-    await billing.billingService.startCheckout('u1', 'brief', 'annual', undefined, 0, ' DifAiTest ');
-    expect(order()).toMatchObject({ amount: 100, notes: { kind: 'plan', plan: 'brief', cycle: 'annual', coupon: 'test' } });
+    await billing.billingService.startCheckout('u1', 'advocate', 'annual', 0, ' DifAiTest ');
+    expect(order()).toMatchObject({ amount: 100, notes: { kind: 'plan', plan: 'advocate', cycle: 'annual', coupon: 'test' } });
   });
 
   it('and ₹1 for a Brief Pack', async () => {
@@ -72,7 +72,7 @@ describe('checkout with the test code', () => {
   it('the right code on anyone else\'s account is refused (400 invalid_coupon) and nothing is created', async () => {
     asUser('someone@else.in');
     const { fetchMock } = stub();
-    await expect(billing.billingService.startCheckout('u1', 'brief', 'monthly', undefined, 0, 'DIFAITEST'))
+    await expect(billing.billingService.startCheckout('u1', 'advocate', 'monthly', 0, 'DIFAITEST'))
       .rejects.toMatchObject({ status: 400, code: 'invalid_coupon' });
     await expect(billing.billingService.startPackCheckout('u1', 'pack_25', 'DIFAITEST')).rejects.toMatchObject({ code: 'invalid_coupon' });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -81,10 +81,10 @@ describe('checkout with the test code', () => {
   it('a wrong code is refused even for an allow-listed account; no code = normal price', async () => {
     asUser('owner@example.in');
     const { fetchMock, order } = stub();
-    await expect(billing.billingService.startCheckout('u1', 'sanad', 'monthly', undefined, 0, 'FREE100')).rejects.toMatchObject({ code: 'invalid_coupon' });
+    await expect(billing.billingService.startCheckout('u1', 'advocate', 'monthly', 0, 'FREE100')).rejects.toMatchObject({ code: 'invalid_coupon' });
     expect(fetchMock).not.toHaveBeenCalled();
-    await billing.billingService.startCheckout('u1', 'sanad', 'monthly');
-    expect(order().amount).toBe(19900);
+    await billing.billingService.startCheckout('u1', 'advocate', 'monthly');
+    expect(order().amount).toBe(82482); // pricing v5: ₹699 + 18% GST
     expect(order().notes.coupon).toBeUndefined();
   });
 
@@ -96,7 +96,7 @@ describe('checkout with the test code', () => {
       const fresh = await import('../billing.service');
       asUser('owner@example.in');
       const { fetchMock } = stub();
-      await expect(fresh.billingService.startCheckout('u1', 'sanad', 'monthly', undefined, 0, 'DIFAITEST')).rejects.toMatchObject({ code: 'invalid_coupon' });
+      await expect(fresh.billingService.startCheckout('u1', 'advocate', 'monthly', 0, 'DIFAITEST')).rejects.toMatchObject({ code: 'invalid_coupon' });
       expect(fetchMock).not.toHaveBeenCalled();
     } finally {
       process.env['BILLING_TEST_COUPON'] = saved;
@@ -114,7 +114,7 @@ describe('the ₹1 payment is applied like a real one, from our own order only',
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ id: 'order_TestCoupon01', amount: orderAmount, notes: orderNotes }), { status: 200 })));
     return billing.billingService.handleWebhook('evt_t', { event: 'payment.captured', payload: { payment: { entity: { id: 'pay_TestCoupon01', order_id: 'order_TestCoupon01', amount: paid } } } });
   };
-  const planNotes = { kind: 'plan', firm_id: '00000000-0000-0000-0000-0000000000f1', plan: 'brief', cycle: 'monthly', seats: '1', munshi: '0' };
+  const planNotes = { kind: 'plan', firm_id: '00000000-0000-0000-0000-0000000000f1', plan: 'advocate', pricing: 'v5', cycle: 'monthly', seats: '1', munshi: '0' };
 
   it('a ₹1 test order activates the plan (MRR 0, ₹1 invoice)', async () => {
     h.useFakeDb = true;
@@ -123,7 +123,10 @@ describe('the ₹1 payment is applied like a real one, from our own order only',
     const upd = h.calls.find((c) => /update firms set\s+plan_tier/.test(c.text))!;
     expect(upd).toBeDefined();
     expect(upd.values).toContain(0); // mrr_inr
-    expect(h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!.values.at(-1)).toBe(100);
+    const inv = h.calls.find((c) => c.text.includes('insert into subscription_invoices'))!;
+    expect(inv.values.at(-1)).toBe(100);
+    // pricing-v5 AC5: the ₹1 is backed out (₹0.85 taxable + ₹0.15 GST), not priced as ₹699.
+    expect(inv.values.slice(-5)).toEqual([85, 7, 8, 0, 100]);
   });
 
   it('₹1 paid on a normal (no-code) order applies nothing', async () => {

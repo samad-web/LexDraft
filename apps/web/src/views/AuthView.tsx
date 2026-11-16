@@ -20,7 +20,7 @@ import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
-import { CycleToggle, MunshiPicker, PlanCards, SeatPicker, SIGNUP_PLANS } from '@/components/PlanCards';
+import { CycleToggle, gstLine, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
@@ -41,8 +41,8 @@ type Audience = 'advocate' | 'chambers' | 'firm';
 /** Left-panel tabs: who DifAi is for, with the line shown under them. */
 const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
   { id: 'advocate', label: 'Advocate', tagline: 'Your hearings, drafts and matters in one app.' },
-  { id: 'chambers', label: 'Chambers', tagline: 'Two to eight advocates sharing matters, diary and drafts.' },
-  { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for your whole firm.' },
+  { id: 'chambers', label: 'Chambers', tagline: 'Up to three advocates sharing matters, diary and drafts.' },
+  { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for up to eight advocates, or more on Enterprise.' },
 ];
 
 
@@ -118,8 +118,7 @@ export function AuthView() {
   // Step 1 of sign-up: the plan, and (Free) whether advocate or student.
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const renewCheckout = useRenewCheckout();
-  const [renewPlan, setRenewPlan] = useState<PaidPlanId>('vakalat');
-  const [renewSeats, setRenewSeats] = useState(2);
+  const [renewPlan, setRenewPlan] = useState<PaidPlanId>('advocate');
   const [renewMunshi, setRenewMunshi] = useState(0);
   const renewChosen = SIGNUP_PLANS.find((p) => p.id === renewPlan)!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
@@ -171,8 +170,8 @@ export function AuthView() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
-  // Who is signing in (the left tabs follow the plans: advocate = Sanad /
-  // Vakalat / Brief, chambers = Associates for 2-8, firm = Partners for 9+).
+  // Who is signing in (the left tabs follow the plans: advocate = Advocate,
+  // chambers = Chambers for up to 3, firm = Firm for up to 8 / Enterprise 9+).
   // Changes the copy and the "new here" link: an advocate or chambers
   // account, or a talk-to-us enquiry for a firm. The pick pre-selects the
   // plan in onboarding.
@@ -197,7 +196,7 @@ export function AuthView() {
   const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
   const shownAudience: Audience = firmSide ? 'firm' : audience;
-  const freeLine = 'Plans from ₹199 a month, GST included';
+  const freeLine = 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     setMfaChallenge(null); setGoogleSignup(null); 
@@ -490,15 +489,15 @@ export function AuthView() {
                     onSelect={(id) => setRenewPlan(id as PaidPlanId)}
                     compact
                   />
-                  <SeatPicker plan={renewChosen} cycle={cycle} seats={renewSeats} min={2} onChange={setRenewSeats} />
                   <MunshiPicker plan={renewChosen} cycle={cycle} munshi={renewMunshi} min={0} onChange={setRenewMunshi} />
+                  <span style={{ fontSize: 13 }}>{gstLine(planTotal(renewChosen, cycle, renewMunshi))}</span>
                   {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
                   <button
                     type="button"
                     className="btn btn-primary btn-block"
                     disabled={renewCheckout.isPending}
                     onClick={() => renewCheckout.mutate(
-                      { renewToken, plan: renewPlan, cycle, munshi: renewMunshi, ...(renewPlan === 'associates' ? { seats: renewSeats } : {}) },
+                      { renewToken, plan: renewPlan, cycle, munshi: renewMunshi },
                     )}
                   >
                     {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}

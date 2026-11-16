@@ -7,7 +7,7 @@ import { InviteMemberModal } from '@/components/InviteMemberModal';
 interface MunshiMember { id: string; name: string; email: string; status: string }
 
 /**
- * "Your Munshi" on Plan & Billing for Sanad / Vakalat / Brief owners
+ * "Your Munshi" on Plan & Billing for Advocate plan owners
  * (features/solo-munshi.md): invite a Munshi into a paid Munshi seat, see
  * pending invitations, and remove a Munshi. The API only lets this owner
  * touch Munshi seats.

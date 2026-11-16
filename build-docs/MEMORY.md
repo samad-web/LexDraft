@@ -1,6 +1,16 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-16 — Pricing v5 built (features/pricing-v5.md). Owner:
+    - plans by team size, prices + 18% GST: Advocate ₹699 (1 advocate, 150 credits), Chambers ₹1,699 (up to 3, 350), Firm ₹3,699 (up to 8, 750), Enterprise quote (9+); yearly = 11 × monthly;
+    - Munshi ₹149 + GST (max 4); Brief Packs ₹429/849/1,699/4,249 + GST;
+    - credits set at the 30% full-use margin floor (₹2.5 a credit, ₹50 a seat, Razorpay 2.36% of the total);
+    - everyone moved now with paid-until kept (0113, local only; a paying Brief firm aborts it);
+    - analytics.firm on every plan (Solo + Practice tiers, Solo Advocate role; never Munshi);
+    - Enterprise credits via firms.credit_allowance (admin firm editor);
+    - Terms 1.2 (re-accept); refund rules reworded: Advocate not refundable, Chambers/Firm yearly 7 days if ≤10 credits;
+    - wording in AI credits, not pages.
+  Found: the seat-floor trigger gave Firm tier 9999 seats; 0113 sets the floor to 8.
 - 2026-11-16 — Translation priced at ½ credit per page (user; lib/credit-costs translateCredits). reviseCredits still charges 1/page though its comment says ½ (pre-existing; not changed).
 - 2026-11-16 — Regional languages (features/regional-languages.md), user decisions: 11 languages + English (Urdu later: RTL); built-in formats by AI translation + checks (not the word list); HC/SC blocked (English only). Built as one translate-last step for every draft so all checks stay on English; engine glossary no longer called. Testing only via Claude Code (user).
 - 2026-11-14 — Evidence tables part 2: format templates converted with tools/tableize_templates.py (run once; templates are hand-authored files). Tidy formats dates only in tables marked evidence-table (tblDescription), never in hand-laid court schedules (kept the 2026-10-26 decision). Local e2e login in apps/web/.env.e2e no longer signs in (Invalid credentials) - needs the user.

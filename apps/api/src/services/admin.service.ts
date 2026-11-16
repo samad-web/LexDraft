@@ -100,6 +100,7 @@ interface FirmRow {
   plan_status: FirmPlan['status'];
   mrr_inr: number;
   renews_at: Date | null;
+  credit_allowance: number | string | null;
   created_at: Date;
   case_count: number;
   seats_used: number;
@@ -179,6 +180,7 @@ function rowToFirmSummary(r: FirmRow): FirmSummary {
       status: r.plan_status,
       mrrInr: Number(r.mrr_inr ?? 0),
       renewsAt: r.renews_at ? r.renews_at.toISOString().slice(0, 10) : null,
+      creditAllowance: r.credit_allowance == null ? null : Number(r.credit_allowance),
     },
     createdAt: r.created_at.toISOString(),
   };
@@ -256,7 +258,7 @@ export const adminService = {
     if (!sql) return [];
     const rows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
-             f.mrr_inr, f.renews_at, f.created_at,
+             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f
@@ -270,7 +272,7 @@ export const adminService = {
     if (!sql) return null;
     const firmRows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
-             f.mrr_inr, f.renews_at, f.created_at,
+             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f where f.id = ${id}::uuid limit 1
@@ -486,7 +488,10 @@ export const adminService = {
         free_plan   = coalesce(${patch.freePlan ?? null}::boolean, free_plan),
         renews_at   = case when ${patch.renewsAt === undefined ? 1 : 0}::int = 1
                            then renews_at
-                           else ${patch.renewsAt ?? null}::date end
+                           else ${patch.renewsAt ?? null}::date end,
+        credit_allowance = case when ${patch.creditAllowance === undefined ? 1 : 0}::int = 1
+                           then credit_allowance
+                           else ${patch.creditAllowance ?? null}::numeric end
       where id = ${id}::uuid
     `;
     // Plan tier change → every user in the firm has a different feature set.
@@ -511,8 +516,8 @@ export const adminService = {
       actorUserId: actor.id, actorEmail: actor.email,
       action: 'firm.plan.update', targetType: 'firm', targetId: id, payload: patch,
     });
-    const rows = await sql<Array<Pick<FirmRow, 'plan_tier' | 'plan_status' | 'mrr_inr' | 'renews_at'>>>`
-      select plan_tier, plan_status, mrr_inr, renews_at from firms where id = ${id}::uuid limit 1
+    const rows = await sql<Array<Pick<FirmRow, 'plan_tier' | 'plan_status' | 'mrr_inr' | 'renews_at' | 'credit_allowance'>>>`
+      select plan_tier, plan_status, mrr_inr, renews_at, credit_allowance from firms where id = ${id}::uuid limit 1
     `;
     const r = rows[0];
     if (!r) throw new Error('Firm not found');
@@ -521,6 +526,7 @@ export const adminService = {
       status: r.plan_status,
       mrrInr: Number(r.mrr_inr ?? 0),
       renewsAt: r.renews_at ? r.renews_at.toISOString().slice(0, 10) : null,
+      creditAllowance: r.credit_allowance == null ? null : Number(r.credit_allowance),
     };
   },
 

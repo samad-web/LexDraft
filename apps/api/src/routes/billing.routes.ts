@@ -12,10 +12,8 @@ import { verifyRenewToken } from '../services/auth.service';
 export const billingRouter: Router = Router();
 
 const Checkout = z.object({
-  plan: z.enum(['sanad', 'vakalat', 'brief', 'associates']),
+  plan: z.enum(['advocate', 'chambers', 'law_firm']),
   cycle: z.enum(['monthly', 'annual']),
-  /** Associates only: advocates to pay for. */
-  seats: z.number().int().min(2).max(8).optional(),
   /** Munshi (clerk) seats to add. */
   munshi: z.number().int().min(0).max(4).optional(),
   /** Owner's ₹1 test code (only for allow-listed accounts). */
@@ -33,7 +31,7 @@ billingRouter.get('/', requireAuth, async (req, res, next) => {
 billingRouter.post('/checkout', requireAuth, async (req, res, next) => {
   try {
     const body = Checkout.parse(req.body);
-    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle, body.seats, body.munshi, body.coupon || undefined));
+    res.json(await billingService.startCheckout(req.user!.id, body.plan, body.cycle, body.munshi, body.coupon || undefined));
   } catch (err) {
     next(err);
   }
@@ -45,7 +43,7 @@ billingRouter.post('/renew-checkout', signInLimiter, async (req, res, next) => {
   try {
     const body = Checkout.extend({ renewToken: z.string().min(20).max(4096) }).strict().parse(req.body);
     const userId = verifyRenewToken(body.renewToken);
-    res.json(await billingService.startCheckout(userId, body.plan, body.cycle, body.seats, body.munshi));
+    res.json(await billingService.startCheckout(userId, body.plan, body.cycle, body.munshi));
   } catch (err) {
     next(err);
   }

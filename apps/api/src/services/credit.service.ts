@@ -38,21 +38,22 @@ export class CreditsExhaustedError extends HttpError {
 interface FirmRow {
   plan_tier: 'Solo' | 'Practice' | 'Firm' | null; plan_status: string | null; free_plan: boolean | null;
   selected_plan: string | null; seats: number | null; renews_at: Date | null; trial_ends_at: Date | null;
+  /** Enterprise / custom quote: monthly credits set by the superadmin (migration 0113). */
+  credit_allowance?: number | string | null;
 }
 
-/** Monthly credits for the firm's plan as it stands now (munshi seats get none). */
+/** Monthly credits for the firm's plan as it stands now (munshi seats get
+ *  none). One shared pool per firm, the same for every seat count. */
 export function allowanceFor(f: FirmRow, now = new Date()): number {
   if (f.free_plan) return now < FREE_PLAN_ENDS_AT ? FREE_LAUNCH_CREDITS : 0;
-  const seats = Math.max(1, f.seats ?? 1);
   if (f.plan_status === 'active') {
-    if (isPaidPlan(f.selected_plan)) {
-      const p = PLANS[f.selected_plan];
-      return p.pages * (p.perAdvocate ? seats : 1);
-    }
-    // Accounts from before pricing v4 (and custom Partners firms).
-    if (f.plan_tier === 'Solo') return PLANS.vakalat.pages;
-    if (f.plan_tier === 'Practice') return PLANS.associates.pages * seats;
-    if (f.plan_tier === 'Firm') return PLANS.brief.pages * seats;
+    // A custom quote (Enterprise) set by the superadmin wins over the plan.
+    if (f.credit_allowance != null) return Math.max(0, Number(f.credit_allowance));
+    if (isPaidPlan(f.selected_plan)) return PLANS[f.selected_plan].credits;
+    // Older plan ids and custom firms: the v5 plan of the same tier.
+    if (f.plan_tier === 'Solo') return PLANS.advocate.credits;
+    if (f.plan_tier === 'Practice') return PLANS.chambers.credits;
+    if (f.plan_tier === 'Firm') return PLANS.law_firm.credits;
     return 0;
   }
   // A pre-v4 14-day trial still running. A v4 sign-up that hasn't paid yet
@@ -89,8 +90,8 @@ export function cycleBounds(renewsAt: Date | null, now = new Date()): { start: D
 
 async function loadFirm(q: Tx, firmId: string, lock = false): Promise<FirmRow | null> {
   const [f] = lock
-    ? await q<FirmRow[]>`select plan_tier, plan_status, free_plan, selected_plan, seats, renews_at, trial_ends_at from firms where id = ${firmId}::uuid for update`
-    : await q<FirmRow[]>`select plan_tier, plan_status, free_plan, selected_plan, seats, renews_at, trial_ends_at from firms where id = ${firmId}::uuid`;
+    ? await q<FirmRow[]>`select plan_tier, plan_status, free_plan, selected_plan, seats, renews_at, trial_ends_at, credit_allowance from firms where id = ${firmId}::uuid for update`
+    : await q<FirmRow[]>`select plan_tier, plan_status, free_plan, selected_plan, seats, renews_at, trial_ends_at, credit_allowance from firms where id = ${firmId}::uuid`;
   return f ?? null;
 }
 

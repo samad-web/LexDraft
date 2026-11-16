@@ -426,3 +426,35 @@
 
 ## efiling-fit (2026-11-14)
 - efiling-login-width.test.ts (2 tests): no width cap or centring on the sign-in card; eFiling wrappers uncapped. Web 303 passed, tsc clean.
+
+## pricing-v5 (2026-11-16)
+- **API unit, `pricing-v5.test.ts`** (replaces pricing-v4.test), 50 tests:
+    - AC1 catalogue + web mirror + packs;
+    - AC2 every plan × cycle × Munshi 0–4 = ex-GST × 118 paise;
+    - AC3 the webhook applies plan / tier / fixed seats from our own order; a wrong amount applies nothing;
+    - AC4 invoice taxable = the price, CGST+SGST (TN) / IGST, pack ₹429; splitTax refuses a mismatch;
+    - AC6 credits 150/350/750 for any seat count;
+    - AC7 invite caps 1/3/8;
+    - AC8 smaller plan refused;
+    - AC11 v4 order or pack paid after the switch is honoured; a v4 order at a v5 amount is refused;
+    - AC12 old names and the invoice label;
+    - AC16 Enterprise override;
+    - AC17 analytics fallback + migration grants;
+    - onboarding (Advocate / Chambers / Firm tier, Managing Partner, payment window, interim free).
+- **API integration, `pricing-v5.integration.test.ts`** (local PG16), 12 tests:
+    - AC9 the 0113 mapping for every v4 plan / seat count: paid-until, cycle, Munshi and MRR ex-GST kept; the grant is raised, not doubled; idempotent; v5, free and pre-v4 rows untouched;
+    - AC10 a paying Brief firm aborts with no change;
+    - AC17 the Solo owner and Chambers owner have analytics, a Munshi doesn't;
+    - AC16 credit_allowance.
+- **Failure found:** the seat-floor trigger set Firm-tier firms to 9999 seats (Firm plan unlimited). Fixed in 0113 (Firm floor 8). Re-ran: green.
+- **Updated, because they encoded superseded owner decisions:**
+    - the Solo-no-analytics assertions in permissions.test, rbac-routes.test and associates-dashboard.integration;
+    - v4 prices and ids in razorpay-billing, test-coupon (₹1 invoice now asserts ₹0.85 + ₹0.15), brief-packs, manual-renewal, billing, ai-credits and credits.integration;
+    - the web policy-pages refund wording;
+    - the seo.test pricing block (AC13: no "GST included" / v4 names).
+- **Results:**
+    - API unit 1089 passed, 4 skipped; only share-links.test fails (known: needs apps/api/.env);
+    - API integration 97 passed; only the known migrations 0042 idempotency and auth "role=group Practice-tier" fail;
+    - web 331 passed (incl. 174 SEO);
+    - tsc clean for API and web.
+- 0113 applied to the local dev DB (no v4 rows there).

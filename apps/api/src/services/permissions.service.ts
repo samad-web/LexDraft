@@ -129,7 +129,8 @@ const MUNSHI_NO_AI: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['matter.intel
 function demoFallbackFor(roleText: string): FeatureKey[] {
   switch (roleText) {
     case 'Solo Advocate':
-      return [...SOLO_FEATURES];
+      // Analytics on every plan (pricing v5, migration 0113).
+      return [...SOLO_FEATURES, 'analytics.firm', 'reports.activity'];
     case 'Practice Lead':
     case 'Practice Group Lead':
     case 'Partner':

@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { PAGES, V4, V4_LIVE, buildPages, offerFor } from './pages.mjs';
+import { PAGES, V5, PRICING_LIVE, buildPages, offerFor } from './pages.mjs';
 import { ORIGIN, render404, renderLlms, renderPage, renderSitemap, schemaFor } from './render.mjs';
 
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
@@ -44,39 +44,43 @@ describe('CTR rules for every page (drafts too, so they are ready to publish)', 
   }
 });
 
-describe('pricing v4 switch', () => {
+describe('pricing v5 (pricing-v5.md)', () => {
   const plansTs = read('../api/src/lib/plans.ts');
   const apiPlan = (id) => {
-    const m = plansTs.match(new RegExp(`${id}:\\s*\\{[^}]*monthlyInr:\\s*(\\d+),\\s*annualInr:\\s*(\\d+),\\s*pages:\\s*(\\d+)`));
-    return { monthly: +m[1], yearly: +m[2], pages: +m[3] };
+    const m = plansTs.match(new RegExp(`${id}:\\s*\\{[^}]*monthlyInr:\\s*(\\d+),\\s*annualInr:\\s*(\\d+),\\s*credits:\\s*(\\d+),\\s*seats:\\s*(\\d+)`));
+    return { monthly: +m[1], yearly: +m[2], credits: +m[3], seats: +m[4] };
   };
-  for (const id of ['sanad', 'vakalat', 'brief', 'associates']) {
-    it(`${id} price and pages match apps/api/src/lib/plans.ts`, () => {
-      expect(apiPlan(id)).toEqual({ monthly: V4[id].monthly, yearly: V4[id].yearly, pages: V4[id].pages });
+  for (const id of ['advocate', 'chambers', 'law_firm']) {
+    it(`${id} price, credits and seats match apps/api/src/lib/plans.ts`, () => {
+      const { name: _n, ...v } = V5[id];
+      expect(apiPlan(id)).toEqual(v);
     });
   }
-  it('Munshi seat and Associates seat range match plans.ts', () => {
+  it('Munshi seat matches plans.ts', () => {
     const m = plansTs.match(/MUNSHI = \{ monthlyInr: (\d+), annualInr: (\d+)/);
-    expect([+m[1], +m[2]]).toEqual([V4.munshi.monthly, V4.munshi.yearly]);
-    expect(plansTs).toContain(`perAdvocate: { min: ${V4.associates.min}, max: ${V4.associates.max} }`);
+    expect([+m[1], +m[2]]).toEqual([V5.munshi.monthly, V5.munshi.yearly]);
   });
-  it('/pricing is published exactly when v4 is live', () => {
+  it('/pricing is published exactly when paid pricing is live', () => {
     expect(buildPages(false).find((p) => p.slug === 'pricing').draft).toBe(true);
     expect(buildPages(true).find((p) => p.slug === 'pricing').draft).toBe(false);
-    expect(PAGES.find((p) => p.slug === 'pricing').draft).toBe(!V4_LIVE);
+    expect(PAGES.find((p) => p.slug === 'pricing').draft).toBe(!PRICING_LIVE);
   });
-  it('after v4 no page promises the old free plan or a firm trial to new sign-ups', () => {
+  it('AC13 no page says prices include GST, and no old v4 plan is advertised', () => {
+    const text = JSON.stringify(buildPages(true)) + JSON.stringify(offerFor(true));
+    expect(text).not.toMatch(/GST included|incl\. GST|includes? 18% GST|\bSanad\b|\bAssociates\b|\bPartners\b/);
+  });
+  it('after paid pricing no page promises the old free plan or a firm trial to new sign-ups', () => {
     const text = JSON.stringify(buildPages(true)) + JSON.stringify(offerFor(true));
     expect(text).not.toMatch(/Free for solo advocates|14-day|free trial/i);
   });
-  it('pricing page shows every price, GST-inclusive, and makes no unconfirmed Partners claims', () => {
+  it('pricing page shows every price + GST and makes no unconfirmed Enterprise claims', () => {
     const html = renderPage(buildPages(true).find((p) => p.slug === 'pricing'), published);
     const inr = (n) => `\u20b9${n.toLocaleString('en-IN')}`;
-    for (const k of Object.keys(V4)) {
-      expect(html).toContain(inr(V4[k].monthly));
-      expect(html).toContain(inr(V4[k].yearly));
+    for (const k of Object.keys(V5)) {
+      expect(html).toContain(inr(V5[k].monthly));
+      expect(html).toContain(inr(V5[k].yearly));
     }
-    expect(html).toContain('include 18% GST');
+    expect(html).toContain('18% GST is added at checkout');
     expect(html).not.toMatch(/\bSSO\b|audit log|success manager|\bSLA\b/i);
   });
 });

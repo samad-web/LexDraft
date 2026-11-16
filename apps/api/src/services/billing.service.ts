@@ -7,7 +7,10 @@ import { db } from '../db/client';
 import { env } from '../env';
 import { logger } from '../logger';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
-import { BRIEF_PACK_DAYS, BRIEF_PACKS, isBriefPack, isPaidPlan, MUNSHI, MUNSHI_ROLES, monthlyValueInr, periodPriceInr, planLabel, PLANS } from '../lib/plans';
+import {
+  BRIEF_PACK_DAYS, BRIEF_PACKS, isBriefPack, isPaidPlan, isV4Plan, MUNSHI, MUNSHI_ROLES, monthlyValueInr, periodPriceInr,
+  PLANS, V4_PACK_PRICES, v4ChargePaise, v5PlanFor, withGstPaise,
+} from '../lib/plans';
 import { creditService } from './credit.service';
 import { BadRequestError, ForbiddenError, HttpError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { invalidatePlanStatusCache } from './plan-status.service';
@@ -36,73 +39,65 @@ if (env.razorpay.testKeyInProd) {
   logger.error('RAZORPAY_KEY_ID is a test key in production: online payment stays OFF');
 }
 
-const GST_NOTE = 'Incl. GST · billed monthly or yearly';
+const GST_NOTE = '+ 18% GST · billed monthly or yearly';
 const MUNSHI_OFFER = { monthlyInr: MUNSHI.monthlyInr, annualInr: MUNSHI.annualInr, max: MUNSHI.max };
 
-/** The v4 plans on sale (lib/plans.ts). The free launch plan is not sold: only
+/** The v5 plans on sale (lib/plans.ts). The free launch plan is not sold: only
  *  accounts that already have it keep it (firms.free_launch). */
 export function billingPlans(): BillingPlan[] {
   const can = paymentsEnabled();
-  const paid = (id: PaidPlanId, extra: Pick<BillingPlan, 'for' | 'meaning' | 'note' | 'features'> & Partial<BillingPlan>): BillingPlan => ({
-    id, name: PLANS[id].name, monthlyInr: PLANS[id].monthlyInr, annualInr: PLANS[id].annualInr,
-    purchasable: can, pagesPerMonth: PLANS[id].pages, gst: 'inclusive', munshi: MUNSHI_OFFER, ...extra,
+  const paid = (id: PaidPlanId, extra: Pick<BillingPlan, 'for' | 'meaning' | 'features'>): BillingPlan => ({
+    id, name: PLANS[id].name, monthlyInr: PLANS[id].monthlyInr, annualInr: PLANS[id].annualInr, note: GST_NOTE,
+    purchasable: can, pagesPerMonth: PLANS[id].credits, advocates: PLANS[id].seats, gst: 'exclusive', munshi: MUNSHI_OFFER, ...extra,
   });
   return [
-    paid('sanad', {
-      for: 'Starting out · the full app with some drafting',
-      meaning: 'Sanad: the enrolment certificate every advocate gets from the Bar Council.',
-      note: GST_NOTE,
-      features: [`${PLANS.sanad.pages} pages of AI drafting a month`, 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', `Add a Munshi seat for ₹${MUNSHI.monthlyInr}/month`],
+    paid('advocate', {
+      for: 'One advocate · the full app with AI drafting',
+      meaning: 'For an advocate practising on their own.',
+      features: [`${PLANS.advocate.credits} AI credits a month (1 credit = one 400-word page)`, 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Firm analytics', `Add a Munshi seat for ₹${MUNSHI.monthlyInr} + GST a month`],
     }),
-    paid('vakalat', {
-      for: 'A practising advocate taking cases',
-      meaning: 'Vakalat: the vakalatnama a client signs so you can act in the case.',
-      note: GST_NOTE,
-      features: [`${PLANS.vakalat.pages} pages of AI drafting a month`, 'Everything in Sanad'],
+    paid('chambers', {
+      for: `Up to ${PLANS.chambers.seats} advocates`,
+      meaning: 'For a chamber: a senior with a few advocates working together.',
+      features: [`${PLANS.chambers.credits} AI credits a month, shared`, 'Everything in Advocate', 'Roles and permissions', 'Firm dashboard and team chat'],
     }),
-    paid('brief', {
-      for: 'Heavy drafting · lowest price per page',
-      meaning: 'Brief: a case handed to an advocate. Many briefs, a busy practice.',
-      note: GST_NOTE,
-      features: [`${PLANS.brief.pages} pages of AI drafting a month`, 'Everything in Vakalat'],
-    }),
-    paid('associates', {
-      for: 'Chambers with 2 to 8 advocates',
-      meaning: 'Associates: as in "X & Associates", advocates working together.',
-      note: 'Per advocate · incl. GST · 2 to 8 advocates',
-      features: [`${PLANS.associates.pages} pages per advocate a month, shared`, 'Everything in Vakalat', 'Roles and permissions', 'Firm dashboard and team chat'],
-      seats: PLANS.associates.perAdvocate,
+    paid('law_firm', {
+      for: `Up to ${PLANS.law_firm.seats} advocates`,
+      meaning: 'For a law firm with several advocates.',
+      features: [`${PLANS.law_firm.credits} AI credits a month, shared`, 'Everything in Chambers', 'Audit logs'],
     }),
     {
-      id: 'partners', name: 'Partners', for: 'Nine advocates and above',
-      meaning: 'Partners: the partners of a larger firm.',
-      monthlyInr: null, annualInr: null, note: 'Custom pricing · book a demo',
-      features: ['Unlimited seats', 'Audit logs and firm analytics', 'Dedicated success manager', 'Bespoke integrations'],
-      purchasable: false, pagesPerMonth: null, gst: null,
+      id: 'enterprise', name: 'Enterprise', for: 'Nine advocates and above',
+      meaning: 'For larger firms: seats and AI credits set to your size.',
+      monthlyInr: null, annualInr: null, note: 'Custom quote · talk to us',
+      features: ['Seats and AI credits set for your firm', 'Everything in Firm', 'Dedicated success manager'],
+      purchasable: false, pagesPerMonth: null, advocates: null, gst: null,
     },
   ];
 }
 
-/** Rupees a month for MRR (yearly spread over 12). */
-export function mrrFor(plan: PaidPlanId, cycle: BillingCycle, seats = 1, munshi = 0): number {
-  return monthlyValueInr(plan, cycle, seats, munshi);
+/** Rupees a month for MRR (yearly spread over 12), GST excluded. */
+export function mrrFor(plan: PaidPlanId, cycle: BillingCycle, munshi = 0): number {
+  return monthlyValueInr(plan, cycle, munshi);
 }
 
-/** What Razorpay charges per billing period, in paise. Every v4 price includes GST. */
-export function chargePaise(plan: PaidPlanId, cycle: BillingCycle, seats: number, munshi = 0): number {
-  return periodPriceInr(plan, cycle, seats, munshi) * 100;
+/** What Razorpay charges per billing period, in paise: the price + 18% GST. */
+export function chargePaise(plan: PaidPlanId, cycle: BillingCycle, munshi = 0): number {
+  return withGstPaise(periodPriceInr(plan, cycle, munshi));
 }
 
 async function logEvent(e: {
   firmId: string; userId?: string | null; kind: BillingEventKind; plan?: string | null;
-  cycle?: string | null; amountInr?: number | null; providerRef?: string | null; webhookId?: string | null;
+  cycle?: string | null; amountPaise?: number | null; providerRef?: string | null; webhookId?: string | null;
 }): Promise<void> {
   const sql = db();
   if (!sql) return;
+  // amount_paise is the exact amount charged (₹824.82); amount_inr stays whole rupees for old readers.
+  const paise = e.amountPaise ?? null;
   await sql`
-    insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, provider, provider_ref, webhook_id)
+    insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, amount_paise, provider, provider_ref, webhook_id)
     values (${e.firmId}::uuid, ${e.userId ?? null}, ${e.kind}, ${e.plan ?? null}, ${e.cycle ?? null},
-            ${e.amountInr ?? null}, 'razorpay', ${e.providerRef ?? null}, ${e.webhookId ?? null})
+            ${paise == null ? null : Math.round(paise / 100)}, ${paise}, 'razorpay', ${e.providerRef ?? null}, ${e.webhookId ?? null})
   `;
 }
 
@@ -215,7 +210,8 @@ export function addPeriod(from: Date, cycle: BillingCycle): Date {
 
 /**
  * A paid plan period (one-time order). Exactly once per payment, only for the
- * exact price of what our own order says was bought.
+ * exact price of what our own order says was bought. A v4 order (opened before
+ * pricing v5) is honoured at its v4 price and applied as the v5 plan it maps to.
  *  - Same plan (and seats) still active: the new period is added after the
  *    current end, so paying early never loses days.
  *  - A different plan, or nothing active: it starts now. Days left on a
@@ -225,16 +221,23 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
   const sql = db();
   if (!sql) return;
   const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
-  const plan = notes.plan;
+  const ordered = notes.plan;
   const cycle = notes.cycle === 'annual' ? 'annual' : notes.cycle === 'monthly' ? 'monthly' : null;
-  const seats = Number(notes.seats);
+  const orderedSeats = Number(notes.seats ?? 1);
   const munshi = Number(notes.munshi ?? 0);
-  if (!firmId || !isPaidPlan(plan) || !cycle || !Number.isInteger(seats) || seats < 1 || !Number.isInteger(munshi) || munshi < 0) {
+  const v4 = !isPaidPlan(ordered) && isV4Plan(ordered);
+  if (!firmId || (!isPaidPlan(ordered) && !v4) || !cycle || !Number.isInteger(orderedSeats) || orderedSeats < 1
+    || !Number.isInteger(munshi) || munshi < 0 || munshi > MUNSHI.max) {
     logger.error({ paymentId: payment.id, notes }, 'plan payment: unreadable order notes, NOT applied');
     return;
   }
+  const plan: PaidPlanId = v4 ? v5PlanFor(ordered as string, orderedSeats) : (ordered as PaidPlanId);
+  const seats = PLANS[plan].seats;
   const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
-  const want = test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, seats, munshi);
+  const want = test ? TEST_PRICE_PAISE : v4 ? v4ChargePaise(ordered as string, cycle, orderedSeats, munshi) : chargePaise(plan, cycle, munshi);
+  // Taxable value for the invoice: the ex-GST price. v4 prices included GST, so
+  // those (and the ₹1 test) are backed out of the total instead.
+  const taxablePaise = test || v4 ? undefined : periodPriceInr(plan, cycle, munshi) * 100;
   if (Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, plan, amount: payment.amount }, 'plan payment: amount does not match the plan, NOT applied');
     return;
@@ -262,20 +265,21 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
         renews_at = ${end},
         billing_cycle = ${cycle},
         selected_plan = ${plan},
-        mrr_inr = ${test ? 0 : mrrFor(plan, cycle, seats, munshi)},
+        mrr_inr = ${test ? 0 : v4 ? Math.round(want / 118 / (cycle === 'annual' ? 12 : 1)) : mrrFor(plan, cycle, munshi)},
         seats = ${seats},
         munshi_seats = ${munshi},
+        credit_allowance = null,
         razorpay_subscription_id = null
       where id = ${firmId}::uuid`;
     const kind: BillingEventKind = !active ? 'subscription_active' : same ? 'renewed' : 'plan_changed';
     await tx`
-      insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, provider, provider_ref, webhook_id)
-      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${test ? 1 : periodPriceInr(plan, cycle, seats, munshi)}, 'razorpay', ${payment.id}, ${eventId})`;
+      insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, amount_paise, provider, provider_ref, webhook_id)
+      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${Math.round(want / 100)}, ${want}, 'razorpay', ${payment.id}, ${eventId})`;
     return { start, end };
   });
   // The invoice is idempotent on the payment id: safe on a redelivery too.
   await subscriptionInvoiceService.issueForPayment({
-    firmId, paymentId: payment.id, amountPaise: want, subscriptionId: null,
+    firmId, paymentId: payment.id, amountPaise: want, taxablePaise, subscriptionId: null,
     plan, cycle, seats, munshi, periodStart: applied?.start ?? null, periodEnd: applied?.end ?? null,
   });
   if (applied) {
@@ -289,7 +293,9 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
   if (!isBriefPack(pack) || !firmId) return; // not one of ours
   const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
-  const want = test ? TEST_PRICE_PAISE : BRIEF_PACKS[pack].priceInr * 100;
+  // Orders from before pricing v5 carry no `pricing` note and the v4 GST-inclusive price.
+  const v4 = !test && notes.pricing !== 'v5';
+  const want = test ? TEST_PRICE_PAISE : v4 ? V4_PACK_PRICES[pack] * 100 : withGstPaise(BRIEF_PACKS[pack].priceInr);
   if (Number(payment.amount) !== want || orderAmount !== want) {
     logger.error({ paymentId: payment.id, pack, amount: payment.amount }, 'brief pack: amount does not match the pack, NOT granted');
     return;
@@ -300,11 +306,12 @@ async function grantBriefPack(eventId: string, payment: { id: string; amount?: u
   });
   await subscriptionInvoiceService.issueForPayment({
     firmId, paymentId: payment.id, amountPaise: want, subscriptionId: null,
+    taxablePaise: test || v4 ? undefined : BRIEF_PACKS[pack].priceInr * 100,
     plan: pack, cycle: 'one-time', seats: 0, periodStart: null, periodEnd: null,
   });
   if (granted) {
     const userId = typeof notes.user_id === 'string' ? notes.user_id : null;
-    await logEvent({ firmId, userId, kind: 'pack_bought', plan: pack, cycle: 'one-time', amountInr: test ? 1 : BRIEF_PACKS[pack].priceInr, providerRef: payment.id, webhookId: eventId });
+    await logEvent({ firmId, userId, kind: 'pack_bought', plan: pack, cycle: 'one-time', amountPaise: want, providerRef: payment.id, webhookId: eventId });
   }
 }
 
@@ -334,18 +341,14 @@ export const billingService = {
   },
 
   /**
-   * Creates a Razorpay subscription for the user's firm and returns the page
-   * that opens Razorpay Checkout for it. Associates takes `seats` (advocates,
-   * 2-8); any plan takes `munshi` clerk seats (0-4). A firm already paying on
-   * another plan gets the new plan from its next renewal: the old subscription
-   * is cancelled at cycle end once the new one is authorised.
+   * Creates a one-time Razorpay order for one period of the plan (price + 18%
+   * GST) and returns the page that opens Razorpay Checkout for it. The plan's
+   * advocate seats are fixed (1 / 3 / 8); any plan takes `munshi` clerk seats
+   * (0-4). Nothing renews automatically (manual-renewal.md).
    */
-  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle, seats?: number, munshi = 0, coupon?: string): Promise<{ checkoutUrl: string }> {
-    const per = PLANS[plan].perAdvocate;
-    const wanted = per ? (seats ?? per.min) : 1;
-    if (per && (!Number.isInteger(wanted) || wanted < per.min || wanted > per.max)) {
-      throw new BadRequestError(`Choose between ${per.min} and ${per.max} advocates.`, { code: 'invalid_seats' });
-    }
+  async startCheckout(userId: string, plan: PaidPlanId, cycle: BillingCycle, munshi = 0, coupon?: string): Promise<{ checkoutUrl: string }> {
+    if (!isPaidPlan(plan)) throw new BadRequestError('Unknown plan.', { code: 'invalid_plan' });
+    const wanted = PLANS[plan].seats;
     if (!Number.isInteger(munshi) || munshi < 0 || munshi > MUNSHI.max) {
       throw new BadRequestError(`Choose up to ${MUNSHI.max} Munshi seats.`, { code: 'invalid_munshi' });
     }
@@ -364,9 +367,7 @@ export const billingService = {
       const short = u.members - wanted;
       throw new BadRequestError(
         advocateMembers > wanted
-          ? per
-            ? `Your practice has ${advocateMembers} advocates and pending invitations. Choose at least ${advocateMembers} advocates, or remove members first.`
-            : `${PLANS[plan].name} is for one advocate, and your practice has ${advocateMembers}. Choose Associates, or remove members first.`
+          ? `${PLANS[plan].name} is for ${wanted === 1 ? 'one advocate' : `up to ${wanted} advocates`}, and your practice has ${advocateMembers} (with pending invitations). Choose a bigger plan, or remove members first.`
           : `Your practice has ${u.munshi_members} Munshi${u.munshi_members === 1 ? '' : 's'} (clerks). Add ${short} Munshi seat${short === 1 ? '' : 's'}, or remove members first.`,
         { code: 'seats_below_members' },
       );
@@ -376,17 +377,17 @@ export const billingService = {
     // payment.captured webhook (applyPlanPayment).
     const test = testCouponFor(u.email, coupon);
     const order = await razorpay<{ id: string }>('POST', '/orders', {
-      amount: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, wanted, munshi),
+      amount: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, munshi),
       currency: 'INR',
       receipt: `plan-${crypto.randomUUID().slice(0, 30)}`,
       notes: {
-        kind: 'plan', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi),
+        kind: 'plan', pricing: 'v5', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi),
         ...(test ? { coupon: 'test' } : {}),
       },
     });
     await logEvent({
       firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle,
-      amountInr: test ? 1 : periodPriceInr(plan, cycle, wanted, munshi), providerRef: order.id,
+      amountPaise: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, munshi), providerRef: order.id,
     });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },
@@ -406,12 +407,12 @@ export const billingService = {
     const p = BRIEF_PACKS[pack];
     const test = testCouponFor(u.email, coupon);
     const order = await razorpay<{ id: string }>('POST', '/orders', {
-      amount: test ? TEST_PRICE_PAISE : p.priceInr * 100,
+      amount: test ? TEST_PRICE_PAISE : withGstPaise(p.priceInr),
       currency: 'INR',
       receipt: `pack-${crypto.randomUUID().slice(0, 30)}`,
-      notes: { firm_id: u.firm_id, user_id: u.user_id, pack, ...(test ? { coupon: 'test' } : {}) },
+      notes: { pricing: 'v5', firm_id: u.firm_id, user_id: u.user_id, pack, ...(test ? { coupon: 'test' } : {}) },
     });
-    await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan: pack, cycle: 'one-time', amountInr: test ? 1 : p.priceInr, providerRef: order.id });
+    await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan: pack, cycle: 'one-time', amountPaise: test ? TEST_PRICE_PAISE : withGstPaise(p.priceInr), providerRef: order.id });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },
 
@@ -543,11 +544,12 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     if (sub.plan_id) {
       const [p] = await sql<{ plan: string; cycle: BillingCycle; seats: number; munshi_seats: number | null }[]>`
         select plan, cycle, seats, munshi_seats from razorpay_plans where razorpay_plan_id = ${sub.plan_id}`;
-      // Pre-v4 test plans (solo / practice) are never sold again: treated as unknown.
-      if (p && isPaidPlan(p.plan)) {
-        plan = p.plan;
+      // Subscriptions are no longer sold. A v4 one still charging applies as
+      // the v5 plan it maps to; pre-v4 (solo / practice) is treated as unknown.
+      if (p && (isPaidPlan(p.plan) || isV4Plan(p.plan))) {
+        plan = isPaidPlan(p.plan) ? p.plan : v5PlanFor(p.plan, p.seats);
         cycle = p.cycle;
-        seats = p.seats;
+        seats = PLANS[plan].seats;
         munshi = p.munshi_seats ?? 0;
       }
     }
@@ -621,7 +623,7 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
             renews_at = ${periodEnd},
             billing_cycle = ${cycle},
             selected_plan = ${plan},
-            mrr_inr = ${mrrFor(plan, cycle, seats, munshi)},
+            mrr_inr = ${mrrFor(plan, cycle, munshi)},
             seats = ${seats},
             munshi_seats = ${munshi},
             razorpay_subscription_id = ${subscriptionId},
@@ -644,7 +646,7 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
         if (type === 'subscription.charged' && (sub.paid_count ?? 0) <= 1) break;
         const kind: BillingEventKind = type === 'subscription.charged' ? 'renewed'
           : typeof notes.replaces === 'string' ? 'plan_changed' : 'subscription_active';
-        await logEvent({ ...base, kind, amountInr: periodPriceInr(plan, cycle, seats, munshi) });
+        await logEvent({ ...base, kind, amountPaise: chargePaise(plan, cycle, munshi) });
         break;
       }
       case 'subscription.pending':
@@ -724,7 +726,7 @@ else { document.getElementById('m').textContent = 'The payment page could not lo
     const [paying] = await sql<{ n: number; mrr: number }[]>`
       select count(*)::int n, coalesce(sum(mrr_inr), 0)::int mrr
       from firms where plan_status = 'active' and not coalesce(free_plan, false)
-        and selected_plan in ('sanad', 'vakalat', 'brief', 'associates')`;
+        and selected_plan in ('advocate', 'chambers', 'law_firm', 'sanad', 'vakalat', 'brief', 'associates')`;
     const [trials] = await sql<{ n: number }[]>`
       select count(*)::int n from firms
       where plan_status = 'trial' and not coalesce(free_plan, false)

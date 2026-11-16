@@ -888,7 +888,7 @@ export const authService = {
       planTierForSignUpRole(input.role),
       input.intent ?? 'trial',
     );
-    const plan = input.plan ?? (input.role === 'group' ? 'associates' : 'sanad');
+    const plan = input.plan ?? (input.role === 'group' ? 'chambers' : input.role === 'firm' ? 'law_firm' : 'advocate');
     await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
       .catch(() => undefined);
     await recordTermsAcceptance(user, meta);

@@ -18,8 +18,9 @@ describe('Associates plan: firm dashboard', () => {
     expect(await has(owner.id, 'firm.dashboard.view')).toBe(true);
     expect(await has(associate.id, 'firm.dashboard.view')).toBe(false);
     expect(await has(munshi.id, 'firm.dashboard.view')).toBe(false);
-    // Firm-only analytics stays on Partners.
-    expect(await has(owner.id, 'analytics.firm')).toBe(false);
+    // Pricing v5 (0113): analytics on every plan, for the owner; never a Munshi.
+    expect(await has(owner.id, 'analytics.firm')).toBe(true);
+    expect(await has(munshi.id, 'analytics.firm')).toBe(false);
   });
 
   it('Solo plans (Sanad/Vakalat/Brief) still have no firm dashboard', async () => {

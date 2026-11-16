@@ -167,7 +167,7 @@ export function TermsView() {
       <p>You must not: use DifAi for unlawful purposes or to prepare fraudulent, forged, or misleading documents; upload malware; attempt to access other accounts, systems or data or probe or test our security without written permission; scrape, copy, resell, sub-license or reverse engineer the Service; use the Service or Output to build or train a competing product; share your account outside your licensed seats; use automated means to overload the Service; or use eCourts or other third-party data obtained through DifAi in breach of the source&rsquo;s terms.</p>
 
       <H3>6. Plans and fees</H3>
-      <p>6.1 Paid plans and AI credit top-ups are sold at the prices shown on our pricing page and at checkout, in Indian rupees and inclusive of GST unless stated otherwise. We issue a GST tax invoice for every payment.</p>
+      <p>6.1 Paid plans and AI credit top-ups are sold at the prices shown on our pricing page and at checkout, in Indian rupees and exclusive of GST: 18% GST is added at checkout. We issue a GST tax invoice for every payment.</p>
       <p>6.2 Payments are processed by our payment partner, Razorpay. We do not store full card, bank or UPI credentials.</p>
       <p>6.3 Renewal, cancellation and refunds are governed by the Subscription Policy (<a href="#part-e" style={linkStyle}>Part E</a>).</p>
       <p>6.4 We may suspend paid features for non-payment after 7 days&rsquo; notice.</p>
@@ -248,11 +248,11 @@ export function TermsView() {
       <Part id="part-e">Part E: Subscription, Refund and Cancellation Policy</Part>
 
       <H3>1. Plans</H3>
-      <p>The plans, what each includes (such as page credits and seats) and their prices are shown on our pricing page and at checkout. We do not charge you unless you choose a paid plan and authorise the payment.</p>
+      <p>The plans, what each includes (such as AI credits a month and seats; 1 credit = one 400-word drafted page) and their prices are shown on our pricing page and at checkout. We do not charge you unless you choose a paid plan and authorise the payment.</p>
 
       <H3>2. Billing and renewal</H3>
       <ul>
-        <li>Paid plans are paid in advance in INR, for one month or one year at a time, as you choose. Prices include GST, which is shown separately on your tax invoice.</li>
+        <li>Paid plans are paid in advance in INR, for one month or one year at a time, as you choose. Prices are exclusive of GST; 18% GST is added at checkout and shown separately on your tax invoice.</li>
         <li>Nothing renews or is charged automatically. Before your paid period ends we remind you in the app; to continue, you pay for the next period yourself. Paying again for the same plan adds the new period after the current one ends.</li>
         <li>Choosing a different plan starts it on the day you pay; days left on your previous plan are not carried over.</li>
         <li>Price changes apply to periods bought after at least 30 days&rsquo; notice.</li>
@@ -263,8 +263,8 @@ export function TermsView() {
 
       <H3>4. Refunds</H3>
       <ul>
-        <li><strong>Sanad and Vakalat</strong> (monthly or yearly): not refundable.</li>
-        <li><strong>Brief and Associates, yearly:</strong> full refund if requested within 7 days of the payment, provided no more than 10 AI credits were used since. Monthly: not refundable.</li>
+        <li><strong>Advocate</strong> (monthly or yearly): not refundable.</li>
+        <li><strong>Chambers and Firm, yearly:</strong> full refund if requested within 7 days of the payment, provided no more than 10 AI credits were used since. Monthly: not refundable.</li>
         <li><strong>Munshi seats</strong> follow the plan they were bought with.</li>
         <li><strong>Brief Packs (AI credit top-ups):</strong> refundable if requested within 7 days of purchase and none of the pack&rsquo;s credits have been used.</li>
         <li><strong>Our failure:</strong> if the Service is unavailable for more than 72 consecutive hours in a billing period for reasons within our control, we will credit or refund the affected portion.</li>
@@ -528,7 +528,7 @@ export function RefundPolicyView() {
     <LegalPage title="Refund and Cancellation Policy" updated={`Version ${LEGAL_VERSION} · Effective ${LEGAL_EFFECTIVE}`}>
       <p>
         This policy covers payments to {OPERATOR.name} (GSTIN {OPERATOR.gstin}) for DifAi plans, Munshi seats and
-        Brief Packs, paid through Razorpay. All prices include 18% GST. It forms part of our {toTerms} (Part E).
+        Brief Packs, paid through Razorpay. Prices are exclusive of GST; 18% GST is added at checkout. It forms part of our {toTerms} (Part E).
       </p>
 
       <H3>Cancelling a plan</H3>
@@ -540,9 +540,10 @@ export function RefundPolicyView() {
 
       <H3>Refunds on plans</H3>
       <ul>
-        <li><strong>Sanad and Vakalat</strong> (monthly or yearly): not refundable. Their low price is the trial.</li>
-        <li><strong>Brief and Associates, yearly</strong>: refundable in full if you ask within 7 days of the payment and have used no more than 10 AI credits since paying. After that, not refundable.</li>
-        <li><strong>Brief and Associates, monthly</strong>: not refundable.</li>
+        <li><strong>Advocate</strong> (monthly or yearly): not refundable.</li>
+        <li><strong>Chambers and Firm, yearly</strong>: refundable in full if you ask within 7 days of the payment and have used no more than 10 AI credits since paying. After that, not refundable.</li>
+        <li><strong>Chambers and Firm, monthly</strong>: not refundable.</li>
+        <li><strong>Enterprise</strong>: as agreed in your quote.</li>
         <li><strong>Munshi seats</strong> follow the plan they were bought with.</li>
       </ul>
 

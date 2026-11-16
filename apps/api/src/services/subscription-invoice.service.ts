@@ -48,9 +48,14 @@ export function placeOfSupply(buyerGstin: string | null, buyerState: string | nu
   return byName ?? sellerGstin.slice(0, 2);
 }
 
-/** 18% GST inside a GST-inclusive total, in paise; same state = CGST + SGST, else IGST. */
-export function splitTax(totalPaise: number, intraState: boolean) {
-  const taxable = Math.round(totalPaise / 1.18);
+/** 18% GST inside a GST-inclusive total, in paise; same state = CGST + SGST,
+ *  else IGST. `taxablePaise` (pricing v5: prices exclude GST) fixes the taxable
+ *  value at the advertised price; it must add up to the total exactly. */
+export function splitTax(totalPaise: number, intraState: boolean, taxablePaise?: number) {
+  const taxable = taxablePaise ?? Math.round((totalPaise * 100) / 118);
+  if (taxablePaise !== undefined && taxablePaise * 118 !== totalPaise * 100) {
+    throw new Error(`GST mismatch: taxable ${taxablePaise} + 18% is not the total ${totalPaise}`);
+  }
   const gst = totalPaise - taxable;
   const cgst = intraState ? Math.floor(gst / 2) : 0;
   return { taxable, cgst, sgst: intraState ? gst - cgst : 0, igst: intraState ? 0 : gst };
@@ -125,6 +130,8 @@ export const subscriptionInvoiceService = {
    *  null when the seller isn't configured or it already exists. */
   async issueForPayment(p: {
     firmId: string; paymentId: string; amountPaise: number; subscriptionId: string | null;
+    /** The ex-GST price in paise (pricing v5). Omitted: backed out of the total (v4 prices, ₹1 test). */
+    taxablePaise?: number;
     plan: string; cycle: string; seats: number; munshi?: number; periodStart: Date | null; periodEnd: Date | null; at?: Date;
   }): Promise<string | null> {
     const sql = db();
@@ -135,6 +142,11 @@ export const subscriptionInvoiceService = {
       return null;
     }
     if (!Number.isInteger(p.amountPaise) || p.amountPaise <= 0) return null;
+    if (p.taxablePaise !== undefined && p.taxablePaise * 118 !== p.amountPaise * 100) {
+      // Never issue a wrong tax invoice: the amount check upstream should make this impossible.
+      logger.error({ firmId: p.firmId, paymentId: p.paymentId, taxable: p.taxablePaise, total: p.amountPaise }, 'GST invoice NOT issued: taxable + 18% does not match the amount paid');
+      return null;
+    }
     const [seen] = await sql<{ id: string }[]>`select id from subscription_invoices where razorpay_payment_id = ${p.paymentId}`;
     if (seen) return null;
 
@@ -147,7 +159,7 @@ export const subscriptionInvoiceService = {
     const gstin = b?.gstin && isValidGstin(b.gstin) ? b.gstin.trim().toUpperCase() : null;
     if (b?.gstin && !gstin) logger.warn({ firmId: p.firmId }, 'buyer GSTIN invalid: invoiced as unregistered');
     const pos = placeOfSupply(gstin, b?.state ?? null, s.gstin);
-    const tax = splitTax(p.amountPaise, pos === s.gstin.slice(0, 2));
+    const tax = splitTax(p.amountPaise, pos === s.gstin.slice(0, 2), p.taxablePaise);
     const buyer: Buyer = {
       name: b?.name ?? 'Customer', practice: b?.practice ?? null, gstin,
       address: [b?.address_line, b?.pincode].filter(Boolean).join(' - ') || null,

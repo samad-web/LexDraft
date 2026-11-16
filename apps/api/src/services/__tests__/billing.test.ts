@@ -41,9 +41,9 @@ describe('billing webhook signature (AC2)', () => {
 });
 
 describe('billing plans', () => {
-  it('offers the v4 plans and nothing is purchasable without Razorpay keys', () => {
+  it('offers the v5 plans and nothing is purchasable without Razorpay keys', () => {
     const plans = billing.billingPlans();
-    expect(plans.map((p) => p.id)).toEqual(['sanad', 'vakalat', 'brief', 'associates', 'partners']);
+    expect(plans.map((p) => p.id)).toEqual(['advocate', 'chambers', 'law_firm', 'enterprise']);
     expect(plans.every((p) => !p.purchasable)).toBe(true);
   });
 });

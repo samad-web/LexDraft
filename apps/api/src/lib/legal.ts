@@ -4,4 +4,4 @@
  * equal LEGAL_VERSION in apps/web/src/views/LegalView.tsx (a test checks).
  */
 export const TERMS_CONSENT_TYPE = 'terms_privacy';
-export const TERMS_VERSION = '1.1';
+export const TERMS_VERSION = '1.2';
