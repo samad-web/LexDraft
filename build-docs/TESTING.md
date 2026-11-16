@@ -1,4 +1,9 @@
 # Testing
+## Seat enforcement — 2026-11-16 (features/seat-enforcement.md)
+- `seat-enforcement.integration.test.ts` AC1-AC7 pass.
+- Found while testing: firm-admin role change updated role_id but not users.role, so the Munshi seat count and no-AI rule kept the old role. Fixed: users.role follows an advocate<->Munshi switch.
+- Regression: api unit 1070 pass; integration 83 pass + the same 2 pre-existing failures as on main.
+
 ## Paid-only sign-up gate — 2026-11-16 (features/paid-signup-gate.md)
 - `paid-signup-gate.integration.test.ts` 4/4 (AC1-AC4).
 - Web `terms-consent.test.tsx` updated: SignupView now has one sign-up form (the demo form was removed by design), so 1 acceptTerms call / 1 TermsAgree instead of 2.

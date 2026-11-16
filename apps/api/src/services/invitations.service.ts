@@ -121,23 +121,28 @@ interface SeatRow { seats: number; munshi_seats: number | null; used: number; mu
  *
  * Returns silently when firmId is null (dev fallback firm or unauthenticated
  * paths). Returns silently when DATABASE_URL is unset (demo mode).
+ * `excludeUserId`: a member whose role or status is being changed, so they
+ * are not counted twice (firm-admin updateUser).
  */
-export async function assertSeatCapNotExceeded(firmId: string | null, role: string, acceptingInviteId?: string): Promise<void> {
+export async function assertSeatCapNotExceeded(firmId: string | null, role: string, acceptingInviteId?: string, excludeUserId?: string): Promise<void> {
   if (!firmId) return;
   const sql = db();
   if (!sql) return;
   const skip = acceptingInviteId ?? null;
+  const ex = excludeUserId ?? null;
   const munshiRoles = MUNSHI_ROLES as string[];
   const [row] = await sql<SeatRow[]>`
     select
       f.seats, f.munshi_seats,
       ((select count(*)::int from users
-        where firm_id = ${firmId}::uuid and status = 'active')
+        where firm_id = ${firmId}::uuid and status = 'active'
+          and (${ex}::uuid is null or id <> ${ex}::uuid))
        + (select count(*)::int from invitations
           where firm_id = ${firmId}::uuid and status = 'pending'
             and (${skip}::text is null or id::text <> ${skip}::text))) as used,
       ((select count(*)::int from users
-        where firm_id = ${firmId}::uuid and status = 'active' and role = any(${munshiRoles}))
+        where firm_id = ${firmId}::uuid and status = 'active' and role = any(${munshiRoles})
+          and (${ex}::uuid is null or id <> ${ex}::uuid))
        + (select count(*)::int from invitations
           where firm_id = ${firmId}::uuid and status = 'pending' and role = any(${munshiRoles})
             and (${skip}::text is null or id::text <> ${skip}::text))) as munshi_used

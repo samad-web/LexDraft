@@ -20,6 +20,8 @@ import { db } from '../db/client';
 import { auditService } from './audit.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidateTenantCache } from './tenant';
+import { assertSeatCapNotExceeded } from './invitations.service';
+import { MUNSHI_ROLES } from '../lib/plans';
 
 interface ManagedUserRow {
   id: string;
@@ -161,6 +163,10 @@ export const firmAdminService = {
         throw Object.assign(new Error('Practice group not in this firm'), { status: 404 });
       }
     }
+
+    // Paid seats (pricing v4): a new active member needs an advocate seat, or
+    // a Munshi seat for the Munshi role, same rule as email invitations.
+    await assertSeatCapNotExceeded(firmId, roleRow.name);
 
     // Resolve display name first because the auto-password depends on it.
     const name = input.name?.trim()
@@ -307,8 +313,33 @@ export const firmAdminService = {
       }
     }
 
+    // Paid seats: a member switching between advocate and Munshi, or being
+    // re-activated, must fit the seats paid for. users.role (text) follows a
+    // switch so the Munshi seat count and the no-AI rule see the new role.
+    const [cur] = await sql<Array<{ role: string | null; status: string }>>`
+      select role, status from users where id = ${targetId}::uuid limit 1
+    `;
+    let newRoleName = cur?.role ?? '';
+    if (patch.roleId !== undefined) {
+      const [nr] = await sql<Array<{ name: string }>>`
+        select name from roles
+        where id = ${patch.roleId}::uuid and (firm_id is null or firm_id = ${firmId}::uuid)
+        limit 1
+      `;
+      if (!nr) throw Object.assign(new Error('Role not found in this firm'), { status: 404 });
+      newRoleName = nr.name;
+    }
+    const isMunshi = (r: string | null | undefined) => MUNSHI_ROLES.includes(r ?? '');
+    const munshiSwitch = isMunshi(cur?.role) !== isMunshi(newRoleName);
+    const finalStatus = patch.status ?? cur?.status;
+    if (finalStatus === 'active' && (cur?.status !== 'active' || munshiSwitch)) {
+      await assertSeatCapNotExceeded(firmId, newRoleName, undefined, targetId);
+    }
+    const roleText = munshiSwitch ? newRoleName : null;
+
     await sql`
       update users set
+        role              = coalesce(${roleText}::text, role),
         role_id           = coalesce(${patch.roleId ?? null}::uuid, role_id),
         practice_group_id = case when ${patch.practiceGroupId === undefined ? 1 : 0}::int = 1
                                  then practice_group_id

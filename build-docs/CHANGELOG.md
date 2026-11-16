@@ -1,4 +1,6 @@
 # Changelog
+- Seat enforcement (2026-11-16, features/seat-enforcement.md): Roles & Access "Add member", role changes between advocate and Munshi, and re-activation now respect the advocate and Munshi seats paid for.
+
 - Paid-only sign-up gate (2026-11-16, features/paid-signup-gate.md): the server keeps the app closed (403 onboarding_required) until a new account finishes onboarding and payment; a sign-up can no longer skip onboarding or start as "paid"; the free interactive demo account is gone ("Book a demo" = contact form only).
 
 - Regional languages (2026-11-16, features/regional-languages.md): drafts in Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Gujarati, Bengali, Punjabi, Odia and Assamese. Drafted and checked in English, then translated as the last step with a figures/placeholder check per line; layout and tables kept; language saved with the matter; High Court / Supreme Court documents stay English (Art. 348). Fonts for all these scripts added to the API image.
