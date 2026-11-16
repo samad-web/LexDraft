@@ -64,7 +64,7 @@ export function billingPlans(): BillingPlan[] {
     paid('law_firm', {
       for: `Up to ${PLANS.law_firm.seats} advocates`,
       meaning: 'For a law firm with several advocates.',
-      features: [`${PLANS.law_firm.credits} AI credits a month, shared`, 'Everything in Chambers', 'Audit logs'],
+      features: [`${PLANS.law_firm.credits} AI credits a month, shared`, 'Everything in Chambers', 'Up to 8 advocates'],
     }),
     {
       id: 'enterprise', name: 'Enterprise', for: 'Nine advocates and above',

@@ -24,7 +24,7 @@ export const SIGNUP_PLANS: BillingPlan[] = [
     id: 'law_firm', name: 'Firm', for: 'Up to 8 advocates',
     meaning: 'For a law firm with several advocates.',
     monthlyInr: 3699, annualInr: 40689, note: '+ 18% GST · billed monthly or yearly',
-    features: ['750 AI credits a month, shared', 'Everything in Chambers', 'Audit logs'],
+    features: ['750 AI credits a month, shared', 'Everything in Chambers', 'Up to 8 advocates'],
     purchasable: true, pagesPerMonth: 750, advocates: 8, gst: 'exclusive', munshi: { monthlyInr: 149, annualInr: 1639, max: 4 },
   },
   {
