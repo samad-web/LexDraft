@@ -1,4 +1,6 @@
 # Changelog
+- Client portal + client messages removed (2026-11-16, features/remove-client-portal.md): owner decision, only advocates use DifAi. Gone: /portal sign-in and screens, Client Messages inbox + nav, dashboard client-message tile, Clients "Portal" column + tile, "Visible to client" (case), "Shared"/"Ack req'd" (documents), "Visible on client portal" (applications), client emails on new hearing/invoice. Old /portal links go to the home page. No database change (columns/tables kept, unused). Also ends the guessable firstname@123 portal passwords.
+
 - Plan cards match the app (2026-11-16): Associates plan now includes the firm dashboard (migration 0112, Practice tier; owner/partner/lead roles only, not Associates or Munshi). Partners card no longer claims SSO (not built): "Audit logs and firm analytics".
 
 - Secure share link (2026-11-16, features/secure-share-link.md): "Send secure link on WhatsApp" on the Draft Share card and in the document viewer. The client gets a DifAi link that expires (1/7/30 days), can need a password, counts views and can be cancelled ("Manage secure links"). Each link keeps its own encrypted file copy; a nightly job deletes copies of expired links. Token stays after # so no server log records it. Migration 0111 (new table share_links).

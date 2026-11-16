@@ -172,9 +172,6 @@ export function ClientDetailView(): JSX.Element {
             <div className="cm-label">{client.type} client</div>
             <div className="cm-hero-meta">
               <span className={badge.cls}>{badge.label}</span>
-              {client.portalEnabled && (
-                <span className="cm-pill cm-pill--line"><Icon name="check" size={11} /> Portal enabled</span>
-              )}
               {client.email ? (
                 <a className="cm-hero-mail" href={`mailto:${client.email}`}>
                   <Icon name="mail" size={13} /> {client.email}

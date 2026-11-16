@@ -1932,15 +1932,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
    bounded to the viewport (minus the page chrome above it) so the message
    pane's flex:1/overflowY:auto can actually fill available space instead of
    being capped at an arbitrary fixed pixel height. */
-.inbox-grid {
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: var(--space-4);
-  height: calc(100vh - 220px);
-  min-height: 420px;
-}
 @media (max-width: 1023px) {
-  .inbox-grid { grid-template-columns: 1fr; height: auto; }
 }
 
 /* Auth card: form column + (optional) brand column on the right. The
@@ -3260,7 +3252,6 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 @media (prefers-reduced-motion: reduce) {
   .ma-listening { animation: none; }
 }
-
 
 
 /* ============================================================================
@@ -4985,7 +4976,6 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
 .cs-hero-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
 .cs-hero-tags .adv-pill strong { color: var(--text-primary); font-weight: 600; }
 .cs-hero-cnr { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-tertiary); }
-.cs-hero-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; margin-left: 4px; }
 .cs-hero-actions { grid-area: actions; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; align-self: end; padding-top: 16px; border-top: 1px solid var(--border-subtle); }
 .cs-next {
   grid-area: next; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 20px;
@@ -5018,7 +5008,6 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   .cs-hero-actions { gap: 6px; }
   .cs-hero-actions > .btn-primary { flex: 1 1 100%; order: -1; justify-content: center; }
   .cs-hero-actions > .btn { flex: 1 1 auto; justify-content: center; }
-  .cs-hero-toggle { margin-left: 0; }
 }
 /* Strict black & white: status dots on Cases badges are ink, not colour. */
 .cs .badge::before { background: var(--text-tertiary); }

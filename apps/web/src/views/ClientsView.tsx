@@ -14,11 +14,6 @@ import { usePagination } from '@/hooks/usePagination';
 import { PageHeader, PageSearch } from '@/components/PageHeader';
 import { useAlert, useConfirm } from '@/components/ConfirmDialog';
 import { useUIStore } from '@/store/ui';
-import {
-  useEnableClientPortal,
-  useDisableClientPortal,
-  useRegenerateClientPortalPassword,
-} from '@/hooks/usePortalAdmin';
 
 interface ClientRow extends Client {
   initials: string;
@@ -79,9 +74,6 @@ export function ClientsView() {
   // TanStack Query caches it across visits, so the extra call is cheap.
   const [expandedClientId, setExpandedClientId] = useState<string | null>(null);
   const cases = useCases();
-  const enable = useEnableClientPortal();
-  const disable = useDisableClientPortal();
-  const regenerate = useRegenerateClientPortalPassword();
   const remove = useDeleteClient();
   const showToast = useUIStore((s) => s.showToast);
   const alertDialog = useAlert();
@@ -130,94 +122,6 @@ export function ClientsView() {
     setExpandedClientId((cur) => (cur === clientId ? null : clientId));
   }
 
-  async function onEnable(client: ClientRow): Promise<void> {
-    setBusyClientId(client.id);
-    try {
-      const res = await enable.mutateAsync(client.id);
-      if (res.password) {
-        await alertDialog({
-          title: 'Portal enabled · share these sign-in credentials',
-          message:
-            `Share these credentials with ${client.name} so they can sign in to their dashboard.\n\n`
-            + `Email: ${client.email ?? '(no email on file)'}\n`
-            + `Password: ${res.password}\n\n`
-            + `This is a default password, so note it down or share it now. `
-            + `You can reset it any time from this page.`,
-          tone: 'success',
-        });
-      } else {
-        await alertDialog({
-          title: 'Portal enabled',
-          message: 'The client can now sign in. Use "Reset password" to generate a fresh password to share.',
-          tone: 'success',
-        });
-      }
-    } catch (e) {
-      await alertDialog({
-        title: 'Could not enable the portal',
-        message:
-          (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-          ?? (e as Error).message,
-        tone: 'danger',
-      });
-    } finally {
-      setBusyClientId(null);
-    }
-  }
-
-  async function onDisable(clientId: string): Promise<void> {
-    const ok = await confirmDialog({
-      title: 'Disable portal access?',
-      message: 'Active sessions for this client will be revoked.',
-      confirmLabel: 'Disable',
-      danger: true,
-    });
-    if (!ok) return;
-    setBusyClientId(clientId);
-    try { await disable.mutateAsync(clientId); }
-    catch (e) {
-      await alertDialog({
-        title: 'Could not disable the portal',
-        message: (e as Error).message,
-        tone: 'danger',
-      });
-    }
-    finally { setBusyClientId(null); }
-  }
-
-  async function onRegeneratePassword(client: ClientRow): Promise<void> {
-    setBusyClientId(client.id);
-    try {
-      const res = await regenerate.mutateAsync(client.id);
-      if (res.password) {
-        await alertDialog({
-          title: 'New password generated',
-          message:
-            `Share this fresh password with ${client.name}. The previous one no longer works.\n\n`
-            + `Email: ${client.email ?? '(no email on file)'}\n`
-            + `Password: ${res.password}`,
-          tone: 'success',
-        });
-      } else {
-        await alertDialog({
-          title: 'Password reset',
-          message: 'The previous password has been invalidated.',
-          tone: 'success',
-        });
-      }
-    } catch (e) {
-      await alertDialog({
-        title: 'Could not reset the password',
-        message:
-          (e as { response?: { data?: { error?: string } } })?.response?.data?.error
-          ?? (e as Error).message,
-        tone: 'danger',
-      });
-    } finally {
-      setBusyClientId(null);
-    }
-  }
-
   const rows = useMemo<ClientRow[]>(
     () => clients.map((c) => ({ ...c, initials: initialsOf(c.name) })),
     [clients],
@@ -238,13 +142,11 @@ export function ClientsView() {
   const summary = useMemo(() => {
     let active = 0;
     let open = 0;
-    let portal = 0;
     for (const c of rows) {
       if (c.status === 'active') active += 1;
       open += c.mattersOpen || 0;
-      if (c.portalEnabled) portal += 1;
     }
-    return { total: rows.length, active, open, portal };
+    return { total: rows.length, active, open };
   }, [rows]);
 
   const countFor = (id: FilterId): number =>
@@ -254,7 +156,7 @@ export function ClientsView() {
     <div className="col stagger cm-clients" style={{ gap: 24 }}>
       <PageHeader
         title="Clients"
-        description="Your client register, with open matters and client portal access."
+        description="Your client register, with open matters."
         actions={
           <Gate feature="client.create">
             <button
@@ -275,7 +177,7 @@ export function ClientsView() {
       </Gate>
 
       {!isLoading && !isError && rows.length > 0 && (
-        <div className="cm-kpis" aria-label="Register summary">
+        <div className="cm-kpis cm-kpis--3" aria-label="Register summary">
           <div className="cm-kpi">
             <div className="cm-kpi-label">Clients</div>
             <div className="cm-kpi-value">{summary.total}</div>
@@ -290,11 +192,6 @@ export function ClientsView() {
             <div className="cm-kpi-label">Open matters</div>
             <div className="cm-kpi-value">{summary.open}</div>
             <div className="cm-kpi-note">Across all clients</div>
-          </div>
-          <div className="cm-kpi">
-            <div className="cm-kpi-label">Portal access</div>
-            <div className="cm-kpi-value">{summary.portal}</div>
-            <div className="cm-kpi-note">Clients who can sign in</div>
           </div>
         </div>
       )}
@@ -331,7 +228,6 @@ export function ClientsView() {
               <th className="col-hide-mobile">Matters</th>
               <th className="col-hide-tablet">Last contact</th>
               <th>Status</th>
-              <th className="col-hide-mobile">Portal</th>
               <th aria-label="Row actions" />
             </tr>
           </thead>
@@ -351,13 +247,12 @@ export function ClientsView() {
                 <td className="col-hide-mobile"><Skeleton width={30} height={12} /></td>
                 <td className="col-hide-tablet"><Skeleton width={80} height={12} /></td>
                 <td><Skeleton width={60} height={22} radius="pill" /></td>
-                <td className="col-hide-mobile"><Skeleton width={70} height={28} /></td>
                 <td />
               </tr>
             ))}
             {isError && !isLoading && (
               <tr>
-                <td colSpan={7} data-span="all">
+                <td colSpan={6} data-span="all">
                   <ErrorState
                     variant="inline"
                     title="Couldn't load clients"
@@ -368,7 +263,7 @@ export function ClientsView() {
             )}
             {!isLoading && !isError && visible.length === 0 && (
               <tr>
-                <td colSpan={7} data-span="all">
+                <td colSpan={6} data-span="all">
                   <div className="cm-empty">
                     <EmptyState
                       variant="inline"
@@ -442,53 +337,6 @@ export function ClientsView() {
                     </td>
                     <td className="col-hide-tablet cm-date-cell">{formatDay(c.lastContact)}</td>
                     <td><span className={badge.cls}>{badge.label}</span></td>
-                    <td className="col-hide-mobile">
-                      {c.portalEnabled ? (
-                        <Gate feature="client.create">
-                          <div className="cm-portal">
-                            <span className="cm-portal-on"><Icon name="check" size={12} /> Enabled</span>
-                            <span className="cm-portal-actions">
-                              <button
-                                type="button"
-                                className="cm-link-btn"
-                                disabled={busyClientId === c.id}
-                                onClick={() => onRegeneratePassword(c)}
-                                title="Generate a fresh password"
-                              >
-                                Reset password
-                              </button>
-                              <span aria-hidden className="cm-dot-sep">·</span>
-                              <button
-                                type="button"
-                                className="cm-link-btn"
-                                disabled={busyClientId === c.id}
-                                onClick={() => onDisable(c.id)}
-                                title="Revoke portal access"
-                              >
-                                Disable
-                              </button>
-                            </span>
-                          </div>
-                        </Gate>
-                      ) : (
-                        <Gate feature="client.create">
-                          <div className="col" style={{ gap: 4, alignItems: 'flex-start' }}>
-                            <button
-                              type="button"
-                              className="btn btn-sm"
-                              disabled={busyClientId === c.id || !c.email}
-                              onClick={() => onEnable(c)}
-                              title={!c.email ? 'Add a contact email first' : 'Enable portal access'}
-                            >
-                              <Icon name="key" size={12} /> Enable
-                            </button>
-                            {!c.email && (
-                              <span className="cm-hint">Add a contact email first</span>
-                            )}
-                          </div>
-                        </Gate>
-                      )}
-                    </td>
                     <td>
                       <Gate feature="client.create">
                         <div className="cm-row-actions">
@@ -518,7 +366,7 @@ export function ClientsView() {
                   </tr>
                   {isExpanded && (
                     <tr id={`matters-${c.id}`} className="cm-matters-row">
-                      <td colSpan={7} data-span="all">
+                      <td colSpan={6} data-span="all">
                         <ClientMattersPanel
                           loading={cases.isLoading}
                           error={cases.isError}

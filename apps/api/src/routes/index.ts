@@ -67,8 +67,6 @@ import { engagementRouter } from './engagement.routes';
 import { caseloadHealthRouter } from './caseload-health.routes';
 import { exportsRouter } from './exports.routes';
 import { adminErrorsRouter } from './admin-errors.routes';
-import { portalRouter } from './portal.routes';
-import { portalAdminRouter } from './portal-admin.routes';
 import { surveyRouter } from './survey.routes';
 import { surveyDraftRouter } from './survey-draft.routes';
 import { shareOpenLimiter, signUpLimiter, surveyDraftLimiter } from '../middleware/rateLimit';
@@ -112,7 +110,7 @@ apiRouter.get('/ready', async (_req, res) => {
   if (env.NODE_ENV === 'production' && !env.hasSmtp) {
     advisories.smtp = {
       ok: false,
-      note: 'SMTP_HOST is blank - hearing reminders, invoice notices, and portal emails are logged only, not delivered.',
+      note: 'SMTP_HOST is blank - hearing reminders and other notices are logged only, not delivered.',
     };
   }
 
@@ -131,10 +129,6 @@ apiRouter.use('/webhooks', webhooksRouter);
 // respondent typically generates 30-60 PUTs across a session.
 apiRouter.use('/survey/drafts', surveyDraftLimiter, surveyDraftRouter);
 apiRouter.use('/survey', signUpLimiter, surveyRouter);
-
-// Client portal - its own auth (magic link → portal JWT). Internal middleware
-// gates all but /portal/auth/*.
-apiRouter.use('/portal', portalRouter);
 
 // Secure share links: /s/<token> is public (rate limited); managing links needs sign-in.
 apiRouter.use('/s', shareOpenLimiter, publicShareRouter);
@@ -241,8 +235,6 @@ apiRouter.use('/engagement',          requireAuth, requireActivePlan, engagement
 apiRouter.use('/caseload-health',     requireAuth, requireActivePlan, caseloadHealthRouter);
 apiRouter.use('/exports',             requireAuth, requireActivePlan, exportsRouter);
 
-// Firm-side portal administration - toggles, lifecycle, inbox.
-apiRouter.use('/portal-admin', requireAuth, requireActivePlan, portalAdminRouter);
 
 // Platform admin - superadmin only, impersonation sessions blocked.
 apiRouter.use('/admin', requireAuth, requireSuperadmin, adminRouter);

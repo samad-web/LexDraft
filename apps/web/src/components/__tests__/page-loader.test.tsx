@@ -22,7 +22,8 @@ describe('loading screens', () => {
   it('every route Suspense in App uses the loader, none a bare "Loading…" text', () => {
     const app = file('src/App.tsx');
     const fallbacks = [...app.matchAll(/<Suspense fallback=\{([^}]+)\}>/g)].map((m) => m[1]);
-    expect(fallbacks.length).toBeGreaterThanOrEqual(5);
+    // 4 since the client portal (its own Suspense) was removed on 2026-11-16.
+    expect(fallbacks.length).toBeGreaterThanOrEqual(4);
     for (const f of fallbacks) expect(['pageFallback', 'contentFallback']).toContain(f);
     expect(app).toContain('const pageFallback = <PageLoader full />;');
     expect(app).toContain('const contentFallback = <PageLoader />;');

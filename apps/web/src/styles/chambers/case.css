@@ -141,8 +141,6 @@
 [data-ui='chambers'] .cs-hero-sub strong { font-weight: 600; }
 [data-ui='chambers'] .cs-hero-tags { margin-top: 18px; gap: 8px 10px; }
 [data-ui='chambers'] .cs-hero-cnr { font-size: 12px; letter-spacing: 0.04em; }
-[data-ui='chambers'] .cs-hero-toggle { min-height: 28px; }
-[data-ui='chambers'] .cs-hero-toggle input { accent-color: var(--text-primary); width: 15px; height: 15px; }
 [data-ui='chambers'] .cs-hero-actions { padding-top: 18px; gap: 8px; }
 [data-ui='chambers'] .cs-hero-actions > .btn-primary { margin-left: auto; }
 

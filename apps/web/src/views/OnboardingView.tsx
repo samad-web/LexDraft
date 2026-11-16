@@ -437,7 +437,7 @@ export function OnboardingView() {
                     </div>
                   ) : (
                     <>
-                      <Field label={practice ? 'Firm name' : 'Practice name'} required={practice} htmlFor="onb-firm" hint="Shown on your drafts, letterhead and client portal. You can change this later.">
+                      <Field label={practice ? 'Firm name' : 'Practice name'} required={practice} htmlFor="onb-firm" hint="Shown on your drafts and letterhead. You can change this later.">
                         <input id="onb-firm" className="input" value={firm} onChange={(e) => setFirm(e.target.value)} placeholder={practice ? 'Sharma & Associates' : `${user?.name ?? 'Your name'}, Advocate`} autoComplete="organization" />
                       </Field>
                       <div className={practice ? 'onb-grid-2' : undefined}>

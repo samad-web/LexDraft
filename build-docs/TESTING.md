@@ -1,4 +1,10 @@
 # Testing
+## Client portal removed — 2026-11-16 (features/remove-client-portal.md)
+- New `client-portal-removed.test.ts` 6/6: portal sign-in, dashboard, messages, documents and portal-admin endpoints no longer answer (404, or 401 from the auth guard), never 200.
+- Deleted with the feature: `portal.test.ts` (tested the removed service).
+- `page-loader.test.tsx`: minimum Suspense count 5 → 4 (the portal's own Suspense is gone; the rule "every Suspense uses the loader" is unchanged).
+- Regression: web 318/318; api 1078 passed, 1 failed (anthropic-failover xAI, pre-existing). tsc clean (api, web, types).
+
 ## Associates firm dashboard + card copy — 2026-11-16 (features/pricing-v4.md)
 - `associates-dashboard.integration.test.ts` 2/2: Associates owner (Firm Admin) sees firm.dashboard.view; Associate and Munshi do not; analytics.firm stays Partners-only; Solo plans still have no firm dashboard.
 - Regression: munshi, permissions, credits integration (19), permissions/rbac-routes/pricing-v4 unit (81), web components (13): all pass.

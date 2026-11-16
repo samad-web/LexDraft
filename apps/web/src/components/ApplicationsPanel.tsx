@@ -81,11 +81,10 @@ export function ApplicationsPanel({ caseId }: { caseId: string }) {
               </div>
               <h3 className="cs-app-title">{a.label || APPLICATION_KIND_LABELS[a.kind]}</h3>
               {a.appType && <div className="cs-app-type">{a.appType}</div>}
-              {(a.filedOn || a.orderOn || !a.visibleToPortal) && (
+              {(a.filedOn || a.orderOn) && (
                 <div className="cs-app-dates">
                   {a.filedOn && <span>Filed <strong>{a.filedOn}</strong></span>}
                   {a.orderOn && <span>Order <strong>{a.orderOn}</strong></span>}
-                  {!a.visibleToPortal && <span>Internal · not on client portal</span>}
                 </div>
               )}
               {a.notes && <p className="cs-app-notes">{a.notes}</p>}

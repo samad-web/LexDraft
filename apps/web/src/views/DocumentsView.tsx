@@ -11,7 +11,6 @@ import { EditDocumentModal } from '@/components/EditDocumentModal';
 import { SendForSignatureModal } from '@/components/SendForSignatureModal';
 import { Gate } from '@/components/Gate';
 import { PageHeader } from '@/components/PageHeader';
-import { useUpdateDocumentPortalFlags } from '@/hooks/usePortalAdmin';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useConfirm } from '@/components/ConfirmDialog';
@@ -69,7 +68,6 @@ export function DocumentsView() {
   const [viewing, setViewing] = useState<DocumentRecord | null>(null);
   const [editing, setEditing] = useState<DocumentRecord | null>(null);
   const [signing, setSigning] = useState<DocumentRecord | null>(null);
-  const updateFlags = useUpdateDocumentPortalFlags();
   const deleteDocument = useDeleteDocument();
   const deleteDraft = useDeleteDraft();
   const confirm = useConfirm();
@@ -237,8 +235,6 @@ export function DocumentsView() {
                     <col style={{ width: 112 }} />
                     <col style={{ width: 136 }} />
                     <col style={{ width: 104 }} />
-                    <col style={{ width: 76 }} />
-                    <col style={{ width: 84 }} />
                     <col style={{ width: 112 }} />
                   </colgroup>
                   <thead>
@@ -248,8 +244,6 @@ export function DocumentsView() {
                       <th>Type</th>
                       <th>Status</th>
                       <th>Updated</th>
-                      <th className="is-center" title="Share with the client portal">Shared</th>
-                      <th className="is-center" title="Client must acknowledge">Ack req'd</th>
                       <th />
                     </tr>
                   </thead>
@@ -297,29 +291,6 @@ export function DocumentsView() {
                             <span className={`fm-pill ${status.cls}`}>{status.label}</span>
                           </td>
                           <td><span className="fm-date">{d.updated}</span></td>
-                          <td className="is-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              aria-label="Share with client"
-                              checked={!!d.sharedWithClient}
-                              disabled={!docId || updateFlags.isPending}
-                              onChange={(e) => updateFlags.mutate({
-                                id: docId, sharedWithClient: e.target.checked,
-                              })}
-                            />
-                          </td>
-                          <td className="is-center" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              aria-label="Requires acknowledgement"
-                              checked={!!d.requiresAcknowledgement}
-                              disabled={!docId || !d.sharedWithClient || updateFlags.isPending}
-                              onChange={(e) => updateFlags.mutate({
-                                id: docId, requiresAcknowledgement: e.target.checked,
-                              })}
-                              title={!d.sharedWithClient ? 'Share with client first' : ''}
-                            />
-                          </td>
                           <td onClick={(e) => e.stopPropagation()}>
                             <div className="fm-doc-actions">
                               {d.hasFile && docId && (
@@ -362,7 +333,7 @@ export function DocumentsView() {
                     })}
                     {filtered.length === 0 && (
                       <tr>
-                        <td colSpan={8} data-span="all">
+                        <td colSpan={6} data-span="all">
                           <EmptyState
                             variant="inline"
                             title={docs.data && docs.data.length === 0 ? 'No documents yet' : 'No documents match'}

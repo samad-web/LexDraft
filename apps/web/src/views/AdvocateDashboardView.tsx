@@ -35,7 +35,6 @@ const GROUP: Record<AttentionGroup['key'], { source: string; pill: string; icon:
   overdueTasks:   { source: 'Pending',     pill: 'Overdue',   icon: 'tasks' },
   noNextDate:     { source: 'No next date', pill: 'Post date', icon: 'calendar' },
   reviews:        { source: 'Contract review', pill: 'Review', icon: 'review' },
-  clientMessages: { source: 'Client portal', pill: 'Reply',    icon: 'inbox' },
   esign:          { source: 'e-Sign',      pill: 'Pending',   icon: 'edit' },
 };
 const TONE_TINT: Record<AttentionGroup['tone'], Tint> = { danger: 'rose', warning: 'amber', info: 'blue' };

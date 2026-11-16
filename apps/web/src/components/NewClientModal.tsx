@@ -286,7 +286,7 @@ export function NewClientModal({ open, onClose, existing }: Props) {
       <Field
         label="CONTACT EMAIL"
         wide
-        hint="Required before the client portal can be enabled for this client."
+        hint="Optional. Used when you email this client."
       >
         <input
           className="input"

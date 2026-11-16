@@ -162,14 +162,6 @@ const Schema = z.object({
   /** Public URL of the web app - used to build magic links so the email
    *  link lands on the right host. Falls back to the first CORS origin. */
   WEB_PUBLIC_BASE_URL: z.string().optional().default(''),
-  /** When 'true', /portal/auth/request-link returns the magic link in the
-   *  response body. ONLY for dev - otherwise anyone hitting the endpoint
-   *  with a known client email can sign in without the inbox. */
-  CLIENT_PORTAL_RETURN_LINK: z.enum(['true', 'false']).default('false'),
-  /** Magic-link TTL in minutes. */
-  CLIENT_PORTAL_LINK_TTL_MIN: z.coerce.number().int().positive().default(15),
-  /** Portal session JWT TTL (passed to jsonwebtoken). */
-  CLIENT_PORTAL_SESSION_TTL: z.string().default('24h'),
 
   /** Dev-only escape hatch. When 'true' AND NODE_ENV !== 'production', an
    *  unknown email at sign-in auto-provisions a user (and `admin` in the
@@ -331,7 +323,6 @@ export const env = {
   webPublicBaseUrl: parsed.data.WEB_PUBLIC_BASE_URL
     || parsed.data.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)[0]
     || 'http://localhost:5173',
-  clientPortalReturnLink: parsed.data.CLIENT_PORTAL_RETURN_LINK === 'true',
   // Double-gate: even if someone sets the flag in a prod .env by mistake,
   // NODE_ENV='production' wins and shortcuts stay off.
   devAuthAutoProvision:

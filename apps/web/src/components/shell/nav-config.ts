@@ -176,7 +176,6 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Firm',
     items: [
       { id: 'firm',     label: 'Firm Overview',   icon: 'building', to: '/app/firm',     requiresFeature: 'firm.dashboard.view' },
-      { id: 'messages', label: 'Client Messages', icon: 'inbox',    to: '/app/messages', requiresFeature: 'client.view' },
       { id: 'coverage', label: 'Coverage Board',  icon: 'swap',     to: '/app/coverage', requiresFeature: 'coverage.requests' },
       {
         id: 'people', label: 'People & Roles', icon: 'members', to: '/app/members',
@@ -288,6 +287,5 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   // them so the breadcrumb reads as a human label, not a slug.
   'physical-docs':   { title: 'Documents',       eyebrow: 'Physical docs · paper originals register' },
   'review-queue':    { title: 'Contract Review', eyebrow: 'My review queue' },
-  messages:          { title: 'Client Messages', eyebrow: 'Threads with clients via the portal' },
   'team-chat':       { title: 'Team Chat',       eyebrow: 'Direct messages, groups & matter discussions' },
 };

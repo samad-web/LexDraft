@@ -30,7 +30,6 @@ import { EcourtsLinkCard } from '@/components/ecourts/EcourtsLinkCard';
 import { EcourtsCaseSnapshot } from '@/components/ecourts/EcourtsCaseSnapshot';
 import { linkStatusDisplay } from '@/components/ecourts/linkStatus';
 import { Modal } from '@/components/Modal';
-import { useUpdateMatterVisibility } from '@/hooks/usePortalAdmin';
 import { useGenerateEngagementLetter } from '@/hooks/useEngagement';
 import { useTaskBoard } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
@@ -81,7 +80,6 @@ export function CaseDetailView() {
   const hasTeamChat = useHasTeamChat();
   const canBill = useCan('billing.view');
   const canDraft = useCan('drafting.ai');
-  const updateVisibility = useUpdateMatterVisibility();
   const generateLetter = useGenerateEngagementLetter();
   const showToast = useUIStore((s) => s.showToast);
   const syncFromEcourts = useSyncCaseFromEcourts();
@@ -240,17 +238,6 @@ export function CaseDetailView() {
             ) : (
               <span className="adv-pill">Not linked to eCourts</span>
             )}
-            <label className="cs-hero-toggle" title="When enabled, this matter is visible in the client portal.">
-              <input
-                type="checkbox"
-                checked={!!c.visibleToClient}
-                disabled={!c.id || updateVisibility.isPending}
-                onChange={(e) => updateVisibility.mutate({
-                  id: c.id, visibleToClient: e.target.checked,
-                })}
-              />
-              Visible to client
-            </label>
           </div>
         </div>
 

@@ -45,7 +45,6 @@ export function NewApplicationModal({ open, onClose, caseId, existing }: Props) 
   const [status, setStatus] = useState<ApplicationStatus>(existing?.status ?? 'pending');
   const [orderOn, setOrderOn] = useState(existing?.orderOn ?? '');
   const [notes, setNotes] = useState(existing?.notes ?? '');
-  const [visibleToPortal, setVisibleToPortal] = useState(existing?.visibleToPortal ?? true);
 
   const isEdit = !!existing;
   const pending = create.isPending || update.isPending;
@@ -60,7 +59,6 @@ export function NewApplicationModal({ open, onClose, caseId, existing }: Props) 
       status,
       orderOn: orderOn || null,
       notes: notes.trim() || null,
-      visibleToPortal,
     };
     try {
       if (isEdit && existing) {
@@ -130,10 +128,6 @@ export function NewApplicationModal({ open, onClose, caseId, existing }: Props) 
                   placeholder="Brief context: relief sought, bench, outcome…" />
       </Field>
 
-      <label className="row" style={{ gap: 8, alignItems: 'center' }}>
-        <input type="checkbox" checked={visibleToPortal} onChange={(e) => setVisibleToPortal(e.target.checked)} />
-        <span className="body-sm">Visible on client portal</span>
-      </label>
     </Modal>
   );
 }

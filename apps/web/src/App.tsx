@@ -72,7 +72,6 @@ const PhysicalDocsView = lazy(() => import('@/views/PhysicalDocsView').then((m) 
 const MembersView = lazy(() => import('@/views/MembersView').then((m) => ({ default: m.MembersView })));
 const AnalyticsView = lazy(() => import('@/views/AnalyticsView').then((m) => ({ default: m.AnalyticsView })));
 const FirmDashboardView = lazy(() => import('@/views/FirmDashboardView').then((m) => ({ default: m.FirmDashboardView })));
-const PortalInboxView = lazy(() => import('@/views/PortalInboxView').then((m) => ({ default: m.PortalInboxView })));
 const TeamChatView = lazy(() => import('@/views/TeamChatView').then((m) => ({ default: m.TeamChatView })));
 const InviteAcceptView = lazy(() => import('@/views/InviteAcceptView').then((m) => ({ default: m.InviteAcceptView })));
 const CoCounselAcceptView = lazy(() => import('@/views/CoCounselAcceptView').then((m) => ({ default: m.CoCounselAcceptView })));
@@ -88,21 +87,6 @@ const EngagementTemplatesView = lazy(() => import('@/views/EngagementTemplatesVi
 import { MfaPromptBanner } from '@/components/MfaPromptBanner';
 import { DeletionScheduledBanner } from '@/components/DeletionScheduledBanner';
 import { TrialBanner } from '@/components/TrialBanner';
-// Portal sub-app is code-split via React.lazy so the firm-side bundle does
-// not include it (CLIENT_PORTAL.md §6.5). PortalLayout is loaded eagerly
-// because every authenticated portal route mounts inside it; the views
-// themselves are deferred.
-import { PortalLayout } from '@/views/portal/PortalLayout';
-const PortalLoginView = lazy(() =>
-  import('@/views/portal/PortalLoginView').then((m) => ({ default: m.PortalLoginView })));
-const PortalDashboardView = lazy(() =>
-  import('@/views/portal/PortalDashboardView').then((m) => ({ default: m.PortalDashboardView })));
-const PortalMatterDetailView = lazy(() =>
-  import('@/views/portal/PortalMatterDetailView').then((m) => ({ default: m.PortalMatterDetailView })));
-const PortalMessagesView = lazy(() =>
-  import('@/views/portal/PortalMessagesView').then((m) => ({ default: m.PortalMessagesView })));
-const PortalProfileView = lazy(() =>
-  import('@/views/portal/PortalProfileView').then((m) => ({ default: m.PortalProfileView })));
 import { AdminShell } from '@/admin/AdminShell';
 import { AdminLoginView } from '@/admin/AdminLoginView';
 const AdminDashboardView = lazy(() => import('@/admin/views/AdminDashboardView').then((m) => ({ default: m.AdminDashboardView })));
@@ -199,35 +183,12 @@ export function App() {
     location.pathname === '/delete-account' ||
     location.pathname.startsWith('/legal');
 
-  // Client portal lives in its own auth space (magic-link → portal JWT). It
-  // does NOT depend on the advocate session in `useAuthStore`, so the rest of
-  // the routing tree (including the auth gate below) is short-circuited.
+  // The client portal was removed (2026-11-16): old /portal links go home.
   const isPortalRoute = location.pathname.startsWith('/portal');
 
   const isAdminRoute = location.pathname.startsWith('/admin');
 
-  if (isPortalRoute) {
-    return (
-      <>
-        <Suspense fallback={pageFallback}>
-          <Routes>
-            <Route path="/portal" element={<Navigate to="/portal/login" replace />} />
-            <Route path="/portal/login" element={<PortalLoginView />} />
-            {/* Legacy magic-link path - bounce anyone landing here back to sign-in. */}
-            <Route path="/portal/verify" element={<Navigate to="/portal/login" replace />} />
-            <Route element={<PortalLayout />}>
-              <Route path="/portal/dashboard" element={<PortalDashboardView />} />
-              <Route path="/portal/matters/:id" element={<PortalMatterDetailView />} />
-              <Route path="/portal/messages" element={<PortalMessagesView />} />
-              <Route path="/portal/profile" element={<PortalProfileView />} />
-            </Route>
-            <Route path="/portal/*" element={<Navigate to="/portal/login" replace />} />
-          </Routes>
-        </Suspense>
-        <Toast />
-      </>
-    );
-  }
+  if (isPortalRoute) return <Navigate to="/" replace />;
 
   if (isPublic) {
     return (
@@ -372,7 +333,6 @@ export function App() {
               <Route path="/app/firm"       element={<FirmDashboardView />} />
               <Route path="/app/members"    element={<MembersView />} />
               <Route path="/app/manage"     element={<ManageView />} />
-              <Route path="/app/messages"   element={<PortalInboxView />} />
               <Route path="/app/team-chat"  element={<TeamChatView />} />
               <Route path="/app/analytics"  element={<AnalyticsView />} />
               <Route path="/app/sanhita"             element={<SanhitaView />} />

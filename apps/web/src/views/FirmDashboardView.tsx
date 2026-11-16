@@ -89,7 +89,7 @@ export function FirmDashboardView() {
     },
     {
       label: 'Configure firm branding',
-      hint: 'Display name, logo, accent - used in client portal and document exports.',
+      hint: 'Display name, logo, accent - used in document exports.',
       link: '/app/settings',
       linkLabel: 'Open settings',
       completed: false,

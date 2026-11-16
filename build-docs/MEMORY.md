@@ -85,3 +85,5 @@
 - 2026-11-14 — Owner: **no Autopay**. Plans are paid per period (one month or one year) as a one-time Razorpay order; nothing renews automatically. No grace period; a reminder banner for the last 7 days; a different plan starts today with no carry-over; the same plan extends. Razorpay Subscriptions are no longer used for new purchases.
 
 - 2026-11-14 — Owner: ₹1 test code for live testing, valid only for allow-listed account emails (BILLING_TEST_COUPON + BILLING_TEST_EMAILS on the server). A real ₹1 invoice is issued; MRR records 0.
+
+- 2026-11-16 decision (owner): no client portal and no client messages; only advocates use DifAi. Code removed, DB columns/tables kept unused (no data loss). Share with clients via WhatsApp (file, password PDF, secure link).

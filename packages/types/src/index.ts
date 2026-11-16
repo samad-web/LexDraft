@@ -332,7 +332,7 @@ export interface AttentionItem {
 export interface AttentionGroup {
   key:
     | 'limitations' | 'objections' | 'noNextDate' | 'reviews'
-    | 'clientMessages' | 'esign' | 'overdueTasks';
+    | 'esign' | 'overdueTasks';
   count: number;
   /** A few rows to show inline; `count` may be larger. */
   items: AttentionItem[];
@@ -1798,90 +1798,7 @@ export interface Client {
 
 // ---- Client portal --------------------------------------------------------
 
-/** Portal sign-in request body (POST /portal/auth/sign-in). */
-export interface PortalSignInRequest {
-  email: string;
-  password: string;
-}
-
-export interface PortalSession {
-  token: string;
-  expiresAt: string;
-  client: {
-    id: ID;
-    name: string;
-    email: string;
-    firmId: ID;
-  };
-}
-
-export interface PortalCaseSummary {
-  id: ID;
-  cnr: string;
-  title: string;
-  court: string;
-  stage: string;
-  status: CaseStatus;
-  /** Next hearing date in ISO format (YYYY-MM-DD) or empty. */
-  next: string;
-  type: string;
-}
-
-export interface PortalHearingSummary {
-  id?: ID;
-  /** Date of the hearing (YYYY-MM-DD). */
-  date?: string;
-  /** HH:mm 24h. */
-  time: string;
-  case: string;
-  court: string;
-  purpose: string;
-}
-
-export interface PortalInvoiceSummary {
-  id: ID;
-  invoiceNo: string;
-  amountInr: number;
-  issuedDate: string;
-  dueDate: string;
-  status: 'paid' | 'pending' | 'overdue';
-}
-
-export interface PortalDocumentSummary {
-  id: ID;
-  name: string;
-  type: string;
-  case: string;
-  updated: string;
-  hasFile: boolean;
-  /** Firm-side has flagged this document as requiring client acknowledgement. */
-  requiresAck: boolean;
-  /** ISO timestamp when the client acknowledged it; absent when not yet signed. */
-  signedAt?: string;
-}
-
 // ---- Portal dashboard / matter detail / messages --------------------------
-
-/** Aggregated payload served by `GET /api/portal/dashboard` so first paint
- *  is one round trip rather than five (CLIENT_PORTAL.md §4.2). */
-export interface PortalDashboard {
-  client: { id: ID; name: string; email: string; firmId: ID };
-  counts: {
-    activeMatters: number;
-    upcomingHearings: number;
-    documentsToSign: number;
-    openInvoices: number;
-    unreadMessages: number;
-  };
-  /** Top 5 active matters, most-recently-active first. */
-  matters: PortalCaseSummary[];
-  /** Next 5 upcoming hearings across all matters. */
-  hearings: PortalHearingSummary[];
-  /** Last 5 shared documents. */
-  documents: PortalDocumentSummary[];
-  /** Top unpaid invoices first, then most recent paid. */
-  invoices: PortalInvoiceSummary[];
-}
 
 /** Pipeline summary that travels with a Case or PortalCaseSummary. The
  *  canonical stage list is per matter-type; `currentIndex` is -1 when the
@@ -1971,66 +1888,7 @@ export interface MatterTimelineEvent {
   actorName?: string;
 }
 
-/** Full payload for `GET /api/portal/matters/:id`. The matter itself plus its
- *  hearings, documents, and the message thread on this matter. */
-export interface PortalMatterDetail {
-  matter: PortalCaseSummary;
-  hearings: PortalHearingSummary[];
-  documents: PortalDocumentSummary[];
-  messages: PortalMessage[];
-  /** Canonical stage list for this matter's type + current position.
-   *  Legacy — kept for back-compat; prefer `graph` when present. */
-  pipeline: CasePipeline;
-  /** Per-case pipeline graph (migration 0054). Rendered read-only on the
-   *  portal; falls back to `pipeline` when absent during rollout. */
-  graph?: CasePipelineGraph;
-  /** Portal-visible applications on this matter (visible_to_portal = true). */
-  applications?: CaseApplication[];
-  /** Chronological event stream visible to the client (stage transitions
-   *  flagged visible_to_portal, hearings, shared documents, applications). */
-  timeline: MatterTimelineEvent[];
-}
-
-export interface PortalMessage {
-  id: ID;
-  /** null on the per-client "general" thread. */
-  matterId: ID | null;
-  /** Display label for the matter ("general" when matterId is null). */
-  matterLabel?: string;
-  senderKind: 'client' | 'firm';
-  senderName: string;
-  body: string;
-  /** ISO timestamp. */
-  sentAt: string;
-  /** ISO timestamp; absent until the recipient has read it. */
-  readAt?: string;
-  /** True iff the current viewer is the message's sender. UI-only convenience. */
-  mine: boolean;
-}
-
-export interface PortalSendMessageRequest {
-  /** null or omitted → the per-client "general" thread. */
-  matterId?: ID | null;
-  body: string;
-}
-
-export interface PortalAcknowledgeDocumentResponse {
-  id: ID;
-  /** ISO timestamp the acknowledgement was recorded. */
-  signedAt: string;
-}
-
 // ---- Portal profile -------------------------------------------------------
-
-/** Notification preferences exposed on `/portal/profile` (CLIENT_PORTAL.md
- *  §4.8). Each key maps to a category of email the firm-side may emit. */
-export interface PortalNotificationPreferences {
-  newDocument: boolean;
-  hearingReminder: boolean;
-  newMessage: boolean;
-  invoiceIssued: boolean;
-  invoiceOverdue: boolean;
-}
 
 // ---- In-app notification feed (migration 0061) ----------------------------
 
@@ -2054,52 +1912,7 @@ export interface AppNotification {
   createdAt: string;
 }
 
-/** v1 ships English-only; the field exists so v2 can flip it to Hindi /
- *  regional languages without a schema change. */
-export type PortalLanguage = 'en';
-
-export interface PortalProfile {
-  client: { id: ID; name: string; email: string; firmId: ID };
-  language: PortalLanguage;
-  notifications: PortalNotificationPreferences;
-}
-
-/** Partial update - only the keys the client wants to change. */
-export interface PortalProfileUpdate {
-  language?: PortalLanguage;
-  notifications?: Partial<PortalNotificationPreferences>;
-}
-
-export interface PortalForgetMeRequest {
-  /** Optional free-text reason; passed into the audit entry. */
-  reason?: string;
-}
-
 // ---- Firm-side portal admin -----------------------------------------------
-
-export interface FirmEnablePortalResponse {
-  ok: true;
-  clientId: ID;
-  /** Plaintext default password (`firstname@123`) the firm admin should
-   *  share with the client out-of-band. Set when the call minted or reset
-   *  the password; absent in demo mode. */
-  password?: string;
-}
-
-/** A row in the firm-side "Portal messages" inbox - one entry per
- *  (client × matter|null) thread, with unread count and last-message preview. */
-export interface FirmPortalThreadSummary {
-  clientId: ID;
-  clientName: string;
-  matterId: ID | null;
-  matterTitle: string | null;
-  /** ISO timestamp of the most recent message in the thread. */
-  lastMessageAt: string;
-  /** Preview body of the most recent message, truncated to ~120 chars. */
-  lastMessagePreview: string;
-  /** Number of client → firm messages on this thread that are not yet read. */
-  unreadFromClient: number;
-}
 
 // ---- Limitations calculator -----------------------------------------------
 

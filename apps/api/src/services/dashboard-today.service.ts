@@ -91,7 +91,7 @@ export const dashboardTodayService = {
     // ---- Attention + practice counts, one row. ------------------------------
     const countsP = sql<Array<{
       limitations: number; objections: number; no_next_date: number;
-      reviews: number; client_messages: number; esign: number; overdue_tasks: number;
+      reviews: number; esign: number; overdue_tasks: number;
       active_matters: number; total_matters: number; overdue_inv_count: number; overdue_inv_total: number | string;
       revenue_fy: number | string; open_leads: number;
     }>>`
@@ -108,8 +108,6 @@ export const dashboardTodayService = {
         (select count(*) from contract_reviews
           where firm_id = ${firmId}::uuid and assigned_to = ${userId}::uuid
             and (decision is null or decision = 'pending'))::int as reviews,
-        (select count(*) from portal_messages
-          where firm_id = ${firmId}::uuid and sender_kind = 'client' and read_at is null)::int as client_messages,
         (select count(*) from esign_requests
           where firm_id = ${firmId}::uuid and status in ('sent', 'partially_signed'))::int as esign,
         (select count(*) from tasks
@@ -222,11 +220,6 @@ export const dashboardTodayService = {
         key: 'reviews', count: n(counts?.reviews), to: '/app/review-queue', tone: 'info',
         items: rows.map((r) => ({ id: r.id, label: r.title, to: '/app/review-queue' })),
       })));
-    }
-    if (can('client.view') && n(counts?.client_messages) > 0) {
-      slots.push({
-        key: 'clientMessages', count: n(counts?.client_messages), to: '/app/messages', tone: 'info', items: [],
-      });
     }
     if (n(counts?.esign) > 0) {
       slots.push({ key: 'esign', count: n(counts?.esign), to: '/app/documents', tone: 'info', items: [] });

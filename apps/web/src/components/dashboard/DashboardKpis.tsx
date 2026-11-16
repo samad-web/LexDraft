@@ -21,7 +21,7 @@ export type KpiScope = 'mine' | 'firm';
 type KpiId =
   | 'hearingsToday' | 'next7' | 'limitation' | 'objections' | 'noNextDate'
   | 'overdueTasks' | 'feesOverdue' | 'revenueFY' | 'openLeads' | 'reviews'
-  | 'clientMessages' | 'esign' | 'activeMatters' | 'unassigned' | 'teamLoad';
+  | 'esign' | 'activeMatters' | 'unassigned' | 'teamLoad';
 
 interface Ctx {
   practice: DashboardToday['practice'];
@@ -214,17 +214,6 @@ const CATALOG: KpiDef[] = [
     },
   },
   {
-    id: 'clientMessages', name: 'Client messages', why: 'Unanswered messages from clients.',
-    available: always,
-    build: ({ group }) => {
-      const n = group('clientMessages')?.count ?? 0;
-      return {
-        icon: 'chat', label: 'Client messages', value: String(n), unit: ' unanswered', to: '/app/messages', cta: 'Reply to clients',
-        tone: n ? 'amber' : undefined, clue: n ? 'Clients are waiting for a reply.' : 'Every client has a reply.',
-      };
-    },
-  },
-  {
     id: 'esign', name: 'Awaiting e-sign', why: 'Documents sent out for signature.',
     available: always,
     build: ({ group }) => {
@@ -280,7 +269,7 @@ const PLAN_DEFAULTS: Record<'Solo' | 'PracticeLead' | 'FirmLead' | 'Member', Kpi
 };
 
 /** Shown when a default KPI isn't available (e.g. no billing access). */
-const FALLBACKS: KpiId[] = ['noNextDate', 'overdueTasks', 'next7', 'activeMatters', 'reviews', 'clientMessages'];
+const FALLBACKS: KpiId[] = ['noNextDate', 'overdueTasks', 'next7', 'activeMatters', 'reviews'];
 
 const MAX_KPIS = 9;
 const MIN_KPIS = 3;
