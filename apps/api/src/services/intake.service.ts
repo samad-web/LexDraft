@@ -101,7 +101,9 @@ const K_BNS_CONCORDANCE = '__bnsConcordance';
  *  read into an engine spec once and kept on THIS conversation only. */
 const K_FORMAT = '__attachedFormat';
 const K_OPEN = '__openDraft';
-const RESERVED = new Set([K_OPEN, K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE, K_FORMAT]);
+/** The language the advocate drafts this document in (features/regional-languages.md). */
+const K_LANG = '__draftLanguage';
+const RESERVED = new Set([K_LANG, K_OPEN, K_META, K_LABEL, K_TRANSCRIPT, K_ASKS, K_PENDING, K_SOURCE, K_LAST_EXTRACT_FAILED, K_BNS_CONCORDANCE, K_FORMAT]);
 
 /** Label suffix for a document with no format here, drafted by open-draft.service. */
 export const OPEN_DRAFT_SUFFIX = ' (open draft)';
@@ -242,6 +244,8 @@ interface StoredState {
   format?: AttachedFormat;
   /** Set once an open draft exists. */
   open?: OpenDraftResult;
+  /** Draft language code (EN when absent). */
+  lang?: string;
 }
 
 function unpack(facts: Record<string, unknown>): StoredState {
@@ -262,6 +266,7 @@ function unpack(facts: Record<string, unknown>): StoredState {
     bnsConcordance: parseBnsConcordance(facts[K_BNS_CONCORDANCE]),
     ...(facts[K_FORMAT] ? { format: facts[K_FORMAT] as AttachedFormat } : {}),
     ...(facts[K_OPEN] ? { open: facts[K_OPEN] as OpenDraftResult } : {}),
+    ...(typeof facts[K_LANG] === 'string' ? { lang: facts[K_LANG] as string } : {}),
   };
 }
 
@@ -292,6 +297,7 @@ function pack(s: StoredState, docLabel: string): Record<string, unknown> {
     [K_BNS_CONCORDANCE]: s.bnsConcordance,
     ...(s.format ? { [K_FORMAT]: s.format } : {}),
     ...(s.open ? { [K_OPEN]: s.open } : {}),
+    ...(s.lang ? { [K_LANG]: s.lang } : {}),
   };
 }
 
@@ -1007,6 +1013,18 @@ export function labelNamedIn(phrase: string, labels: string[]): string | null {
 }
 
 export const intakeService = {
+  /** The draft language for this matter: `requested` is saved (when it changed) and
+   *  returned; without one, the saved choice (null = English). */
+  async draftLanguage(matterId: string, ctx: Ctx, requested?: string): Promise<string | null> {
+    const sheet = await ownedSheet(matterId, ctx);
+    if (!sheet) return requested ?? null;
+    const state = unpack(sheet.facts);
+    if (requested && requested !== (state.lang ?? 'EN')) {
+      await factSheetService.revise(matterId, pack({ ...state, lang: requested }, String(sheet.facts[K_LABEL] ?? '')), ctx);
+    }
+    return requested ?? state.lang ?? null;
+  },
+
   /** Is a Draft-page label drivable by the conversational intake loop? */
   async routable(docLabel: string, firmId: string | null = null): Promise<boolean> {
     // Cheap synchronous check first: a label with no engine mapping (and not a

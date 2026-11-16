@@ -30,6 +30,8 @@ import { requireFeature } from '../services/permissions.service';
 import { draftProgress } from '../lib/draft-progress';
 import { creditService } from '../services/credit.service';
 import { draftMeterService } from '../services/draft-meter.service';
+import { DRAFT_LANG_CODES, draftTranslateService, type DraftLang } from '../services/draft-translate.service';
+import type { IntakeState } from '@lexdraft/types';
 import { CREDIT_COSTS } from '../lib/credit-costs';
 import { aiUsageService } from '../services/ai-usage.service';
 import {
@@ -1167,11 +1169,20 @@ const IntakeReply = z.object({
 // DRAFT NOW (DraftBot-style): draft the WHOLE document from what's on record,
 // filling genuinely-missing required fields with clearly-marked [placeholders]
 // instead of running a question loop. Hard-stops (refusals) still block.
+/** Every intake response: translated into the draft language (the one asked for,
+ *  else the one saved for the matter), then metered. features/regional-languages.md */
+async function finishIntake(ctx: { firmId: string | null; userId: string | null }, state: IntakeState, requested?: DraftLang): Promise<IntakeState> {
+  const lang = state.status === 'generated' && state.matterId && ctx.userId
+    ? await intakeService.draftLanguage(state.matterId, { firmId: ctx.firmId, userId: ctx.userId }, requested)
+    : requested;
+  return draftMeterService.intake(ctx, await draftTranslateService.intake(ctx, state, lang as DraftLang | null));
+}
+
 const IntakeDraftNow = z.object({
   matterId: z.string().uuid(),
   docLabel: z.string().min(1),
-  // Output language for the rendered document. 'EN' default; 'TA' → Tamil render.
-  language: z.enum(['EN', 'HI', 'TA']).optional(),
+  // Draft language (features/regional-languages.md). Drafted in English, translated last.
+  language: z.enum(DRAFT_LANG_CODES).optional(),
 });
 
 const IntakeEdit = z.object({
@@ -1183,7 +1194,7 @@ const IntakeEdit = z.object({
   draftNow: z.boolean().optional(),
   /** false (with draftNow) = typing in the live panel: engine re-draft only, no model call. */
   compose: z.boolean().optional(),
-  language: z.enum(['EN', 'HI', 'TA']).optional(),
+  language: z.enum(DRAFT_LANG_CODES).optional(),
 });
 /** An engine-only live edit makes no model call (see intakeService.edit). */
 export const isEngineOnlyEdit = (body: unknown): boolean => {
@@ -1316,7 +1327,7 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         parsed.instruction,
       );
-      res.json(await draftMeterService.intake({ firmId: firmId, userId: userId }, state));
+      res.json(await finishIntake({ firmId: firmId, userId: userId }, state));
     } catch (err) {
       // A question, answered: no matter was created.
       if (err instanceof IntakeAnswered) {
@@ -1381,7 +1392,7 @@ draftingRouter.post('/engine/intake/start-format', requireFeature('drafting.ai')
         { firmId, userId, ...(parsed.provider ? { provider: parsed.provider } : {}) },
         { save: parsed.save === true },
       ));
-      res.json(await draftMeterService.intake({ firmId: firmId, userId: userId }, state));
+      res.json(await finishIntake({ firmId: firmId, userId: userId }, state));
     } catch (err) {
       if (err instanceof IntakeUnavailableError) {
         res.status(422).json({ error: 'format_unusable', message: err.message });
@@ -1409,7 +1420,7 @@ draftingRouter.post('/engine/intake/start', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.start(parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       }, parsed.preset);
-      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
+      res.json(await finishIntake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;
@@ -1429,7 +1440,7 @@ draftingRouter.post('/engine/intake/reply', requireFeature('drafting.ai'), llmGe
       const state = await intakeService.reply(parsed.matterId, parsed.docLabel, parsed.message, {
         ...ctx, ...(parsed.provider ? { provider: parsed.provider } : {}),
       });
-      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
+      res.json(await finishIntake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;
@@ -1446,11 +1457,8 @@ draftingRouter.post('/engine/intake/draft-now', requireFeature('drafting.ai'), l
     const ctx = await intakeSetup(req, res, parsed.docLabel, true);
     if (!ctx) return;
     try {
-      const state = await intakeService.draftNow(parsed.matterId, parsed.docLabel, {
-        ...ctx,
-        ...(parsed.language ? { language: parsed.language } : {}),
-      });
-      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
+      const state = await intakeService.draftNow(parsed.matterId, parsed.docLabel, ctx);
+      res.json(await finishIntake({ firmId: ctx.firmId, userId: ctx.userId }, state, parsed.language));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;
@@ -1474,10 +1482,9 @@ draftingRouter.post('/engine/intake/edit', requireFeature('drafting.ai'), (req, 
     const ctx = await intakeSetup(req, res, parsed.docLabel, !engineOnly);
     if (!ctx) return;
     try {
-      const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, {
-        ...ctx, ...(parsed.language ? { language: parsed.language } : {}),
-      }, { draftNow: parsed.draftNow === true, ...(engineOnly ? { compose: false } : {}) });
-      res.json(await draftMeterService.intake(ctx, state));
+      const state = await intakeService.edit(parsed.matterId, parsed.docLabel, parsed.edits, ctx,
+        { draftNow: parsed.draftNow === true, ...(engineOnly ? { compose: false } : {}) });
+      res.json(await finishIntake(ctx, state, parsed.language));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;
@@ -1501,7 +1508,7 @@ draftingRouter.post('/engine/intake/attach', requireFeature('drafting.ai'), llmG
       const state = await intakeService.attach(
         parsed.matterId, parsed.docLabel, parsed.files, parsed.caption ?? '', ctx,
       );
-      res.json(await draftMeterService.intake({ firmId: ctx.firmId, userId: ctx.userId }, state));
+      res.json(await finishIntake({ firmId: ctx.firmId, userId: ctx.userId }, state));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;
@@ -1550,7 +1557,7 @@ draftingRouter.post('/engine/intake/load', requireFeature('drafting.ai'), async 
     if (!ctx) return;
     try {
       const state = await intakeService.load(parsed.matterId, parsed.docLabel, ctx);
-      res.json(await draftMeterService.intake(ctx, state));
+      res.json(await finishIntake(ctx, state));
     } catch (err) {
       if (handleIntakeError(err, res)) return;
       throw err;

@@ -102,8 +102,10 @@ WORKDIR /app
 # breaks and page count) match:
 #   - font-carlito   -> Calibri  (same metrics)
 #   - ttf-liberation  -> Liberation Mono/Serif/Sans (Courier/Times/Arial metrics)
-#   - font-noto + font-noto-tamil/-devanagari -> Indian scripts (party names; Tamil
-#     Land Records extracts print as boxes without font-noto-tamil).
+#   - font-noto + font-noto-{tamil,devanagari,telugu,kannada,malayalam,bengali,
+#     gujarati,gurmukhi,oriya} -> the Indian scripts drafts are written in
+#     (features/regional-languages.md; Assamese uses the Bengali script). Without
+#     them those scripts print as boxes in the PDF.
 # font-caladea (Cambria substitute) was DROPPED from this list (2026-10): it no
 # longer exists in Alpine's repo at all (confirmed via `apk search caladea` /
 # `apk search crosextra` returning nothing - not a rename, genuinely removed
@@ -130,6 +132,13 @@ RUN apk add --no-cache tini wget \
       font-noto \
       font-noto-tamil \
       font-noto-devanagari \
+      font-noto-telugu \
+      font-noto-kannada \
+      font-noto-malayalam \
+      font-noto-bengali \
+      font-noto-gujarati \
+      font-noto-gurmukhi \
+      font-noto-oriya \
       chromium \
       nss \
       qpdf \

@@ -1,3 +1,4 @@
+import type { DraftLang } from '../../lib/draftLanguages';
 // =============================================================================
 // LiveDetailsPanel — the "Missing details" card beside a drafted document.
 //
@@ -21,7 +22,7 @@ interface Props {
   locked: boolean;
   /** Discard the hand edits so live updates can resume. */
   onUnlock: () => void;
-  language?: 'EN' | 'HI' | 'TA';
+  language?: DraftLang;
   /** Re-draft only on "Update document" (an AI-drafted document: each update is
    *  a model call, so not on every keystroke). */
   manual?: boolean;
@@ -83,7 +84,7 @@ export function LiveDetailsPanel({ state, onUpdated, locked, onUnlock, language,
         edits,
         draftNow: true,
         ...(compose ? {} : { compose: false }),
-        ...(language && language !== 'EN' ? { language } : {}),
+        ...(language ? { language } : {}),
       });
       if (seq !== latest.current) return; // a newer edit is on its way
       if (next.status === 'refused' && next.refusal) {

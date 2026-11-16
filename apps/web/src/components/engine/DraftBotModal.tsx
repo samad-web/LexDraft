@@ -40,6 +40,7 @@ import { draftErrorMessage } from '../../lib/draft-error';
 import { QuestionAnswerNote } from './QuestionAnswerNote';
 import { CreditMeter } from '../DraftMeter';
 import { CREDIT_COSTS, creditLabel } from '../../lib/credit-costs';
+import { DRAFT_LANGUAGES, draftLanguageLabel, type DraftLang } from '../../lib/draftLanguages';
 
 // Focus the composer on open only with a mouse; on phones that pops the
 // keyboard over half the screen before the advocate has read anything.
@@ -136,8 +137,6 @@ function briefFromTranscript(
   return text ? { text, bns } : null;
 }
 
-const LANGUAGES = ['English', 'हिंदी (Hindi)', 'தமிழ் (Tamil)'] as const;
-const LANGUAGE_SHORT: Record<string, string> = { 'English': 'English', 'हिंदी (Hindi)': 'हिंदी', 'தமிழ் (Tamil)': 'தமிழ்' };
 
 /** Quick-start phrases. They only seed the description - the engine still
  *  detects the document type from the full text, so nothing is forced. */
@@ -230,7 +229,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   // and later drafts pick it from Formats at no reading cost.
   const [saveFormat, setSaveFormat] = useState(true);
   const showToast = useUIStore((st) => st.showToast);
-  const [language, setLanguage] = useState<string>(LANGUAGES[0]);
+  const [language, setLanguage] = useState<DraftLang>('EN');
   const [useBns, setUseBns] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState<DraftBoxAnswer | null>(null);
@@ -241,7 +240,7 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
   }, [error]);
   // The state behind an "I still need X" — its fields are offered as inputs.
   const [needs, setNeeds] = useState<IntakeState | null>(null);
-  const [needsLang, setNeedsLang] = useState<'EN' | 'HI' | 'TA'>('EN');
+  const [needsLang, setNeedsLang] = useState<DraftLang>('EN');
   // Files the advocate dropped into the "couldn't read" repair zone. They are
   // (a) fed to THIS draft immediately via the engine attach path, and (b)
   // persisted back onto the case so the byte-less rows are permanently fixed —
@@ -474,15 +473,13 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
       // Output language for the rendered document: map the picker's display label
       // to the engine code. Tamil renders the .docx in Tamil (see engine tamil.py);
       // English is the default. Additive — EN behaves exactly as before.
-      const langCode: 'EN' | 'HI' | 'TA' = language.includes('Tamil')
-        ? 'TA'
-        : language.includes('Hindi')
-          ? 'HI'
-          : 'EN';
+      // Drafted in English, translated last (features/regional-languages.md). Sent
+      // always, EN too, so switching back to English sticks (the choice is saved).
+      const langCode: DraftLang = language;
       s = await draftNow.mutateAsync({
         matterId: s.matterId,
         docLabel: s.docLabel,
-        ...(langCode !== 'EN' ? { language: langCode } : {}),
+        language: langCode,
       });
       onActiveLabel?.(s.docLabel);
 
@@ -778,10 +775,10 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
             <select
               className="input"
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              onChange={(e) => setLanguage(e.target.value as DraftLang)}
               disabled={busy}
             >
-              {LANGUAGES.map((l) => <option key={l} value={l}>{l}</option>)}
+              {DRAFT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{draftLanguageLabel(l)}</option>)}
             </select>
           </label>
           <label className="draftbot-modal__check">
@@ -977,21 +974,11 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
         <div className="dc-footer">
           <div className="dc-option">
             <span className="dc-option-label">Language</span>
-            <div className="dc-seg" role="radiogroup" aria-label="Draft in">
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l}
-                  type="button"
-                  role="radio"
-                  aria-checked={language === l}
-                  className={language === l ? 'is-on' : ''}
-                  onClick={() => setLanguage(l)}
-                  disabled={busy}
-                >
-                  {LANGUAGE_SHORT[l] ?? l}
-                </button>
-              ))}
-            </div>
+            {/* 12 languages: a select, not segmented buttons */}
+            <select className="input dc-lang" aria-label="Draft in" value={language}
+              onChange={(e) => setLanguage(e.target.value as DraftLang)} disabled={busy}>
+              {DRAFT_LANGUAGES.map((l) => <option key={l.code} value={l.code}>{draftLanguageLabel(l)}</option>)}
+            </select>
           </div>
           <label className="dc-switch">
             <input type="checkbox" checked={useBns} onChange={(e) => setUseBns(e.target.checked)} disabled={busy} />

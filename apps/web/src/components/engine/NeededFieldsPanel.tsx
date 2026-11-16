@@ -1,3 +1,4 @@
+import type { DraftLang } from '../../lib/draftLanguages';
 // =============================================================================
 // NeededFieldsPanel — "I still need X" made actionable.
 //
@@ -16,7 +17,7 @@ import { FieldInput } from './LiveDetailsPanel';
 interface Props {
   /** The not-yet-drafted state (gathering, or refused naming fields). */
   state: IntakeState;
-  language?: 'EN' | 'HI' | 'TA';
+  language?: DraftLang;
   /** The document drafted. */
   onDrafted: (state: IntakeState) => void;
   /** Still can't draft: the next state + what to tell the advocate. */
@@ -48,7 +49,7 @@ export function NeededFieldsPanel({ state, language, onDrafted, onStill }: Props
         docLabel: state.docLabel,
         edits: Object.fromEntries(filled),
         draftNow: true,
-        ...(language && language !== 'EN' ? { language } : {}),
+        ...(language ? { language } : {}),
       });
       if (next.status === 'generated' && next.draft) {
         onDrafted(next);

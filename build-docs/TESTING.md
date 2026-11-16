@@ -1,4 +1,10 @@
 # Testing
+## Regional languages — 2026-11-16 (features/regional-languages.md)
+- `draft-translate.test.ts` 6/6: invariants (figures, [placeholders], table cells); HC/SC kept English with a note, no model call, no charge; district-court draft translated + written into the Word file + charged once (same ref); live edit sends only changed lines; a line whose figure changes is retried then kept English with a note; English / not-generated unchanged.
+- Full API suite 1050 passed (4 skipped); web tsc clean.
+- Live run through the Claude Code route (all API keys blanked): written arguments (81 lines, 2 tables) -> Tamil in 35 s, legal notice (32 lines) -> Telugu in 19 s; 0 lines failed the checks, table rows kept, Word rebuilt; PDFs via LibreOffice render Tamil and Telugu script correctly (local fonts). Server fonts for Telugu/Kannada/Malayalam/Bengali/Gujarati/Punjabi/Odia arrive with the next API image build: check a PDF there after deploy.
+- Seen: the Telugu notice kept "Thiru" (Tamil honorific) from the source.
+
 ## Share several files on WhatsApp — 2026-11-16 (features/multi-share.md)
 - web `multi-share.test.ts` 11/11: 1..10 files; weak password refused; Word/image + password + files mode blocked (names the files, points to Secure link); Word as password link OK; every PDF locked with the same PIN + watermark; no lock without password; one link per file, same PIN and expiry; first failure stops, names the file, nothing sent; rules checked before any file is fetched; message lists every file+link, never the PIN; files note.
 - `share-file.test.ts` +2 (9/9): several files reach one Android share sheet / one Web Share call.

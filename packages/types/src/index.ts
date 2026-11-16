@@ -865,7 +865,8 @@ export interface IntakeEditRequest {
   draftNow?: boolean;
   /** false (with draftNow): engine re-draft only, no model polish. Typing in the live panel. */
   compose?: boolean;
-  language?: 'EN' | 'HI' | 'TA';
+  /** Draft language (features/regional-languages.md). */
+  language?: 'EN' | 'HI' | 'TA' | 'TE' | 'KN' | 'ML' | 'MR' | 'GU' | 'BN' | 'PA' | 'OR' | 'AS';
 }
 
 /** One file attached to the intake conversation (session-only, base64). */

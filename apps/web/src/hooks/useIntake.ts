@@ -1,3 +1,4 @@
+import type { DraftLang } from '../lib/draftLanguages';
 // =============================================================================
 // useIntake — the conversational fact-gathering loop, engine-driven.
 //
@@ -89,7 +90,7 @@ export function useIntakeDraftNow() {
   return useMutation<
     IntakeState,
     Error,
-    { matterId: string; docLabel: string; language?: 'EN' | 'HI' | 'TA' }
+    { matterId: string; docLabel: string; language?: DraftLang }
   >({
     mutationFn: (req) => api.post<IntakeState>('/drafting/engine/intake/draft-now', req),
   });
