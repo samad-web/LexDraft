@@ -54,7 +54,7 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
           Sign in
         </button>
         <button className="btn btn-primary" type="button" onClick={onTrial}>
-          Begin trial
+          Get started
         </button>
       </div>
       <style>{`

@@ -22,7 +22,7 @@ import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India }
  */
 
 type Intent = 'demo' | 'trial' | 'paid';
-type DemoChoice = 'contact' | 'interactive' | 'schedule';
+type DemoChoice = 'contact' | 'schedule';
 
 const SCHEDULE_URL = 'https://cal.com/lexdraft/demo'; // configurable; defaults to a generic slug
 
@@ -99,13 +99,12 @@ function DemoChoiceScreen(): JSX.Element {
   const [choice, setChoice] = useState<DemoChoice | null>(null);
   if (choice === 'contact')     return <DemoContactForm onBack={() => setChoice(null)} demoType="contact" />;
   if (choice === 'schedule')    return <DemoContactForm onBack={() => setChoice(null)} demoType="schedule" />;
-  if (choice === 'interactive') return <InteractiveDemoSignup onBack={() => setChoice(null)} />;
   return (
     <div>
       <div className="eyebrow" style={{ marginBottom: 8 }}>See DifAi</div>
       <h1 className="heading-xl" style={{ marginBottom: 8 }}>How would you like the demo?</h1>
       <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
-        Three ways: pick the one that suits your week.
+        Two ways: pick the one that suits your week.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <DemoChoiceCard
@@ -113,12 +112,6 @@ function DemoChoiceScreen(): JSX.Element {
           desc="Share a few details. A partner reaches out within one business day to walk you through what matters for your firm."
           chevronLabel="Send a message"
           onClick={() => setChoice('contact')}
-        />
-        <DemoChoiceCard
-          title="Try the interactive demo"
-          desc="Spin up a sandbox account in seconds, no card, no commitment. Argue against opposing counsel, draft a notice, browse the matter shell."
-          chevronLabel="Open sandbox"
-          onClick={() => setChoice('interactive')}
         />
         <DemoChoiceCard
           title="Book a guided demo"
@@ -319,75 +312,6 @@ function useExistingAccountHandler(): (resp: SignInResult) => void {
   };
 }
 
-function InteractiveDemoSignup(props: { onBack: () => void }): JSX.Element {
-  // Interactive demo === instant trial provisioning with the is_demo flag set.
-  // The user gets a tenant they can poke at; the in-app banner surfaces a
-  // "Convert to a real account" CTA once they decide.
-  const signUp = useGoogleSignUp();
-  const showToast = useUIStore((s) => s.showToast);
-  const navigate = useNavigate();
-  const onSignedIn = useExistingAccountHandler();
-  const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
-  const [name, setName] = useState('');
-  const [password, setPassword] = useState({ value: '', ok: false });
-  const [agreedTerms, setAgreedTerms] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting || !verified || !password.ok || !agreedTerms) return;
-    setIsSubmitting(true);
-    try {
-      await signUp.mutateAsync({
-        signupToken: verified.signupToken,
-        password: password.value,
-        name: name.trim() || undefined,
-        acceptTerms: true,
-        role: 'solo',
-        intent: 'demo',
-      });
-      // Sign-up sets the auth store; navigate into the app.
-      navigate('/app/dashboard', { replace: true });
-    } catch (err) {
-      showToast({ type: 'vermillion', text: (err as Error)?.message ?? 'Could not start the demo.' });
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div>
-      <BackLink onClick={props.onBack} />
-      <h1 className="heading-xl" style={{ marginBottom: 8 }}>Spin up an interactive demo</h1>
-      <p className="lede" style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
-        Fresh sandbox account, ready in seconds. No card. We'll flag the
-        session as a demo so it doesn't mix with real practice data.
-      </p>
-      {!verified ? (
-        <div className="card" style={{ padding: 24 }}>
-          <GoogleWhatsAppVerify
-            onSignedIn={onSignedIn}
-            onVerified={(v) => { setVerified(v); setName(v.profile.name); }}
-          />
-        </div>
-      ) : (
-        <form onSubmit={onSubmit} className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <VerifiedLine verified={verified} />
-          <Labelled label="Your name">
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Demo User" autoComplete="name" />
-          </Labelled>
-          <NewPasswordFields onChange={setPassword} />
-          <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
-          <div style={{ marginTop: 8 }}>
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || signUp.isPending || !password.ok || !agreedTerms}>
-              {isSubmitting || signUp.isPending ? 'Starting demo…' : 'Start interactive demo'}
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Trial / Paid signup (intent=trial | paid)
 // ---------------------------------------------------------------------------
@@ -413,7 +337,7 @@ function SignupFormCard(props: { intent: 'trial' | 'paid' }): JSX.Element {
   const subline = isTrial
     ? 'Create your account, then pick a plan: Sanad, Vakalat, Brief or Associates. Every plan has the full app.'
     : 'Set up your account; billing kicks in on the next page.';
-  const ctaLabel = isTrial ? 'Begin trial' : 'Create account';
+  const ctaLabel = 'Create account';
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();

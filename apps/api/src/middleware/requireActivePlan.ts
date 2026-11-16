@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { getPlanState, evaluatePlanState } from '../services/plan-status.service';
-import { PaymentRequiredError } from '../lib/errors';
+import { ForbiddenError, PaymentRequiredError } from '../lib/errors';
 import { logger } from '../logger';
 
 /**
@@ -28,6 +28,12 @@ export async function requireActivePlan(req: Request, res: Response, next: NextF
   }
   try {
     const state = await getPlanState(req.user.id);
+    // A new account must finish /onboarding (plan + payment) before any
+    // feature route. 403, not 402: 402 signs the user out in the web app.
+    if (state.firmId && !state.onboarded) {
+      next(new ForbiddenError('Finish setting up your account first.', { code: 'onboarding_required' }));
+      return;
+    }
     const check = evaluatePlanState(state);
     if (!check.ok) {
       // PaymentRequiredError is mapped to 402 with `{ error, code }` by the

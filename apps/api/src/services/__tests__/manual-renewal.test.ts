@@ -138,7 +138,7 @@ describe('AC2 a paid period is applied once, with the right paid-until', () => {
 describe('AC3/AC4 no grace: the plan ends at its paid-until date', () => {
   it('an active plan past its paid-until date is blocked (plan_expired), no grace days', () => {
     const yesterday = new Date(Date.now() - 86_400_000 * 1.5);
-    expect(planStatus.evaluatePlanState({ firmId: 'f', planStatus: 'active', renewsAt: yesterday, trialEndsAt: null }))
+    expect(planStatus.evaluatePlanState({ firmId: 'f', planStatus: 'active', renewsAt: yesterday, trialEndsAt: null, onboarded: true }))
       .toMatchObject({ ok: false, reason: 'plan_expired' });
   });
 

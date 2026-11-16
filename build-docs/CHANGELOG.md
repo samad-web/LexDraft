@@ -1,4 +1,6 @@
 # Changelog
+- Paid-only sign-up gate (2026-11-16, features/paid-signup-gate.md): the server keeps the app closed (403 onboarding_required) until a new account finishes onboarding and payment; a sign-up can no longer skip onboarding or start as "paid"; the free interactive demo account is gone ("Book a demo" = contact form only).
+
 - Regional languages (2026-11-16, features/regional-languages.md): drafts in Hindi, Tamil, Telugu, Kannada, Malayalam, Marathi, Gujarati, Bengali, Punjabi, Odia and Assamese. Drafted and checked in English, then translated as the last step with a figures/placeholder check per line; layout and tables kept; language saved with the matter; High Court / Supreme Court documents stay English (Art. 348). Fonts for all these scripts added to the API image.
 
 - Share several files on WhatsApp (2026-11-16, features/multi-share.md): case Documents tab gets a tick box per file, Select all, and "Share N on WhatsApp" (up to 10). Password ON by default (random PIN); turning it off needs two ticks. Secure link (default, any file type, one message with a link per file) or Attach files (PDFs locked with the PIN; Word/images blocked while a password is on). Two steps (Prepare, then Send) so the share window is never blocked. PIN shown with Copy to send separately.

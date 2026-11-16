@@ -1,4 +1,9 @@
 # Testing
+## Paid-only sign-up gate — 2026-11-16 (features/paid-signup-gate.md)
+- `paid-signup-gate.integration.test.ts` 4/4 (AC1-AC4).
+- Web `terms-consent.test.tsx` updated: SignupView now has one sign-up form (the demo form was removed by design), so 1 acceptTerms call / 1 TermsAgree instead of 2.
+- Regression: api unit 1070 pass; integration 82 pass + 2 pre-existing failures (migration 0042 not idempotent; password signUp role=group gives Firm tier) that fail the same on main without this change; share-links unit needs apps/api/.env (absent in the clean worktree). Web 331 pass.
+
 ## Regional languages, end to end — 2026-11-16
 - Real API routes (local, port 4100, all API keys blank: Claude Code route only), as the user's own local account:
   - Open-drafted written arguments, Tamil: generated, 65/68 lines Tamil (the rest case numbers / [placeholders]), 11 table rows kept, Word built, 35 s. Reopened with no language sent: identical, instant (saved choice + cache).

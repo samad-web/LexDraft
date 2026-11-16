@@ -6,7 +6,7 @@ import { env } from '../env';
 import { db } from '../db/client';
 import { mfaService } from './mfa.service';
 import { getPlanState, evaluatePlanState } from './plan-status.service';
-import { BadRequestError, ConflictError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
+import { BadRequestError, ConflictError, ForbiddenError, PaymentRequiredError, UnauthorizedError } from '../lib/errors';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
@@ -800,6 +800,10 @@ export const authService = {
 
   /** Create the account for a Google user whose WhatsApp number is verified. */
   async googleSignUp(input: GoogleSignUpInput, meta?: ConsentMeta): Promise<AuthResponse> {
+    // Paid-only sign-up (owner, 2026-11-16): no free demo accounts.
+    if (input.intent === 'demo') {
+      throw new ForbiddenError('Book a demo and we will call you.', { code: 'demo_disabled' });
+    }
     const { google, phone } = await authService.verifiedSignup(input.signupToken);
 
     const name = input.name?.trim() || google.name;
@@ -824,17 +828,17 @@ export const authService = {
       },
       deriveFirmName(signUpShape),
       planTierForSignUpRole(input.role),
-      input.intent ?? 'trial',
+      'trial',
     );
     if (input.plan) {
       await billingService.recordSignup(user.id, input.plan, input.plan === 'free' ? null : input.billingCycle ?? 'monthly')
         .catch(() => undefined);
-    } else {
-      // Plan and practice details come next, on /onboarding.
-      const sql = db();
-      if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
-      user.needsOnboarding = true;
     }
+    // Plan, payment and practice details always come next, on /onboarding;
+    // requireActivePlan keeps the app closed until then.
+    const sql = db();
+    if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
+    user.needsOnboarding = true;
     await recordTermsAcceptance(user, meta);
     return { user, token: issueToken(user) };
   },
