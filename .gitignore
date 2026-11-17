@@ -53,3 +53,8 @@ apps/api/_verify_extract.mjs
 apps/api/.e2e-shots/
 shots/
 __pycache__/
+
+# Mobile layout audit output (apps/web/scripts/mobile-audit.mjs)
+mobile-audit/
+# Local Playwright login for the audit/e2e scripts (never commit)
+apps/web/.env.e2e

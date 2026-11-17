@@ -1,4 +1,19 @@
 # Testing
+## Mobile responsive — 2026-11-17 (features/mobile-responsive.md)
+- Audit: apps/web/scripts/mobile-audit.mjs on the local stack (fictional data), baseline = origin/main 300e3bc served from a second worktree, same script for both. ~70 captures per width (51 screens, 10 case tabs, 9 overlays, 5 admin, native mode at 390). Screenshots (local only, not in git): `%LOCALAPPDATA%/difai-mobile-audit-2026-11-17/{before,after}/<width>/`.
+- Before → after, per width (360 / 390 / 768 / 1024 touch; 1366 mouse):
+  - page horizontal overflow (captures): 0/0/0/1 → 0/0/0/0 (admin Users at 1024).
+  - form fields < 16px: 25/27/88/70 → 0/0/0/0.
+  - tap targets < 44px: 979/968/959/835 → 448/39/41/42. Left: 360 top-bar icons 40x44 (by design), calendar day cells, Google button, eFiling portal links, landing (not touched), wrapped inputs.
+  - tap targets < 24px: 24/27/33/25 → 5/5/5/5 (landing link, legal inline links, eFiling links).
+  - text overflowing its box: 2/2/4/2 → 2/2/2/2; remaining = task avatar fed a full name by my seed (the app stores initials), not an app issue. Fixed: tablet open-drawer squeeze.
+  - elements past the screen edge: 4/5/0/1 → 4/5/0/0; remaining = dashboard KPI carousel (scrolls by design, page does not).
+  - dialogs larger than the screen: 0 → 0.
+  - 1366 (mouse): identical counts (830 small / 70 fonts / 0 overflow); 54 of 70 screenshots byte-identical, the rest differ only in live content (captcha, temp CNR, timers, animation frames).
+- Found while auditing (audit tool, not app): a Playwright full-page screenshot switches Chromium touch emulation off, so checks after it saw a mouse; the script re-enables it after each full-page shot.
+- Failures found and fixed during the fix pass: a min-width on every .btn let flex rows squeeze text buttons and case tabs ("Overview" 54px text in 44px) → scoped to icon buttons (aria-label) + flex-shrink 0; 6px taller sign-up header on desktop → made touch-only.
+- vitest mobile-responsive.test.ts 10/10 (rules present, touch/phone scoped). Web vitest 385/385 with the local apps/web/.env moved aside (share-link test fails only with VITE_API_URL set, known); web tsc clean; seo.test 161 + claims.test 13 pass; vite build OK.
+- Not run: API tests (API untouched); the real Android app / iOS Safari (emulated only).
 ## Firm tab can create an account — 2026-11-17
 - web play-sign-in-only "Firm tab on /auth" 2/2 (website: "Create your firm account" + "Nine or more advocates? Talk to us"; app: neither). The website test fails on the old AuthView (checked by stashing the fix). Web 396 pass, tsc clean.
 
