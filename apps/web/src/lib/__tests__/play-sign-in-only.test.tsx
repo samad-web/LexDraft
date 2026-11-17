@@ -264,3 +264,32 @@ describe('server messages in the app (api.ts interceptor)', () => {
     }
   });
 });
+
+describe('Firm tab on /auth (owner 2026-11-17: "for firm I am not able to create the account")', () => {
+  // Node test env has no localStorage: a tiny in-memory one for readIntro().
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    });
+  });
+  afterEach(() => { store.clear(); vi.unstubAllGlobals(); });
+
+  it('website: the Firm tab offers "Create your firm account" (plan Firm, up to 8) and still "Talk to us" for nine or more', () => {
+    localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+    env.native = false;
+    const web = render(<AuthView />, '/auth');
+    expect(web).toContain('Create your firm account');
+    expect(web).toContain('Nine or more advocates?');
+    expect(web).toContain('Talk to us');
+  });
+
+  it('app: no create or talk-to-us link on the Firm tab', () => {
+    localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+    env.native = true;
+    const app = render(<AuthView />, '/auth');
+    expect(app).not.toMatch(/Create your firm account|Talk to us/);
+  });
+});

@@ -465,7 +465,7 @@ export function AuthView() {
                 !native && (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
                     No DifAi account uses this email.{' '}
-                    <button type="button" className="auth-link" onClick={() => (audience === 'firm' ? bookDemo() : startTrial(audience === 'chambers' ? 'group' : null))}>
+                    <button type="button" className="auth-link" onClick={() => startTrial(audience === 'advocate' ? null : 'group')}>
                       Create your account
                     </button>
                   </div>
@@ -496,7 +496,8 @@ export function AuthView() {
             {!native && (<>
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
-                <>Firm with nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button></>
+                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your firm account</button>
+                  <br />Nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button></>
               ) : audience === 'chambers' ? (
                 <>New chambers on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your chambers’ account</button></>
               ) : (

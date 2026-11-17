@@ -1,4 +1,7 @@
 # Testing
+## Firm tab can create an account — 2026-11-17
+- web play-sign-in-only "Firm tab on /auth" 2/2 (website: "Create your firm account" + "Nine or more advocates? Talk to us"; app: neither). The website test fails on the old AuthView (checked by stashing the fix). Web 396 pass, tsc clean.
+
 ## Sign-up hardening — 2026-11-17 (features/signup-hardening.md, branch fix/signup-flow)
 - New `routes/__tests__/signup-flow.integration.test.ts` 19/19 through real HTTP routes (Google, Wasi, Razorpay, pg-boss, MX check stubbed): full Advocate flow (Google → OTP → Terms → onboarding → order ₹824.82 → signed webhook → Solo/1/150 credits/MRR 699, 1 invoice, invoice WhatsApp queued, redelivery no-op); wrong amount not applied; Chambers annual + 2 Munshi and Firm table rows; 30-min window expiry; F1 ×2, F2 ×4, F3 ×3, F4 ×2, F5, F6 ×2.
 - Audit run (before the fixes) of the same file: F1, F2, F3, F4 tests failed as expected (second checkout + plan reset to trial; invite 201 + invitee app 200 + 25 credits; Google took over a pre-registered email; parallel deliveries added 2 months).
