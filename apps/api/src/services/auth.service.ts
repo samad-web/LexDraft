@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { assertDeliverableEmail } from '../lib/email-check';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import type { AuthResponse, SignInRequest, SignUpRequest, User, UserPlan } from '@lexdraft/types';
@@ -425,6 +426,10 @@ async function insertUserWithNewFirm(
  *  derived secret so it can never pass requireAuth as a session token. */
 const SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:google-signup`;
 
+// Email sign-up form (restored 2026-11-17, owner): signs the name/email/phone
+// between "send code" and "create account".
+const EMAIL_SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:email-signup`;
+
 interface SignupTokenClaims {
   google: GoogleIdentity;
   /** Present once the WhatsApp OTP has been verified. */
@@ -709,6 +714,70 @@ export const authService = {
   },
 
   /** Send a WhatsApp OTP to the number a new Google user entered. */
+  /** Sign-up form (name, email, WhatsApp number, password), restored 2026-11-17
+   *  at the owner's request: checks the email and number are free and sends the
+   *  WhatsApp code. completeEmailSignup creates the account once the code is
+   *  entered. Safe with Google: Google never joins a password account by email
+   *  (409 google_link_required), so a form account can't capture a Google user. */
+  async startEmailSignup(input: { name: string; email: string; phone: string; ip: string | null }) {
+    const email = input.email.trim().toLowerCase();
+    await assertDeliverableEmail(email);
+    const phone = normalizePhone(input.phone);
+    if (phone.startsWith('+91') && !/^\+91[6-9]\d{9}$/.test(phone)) {
+      throw new BadRequestError('Enter a valid 10-digit Indian mobile number that uses WhatsApp.');
+    }
+    if (await findByEmail(email)) {
+      throw new ConflictError('An account with this email already exists. Sign in instead.');
+    }
+    await assertPhoneUnused(phone);
+    const challenge = await phoneOtpService.start({ phone, googleSub: `email:${email}`, ip: input.ip });
+    const signupToken = jwt.sign(
+      { purpose: 'email-signup', name: input.name.trim(), email, phone },
+      EMAIL_SIGNUP_TOKEN_SECRET,
+      { expiresIn: '30m' },
+    );
+    return { ...challenge, phone, signupToken };
+  },
+
+  /** Verifies the WhatsApp code and creates the account: unpaid until the plan
+   *  is chosen and paid on /onboarding (signup-hardening.md). */
+  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }, meta?: ConsentMeta): Promise<AuthResponse> {
+    let claims: { purpose?: string; name?: string; email?: string; phone?: string };
+    try {
+      claims = jwt.verify(input.signupToken, EMAIL_SIGNUP_TOKEN_SECRET) as typeof claims;
+      if (claims.purpose !== 'email-signup' || !claims.email || !claims.phone || !claims.name) throw new Error('bad');
+    } catch {
+      throw new UnauthorizedError('Your sign-up session expired. Start again.');
+    }
+    const phone = await phoneOtpService.verify({
+      challengeId: input.challengeId,
+      code: input.code,
+      googleSub: `email:${claims.email}`,
+    });
+    if (await findByEmail(claims.email)) {
+      throw new ConflictError('An account with this email already exists. Sign in instead.');
+    }
+    await assertPhoneUnused(phone);
+    const user = await insertUserWithNewFirm(
+      {
+        id: '',
+        name: claims.name,
+        email: claims.email,
+        role: 'Solo Advocate',
+        firm: '',
+        isSuperadmin: false,
+        passwordHash: await bcrypt.hash(input.password, 10),
+        phone,
+        profile: {},
+      },
+      `${claims.name} (Solo)`,
+      'unpaid',
+    );
+    if (db()) user.needsOnboarding = true;
+    await recordTermsAcceptance(user, meta);
+    return { user, token: issueToken(user) };
+  },
+
   async startSignupOtp(input: { signupToken: string; phone: string; ip: string | null }) {
     const claims = verifySignupToken(input.signupToken);
     const phone = normalizePhone(input.phone);

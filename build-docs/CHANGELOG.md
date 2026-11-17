@@ -1,4 +1,6 @@
 # Changelog
+- Email sign-up form restored (2026-11-17, owner: "use the old logic itself", NUSI-style picture): Create account = round mark, CREATE YOUR ACCOUNT, Your name / Work email / WhatsApp (+91) / Password, Terms tick box, START (right) → 6-digit WhatsApp code → account (unpaid; plan + payment on onboarding); "Or sign up with Google" strip at the bottom. Create account no longer opens Google by itself. The F3 protection stays: Google never joins a password account by email. Server plan feature text synced with the web card.
+
 - DEPLOYED 2026-11-17 (839c4d5, web only): brand-panel bars removed; Continue with Google back on the sign-in card. Google client id present in the live build; no API change.
 
 - Sign-in (2026-11-17, owner): grey line bars beside the logo on the brand panel removed; Google sign-in back on the card — "or" + full-width dark Continue with Google pill under the SIGN IN row, above "New to DifAi? Create your account".

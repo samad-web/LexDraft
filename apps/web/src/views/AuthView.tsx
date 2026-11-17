@@ -6,14 +6,17 @@ import {
   isGoogleSignupRequired,
   useFirmEnquiry,
   useGoogleSignIn,
+  useEmailSignupComplete,
+  useEmailSignupStart,
   useGoogleSignUp,
   useSignIn,
+  type EmailSignupChallenge,
   type FirmEnquirySize,
   type GoogleSignupRequired,
 } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
-import { googleSignInAvailable, isNativeApp, promptGoogle } from '@/lib/google';
+import { googleSignInAvailable, isNativeApp } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
@@ -36,6 +39,29 @@ type Role = 'solo' | 'student' | 'group' | 'firm';
 
 /** Sign-in refused because the trial / plan ended: the owner gets a token to
  *  pay from here (api: completeSignIn + POST /billing/renew-checkout). */
+const EMAIL_TYPOS: Record<string, string> = {
+  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com',
+  'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.in': 'gmail.com',
+  'gmaill.com': 'gmail.com', 'yaho.com': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'outlok.com': 'outlook.com',
+};
+
+/** Field problems on the sign-up form; the server re-checks every one
+ *  (and also that the email's domain receives mail). */
+function signupProblems(f: { name: string; email: string; phone: string; phoneForeign: boolean; password: string }) {
+  const email = f.email.trim().toLowerCase();
+  const [local, domain] = email.split('@');
+  const typo = domain && EMAIL_TYPOS[domain] ? `${local}@${EMAIL_TYPOS[domain]}` : null;
+  return {
+    name: f.name.trim().length < 2 ? 'Enter your full name' : null,
+    email: !email ? 'Enter your email' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email) ? 'Enter a valid email address' : null,
+    emailTypo: typo,
+    phone: f.phoneForeign
+      ? `${FOREIGN_NUMBER_MESSAGE} Enter your 10-digit WhatsApp number.`
+      : !f.phone ? 'Enter your WhatsApp number' : !isIndianMobile(f.phone) ? 'Enter a 10-digit Indian mobile number that uses WhatsApp' : null,
+    password: f.password.length < 8 ? 'Use at least 8 characters' : null,
+  };
+}
+
 function renewTokenFrom(err: unknown): string | null {
   const data = (err as { response?: { status?: number; data?: { details?: { renewToken?: string } } } } | null)?.response;
   return data?.status === 402 ? data.data?.details?.renewToken ?? null : null;
@@ -137,7 +163,19 @@ export function AuthView() {
   const [showPassword, setShowPassword] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
-  const handleGoogleCredentialRef = useRef<((credential: string) => void) | null>(null);
+  // Sign-up form (restored 2026-11-17): name, email, WhatsApp, password -> WhatsApp code.
+  const signupStart = useEmailSignupStart();
+  const signupComplete = useEmailSignupComplete();
+  const [suName, setSuName] = useState('');
+  const [suEmail, setSuEmail] = useState('');
+  const [suPhone, setSuPhone] = useState(''); // 10 national digits; +91 shown
+  const [suPhoneForeign, setSuPhoneForeign] = useState(false);
+  const [suCode, setSuCode] = useState('');
+  const [suChallenge, setSuChallenge] = useState<EmailSignupChallenge | null>(null);
+  const [suTouched, setSuTouched] = useState<Record<string, boolean>>({});
+  const suProblems = signupProblems({ name: suName, email: suEmail, phone: suPhone, phoneForeign: suPhoneForeign, password: newPassword });
+  const suShow = (f: 'name' | 'email' | 'phone' | 'password') => (suTouched[f] ? suProblems[f] : null);
+  const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   // The plan is chosen once, on the plan page after sign-up (owner 2026-11-17).
   const freeLine = 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
@@ -145,9 +183,6 @@ export function AuthView() {
     if (native) return;
     setMfaChallenge(null); setGoogleSignup(null); 
     setRole(preset); setStep(0); setTab('signup');
-    // Straight into Google's account chooser (owner 2026-11-17: "by tapping
-    // create account it should go"); the big Google button is the fallback.
-    void promptGoogle((credential) => handleGoogleCredentialRef.current?.(credential));
   };
   const bookDemo = () => { if (native) return; setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
@@ -205,7 +240,6 @@ export function AuthView() {
       },
     );
   };
-  handleGoogleCredentialRef.current = handleGoogleCredential;
 
   // Called by the MFA sub-step after a successful challenge exchange. The
   // useMfaVerifyChallenge hook has already set the session; we just need to
@@ -224,6 +258,25 @@ export function AuthView() {
     );
   };
 
+
+  const handleSignupStart = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSuTouched({ name: true, email: true, phone: true, password: true });
+    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password || !agreedTerms) return;
+    signupStart.mutate(
+      { name: suName.trim(), email: suEmail.trim(), phone: toE164India(suPhone) },
+      { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
+    );
+  };
+
+  const handleSignupComplete = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!suChallenge) return;
+    signupComplete.mutate(
+      { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword, acceptTerms: true },
+      { onSuccess: () => navigate('/onboarding', { replace: true }) },
+    );
+  };
 
   const handleFirmEnquiry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -479,27 +532,121 @@ export function AuthView() {
         {/* SIGN UP - Google only for new accounts (signup-hardening.md): the
             Google button below starts it, then the WhatsApp code, password
             and Terms in the block after this one, then /onboarding. */}
+        {/* SIGN UP - form (restored 2026-11-17, owner: NUSI-style): name, email,
+            WhatsApp, password -> START sends a WhatsApp code -> the code creates
+            the account -> /onboarding. Google is in the strip at the bottom. */}
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="auth-signin-head">
               <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
               <h1 className="auth-title auth-title--long">Create your account</h1>
-              <p className="auth-signin-sub">{`${freeLine}.`}</p>
+              <p className="auth-signin-sub">
+                {suChallenge
+                  ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
+                  : `${freeLine}.`}
+              </p>
             </div>
-            {googleSignInAvailable() ? (
-              <div className="auth-google">
-                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" />
-              </div>
+            {!suChallenge ? (
+              <form onSubmit={handleSignupStart} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <label className="auth-field">
+                  <Icon name="clients" size={16} />
+                  <input autoComplete="name" placeholder="Your name" aria-label="Your name" required value={suName} onChange={(e) => setSuName(e.target.value)} onBlur={() => touch('name')} aria-invalid={!!suShow('name')} />
+                </label>
+                {suShow('name') && <span role="alert" className="auth-field-error">{suShow('name')}</span>}
+                <label className="auth-field">
+                  <Icon name="mail" size={16} />
+                  <input type="email" inputMode="email" autoComplete="email" placeholder="Work email" aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
+                </label>
+                {suShow('email') && <span role="alert" className="auth-field-error">{suShow('email')}</span>}
+                {!suProblems.email && suProblems.emailTypo && (
+                  <span role="alert" className="auth-field-error">
+                    Did you mean <strong>{suProblems.emailTypo}</strong>?{' '}
+                    <button type="button" className="auth-link" onClick={() => setSuEmail(suProblems.emailTypo!)}>Use it</button>
+                  </span>
+                )}
+                <label className="auth-field">
+                  <Icon name="chat" size={16} />
+                  <span className="mono" aria-hidden="true" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>+91</span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    placeholder="WhatsApp number (10 digits)"
+                    aria-label="WhatsApp number (India, +91)"
+                    required
+                    value={suPhone}
+                    onChange={(e) => {
+                      const r = readIndianMobile(e.target.value);
+                      setSuPhone(r.digits);
+                      setSuPhoneForeign(r.foreign);
+                      if (r.foreign) touch('phone');
+                    }}
+                    onBlur={() => touch('phone')}
+                    aria-invalid={!!suShow('phone')}
+                  />
+                </label>
+                {suShow('phone') && <span role="alert" className="auth-field-error">{suShow('phone')}</span>}
+                <label className="auth-field">
+                  <Icon name="key" size={16} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="Password (8+ characters)"
+                    aria-label="Password"
+                    required
+                    minLength={8}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    onBlur={() => touch('password')}
+                    aria-invalid={!!suShow('password')}
+                  />
+                  <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
+                  </button>
+                </label>
+                {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
+                <span className="body-xs" style={{ color: 'var(--text-tertiary)', marginTop: -6 }}>
+                  We send a 6-digit code on WhatsApp to verify your number. All fields are required.
+                </span>
+                {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
+                <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
+                <div className="auth-actions" style={{ justifyContent: 'flex-end' }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-lg btn-pill auth-submit"
+                    disabled={signupStart.isPending || !agreedTerms}
+                  >
+                    {signupStart.isPending ? 'Sending…' : 'Start'}
+                  </button>
+                </div>
+              </form>
             ) : (
-              <p role="alert" style={noticeStyle}>Google sign-up is not configured.</p>
+              <form onSubmit={handleSignupComplete} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <label className="auth-field">
+                  <Icon name="shield" size={16} />
+                  <input
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="6-digit code"
+                    aria-label="Verification code"
+                    autoFocus
+                    value={suCode}
+                    onChange={(e) => setSuCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    style={{ letterSpacing: '0.3em' }}
+                  />
+                </label>
+                {signupComplete.isError && <div role="alert" style={noticeStyle}>{signupComplete.error.message}</div>}
+                <div className="auth-actions">
+                  <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => { setSuChallenge(null); setSuCode(''); signupComplete.reset(); }}>
+                    Change details
+                  </button>
+                  <button type="submit" className="btn btn-primary btn-lg btn-pill auth-submit" disabled={signupComplete.isPending || suCode.length !== 6}>
+                    {signupComplete.isPending ? 'Creating…' : 'Verify'}
+                  </button>
+                </div>
+              </form>
             )}
-            <ol className="auth-steps">
-              <li>Continue with Google</li>
-              <li>Verify your WhatsApp number with a code</li>
-              <li>Choose your plan, add your practice details and agree to the Terms</li>
-              <li>Pay for your plan and start</li>
-            </ol>
-            {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
             <p className="auth-signin-foot">
               Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
@@ -796,6 +943,16 @@ export function AuthView() {
         )}
 
         </div>
+        {tab === 'signup' && step === 0 && !googleSignup && !suChallenge && (
+          <div className="auth-foot">
+            <span>Or sign up with</span>
+            {googleSignInAvailable() ? (
+              <GoogleButton onCredential={handleGoogleCredential} text="signup_with" shape="pill" width={210} />
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
+          </div>
+        )}
         </div>
       </div>
       <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>

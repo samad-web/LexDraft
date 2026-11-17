@@ -41,11 +41,12 @@ const emailComplete = { signupToken: token, challengeId: '00000000-0000-4000-800
 const googleSignUp = { signupToken: token, password: 'longenough1', role: 'solo' };
 
 describe('sign-up requires the Terms + Privacy agreement', () => {
-  // Updated (signup-hardening.md, 2026-11-17): the email + password sign-up
-  // endpoint was removed (Google only for new accounts), so its Terms check
-  // is replaced by "the route is gone".
-  it('the email sign-up endpoint no longer exists (404)', async () => {
-    expect((await post('/auth/signup/email/complete', emailComplete)).status).toBe(404);
+  // Email sign-up form restored (owner 2026-11-17): its Terms check is back.
+  it('AC1: email sign-up without acceptTerms → 400 with the reason', async () => {
+    const { acceptTerms: _a, ...noTerms } = emailComplete;
+    const r = await post('/auth/signup/email/complete', noTerms);
+    expect(r.status).toBe(400);
+    expect(r.text).toContain('Agree to the Terms of Service and Privacy Policy');
   });
 
   it('AC1: Google sign-up without acceptTerms → 400 with the reason', async () => {
@@ -55,6 +56,7 @@ describe('sign-up requires the Terms + Privacy agreement', () => {
   });
 
   it('AC1: acceptTerms false is refused too', async () => {
+    expect((await post('/auth/signup/email/complete', { ...emailComplete, acceptTerms: false })).status).toBe(400);
     expect((await post('/auth/google/sign-up', { ...googleSignUp, acceptTerms: false })).status).toBe(400);
   });
 

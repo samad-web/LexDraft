@@ -54,7 +54,7 @@ export function billingPlans(): BillingPlan[] {
     paid('advocate', {
       for: 'One advocate · the full app with AI drafting',
       meaning: 'For an advocate practising on their own.',
-      features: [`${PLANS.advocate.credits} AI credits a month (1 credit = one 400-word page)`, 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Firm analytics', `Add a Munshi seat for ₹${MUNSHI.monthlyInr} + GST a month`],
+      features: [`${PLANS.advocate.credits} AI credits a month`, 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Practice analytics', `Add a Munshi seat for ₹${MUNSHI.monthlyInr} + GST a month`],
     }),
     paid('chambers', {
       for: `Up to ${PLANS.chambers.seats} advocates`,

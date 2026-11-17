@@ -364,9 +364,29 @@ describe('F2: members only on a set-up, paid firm', () => {
 });
 
 describe('F3: new accounts are Google only; Google never links a password account by email', () => {
-  it('the email + password sign-up routes are gone', async () => {
-    expect((await call('POST', '/auth/signup/email/start', { name: 'V', email: 'v@signupflow.test', phone: '9876500008' })).status).toBe(404);
-    expect((await call('POST', '/auth/signup/email/complete', {})).status).toBe(404);
+  // Email sign-up form restored (owner 2026-11-17). The takeover hole stays shut:
+  // a form account is never joined by a later Google sign-in with the same email.
+  it('email sign-up form: WhatsApp code creates an unpaid Solo account; a later Google sign-in to that email is refused, not linked', async () => {
+    const email = 'victim.flow@signupflow.test';
+    const start = await call('POST', '/auth/signup/email/start', { name: 'Form User', email, phone: '9876500008' });
+    expect(start.status).toBe(200);
+    const phone = start.json.phone as string;
+    const bad = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone) === '000000' ? '111111' : '000000', password: 'longenough1', acceptTerms: true });
+    expect(bad.status).toBeGreaterThanOrEqual(400);
+    const done = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone), password: 'longenough1', acceptTerms: true });
+    expect(done.status).toBe(201);
+    const [u] = await sql()<any[]>`select u.id, u.google_sub, u.phone_verified_at, u.onboarded_at, f.plan_tier, f.seats, f.plan_status, f.free_plan
+      from users u join firms f on f.id = u.firm_id where u.email = ${email}`;
+    expect(u).toMatchObject({ google_sub: null, onboarded_at: null, plan_tier: 'Solo', seats: 1, free_plan: false });
+    expect(u.plan_status).not.toBe('active');
+    expect(u.phone_verified_at).not.toBeNull();
+    // The real owner of that email signs in with Google later: refused, nothing linked.
+    const g = await call('POST', '/auth/google', { credential: `cred:g-victim:${email}`, intent: 'signin' });
+    expect(g.status).toBe(409);
+    expect(g.json.code).toBe('google_link_required');
+    expect((await sql()<any[]>`select google_sub from users where id = ${u.id}::uuid`)[0].google_sub).toBeNull();
+    // Same email twice -> refused.
+    expect((await call('POST', '/auth/signup/email/start', { name: 'X', email, phone: '9876500009' })).status).toBe(409);
   });
 
   it('Google sign-in to an email that has a password account and no Google link -> 409 google_link_required, nothing linked', async () => {

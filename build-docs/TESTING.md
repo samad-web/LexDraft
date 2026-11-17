@@ -1,4 +1,9 @@
 # Testing
+## Email sign-up form restored — 2026-11-17
+- API: /auth/signup/email/start + /complete restored (unpaid Solo account, phone verified by the WhatsApp code). signup-flow acceptance: "routes are gone" replaced by an end-to-end form test incl. the takeover attempt (later Google sign-in to that email → 409 google_link_required, nothing linked; same email twice → 409). auth-terms: email sign-up Terms tests back (no acceptTerms → 400 with reason; false → 400). Web: terms-consent AC4 back to 2 sign-up calls; play-sign-in-only sign-up test = form fields + Start + Google strip, no auto Google prompt.
+- Also fixed: server plan feature text (billingPlans) now matches the web card ("150 AI credits a month", "Practice analytics") — pricing-v5 mirror test caught the mismatch from 77e18af.
+- API unit 1101 pass; integration 180/181 (only the known migrations idempotency at 0042); web 413 pass; tsc clean. Real-browser screenshot of the form.
+
 ## Brand panel bars removed; Google back on sign-in — 2026-11-17
 - play-sign-in-only: the "no Google on sign-in" assertion (owner's earlier choice) replaced by a check that Continue with Google sits right after the sign-in form. Web 413 pass, tsc clean. Real-browser screenshot 1366×700 with the real Google button.
 

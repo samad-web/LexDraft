@@ -84,6 +84,8 @@
 
 - 2026-11-17 — Owner: sign-in card = NUSI layout in black and white, no Google on sign-in (Google only on Create account); every account has a password (Google sign-ups set one), so nobody is locked out.
 
+- 2026-11-17 — Owner reversed "Google only for new accounts": the email + password sign-up form is back (old logic, NUSI look). Safe because Google never auto-links a password account (409 google_link_required). Residual risk told to owner: email isn't verified (no SMTP), so someone could squat another person's email.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

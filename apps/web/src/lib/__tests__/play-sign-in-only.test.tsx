@@ -293,18 +293,16 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     expect(code_has_google_signin()).toBe(true);
   });
 
-  it('website sign-up screen: Google up front, plans from ₹699, the steps say the plan is chosen next', () => {
+  it('website sign-up screen (NUSI-style form restored 2026-11-17): name, email, WhatsApp, password, Start; Google in the bottom strip', () => {
     env.native = false;
     const web = render(<AuthView />, '/auth?signup=1');
     expect(web).toContain('Create your account');
     expect(web).toContain('Plans from ₹699 + GST a month');
-    expect(web).toContain('Verify your WhatsApp number with a code');
-    expect(web).toContain('Choose your plan, add your practice details and agree to the Terms');
-    expect(web).not.toContain('Sign up with');
-    const code = src('views/AuthView.tsx');
-    expect(code).toMatch(/const startTrial[\s\S]{0,900}promptGoogle\(/); // opens Google at once
-    // Creating an account no longer records a plan, so a "Start with …" pick from pricing is kept.
-    expect(code).not.toMatch(/saveIntro/);
+    for (const ph of ['Your name', 'Work email', 'WhatsApp number (10 digits)', 'Password (8+ characters)']) expect(web, ph).toContain(`placeholder="${ph}"`);
+    expect(web).toMatch(/>Start</);
+    expect(web).toContain('Or sign up with');
+    // The form is the main path now: Create account no longer opens Google by itself.
+    expect(src('views/AuthView.tsx')).not.toMatch(/promptGoogle\(/);
   });
 
   it('plan-ended renew box sits outside the email form (shows for Google sign-ups too)', () => {
