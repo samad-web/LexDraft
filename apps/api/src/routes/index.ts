@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import { sendInvoicePdf } from './billing.routes';
+import { subscriptionInvoiceService } from '../services/subscription-invoice.service';
+import { invoiceWhatsappService } from '../services/invoice-whatsapp.service';
 import { db } from '../db/client';
 import { env } from '../env';
 import { authRouter } from './auth.routes';
@@ -132,6 +135,15 @@ apiRouter.use('/survey', signUpLimiter, surveyRouter);
 
 // Secure share links: /s/<token> is public (rate limited); managing links needs sign-in.
 apiRouter.use('/s', shareOpenLimiter, publicShareRouter);
+// GST invoice link sent on WhatsApp (invoice-whatsapp.md): public, 7 days, that one PDF only.
+apiRouter.get('/i/:token', shareOpenLimiter, async (req, res, next) => {
+  try {
+    const id = await invoiceWhatsappService.resolve(String(req.params.token));
+    const inv = id ? await subscriptionInvoiceService.find(id, null) : null;
+    if (!inv) { res.status(404).type('text/plain').send('This invoice link has expired. Download the invoice from Plan & Billing in DifAi.'); return; }
+    sendInvoicePdf(res, inv.invoice_no, await subscriptionInvoiceService.pdf(inv));
+  } catch (err) { next(err); }
+});
 apiRouter.use('/share-links', requireAuth, requireActivePlan, shareLinksRouter);
 
 // Mixed: GET /by-token/:token + POST /by-token/:token/accept are public,

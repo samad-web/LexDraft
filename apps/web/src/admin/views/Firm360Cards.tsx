@@ -46,6 +46,10 @@ export function FirmPaymentsCard({ firmId }: { firmId: string }) {
                   <span className="body-sm muted">{new Date(i.issuedAt).toLocaleDateString('en-IN')}</span>
                   <span className="mono tabular">{rupees(i.totalInr)}</span>
                   <button type="button" className="btn btn-sm" onClick={() => void downloadPdf(i.id, i.invoiceNo)}>PDF</button>
+                  <span className="body-sm muted">
+                    {i.whatsappSentAt ? `WhatsApp ✓ ${new Date(i.whatsappSentAt).toLocaleDateString('en-IN')}` : i.whatsappError ? `WhatsApp not sent: ${i.whatsappError}` : 'WhatsApp: not sent'}
+                  </span>
+                  <ResendWhatsapp invoiceId={i.id} firmId={firmId} />
                 </li>
               ))}
             </ul>
@@ -183,5 +187,21 @@ export function FirmLandRecordsCard({ firmId, mode }: { firmId: string; mode: 'o
       </label>
       {m.isError && <div role="alert" className="body-sm" style={{ marginTop: 8 }}>{m.error.message}</div>}
     </section>
+  );
+}
+
+function ResendWhatsapp({ invoiceId, firmId }: { invoiceId: string; firmId: string }) {
+  const qc = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
+  const m = useMutation({
+    mutationFn: () => api.post<{ result: string }>(`/admin/billing/invoices/${invoiceId}/whatsapp`),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin', 'firm-payments', firmId] }); showToast({ type: 'sage', text: 'Invoice sent on WhatsApp' }); },
+    onError: (e: Error) => showToast({ type: 'amber', text: e.message }),
+  });
+  return (
+    <button type="button" className="btn btn-sm btn-ghost" disabled={m.isPending}
+      onClick={() => { if (window.confirm('Send this invoice to the account owner on WhatsApp?')) m.mutate(); }}>
+      {m.isPending ? 'Sending…' : 'Send on WhatsApp'}
+    </button>
   );
 }

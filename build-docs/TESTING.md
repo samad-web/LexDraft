@@ -1,4 +1,9 @@
 # Testing
+## Invoice on WhatsApp — 2026-11-17 (features/invoice-whatsapp.md)
+- `invoice-whatsapp.integration.test.ts` 5/5 (Wasi mocked): AC1 one difai_invoice message to the owner with number/amount/date/link, recorded, retry doesn't resend; AC2 WhatsApp failure leaves the invoice issued, error kept, job retries, next run sends; AC3 no number → nothing sent, reason kept; AC4 link resolves only that invoice, only while live, hash-only storage, bad tokens rejected; AC5 admin force resend.
+- Live probes of Wasi (all refused before sending): header must be a ≤60-char string; per-message media fields are ignored. One real message via the approved template to the owner's number: HTTP 201, Meta status sent.
+- Regression: api unit 1100 pass (+ share-links .env file); integration 139 pass + same 2 pre-existing; web 375 pass; api + web tsc clean.
+
 ## Land Records for TN advocates — 2026-11-17 (features/land-records-tn-gate.md)
 - `land-access.test.ts` 5/5 (rule: TN spellings, no state, other state, platform off beats firm on, firm on/off), `land-records-gate.integration.test.ts` 5/5 (AC1-AC6 against Postgres, 403 codes + messages, audit), web `land-access-gate.test.tsx` 4/4 (services / state picker / coming soon + change state / switched off). All first run.
 - 0114 (with the new firms.land_records column) re-run twice in a rolled-back schema: idempotent.

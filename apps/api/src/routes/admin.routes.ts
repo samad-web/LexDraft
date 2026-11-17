@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { invoiceWhatsappService } from '../services/invoice-whatsapp.service';
 import { landRecordsAdmin } from '../services/land-records-admin.service';
 import { firm360Service } from '../services/firm360.service';
 import { customPlanService } from '../services/custom-plan.service';
@@ -347,6 +348,23 @@ adminRouter.get('/billing/invoices', async (_req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// Resend one GST invoice on WhatsApp (invoice-whatsapp.md).
+adminRouter.post('/billing/invoices/:id/whatsapp', async (req, res, next) => {
+  try {
+    const id = z.string().uuid().parse(req.params.id);
+    let result: string;
+    try { result = await invoiceWhatsappService.send(id, true); } catch (e) {
+      res.status(502).json({ error: `WhatsApp send failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 300) }); return;
+    }
+    await auditService.write({ actorUserId: req.user!.id, actorEmail: req.user!.email, action: 'invoice.whatsapp.resend',
+      targetType: 'platform', targetId: id, payload: { result } });
+    if (result === 'missing') { res.status(404).json({ error: 'Invoice not found' }); return; }
+    if (result === 'off') { res.status(409).json({ error: 'Invoice WhatsApp is off (template not set on the server yet).' }); return; }
+    if (result === 'no_phone') { res.status(409).json({ error: 'The account owner has no verified WhatsApp number.' }); return; }
+    res.json({ result });
+  } catch (err) { next(err); }
 });
 
 adminRouter.get('/billing/invoices/:id/pdf', async (req, res, next) => {

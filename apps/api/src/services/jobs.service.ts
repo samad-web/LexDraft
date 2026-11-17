@@ -473,6 +473,13 @@ jobs.register('efiling.track.manual', async () => {
   await runEfilingTracking({ slot: 'manual' });
 });
 
+// GST invoice on WhatsApp after payment (invoice-whatsapp.md). Throws on a send
+// failure so pg-boss retries (3x, backoff); the error is kept on the invoice.
+jobs.register<{ invoiceId: string }>('invoice.whatsapp', async (data) => {
+  const { invoiceWhatsappService } = await import('./invoice-whatsapp.service');
+  await invoiceWhatsappService.send(data.invoiceId);
+});
+
 // AI budget alerts to superadmins (admin-ai-spend-guard). Hourly; each threshold
 // is sent once per month (state in platform_settings), so reruns are harmless.
 jobs.register('ai.budget.check', async () => {

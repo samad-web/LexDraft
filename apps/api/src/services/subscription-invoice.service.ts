@@ -115,12 +115,14 @@ interface InvoiceRow {
   period_start: Date | null; period_end: Date | null; buyer: Buyer; seller: Seller; place_of_supply: string; sac: string;
   taxable_paise: number; cgst_paise: number; sgst_paise: number; igst_paise: number; total_paise: number; issued_at: Date;
   line_label?: string | null; payment_note?: string | null;
+  whatsapp_sent_at?: Date | null; whatsapp_error?: string | null;
 }
 
 function toDto(r: InvoiceRow): SubscriptionInvoice {
   return {
     id: r.id, invoiceNo: r.invoice_no, issuedAt: r.issued_at.toISOString(), plan: r.plan, cycle: r.cycle, seats: r.seats, munshiSeats: r.munshi_seats ?? 0,
     totalInr: r.total_paise / 100, taxInr: (r.cgst_paise + r.sgst_paise + r.igst_paise) / 100,
+    whatsappSentAt: r.whatsapp_sent_at ? r.whatsapp_sent_at.toISOString() : null, whatsappError: r.whatsapp_error ?? null,
   };
 }
 
@@ -171,8 +173,9 @@ export const subscriptionInvoiceService = {
       state: `${pos}-${STATES[pos]}`, email: b?.email ?? null, phone: b?.phone ?? null,
     };
     const fy = financialYear(p.at ?? new Date());
+    let invoiceId: string;
     try {
-      return await sql.begin(async (tx) => {
+      invoiceId = await sql.begin(async (tx) => {
         const [c] = await tx<{ last: number }[]>`
           insert into invoice_counters (fy, last) values (${fy}, 1)
           on conflict (fy) do update set last = invoice_counters.last + 1
@@ -197,6 +200,12 @@ export const subscriptionInvoiceService = {
       if (err instanceof Duplicate) return null;
       throw err;
     }
+    // Send it on WhatsApp in the background (invoice-whatsapp.md): the payment
+    // and the invoice never wait on, or fail because of, WhatsApp.
+    await import('./jobs.service')
+      .then(({ jobs }) => jobs.enqueue('invoice.whatsapp', { invoiceId }, { singletonKey: `invoice-wa:${invoiceId}`, retryLimit: 3, retryDelay: 120, retryBackoff: true }))
+      .catch((e: unknown) => logger.error({ err: e, invoiceId }, 'invoice WhatsApp job not queued'));
+    return invoiceId;
   },
 
   async listForFirm(firmId: string): Promise<SubscriptionInvoice[]> {

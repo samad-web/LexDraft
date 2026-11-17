@@ -221,6 +221,9 @@ const Schema = z.object({
   /** Name + language of the approved authentication template. */
   WHATSAPP_OTP_TEMPLATE: z.string().default('test_message'),
   WHATSAPP_OTP_TEMPLATE_LANG: z.string().default('en'),
+  /** Wasi template for the GST invoice after payment (invoice-whatsapp.md), e.g.
+   *  'difai_invoice'. Empty = invoices are not sent on WhatsApp (until Meta approves it). */
+  WHATSAPP_INVOICE_TEMPLATE: z.string().optional().default(''),
 
   /** Per-provider HMAC-SHA256 webhook secrets. Each provider stamps a
    *  hex digest of the raw body in the `x-signature` header (or a

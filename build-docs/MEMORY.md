@@ -67,6 +67,8 @@
 
 - 2026-11-17 — Land Records for TN advocates only (owner): superadmin platform switch + per-firm override; state from the profile, asked once on the Land Records screen when empty (live data had no state for any advocate); other states see "coming soon" in menu + screen.
 
+- 2026-11-17 — Invoice on WhatsApp (owner): sent after payment via Wasi (OTP sender), template `difai_invoice` with a 7-day PDF link, because Wasi can't attach a per-message PDF (DOCUMENT templates send one stored sample). Switch to an attached PDF when Wasi supports per-message documents.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

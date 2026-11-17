@@ -1238,6 +1238,10 @@ export interface SubscriptionInvoice {
   /** Amount charged, GST included. */
   totalInr: number;
   taxInr: number;
+  /** Sent to the owner's WhatsApp (invoice-whatsapp.md); null = not (yet). */
+  whatsappSentAt?: string | null;
+  /** Why the WhatsApp send failed or was skipped. */
+  whatsappError?: string | null;
 }
 
 export type BillingEventKind =
@@ -1360,6 +1364,7 @@ export type AuditAction =
   | 'firm.custom_plan.set'
   | 'firm.plan.extend'
   | 'firm.land_records.set'
+  | 'invoice.whatsapp.resend'
   | 'platform.land_records.set'
   | 'user.credit_cap.set'
   | 'firm.ai.resumed'

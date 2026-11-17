@@ -76,6 +76,21 @@ async function sendViaMeta(phone: string, code: string): Promise<void> {
   }
 }
 
+/** A business-started template message with named text params (Wasi only). */
+async function templateViaWasi(phone: string, template: string, params: Record<string, string>): Promise<void> {
+  if (!env.WASI_API_KEY || !env.WASI_CLIENT_ID) throw new Error('WhatsApp (Wasi) is not configured');
+  const res = await fetch(`${env.WASI_API_BASE_URL.replace(/\/$/, '')}/api/v1/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${env.WASI_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: env.WASI_CLIENT_ID, to: phone.replace(/^\+/, ''), type: 'template', template, params }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => '')).slice(0, 300);
+    throw new Error(`Wasi ${res.status}: ${detail}`);
+  }
+}
+
 export const whatsappService = {
   async sendOtp(phone: string, code: string): Promise<void> {
     switch (env.WHATSAPP_PROVIDER) {
@@ -88,5 +103,15 @@ export const whatsappService = {
         logger.info({ phone, code }, 'whatsapp(console): OTP - not actually sent');
         return;
     }
+  },
+
+  /** Send an approved template (invoice etc.). Throws with the provider's reason. */
+  async sendTemplate(phone: string, template: string, params: Record<string, string>): Promise<void> {
+    if (env.WHATSAPP_PROVIDER === 'wasi') return templateViaWasi(phone, template, params);
+    if (env.WHATSAPP_PROVIDER === 'console' && !env.isProd) {
+      logger.info({ phone, template, params }, 'whatsapp(console): template - not actually sent');
+      return;
+    }
+    throw new Error(`WhatsApp templates are not supported for provider ${env.WHATSAPP_PROVIDER}`);
   },
 };
