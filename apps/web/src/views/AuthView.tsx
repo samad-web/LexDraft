@@ -361,7 +361,7 @@ export function AuthView() {
                 </button>
               </div>
             )}
-            <div style={{ textAlign: 'center' }}>
+            <div className="auth-intro">
               <h1 className="auth-title">Sign in</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 Welcome back.
@@ -454,8 +454,14 @@ export function AuthView() {
                 </button>
               </div>
             </form>
+            <div className="auth-or" aria-hidden><span>or</span></div>
+            {googleSignInAvailable() ? (
+              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" width={320} /></div>
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
             {googleSignIn.isPending && (
-              <p className="body-sm muted" style={{ textAlign: 'center' }}>Checking your Google account…</p>
+              <p className="body-sm muted">Checking your Google account…</p>
             )}
             {googleSignIn.isError && !renewToken && (
               <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
@@ -464,7 +470,7 @@ export function AuthView() {
               <div role="alert" style={noticeStyle}>{NATIVE_COPY.noGoogleAccount}</div>
             )}
             {!native && (<>
-            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+            <p className="body-sm auth-more">
               New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button>
               <br />Nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button>
             </p>
@@ -485,27 +491,27 @@ export function AuthView() {
             and Terms in the block after this one, then /onboarding. */}
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ textAlign: 'center' }}>
+            <div className="auth-intro">
               <h1 className="auth-title">Create your account</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {`${freeLine}.`}
               </p>
             </div>
             {googleSignInAvailable() ? (
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" width={300} />
+              <div className="auth-google">
+                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" width={320} />
               </div>
             ) : (
               <p role="alert" style={noticeStyle}>Google sign-up is not configured.</p>
             )}
-            <ol className="body-sm" style={{ margin: '0 auto', paddingLeft: 18, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            <ol className="body-sm" style={{ margin: 0, paddingLeft: 18, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               <li>Continue with Google</li>
               <li>Verify your WhatsApp number with a code</li>
               <li>Choose your plan, add your practice details and agree to the Terms</li>
               <li>Pay for your plan and start</li>
             </ol>
             {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
-            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+            <p className="body-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
               Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>
@@ -517,7 +523,7 @@ export function AuthView() {
             /onboarding takes over (plan, practice details). */}
         {tab === 'signup' && step === 0 && googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ textAlign: 'center' }}>
+            <div className="auth-intro">
               <h1 className="auth-title">Create your account</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}
@@ -557,10 +563,10 @@ export function AuthView() {
             />
             {signUp.isPending && <p className="body-sm muted" style={{ textAlign: 'center' }}>Creating your account…</p>}
             {signUp.isError && <div role="alert" style={noticeStyle}>{(signUp.error as Error | null)?.message ?? 'Sign-up failed.'}</div>}
-            <p className="body-xs" style={{ textAlign: 'center', margin: 0, color: 'var(--text-tertiary)' }}>
+            <p className="body-xs" style={{ margin: 0, color: 'var(--text-tertiary)' }}>
               Next you choose a plan and set up your practice.
             </p>
-            <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
+            <p className="body-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
               Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>
@@ -802,16 +808,6 @@ export function AuthView() {
         )}
 
         </div>
-        {tab === 'signin' && !mfaChallenge && (
-          <div className="auth-foot">
-            <span>Or sign in with</span>
-            {googleSignInAvailable() ? (
-              <GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" width={210} />
-            ) : (
-              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
-            )}
-          </div>
-        )}
         </div>
       </div>
       <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>

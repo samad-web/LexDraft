@@ -1,4 +1,7 @@
 # Testing
+## Sign-in right side matches the brand panel — 2026-11-17
+- Real-browser screenshots (local build + Playwright): 1920×1080, 1366×700 (empty + filled: button turns solid black), 390×844 (phone keeps the logo). Web tests pass, tsc clean.
+
 ## Plan pick only from a fresh pricing click — 2026-11-17
 - Owner bug: a new account (jesheeba) saw "Your plan: Firm" from an old remembered intro.size (old sign-in tabs). onboarding-plan-once 5/5 (fresh pricing pick → Your plan; old intro.size → Choose your plan; pick > 2 h → Choose your plan); 2 fail on the old screen. Web 412 pass, tsc clean.
 

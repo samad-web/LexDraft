@@ -1,4 +1,6 @@
 # Changelog
+- Sign-in right side redesigned to match the brand panel (2026-11-17, owner): left-aligned, "Sign in" in the panel's bold sentence-case style, full-width solid dark Sign in button, Forgot password under it, "or" divider and Google inside the form (no grey bottom strip), links left-aligned; the duplicate DifAi logo is hidden on desktop (kept on phones). Create-account screens use the same style.
+
 - Plan pre-pick fixed (2026-11-17, owner: "plan choosing is not updated"): onboarding pre-selects a plan only from a "Start with …" click on pricing in the last 2 hours (difai-plan-pick), cleared when setup finishes. Old remembered answers (old sign-in tabs, landing size question) no longer pick a new account's plan; otherwise "Choose your plan" with all three.
 
 - DEPLOYED 2026-11-17 (4bbfd78, web only): sign-in brand panel. Google client id and the new headline present in the live build; no API change.
