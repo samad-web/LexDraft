@@ -1,3 +1,34 @@
+# PLAN — Superadmin console v2 (awaiting approval, 2026-11-17)
+
+## Goal and scope
+- The DifAi owner runs the business from `/admin`: current v5 plans, revenue, per-firm support, AI spend control, per-user AI caps, custom (Enterprise) plans with manual payment + GST invoice.
+- Out of scope: customer Autopay (owner decision 2026-11-14 stands); topping up Anthropic credit by API (not possible: Admin API has no billing/auto-reload; stays in Anthropic Console); firm-owner-set user caps; feature switches and health/jobs pages (not picked).
+
+## Project memory that applies
+- Pricing v5 is live in code (0113); no Autopay; paid-only sign-up; manual renewal with 7-day reminder.
+- GST invoices from SIRAH DIGITAL GSTIN; exact 18% check kept.
+- Black & white Chambers UI; no live DB change without approval; no test accounts; keys only in /etc/lexdraft/secrets.env.
+- Sonnet 5.5 for drafting; Contract Review on OpenAI → spend guard covers both providers.
+
+## Where this plan pushes back
+- "API auto pay" can't be controlled by API; we control spend instead (budget, alerts, pause). Owner chose this 2026-11-17.
+- Prod overview shows 0 AI tokens in 30 days: numbers can't be trusted until recording is fixed → it is step 0.
+
+## Features (prioritised; one doc each)
+1. `features/admin-ai-spend-guard.md` — step 0 usage-recording fix, provider spend, budget alerts, platform/firm AI pause.
+2. `features/admin-custom-plan.md` — custom plan form (price, credits, seats, period) + manual payment + GST invoice; bigger credit grants with optional payment.
+3. `features/admin-per-user-usage.md` — per-user usage report + monthly credit cap.
+4. `features/admin-firm-360.md` — v5 plan mix/MRR on Overview, firms list, Firm 360 tabs.
+
+## Build order
+- One additive migration 0114 (platform_settings, firms.ai_paused, firms.custom_plan_name, users.credit_cap_month).
+- 1 → 2 → 3 → 4 (4 hosts the UI of 2 and 3 on Firm 360; built last as the shell around them). One commit per feature, tests per acceptance criteria.
+
+## Needs from you
+- An Anthropic Admin API key (`sk-ant-admin…`, Console → Settings → Admin keys) and, optionally, an OpenAI admin key — I put them in the server secrets file only.
+- A go for migration 0114 on prod + Supabase when deploying.
+- Read-only SQL on prod for step 0 (counts only).
+
 # PLAN — Open drafting: any legal document (approved 2026-11-08)
 
 ## Goal and scope

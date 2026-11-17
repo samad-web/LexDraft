@@ -60,6 +60,8 @@
 
 - 2026-11-16 (owner): sign-up stays paid-only. No free launch for new solo/students, no 14-day firm trial. Not advertised as features until built: compare drafts, draft approval flow, bulk e-sign, billing report, advocate usage report.
 
+- 2026-11-17 — Superadmin console v2 (PLAN.md, awaiting approval). Owner chose: "API auto pay" = AI spend guard (provider spend, budget alerts, pause), not customer Autopay (2026-11-14 decision stands; Anthropic API can't top up credit); per-user usage view + DifAi-set monthly credit caps; custom plan = price + credits + seats + period with manual payment and automatic GST invoice; Firm 360. Not picked: feature switches, health/jobs page.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
