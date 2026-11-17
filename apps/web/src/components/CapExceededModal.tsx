@@ -85,12 +85,12 @@ export function describeCap(cap: CapPromptModel): {
   const native = isNativeApp();
   if (cap.kind === 'credits') {
     return {
-      title: 'Not enough AI credits',
+      title: cap.cap <= 0 ? 'Your AI credits are over' : 'Not enough AI credits',
       description:
         `This needs ${cap.used} credit${cap.used === 1 ? '' : 's'} and ${cap.cap} ${cap.cap === 1 ? 'is' : 'are'} left. Nothing was charged.`
         + (cap.resetsAt ? ` Your plan's credits renew on ${formatDate(cap.resetsAt)}.` : '')
-        + (native ? '' : ' A bigger plan or a Brief Pack adds more now.'),
-      primaryLabel: 'See plans and Brief Packs',
+        + (native ? '' : ' Buy credits to continue now.'),
+      primaryLabel: 'Buy credits',
     };
   }
   if (cap.kind === 'ai_quota') {

@@ -136,17 +136,16 @@ describe('AC3 the cut: nothing past the paid words leaves the server', () => {
     expect(await draftMeterService.intake({ firmId: 'f', userId: 'u' }, s)).toBe(s);
   });
 
-  it('a stream only sends what the balance covers, then reports the lock', async () => {
-    h.balance = 1; // 400 words
-    h.meter = { paid: 1, needed: 2, paidWords: 400, lockedCredits: 1 };
+  it('credits-not-pages: a stream sends the whole draft; finish charges it as already delivered (no lock event)', async () => {
+    h.balance = 1;
+    h.meter = { paid: 2, needed: 2, paidWords: Number.POSITIVE_INFINITY, lockedCredits: 0 };
     const m = await draftMeterService.stream({ firmId: 'f', userId: 'u' });
     let sent = '';
     for (const chunk of [`${words('a', 300)} `, `${words('b', 300)} `, words('c', 200)]) sent += m.push(chunk);
-    expect(sent.match(/\S+/g)!.length).toBe(400);
-    expect(sent).not.toContain('c0');
+    expect(sent.match(/\S+/g)!.length).toBe(800);
     const events: string[] = [];
     await m.finish((e) => events.push(e));
-    expect(events).toEqual(['locked']);
+    expect(events).toEqual([]);
   });
 });
 

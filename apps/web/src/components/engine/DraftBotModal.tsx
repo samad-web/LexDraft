@@ -989,8 +989,8 @@ export function DraftBotModal({ open, onClose, inline, docLabel, preset, selecte
           </label>
           <CreditMeter compact />
           <button type="submit" className="btn btn-primary btn-lg dc-submit" disabled={!canSubmit}
-            title="1 credit per drafted page (400 words), plus ½ a page to translate it into another language. Pages past your credits are drafted and kept locked.">
-            <Icon name="draft" size={16} /> {busy ? 'Drafting…' : `Draft document · ${language === 'EN' ? '1 credit' : '1½ credits'} a page`}
+            title={`Uses credits by the draft's length: 1 credit for about 400 words${language === 'EN' ? '' : ', plus ½ for the translation'}. If your credits aren't enough, nothing is drafted or charged.`}>
+            <Icon name="draft" size={16} /> {busy ? 'Drafting…' : 'Draft document'}
           </button>
         </div>
 

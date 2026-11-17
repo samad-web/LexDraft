@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 /**
  * AI credits against real Postgres (row locks, transactions, idempotency).
  * Tests map to build-docs/features/ai-credits.md acceptance criteria (AC#).
@@ -113,45 +114,66 @@ describe('AC2/AC6 fixed costs', () => {
   });
 });
 
-describe('AC3/AC5 drafted pages past the balance are locked, then unlocked', () => {
+// credits-not-pages.md (owner 2026-11-17): drafts are charged in credits and
+// never cut into locked pages. Replaces the old "pages past the balance are
+// locked" tests (that rule was retired by the owner).
+describe('credits-not-pages: a draft is delivered whole, or refused up front', () => {
   const words = (p: number, n: number) => Array.from({ length: n }, (_, i) => `p${p}w${i}`).join(' ');
-  /** Six distinct 400-word paragraphs = 6 pages. */
+  /** Six distinct 400-word paragraphs = 6 credits. */
   const sixPages = Array.from({ length: 6 }, (_, p) => words(p, 400)).join('\n\n');
 
-  it('a 6-page draft with 3 credits: 3 charged, ~1,200 words sent, the rest held; unlock takes 3 and returns it', async () => {
+  it('AC2 a new 6-credit draft with 3 left: delivered whole, balance 0, 3 absorbed and logged', async () => {
     await firmWith(3);
     const out = await draftMeterService.text(ctx(), sixPages);
-    expect(out.locked?.lockedCredits).toBe(3);
+    expect(out.locked).toBeUndefined();
+    expect(out.text).toBe(sixPages);
     expect(await balance()).toBe(0);
-    const visible = out.text.split('[The rest of this draft is locked')[0]!;
-    expect(visible.match(/\S+/g)!.length).toBe(1200);
-    expect(out.text).not.toContain('p3w0'); // page 4 onwards never leaves the server
-    expect(out.text).toContain('p2w399');
-
-    await expect(creditService.unlock(ctx(), out.locked!.draftKey)).rejects.toMatchObject({ code: 'credits_exhausted' });
-    await creditService.addGrant({ firmId, source: 'admin', amount: 3, ref: `admin:a-${firmId}`, expiresAt: new Date(Date.now() + 86_400_000) });
-    const un = await creditService.unlock(ctx(), out.locked!.draftKey);
-    expect((un.payload as { text: string }).text).toBe(sixPages);
-    expect(await balance()).toBe(0);
-    // A second unlock charges nothing.
-    await creditService.unlock(ctx(), out.locked!.draftKey);
-    expect(await balance()).toBe(0);
+    const [row] = await getIntegrationSql()<{ credits: string; meta: { absorbed?: number } }[]>`
+      select credits, meta from credit_ledger where firm_id = ${firmId}::uuid and action = 'draft'`;
+    expect(Number(row!.credits)).toBe(3);
+    expect(row!.meta.absorbed).toBe(3);
   });
 
-  it('re-metering the same draft is free; only growth past the paid pages costs', async () => {
+  it('AC3 a new 6-credit draft with only 2 left (under half): 402, nothing charged, nothing stored', async () => {
+    await firmWith(2);
+    await expect(draftMeterService.text(ctx(), sixPages)).rejects.toMatchObject({ status: 402, code: 'credits_exhausted' });
+    expect(await balance()).toBe(2);
+    const rows = await getIntegrationSql()`select 1 from metered_drafts where firm_id = ${firmId}::uuid`;
+    expect(rows).toHaveLength(0);
+  });
+
+  it('re-metering the same draft is free; only growth past what it paid costs', async () => {
     await firmWith(10);
     const key = `intake:m-${firmId}:Plaint`;
-    await creditService.meterDraft(ctx(), key, 800);   // 2 pages
+    await creditService.meterDraft(ctx(), key, 800);   // 2 credits
     await creditService.meterDraft(ctx(), key, 790);   // same draft re-rendered
     expect(await balance()).toBe(8);
-    await creditService.meterDraft(ctx(), key, 1000);  // grew to 2.5 pages
+    await creditService.meterDraft(ctx(), key, 1000);  // grew to 2.5
     expect(await balance()).toBe(7.5);
   });
 
-  it("another firm can't unlock (or even see) this firm's draft", async () => {
+  it('AC4 a re-render that grows past the pool: 402 and the stored draft stays as it was', async () => {
+    await firmWith(2);
+    const key = `intake:m-${firmId}:Notice`;
+    await creditService.meterDraft(ctx(), key, 800); // 2 credits, pool 0
+    await expect(creditService.meterDraft(ctx(), key, 1600)).rejects.toMatchObject({ code: 'credits_exhausted' });
+    const [m] = await getIntegrationSql()<{ paid: string; needed: string }[]>`select paid, needed from metered_drafts where ref_key = ${key}`;
+    expect(Number(m!.paid)).toBe(2);
+    expect(Number(m!.needed)).toBe(2);
+  });
+
+  it('a streamed draft (already shown) is never refused: pool to 0, rest absorbed', async () => {
+    await firmWith(0.5);
+    await creditService.meterDraft(ctx(), `text:${crypto.randomUUID()}`, 2400, null, { delivered: true });
+    expect(await balance()).toBe(0);
+  });
+
+  it("an old locked draft: another firm can't unlock (or even see) it", async () => {
     await firmWith(1);
-    const out = await draftMeterService.text(ctx(), sixPages);
+    const key = `text:${crypto.randomUUID()}`;
+    await getIntegrationSql()`insert into metered_drafts (ref_key, firm_id, needed, paid, total_words, payload)
+      values (${key}, ${firmId}::uuid, 6, 1, 2400, ${getIntegrationSql().json({ text: sixPages })})`;
     const other = await seedFirm('Other Firm', 'Solo');
-    await expect(creditService.unlock({ firmId: other.id, userId: null }, out.locked!.draftKey)).rejects.toMatchObject({ status: 404 });
+    await expect(creditService.unlock({ firmId: other.id, userId: null }, key)).rejects.toMatchObject({ status: 404 });
   });
 });

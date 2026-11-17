@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { CreditsLowBanner } from '@/components/CreditsLowBanner';
 import { useEffect, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -293,6 +294,7 @@ export function App() {
           {user.isSuperadmin && !actAs && <SuperadminBanner />}
           <DeletionScheduledBanner />
           <TrialBanner />
+          <CreditsLowBanner />
           <MfaPromptBanner />
           <Topbar />
           <main className="content" id="main-content" tabIndex={-1} key={location.pathname}>

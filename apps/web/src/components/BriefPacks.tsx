@@ -16,7 +16,7 @@ export function BriefPacks({ packs, canBuy, coupon }: { packs: BriefPack[]; canB
     <section aria-label="Brief Packs" id="brief-packs">
       <h2 className="cm-plans-title" style={{ marginBottom: 4 }}>Brief Packs</h2>
       <p className="body-sm muted" style={{ marginTop: 0 }}>
-        Extra AI credits for this month and the next twelve. 1 credit = one 400-word drafted page. Used after your plan&apos;s credits. Prices are plus 18% GST.
+        Extra AI credits for this month and the next twelve. A short notice uses about 2 credits, a plaint 6 to 10. Used after your plan&apos;s credits. Prices are plus 18% GST.
       </p>
       <div className="cm-plans cm-plans--cols">
         {packs.map((p) => (

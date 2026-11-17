@@ -10,7 +10,7 @@ const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).repla
 
 /**
  * "42 credits left · 33 of 75 used this month · resets 1 Dec", with a notice
- * at 80% and at 100% of the month's credits. 1 credit = one 400-word page.
+ * at 80% and at 100% of the month's credits. Advocates only ever see credits.
  * Shown on the plan page and in the composer, including in the Android app
  * (it has no buy buttons, so the notice never says "upgrade" there).
  */
@@ -47,7 +47,7 @@ export function CreditMeter({ compact = false }: { compact?: boolean }) {
       {!compact && usedPct >= 80 && (
         <p className="cm-meter-note" role="status">
           {data.balance <= 0
-            ? `Credits finished.${data.resetsAt ? ` They renew on ${shortDate(data.resetsAt)}.` : ''} Drafted pages past your credits stay locked until then.`
+            ? `Your AI credits are over.${data.resetsAt ? ` Plan credits renew on ${shortDate(data.resetsAt)}.` : ''}${isNativeApp() ? '' : ' Buy credits in Plan & Billing to keep drafting now.'}`
             : usedPct >= 100
               ? `This month's credits are used up; ${fmt(data.balance)} Brief Pack credit${data.balance === 1 ? '' : 's'} left.`
               : `${fmt(data.balance)} credit${data.balance === 1 ? '' : 's'} left this month.`}

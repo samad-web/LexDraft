@@ -72,6 +72,8 @@
 
 - 2026-11-17 — Credits sold by hand in /admin are priced per credit, default = best Brief Pack rate (₹4,249/330 = ₹12.88 ex-GST) so a hand sale never undercuts a pack; editable per deal.
 
+- 2026-11-17 — Owner: credits, not pages. Drafts stay size-based (1 credit ≈ 400 words) but are never locked; stop before drafting on a per-type estimate; shortfall on a new draft absorbed (balance → 0) if the pool held ≥ half; low-credit warnings at 20% and 0 (banner, bell, WhatsApp). Replaces the 2026-11-14 "locked pages are cut server-side" decision.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

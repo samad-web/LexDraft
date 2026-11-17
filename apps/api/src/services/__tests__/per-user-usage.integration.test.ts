@@ -55,12 +55,12 @@ describe('AC2/AC3 a cap stops one user, not the firm', () => {
     await expect(creditService.charge({ firmId, userId: a }, 'research', 0.5)).resolves.toBeTruthy();
   });
 
-  it('drafted pages past the cap stay locked; unlock is refused with user_cap_reached', async () => {
+  it('a draft past the cap is refused (402 user_cap_reached), nothing charged: a DifAi cap is never absorbed', async () => {
     await creditService.setUserCap(a, 2, admin);
-    const m = await creditService.meterDraft({ firmId, userId: a }, 'draft-cap-1', 2000); // 5 pages
-    expect(m.paid).toBe(2);
-    expect(m.lockedCredits).toBe(3);
-    await expect(creditService.unlock({ firmId, userId: a }, 'draft-cap-1')).rejects.toMatchObject({ code: 'user_cap_reached' });
+    const before = await balance();
+    await expect(creditService.meterDraft({ firmId, userId: a }, 'draft-cap-1', 2000)).rejects.toMatchObject({ code: 'user_cap_reached' });
+    await expect(creditService.meterDraft({ firmId, userId: a }, 'draft-cap-2', 2000, null, { delivered: true })).rejects.toMatchObject({ code: 'user_cap_reached' });
+    expect(await balance()).toBe(before);
   });
 });
 

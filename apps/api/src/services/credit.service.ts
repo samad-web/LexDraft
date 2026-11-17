@@ -5,7 +5,7 @@ import { db } from '../db/client';
 import { assertAiAllowed } from '../lib/ai-pause';
 import { HttpError } from '../lib/errors';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
-import { draftCredits, FREE_LAUNCH_CREDITS, WORDS_PER_CREDIT, type CreditAction } from '../lib/credit-costs';
+import { draftCredits, FREE_LAUNCH_CREDITS, roundUpHalf, WORDS_PER_CREDIT, type CreditAction } from '../lib/credit-costs';
 import { isPaidPlan, MUNSHI_ROLES, PLANS } from '../lib/plans';
 import { logger } from '../logger';
 import { auditService } from './audit.service';
@@ -165,6 +165,12 @@ async function writeSpend(tx: Tx, ctx: CreditCtx, action: string, refKey: string
             ${tx.json(allocations as never)}, ${tx.json(meta as never)})`;
 }
 
+/** Low-credit warning after a charge (credit-alerts.service); never blocks or throws. */
+function lowCreditCheck(firmId: string | null): void {
+  if (!firmId) return;
+  void import('./credit-alerts.service').then(({ creditAlerts }) => creditAlerts.check(firmId)).catch(() => undefined);
+}
+
 export interface Charge { refKey: string; credits: number; refund: () => Promise<void> }
 
 /** Halves this user may still spend in the firm's current cycle; null = no cap.
@@ -248,6 +254,7 @@ export const creditService = {
     });
     if (!out.ok && 'cap' in out && out.cap) throw new UserCapReachedError({ cap: out.cap.cap, used: out.cap.used, needed: credits, resetsAt: out.resetsAt });
     if (!out.ok) throw new CreditsExhaustedError({ balance: out.balance, needed: credits, resetsAt: out.resetsAt });
+    lowCreditCheck(ctx.firmId);
     return { refKey, credits, refund: () => creditService.refund(refKey) };
   },
 
@@ -261,6 +268,25 @@ export const creditService = {
       await c.refund().catch((e) => logger.error({ err: e, refKey: c.refKey }, 'credit refund failed'));
       throw err;
     }
+  },
+
+  /** Credits a draft usually needs (credits-not-pages.md): median of the last
+   *  50 drafts of this document type, else of any draft, else 2; at least 1,
+   *  in half credits. Checked before drafting so a short pool stops up front. */
+  async draftEstimate(docLabel?: string | null): Promise<number> {
+    const sql = db();
+    if (!sql) return 1;
+    const median = async (like: string | null) => {
+      const [r] = await sql<{ med: string | null }[]>`
+        select percentile_cont(0.5) within group (order by needed) as med from (
+          select needed from metered_drafts
+          where needed > 0 and (${like}::text is null or ref_key like ${like} escape '\\')
+          order by updated_at desc limit 50) t`;
+      return r?.med == null ? null : Number(r.med);
+    };
+    const esc = (t: string) => t.replace(/[\\%_]/g, (c) => '\\' + c); // LIKE-escape with backslash
+    const est = (docLabel ? await median(`intake:%:${esc(docLabel)}`) : null) ?? (await median(null)) ?? 2;
+    return Math.max(1, roundUpHalf(est));
   },
 
   /** Throws 402 unless at least `credits` are available. Takes nothing. */
@@ -305,38 +331,55 @@ export const creditService = {
   },
 
   /**
-   * A drafted document's pages. Charges what the draft needs beyond what this
-   * draft (`draftKey`) already paid, as far as the balance goes. Pages never
-   * get charged twice: re-rendering the same draft is free, and only growth
-   * past the paid pages costs. Returns the words the reader may see; the rest
-   * is locked until `unlock`.
+   * A drafted document, charged in credits (credits-not-pages.md). Re-rendering
+   * the same draft is free; only growth past what it already paid costs.
+   * - Enough credits: charged in full.
+   * - A NEW draft bigger than the pool: delivered whole, the pool goes to 0 and
+   *   DifAi absorbs the rest - but only if the pool held at least half of what
+   *   the draft needs, or the text was already shown (`delivered`, streaming).
+   *   Otherwise 402 credits_exhausted and nothing is charged.
+   * - A re-render that grows past the pool: 402, the stored draft is unchanged.
+   * - A user's DifAi cap is never absorbed: 402 user_cap_reached.
+   * Nothing is locked any more (old locked drafts can still be unlocked).
    */
-  async meterDraft(ctx: CreditCtx, draftKey: string, words: number, payload: unknown = null): Promise<DraftMeter> {
+  async meterDraft(ctx: CreditCtx, draftKey: string, words: number, payload: unknown = null,
+    opts: { delivered?: boolean } = {}): Promise<DraftMeter> {
     const sql = db();
     const needed = draftCredits(words);
     if (!sql) return { paidWords: Number.POSITIVE_INFINITY, lockedCredits: 0, paid: needed, needed };
-    if (!ctx.firmId) return { paidWords: 0, lockedCredits: needed, paid: 0, needed };
+    if (!ctx.firmId) throw new CreditsExhaustedError({ balance: 0, needed, resetsAt: null });
     const firmId = ctx.firmId;
-    return sql.begin(async (tx) => {
+    const meter = await sql.begin(async (tx) => {
       const f = await loadFirm(tx, firmId, true);
       const cycle = f ? await ensurePlanGrant(tx, firmId, f) : null;
       const room = cycle ? await userRoom(tx, ctx, cycle.start) : null;
-      await tx`
+      const created = await tx`
         insert into metered_drafts (ref_key, firm_id, user_id) values (${draftKey}, ${firmId}::uuid, ${ctx.userId})
-        on conflict (ref_key) do nothing`;
+        on conflict (ref_key) do nothing returning ref_key`;
+      const isNew = created.length > 0;
       const [m] = await tx<{ paid: string; firm_id: string }[]>`
         select paid, firm_id from metered_drafts where ref_key = ${draftKey} for update`;
       if (m && m.firm_id !== firmId) throw new HttpError(404, 'Draft not found');
       let paidH = halves(Number(m?.paid ?? 0));
-      // Past a user's cap the extra pages stay locked, like an empty balance.
-      const gap = Math.min(halves(needed) - paidH, room ? room.left : Number.POSITIVE_INFINITY);
+      const gap = halves(needed) - paidH;
+      const resetsAt = cycle?.end.toISOString() ?? null;
       if (gap > 0) {
-        const { took, allocations } = await take(tx, firmId, gap);
-        if (took > 0) {
-          const newPaid = paidH + took;
-          await writeSpend(tx, ctx, 'draft', `${draftKey}@${newPaid}`, fromHalves(took), allocations, { words });
-          paidH = newPaid;
+        if (room && room.left < gap) {
+          throw new UserCapReachedError({ cap: room.cap, used: room.used, needed: fromHalves(gap), resetsAt });
         }
+        const have = await availableHalves(tx, firmId);
+        if (have < gap) {
+          const absorbable = isNew && (opts.delivered || have * 2 >= halves(needed));
+          if (!absorbable) throw new CreditsExhaustedError({ balance: fromHalves(have), needed: fromHalves(gap), resetsAt });
+        }
+        const { took, allocations } = have > 0 ? await take(tx, firmId, Math.min(gap, have)) : { took: 0, allocations: [] };
+        const absorbed = gap - took;
+        if (took > 0 || absorbed > 0) {
+          await writeSpend(tx, ctx, 'draft', `${draftKey}@${paidH + gap}`, fromHalves(took), allocations,
+            absorbed > 0 ? { words, absorbed: fromHalves(absorbed) } : { words });
+        }
+        if (absorbed > 0) logger.info({ firmId, draftKey, absorbed: fromHalves(absorbed) }, 'draft credits absorbed by DifAi (pool ran out)');
+        paidH += gap;
       }
       // The hidden full text is kept only while something is locked.
       const keep = paidH < halves(needed) && payload !== null;
@@ -351,6 +394,8 @@ export const creditService = {
         lockedCredits: Math.max(0, needed - paid),
       };
     });
+    lowCreditCheck(firmId);
+    return meter;
   },
 
   /** Pays the locked rest of a draft (all or nothing). 402 when it can't. */

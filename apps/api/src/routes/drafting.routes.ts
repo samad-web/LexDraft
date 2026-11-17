@@ -197,7 +197,7 @@ draftingRouter.post('/generate', requireFeature('drafting.ai'), llmGenerationLim
     }
     const firmId = await firmIdForUser(userId);
     // At least one page of credit before the model runs (402 credits_exhausted).
-      await creditService.assertAvailable({ firmId, userId }, 1);
+      await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate());
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -233,7 +233,7 @@ draftingRouter.post('/generate/stream', requireFeature('drafting.ai'), llmGenera
     }
     const firmId = await firmIdForUser(userId);
     // At least one page of credit before the model runs (402 credits_exhausted).
-      await creditService.assertAvailable({ firmId, userId }, 1);
+      await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate());
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -307,7 +307,7 @@ draftingRouter.post('/agent/stream', requireFeature('drafting.ai'), llmGeneratio
     }
     const firmId = await firmIdForUser(userId);
     // At least one page of credit before the model runs (402 credits_exhausted).
-      await creditService.assertAvailable({ firmId, userId }, 1);
+      await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate());
     const [notes, facts] = await Promise.all([
       resolveNotesForDraft(parsed, userId),
       resolveCaseFacts(parsed, userId),
@@ -390,7 +390,7 @@ draftingRouter.post('/auto', requireFeature('drafting.ai'), llmGenerationLimiter
       return;
     }
     const firmId = await firmIdForUser(userId);
-    await creditService.assertAvailable({ firmId, userId }, 1);
+    await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate());
     try {
       const result = await draftAutoService.run(
         {
@@ -1270,9 +1270,9 @@ async function intakeSetup(
     return null;
   }
   if (usesLlm) {
-    // Extractor + phraser are real model calls: at least one page of credit
-    // (402). The drafted pages are charged when the draft comes out.
-    await creditService.assertAvailable({ firmId, userId }, 1);
+    // Extractor + phraser are real model calls: the credits this kind of
+    // document usually needs, up front (402). The draft is charged when it comes out.
+    await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate(docLabel));
   }
   return { firmId, userId };
 }
@@ -1320,7 +1320,7 @@ draftingRouter.post('/engine/intake/start-auto', requireFeature('drafting.ai'), 
     const userId = req.user?.id;
     if (!userId) { res.status(401).json({ error: 'Unauthorized' }); return; }
     const firmId = await firmIdForUser(userId);
-    await creditService.assertAvailable({ firmId, userId }, 1);
+    await creditService.assertAvailable({ firmId, userId }, await creditService.draftEstimate());
     try {
       const state = await intakeService.startAuto(
         parsed.message,

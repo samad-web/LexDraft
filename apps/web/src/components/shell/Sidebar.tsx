@@ -166,7 +166,7 @@ export function Sidebar() {
             )}
             <div className="quota-note">
               {!credits.data || credits.data.unlimited
-                ? '1 credit = one drafted page'
+                ? 'A draft uses credits by its length'
                 : credits.data.allowance > 0
                   ? `${credits.data.usedThisCycle} of ${credits.data.allowance} used this month`
                   : 'Credits arrive with your plan'}

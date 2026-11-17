@@ -116,37 +116,20 @@ export const draftMeterService = {
     return { text: `${cut.text}\n\n${lockNotice(m.lockedCredits)}`, locked: { draftKey, lockedCredits: m.lockedCredits } };
   },
 
-  /** A streamed draft: deltas flow only up to what the balance covers; the rest
-   *  is held back, charged by `finish`, and sent as a `locked` event. */
+  /** A streamed draft (credits-not-pages.md): the text streams in full (the
+   *  route checked the estimate first); `finish` charges it, and a shortfall
+   *  is absorbed because the advocate has already seen the text. */
   async stream(ctx: CreditCtx): Promise<{ push: (chunk: string) => string; finish: (send: (event: string, data: unknown) => void) => Promise<void> }> {
-    const b = await creditService.balance(ctx.firmId);
-    const budget = b.unlimited ? Number.POSITIVE_INFINITY : Math.floor(b.balance * 2) / 2 * WORDS_PER_CREDIT;
     let full = '';
-    let sent = '';
-    let capped = false;
     return {
       push(chunk) {
         full += chunk;
-        if (capped) return '';
-        const next = sent + chunk;
-        if (countWords(next) <= budget) { sent = next; return chunk; }
-        capped = true;
-        const lead = next.match(/^\s*/)?.[0] ?? '';
-        const allowed = lead + (next.match(/\S+\s*/g) ?? []).slice(0, Math.floor(budget)).join('');
-        const out = allowed.startsWith(sent) ? allowed.slice(sent.length) : '';
-        sent += out;
-        return out;
+        return chunk;
       },
-      async finish(send) {
+      async finish() {
         const words = countWords(full);
         if (words === 0) return;
-        const draftKey = `text:${crypto.randomUUID()}`;
-        const m = await creditService.meterDraft(ctx, draftKey, words, { text: full });
-        if (m.lockedCredits > 0) {
-          send('locked', { draftKey, lockedCredits: m.lockedCredits, notice: lockNotice(m.lockedCredits) });
-        } else if (capped && full.length > sent.length) {
-          send('delta', { text: full.slice(sent.length) }); // credits arrived meanwhile: all paid
-        }
+        await creditService.meterDraft(ctx, `text:${crypto.randomUUID()}`, words, null, { delivered: true });
       },
     };
   },

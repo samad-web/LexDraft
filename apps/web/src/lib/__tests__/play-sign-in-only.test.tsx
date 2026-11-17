@@ -148,7 +148,7 @@ describe('gap 4: credits / seats / drafting cap modal', () => {
   });
 
   it('AC12: website keeps the plans / Brief Pack line', () => {
-    expect(describeCap(credits).description).toContain('A bigger plan or a Brief Pack adds more now.');
+    expect(describeCap(credits).description).toContain('Buy credits to continue now.'); // owner 2026-11-17: credits-not-pages wording
     expect(describeCap({ kind: 'seat_cap', cap: 1, used: 1, planTier: 'Solo' }).description).toContain('Upgrade to invite more advocates.');
   });
 });
