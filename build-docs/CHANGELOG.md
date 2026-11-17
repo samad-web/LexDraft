@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (4ada924, web only): sign-in back to the card layout. Full-page CSS absent from the live build; Google client id present.
+
 - Sign-in back to the card layout (2026-11-17, owner: "no need of full screen"): full-page CSS from 517677f removed; kept only the hide of the phone-only "Firm with 9+ lawyers? Book a demo" link (duplicate of "Nine or more advocates? Talk to us").
 
 - DEPLOYED 2026-11-17 (517677f, web only): full-page sign-in. Google client id and the new CSS present in the live build; no API change.
