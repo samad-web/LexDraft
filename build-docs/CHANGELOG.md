@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (77e18af, web only): plan chosen once. Google client id and the new "Not the right plan?" text present in the live build; no API change.
+
 - Plan chosen once (2026-11-17, owner: "we give the option to choose twice"): the plan is picked on the sign-in tab (Create account on Advocate / Chambers / Firm) or by "Start with …" on pricing; onboarding step 1 then shows "Your plan" (that card, monthly/yearly, Munshi seats, price) with "Change plan" instead of the three-plan grid. Left rail shows the chosen plan's price. Removed leftover "1 credit = one 400-word page" and the "payment opens soon, free until then" note; Advocate card says "Practice analytics".
 
 - DEPLOYED 2026-11-17 (c080b5f, web only): sign-up starts in Google. Google client id, new steps text and the FedCM prompt code present in the live build; no API change.
