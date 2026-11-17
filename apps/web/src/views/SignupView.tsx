@@ -57,6 +57,7 @@ export function SignupView(): JSX.Element {
         <button
           type="button"
           onClick={() => navigate('/')}
+          className="signup-home"
           style={{ all: 'unset', cursor: 'pointer', display: 'inline-flex' }}
           aria-label="DifAi home"
         >

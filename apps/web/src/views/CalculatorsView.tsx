@@ -172,8 +172,6 @@ const segmentStyle: CSSProperties = {
 
 function segmentButtonStyle(active: boolean): CSSProperties {
   return {
-    width: 32,
-    height: 28,
     border: 0,
     borderRadius: 'calc(var(--radius-md) - 2px)',
     background: active ? 'var(--text-primary)' : 'transparent',
@@ -335,6 +333,7 @@ function CalcSheet({
                     aria-pressed={l.mode === m}
                     title={m === 'percent' ? 'Percentage of an amount' : 'Fixed amount'}
                     onClick={() => update(l.id, { mode: m })}
+                    className="calc-seg-btn"
                     style={segmentButtonStyle(l.mode === m)}
                   >
                     {m === 'percent' ? '%' : '₹'}

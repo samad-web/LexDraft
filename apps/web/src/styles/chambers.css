@@ -933,3 +933,156 @@
   .account-menu { animation: none; }
   [data-ui='chambers'] .nav-highlighter { transition: opacity 150ms ease; }
 }
+
+/* Calculators: percent / fixed line-type toggle (44px on touch, below). */
+.calc-seg-btn { width: 32px; height: 28px; }
+
+/* Calculators sheet: in a narrow column (1024 tablets) the basis amount was squeezed
+   to ~34px between the rate and the result; the row now wraps instead. */
+:root[data-ui='chambers'] .ai-calc-sheet .row:has(> input.tabular) { flex-wrap: wrap; }
+:root[data-ui='chambers'] .ai-calc-sheet .row > input.tabular[aria-label^='Basis'] { min-width: 96px !important; }
+
+/* ---------- TOUCH + PHONE FIXES (build-docs/features/mobile-responsive.md) ----------
+   Touch screens (phones, tablets, the Android app) get 44px tap targets and
+   16px form text (anything smaller makes iOS zoom into the field). Mouse
+   users keep the denser desktop sizes: these rules only apply to a coarse
+   pointer. */
+@media (pointer: coarse) {
+  :root[data-ui='chambers'] {
+    --btn-h: 44px;
+    --btn-sm-h: 44px;
+    --input-h: 44px;
+    --input-fs: 16px;
+  }
+  /* Inline styles and per-view rules set 13-15.5px on some fields; the two
+     fields designed bigger (OTP 24px, land-record code 18px) keep theirs. */
+  :root[data-ui='chambers'] input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):not([style*='font-size: 18px']):not([style*='font-size: 24px']),
+  :root[data-ui='chambers'] select,
+  :root[data-ui='chambers'] textarea {
+    font-size: 16px !important;
+  }
+  :root[data-ui='chambers'] .select-trigger,
+  :root[data-ui='chambers'] .chip,
+  :root[data-ui='chambers'] .pill-nav button,
+  :root[data-ui='chambers'] .ct-seg button,
+  :root[data-ui='chambers'] .cm-count-btn,
+  :root[data-ui='chambers'] .cm-name-btn,
+  :root[data-ui='chambers'] .dc-starter,
+  :root[data-ui='chambers'] .fm-folder,
+  :root[data-ui='chambers'] .ai-clauses-cat,
+  :root[data-ui='chambers'] .matter-intel-tab,
+  :root[data-ui='chambers'] .onb-chip,
+  :root[data-ui='chambers'] .cm-seats select,
+  :root[data-ui='chambers'] .sidebar.is-open .nav-item,
+  :root[data-ui='chambers'] .lead-move-select,
+  :root[data-ui='chambers'] .task-move-select,
+  :root[data-ui='chambers'] .page-header-back,
+  :root[data-ui='chambers'] details > summary {
+    min-height: 44px;
+  }
+  /* Icon-only buttons (they carry an aria-label): 44px wide, and never squeezed
+     below that in a flex row. Text buttons are wider already. */
+  :root[data-ui='chambers'] .btn[aria-label] { min-width: 44px; flex-shrink: 0; }
+  :root[data-ui='chambers'] .skip-link { min-width: 44px; }
+  :root[data-ui='chambers'] .skip-link { min-height: 44px; display: inline-flex; align-items: center; }
+  :root[data-ui='chambers'] .cm-row-actions .btn { min-height: 44px; }
+  :root[data-ui='chambers'] .calc-seg-btn { width: 44px; height: 44px; }
+  :root[data-ui='chambers'] .cm-lead-btns .btn,
+  :root[data-ui='chambers'] .cm-lead-retain,
+  :root[data-ui='chambers'] .cm-cycle button { min-height: 44px; }
+  /* Case tabs: the two icon tabs get 44px; tabs never shrink (the strip scrolls). */
+  :root[data-ui='chambers'] .matter-intel-tab { min-width: 44px; flex-shrink: 0; }
+  /* Segmented toggles, search boxes and tick-box rows elsewhere. */
+  :root[data-ui='chambers'] .fm-seg button,
+  :root[data-ui='chambers'] [role='group'][aria-label='Billing cycle'] > button,
+  :root[data-ui='chambers'] .cm-check,
+  :root[data-ui='chambers'] label:has(> input[type='checkbox']),
+  :root[data-ui='chambers'] label:has(> input[type='radio']) { min-height: 44px; }
+  :root[data-ui='chambers'] .fm-search .input { height: 44px; }
+  /* Sign-up header logo: its inline `all: unset` needs !important to be overridden. */
+  :root[data-ui='chambers'] .signup-home { min-height: 44px !important; align-items: center !important; }
+  /* Legal pages footer links. */
+  :root[data-ui='chambers'] footer.body-sm > a { display: inline-flex; align-items: center; min-height: 44px; }
+  :root[data-ui='chambers'] .lead-delete-btn,
+  :root[data-ui='chambers'] .auth-eye {
+    min-width: 44px;
+    flex-shrink: 0;
+    min-height: 44px;
+    justify-content: center;
+  }
+  /* Stand-alone text links: same 44px row, text centred in it. */
+  :root[data-ui='chambers'] .adv-link,
+  :root[data-ui='chambers'] .auth-forgot,
+  :root[data-ui='chambers'] .cm-hero-mail {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  :root[data-ui='chambers'] details > summary { display: flex; align-items: center; }
+  :root[data-ui='chambers'] input[type='checkbox'],
+  :root[data-ui='chambers'] input[type='radio'] {
+    width: 20px;
+    height: 20px;
+  }
+  :root[data-ui='chambers'] .topbar .topbar-search { height: 44px; min-height: 44px; }
+  /* Top bar icons: 44px square (Back keeps its label on tablets). */
+  :root[data-ui='chambers'] .topbar .topbar-back { min-width: 44px; height: 44px; min-height: 44px; }
+  :root[data-ui='chambers'] .topbar .topbar-icon,
+  :root[data-ui='chambers'] .topbar .topbar-search-mobile,
+  :root[data-ui='chambers'] .topbar .topbar-menu,
+  :root[data-ui='chambers'] .topbar .topbar-theme .btn {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Tablet rail (768-1023): opening the drawer makes the sidebar fixed, which
+   used to drop the page into the 64px rail column (content squeezed to 16px
+   behind the scrim). The page always keeps the second column. Items in later
+   nav sections lose the rail's -2px nudge so the open drawer lines up. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  :root[data-ui='chambers'] .app > .main { grid-column: 2; }
+  :root[data-ui='chambers'] .sidebar.is-open .nav-section + .nav-section .nav-item { margin: 1px 10px; }
+}
+
+@media (max-width: 767px) {
+  /* Closed drawer: no shadow strip along the left edge, and its links leave
+     the tab order (it is off screen). Hidden only after the slide-out ends. */
+  :root[data-ui='chambers'] .sidebar:not(.is-open) {
+    visibility: hidden;
+    box-shadow: none;
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0s linear 220ms;
+  }
+  :root[data-ui='chambers'] .topbar .topbar-back { width: 44px; }
+  /* Top bar: the icon buttons sit edge to edge so the screen title keeps
+     its room; a long title wraps to a second line instead of being cut. */
+  :root[data-ui='chambers'] .topbar { gap: 0; }
+  :root[data-ui='chambers'] .topbar-title-row {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+}
+/* 360px phones: six 44px icons leave too little for the title, so the
+   icons are 40px wide there (still 44px tall). */
+@media (pointer: coarse) and (max-width: 374px) {
+  :root[data-ui='chambers'] .topbar .topbar-icon,
+  :root[data-ui='chambers'] .topbar .topbar-search-mobile,
+  :root[data-ui='chambers'] .topbar .topbar-menu,
+  :root[data-ui='chambers'] .topbar .topbar-back,
+  :root[data-ui='chambers'] .topbar .topbar-theme .btn { width: 40px; min-width: 40px; }
+}
+
+@media (max-width: 640px) {
+  /* Field hints wrap under the label instead of being cut off. */
+  :root[data-ui='chambers'] .field-label:has(.field-hint) { white-space: normal; }
+  /* Stacked invoice cards: "in 17 days" goes under the due date, not between
+     the label and the date. */
+  :root[data-ui='chambers'] .tbl > tbody > tr > td:has(> .cm-due-rel) { flex-wrap: wrap; row-gap: 0; }
+  :root[data-ui='chambers'] .tbl > tbody > tr > td > .cm-due-rel { flex-basis: 100%; margin-top: 0; }
+}
