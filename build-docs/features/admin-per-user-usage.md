@@ -1,6 +1,6 @@
 # Feature: Per-user AI usage + caps (admin)
 
-Status: **design, awaiting owner approval (2026-11-17).**
+Status: **built 2026-11-17 (branch feat/admin-console-v2), not deployed.** As built: report shows credits used in the chosen window (not the plan cycle); the cap itself counts the plan cycle. Web shows the server's message for user_cap_reached (no credits sheet, since buying credits wouldn't help).
 
 ## Purpose
 - See which advocate uses how much AI, and stop one user draining a firm's shared credit pool.

@@ -61,6 +61,30 @@ adminRouter.get('/ai-usage', async (req, res, next) => {
   }
 });
 
+// Per-user AI use + monthly credit caps (admin-per-user-usage.md).
+adminRouter.get('/ai-usage/users', async (req, res, next) => {
+  try {
+    const q = AiUsageQuery.extend({ firmId: z.string().uuid().optional() }).parse(req.query);
+    const end = new Date();
+    const start = new Date(end.getTime() - (q.days ?? 30) * 24 * 60 * 60 * 1000);
+    res.json({ items: await aiUsageReportService.byUser(start, end, q.firmId) });
+  } catch (err) { next(err); }
+});
+
+const CreditCap = z.object({
+  cap: z.number().min(0).max(100_000).refine((n) => Number.isInteger(n * 2), 'in half credits').nullable(),
+}).strict();
+adminRouter.patch('/users/:id/credit-cap', async (req, res, next) => {
+  try {
+    const userId = z.string().uuid().parse(req.params.id);
+    const { cap } = CreditCap.parse(req.body);
+    if (!(await creditService.setUserCap(userId, cap, { id: req.user!.id, email: req.user!.email }))) {
+      res.status(404).json({ error: 'User not found' }); return;
+    }
+    res.json({ userId, creditCapMonth: cap });
+  } catch (err) { next(err); }
+});
+
 // Drafting quality: per doc type, how often the drafted body reached the
 // advocate vs fell back to the plain skeleton, and why.
 adminRouter.get('/compose-quality', async (req, res, next) => {

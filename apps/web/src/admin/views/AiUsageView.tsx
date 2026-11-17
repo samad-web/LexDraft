@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AiUsageUsersTable } from './AiUsageUsersTable';
 import { AiSpendCard } from './AiSpendCard';
 import type {
   AiUsageByFeature,
@@ -72,6 +73,8 @@ export function AiUsageView() {
       </div>
 
       <AiSpendCard />
+
+      <AiUsageUsersTable days={days} />
 
       {isLoading || !data ? (
         <div className="muted">Loading AI usage…</div>

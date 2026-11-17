@@ -8,6 +8,7 @@ import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { draftCredits, FREE_LAUNCH_CREDITS, WORDS_PER_CREDIT, type CreditAction } from '../lib/credit-costs';
 import { isPaidPlan, MUNSHI_ROLES, PLANS } from '../lib/plans';
 import { logger } from '../logger';
+import { auditService } from './audit.service';
 
 // =============================================================================
 // AI credits (build-docs/features/ai-credits.md, migration 0108).
@@ -32,6 +33,15 @@ export class CreditsExhaustedError extends HttpError {
   constructor(details: { balance: number; needed: number; resetsAt: string | null }) {
     super(402, `This needs ${details.needed} credit${details.needed === 1 ? '' : 's'} and ${details.balance} ${details.balance === 1 ? 'is' : 'are'} left.`, {
       code: 'credits_exhausted', details,
+    });
+  }
+}
+
+/** A per-user monthly cap set by DifAi (admin-per-user-usage) is reached. */
+export class UserCapReachedError extends HttpError {
+  constructor(details: { cap: number; used: number; needed: number; resetsAt: string | null }) {
+    super(402, `Your monthly AI limit of ${details.cap} credits, set by DifAi, is reached (${details.used} used this month).`, {
+      code: 'user_cap_reached', details,
     });
   }
 }
@@ -157,6 +167,20 @@ async function writeSpend(tx: Tx, ctx: CreditCtx, action: string, refKey: string
 
 export interface Charge { refKey: string; credits: number; refund: () => Promise<void> }
 
+/** Halves this user may still spend in the firm's current cycle; null = no cap.
+ *  Net of refunds (refund rows carry negative credits). */
+async function userRoom(q: Tx, ctx: CreditCtx, cycleStart: Date): Promise<{ left: number; cap: number; used: number } | null> {
+  if (!ctx.userId || !ctx.firmId) return null;
+  const [u] = await q<{ cap: string | null; used: string }[]>`
+    select u.credit_cap_month as cap,
+           coalesce((select sum(l.credits) from credit_ledger l
+                     where l.user_id = u.id and l.firm_id = ${ctx.firmId}::uuid and l.created_at >= ${cycleStart}), 0) as used
+    from users u where u.id = ${ctx.userId}::uuid`;
+  if (!u || u.cap == null) return null;
+  const used = Math.max(0, Number(u.used));
+  return { left: Math.max(0, halves(Number(u.cap)) - halves(used)), cap: Number(u.cap), used };
+}
+
 /** A Munshi (clerk) seat has no AI: refuse before any model call or charge. */
 async function assertNotMunshi(ctx: CreditCtx): Promise<void> {
   const sql = db();
@@ -214,12 +238,15 @@ export const creditService = {
       const f = await loadFirm(tx, firmId, true);
       if (!f) return { ok: false as const, balance: 0, resetsAt: null };
       const cycle = await ensurePlanGrant(tx, firmId, f);
+      const room = await userRoom(tx, ctx, cycle.start);
+      if (room && room.left < want) return { ok: false as const, cap: room, balance: 0, resetsAt: cycle.end.toISOString() };
       const have = await availableHalves(tx, firmId);
       if (have < want) return { ok: false as const, balance: fromHalves(have), resetsAt: cycle.end.toISOString() };
       const { allocations } = await take(tx, firmId, want);
       await writeSpend(tx, ctx, action, refKey, credits, allocations, meta);
       return { ok: true as const };
     });
+    if (!out.ok && 'cap' in out && out.cap) throw new UserCapReachedError({ cap: out.cap.cap, used: out.cap.used, needed: credits, resetsAt: out.resetsAt });
     if (!out.ok) throw new CreditsExhaustedError({ balance: out.balance, needed: credits, resetsAt: out.resetsAt });
     return { refKey, credits, refund: () => creditService.refund(refKey) };
   },
@@ -242,6 +269,16 @@ export const creditService = {
     if (!sql) return;
     await assertNotMunshi(ctx);
     await assertAiAllowed(ctx.firmId);
+    if (ctx.firmId) {
+      const firmId = ctx.firmId;
+      const room = await sql.begin(async (tx) => {
+        const f = await loadFirm(tx, firmId);
+        return f ? userRoom(tx, ctx, cycleBounds(f.renews_at).start) : null;
+      });
+      if (room && room.left < halves(credits)) {
+        throw new UserCapReachedError({ cap: room.cap, used: room.used, needed: credits, resetsAt: null });
+      }
+    }
     const b = await creditService.balance(ctx.firmId);
     if (halves(b.balance) < halves(credits)) {
       throw new CreditsExhaustedError({ balance: b.balance, needed: credits, resetsAt: b.resetsAt });
@@ -282,7 +319,8 @@ export const creditService = {
     const firmId = ctx.firmId;
     return sql.begin(async (tx) => {
       const f = await loadFirm(tx, firmId, true);
-      if (f) await ensurePlanGrant(tx, firmId, f);
+      const cycle = f ? await ensurePlanGrant(tx, firmId, f) : null;
+      const room = cycle ? await userRoom(tx, ctx, cycle.start) : null;
       await tx`
         insert into metered_drafts (ref_key, firm_id, user_id) values (${draftKey}, ${firmId}::uuid, ${ctx.userId})
         on conflict (ref_key) do nothing`;
@@ -290,7 +328,8 @@ export const creditService = {
         select paid, firm_id from metered_drafts where ref_key = ${draftKey} for update`;
       if (m && m.firm_id !== firmId) throw new HttpError(404, 'Draft not found');
       let paidH = halves(Number(m?.paid ?? 0));
-      const gap = halves(needed) - paidH;
+      // Past a user's cap the extra pages stay locked, like an empty balance.
+      const gap = Math.min(halves(needed) - paidH, room ? room.left : Number.POSITIVE_INFINITY);
       if (gap > 0) {
         const { took, allocations } = await take(tx, firmId, gap);
         if (took > 0) {
@@ -327,6 +366,8 @@ export const creditService = {
       if (gap <= 0) return { status: 'ok' as const, payload: m.payload, paid: Number(m.paid) };
       const f = await loadFirm(tx, firmId, true);
       const cycle = f ? await ensurePlanGrant(tx, firmId, f) : null;
+      const room = cycle ? await userRoom(tx, ctx, cycle.start) : null;
+      if (room && room.left < gap) return { status: 'cap' as const, cap: room.cap, used: room.used, needed: fromHalves(gap), resetsAt: cycle?.end.toISOString() ?? null };
       const have = await availableHalves(tx, firmId);
       if (have < gap) return { status: 'short' as const, balance: fromHalves(have), needed: fromHalves(gap), resetsAt: cycle?.end.toISOString() ?? null };
       const { allocations } = await take(tx, firmId, gap);
@@ -336,8 +377,20 @@ export const creditService = {
       return { status: 'ok' as const, payload: m.payload, paid };
     });
     if (out.status === 'missing') throw new HttpError(404, 'Draft not found');
+    if (out.status === 'cap') throw new UserCapReachedError({ cap: out.cap, used: out.used, needed: out.needed, resetsAt: out.resetsAt });
     if (out.status === 'short') throw new CreditsExhaustedError({ balance: out.balance, needed: out.needed, resetsAt: out.resetsAt });
     return { payload: out.payload, paid: out.paid };
+  },
+
+  /** DifAi sets (or clears, null) one user's monthly credit cap. Audited. */
+  async setUserCap(userId: string, cap: number | null, actor: { id: string; email: string }): Promise<boolean> {
+    const sql = db();
+    if (!sql) return false;
+    const rows = await sql`update users set credit_cap_month = ${cap} where id = ${userId}::uuid returning id`;
+    if (!rows.length) return false;
+    await auditService.write({ actorUserId: actor.id, actorEmail: actor.email, action: 'user.credit_cap.set',
+      targetType: 'user', targetId: userId, payload: { cap } });
+    return true;
   },
 
   /** Brief Pack / admin grant. Idempotent on `ref`. */

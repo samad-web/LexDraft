@@ -12,6 +12,7 @@
  */
 
 import type {
+  AdminAiUsageUser,
   AdminAiUsageResponse,
   AiUsageByFeature,
   AiUsageByFirm,
@@ -212,5 +213,57 @@ export const aiUsageReportService = {
       byFirm,
       trend,
     };
+  },
+
+  /** Per-user AI use for [start, end) (admin-per-user-usage): calls, tokens,
+   *  estimated cost, credits spent (net of refunds), top feature, cap. */
+  async byUser(start: Date, end: Date, firmId?: string): Promise<AdminAiUsageUser[]> {
+    const sql = db();
+    if (!sql) return [];
+    const firm = firmId ?? null;
+    const [tokens, credits, users] = await Promise.all([
+      sql<Array<ModelBucketRow & { user_id: string; feature: string; calls: string }>>`
+        select user_id, feature, model, count(*)::bigint as calls,
+               coalesce(sum(tokens_in), 0)::bigint as tokens_in, coalesce(sum(tokens_out), 0)::bigint as tokens_out,
+               coalesce(sum(cache_read_tokens), 0)::bigint as cache_read, coalesce(sum(cache_write_tokens), 0)::bigint as cache_write
+        from ai_token_usage
+        where created_at >= ${start} and created_at < ${end} and user_id is not null
+          and (${firm}::uuid is null or firm_id = ${firm}::uuid)
+        group by user_id, feature, model`,
+      sql<{ user_id: string; credits: string }[]>`
+        select user_id, coalesce(sum(credits), 0) as credits from credit_ledger
+        where created_at >= ${start} and created_at < ${end} and user_id is not null
+          and (${firm}::uuid is null or firm_id = ${firm}::uuid)
+        group by user_id`,
+      sql<{ id: string; name: string; email: string | null; role: string | null; firm_id: string | null; firm_name: string | null; cap: string | null }[]>`
+        select u.id, u.name, u.email, u.role, u.firm_id, f.name as firm_name, u.credit_cap_month as cap
+        from users u left join firms f on f.id = u.firm_id
+        where (${firm}::uuid is null or u.firm_id = ${firm}::uuid)`,
+    ]);
+    const acc = new Map<string, { calls: number; tokensIn: number; tokensOut: number; usd: number; feat: Map<string, number> }>();
+    for (const r of tokens) {
+      const a = acc.get(r.user_id) ?? { calls: 0, tokensIn: 0, tokensOut: 0, usd: 0, feat: new Map() };
+      const calls = Number(r.calls);
+      const fresh = Number(r.tokens_in) || 0, cr = Number(r.cache_read) || 0, cw = Number(r.cache_write) || 0, out = Number(r.tokens_out) || 0;
+      a.calls += calls; a.tokensIn += fresh + cr + cw; a.tokensOut += out;
+      a.usd += estimateCostUsd(r.model, fresh, out, cr, cw);
+      a.feat.set(r.feature, (a.feat.get(r.feature) ?? 0) + calls);
+      acc.set(r.user_id, a);
+    }
+    const spent = new Map(credits.map((c) => [c.user_id, Math.max(0, Number(c.credits))]));
+    return users
+      .filter((u) => acc.has(u.id) || spent.has(u.id) || u.cap != null || firm != null)
+      .map((u) => {
+        const a = acc.get(u.id);
+        const top = a ? [...a.feat.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null : null;
+        return {
+          userId: u.id, name: u.name, email: u.email, role: u.role, firmId: u.firm_id, firmName: u.firm_name,
+          calls: a?.calls ?? 0, tokensIn: a?.tokensIn ?? 0, tokensOut: a?.tokensOut ?? 0,
+          estCostUsd: round2(a?.usd ?? 0), estCostInr: Math.round((a?.usd ?? 0) * USD_INR),
+          creditsUsed: spent.get(u.id) ?? 0, topFeature: top as AdminAiUsageUser['topFeature'],
+          creditCapMonth: u.cap == null ? null : Number(u.cap),
+        };
+      })
+      .sort((x, y) => y.estCostUsd - x.estCostUsd || y.creditsUsed - x.creditsUsed);
   },
 };

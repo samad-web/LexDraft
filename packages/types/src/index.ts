@@ -1352,6 +1352,7 @@ export type AuditAction =
   | 'firm.credits.grant'
   | 'firm.ai.paused'
   | 'firm.custom_plan.set'
+  | 'user.credit_cap.set'
   | 'firm.ai.resumed'
   | 'platform.ai.paused'
   | 'platform.ai.resumed'
@@ -1535,6 +1536,19 @@ export interface ComposeQualityRow {
 }
 export interface AdminComposeQualityResponse {
   rows: ComposeQualityRow[];
+}
+
+/** GET /admin/ai-usage/users (admin-per-user-usage). */
+export interface AdminAiUsageUser {
+  userId: ID; name: string; email: string | null; role: string | null;
+  firmId: ID | null; firmName: string | null;
+  calls: number; tokensIn: number; tokensOut: number;
+  estCostUsd: number; estCostInr: number;
+  /** Credits spent in the window, net of refunds. */
+  creditsUsed: number;
+  topFeature: AiUsageFeature | null;
+  /** Monthly credit cap set by DifAi; null = none. */
+  creditCapMonth: number | null;
 }
 
 /** GET /admin/ai-spend (admin-ai-spend-guard). */
