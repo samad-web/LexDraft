@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (517677f, web only): full-page sign-in. Google client id and the new CSS present in the live build; no API change.
+
 - Full-page sign-in (2026-11-17, owner): the sign-in card fills the window (no outer margin, border, radius or shadow); Terms line + trust strip in a thin bottom strip; the old phone-only "Firm with 9+ lawyers? Book a demo" link hidden (the card has "Nine or more advocates? Talk to us").
 
 - DEPLOYED 2026-11-17 (23ac89f, web only): one sign-in card, plan chosen on the plan page. Google client id and the new tagline present in the live build; no API change.
