@@ -244,13 +244,16 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
   }
   const userId = typeof notes.user_id === 'string' ? notes.user_id : null;
   const applied = await sql.begin(async (tx) => {
+    // Lock the firm first, then look for this payment: a parallel delivery of
+    // the same payment (any event id) waits here and then sees it as applied
+    // (signup-hardening.md, F4).
+    const [f] = await tx<Array<{ selected_plan: string | null; plan_status: string | null; renews_at: Date | null; free_plan: boolean | null; seats: number | null; munshi_seats: number | null }>>`
+      select selected_plan, plan_status, renews_at, free_plan, seats, munshi_seats from firms where id = ${firmId}::uuid for update`;
+    if (!f) return null;
     const [seen] = await tx<{ id: string }[]>`
       select id from billing_events where provider_ref = ${payment.id}
         and kind in ('subscription_active', 'renewed', 'plan_changed') limit 1`;
     if (seen) return null;
-    const [f] = await tx<Array<{ selected_plan: string | null; plan_status: string | null; renews_at: Date | null; free_plan: boolean | null; seats: number | null; munshi_seats: number | null }>>`
-      select selected_plan, plan_status, renews_at, free_plan, seats, munshi_seats from firms where id = ${firmId}::uuid for update`;
-    if (!f) return null;
     const now = new Date();
     const active = f.plan_status === 'active' && !f.free_plan && !!f.renews_at && new Date(f.renews_at) > now;
     const same = active && f.selected_plan === plan && (f.seats ?? 1) === seats && (f.munshi_seats ?? 0) === munshi;
@@ -271,6 +274,9 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
         credit_allowance = null,
         razorpay_subscription_id = null
       where id = ${firmId}::uuid`;
+    // A paying owner who never finished /onboarding (e.g. paid from the
+    // sign-in renew screen) gets in now instead of being sent to pay again (F1).
+    await tx`update users set onboarded_at = now() where firm_id = ${firmId}::uuid and onboarded_at is null`;
     const kind: BillingEventKind = !active ? 'subscription_active' : same ? 'renewed' : 'plan_changed';
     await tx`
       insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, amount_paise, provider, provider_ref, webhook_id)
