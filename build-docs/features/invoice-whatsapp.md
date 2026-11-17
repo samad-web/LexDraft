@@ -1,6 +1,6 @@
 # Feature: Send the GST invoice on WhatsApp after payment
 
-Status: **built 2026-11-17, not deployed.** Owner decisions (2026-11-17): link now, PDF later; Claude creates the template via Wasi API.
+Status: **LIVE 2026-11-17 (578fc3d, 0115 applied, template switched on).** Owner decisions (2026-11-17): link now, PDF later; Claude creates the template via Wasi API.
 - Found: Wasi ignores per-message media; a DOCUMENT template always sends its one stored sample (and `invoice_document`'s sample has expired on Meta). `header` is a ≤60-char text field. So `invoice_document` can't carry each customer's PDF yet.
 - Built instead: new Utility template **`difai_invoice`** (created via Wasi API 2026-11-17, Meta-approved the same day): "Hi {{customer_name}}, thank you for your payment. Your DifAi GST invoice {{invoice_number}} for {{invoice_amount}} dated {{invoice_date}} is ready here: {{invoice_link}} … This link works for 7 days …" + URL button "Open Plan & Billing". Wasi dropped the footer.
 - Link = `/api/i/<32-char token>`, **7 days** (not 24 h: the message promises 7). Env `WHATSAPP_INVOICE_TEMPLATE=difai_invoice` turns it on (empty = off).

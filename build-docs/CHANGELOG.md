@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (578fc3d): invoice on WhatsApp. Live migration 0115 after backup pre-invoice-wa-20261117-064417.dump (counts unchanged); WHATSAPP_INVOICE_TEMPLATE=difai_invoice set in prod .env.docker (backup env.docker.pre-invoice-wa-*).
+
 - Invoice on WhatsApp (2026-11-17, features/invoice-whatsapp.md): after any payment (Razorpay plan, Brief Pack, custom plan, paid credits) DifAi sends the GST invoice to the account owner's verified WhatsApp number through Wasi Hub (same sender as the OTP), template `difai_invoice`, with a 7-day private link to the PDF (`/api/i/<token>`). Sent by a background job (3 retries); the payment never waits on WhatsApp. Admin firm page shows sent / not sent (reason) per invoice with "Send on WhatsApp". Migration 0115 (invoice WhatsApp columns, invoice_links). Off until `WHATSAPP_INVOICE_TEMPLATE=difai_invoice` is set.
 
 - DEPLOYED 2026-11-17 (7c889c2): superadmin console v2 (spend guard, custom plan, per-user caps, Firm 360, Land Records TN gate) + main's logo/Android web commits. Live migration 0114 applied after a pg_dump backup (/var/backups/lexdraft/pre-admin-v2-20261117-061845.dump); row counts unchanged. ANTHROPIC_ADMIN_KEY not set yet (spend shows DifAi estimate). SMTP blank on prod: budget alerts reach the bell only.
