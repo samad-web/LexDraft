@@ -29,7 +29,7 @@ Owner approved a new logo on 2026-11-16 (the one in the product video): "Draft L
 - globals.css: auth logo heights, splash sizes, page-loader bar removed, motion classes added.
 - index.html / seo/render.mjs: favicon links (+32 px PNG), JSON-LD logo URL, header logo.
 - apps/api subscription-invoice.service.ts: header markup only (PDF renders inline SVG; no behaviour change).
-- Not changed: Android source (`apps/web/android`, parked): launcher icons `res/mipmap-*/ic_launcher*.png`, `res/drawable/ic_launcher_*.xml`, Android 12 splash icon and Play listing icon would need the new app-icon-foreground/background SVGs and PNGs.
+- Android app 2.3 (code 14, 2026-11-17): adaptive icon = background #141414 (drawable/ic_launcher_background.xml) + light D foreground (drawable/ic_launcher_mark.xml, paths from app-icon-foreground.svg, inside the 66dp safe zone) + monochrome themed icon; legacy mipmap-*dpi ic_launcher/ic_launcher_round PNGs rendered from app-icon-512.svg (rounded square / circle); splash (12+ windowSplashScreenAnimatedIcon and pre-12 drawable/splash.xml) = dark D (drawable/ic_splash_mark.xml) on white, so it flows into the light web UI. No notification icon exists (no push yet). Play listing icon still the old one: upload png/app-icon-512.png in Play Console.
 
 ## Edge cases
 - Dark mode / dark sidebar: currentColor everywhere; favicon follows the OS theme; PNGs are fixed ink on a solid ground.

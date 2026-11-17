@@ -1,4 +1,6 @@
 # Changelog
+- Android 2.3 (versionCode 14, 2026-11-17, features/new-logo.md): new DifAi logo as launcher, adaptive, round, themed and splash icons; only native change. On Play internal testing; production not released.
+
 - New logo v2 (2026-11-17, owner): the symbol is now the D of the word, so the lockup reads "DifAi" (was "D DifAi"). Symbol at cap height on the baseline, "ifAi" kerned 9 units after it; one lockup at every size (compact = same). Updated everywhere the lockup appears (landing, sign-in, splash, welcome, sidebar, SEO header, offline page, invoice, og-image) and in the owner's final logo folder (v1 files backed up).
 
 - New logo (2026-11-17, features/new-logo.md): the owner's approved "Draft Lines" logo replaces the old wordmark across the web app (sidebar, rail, landing header, sign-in, sign-up, onboarding, dialogs, legal/share pages, splash, route + boot loaders, SEO pages, offline page, favicon, apple-touch-icon, og:image, JSON-LD logo, GST invoice header). One component set in brand/Logo.tsx, currentColor for light/dark; loaders and splash use the logo's signature motion. Android app icons not changed (parked).

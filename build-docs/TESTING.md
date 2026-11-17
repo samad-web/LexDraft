@@ -477,3 +477,6 @@
     - web 331 passed (incl. 174 SEO);
     - tsc clean for API and web.
 - 0113 applied to the local dev DB (no v4 rows there).
+
+## android-new-logo (2026-11-17)
+- Built signed AAB + APK 2.3 (code 14). aapt2: package in.sirahdigital.difai, 14/2.3; apksigner/keytool: upload key SHA-1 40:69:AF:...:92:0C. Extracted AAB res: new D paths in ic_launcher_mark, old wordmark path absent, legacy PNGs viewed at 48-192 px; adaptive icon previewed at 48/96/192 in circle + squircle masks. Play internal upload OK. Not device-tested.
