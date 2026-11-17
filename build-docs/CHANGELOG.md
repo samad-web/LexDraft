@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (c080b5f, web only): sign-up starts in Google. Google client id, new steps text and the FedCM prompt code present in the live build; no API change.
+
 - Sign-up starts in Google (2026-11-17, owner: "by tapping create account it should go"): tapping Create account opens Google's account chooser at once (One Tap / FedCM); the sign-up card now has a large "Continue with Google" button in the middle (no longer only in the footer), the four steps, and the right price per tab.
 
 - DEPLOYED 2026-11-17 (0274d44, web only): Firm tab sign-up fix 5e90e75, plus another session's mobile-responsive commits a57fee7, e7176a1, 0274d44. Google client id present in the build; no API changes; no migration.
