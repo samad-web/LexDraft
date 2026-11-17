@@ -1,6 +1,6 @@
 # Feature: Firm 360 + current plans on the admin console
 
-Status: **design, awaiting owner approval (2026-11-17).**
+Status: **built 2026-11-17 (branch feat/admin-console-v2), not deployed.** As built: sections on the existing firm page instead of tabs; extend is whole months only (so the credit month keeps its day and no extra grant is created; a 29-31st renewal day can still clamp); MRR definition tightened (paid + running only).
 
 ## Purpose
 - Admin console still speaks v4/tiers ("plan_tier" badges, free-plan page). Show the **current v5 plans** and give one page per firm with everything needed to support it.

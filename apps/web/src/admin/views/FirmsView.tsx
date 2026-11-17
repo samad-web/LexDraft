@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Select, Skeleton } from '@lexdraft/ui';
-import type { AdminCreateFirmResponse, FirmPlanTier } from '@lexdraft/types';
+import type { AdminCreateFirmResponse, FirmPlanTier, FirmSummary } from '@lexdraft/types';
 import { Modal, Field } from '@/components/Modal';
 import { useUIStore } from '@/store/ui';
 import { useCreateFirm, useFirms } from '../queries';
@@ -20,11 +20,27 @@ const SEAT_RULES: Record<FirmPlanTier, { min: number; max: number; default: numb
   Firm:     { min: 9, max: 500, default: 12, locked: false, hint: 'Firm starts at nine seats; raise as needed.' },
 };
 
+type FirmFilter = 'all' | 'ending' | 'unpaid' | 'custom' | string;
+
+/** Firms list filters (admin-firm-360): by plan name, ending soon, unpaid. */
+export function matchesFilter(f: FirmSummary, filter: FirmFilter, now = Date.now()): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'ending') {
+    const t = f.plan.renewsAt ? Date.parse(f.plan.renewsAt) : NaN;
+    return f.plan.status === 'active' && f.planName !== 'Free launch' && t >= now - 86_400_000 && t <= now + 7 * 86_400_000;
+  }
+  if (filter === 'unpaid') return f.plan.status === 'trial' && f.planName !== 'Free launch';
+  if (filter === 'custom') return f.planName === 'Enterprise' || f.planName.endsWith('(custom)');
+  return f.planName === filter;
+}
+
 export function FirmsView() {
   const { data: firms = [], isLoading } = useFirms();
   const [creating, setCreating] = useState(false);
   const [createdResult, setCreatedResult] = useState<AdminCreateFirmResponse | null>(null);
-  const pager = usePagination(firms);
+  const [filter, setFilter] = useState<FirmFilter>('all');
+  const shown = useMemo(() => firms.filter((f) => matchesFilter(f, filter)), [firms, filter]);
+  const pager = usePagination(shown);
 
   return (
     <div className="col stagger" style={{ gap: 24 }}>
@@ -41,6 +57,19 @@ export function FirmsView() {
           <div className="eyebrow" style={{ marginBottom: 8 }}>Tenants</div>
           <h1 className="display-md">Firms · {firms.length}</h1>
         </div>
+        <label className="body-sm" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          Show
+          <select className="input" value={filter} onChange={(e) => setFilter(e.target.value as FirmFilter)}>
+            <option value="all">All firms</option>
+            <option value="ending">Plan ends in 7 days</option>
+            <option value="unpaid">Picked a plan, not paid</option>
+            <option value="Advocate">Advocate</option>
+            <option value="Chambers">Chambers</option>
+            <option value="Firm">Firm</option>
+            <option value="custom">Custom / Enterprise</option>
+            <option value="Free launch">Free launch</option>
+          </select>
+        </label>
         <button type="button" className="btn btn-primary" onClick={() => setCreating(true)}>
           + Create firm
         </button>
@@ -82,8 +111,10 @@ export function FirmsView() {
             <thead>
               <tr>
                 <th>Firm</th>
-                <th style={{ width: 140 }}>Plan</th>
+                <th style={{ width: 160 }}>Plan</th>
                 <th style={{ width: 110, textAlign: 'right' }}>Seats</th>
+                <th style={{ width: 100, textAlign: 'right' }}>Credits left</th>
+                <th style={{ width: 120 }}>Paid until</th>
                 <th style={{ width: 100, textAlign: 'right' }}>Matters</th>
                 <th style={{ width: 140, textAlign: 'right' }}>MRR</th>
                 <th style={{ width: 120 }}>Status</th>
@@ -99,8 +130,10 @@ export function FirmsView() {
                     </Link>
                     <div className="mono muted" style={{ fontSize: 11, marginTop: 2 }}>{f.id.slice(0, 8)}</div>
                   </td>
-                  <td><span className="badge">{f.plan.tier}</span></td>
+                  <td><span className="badge">{f.planName}</span></td>
                   <td className="mono tabular" style={{ textAlign: 'right' }}>{f.seatsUsed} / {f.seats}</td>
+                  <td className="mono tabular" style={{ textAlign: 'right' }}>{f.creditsLeft}</td>
+                  <td className="mono tabular">{f.plan.renewsAt ?? '—'}</td>
                   <td className="mono tabular" style={{ textAlign: 'right' }}>{f.caseCount}</td>
                   <td className="mono tabular" style={{ textAlign: 'right' }}>
                     ₹{f.plan.mrrInr.toLocaleString('en-IN')}

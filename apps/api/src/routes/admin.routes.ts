@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { firm360Service } from '../services/firm360.service';
 import { customPlanService } from '../services/custom-plan.service';
 import { aiSpendService } from '../services/ai-spend.service';
 import { Router } from 'express';
@@ -132,6 +133,33 @@ adminRouter.patch('/firms/:id/ai-pause', async (req, res, next) => {
     const ok = await aiSpendService.setFirmPaused(firmId, paused, { id: req.user!.id, email: req.user!.email });
     if (!ok) { res.status(404).json({ error: 'Firm not found' }); return; }
     res.json({ firmId, aiPaused: paused });
+  } catch (err) { next(err); }
+});
+
+// ---- business overview + Firm 360 (admin-firm-360.md) ----------------------
+
+adminRouter.get('/business', async (_req, res, next) => {
+  try { res.json(await firm360Service.overview()); } catch (err) { next(err); }
+});
+
+adminRouter.get('/firms/:id/payments', async (req, res, next) => {
+  try { res.json(await firm360Service.payments(z.string().uuid().parse(req.params.id))); } catch (err) { next(err); }
+});
+
+adminRouter.get('/firms/:id/ledger', async (req, res, next) => {
+  try {
+    const firmId = z.string().uuid().parse(req.params.id);
+    const { before } = z.object({ before: z.string().datetime().optional() }).parse(req.query);
+    res.json(await firm360Service.ledger(firmId, before));
+  } catch (err) { next(err); }
+});
+
+const ExtendPlan = z.object({ months: z.number().int().min(1).max(12), reason: z.string().trim().min(3).max(300) }).strict();
+adminRouter.post('/firms/:id/extend', async (req, res, next) => {
+  try {
+    const firmId = z.string().uuid().parse(req.params.id);
+    const body = ExtendPlan.parse(req.body);
+    res.json(await firm360Service.extend(firmId, body.months, body.reason, { id: req.user!.id, email: req.user!.email }));
   } catch (err) { next(err); }
 });
 

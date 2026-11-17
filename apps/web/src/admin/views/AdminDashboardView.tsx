@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { BusinessOverview } from './BusinessOverview';
 import { AiSpendCard } from './AiSpendCard';
 import { Skeleton } from '@lexdraft/ui';
 import type { ComposeReasonKind } from '@lexdraft/types';
@@ -61,6 +62,8 @@ export function AdminDashboardView() {
               </>
             )}
           </div>
+
+          <BusinessOverview />
 
           <AiSpendCard compact />
 

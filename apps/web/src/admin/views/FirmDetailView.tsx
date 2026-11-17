@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { AiUsageUsersTable } from './AiUsageUsersTable';
+import { ExtendPlanCard, FirmLedgerCard, FirmPaymentsCard } from './Firm360Cards';
 import { CustomPlanCard } from './CustomPlanCard';
 import { FirmAiPauseToggle } from './AiSpendCard';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -45,10 +47,14 @@ export function FirmDetailView() {
           <BrandingCard firmId={firm.id} initial={firm.branding} />
           <FlagsCard firmId={firm.id} initial={firm.flags} />
           <MembersCard firm={firm} />
+          <AiUsageUsersTable days={30} firmId={firm.id} />
+          <FirmPaymentsCard firmId={firm.id} />
+          <FirmLedgerCard firmId={firm.id} />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <PlanCard firmId={firm.id} initial={firm.plan} seats={firm.seats} status={firm.status} />
           <FirmCreditsCard firmId={firm.id} />
+          <ExtendPlanCard firmId={firm.id} renewsAt={firm.plan.renewsAt} />
           <CustomPlanCard firmId={firm.id} />
           <FirmAiPauseToggle firmId={firm.id} paused={firm.aiPaused} />
           <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
@@ -74,7 +80,7 @@ function Header({ firm, onBack }: { firm: NonNullable<ReturnType<typeof useFirm>
           <div className="mono muted" style={{ fontSize: 12, marginTop: 4 }}>{firm.id}</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span className="badge">{firm.plan.tier}</span>
+          <span className="badge">{firm.planName}</span>
           <span className={`badge ${firm.status === 'active' ? 'badge-sage' : 'badge-vermillion'}`}>{firm.status}</span>
           <span className="mono">{firm.seatsUsed} / {firm.seats} seats</span>
           <span className="mono">{firm.caseCount} matters</span>

@@ -1076,6 +1076,10 @@ export interface FirmSummary {
   caseCount: number;
   /** AI paused for this firm by the superadmin (admin-ai-spend-guard). */
   aiPaused: boolean;
+  /** Plan name for people: "Chambers", "Acme (custom)", "Free launch", "Sanad (v4)". */
+  planName: string;
+  /** Credits left right now (live grants, read-only). */
+  creditsLeft: number;
   createdAt: string;
 }
 
@@ -1352,6 +1356,7 @@ export type AuditAction =
   | 'firm.credits.grant'
   | 'firm.ai.paused'
   | 'firm.custom_plan.set'
+  | 'firm.plan.extend'
   | 'user.credit_cap.set'
   | 'firm.ai.resumed'
   | 'platform.ai.paused'
@@ -1536,6 +1541,29 @@ export interface ComposeQualityRow {
 }
 export interface AdminComposeQualityResponse {
   rows: ComposeQualityRow[];
+}
+
+/** GET /admin/business (admin-firm-360): paid plans now, by plan. */
+export interface AdminBusinessOverview {
+  /** Ex-GST ₹ a month from plans paid for and still running. */
+  mrrInr: number;
+  arrInr: number;
+  planMix: Array<{ plan: string; label: string; firms: number; paidFirms: number; mrrInr: number }>;
+  endingSoon: Array<{ firmId: ID; name: string; plan: string; renewsAt: string }>;
+  /** Picked a paid plan at sign-up, never paid (older than 30 minutes). */
+  stuckSignups: Array<{ firmId: ID; name: string; plan: string; createdAt: string; ownerEmail: string | null }>;
+}
+
+export interface AdminFirmPayments {
+  events: Array<{ id: ID; kind: string; plan: string | null; cycle: string | null; provider: string; providerRef: string | null;
+    note: string | null; amountInr: number | null; createdAt: string }>;
+  invoices: SubscriptionInvoice[];
+}
+
+export interface AdminFirmLedgerPage {
+  items: Array<{ id: ID; action: string; credits: number; kind: string; userName: string | null; createdAt: string }>;
+  /** Pass as `before` for the next page; null = last page. */
+  next: string | null;
 }
 
 /** GET /admin/ai-usage/users (admin-per-user-usage). */

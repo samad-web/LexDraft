@@ -28,7 +28,7 @@ export function FreePlanView() {
   return (
     <div className="col stagger" style={{ gap: 24 }}>
       <header>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Free plan</div>
+        <div className="eyebrow" style={{ marginBottom: 8 }}>Free launch (older accounts only)</div>
         <h1 className="display-md">Free launch plan</h1>
         <p className="muted" style={{ fontSize: 13, marginTop: 8, maxWidth: 640, lineHeight: 1.55 }}>
           Free-launch accounts (existing users only) are free until 1 June 2027, with 25 AI credits a month and 1 GB of

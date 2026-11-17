@@ -25,6 +25,7 @@ import type {
 import { db } from '../db/client';
 import { auditService } from './audit.service';
 import { aiUsageReportService } from './ai-usage-report.service';
+import { PAID_NOW, planName } from './firm360.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { invalidateTenantCache } from './tenant';
@@ -103,6 +104,7 @@ interface FirmRow {
   credit_allowance: number | string | null;
   created_at: Date;
   ai_paused: boolean | null;
+  selected_plan: string | null; custom_plan_name: string | null; free_plan: boolean | null; credits_left: string | number;
   case_count: number;
   seats_used: number;
 }
@@ -184,6 +186,8 @@ function rowToFirmSummary(r: FirmRow): FirmSummary {
       creditAllowance: r.credit_allowance == null ? null : Number(r.credit_allowance),
     },
     aiPaused: r.ai_paused === true,
+    planName: planName(r.selected_plan, r.custom_plan_name, r.free_plan),
+    creditsLeft: Number(r.credits_left ?? 0),
     createdAt: r.created_at.toISOString(),
   };
 }
@@ -261,6 +265,8 @@ export const adminService = {
     const rows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
              f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
+             f.selected_plan, f.custom_plan_name, f.free_plan,
+             coalesce((select sum(g.remaining) from credit_grants g where g.firm_id = f.id and g.expires_at > now()), 0) as credits_left,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f
@@ -275,6 +281,8 @@ export const adminService = {
     const firmRows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
              f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
+             f.selected_plan, f.custom_plan_name, f.free_plan,
+             coalesce((select sum(g.remaining) from credit_grants g where g.firm_id = f.id and g.expires_at > now()), 0) as credits_left,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f where f.id = ${id}::uuid limit 1
@@ -778,7 +786,8 @@ export const adminService = {
                count(*) filter (where is_superadmin)::int as superadmins
         from users
       `,
-      sql<Array<{ mrr: number }>>`select coalesce(sum(mrr_inr), 0)::int as mrr from firms where status = 'active'`,
+      // Plans paid for and still running (not expired, free-launch or ₹0).
+      sql<Array<{ mrr: number }>>`select coalesce(sum(f.mrr_inr), 0)::int as mrr from firms f where ${sql.unsafe(PAID_NOW)}`,
       sql<Array<{ cases: number }>>`select count(*)::int as cases from cases`,
       auditService.list({ limit: 10 }),
       aiUsageReportService.summary(aiStart, aiEnd),

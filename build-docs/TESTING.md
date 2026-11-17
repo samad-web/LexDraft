@@ -1,4 +1,9 @@
 # Testing
+## Admin Firm 360 + plan overview — 2026-11-17 (features/admin-firm-360.md)
+- `firm360.integration.test.ts` 6/6 (first run): AC1 MRR counts only paid, running plans (expired / free-launch / suspended excluded), ARR = 12 × MRR, overview MRR = stats MRR, plan mix labels; AC2 ending in 7 days, sign-ups never paid (> 30 min), list carries plan name + credits left; AC3 extend 1 month keeps one plan grant and the balance (no credit reset), audited; suspended / free-launch refused, unknown 404; payments show manual notes; ledger pages 50 + cursor.
+- `firms-filter.test.ts` 3/3 (web): ending / unpaid / plan / custom filters. One type error in the test helper itself (field named like FirmSummary.status) fixed.
+- Regression: api unit 1094 pass (+ share-links .env file); integration 129 pass + same 2 pre-existing; web 338 pass; api + web tsc clean.
+
 ## Admin per-user AI usage + caps — 2026-11-17 (features/admin-per-user-usage.md)
 - `per-user-usage.integration.test.ts` 7/7 (first run): AC2/AC3 cap 10 → 11th credit 402 user_cap_reached, assertAvailable too, pool untouched, colleague unaffected; refunds don't count; cap 0 = AI off, null removes; drafted pages past the cap stay locked and unlock is refused; AC4 spend before the cycle no longer counts; AC1 per-user token totals = the firm's total, credits/top feature/cap shown, most expensive first; AC5 audited, unknown user false.
 - Regression: api unit 1094 pass (+ share-links .env file); integration 123 pass + same 2 pre-existing; web 335 pass; api + web tsc clean.

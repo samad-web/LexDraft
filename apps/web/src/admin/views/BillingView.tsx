@@ -45,7 +45,7 @@ function nowOn(e: AdminBillingEvent): string {
   return [e.planTier, e.planStatus && e.planStatus !== 'active' ? e.planStatus.replace('_', ' ') : null].filter(Boolean).join(' · ');
 }
 
-async function downloadPdf(id: string, invoiceNo: string): Promise<void> {
+export async function downloadPdf(id: string, invoiceNo: string): Promise<void> {
   const url = URL.createObjectURL(await adminApi.billingInvoicePdf(id));
   const a = document.createElement('a');
   a.href = url;

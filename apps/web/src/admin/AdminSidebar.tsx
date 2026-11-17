@@ -19,7 +19,7 @@ const ADMIN_NAV: AdminNavItem[] = [
   { id: 'firms',     label: 'Firms',        icon: 'cases',     to: '/admin/firms' },
   { id: 'users',     label: 'Users',        icon: 'clients',   to: '/admin/users' },
   { id: 'billing',   label: 'Billing',      icon: 'invoices',  to: '/admin/billing' },
-  { id: 'free-plan', label: 'Free plan',    icon: 'settings',  to: '/admin/free-plan' },
+  { id: 'free-plan', label: 'Free launch',  icon: 'settings',  to: '/admin/free-plan' },
   { id: 'ai-usage',  label: 'AI usage',     icon: 'analytics', to: '/admin/ai-usage' },
   { id: 'templates', label: 'Templates',    icon: 'documents', to: '/admin/templates' },
   { id: 'audit',     label: 'Audit log',    icon: 'archive',   to: '/admin/audit' },
