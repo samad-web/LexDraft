@@ -4587,7 +4587,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 /* The DifAi wordmark, flat ink. */
 .auth-logo { display: inline-flex; color: var(--text-primary); }
-.auth-logo > svg { height: 44px !important; }
+.auth-logo > svg { height: 52px !important; }
 .auth-title { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .auth-shell .auth-brand-text, .auth-shell .auth-firm-link { display: none; }
 .auth-page { padding: clamp(20px, 4vw, 32px); gap: 24px; }
@@ -4604,7 +4604,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { padding: 22px 0 22px 26px; }
   .auth-main-inner { padding-top: 18px; padding-bottom: 18px; }
   .auth-head { gap: 8px; margin-bottom: 12px; }
-  .auth-logo > svg { height: 30px !important; }
+  .auth-logo > svg { height: 36px !important; }
   .auth-title { font-size: 25px; }
   .auth-main-inner form { gap: 10px !important; }
   .auth-field { padding: 6px 2px 8px; margin-top: 2px; }
@@ -4621,7 +4621,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { display: none; }
   .auth-shell .auth-brand-text { display: block; }
   .auth-shell .auth-firm-link { display: inline-flex; }
-  .auth-logo > svg { height: 36px !important; }
+  .auth-logo > svg { height: 44px !important; }
   .auth-title { font-size: 24px; }
 }
 
@@ -5130,15 +5130,10 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   position: absolute; left: 0; right: 0; top: 22%;
   display: flex; flex-direction: column; align-items: center; gap: 14px;
 }
-.splash-word { width: min(58vw, 260px); height: auto; overflow: visible; }
-.splash-slide { animation: splash-slide calc(.55s * var(--t)) cubic-bezier(.2,.8,.2,1) calc(.9s * var(--t)) both; }
-.splash-d { animation: splash-in calc(.45s * var(--t)) cubic-bezier(.2,.8,.2,1) calc(.15s * var(--t)) both; transform-box: fill-box; transform-origin: center; }
-.splash-i { animation: splash-rise calc(.35s * var(--t)) ease-out calc(.4s * var(--t)) both; }
-.splash-dot { animation: splash-drop calc(.45s * var(--t)) cubic-bezier(.3,1.6,.5,1) calc(.55s * var(--t)) both; }
-.splash-rest > * { animation: splash-rise calc(.4s * var(--t)) ease-out both; }
-.splash-rest > :nth-child(1), .splash-rest > :nth-child(2) { animation-delay: calc(1s * var(--t)); }
-.splash-rest > :nth-child(3) { animation-delay: calc(1.08s * var(--t)); }
-.splash-rest > :nth-child(4), .splash-rest > :nth-child(5) { animation-delay: calc(1.16s * var(--t)); }
+/* !important: FullLogo sizes itself inline (height 0.74em, width auto). */
+.splash-word { display: block; width: min(66vw, 280px) !important; height: auto !important; }
+/* The logo's signature motion (.difai-sig), started after the court begins to draw. */
+.splash .difai-sig { --sig-delay: calc(.15s * var(--t)); }
 .splash-by {
   margin: 0; font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
   color: var(--text-tertiary); animation: splash-fade calc(.5s * var(--t)) ease-out calc(1.5s * var(--t)) both;
@@ -5148,7 +5143,7 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
    Scale both up; the courtroom keeps its proportions, just taller. */
 @media (min-width: 900px) {
   .splash-brand { top: 14%; gap: 20px; }
-  .splash-word { width: clamp(300px, 24vw, 420px); }
+  .splash-word { width: clamp(320px, 26vw, 440px) !important; }
   .splash-by { font-size: 15px; letter-spacing: .18em; }
   .splash-court { height: 72%; opacity: .2; }
 }
@@ -5156,11 +5151,6 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
 @keyframes splash-spin { to { transform: rotate(360deg); } }
 @keyframes splash-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
 @keyframes splash-gavel { 0%, 100% { transform: rotate(0); } 45% { transform: rotate(-28deg); } 75% { transform: rotate(6deg); } }
-/* "Di" alone is 330 of 758 units wide: start it centred. */
-@keyframes splash-slide { from { transform: translateX(214px); } to { transform: translateX(0); } }
-@keyframes splash-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: scale(1); } }
-@keyframes splash-rise { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes splash-drop { from { opacity: 0; transform: translateY(-90px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes splash-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .splash *, .splash-court [pathLength] { animation: none !important; stroke-dashoffset: 0; }
@@ -5179,17 +5169,32 @@ html.kb-open .fab { display: none !important; }
 }
 /* Full-screen takes over from index.html's #boot-loader, so no fade (no blank flash). */
 .page-loader--full { min-height: 100vh; min-height: 100dvh; background: var(--bg-base); animation: none; opacity: 1; }
-.page-loader__bar {
-  position: relative; display: block; width: 120px; height: 2px; overflow: hidden;
-  border-radius: 2px; background: var(--border-subtle);
-}
-.page-loader__bar > span {
-  position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 2px;
-  background: var(--text-primary); animation: page-loader-slide 1.1s ease-in-out infinite;
-}
 @keyframes page-loader-in { to { opacity: 1; } }
-@keyframes page-loader-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@media (prefers-reduced-motion: reduce) { .page-loader { animation: none; opacity: 1; } }
+
+/* ---- DifAi logo motion (components/brand/Logo.tsx; owner's loader.html + usage guide) ----
+   .difai-sig: plays once (~1.15 s): the D pops in, the three lines type in
+   left to right with a stagger, the cursor blinks twice, the wordmark follows.
+   .difai-loader: loops for loading states. Both still under reduced motion. */
+.difai-sig path, .difai-loader path { transform-box: fill-box; }
+.difai-sig { --sig-delay: 0s; }
+.difai-sig .frame { transform-origin: center; animation: difai-pop .35s cubic-bezier(.2,.9,.25,1) var(--sig-delay) both; }
+.difai-sig .ln { transform-origin: left center; animation: difai-type-in .38s cubic-bezier(.6,0,.2,1) both; }
+.difai-sig .l1 { animation-delay: calc(var(--sig-delay) + .12s); }
+.difai-sig .l2 { animation-delay: calc(var(--sig-delay) + .24s); }
+.difai-sig .l3 { animation-delay: calc(var(--sig-delay) + .36s); }
+.difai-sig .cursor { animation: difai-blink-in .2s steps(1) calc(var(--sig-delay) + .75s) 2 both; }
+.difai-sig .lk-word { animation: difai-fade .4s ease-out calc(var(--sig-delay) + .5s) both; }
+.difai-loader .ln { transform-origin: left center; animation: difai-type 2.4s cubic-bezier(.6,0,.2,1) infinite; }
+.difai-loader .l2 { animation-delay: .14s; }
+.difai-loader .l3 { animation-delay: .28s; }
+.difai-loader .cursor { animation: difai-blink .8s steps(1) infinite; }
+@keyframes difai-pop { from { transform: scale(.86); opacity: 0; } }
+@keyframes difai-type-in { from { transform: scaleX(0); } }
+@keyframes difai-blink-in { 0% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes difai-fade { from { opacity: 0; } }
+@keyframes difai-type { 0% { transform: scaleX(0); } 22%, 82% { transform: scaleX(1); } 100% { transform: scaleX(0); } }
+@keyframes difai-blink { 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .page-loader { animation: none; opacity: 1; }
-  .page-loader__bar > span { animation: none; width: 100%; opacity: 0.35; }
+  .difai-sig path, .difai-sig .lk-word, .difai-loader path { animation: none !important; }
 }

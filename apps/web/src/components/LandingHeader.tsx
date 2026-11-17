@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { PillNav } from './PillNav';
 import { ThemeToggle } from './ThemeToggle';
-import { Wordmark } from './brand/Logo';
+import { FullLogo } from './brand/Logo';
 
 export type LandingTabId = 'home' | 'features' | 'pricing' | 'faq' | 'trial';
 
@@ -78,6 +78,6 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
   );
 }
 
-export function BrandMark({ height = 24 }: { height?: number }) {
-  return <Wordmark height={height} />;
+export function BrandMark({ height = 36 }: { height?: number }) {
+  return <FullLogo height={height} />;
 }

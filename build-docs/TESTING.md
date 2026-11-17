@@ -1,4 +1,9 @@
 # Testing
+## New logo — 2026-11-17 (features/new-logo.md)
+- New `brand-logo.test.tsx` 10/10 (lockups render named "DifAi" in currentColor, small-size drawing, motion classes + reduced motion, old geometry gone, favicon/apple/JSON-LD links and PNG sizes, offline + SEO copies). `page-loader.test.tsx` updated for the loader motion (3/3). API: gst-invoices header test added.
+- Web suite 32 files / 345 pass (incl. the new file), tsc clean; SEO tests 174 pass; vite build + prerender ok. API suite 1090 pass, only share-links fails (known: needs apps/api/.env); api tsc clean.
+- Visual (headless Chromium, built app, API stubbed): landing header, intro modal, sign-in, splash mid/end, boot loader, app shell sidebar + rail, SEO page, offline page, invoice header, favicon at 16/32 px — light and dark, 1366 and 390 wide. Found: splash logo ignored its CSS width (inline width:auto from the component); fixed with !important on .splash-word.
+
 ## Landing pricing cards — 2026-11-16
 - `landing-pricing.test.ts` 4/4 (tab scrolls on-page, section renders SIGNUP_PLANS with the cycle switch, phone button, footer link). Web suite 335 pass, tsc clean, vite build ok.
 

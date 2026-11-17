@@ -4,17 +4,18 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { PageLoader } from '../PageLoader';
-import { BRAND_PATHS } from '../brand/Logo';
+import { ICON } from '../brand/Logo';
 
 const file = (p: string) => readFileSync(resolve(__dirname, '../../..', p), 'utf8');
 
 describe('loading screens', () => {
-  it('PageLoader is an accessible status with the wordmark and a bar', () => {
+  it('PageLoader is an accessible status with the logo loader motion', () => {
     const html = renderToStaticMarkup(createElement(PageLoader, { full: true }));
     expect(html).toContain('role="status"');
     expect(html).toContain('page-loader--full');
-    expect(html).toContain('page-loader__bar');
-    expect(html).toContain('viewBox="0 0 758 266"');
+    expect(html).toContain('class="difai-loader"');
+    expect(html).toContain(ICON.frame);
+    expect(html).not.toContain('page-loader__bar');
     expect(html).toContain('Loading…');
     expect(renderToStaticMarkup(createElement(PageLoader))).not.toContain('page-loader--full');
   });
@@ -29,12 +30,13 @@ describe('loading screens', () => {
     expect(app).toContain('const contentFallback = <PageLoader />;');
   });
 
-  it('index.html shows the boot loader from first paint, with the real wordmark, without hiding the SEO copy from bots', () => {
+  it('index.html shows the boot loader from first paint, with the new logo loader, without hiding the SEO copy from bots', () => {
     const html = file('index.html');
     expect(html).toContain("b.id = 'boot-loader';");
     expect(html).not.toMatch(/<div id="boot-loader"/); // added by script only, so no-JS readers see #seo-static
     expect(html).toContain('id="seo-static"');
-    const d = BRAND_PATHS.d.replace('Z' + 'M', 'ZM');
-    for (const p of [d, BRAND_PATHS.i1, BRAND_PATHS.f, BRAND_PATHS.fBar, BRAND_PATHS.a, BRAND_PATHS.i2]) expect(html).toContain(p);
+    for (const p of [ICON.frame, ...ICON.lines, ICON.cursor]) expect(html).toContain(p);
+    expect(html).toContain('prefers-reduced-motion');
+    expect(html).not.toContain('0 0 758 266'); // old wordmark gone
   });
 });

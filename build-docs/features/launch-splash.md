@@ -5,7 +5,7 @@ User request 2026-11-03: opening the app shows an animation — "DifAi, powered 
 
 ## Design
 - Ink line-art courtroom (bench, judge's chair, scales on the wall, arched windows, columns, clerk's table with files, advocate at the lectern, two ceiling fans), faded behind the logo. Lines draw themselves in; fans turn; scales sway; gavel taps once.
-- Logo: "Di" appears centred, the i-dot drops, then the word slides left as "fAi" rises in → full **DifAi**. "Powered by Sirah Digital" fades in below.
+- Logo (since 2026-11-17, features/new-logo.md): the full lockup plays the logo's signature motion: the D pops in, its three text lines type in, the cursor blinks, the wordmark fades in. "Powered by Sirah Digital" fades in below.
 - ~2.4 s, then fades out. Tap anywhere skips. Reduced motion → static logo + scene for 0.9 s.
 - Generic courtroom only: no real court building, no State Emblem / Ashoka Lion (Play listing says "not affiliated with any court"; the emblem's use is legally restricted). Black and white, no photo (weight + colour rule).
 

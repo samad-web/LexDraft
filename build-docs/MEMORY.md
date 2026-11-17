@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-17 — New logo ("Draft Lines", owner-approved 2026-11-16) replaces the traced wordmark in the web app. Lockup by space per the owner's guide: full in website header/sign-in/splash, compact in sidebar and small headers, symbol on the rail, favicon-16 drawing under 24 px. Android icons untouched (Android parked).
 - 2026-11-16 — Pricing v5 built (features/pricing-v5.md). Owner:
     - plans by team size, prices + 18% GST: Advocate ₹699 (1 advocate, 150 credits), Chambers ₹1,699 (up to 3, 350), Firm ₹3,699 (up to 8, 750), Enterprise quote (9+); yearly = 11 × monthly;
     - Munshi ₹149 + GST (max 4); Brief Packs ₹429/849/1,699/4,249 + GST;

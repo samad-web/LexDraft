@@ -6,6 +6,8 @@ import { OFFER } from './pages.mjs';
 
 export const ORIGIN = 'https://difai.sirahdigital.in';
 export const BRAND = 'DifAi';
+// Full logo (symbol + wordmark) from components/brand/Logo.tsx, in currentColor so it follows the theme.
+export const LOGO_SVG = '<svg viewBox="0 -1.5 253.86 101.5" fill="currentColor" role="img" aria-label="DifAi"><g><path d="M0 0H50C80.9 0 101.5 20 101.5 50C101.5 80 80.9 100 50 100H0ZM17 15H50C71.3 15 85.5 29 85.5 50C85.5 71 71.3 85 50 85H17Z" fill-rule="evenodd"/><path d="M29 28H68V39H29Z"/><path d="M29 46H76V57H29Z"/><path d="M29 64H44V75H29Z"/><path d="M51 60H59V79H51Z"/></g><g transform="translate(131.5 27) scale(0.46)"><path d="M0 0H44C75.93 0 95.5 19 95.5 50C95.5 81 75.93 100 44 100H0ZM14 12H44C66.63 12 80.5 26.44 80.5 50C80.5 73.56 66.63 88 44 88H14Z" fill-rule="evenodd"/><path d="M111.18 30H111.18A7 7 0 0 1 118.18 37V93A7 7 0 0 1 111.18 100H111.18A7 7 0 0 1 104.18 93V37A7 7 0 0 1 111.18 30Z"/><path d="M103.2 6.98A7.98 7.98 0 1 0 119.16 6.98A7.98 7.98 0 1 0 103.2 6.98Z"/><path d="M137.08 100V21.7A21.7 21.7 0 0 1 158.78 0H165.78V12.88H158.78A7.7 8.82 0 0 0 151.08 21.7V100Z"/><path d="M125.18 30H167.18V41.48H125.18Z"/><path d="M156.68 100L195.8 -1.5H207.56L171.52 100Z"/><path d="M229.6 100L195.8 -1.5H207.56L246.68 100Z"/><path d="M178.47 63H223.34V74.2H178.47Z"/><path d="M259 30H259A7 7 0 0 1 266 37V93A7 7 0 0 1 259 100H259A7 7 0 0 1 252 93V37A7 7 0 0 1 259 30Z"/><path d="M252 -1H266V15.8H252Z"/></g></svg>';
 const ORG_ID = `${ORIGIN}/#org`;
 const SIGNUP = '/auth?signup=1';
 
@@ -69,7 +71,7 @@ a{color:inherit}
 header{border-bottom:1px solid var(--line)}
 header .wrap{display:flex;align-items:center;gap:20px;min-height:64px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:20px;text-decoration:none}
-.brand img{width:28px;height:28px}
+.brand svg{display:block;height:32px;width:auto}
 nav.top{margin-left:auto;display:flex;gap:16px;flex-wrap:wrap;font-size:15px}
 nav.top a{text-decoration:none}
 .btn{display:inline-block;background:var(--ink);color:var(--paper);padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600}
@@ -101,6 +103,7 @@ function layout({ page, body, canonical, robots = 'index, follow, max-image-prev
 <meta name="description" content="${esc(page.description)}" />
 <meta name="robots" content="${robots}" />
 ${canonical ? `<link rel="canonical" href="${canonical}" />` : ''}
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 <meta name="theme-color" content="#0a0a0a" />
@@ -120,7 +123,7 @@ ${schema ? `<script type="application/ld+json">${JSON.stringify(schema).replace(
 </head>
 <body>
 <header><div class="wrap">
-<a class="brand" href="/"><img src="/favicon.svg" alt="" width="28" height="28" />${BRAND}</a>
+<a class="brand" href="/">${LOGO_SVG}</a>
 <nav class="top" aria-label="Main">${nav}</nav>
 <a class="btn" href="${SIGNUP}">Get started</a>
 </div></header>

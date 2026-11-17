@@ -171,6 +171,13 @@ describe('AC4 the PDF carries every GST tax-invoice field', () => {
     expect(html).not.toContain('IGST');
   });
 
+  it('new-logo: header carries the DifAi compact wordmark (vector, named), not the name typed in a font', () => {
+    const html = inv.subscriptionInvoiceService.html(row as never);
+    expect(html).toContain('<div class="brand"><svg viewBox="0 -1.5 266 101.5" fill="#111" role="img" aria-label="DifAi">');
+    expect(html).toContain('M0 0H44C75.93 0 95.5 19 95.5 50'); // the wordmark's D (components/brand/Logo.tsx WORD[0])
+    expect(html).not.toContain('<div class="brand">DifAi</div>');
+  });
+
   it('buyer text is escaped (no script injection into the PDF)', () => {
     const html = inv.subscriptionInvoiceService.html(row as never);
     expect(html).not.toContain('<script>alert(1)</script>');

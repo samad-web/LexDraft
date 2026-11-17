@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-24 -14 310 310">
-  <!-- DifAi: the bold D of the wordmark (see components/brand/Logo.tsx). -->
-  <style>path{fill:#0a0a0a}@media (prefers-color-scheme:dark){path{fill:#fafafa}}</style>
-  <path d="M0 4H129C208.5 4 261.5 56.4 261.5 135C261.5 213.6 208.5 266 129 266H0ZM88 72V196H122C151.3 196 172.5 170 172.5 134C172.5 98 151.3 72 122 72Z" fill-rule="evenodd"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+<title>DifAi</title>
+<style>path{fill:#141414}@media (prefers-color-scheme:dark){path{fill:#FAFAF7}}</style>
+<path d="M1 1H8A7 7 0 0 1 8 15H1ZM3 3V13H8A5 5 0 0 0 8 3Z" fill-rule="evenodd"/><path d="M5 5H10V7H5Z"/><path d="M5 9H7V11H5Z"/><path d="M9 8H11V12H9Z"/>
 </svg>

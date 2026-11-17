@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { BRAND_PATHS as P } from '@/components/brand/Logo';
+import { FullLogo } from '@/components/brand/Logo';
 import { useAuthStore } from '@/store/auth';
 
 /**
- * Launch animation for the Android app: "Di" grows into DifAi over an ink
- * line drawing of a working courtroom. Plays on the app's cold start (2.4 s),
+ * Launch animation for the Android app: the DifAi logo plays its signature
+ * motion (the D's text lines type in, the cursor blinks, the wordmark
+ * follows) over an ink line drawing of a working courtroom. Plays on the app's cold start (2.4 s),
  * and right after every sign-in so the dashboard doesn't just appear: 4 s in
  * the app, 2.4 s on the website. Tap skips.
  * `?splash` shows it in the browser (for screenshots).
@@ -142,21 +143,8 @@ export function Splash() {
     >
       <Courtroom />
       <div className="splash-brand">
-        <svg className="splash-word" viewBox="0 0 758 266" aria-hidden focusable="false">
-          {/* Starts with "Di" centred, then slides to make room for "fAi". */}
-          <g className="splash-slide" fill="currentColor">
-            <path className="splash-d" d={P.d} fillRule="evenodd" />
-            <path className="splash-i" d={P.i1} />
-            <circle className="splash-dot" {...P.i1Dot} />
-            <g className="splash-rest">
-              <path d={P.f} />
-              <path d={P.fBar} />
-              <path d={P.a} fillRule="evenodd" />
-              <path d={P.i2} />
-              <circle {...P.i2Dot} />
-            </g>
-          </g>
-        </svg>
+        {/* Named by the splash itself (role="img"), so the logo is decorative here. */}
+        <FullLogo className="splash-word" title="" motion />
         <p className="splash-by">
           Powered by <strong>Sirah Digital</strong>
         </p>
