@@ -266,6 +266,8 @@ describe('server messages in the app (api.ts interceptor)', () => {
 
 // Owner 2026-11-17: the plan is chosen once, on the plan page. The sign-in page
 // is one card (no Advocate / Chambers / Firm tabs). Replaces the Firm-tab tests.
+const code_has_google_signin = () => /<\/form>\s*\{\/\* Google sign-in back on the card[\s\S]{0,300}<GoogleButton onCredential=\{handleGoogleCredential\} text="continue_with"/.test(src('views/AuthView.tsx'));
+
 describe('one sign-in card, plan chosen on the plan page', () => {
   const store = new Map<string, string>();
   beforeEach(() => {
@@ -287,7 +289,8 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     expect(web).toContain('Forgot password?');
     expect(web).toContain('New to DifAi?');
     expect(web).toContain('Create your account');
-    expect(web).not.toContain('Continue with Google'); // owner: exactly NUSI, Google only on Create account
+    // Owner 2026-11-17 (later): Google sign-in back on the card, under SIGN IN.
+    expect(code_has_google_signin()).toBe(true);
   });
 
   it('website sign-up screen: Google up front, plans from ₹699, the steps say the plan is chosen next', () => {

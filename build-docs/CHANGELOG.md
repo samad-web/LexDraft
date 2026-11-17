@@ -1,4 +1,6 @@
 # Changelog
+- Sign-in (2026-11-17, owner): grey line bars beside the logo on the brand panel removed; Google sign-in back on the card — "or" + full-width dark Continue with Google pill under the SIGN IN row, above "New to DifAi? Create your account".
+
 - DEPLOYED 2026-11-17 (b048194, web only): Create account screen matches the sign-in card. Google client id and new CSS present in the live build; no API change.
 
 - Create account screen restyled to the NUSI-style sign-in card (2026-11-17, owner: "when I click account creation it is going here, fix it"): round DifAi mark, centred CREATE YOUR ACCOUNT (one line), price line, full-width Continue with Google, steps as numbered circles, centred "Already have an account? Sign in". Same head on the WhatsApp/password step. The small wordmark header shows only on later sign-up steps (no double logo on phones).

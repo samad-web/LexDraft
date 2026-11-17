@@ -287,9 +287,6 @@ export function AuthView() {
           <div className="auth-brand-block">
             <div className="auth-brand-row">
               <Wordmark height={72} />
-              <div className="auth-brand-bars" aria-hidden>
-                <span style={{ width: '62%' }} /><span style={{ width: '100%' }} /><span style={{ width: '40%' }} /><span style={{ width: '80%' }} />
-              </div>
             </div>
             <h2 className="auth-brand-headline">Drafting that defies the clock.</h2>
             <p className="auth-brand-sub">AI drafting, case diary and eCourts for Indian advocates</p>
@@ -455,6 +452,13 @@ export function AuthView() {
                 </button>
               </div>
             </form>
+            {/* Google sign-in back on the card (owner 2026-11-17), under SIGN IN. */}
+            <div className="auth-or" aria-hidden><span>or</span></div>
+            {googleSignInAvailable() ? (
+              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" theme="filled_black" logoAlignment="center" /></div>
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
             {googleSignIn.isPending && (
               <p className="body-sm muted">Checking your Google account…</p>
             )}

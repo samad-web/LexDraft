@@ -1,4 +1,7 @@
 # Testing
+## Brand panel bars removed; Google back on sign-in — 2026-11-17
+- play-sign-in-only: the "no Google on sign-in" assertion (owner's earlier choice) replaced by a check that Continue with Google sits right after the sign-in form. Web 413 pass, tsc clean. Real-browser screenshot 1366×700 with the real Google button.
+
 ## Create account screen matches the sign-in card — 2026-11-17
 - Real-browser screenshots of /auth?signup=1 (with the real Google button) at 1366×700 and 390×844: round mark, one-line CREATE YOUR ACCOUNT, price, full-width Continue with Google, numbered steps, centred Sign in link; phone shows one logo. Web 413 pass, tsc clean.
 
