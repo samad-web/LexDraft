@@ -302,6 +302,16 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     expect(code).not.toMatch(/saveIntro/);
   });
 
+  it('Google first (owner 2026-11-17): no password field until "Sign in with email instead"; plan-ended box not inside the email form', () => {
+    env.native = false;
+    const web = render(<AuthView />, '/auth');
+    expect(web).toContain('Sign in with email instead');
+    expect(web).not.toMatch(/type="password"/);
+    const code = src('views/AuthView.tsx');
+    expect(code.indexOf('Plan ended (402')).toBeLessThan(code.indexOf('<form onSubmit={handleSignIn}'));
+    expect(code).toContain("logoAlignment=\"center\"");
+  });
+
   it('app: no create or talk-to-us link', () => {
     env.native = true;
     const app = render(<AuthView />, '/auth');

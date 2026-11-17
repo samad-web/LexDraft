@@ -1,4 +1,8 @@
 # Testing
+## Sign in: Continue with Google first — 2026-11-17
+- play-sign-in-only: new test (no password field by default, "Sign in with email instead" shown, plan-ended renew box outside the email form, centred-logo Google button). Web suite pass, tsc clean. Real-browser screenshot with Google's real button (dark pill, logo + "Continue with Google" centred, full width).
+- Found while building: the plan-ended "Pay and continue" box lived inside the email form — hidden for Google users once the form is collapsed; moved above the form. google_link_required (Google refused for a password account) opens the email form automatically.
+
 ## Sign-in alignment polish — 2026-11-17
 - Real-browser screenshots with the real Google button (local build with the public client id): 1366×700 filled and 390×844 — fields, Sign in, Google, divider and the two bottom rows share the same left/right edges (form column 400 px = Google's widest button). Web tests pass, tsc clean.
 

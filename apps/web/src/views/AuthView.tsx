@@ -93,6 +93,8 @@ export function AuthView() {
   const [renewMunshi, setRenewMunshi] = useState(0);
   const renewChosen = SIGNUP_PLANS.find((p) => p.id === renewPlan)!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
+  // Google refused because this email has a DifAi password: open the email form.
+  const googleNeedsPassword = (googleSignIn.error as { response?: { data?: { code?: string } } } | null)?.response?.data?.code === 'google_link_required';
   /** Terms + Privacy box on the Google sign-up form. Unticked by default. */
   const [agreedTerms, setAgreedTerms] = useState(false);
 
@@ -135,6 +137,8 @@ export function AuthView() {
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // Email + password form, hidden behind "Sign in with email instead".
+  const [showEmail, setShowEmail] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
   const handleGoogleCredentialRef = useRef<((credential: string) => void) | null>(null);
@@ -367,6 +371,48 @@ export function AuthView() {
                 Welcome back.
               </p>
             </div>
+            {googleSignInAvailable() ? (
+              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" theme="filled_black" logoAlignment="center" /></div>
+            ) : (
+              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
+            )}
+            {/* Plan ended (402 with a renew token), from Google or email sign-in. */}
+            {renewToken && native && (
+              <div role="alert" style={noticeStyle}>{NATIVE_COPY.planInactive}</div>
+            )}
+            {renewToken && !native && (
+              <div style={{ ...noticeStyle, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <strong style={{ fontSize: 14 }}>Pick a plan to continue</strong>
+                <span>{signIn.error?.message ?? googleSignIn.error?.message} Your cases and documents are safe.</span>
+                <CycleToggle cycle={cycle} onChange={setCycle} />
+                <PlanCards
+                  plans={SIGNUP_PLANS.filter((p) => p.purchasable)}
+                  cycle={cycle}
+                  selected={renewPlan}
+                  onSelect={(id) => setRenewPlan(id as PaidPlanId)}
+                  compact
+                />
+                <MunshiPicker plan={renewChosen} cycle={cycle} munshi={renewMunshi} min={0} onChange={setRenewMunshi} />
+                <span style={{ fontSize: 13 }}>{gstLine(planTotal(renewChosen, cycle, renewMunshi))}</span>
+                {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  disabled={renewCheckout.isPending}
+                  onClick={() => renewCheckout.mutate(
+                    { renewToken, plan: renewPlan, cycle, munshi: renewMunshi },
+                  )}
+                >
+                  {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}
+                </button>
+              </div>
+            )}
+            {/* Google first (owner 2026-11-17). Email + password stays one tap away for
+                the few password accounts and the Google Play review account. */}
+            {!(showEmail || googleNeedsPassword) ? (
+              <button type="button" className="auth-link auth-email-toggle" onClick={() => setShowEmail(true)}>Sign in with email instead</button>
+            ) : (<>
+            <div className="auth-or" aria-hidden><span>or with email</span></div>
             <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <label className="auth-field">
                 <Icon name="clients" size={16} />
@@ -401,36 +447,6 @@ export function AuthView() {
                   <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </label>
-              {renewToken && native && (
-                <div role="alert" style={noticeStyle}>{NATIVE_COPY.planInactive}</div>
-              )}
-              {renewToken && !native && (
-                <div style={{ ...noticeStyle, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <strong style={{ fontSize: 14 }}>Pick a plan to continue</strong>
-                  <span>{signIn.error?.message ?? googleSignIn.error?.message} Your cases and documents are safe.</span>
-                  <CycleToggle cycle={cycle} onChange={setCycle} />
-                  <PlanCards
-                    plans={SIGNUP_PLANS.filter((p) => p.purchasable)}
-                    cycle={cycle}
-                    selected={renewPlan}
-                    onSelect={(id) => setRenewPlan(id as PaidPlanId)}
-                    compact
-                  />
-                  <MunshiPicker plan={renewChosen} cycle={cycle} munshi={renewMunshi} min={0} onChange={setRenewMunshi} />
-                  <span style={{ fontSize: 13 }}>{gstLine(planTotal(renewChosen, cycle, renewMunshi))}</span>
-                  {renewCheckout.isError && <div role="alert">{renewCheckout.error.message}</div>}
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-block"
-                    disabled={renewCheckout.isPending}
-                    onClick={() => renewCheckout.mutate(
-                      { renewToken, plan: renewPlan, cycle, munshi: renewMunshi },
-                    )}
-                  >
-                    {renewCheckout.isPending ? 'Opening payment…' : 'Pay and continue'}
-                  </button>
-                </div>
-              )}
               {signIn.isError && !renewToken && (
                 !native && (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
@@ -454,12 +470,7 @@ export function AuthView() {
                 </button>
               </div>
             </form>
-            <div className="auth-or" aria-hidden><span>or</span></div>
-            {googleSignInAvailable() ? (
-              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" theme="outline" /></div>
-            ) : (
-              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
-            )}
+            </>)}
             {googleSignIn.isPending && (
               <p className="body-sm muted">Checking your Google account…</p>
             )}

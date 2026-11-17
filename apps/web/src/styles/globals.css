@@ -4656,6 +4656,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
 .auth-google { display: block; min-height: 44px; }
 .auth-google > div { justify-content: stretch !important; }
+.auth-email-toggle { align-self: flex-start; font-size: 14px; }
 .auth-more { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--border-subtle); font-size: 14px; color: var(--text-secondary); }
 .auth-more-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .auth-more-row .auth-link { white-space: nowrap; text-decoration: none; }

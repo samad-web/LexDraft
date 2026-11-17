@@ -349,6 +349,8 @@ type GoogleButtonProps = {
   width?: number;
   /** Web: 'outline' = white secondary button (sign-in page), default black. */
   theme?: 'filled_black' | 'outline';
+  /** Web: 'center' = logo + text centred together ("Continue with Google" pill). */
+  logoAlignment?: 'left' | 'center';
 };
 
 export function GoogleButton(props: GoogleButtonProps) {
@@ -401,7 +403,7 @@ function GoogleMark() {
   );
 }
 
-function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectangular', loginHint, width, theme = 'filled_black' }: GoogleButtonProps) {
+function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectangular', loginHint, width, theme = 'filled_black', logoAlignment = 'left' }: GoogleButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onCredential);
   cb.current = onCredential;
@@ -422,6 +424,7 @@ function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectan
         gsi.renderButton(ref.current, {
           type: 'standard',
           theme,
+          logo_alignment: logoAlignment,
           size: 'large',
           shape,
           text,
@@ -430,7 +433,7 @@ function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectan
       })
       .catch((err: Error) => !cancelled && setLoadError(err.message));
     return () => { cancelled = true; };
-  }, [text, shape, loginHint, width, theme]);
+  }, [text, shape, loginHint, width, theme, logoAlignment]);
 
   if (loadError) return <div role="alert" style={noticeStyle}>{loadError}</div>;
   // colorScheme: Google's button iframe is a light document; on a dark page a

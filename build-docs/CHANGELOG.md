@@ -1,4 +1,6 @@
 # Changelog
+- Sign in: Continue with Google first (2026-11-17, owner): the sign-in card shows a full-width dark "Continue with Google" pill (Google's button, logo + text centred) under "Sign in / Welcome back."; email + password is behind "Sign in with email instead" (kept for the password accounts and the Play review account; opens by itself when Google says the email has a DifAi password). Create account / Talk to us rows unchanged.
+
 - DEPLOYED 2026-11-17 (546d3ca, web only): sign-in alignment polish. Google client id and new CSS present in the live build; no API change.
 
 - Sign-in alignment polish (2026-11-17, owner: "alignment is not looking … Create account and Talk to us"): form column 400 px so the Google button is exactly as wide as Sign in; Google button white outline (secondary) under a solid black Sign in (no shadow, 44 px); Forgot password right-aligned under the password; "New to DifAi? — Create your account →" and "Nine or more advocates? — Talk to us →" as two rows under a divider. GoogleButton gets an optional theme (default unchanged).
