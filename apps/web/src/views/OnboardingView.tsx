@@ -8,7 +8,7 @@ import { useBilling, useCompleteOnboarding } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
-import { readIntro } from '@/lib/intro';
+import { clearPlanPick, readIntro, readPlanPick } from '@/lib/intro';
 
 // =============================================================================
 // /onboarding - shown once, right after a new account is created. Three steps
@@ -197,12 +197,15 @@ export function OnboardingView() {
   const intro = useMemo(() => readIntro(), []);
 
   const [step, setStep] = useState<Step>(0);
-  const [plan, setPlan] = useState<BillingPlanId>(intro.size === 'team' ? 'chambers' : intro.size === 'firm' ? 'law_firm' : 'advocate');
+  // Pre-selected only by a fresh "Start with …" on pricing (2 h); otherwise the
+  // three-plan choice. An old size answer never picks a new account's plan.
+  const pick = useMemo(() => readPlanPick(), []);
+  const [plan, setPlan] = useState<BillingPlanId>(pick ?? 'advocate');
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [munshi, setMunshi] = useState(0);
   // The plan was already picked (sign-in tab or "Start with …" on pricing):
   // confirm it here instead of asking again; "Change plan" opens the grid.
-  const prePicked = !!intro.size;
+  const prePicked = !!pick;
   const [changingPlan, setChangingPlan] = useState(!prePicked);
   // Pre-picked from the sign-in page's left tab (Advocate / Law student).
   const [kind, setKind] = useState<Kind>(intro.kind === 'student' ? 'student' : 'advocate');
@@ -277,6 +280,7 @@ export function OnboardingView() {
       },
       {
         onSuccess: (r) => {
+          clearPlanPick(); // used: the next sign-up on this browser chooses afresh
           if (r.checkoutUrl) { window.location.assign(r.checkoutUrl); return; }
           navigate(r.checkoutError ? '/app/billing' : '/app/dashboard', { replace: true });
         },

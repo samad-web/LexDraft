@@ -26,8 +26,8 @@ function render(el: ReactNode) {
 }
 
 describe('onboarding: the plan is chosen once', () => {
-  it('Firm already picked: "Your plan" shows Firm only, with Change plan; no second choice of three', () => {
-    store.set('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+  it('Firm picked on pricing just now: "Your plan" shows Firm only, with Change plan; no second choice of three', () => {
+    store.set('difai-plan-pick', JSON.stringify({ plan: 'law_firm', at: Date.now() }));
     const html = render(<OnboardingView />);
     expect(html).toContain('>Your plan<');
     expect(html).toContain('Change plan');
@@ -44,8 +44,20 @@ describe('onboarding: the plan is chosen once', () => {
     expect(html).not.toContain('Change plan');
   });
 
+  it('owner bug 2026-11-17: an old remembered size (old sign-in tabs / earlier test) does NOT pre-pick the plan of a new account', () => {
+    store.set('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+    const html = render(<OnboardingView />);
+    expect(html).toContain('>Choose your plan<');
+    expect(html).toContain('Up to 3 advocates');
+  });
+
+  it('a pricing pick older than 2 hours is ignored', () => {
+    store.set('difai-plan-pick', JSON.stringify({ plan: 'law_firm', at: Date.now() - 3 * 60 * 60 * 1000 }));
+    expect(render(<OnboardingView />)).toContain('>Choose your plan<');
+  });
+
   it('no page-wise credit wording on the plan step', () => {
-    store.set('difai-intro', JSON.stringify({ size: 'solo' }));
+    store.set('difai-plan-pick', JSON.stringify({ plan: 'advocate', at: Date.now() }));
     expect(render(<OnboardingView />)).not.toMatch(/400-word page/);
   });
 });

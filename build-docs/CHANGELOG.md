@@ -1,4 +1,6 @@
 # Changelog
+- Plan pre-pick fixed (2026-11-17, owner: "plan choosing is not updated"): onboarding pre-selects a plan only from a "Start with …" click on pricing in the last 2 hours (difai-plan-pick), cleared when setup finishes. Old remembered answers (old sign-in tabs, landing size question) no longer pick a new account's plan; otherwise "Choose your plan" with all three.
+
 - DEPLOYED 2026-11-17 (4bbfd78, web only): sign-in brand panel. Google client id and the new headline present in the live build; no API change.
 
 - Sign-in brand panel (2026-11-17, owner): the card's left panel shows the Play Store feature graphic built in HTML (DifAi wordmark with line bars, "Drafting that defies the clock.", "AI drafting, case diary and eCourts for Indian advocates") instead of the illustration; sign-in form stays on the right. AuthArt component kept in the repo, no longer used.

@@ -1,4 +1,7 @@
 # Testing
+## Plan pick only from a fresh pricing click — 2026-11-17
+- Owner bug: a new account (jesheeba) saw "Your plan: Firm" from an old remembered intro.size (old sign-in tabs). onboarding-plan-once 5/5 (fresh pricing pick → Your plan; old intro.size → Choose your plan; pick > 2 h → Choose your plan); 2 fail on the old screen. Web 412 pass, tsc clean.
+
 ## Sign-in brand panel — 2026-11-17
 - Markup + CSS. Real-browser screenshots (local build + Playwright) at 1920×1080 and 1366×700: left panel = wordmark + bars row, "Drafting that defies the clock.", sub-line; form on the right; no scroll. First attempt put the bars over the logo (.auth-art children are forced position:relative) — fixed by a logo + bars row. Web 410 pass, tsc clean.
 

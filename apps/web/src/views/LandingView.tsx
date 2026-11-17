@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { saveIntro } from '@/lib/intro';
+import { savePlanPick } from '@/lib/intro';
 import { useNavigate } from 'react-router-dom';
 import Lenis from 'lenis';
 import { LandingHeader } from '../components/LandingHeader';
@@ -841,7 +841,7 @@ export function LandingView() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => { if (!isCustom) saveIntro({ size: plan.id === 'law_firm' ? 'firm' : plan.id === 'chambers' ? 'team' : 'solo' }); goSignup(isCustom ? 'demo' : 'trial'); }}
+                    onClick={() => { if (!isCustom) savePlanPick(plan.id === 'law_firm' ? 'law_firm' : plan.id === 'chambers' ? 'chambers' : 'advocate'); goSignup(isCustom ? 'demo' : 'trial'); }}
                     className="btn btn-block btn-lg"
                     style={
                       featured
