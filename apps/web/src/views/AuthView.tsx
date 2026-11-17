@@ -298,7 +298,7 @@ export function AuthView() {
         <div className="auth-main">
         <div className="auth-main-inner">
         {/* Brand (the sign-in card has its own round mark) */}
-        {tab !== 'signin' && <div className="auth-head">
+        {tab === 'signup' && step !== 0 && <div className="auth-head">
           <span className="auth-logo"><Wordmark height={40} /></span>
           <div
             className="mono auth-brand-text"
@@ -477,11 +477,10 @@ export function AuthView() {
             and Terms in the block after this one, then /onboarding. */}
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="auth-intro">
-              <h1 className="auth-title">Create your account</h1>
-              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {`${freeLine}.`}
-              </p>
+            <div className="auth-signin-head">
+              <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
+              <h1 className="auth-title auth-title--long">Create your account</h1>
+              <p className="auth-signin-sub">{`${freeLine}.`}</p>
             </div>
             {googleSignInAvailable() ? (
               <div className="auth-google">
@@ -490,14 +489,14 @@ export function AuthView() {
             ) : (
               <p role="alert" style={noticeStyle}>Google sign-up is not configured.</p>
             )}
-            <ol className="body-sm" style={{ margin: 0, paddingLeft: 18, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            <ol className="auth-steps">
               <li>Continue with Google</li>
               <li>Verify your WhatsApp number with a code</li>
               <li>Choose your plan, add your practice details and agree to the Terms</li>
               <li>Pay for your plan and start</li>
             </ol>
             {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
-            <p className="body-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            <p className="auth-signin-foot">
               Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>
@@ -509,11 +508,10 @@ export function AuthView() {
             /onboarding takes over (plan, practice details). */}
         {tab === 'signup' && step === 0 && googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="auth-intro">
-              <h1 className="auth-title">Create your account</h1>
-              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}
-              </p>
+            <div className="auth-signin-head">
+              <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
+              <h1 className="auth-title auth-title--long">Create your account</h1>
+              <p className="auth-signin-sub">{`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}</p>
             </div>
             <GoogleWhatsAppVerify
               phoneFirst

@@ -1,4 +1,6 @@
 # Changelog
+- Create account screen restyled to the NUSI-style sign-in card (2026-11-17, owner: "when I click account creation it is going here, fix it"): round DifAi mark, centred CREATE YOUR ACCOUNT (one line), price line, full-width Continue with Google, steps as numbered circles, centred "Already have an account? Sign in". Same head on the WhatsApp/password step. The small wordmark header shows only on later sign-up steps (no double logo on phones).
+
 - DEPLOYED 2026-11-17 (7f1dd6e, web only): NUSI-style sign-in card. Google client id (still used by Create account) and the new copy present in the live build; no API change.
 
 - NUSI-style sign-in card (2026-11-17, owner: "like this i need", exactly NUSI, no Google): round black DifAi mark, SIGN IN, "Welcome back to DifAi.", email + password with icons, Forgot password left / black SIGN IN pill right, "New to DifAi? Create your account". Google is only on Create account (sign-up). "Talk to us" off the card (pricing still has "Speak with us"). Brand panel stays on the left.

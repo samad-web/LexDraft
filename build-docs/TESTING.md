@@ -1,4 +1,7 @@
 # Testing
+## Create account screen matches the sign-in card — 2026-11-17
+- Real-browser screenshots of /auth?signup=1 (with the real Google button) at 1366×700 and 390×844: round mark, one-line CREATE YOUR ACCOUNT, price, full-width Continue with Google, numbered steps, centred Sign in link; phone shows one logo. Web 413 pass, tsc clean.
+
 ## NUSI-style sign-in card — 2026-11-17
 - play-sign-in-only: 3 tests that described the superseded designs (Talk to us row, Book a demo link, Google-first with the email form hidden) updated to the owner's NUSI-style card (round mark, SIGN IN, email + password, Forgot left / SIGN IN right, one Create account line, no Google on sign-in); renew-box placement test kept. Web 413 pass, tsc clean. Real-browser screenshots desktop (filled) + phone.
 
