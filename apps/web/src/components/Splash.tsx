@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { create } from 'zustand';
-import { FullLogo } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { useAuthStore } from '@/store/auth';
 
 /**
@@ -144,7 +144,7 @@ export function Splash() {
       <Courtroom />
       <div className="splash-brand">
         {/* Named by the splash itself (role="img"), so the logo is decorative here. */}
-        <FullLogo className="splash-word" title="" motion />
+        <Wordmark className="splash-word" title="" motion />
         <p className="splash-by">
           Powered by <strong>Sirah Digital</strong>
         </p>

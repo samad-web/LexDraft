@@ -1,4 +1,9 @@
 # Testing
+## New logo v2 (symbol is the D) — 2026-11-17
+- `brand-logo.test.tsx` rewritten 12/12: one D only (no lettered D anywhere: app, index, favicon, offline, SEO), ifAi offset = 101.5 + 9 - 104.18, 16 px minimum, motion classes, decorative mode. gst-invoices header test updated (symbol D + translate, no lettered D).
+- Web 32 files / 346 pass, tsc clean; SEO 174 pass; vite build + prerender ok; API 1090 pass (share-links known), api tsc clean.
+- Looked at: design study of scales/gaps at 96/36/22/16 px light + dark; landing header light/dark desktop + phone; sign-in; splash end frame; app sidebar + tour; SEO header; invoice header; og-image; owner's usage guide (light + dark) and full-*@2x.png.
+
 ## New logo — 2026-11-17 (features/new-logo.md)
 - New `brand-logo.test.tsx` 10/10 (lockups render named "DifAi" in currentColor, small-size drawing, motion classes + reduced motion, old geometry gone, favicon/apple/JSON-LD links and PNG sizes, offline + SEO copies). `page-loader.test.tsx` updated for the loader motion (3/3). API: gst-invoices header test added.
 - Web suite 32 files / 345 pass (incl. the new file), tsc clean; SEO tests 174 pass; vite build + prerender ok. API suite 1090 pass, only share-links fails (known: needs apps/api/.env); api tsc clean.

@@ -4587,7 +4587,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 /* The DifAi wordmark, flat ink. */
 .auth-logo { display: inline-flex; color: var(--text-primary); }
-.auth-logo > svg { height: 52px !important; }
+.auth-logo > svg { height: 40px !important; }
 .auth-title { margin: 0; font-family: var(--font-display); font-size: 32px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
 .auth-shell .auth-brand-text, .auth-shell .auth-firm-link { display: none; }
 .auth-page { padding: clamp(20px, 4vw, 32px); gap: 24px; }
@@ -4604,7 +4604,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { padding: 22px 0 22px 26px; }
   .auth-main-inner { padding-top: 18px; padding-bottom: 18px; }
   .auth-head { gap: 8px; margin-bottom: 12px; }
-  .auth-logo > svg { height: 36px !important; }
+  .auth-logo > svg { height: 30px !important; }
   .auth-title { font-size: 25px; }
   .auth-main-inner form { gap: 10px !important; }
   .auth-field { padding: 6px 2px 8px; margin-top: 2px; }
@@ -4621,7 +4621,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-art { display: none; }
   .auth-shell .auth-brand-text { display: block; }
   .auth-shell .auth-firm-link { display: inline-flex; }
-  .auth-logo > svg { height: 44px !important; }
+  .auth-logo > svg { height: 34px !important; }
   .auth-title { font-size: 24px; }
 }
 
@@ -5130,7 +5130,7 @@ html.theme-fading, html.theme-fading *, html.theme-fading *::before, html.theme-
   position: absolute; left: 0; right: 0; top: 22%;
   display: flex; flex-direction: column; align-items: center; gap: 14px;
 }
-/* !important: FullLogo sizes itself inline (height 0.74em, width auto). */
+/* !important: Wordmark sizes itself inline (height, width auto). */
 .splash-word { display: block; width: min(66vw, 280px) !important; height: auto !important; }
 /* The logo's signature motion (.difai-sig), started after the court begins to draw. */
 .splash .difai-sig { --sig-delay: calc(.15s * var(--t)); }

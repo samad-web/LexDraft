@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-17 — Logo v2 (owner): the symbol IS the D; lockup = symbol + "ifAi", reads "DifAi". One lockup at all sizes (compact plain lettering dropped: it would bring back a second D). Never place the symbol next to or above the word.
 - 2026-11-17 — New logo ("Draft Lines", owner-approved 2026-11-16) replaces the traced wordmark in the web app. Lockup by space per the owner's guide: full in website header/sign-in/splash, compact in sidebar and small headers, symbol on the rail, favicon-16 drawing under 24 px. Android icons untouched (Android parked).
 - 2026-11-16 — Pricing v5 built (features/pricing-v5.md). Owner:
     - plans by team size, prices + 18% GST: Advocate ₹699 (1 advocate, 150 credits), Chambers ₹1,699 (up to 3, 350), Firm ₹3,699 (up to 8, 750), Enterprise quote (9+); yearly = 11 × monthly;

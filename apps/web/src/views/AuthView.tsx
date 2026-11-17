@@ -19,7 +19,7 @@ import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable } from '@/lib/google';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
-import { FullLogo, Wordmark } from '@/components/brand/Logo';
+import { Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
@@ -375,7 +375,7 @@ export function AuthView() {
         <div className="auth-main-inner">
         {/* Brand */}
         <div className="auth-head">
-          <span className="auth-logo"><FullLogo height={52} /></span>
+          <span className="auth-logo"><Wordmark height={40} /></span>
           <div
             className="mono auth-brand-text"
             style={{

@@ -1,11 +1,14 @@
 // =============================================================================
 // DifAi brand: the "Draft Lines" logo (approved 2026-11-16, build-docs/features/new-logo.md).
 //
-// The symbol is a D outline with three ragged text lines and a cursor bar;
-// the wordmark is the hand-built "DifAi" lettering whose last i-dot is the
-// cursor. Three lockups, picked by space (owner's usage guide):
-//   FullLogo  - symbol + wordmark: website header, sign-in, splash.
-//   Wordmark  - wordmark only ("compact"): app sidebar, small headers.
+// The symbol is a D outline with three ragged text lines and a cursor bar.
+// The symbol IS the D of the word (owner, 2026-11-17): the wordmark is the
+// symbol at cap height on the baseline, then the hand-built "ifAi" (the last
+// i-dot is the cursor), kerned like a letter pair so it reads "DifAi".
+// Two lockups, picked by space (owner's usage guide):
+//   Wordmark  - "DifAi" with the symbol as its D: everywhere there is room
+//               for a word (header, sidebar, sign-in, splash). Min 16 px tall.
+//               `motion` plays the signature animation once.
 //   LogoMark  - symbol only: collapsed rail, avatars. Under 24 px it switches
 //               to the pixel-drawn favicon drawing.
 //   LogoLoader - the symbol's signature motion, looping, for loading states.
@@ -19,7 +22,7 @@ import type { CSSProperties } from 'react';
 
 export const BRAND_NAME = 'DifAi';
 
-/** Symbol, master drawing on a 100-unit grid (viewBox 0 0 101.5 100). */
+/** Symbol, master drawing on a 100-unit grid (viewBox 0 0 101.5 100). Cap height 100. */
 export const ICON = {
   frame: 'M0 0H50C80.9 0 101.5 20 101.5 50C101.5 80 80.9 100 50 100H0ZM17 15H50C71.3 15 85.5 29 85.5 50C85.5 71 71.3 85 50 85H17Z',
   lines: ['M29 28H68V39H29Z', 'M29 46H76V57H29Z', 'M29 64H44V75H29Z'],
@@ -33,9 +36,8 @@ export const ICON_16 = {
   cursor: 'M9 8H11V12H9Z',
 };
 
-/** Wordmark "DifAi" (viewBox 0 -1.5 266 101.5). The first path is the D (evenodd). */
-export const WORD = [
-  'M0 0H44C75.93 0 95.5 19 95.5 50C95.5 81 75.93 100 44 100H0ZM14 12H44C66.63 12 80.5 26.44 80.5 50C80.5 73.56 66.63 88 44 88H14Z',
+/** "ifAi" on the same grid (baseline 100, cap 0); its i stem starts at x 104.18. */
+export const IFAI = [
   'M111.18 30H111.18A7 7 0 0 1 118.18 37V93A7 7 0 0 1 111.18 100H111.18A7 7 0 0 1 104.18 93V37A7 7 0 0 1 111.18 30Z',
   'M103.2 6.98A7.98 7.98 0 1 0 119.16 6.98A7.98 7.98 0 1 0 103.2 6.98Z',
   'M137.08 100V21.7A21.7 21.7 0 0 1 158.78 0H165.78V12.88H158.78A7.7 8.82 0 0 0 151.08 21.7V100Z',
@@ -47,8 +49,9 @@ export const WORD = [
   'M252 -1H266V15.8H252Z',
 ];
 
-const WORD_VB = { x: 0, y: -1.5, w: 266, h: 101.5 };
-const FULL_VB = { x: 0, y: -1.5, w: 253.86, h: 101.5 };
+/** "ifAi" shift: symbol width 101.5 + a 9-unit D-i pair space - the i's own 104.18 offset. */
+export const IFAI_DX = 6.32;
+const WORD_VB = { x: 0, y: -1.5, w: 272.32, h: 101.5 };
 
 /** Accessible-name props: an image named DifAi, or hidden when decorative. */
 function a11y(title: string | undefined) {
@@ -66,10 +69,6 @@ function SymbolPaths({ d = ICON }: { d?: typeof ICON }) {
       <path className="cursor" d={d.cursor} />
     </>
   );
-}
-
-function WordPaths() {
-  return <>{WORD.map((p, i) => <path key={p} d={p} fillRule={i === 0 ? 'evenodd' : undefined} />)}</>;
 }
 
 /** The symbol alone, square. Omit `title` when the name is already next to it. */
@@ -91,53 +90,45 @@ export function LogoMark({ size = 24, title, className }: { size?: number; title
   );
 }
 
-type LockupProps = { height?: number; className?: string; style?: CSSProperties; title?: string };
-
-function lockupStyle(vb: { w: number; h: number }, height: number | undefined, style?: CSSProperties): CSSProperties {
-  return {
-    // Left to CSS when sized, so classes such as the sidebar's can hide it.
-    ...(height ? {} : { display: 'inline-block' }),
-    // Unsized: cap height matches the surrounding text, sitting on the baseline.
-    height: height ?? '0.74em',
-    width: 'auto',
-    aspectRatio: `${vb.w} / ${vb.h}`,
-    flexShrink: 0,
-    overflow: 'visible',
-    ...style,
-  };
-}
-
-/** The "DifAi" wordmark alone (compact lockup). */
-export function Wordmark({ height, className, style, title = BRAND_NAME }: LockupProps) {
+/** "DifAi": the symbol as the D, then "ifAi". `motion` plays the signature animation once. */
+export function Wordmark({
+  height,
+  className,
+  style,
+  title = BRAND_NAME,
+  motion = false,
+}: {
+  height?: number;
+  className?: string;
+  style?: CSSProperties;
+  /** Accessible name; pass '' when something around it already names DifAi. */
+  title?: string;
+  motion?: boolean;
+}) {
   const v = WORD_VB;
-  return (
-    <svg
-      className={className}
-      viewBox={`${v.x} ${v.y} ${v.w} ${v.h}`}
-      fill="currentColor"
-      focusable="false"
-      style={lockupStyle(v, height, style)}
-      {...a11y(title)}
-    >
-      <WordPaths />
-    </svg>
-  );
-}
-
-/** Symbol + wordmark (full lockup). `motion` plays the signature animation once. */
-export function FullLogo({ height, className, style, title = BRAND_NAME, motion = false }: LockupProps & { motion?: boolean }) {
-  const v = FULL_VB;
   return (
     <svg
       className={[motion ? 'difai-sig' : '', className].filter(Boolean).join(' ') || undefined}
       viewBox={`${v.x} ${v.y} ${v.w} ${v.h}`}
       fill="currentColor"
       focusable="false"
-      style={lockupStyle(v, height, style)}
+      style={{
+        // Left to CSS when sized, so classes such as the sidebar's can hide it.
+        ...(height ? {} : { display: 'inline-block' }),
+        // Unsized: cap height matches the surrounding text, never under the 16 px minimum.
+        height: height ?? 'max(0.74em, 16px)',
+        width: 'auto',
+        aspectRatio: `${v.w} / ${v.h}`,
+        flexShrink: 0,
+        overflow: 'visible',
+        ...style,
+      }}
       {...a11y(title)}
     >
       <SymbolPaths />
-      <g className="lk-word" transform="translate(131.5 27) scale(0.46)"><WordPaths /></g>
+      <g className="lk-word" transform={`translate(${IFAI_DX} 0)`}>
+        {IFAI.map((p) => <path key={p} d={p} />)}
+      </g>
     </svg>
   );
 }
