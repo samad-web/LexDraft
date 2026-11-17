@@ -21,12 +21,14 @@ describe('terms consent (web)', () => {
 
   it('AC4: every sign-up call sends acceptTerms and its button waits for the box', () => {
     // SignupView has one sign-up form since the free demo account was removed (paid-signup-gate).
-    for (const [file, calls] of [['views/AuthView.tsx', 2], ['views/SignupView.tsx', 1]] as const) {
+    // AuthView has one since the email + password sign-up form was removed
+    // (signup-hardening.md, Google only); its button waits via `ready=` below.
+    for (const [file, calls] of [['views/AuthView.tsx', 1], ['views/SignupView.tsx', 1]] as const) {
       const s = src(file);
       expect(s.match(/acceptTerms: true/g)?.length, file).toBe(calls);
       expect(s.match(/<TermsAgree /g)?.length, file).toBe(calls);
-      expect(s, file).toMatch(/!agreedTerms/);
     }
+    expect(src('views/SignupView.tsx')).toMatch(/!agreedTerms/);
     expect(src('views/AuthView.tsx')).toContain('ready={newPassword.length >= 8 && agreedTerms}');
     expect(src('views/SignupView.tsx').match(/disabled=\{isSubmitting \|\| signUp\.isPending \|\| !password\.ok \|\| !agreedTerms\}/g)?.length).toBe(1);
   });

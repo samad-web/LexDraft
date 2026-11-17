@@ -1,5 +1,7 @@
 # Feature: Terms + Privacy consent (agree / disagree)
 
+> Updated 2026-11-17 by signup-hardening.md: `/auth/signup/email/*` was removed (Google only); the server now also enforces consent (requireActivePlan → 403 `terms_required`).
+
 Status: approved 2026-11-14 ("proceed"), built 2026-11-14.
 
 ## Purpose

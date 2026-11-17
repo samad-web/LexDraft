@@ -37,22 +37,24 @@ const post = async (path: string, body: unknown) => {
 };
 
 const token = 'x'.repeat(40);
-const emailComplete = { signupToken: token, challengeId: '00000000-0000-4000-8000-000000000000', code: '123456', password: 'longenough1' };
+const emailComplete = { signupToken: token, challengeId: '00000000-0000-4000-8000-000000000000', code: '123456', password: 'longenough1', acceptTerms: true };
 const googleSignUp = { signupToken: token, password: 'longenough1', role: 'solo' };
 
 describe('sign-up requires the Terms + Privacy agreement', () => {
-  it('AC1: email sign-up without acceptTerms → 400 with the reason', async () => {
-    const r = await post('/auth/signup/email/complete', emailComplete);
+  // Updated (signup-hardening.md, 2026-11-17): the email + password sign-up
+  // endpoint was removed (Google only for new accounts), so its Terms check
+  // is replaced by "the route is gone".
+  it('the email sign-up endpoint no longer exists (404)', async () => {
+    expect((await post('/auth/signup/email/complete', emailComplete)).status).toBe(404);
+  });
+
+  it('AC1: Google sign-up without acceptTerms → 400 with the reason', async () => {
+    const r = await post('/auth/google/sign-up', googleSignUp);
     expect(r.status).toBe(400);
     expect(r.text).toContain('Agree to the Terms of Service and Privacy Policy');
   });
 
-  it('AC1: Google sign-up without acceptTerms → 400', async () => {
-    expect((await post('/auth/google/sign-up', googleSignUp)).status).toBe(400);
-  });
-
   it('AC1: acceptTerms false is refused too', async () => {
-    expect((await post('/auth/signup/email/complete', { ...emailComplete, acceptTerms: false })).status).toBe(400);
     expect((await post('/auth/google/sign-up', { ...googleSignUp, acceptTerms: false })).status).toBe(400);
   });
 
@@ -62,7 +64,7 @@ describe('sign-up requires the Terms + Privacy agreement', () => {
   });
 
   it('control: with acceptTerms true the schema passes and the bad token is what fails', async () => {
-    const r = await post('/auth/signup/email/complete', { ...emailComplete, acceptTerms: true });
+    const r = await post('/auth/google/sign-up', { ...googleSignUp, acceptTerms: true });
     expect(r.status).toBe(401);
   });
 

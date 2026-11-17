@@ -15,6 +15,7 @@ import { jobs } from './jobs.service';
 import { logger } from '../logger';
 import { systemRoleNameFor, unusablePasswordHash } from './auth.service';
 import { MUNSHI_ROLES } from '../lib/plans';
+import { HttpError } from '../lib/errors';
 
 const INVITATION_TTL_DAYS = 7;
 // Dev/demo fallback when an inviter has no firm attached. Must NOT be used to
@@ -110,6 +111,26 @@ const INVITATION_SELECT = `
 `;
 
 interface SeatRow { seats: number; munshi_seats: number | null; used: number; munshi_used: number }
+
+/**
+ * Members join only a set-up firm on an active paid plan (signup-hardening.md,
+ * F2): owner onboarded, plan_status active, not the free plan, not past its
+ * paid-until day. Otherwise 402 plan_required. Checked when an invitation is
+ * made and again when it is accepted (an old invite from an unpaid firm).
+ */
+export async function assertFirmPaidForMembers(firmId: string | null): Promise<void> {
+  const sql = db();
+  if (!sql || !firmId) return;
+  const [f] = await sql<{ ok: boolean }[]>`
+    select (f.plan_status = 'active' and not coalesce(f.free_plan, false)
+            and (f.renews_at is null or f.renews_at >= date_trunc('day', now()))
+            and not exists (select 1 from users o where o.firm_id = f.id and o.onboarded_at is null
+                              and o.role in ('Solo Advocate', 'Managing Partner'))) as ok
+    from firms f where f.id = ${firmId}::uuid`;
+  if (!f?.ok) {
+    throw new HttpError(402, 'Members can join once the practice is set up and its plan is paid. Finish paying in Plan & Billing.', { code: 'plan_required' });
+  }
+}
 
 /**
  * Reject when adding one person with `role` would not fit the seats paid for
@@ -270,6 +291,7 @@ export const invitationsService = {
     // Enforce seat cap before allocating the invite. Failing here keeps the
     // pending-invites table free of unfillable entries and gives the admin
     // an actionable 402 with the current usage in the error payload.
+    await assertFirmPaidForMembers(firmId);
     await assertSeatCapNotExceeded(firmId, input.role);
 
     let role: string = input.role;
@@ -468,6 +490,7 @@ export const invitationsService = {
     // this invite while it was pending, but if seats were reduced or another
     // invite was accepted in the meantime, we want a clean 402 rather than a
     // silently overpopulated firm.
+    await assertFirmPaidForMembers(firmId);
     await assertSeatCapNotExceeded(firmId, inv.role, inv.id);
 
     // The invite is addressed to one inbox; only the Google account for that

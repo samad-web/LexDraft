@@ -20,7 +20,7 @@ import { db } from '../db/client';
 import { auditService } from './audit.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidateTenantCache } from './tenant';
-import { assertSeatCapNotExceeded } from './invitations.service';
+import { assertFirmPaidForMembers, assertSeatCapNotExceeded } from './invitations.service';
 import { MUNSHI_ROLES } from '../lib/plans';
 
 interface ManagedUserRow {
@@ -166,6 +166,7 @@ export const firmAdminService = {
 
     // Paid seats (pricing v4): a new active member needs an advocate seat, or
     // a Munshi seat for the Munshi role, same rule as email invitations.
+    await assertFirmPaidForMembers(firmId);
     await assertSeatCapNotExceeded(firmId, roleRow.name);
 
     // Resolve display name first because the auto-password depends on it.

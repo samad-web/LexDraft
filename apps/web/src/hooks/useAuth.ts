@@ -126,36 +126,6 @@ export function useApplySignIn() {
 
 // ---- Sign-up form: name, email, WhatsApp number, password -----------------
 
-export interface EmailSignupChallenge {
-  signupToken: string;
-  challengeId: string;
-  expiresAt: string;
-  resendAfterSeconds: number;
-  phone: string;
-}
-
-/** Checks the email and number are free and sends the WhatsApp code. */
-export function useEmailSignupStart() {
-  return useMutation({
-    mutationFn: (body: { name: string; email: string; phone: string }) =>
-      api.post<EmailSignupChallenge>('/auth/signup/email/start', body),
-  });
-}
-
-/** Code + password -> the account is created and the session starts. */
-export function useEmailSignupComplete() {
-  const setSession = useAuthStore((s) => s.setSession);
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: { signupToken: string; challengeId: string; code: string; password: string; acceptTerms: true }) =>
-      api.post<AuthResponse>('/auth/signup/email/complete', body),
-    onSuccess: (r) => {
-      qc.clear();
-      setSession(r.user, r.token);
-    },
-  });
-}
-
 export function useSendSignupOtp() {
   return useMutation({
     mutationFn: (body: { signupToken: string; phone: string }) =>

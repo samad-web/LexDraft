@@ -390,8 +390,9 @@ describe('AC12 old plan ids still read on old rows and invoices; the invoice nam
 
 describe('Onboarding: new sign-ups pick a paid v5 plan; free-launch accounts keep free', () => {
   const rows = (freeLaunch: boolean) => (t: string) =>
-    t.includes('onboarded_at from users') ? [{ firm_id: 'f1', name: 'Asha', onboarded_at: null }]
-      : t.includes('select free_launch from firms') ? [{ free_launch: freeLaunch }]
+    // One read of the user + firm (signup-hardening.md: free_launch and the
+    // paid state are read together now).
+    t.includes('u.onboarded_at, f.plan_status') ? [{ firm_id: 'f1', name: 'Asha', onboarded_at: null, plan_status: 'trial', free_plan: false, free_launch: freeLaunch, selected_plan: null, renews_at: null }]
         : t.includes('from users u left join firms') ? [owner({ role: 'Managing Partner' })]
           : [];
   const update = () => h.calls.find((c) => /update firms set\s+name =/.test(c.text))! as Call;
@@ -420,20 +421,24 @@ describe('Onboarding: new sign-ups pick a paid v5 plan; free-launch accounts kee
     const r = await onboarding.onboardingService.complete('u1', { plan: 'advocate', cycle: 'monthly' });
     expect(r.checkoutUrl).toBe('https://app.example.in/api/billing/pay/order_v5abcdef');
     expect(valueAfter(update(), 'free_plan =')).toBe(false);
-    expect(valueAfter(update(), 'plan_tier =')).toBe('Solo');
+    expect(update().text).toContain("plan_tier = 'Solo'"); // a literal now: never raised before payment
     const ends = (valueAfter(update(), 'trial_ends_at =') as Date).getTime();
     expect(ends - before).toBeGreaterThanOrEqual(onboarding.PAYMENT_WINDOW_MS - 1000);
     expect(ends - before).toBeLessThanOrEqual(onboarding.PAYMENT_WINDOW_MS + 5000);
     expect(body('/orders').amount).toBe(82482);
   });
 
-  it.each([['chambers', 'Practice', (1699 + 149) * 118], ['law_firm', 'Firm', (3699 + 149) * 118]] as const)(
-    '%s + 1 Munshi: %s tier, owner is Managing Partner, Razorpay opens for the price + GST', async (plan, tier, amount) => {
+  // Updated (signup-hardening.md F7, 2026-11-17): onboarding no longer raises
+  // the tier before payment (was Practice / Firm here); the webhook sets the
+  // tier from the paid plan (covered in signup-flow.integration.test.ts).
+  it.each([['chambers', (1699 + 149) * 118], ['law_firm', (3699 + 149) * 118]] as const)(
+    '%s + 1 Munshi: stays Solo / 1 seat until paid, owner is Managing Partner, Razorpay opens for the price + GST', async (plan, amount) => {
       h.useFakeDb = true;
       h.rows = rows(false);
       const { body } = stubRazorpay();
       await onboarding.onboardingService.complete('u1', { plan, firm: 'Asha & Associates', munshi: 1 });
-      expect(valueAfter(update(), 'plan_tier =')).toBe(tier);
+      expect(update().text).toContain("plan_tier = 'Solo'");
+      expect(update().text).toContain('seats = 1');
       const userUpdate = h.calls.find((c) => /update users set\s+role =/.test(c.text))! as Call;
       expect(valueAfter(userUpdate, 'role =')).toBe('Managing Partner');
       expect(body('/orders').amount).toBe(amount);
@@ -445,7 +450,9 @@ describe('Onboarding: new sign-ups pick a paid v5 plan; free-launch accounts kee
     await expect(onboarding.onboardingService.complete('u1', { plan: 'chambers' })).rejects.toMatchObject({ status: 400 });
   });
 
-  it('interim (owner, 2026-11-14): without live payment keys a new sign-up gets the free launch, no checkout', async () => {
+  // Updated (signup-hardening.md F5, 2026-11-17): the interim "free launch
+  // without payment keys" rule is withdrawn (paid-only since 2026-11-16).
+  it('without live payment keys a paid plan is refused (503 payments_disabled); nothing changes', async () => {
     vi.resetModules();
     const saved = process.env['RAZORPAY_KEY_ID'];
     process.env['RAZORPAY_KEY_ID'] = '';
@@ -453,11 +460,8 @@ describe('Onboarding: new sign-ups pick a paid v5 plan; free-launch accounts kee
       const fresh = await import('../onboarding.service');
       h.useFakeDb = true;
       h.rows = rows(false);
-      const r = await fresh.onboardingService.complete('u1', { plan: 'advocate' });
-      expect(r.checkoutUrl).toBeUndefined();
-      const upd = h.calls.find((c) => /update firms set\s+name =/.test(c.text))! as Call;
-      expect(valueAfter(upd, 'free_plan =')).toBe(true);
-      expect(valueAfter(upd, 'free_launch = free_launch or')).toBe(true);
+      await expect(fresh.onboardingService.complete('u1', { plan: 'advocate' })).rejects.toMatchObject({ status: 503, code: 'payments_disabled' });
+      expect(h.calls.some((c) => /update (firms|users)/.test(c.text))).toBe(false);
     } finally {
       process.env['RAZORPAY_KEY_ID'] = saved;
       vi.resetModules();

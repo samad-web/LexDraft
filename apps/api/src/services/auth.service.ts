@@ -11,7 +11,6 @@ import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { verifyGoogleIdToken, type GoogleIdentity } from '../lib/google-id-token';
 import { normalizePhone, phoneOtpService } from './phone-otp.service';
 import { billingService } from './billing.service';
-import { assertDeliverableEmail } from '../lib/email-check';
 import { TERMS_CONSENT_TYPE, TERMS_VERSION } from '../lib/legal';
 
 /**
@@ -138,22 +137,6 @@ const VALID_PLANS: ReadonlySet<UserPlan> = new Set(['Solo', 'Practice', 'Firm'])
 function normalizePlan(raw: string | null | undefined): UserPlan | undefined {
   if (!raw) return undefined;
   return VALID_PLANS.has(raw as UserPlan) ? (raw as UserPlan) : undefined;
-}
-
-/**
- * Map the self-serve sign-up role choice to the plan tier the new firm
- * starts on. `firm_plan_tier` defaults to 'Practice' at the column level;
- * for self-serve we set it explicitly so a solo sign-up lands on Solo and
- * a managing-partner sign-up lands on Firm.
- */
-function planTierForSignUpRole(role: SignUpRequest['role']): UserPlan {
-  switch (role) {
-    case 'solo':    return 'Solo';
-    case 'student': return 'Solo';
-    // Firms of any size trial the full Firm plan for 14 days.
-    case 'group':   return 'Firm';
-    case 'firm':    return 'Firm';
-  }
 }
 
 /** Text role a self-serve sign-up starts with. Firm sign-ups get Managing
@@ -376,47 +359,35 @@ async function insertUser(record: StoredUser, firmId: string | null): Promise<Us
  * Memory mode (no DATABASE_URL) skips firm tracking and falls back to the
  * plain in-memory insertUser path.
  */
-/** Intent the caller landed on the sign-up form with. Controls plan_status
- *  and trial_ends_at on the freshly-provisioned firm. */
+/** Intent the caller landed on the sign-up form with. Kept for old clients;
+ *  it no longer changes the new firm (signup-hardening.md): 'demo' is refused. */
 export type SignUpIntent = 'trial' | 'paid' | 'demo';
 
-const TRIAL_LENGTH_DAYS = 14;
+/** Shape of a freshly made firm.
+ *  - 'unpaid' (every self-serve sign-up, signup-hardening.md): Solo tier,
+ *    1 seat, no trial clock, not free; the user must finish /onboarding and
+ *    the plan, seats and credits come only from a paid plan.
+ *  - 'free_guest' (co-counsel guest accounts, dev auto-provision): the
+ *    free launch plan until FREE_PLAN_ENDS_AT, already onboarded (unchanged). */
+type NewFirmMode = 'unpaid' | 'free_guest';
 
 async function insertUserWithNewFirm(
   record: StoredUser,
   firmName: string,
-  planTier: UserPlan,
-  intent: SignUpIntent = 'trial',
+  mode: NewFirmMode,
 ): Promise<User> {
   const sql = db();
   if (!sql) {
     return insertUser(record, null);
   }
   const roleId = await resolveSystemRoleId(record.role);
-  // Trial bookkeeping. 'paid' starts active with no trial clock; 'trial'
-  // and 'demo' both get a 14-day window. `is_demo` is set only for the
-  // dedicated interactive-demo funnel. A Solo trial is the free launch
-  // plan instead (lib/free-plan.ts): free until FREE_PLAN_ENDS_AT.
-  const planStatus = intent === 'paid' ? 'active' : 'trial';
-  const isDemo = intent === 'demo';
-  const freePlan = planTier === 'Solo' && intent === 'trial';
-  const trialEndsAt = intent === 'paid'
-    ? null
-    : freePlan
-      ? FREE_PLAN_ENDS_AT
-      : new Date(Date.now() + TRIAL_LENGTH_DAYS * 24 * 60 * 60 * 1000);
+  const unpaid = mode === 'unpaid';
+  const trialEndsAt = unpaid ? null : FREE_PLAN_ENDS_AT;
   const profile = record.profile ?? {};
   const rows = await sql.begin(async (tx) => {
     const [firmRow] = await tx<{ id: string }[]>`
-      insert into firms (name, plan_tier, plan_status, trial_ends_at, is_demo, free_plan)
-      values (
-        ${firmName},
-        ${planTier}::firm_plan_tier,
-        ${planStatus},
-        ${trialEndsAt},
-        ${isDemo},
-        ${freePlan}
-      )
+      insert into firms (name, plan_tier, seats, plan_status, trial_ends_at, is_demo, free_plan)
+      values (${firmName}, 'Solo'::firm_plan_tier, 1, 'trial', ${trialEndsAt}, false, ${!unpaid})
       returning id
     `;
     const newFirmId = firmRow!.id;
@@ -426,7 +397,7 @@ async function insertUserWithNewFirm(
           firm_id, name, email, role, role_id, is_superadmin, password_hash,
           enrolment, primary_court, practice_areas,
           google_sub, phone, phone_verified_at,
-          account_type, city, state, college, study_year, team_size
+          account_type, city, state, college, study_year, team_size, onboarded_at
         )
         values (
           ${newFirmId}::uuid, ${record.name}, ${record.email.toLowerCase()},
@@ -434,7 +405,8 @@ async function insertUserWithNewFirm(
           ${record.enrolment ?? null}, ${record.primaryCourt ?? null}, ${record.practiceAreas ?? null},
           ${record.googleSub ?? null}, ${record.phone ?? null}, ${record.phone ? new Date() : null},
           ${profile.accountType ?? null}, ${profile.city ?? null}, ${profile.state ?? null},
-          ${profile.college ?? null}, ${profile.studyYear ?? null}, ${profile.teamSize ?? null}
+          ${profile.college ?? null}, ${profile.studyYear ?? null}, ${profile.teamSize ?? null},
+          ${unpaid ? null : new Date()}
         )
         returning id, name, email, role, is_superadmin, password_hash, firm_id,
                   enrolment, primary_court, practice_areas
@@ -452,7 +424,6 @@ async function insertUserWithNewFirm(
 /** Token handed to a Google user who has no account yet. Signed with a
  *  derived secret so it can never pass requireAuth as a session token. */
 const SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:google-signup`;
-const EMAIL_SIGNUP_TOKEN_SECRET = `${env.JWT_SECRET}:email-signup`;
 
 interface SignupTokenClaims {
   google: GoogleIdentity;
@@ -545,7 +516,10 @@ async function completeSignIn(publicUser: User): Promise<SignInResult> {
   if (!publicUser.isSuperadmin) {
     const planState = await getPlanState(publicUser.id);
     const planCheck = evaluatePlanState(planState);
-    if (!planCheck.ok) {
+    // Not set up yet: sign in so /onboarding can pick the plan and pay; the
+    // app itself stays closed (403 onboarding_required). Paying from the
+    // renew screen instead would skip set-up (signup-hardening.md, F1).
+    if (!planCheck.ok && planState.onboarded) {
       // The owner can pick a plan and pay right from the sign-in page.
       const owner = publicUser.role === 'Solo Advocate' || publicUser.role === 'Managing Partner';
       throw new PaymentRequiredError('Your firm plan is no longer active. Please renew to continue.', {
@@ -630,7 +604,7 @@ export const authService = {
       // ever materialize via the email-contains-'admin' shortcut.
       if (!env.devAuthAutoProvision) {
         // Sign in never creates an account: point them at sign-up instead.
-        throw new UnauthorizedError('No DifAi account uses this email. Create your free account first.', { code: 'account_not_found' });
+        throw new UnauthorizedError('No DifAi account uses this email. Create your account first.', { code: 'account_not_found' });
       }
       const isAdminish = email.toLowerCase().includes('admin');
       const localPart = email.split('@')[0] ?? '';
@@ -653,7 +627,7 @@ export const authService = {
           passwordHash: bcrypt.hashSync(password, 10),
         },
         `${derivedName} (Solo)`,
-        'Solo',
+        'free_guest',
       );
       // Freshly-provisioned users can never already be enrolled. Branch 3
       // applies; a Solo Advocate doesn't trigger mustEnrollMfa either.
@@ -698,11 +672,13 @@ export const authService = {
       if (byEmail.googleSub && byEmail.googleSub !== google.sub) {
         throw new UnauthorizedError('This email is linked to a different Google account.');
       }
-      await sql`
-        update users set google_sub = ${google.sub}, updated_at = now()
-        where id = ${byEmail.publicUser.id}::uuid and google_sub is null
-      `;
-      return completeSignIn(byEmail.publicUser);
+      // Never link Google to a password account by email alone: whoever set
+      // that password may not own the address (signup-hardening.md, F3). The
+      // owner signs in with the password and connects Google in Settings.
+      throw new ConflictError(
+        'This email already has a DifAi password. Sign in with your password, then connect Google from Settings.',
+        { code: 'google_link_required' },
+      );
     }
 
     return {
@@ -712,72 +688,27 @@ export const authService = {
     };
   },
 
-  /** Send a WhatsApp OTP to the number a new Google user entered. */
-  /** Sign-up form (name, email, WhatsApp number, password): checks the email
-   *  and number are free and sends the WhatsApp code. The account is made by
-   *  completeEmailSignup once the code is entered. */
-  async startEmailSignup(input: { name: string; email: string; phone: string; ip: string | null }) {
-    const email = input.email.trim().toLowerCase();
-    await assertDeliverableEmail(email);
-    const phone = normalizePhone(input.phone);
-    if (phone.startsWith('+91') && !/^\+91[6-9]\d{9}$/.test(phone)) {
-      throw new BadRequestError('Enter a valid 10-digit Indian mobile number that uses WhatsApp.');
-    }
-    if (await findByEmail(email)) {
-      throw new ConflictError('An account with this email already exists. Sign in instead.');
-    }
-    await assertPhoneUnused(phone);
-    const challenge = await phoneOtpService.start({ phone, googleSub: `email:${email}`, ip: input.ip });
-    const signupToken = jwt.sign(
-      { purpose: 'email-signup', name: input.name.trim(), email, phone },
-      EMAIL_SIGNUP_TOKEN_SECRET,
-      { expiresIn: '30m' },
-    );
-    return { ...challenge, phone, signupToken };
-  },
-
-  /** Verifies the WhatsApp code and creates the account. Plan and practice
-   *  details follow on /onboarding. */
-  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }, meta?: ConsentMeta): Promise<AuthResponse> {
-    let claims: { purpose?: string; name?: string; email?: string; phone?: string };
-    try {
-      claims = jwt.verify(input.signupToken, EMAIL_SIGNUP_TOKEN_SECRET) as typeof claims;
-      if (claims.purpose !== 'email-signup' || !claims.email || !claims.phone || !claims.name) throw new Error('bad');
-    } catch {
-      throw new UnauthorizedError('Your sign-up session expired. Start again.');
-    }
-    const phone = await phoneOtpService.verify({
-      challengeId: input.challengeId,
-      code: input.code,
-      googleSub: `email:${claims.email}`,
-    });
-    if (await findByEmail(claims.email)) {
-      throw new ConflictError('An account with this email already exists. Sign in instead.');
-    }
-    await assertPhoneUnused(phone);
-    const user = await insertUserWithNewFirm(
-      {
-        id: '',
-        name: claims.name,
-        email: claims.email,
-        role: 'Solo Advocate',
-        firm: '',
-        isSuperadmin: false,
-        passwordHash: await bcrypt.hash(input.password, 10),
-        phone,
-        profile: {},
-      },
-      `${claims.name} (Solo)`,
-      'Solo',
-      'trial',
-    );
+  /** Settings -> "Connect Google": the signed-in user proves a Google account
+   *  with the same email, which is then linked for Google sign-in. */
+  async connectGoogle(userId: string, credential: string): Promise<{ connected: true }> {
+    const google = await verifyGoogleIdToken(credential);
     const sql = db();
-    if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
-    user.needsOnboarding = true;
-    await recordTermsAcceptance(user, meta);
-    return { user, token: issueToken(user) };
+    if (!sql) throw new Error('DATABASE_URL not configured');
+    const [u] = await sql<{ email: string; google_sub: string | null }[]>`select email, google_sub from users where id = ${userId}::uuid`;
+    if (!u) throw new UnauthorizedError('Sign in again.');
+    if (u.email.toLowerCase() !== google.email.toLowerCase()) {
+      throw new BadRequestError(`Choose the Google account for ${u.email}.`, { code: 'google_email_mismatch' });
+    }
+    if (u.google_sub && u.google_sub !== google.sub) {
+      throw new ConflictError('Your account is linked to a different Google account.', { code: 'google_linked_elsewhere' });
+    }
+    const [other] = await sql<{ id: string }[]>`select id from users where google_sub = ${google.sub} and id <> ${userId}::uuid limit 1`;
+    if (other) throw new ConflictError('This Google account is linked to another DifAi account.', { code: 'google_linked_elsewhere' });
+    await sql`update users set google_sub = ${google.sub}, updated_at = now() where id = ${userId}::uuid`;
+    return { connected: true };
   },
 
+  /** Send a WhatsApp OTP to the number a new Google user entered. */
   async startSignupOtp(input: { signupToken: string; phone: string; ip: string | null }) {
     const claims = verifySignupToken(input.signupToken);
     const phone = normalizePhone(input.phone);
@@ -827,17 +758,15 @@ export const authService = {
         profile: signupProfile(input),
       },
       deriveFirmName(signUpShape),
-      planTierForSignUpRole(input.role),
-      'trial',
+      'unpaid',
     );
     if (input.plan) {
       await billingService.recordSignup(user.id, input.plan, input.plan === 'free' ? null : input.billingCycle ?? 'monthly')
         .catch(() => undefined);
     }
     // Plan, payment and practice details always come next, on /onboarding;
-    // requireActivePlan keeps the app closed until then.
-    const sql = db();
-    if (sql) await sql`update users set onboarded_at = null where id = ${user.id}::uuid`;
+    // requireActivePlan keeps the app closed until then (onboarded_at is
+    // written null by the insert itself).
     user.needsOnboarding = true;
     await recordTermsAcceptance(user, meta);
     return { user, token: issueToken(user) };
@@ -859,6 +788,11 @@ export const authService = {
   },
 
   async signUp(input: SignUpRequest, meta?: ConsentMeta): Promise<AuthResponse> {
+    // Dev/test path (PASSWORD_SIGNUP; off in production). Same rules as
+    // Google sign-up: no demo accounts, never active without a payment.
+    if (input.intent === 'demo') {
+      throw new ForbiddenError('Book a demo and we will call you.', { code: 'demo_disabled' });
+    }
     const existing = await findByEmail(input.email);
     if (existing) throw new ConflictError('Email already registered');
 
@@ -866,10 +800,7 @@ export const authService = {
       signUpRoleText(input.role);
 
     // Each self-serve sign-up provisions its own firm (one firm per paying
-    // customer). The user becomes the owner of that fresh tenant; invitees
-    // join later via the invitation flow with firmId set from the invite row.
-    // Intent decides whether the firm lands as 'trial' (with a 14-day clock),
-    // 'paid' (no trial, billing wired downstream), or 'demo' (trial + flag).
+    // customer), unpaid until /onboarding + payment (signup-hardening.md).
     const user = await insertUserWithNewFirm(
       {
         id: '',
@@ -885,9 +816,9 @@ export const authService = {
         profile: signupProfile(input),
       },
       deriveFirmName(input),
-      planTierForSignUpRole(input.role),
-      input.intent ?? 'trial',
+      'unpaid',
     );
+    if (db()) user.needsOnboarding = true;
     const plan = input.plan ?? (input.role === 'group' ? 'chambers' : input.role === 'firm' ? 'law_firm' : 'advocate');
     await billingService.recordSignup(user.id, plan, plan === 'free' ? null : input.billingCycle ?? 'monthly')
       .catch(() => undefined);
@@ -1020,8 +951,7 @@ export const authService = {
         phone: record.phone,
       },
       `${record.name} (Solo)`,
-      'Solo',
-      'trial',
+      'free_guest',
     );
     return { user, token: issueToken(user) };
   },

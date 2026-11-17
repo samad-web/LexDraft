@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { invitationsService } from '../services/invitations.service';
+import { assertFirmPaidForMembers, invitationsService } from '../services/invitations.service';
 import { authService } from '../services/auth.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireAuth } from '../middleware/auth';
@@ -118,8 +118,20 @@ invitationsRouter.get('/', requireMemberAdmin, async (req, res, next) => {
   }
 });
 
+// Members join only a set-up, paid firm (signup-hardening.md, F2). Checked
+// before the member-admin check so an unpaid owner gets the clear 402.
+async function requirePaidFirm(req: import('express').Request, _res: import('express').Response, next: import('express').NextFunction): Promise<void> {
+  try {
+    await assertFirmPaidForMembers(await firmIdForUser(req.user?.id));
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
+
 invitationsRouter.post(
   '/',
+  requirePaidFirm,
   requireMemberAdmin,
   validate({ body: Create }),
   async (req, res, next) => {

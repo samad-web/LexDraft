@@ -16,6 +16,7 @@ import { storage } from './storage.service';
 //   advocate -> Solo tier; chambers -> Practice, law_firm -> Firm tier, owner
 //     becomes Managing Partner (lib/plans.ts). No free plan and no trial: the account gets a
 //     short window to finish paying, and the Razorpay webhook makes it active.
+//     Tier and seats are set only by the payment (signup-hardening.md).
 //   free -> only for accounts that already have the free launch plan
 //     (firms.free_launch): Solo tier, free till FREE_PLAN_ENDS_AT.
 // =============================================================================
@@ -61,47 +62,64 @@ export const onboardingService = {
   async complete(userId: string, input: OnboardingCompleteRequest): Promise<OnboardingCompleteResponse> {
     const sql = db();
     if (!sql) throw new HttpError(503, 'Onboarding needs the database.');
-    const [u] = await sql<{ firm_id: string | null; name: string; onboarded_at: Date | null }[]>`
-      select firm_id, name, onboarded_at from users where id = ${userId}::uuid
+    const [u] = await sql<Array<{
+      firm_id: string | null; name: string; onboarded_at: Date | null; plan_status: string | null; free_plan: boolean | null;
+      free_launch: boolean | null; selected_plan: string | null; renews_at: Date | null;
+    }>>`
+      select u.firm_id, u.name, u.onboarded_at, f.plan_status, f.free_plan, f.free_launch, f.selected_plan, f.renews_at
+      from users u left join firms f on f.id = u.firm_id where u.id = ${userId}::uuid
     `;
     if (!u) throw new NotFoundError('User not found');
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
     if (u.onboarded_at) throw new BadRequestError('Your practice is already set up. Change your plan from Plan & Billing.');
 
-    const paidPlan = isPaidPlan(input.plan) ? input.plan : null;
-    const practice = !!paidPlan && PLANS[paidPlan].seats > 1;
+    // Already paid (e.g. paid from the sign-in renew screen before finishing
+    // set-up): save the practice details only. The paid plan is kept and no
+    // second checkout is opened (signup-hardening.md, F1).
+    const paidPlan0 = isPaidPlan(u.selected_plan) ? u.selected_plan : null;
+    const alreadyPaid = u.plan_status === 'active' && !u.free_plan && !!u.renews_at && new Date(u.renews_at) > new Date()
+      && (!!paidPlan0 || u.selected_plan === 'enterprise');
+
+    const paidPlan = alreadyPaid ? paidPlan0 : isPaidPlan(input.plan) ? input.plan : null;
+    const practice = alreadyPaid ? (paidPlan ? PLANS[paidPlan].seats > 1 : true) : !!paidPlan && PLANS[paidPlan].seats > 1;
     const student = !practice && input.kind === 'student';
-    // Interim (owner, 2026-11-14): until live Razorpay keys are set, a new
-    // sign-up gets the free launch plan instead of being turned away. The day
-    // payments are on, paid-only sign-up applies by itself.
-    const interimFree = input.plan !== 'free' && !paymentsEnabled();
-    const free = input.plan === 'free' || interimFree;
-    if (input.plan === 'free') {
-      const [f] = await sql<{ free_launch: boolean | null }[]>`select free_launch from firms where id = ${u.firm_id}::uuid`;
-      if (!f?.free_launch) throw new BadRequestError('Choose a plan to continue.', { code: 'plan_required' });
+    const free = !alreadyPaid && input.plan === 'free';
+    if (free && !u.free_launch) throw new BadRequestError('Choose a plan to continue.', { code: 'plan_required' });
+    // Paid-only sign-up: never fall back to a free plan when online payment
+    // is off (F5). Existing free-launch accounts ('free') are unaffected.
+    if (!alreadyPaid && !free && !paymentsEnabled()) {
+      throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });
     }
-    if (practice && !clean(input.firm)) throw new BadRequestError('Enter your firm name.');
+    if (practice && !alreadyPaid && !clean(input.firm)) throw new BadRequestError('Enter your firm name.');
     if (student && !clean(input.college)) throw new BadRequestError('Enter your college or university.');
 
     const role = practice ? 'Managing Partner' : 'Solo Advocate';
     const roleId = await resolveSystemRoleId(role);
     const accountType = practice ? 'firm' : student ? 'student' : 'advocate';
-    const firmName = clean(input.firm) ?? `${u.name} (${student ? 'Student' : 'Solo'})`;
-    const trialEndsAt = free ? FREE_PLAN_ENDS_AT : new Date(Date.now() + PAYMENT_WINDOW_MS);
+    const firmName = clean(input.firm) ?? (alreadyPaid ? null : `${u.name} (${student ? 'Student' : 'Solo'})`);
     const cycle = free ? null : input.cycle ?? 'monthly';
 
     await sql.begin(async (tx) => {
-      await tx`
-        update firms set
-          name = ${firmName},
-          plan_tier = ${paidPlan ? PLANS[paidPlan].tier : 'Solo'}::firm_plan_tier,
-          plan_status = 'trial',
-          trial_ends_at = ${trialEndsAt},
-          free_plan = ${free},
-          free_launch = free_launch or ${interimFree},
-          logo_key = coalesce(${ownKey(u.firm_id!, input.logoKey)}, logo_key)
-        where id = ${u.firm_id}::uuid
-      `;
+      if (alreadyPaid) {
+        await tx`
+          update firms set name = coalesce(${firmName}, name), logo_key = coalesce(${ownKey(u.firm_id!, input.logoKey)}, logo_key)
+          where id = ${u.firm_id}::uuid
+        `;
+      } else {
+        // Tier and seats stay Solo / 1 until the payment is applied (the
+        // webhook sets them from the paid plan): nothing is unlocked unpaid.
+        await tx`
+          update firms set
+            name = ${firmName},
+            plan_tier = 'Solo'::firm_plan_tier,
+            seats = 1,
+            plan_status = 'trial',
+            trial_ends_at = ${free ? FREE_PLAN_ENDS_AT : new Date(Date.now() + PAYMENT_WINDOW_MS)},
+            free_plan = ${free},
+            logo_key = coalesce(${ownKey(u.firm_id!, input.logoKey)}, logo_key)
+          where id = ${u.firm_id}::uuid
+        `;
+      }
       await tx`
         update users set
           role = ${role},
@@ -127,12 +145,12 @@ export const onboardingService = {
     });
     invalidatePermissionsCache(userId);
     invalidatePlanStatusCache(userId);
-    await billingService.recordSignup(userId, input.plan, cycle).catch(() => undefined);
 
+    if (!alreadyPaid) await billingService.recordSignup(userId, input.plan, cycle).catch(() => undefined);
     const user = await authService.getById(userId);
     if (!user) throw new NotFoundError('User not found');
 
-    if (!free && input.plan !== 'free') {
+    if (!alreadyPaid && !free && isPaidPlan(input.plan)) {
       try {
         const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.munshi ?? 0);
         return { user, checkoutUrl };

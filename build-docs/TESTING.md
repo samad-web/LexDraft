@@ -1,4 +1,10 @@
 # Testing
+## Sign-up hardening — 2026-11-17 (features/signup-hardening.md, branch fix/signup-flow)
+- New `routes/__tests__/signup-flow.integration.test.ts` 19/19 through real HTTP routes (Google, Wasi, Razorpay, pg-boss, MX check stubbed): full Advocate flow (Google → OTP → Terms → onboarding → order ₹824.82 → signed webhook → Solo/1/150 credits/MRR 699, 1 invoice, invoice WhatsApp queued, redelivery no-op); wrong amount not applied; Chambers annual + 2 Munshi and Firm table rows; 30-min window expiry; F1 ×2, F2 ×4, F3 ×3, F4 ×2, F5, F6 ×2.
+- Audit run (before the fixes) of the same file: F1, F2, F3, F4 tests failed as expected (second checkout + plan reset to trial; invite 201 + invitee app 200 + 25 credits; Google took over a pre-registered email; parallel deliveries added 2 months).
+- Updated obsolete tests (rule changed, not weakened): auth.integration role=group / role=firm now expect an unpaid Solo firm (was Practice / Firm; the group one was the known failure); pricing-v5 onboarding: team plans stay Solo / 1 seat until paid, the "interim free launch without keys" test now expects 503 payments_disabled, mock reads the single user+firm query; auth-terms: email sign-up endpoint now 404, Terms 400 checked on Google sign-up; web terms-consent AC4: AuthView has one sign-up form. invoice-whatsapp fixture sets phone_verified_at; new test: unverified number → no_phone. Integration `seedUser` records Terms consent by default (`termsAccepted: false` to opt out), as real accounts have it and the server now enforces it.
+- Regression: api unit 1101 pass (share-links needs apps/api/.env, known); api integration 180/181 (known: migrations idempotency 0042); web 394/394; api + web tsc clean.
+
 ## Analytics name by plan — 2026-11-17
 - web `analytics-label.test.ts` 3/3 (Solo → My Practice Analytics, Practice → Chambers Analytics, Firm → Firm Analytics, in the menu built by visibleNavGroups). Web 394 pass, tsc clean.
 

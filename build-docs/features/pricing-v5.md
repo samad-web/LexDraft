@@ -1,5 +1,7 @@
 # Feature: Pricing v5 (Advocate / Chambers / Firm / Enterprise, prices + GST)
 
+> Updated 2026-11-17 by signup-hardening.md: onboarding no longer sets the plan tier/seats before payment (Solo / 1 until the webhook); payments off → 503 `payments_disabled` (the interim free launch is withdrawn).
+
 Status: **built 2026-11-16** (owner approved, answers below). Migration **0113** applied locally only; prod needs the owner's go. Replaces the v4 catalogue (`features/pricing-v4.md`). Keeps AI credits (`ai-credits.md`), Brief Packs (`brief-packs.md`), manual renewal (`manual-renewal.md`), the paid-only gate (`paid-signup-gate.md`), Munshi (`solo-munshi.md`) and seat enforcement (`seat-enforcement.md`).
 
 ## Owner decisions (final, 2026-11-16)

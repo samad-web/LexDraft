@@ -20,7 +20,7 @@ export const NATIVE_COPY = {
 } as const;
 
 /** Server error codes whose message names a purchase ("renew", "upgrade",
- *  "create your free account"); the app shows the neutral line instead. */
+ *  "create your account"); the app shows the neutral line instead. */
 const BY_CODE: Record<string, string> = {
   account_not_found: NATIVE_COPY.noEmailAccount,
   plan_cancelled: NATIVE_COPY.planInactive,
@@ -29,6 +29,7 @@ const BY_CODE: Record<string, string> = {
   plan_inactive: NATIVE_COPY.planInactive,
   trial_expired: NATIVE_COPY.planInactive,
   onboarding_required: NATIVE_COPY.setupIncomplete,
+  plan_required: NATIVE_COPY.planInactive,
   seat_cap_exceeded: NATIVE_COPY.seatsFull,
   storage_full: NATIVE_COPY.storageFull,
 };

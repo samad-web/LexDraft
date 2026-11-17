@@ -1,5 +1,7 @@
 # Paid-only sign-up gate (2026-11-16)
 
+> Updated 2026-11-17 by signup-hardening.md: new firms are Solo / 1 seat / no trial / not free (no 14-day or free-launch clock), not-onboarded accounts sign in and go to /onboarding, members only on a paid firm, and requireActivePlan also checks Terms consent (403 terms_required).
+
 ## Purpose
 Owner decision: sign-up is paid-only. Before this fix the "pick a plan and pay" step (/onboarding) was enforced only in the browser. A new Solo firm is created as a free-launch trial until 1 Jun 2027, so a crafted request (or a sign-up that named a plan, which skipped onboarding) got the whole app plus 25 AI credits a month free. "Book a demo" also created a real 14-day account.
 

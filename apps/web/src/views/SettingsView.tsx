@@ -24,6 +24,10 @@ import { LetterheadsPanel } from '@/components/letterhead/LetterheadsPanel';
 import { LANGUAGES, findLanguage } from '@/lib/languages';
 import { useUpdatePreferences } from '@/hooks/useMePreferences';
 import { useUrlTab } from '@/hooks/useUrlTab';
+import { useMutation } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { GoogleButton } from '@/components/GoogleWhatsAppVerify';
+import { googleSignInAvailable } from '@/lib/google';
 
 type TabId = 'account' | 'letterhead' | 'privacy';
 
@@ -113,6 +117,8 @@ function AccountPanel() {
 
       <SecurityPanel />
 
+      <GoogleConnectPanel />
+
       {Capacitor.isNativePlatform() && <AppLockPanel />}
 
       <LanguagePreferencePanel />
@@ -135,6 +141,31 @@ function AccountPanel() {
         </div>
       </SettingsRow>
     </div>
+  );
+}
+
+/** "Connect Google": lets a password account sign in with Google too. Google
+ *  sign-in never links an account by email on its own (signup-hardening.md). */
+function GoogleConnectPanel() {
+  const user = useAuthStore((s) => s.user);
+  const showToast = useUIStore((s) => s.showToast);
+  const connect = useMutation({
+    mutationFn: (credential: string) => api.post<{ connected: true }>('/auth/google/connect', { credential }),
+    onSuccess: () => showToast({ type: 'sage', text: 'Google connected. You can sign in with Google now.' }),
+  });
+  if (!googleSignInAvailable() || !user) return null;
+  return (
+    <SettingsRow
+      eyebrow="Sign-in"
+      title="Sign in with Google"
+      description={`Connect the Google account for ${user.email} to sign in with Google as well as your password.`}
+    >
+      <div className="fm-set-actions" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+        <GoogleButton onCredential={(c) => connect.mutate(c)} text="continue_with" loginHint={user.email} />
+        {connect.isPending && <span className="body-sm muted">Connecting…</span>}
+        {connect.isError && <span role="alert" className="body-sm">{(connect.error as Error | null)?.message ?? 'Could not connect Google.'}</span>}
+      </div>
+    </SettingsRow>
   );
 }
 

@@ -7,8 +7,8 @@
  *
  *   - one new firm row per sign-up (no shared seed firm)
  *   - users.firm_id points at that new firm
- *   - firms.plan_tier matches the role-to-tier mapping
- *     (solo → Solo, group → Practice, firm → Firm)
+ *   - firms.plan_tier is Solo for every role until a plan is paid
+ *     (signup-hardening.md; was solo → Solo, group → Practice, firm → Firm)
  *   - firms.name uses the user-supplied value when present, otherwise the
  *     `deriveFirmName` fallback
  *   - the firm + user insert is atomic - a duplicate-email retry on the
@@ -64,7 +64,9 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     expect(auth.user.plan).toBe('Solo');
   });
 
-  it('role=group creates a Practice-tier firm', async () => {
+  // Updated (signup-hardening.md, 2026-11-17): the old rule (group → Practice
+  // tier at sign-up) is obsolete; tier and seats come only from a paid plan.
+  it('role=group creates an unpaid Solo-tier firm (tier comes from the paid plan)', async () => {
     const email = `group-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
@@ -75,12 +77,13 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     });
 
     const firm = await firmFor(auth.user.id);
-    expect(firm!.plan_tier).toBe('Practice');
+    expect(firm!.plan_tier).toBe('Solo');
     expect(firm!.name).toBe('Ravi Practice Group');
-    expect(auth.user.plan).toBe('Practice');
+    expect(auth.user.plan).toBe('Solo');
   });
 
-  it('role=firm creates a Firm-tier firm', async () => {
+  // Updated (signup-hardening.md): was "creates a Firm-tier firm", obsolete.
+  it('role=firm creates an unpaid Solo-tier firm (tier comes from the paid plan)', async () => {
     const email = `firm-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
@@ -91,9 +94,9 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     });
 
     const firm = await firmFor(auth.user.id);
-    expect(firm!.plan_tier).toBe('Firm');
+    expect(firm!.plan_tier).toBe('Solo');
     expect(firm!.name).toBe('Meera & Associates');
-    expect(auth.user.plan).toBe('Firm');
+    expect(auth.user.plan).toBe('Solo');
   });
 
   it('falls back to a synthesised firm name when input.firm is omitted', async () => {

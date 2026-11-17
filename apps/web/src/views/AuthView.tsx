@@ -7,10 +7,7 @@ import {
   useFirmEnquiry,
   useGoogleSignIn,
   useGoogleSignUp,
-  useEmailSignupComplete,
-  useEmailSignupStart,
   useSignIn,
-  type EmailSignupChallenge,
   type FirmEnquirySize,
   type GoogleSignupRequired,
 } from '@/hooks/useAuth';
@@ -47,29 +44,6 @@ const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
 ];
 
 
-const EMAIL_TYPOS: Record<string, string> = {
-  'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gamil.com': 'gmail.com',
-  'gnail.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.in': 'gmail.com',
-  'gmaill.com': 'gmail.com', 'yaho.com': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'outlok.com': 'outlook.com',
-};
-
-/** Field problems on the sign-up form; the server re-checks every one
- *  (and also that the email's domain receives mail). */
-function signupProblems(f: { name: string; email: string; phone: string; phoneForeign: boolean; password: string }) {
-  const email = f.email.trim().toLowerCase();
-  const [local, domain] = email.split('@');
-  const typo = domain && EMAIL_TYPOS[domain] ? `${local}@${EMAIL_TYPOS[domain]}` : null;
-  return {
-    name: f.name.trim().length < 2 ? 'Enter your full name' : null,
-    email: !email ? 'Enter your email' : !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email) ? 'Enter a valid email address' : null,
-    emailTypo: typo,
-    phone: f.phoneForeign
-      ? `${FOREIGN_NUMBER_MESSAGE} Enter your 10-digit WhatsApp number.`
-      : !f.phone ? 'Enter your WhatsApp number' : !isIndianMobile(f.phone) ? 'Enter a 10-digit Indian mobile number that uses WhatsApp' : null,
-    password: f.password.length < 8 ? 'Use at least 8 characters' : null,
-  };
-}
-
 /** Sign-in refused because the trial / plan ended: the owner gets a token to
  *  pay from here (api: completeSignIn + POST /billing/renew-checkout). */
 function renewTokenFrom(err: unknown): string | null {
@@ -87,7 +61,7 @@ const PLAN_REASON_MESSAGES: Record<string, string> = {
   plan_cancelled: 'Your firm subscription has been cancelled. Renew to continue using DifAi.',
   plan_past_due:  'Your firm subscription is past due. Update billing to continue using DifAi.',
   plan_expired:   'Your firm subscription period has ended. Renew to continue using DifAi.',
-  trial_expired:  'Your free access has ended, or the payment was not finished. Pick a plan to keep your work.',
+  trial_expired:  'Your access has ended, or the payment was not finished. Pick a plan to keep your work.',
 };
 
 export function AuthView() {
@@ -129,18 +103,8 @@ export function AuthView() {
   const [renewMunshi, setRenewMunshi] = useState(0);
   const renewChosen = SIGNUP_PLANS.find((p) => p.id === renewPlan)!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
-  // Sign-up form. The landing page's "What's your name?" pre-fills the name.
-  const signupStart = useEmailSignupStart();
-  const signupComplete = useEmailSignupComplete();
-  /** Terms + Privacy box, shared by the email and Google sign-up forms. Unticked by default. */
+  /** Terms + Privacy box on the Google sign-up form. Unticked by default. */
   const [agreedTerms, setAgreedTerms] = useState(false);
-  const [suName, setSuName] = useState(() => readIntro().name ?? '');
-  const [suEmail, setSuEmail] = useState('');
-  // 10 national digits; the field shows a fixed +91 prefix.
-  const [suPhone, setSuPhone] = useState('');
-  const [suPhoneForeign, setSuPhoneForeign] = useState(false);
-  const [suCode, setSuCode] = useState('');
-  const [suChallenge, setSuChallenge] = useState<EmailSignupChallenge | null>(null);
 
   // MFA challenge sub-step. Populated when the sign-in POST returns
   // { mfaRequired: true, challengeId, expiresAt } instead of a session.
@@ -196,11 +160,6 @@ export function AuthView() {
   const [showPassword, setShowPassword] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
-  // Field errors show once a field is left, or for all fields on START.
-  const [suTouched, setSuTouched] = useState<Record<string, boolean>>({});
-  const suProblems = signupProblems({ name: suName, email: suEmail, phone: suPhone, phoneForeign: suPhoneForeign, password: newPassword });
-  const suShow = (f: 'name' | 'email' | 'phone' | 'password') => (suTouched[f] ? suProblems[f] : null);
-  const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
   const shownAudience: Audience = firmSide ? 'firm' : audience;
   const freeLine = 'Plans from ₹699 + GST a month';
@@ -284,25 +243,6 @@ export function AuthView() {
   };
 
 
-  const handleSignupStart = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSuTouched({ name: true, email: true, phone: true, password: true });
-    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password || !agreedTerms) return;
-    signupStart.mutate(
-      { name: suName.trim(), email: suEmail.trim(), phone: toE164India(suPhone) },
-      { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
-    );
-  };
-
-  const handleSignupComplete = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!suChallenge) return;
-    signupComplete.mutate(
-      { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword, acceptTerms: true },
-      { onSuccess: () => navigate('/onboarding', { replace: true }) },
-    );
-  };
-
   const handleFirmEnquiry = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!firmSize || enquiryPhoneProblem) return;
@@ -366,7 +306,7 @@ export function AuthView() {
           </div>
           {/* Hidden once someone is mid-way (WhatsApp code, Google sign-up,
               two-step code): switching audience there would throw the step away. */}
-          {!suChallenge && !googleSignup && !mfaChallenge ? (
+          {!googleSignup && !mfaChallenge ? (
             <nav className="auth-side-tabs" aria-label="Who is signing in">
               {AUDIENCES.map((a) => (
                 <button
@@ -575,122 +515,18 @@ export function AuthView() {
           </div>
         )}
 
-        {/* SIGN UP - form (name, email, WhatsApp, password) -> START sends a
-            WhatsApp code -> code creates the account -> /onboarding. A new
-            Google account (footer button) continues in the block below. */}
+        {/* SIGN UP - Google only for new accounts (signup-hardening.md): the
+            Google button below starts it, then the WhatsApp code, password
+            and Terms in the block after this one, then /onboarding. */}
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {suChallenge
-                  ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
-                  : audience !== 'advocate'
-                    ? '14 days of every feature. No card needed.'
-                    : `${freeLine}.`}
+                {`${freeLine}.`} Continue with your Google account, then verify your WhatsApp number.
               </p>
             </div>
-            {!suChallenge ? (
-              <form onSubmit={handleSignupStart} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <label className="auth-field">
-                  <Icon name="clients" size={16} />
-                  <input autoComplete="name" placeholder="Your name" aria-label="Your name" required value={suName} onChange={(e) => setSuName(e.target.value)} onBlur={() => touch('name')} aria-invalid={!!suShow('name')} />
-                </label>
-                {suShow('name') && <span role="alert" className="auth-field-error">{suShow('name')}</span>}
-                <label className="auth-field">
-                  <Icon name="mail" size={16} />
-                  <input type="email" inputMode="email" autoComplete="email" placeholder={audience !== 'advocate' ? 'Work email' : 'Email'} aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
-                </label>
-                {suShow('email') && <span role="alert" className="auth-field-error">{suShow('email')}</span>}
-                {!suProblems.email && suProblems.emailTypo && (
-                  <span role="alert" className="auth-field-error">
-                    Did you mean <strong>{suProblems.emailTypo}</strong>?{' '}
-                    <button type="button" className="auth-link" onClick={() => setSuEmail(suProblems.emailTypo!)}>Use it</button>
-                  </span>
-                )}
-                <label className="auth-field">
-                  <Icon name="chat" size={16} />
-                  <span className="mono" aria-hidden="true" style={{ color: 'var(--text-primary)', fontWeight: 500 }}>+91</span>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    placeholder="WhatsApp number (10 digits)"
-                    aria-label="WhatsApp number (India, +91)"
-                    required
-                    value={suPhone}
-                    onChange={(e) => {
-                      const r = readIndianMobile(e.target.value);
-                      setSuPhone(r.digits);
-                      setSuPhoneForeign(r.foreign);
-                      if (r.foreign) touch('phone');
-                    }}
-                    onBlur={() => touch('phone')}
-                    aria-invalid={!!suShow('phone')}
-                  />
-                </label>
-                {suShow('phone') && <span role="alert" className="auth-field-error">{suShow('phone')}</span>}
-                <label className="auth-field">
-                  <Icon name="key" size={16} />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    placeholder="Password (8+ characters)"
-                    aria-label="Password"
-                    required
-                    minLength={8}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    onBlur={() => touch('password')}
-                    aria-invalid={!!suShow('password')}
-                  />
-                  <button type="button" className="auth-eye" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                    <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
-                  </button>
-                </label>
-                {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
-                <span className="body-xs" style={{ color: 'var(--text-tertiary)', marginTop: -6 }}>
-                  We send a 6-digit code on WhatsApp to verify your number. All fields are required.
-                </span>
-                {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
-                <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
-                <div className="auth-actions">
-                  <button
-                    type="submit"
-                    className="btn btn-primary btn-lg btn-pill auth-submit"
-                    disabled={signupStart.isPending || !agreedTerms}
-                  >
-                    {signupStart.isPending ? 'Sending…' : 'Start'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleSignupComplete} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <label className="auth-field">
-                  <Icon name="shield" size={16} />
-                  <input
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={6}
-                    placeholder="6-digit code"
-                    aria-label="Verification code"
-                    autoFocus
-                    value={suCode}
-                    onChange={(e) => setSuCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    style={{ letterSpacing: '0.3em' }}
-                  />
-                </label>
-                {signupComplete.isError && <div role="alert" style={noticeStyle}>{signupComplete.error.message}</div>}
-                <div className="auth-actions">
-                  <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => { setSuChallenge(null); setSuCode(''); signupComplete.reset(); }}>
-                    Change details
-                  </button>
-                  <button type="submit" className="btn btn-primary btn-lg btn-pill auth-submit" disabled={signupComplete.isPending || suCode.length !== 6}>
-                    {signupComplete.isPending ? 'Creating…' : 'Verify'}
-                  </button>
-                </div>
-              </form>
-            )}
+            {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               Already have {audience !== 'advocate' ? 'a practice' : 'an account'}?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
@@ -706,11 +542,7 @@ export function AuthView() {
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {googleSignup
-                  ? `Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`
-                  : audience !== 'advocate'
-                    ? '14 days of every feature. No card needed.'
-                    : `${freeLine}.`}
+                {`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}
               </p>
             </div>
             <GoogleWhatsAppVerify
@@ -1002,9 +834,9 @@ export function AuthView() {
             )}
           </div>
         )}
-        {tab === 'signup' && step === 0 && !googleSignup && !suChallenge && (
+        {tab === 'signup' && step === 0 && !googleSignup && (
           <div className="auth-foot">
-            <span>Or sign up with</span>
+            <span>Sign up with</span>
             {googleSignInAvailable() ? (
               <GoogleButton onCredential={handleGoogleCredential} text="signup_with" shape="pill" width={210} />
             ) : (
