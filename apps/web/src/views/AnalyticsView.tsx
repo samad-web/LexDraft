@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { analyticsLabel } from '@/components/shell/nav-config';
+import { useAuthStore } from '@/store/auth';
 import { Icon, EmptyState, ErrorState, Skeleton } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -61,6 +63,7 @@ function buildSparkline(data: MonthPoint[], width: number, height: number): Spar
 
 export function AnalyticsView() {
   const showToast = useUIStore((s) => s.showToast);
+  const plan = useAuthStore((s) => s.user?.plan);
   const { data, isLoading, isError } = useAnalytics();
   const sparkW = 520;
   const sparkH = 180;
@@ -95,7 +98,7 @@ export function AnalyticsView() {
   if (isError) {
     return (
       <div className="col stagger fm-view fm-analytics">
-        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
+        <PageHeader title={analyticsLabel(plan)} description={ANALYTICS_DESC} />
         <ErrorState
           title="Couldn't load analytics"
           description="Check your connection and retry. If the issue persists, the metrics service may be offline."
@@ -106,7 +109,7 @@ export function AnalyticsView() {
   if (isLoading) {
     return (
       <div className="col stagger fm-view fm-analytics">
-        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
+        <PageHeader title={analyticsLabel(plan)} description={ANALYTICS_DESC} />
         <div className="fm-kpis">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="fm-kpi" style={{ gap: 12 }}>
@@ -125,7 +128,7 @@ export function AnalyticsView() {
   if (!data || (KPIS.every((k) => k.value === '-' || k.value === '0') && STAGES.length === 0 && REVENUE.length === 0)) {
     return (
       <div className="col stagger fm-view fm-analytics">
-        <PageHeader title="Firm Analytics" description={ANALYTICS_DESC} />
+        <PageHeader title={analyticsLabel(plan)} description={ANALYTICS_DESC} />
         <EmptyState
           icon="analytics"
           title="No analytics yet"
@@ -138,7 +141,7 @@ export function AnalyticsView() {
   return (
     <div className="col stagger fm-view fm-analytics">
       <PageHeader
-        title="Firm Analytics"
+        title={analyticsLabel(plan)}
         description={ANALYTICS_DESC}
         actions={
         <button

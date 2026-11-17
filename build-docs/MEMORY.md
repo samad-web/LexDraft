@@ -74,6 +74,8 @@
 
 - 2026-11-17 — Owner: credits, not pages. Drafts stay size-based (1 credit ≈ 400 words) but are never locked; stop before drafting on a per-type estimate; shortfall on a new draft absorbed (balance → 0) if the pool held ≥ half; low-credit warnings at 20% and 0 (banner, bell, WhatsApp). Replaces the 2026-11-14 "locked pages are cut server-side" decision.
 
+- 2026-11-17 — Owner: analytics stays on every plan; its name follows the plan (My Practice / Chambers / Firm Analytics) so a solo advocate never sees "Firm".
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

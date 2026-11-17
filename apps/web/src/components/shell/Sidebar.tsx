@@ -21,8 +21,8 @@ export function Sidebar() {
   const credits = useCredits();
   const meFeatures = useMeFeatures();
   const navGroups = useMemo(
-    () => visibleNavGroups(meFeatures.data?.features ?? []),
-    [meFeatures.data],
+    () => visibleNavGroups(meFeatures.data?.features ?? [], user?.plan),
+    [meFeatures.data, user?.plan],
   );
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

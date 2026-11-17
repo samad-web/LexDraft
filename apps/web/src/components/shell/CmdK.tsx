@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useAuthStore } from '@/store/auth';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Case, Client, Lead } from '@lexdraft/types';
@@ -168,7 +169,7 @@ export function CmdK() {
     const hint = (to: string) => (
       <span className="mono" style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{to}</span>
     );
-    const navCommands: Command[] = visibleNavGroups(granted).flatMap((g) =>
+    const navCommands: Command[] = visibleNavGroups(granted, useAuthStore.getState().user?.plan).flatMap((g) =>
       g.items.flatMap((i): Command[] =>
         i.tabs
           ? i.tabs.map((t) => ({

@@ -1,3 +1,4 @@
+import type { UserPlan } from '@lexdraft/types';
 import type { FeatureKey } from '@lexdraft/types';
 import type { IconName } from '@lexdraft/ui';
 
@@ -209,14 +210,21 @@ export function pathMatches(path: string, to: string): boolean {
  * tab, and groups left empty disappear. Sidebar, CmdK and SectionTabs all
  * read through this so they can never disagree.
  */
-export function visibleNavGroups(granted: readonly string[]): NavGroup[] {
+/** The analytics page is on every plan (owner, 2026-11-16); its name follows
+ *  the plan so a solo advocate never reads "Firm" (owner, 2026-11-17). */
+export function analyticsLabel(plan?: UserPlan | null): string {
+  return plan === 'Solo' ? 'My Practice Analytics' : plan === 'Practice' ? 'Chambers Analytics' : 'Firm Analytics';
+}
+
+export function visibleNavGroups(granted: readonly string[], plan?: UserPlan | null): NavGroup[] {
   const can = (f?: FeatureKey) => !f || granted.includes(f);
+  const named = (t: NavTab): NavTab => (t.to === '/app/analytics' ? { ...t, label: analyticsLabel(plan) } : t);
   return NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.flatMap((item): NavItem[] => {
       if (!can(item.requiresFeature)) return [];
       if (!item.tabs) return [item];
-      const tabs = item.tabs.filter((t) => can(t.requiresFeature));
+      const tabs = item.tabs.filter((t) => can(t.requiresFeature)).map(named);
       const first = tabs[0];
       return first ? [{ ...item, to: first.to, tabs }] : [];
     }),
@@ -252,7 +260,7 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   draft:      { title: 'Draft',           eyebrow: 'AI-assisted legal drafting' },
   review:     { title: 'Contract Review', eyebrow: 'Clause-by-clause risk analysis' },
   tasks:      { title: 'Tasks',           eyebrow: 'Kanban' },
-  analytics:  { title: 'Insights',        eyebrow: 'Firm analytics' },
+  analytics:  { title: 'Insights',        eyebrow: 'Analytics' },
   documents:  { title: 'Documents',       eyebrow: 'Document vault' },
   clients:    { title: 'Clients',         eyebrow: 'Client directory' },
   invoices:   { title: 'Invoices',        eyebrow: 'Billing' },

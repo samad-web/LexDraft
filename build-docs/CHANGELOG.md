@@ -1,4 +1,6 @@
 # Changelog
+- Analytics name by plan (2026-11-17, owner): the analytics page stays on every plan (16 Nov decision) but is named "My Practice Analytics" on Advocate, "Chambers Analytics" on Chambers and "Firm Analytics" on Firm — menu, page title, search and the dashboard link.
+
 - Stale code files after a deploy (2026-11-17): a page or the Android app opened before a deploy no longer shows "Failed to fetch dynamically imported module"; it reloads once to pick up the new files (lib/stale-chunk.ts; vite:preloadError, unhandled rejections, ErrorBoundary), with a 30 s guard so it never loops. Server: /opt/lexdraft/.env (gitignored) now holds VITE_GOOGLE_CLIENT_ID so every `docker compose build web` keeps Google sign-in.
 
 - DEPLOYED 2026-11-17 (6adc078): credits-not-pages + admin credit pricing + app-handoff (bd6dd8e). Backup pre-credits-20261117-084225.dump; 0116 was already applied; counts unchanged. WHATSAPP_CREDITS_TEMPLATE=difai_credits_low set (Meta-approved). WHATSAPP_PLAN_ACTIVE_TEMPLATE / WHATSAPP_RENEWAL_TEMPLATE still empty (plan WhatsApp messages off).

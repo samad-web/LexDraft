@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAuthStore } from '@/store/auth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PillNav } from '@/components/PillNav';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
@@ -14,10 +15,11 @@ export function SectionTabs() {
   const location = useLocation();
   const navigate = useNavigate();
   const meFeatures = useMeFeatures();
+  const plan = useAuthStore((s) => s.user?.plan);
 
   const section = useMemo(
-    () => sectionForPath(visibleNavGroups(meFeatures.data?.features ?? []), location.pathname),
-    [meFeatures.data, location.pathname],
+    () => sectionForPath(visibleNavGroups(meFeatures.data?.features ?? [], plan), location.pathname),
+    [meFeatures.data, location.pathname, plan],
   );
   const tabs = section?.tabs;
   if (!section || !tabs || tabs.length < 2) return null;

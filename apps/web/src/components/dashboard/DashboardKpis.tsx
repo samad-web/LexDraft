@@ -1,4 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
+import { analyticsLabel } from '@/components/shell/nav-config';
+import { useAuthStore } from '@/store/auth';
 import { Link } from 'react-router-dom';
 import { Icon, type IconName } from '@lexdraft/ui';
 import type { AttentionGroup, DashboardToday, DayHearing, UserPlan } from '@lexdraft/types';
@@ -197,7 +199,7 @@ const CATALOG: KpiDef[] = [
       return {
         icon: 'analytics', label: 'Revenue this FY', value: stats?.revenueFY ?? practice.revenueFY ?? '—',
         unit: delta ? ` ${delta > 0 ? '+' : ''}${delta}%` : undefined,
-        to: canAnalytics ? '/app/analytics' : '/app/invoices', cta: canAnalytics ? 'Firm analytics' : 'Invoices',
+        to: canAnalytics ? '/app/analytics' : '/app/invoices', cta: canAnalytics ? analyticsLabel(useAuthStore.getState().user?.plan) : 'Invoices',
         clue: od?.count ? <><strong>{od.amount}</strong> overdue · {od.count} {plural(od.count, 'invoice')}</> : 'Every invoice is current.',
       };
     },

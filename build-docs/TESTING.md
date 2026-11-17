@@ -1,4 +1,7 @@
 # Testing
+## Analytics name by plan — 2026-11-17
+- web `analytics-label.test.ts` 3/3 (Solo → My Practice Analytics, Practice → Chambers Analytics, Firm → Firm Analytics, in the menu built by visibleNavGroups). Web 394 pass, tsc clean.
+
 ## Stale-chunk reload — 2026-11-17
 - `stale-chunk.test.ts` 5/5 (recognises the browser messages, reloads once, no loop within 30 s, retries after, ignores other errors). Web 391 pass, tsc clean.
 

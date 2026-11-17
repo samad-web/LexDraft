@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useAuthStore } from '@/store/auth';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsFetching } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
@@ -39,9 +40,10 @@ export function Topbar() {
   // names a page exactly as the sidebar does. ROUTE_TITLES covers routes
   // that aren't in the sidebar (or that this user can't see there).
   const meFeatures = useMeFeatures();
+  const user = useAuthStore((s) => s.user);
   const located = useMemo(
-    () => locateInNav(visibleNavGroups(meFeatures.data?.features ?? []), location.pathname),
-    [meFeatures.data, location.pathname],
+    () => locateInNav(visibleNavGroups(meFeatures.data?.features ?? [], user?.plan), location.pathname),
+    [meFeatures.data, location.pathname, user?.plan],
   );
   const segment = location.pathname.split('/')[2] || 'dashboard';
   const fallback = ROUTE_TITLES[segment] || { title: segment, eyebrow: '' };
