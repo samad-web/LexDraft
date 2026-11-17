@@ -46,8 +46,10 @@ interface GsiButtonOptions {
 }
 
 interface GsiApi {
-  initialize(opts: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: 'popup'; login_hint?: string }): void;
+  initialize(opts: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: 'popup'; login_hint?: string;
+    use_fedcm_for_prompt?: boolean; cancel_on_tap_outside?: boolean }): void;
   renderButton(el: HTMLElement, opts: GsiButtonOptions): void;
+  prompt(): void;
 }
 
 declare global {
@@ -77,4 +79,19 @@ export function loadGoogleIdentity(): Promise<GsiApi> {
     document.head.appendChild(script);
   });
   return loading;
+}
+
+/**
+ * Open Google's account chooser straight away (One Tap / FedCM), e.g. when
+ * "Create account" is tapped, so sign-up starts in Google without a second
+ * click. Browsers may hold the prompt back (cooldown after a dismiss); the
+ * rendered Google button stays on screen as the fallback. Never throws.
+ */
+export async function promptGoogle(onCredential: (credential: string) => void): Promise<void> {
+  if (!googleSignInAvailable() || isNativeApp()) return;
+  try {
+    const gsi = await loadGoogleIdentity();
+    gsi.initialize({ client_id: GOOGLE_CLIENT_ID, callback: (r) => onCredential(r.credential), use_fedcm_for_prompt: true, cancel_on_tap_outside: true });
+    gsi.prompt();
+  } catch { /* the on-screen Google button remains */ }
 }

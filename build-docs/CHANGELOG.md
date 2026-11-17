@@ -1,4 +1,6 @@
 # Changelog
+- Sign-up starts in Google (2026-11-17, owner: "by tapping create account it should go"): tapping Create account opens Google's account chooser at once (One Tap / FedCM); the sign-up card now has a large "Continue with Google" button in the middle (no longer only in the footer), the four steps, and the right price per tab.
+
 - DEPLOYED 2026-11-17 (0274d44, web only): Firm tab sign-up fix 5e90e75, plus another session's mobile-responsive commits a57fee7, e7176a1, 0274d44. Google client id present in the build; no API changes; no migration.
 
 - Mobile responsive (2026-11-17, features/mobile-responsive.md; not deployed): audited ~70 screens/overlays at 360, 390, 768, 1024 and 1366. Touch screens (phones, tablets, Android app) now get 44px tap targets (buttons, small buttons, chips, tabs, toggles, top-bar icons, selects, stand-alone links) and 16px form text (no iOS zoom); the closed phone drawer no longer draws a grey strip down the left edge or sits in the tab order; long screen titles wrap to two lines; field hints and stacked invoice due dates no longer get cut; opening the drawer on a tablet no longer squeezes the page to 16px; admin Users table scrolls in its own box at 1024; calculator basis amount no longer squeezed at 1024. Mouse/desktop layout unchanged. New local audit tool apps/web/scripts/mobile-audit.mjs.

@@ -1,4 +1,7 @@
 # Testing
+## Sign-up starts in Google — 2026-11-17
+- web play-sign-in-only: new test (price per tab Firm ₹3,699 / Chambers ₹1,699 / Advocate ₹699, steps shown, no footer-only Google button, startTrial calls promptGoogle). Web 407 pass, tsc clean. Not verifiable in tests: the real Google One Tap / FedCM prompt (browser-only) — check on the live site.
+
 ## Mobile responsive — 2026-11-17 (features/mobile-responsive.md)
 - Audit: apps/web/scripts/mobile-audit.mjs on the local stack (fictional data), baseline = origin/main 300e3bc served from a second worktree, same script for both. ~70 captures per width (51 screens, 10 case tabs, 9 overlays, 5 admin, native mode at 390). Screenshots (local only, not in git): `%LOCALAPPDATA%/difai-mobile-audit-2026-11-17/{before,after}/<width>/`.
 - Before → after, per width (360 / 390 / 768 / 1024 touch; 1366 mouse):

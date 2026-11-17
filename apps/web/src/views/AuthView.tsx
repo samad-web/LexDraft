@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { TermsAgree } from '@/components/TermsConsent';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Icon, FieldError, validators } from '@lexdraft/ui';
@@ -13,12 +13,12 @@ import {
 } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
-import { googleSignInAvailable, isNativeApp } from '@/lib/google';
+import { googleSignInAvailable, isNativeApp, promptGoogle } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
-import { CycleToggle, gstLine, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
+import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { readIntro, saveIntro } from '@/lib/intro';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
@@ -162,12 +162,18 @@ export function AuthView() {
   const [newPassword, setNewPassword] = useState('');
   const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
   const shownAudience: Audience = firmSide ? 'firm' : audience;
-  const freeLine = 'Plans from ₹699 + GST a month';
+  const handleGoogleCredentialRef = useRef<((credential: string) => void) | null>(null);
+  // The price of the plan this tab sells (shared plan catalogue).
+  const tabPlan = SIGNUP_PLANS.find((p) => p.id === (audience === 'firm' ? 'law_firm' : audience === 'chambers' ? 'chambers' : 'advocate'));
+  const freeLine = tabPlan?.monthlyInr ? `${tabPlan.name}: ${inr(tabPlan.monthlyInr)} + GST a month` : 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     if (native) return;
     setMfaChallenge(null); setGoogleSignup(null); 
     setRole(preset); setStep(0); setTab('signup');
+    // Straight into Google's account chooser (owner 2026-11-17: "by tapping
+    // create account it should go"); the big Google button is the fallback.
+    void promptGoogle((credential) => handleGoogleCredentialRef.current?.(credential));
   };
   const bookDemo = () => { if (native) return; setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
@@ -187,6 +193,7 @@ export function AuthView() {
     onComplete(resp);
   };
 
+  // startTrial (declared above) calls the latest handler through this ref.
   const handleGoogleCredential = (credential: string) => {
     const fromSignup = tab === 'signup';
     setNoGoogleAccount(false);
@@ -224,6 +231,7 @@ export function AuthView() {
       },
     );
   };
+  handleGoogleCredentialRef.current = handleGoogleCredential;
 
   // Called by the MFA sub-step after a successful challenge exchange. The
   // useMfaVerifyChallenge hook has already set the session; we just need to
@@ -524,9 +532,22 @@ export function AuthView() {
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {`${freeLine}.`} Continue with your Google account, then verify your WhatsApp number.
+                {`${freeLine}.`}
               </p>
             </div>
+            {googleSignInAvailable() ? (
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" width={300} />
+              </div>
+            ) : (
+              <p role="alert" style={noticeStyle}>Google sign-up is not configured.</p>
+            )}
+            <ol className="body-sm" style={{ margin: '0 auto', paddingLeft: 18, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              <li>Continue with Google</li>
+              <li>Verify your WhatsApp number with a code</li>
+              <li>Add your {audience === 'advocate' ? 'practice' : audience === 'chambers' ? 'chambers' : 'firm'} details and agree to the Terms</li>
+              <li>Pay for your plan and start</li>
+            </ol>
             {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               Already have {audience !== 'advocate' ? 'a practice' : 'an account'}?{' '}
@@ -830,16 +851,6 @@ export function AuthView() {
             <span>Or sign in with</span>
             {googleSignInAvailable() ? (
               <GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" width={210} />
-            ) : (
-              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
-            )}
-          </div>
-        )}
-        {tab === 'signup' && step === 0 && !googleSignup && (
-          <div className="auth-foot">
-            <span>Sign up with</span>
-            {googleSignInAvailable() ? (
-              <GoogleButton onCredential={handleGoogleCredential} text="signup_with" shape="pill" width={210} />
             ) : (
               <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
             )}

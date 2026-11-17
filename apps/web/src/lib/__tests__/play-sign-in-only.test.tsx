@@ -286,6 +286,19 @@ describe('Firm tab on /auth (owner 2026-11-17: "for firm I am not able to create
     expect(web).toContain('Talk to us');
   });
 
+  it('website sign-up screen (owner: "by tapping create account it should go"): plan price per tab, Google up front, the steps', () => {
+    env.native = false;
+    for (const [size, line] of [['firm', 'Firm: ₹3,699 + GST a month'], ['team', 'Chambers: ₹1,699 + GST a month'], ['solo', 'Advocate: ₹699 + GST a month']] as const) {
+      localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size }));
+      const web = render(<AuthView />, '/auth?signup=1');
+      expect(web, size).toContain(line);
+      expect(web).toContain('Verify your WhatsApp number with a code');
+      expect(web).not.toContain('Sign up with'); // the Google button is in the card, not hidden in the footer
+    }
+    // "Create account" opens Google's chooser straight away (One Tap / FedCM).
+    expect(src('views/AuthView.tsx')).toMatch(/const startTrial[\s\S]{0,400}promptGoogle\(/);
+  });
+
   it('app: no create or talk-to-us link on the Firm tab', () => {
     localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
     env.native = true;
