@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (219eb05, web only): sign in with Continue with Google first. Google client id and the email-link text present in the live build; no API change.
+
 - Sign in: Continue with Google first (2026-11-17, owner): the sign-in card shows a full-width dark "Continue with Google" pill (Google's button, logo + text centred) under "Sign in / Welcome back."; email + password is behind "Sign in with email instead" (kept for the password accounts and the Play review account; opens by itself when Google says the email has a DifAi password). Create account / Talk to us rows unchanged.
 
 - DEPLOYED 2026-11-17 (546d3ca, web only): sign-in alignment polish. Google client id and new CSS present in the live build; no API change.
