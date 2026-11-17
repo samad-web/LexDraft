@@ -16,7 +16,8 @@ import {
 } from '@/hooks/useAuth';
 import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
-import { googleSignInAvailable } from '@/lib/google';
+import { googleSignInAvailable, isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
@@ -95,6 +96,11 @@ export function AuthView() {
   const signIn = useSignIn();
   const signUp = useGoogleSignUp();
   const [searchParams, setSearchParams] = useSearchParams();
+  // Android app: sign-in only, no sign-up, prices or payment (Play payments
+  // policy, features/play-sign-in-only.md).
+  const native = isNativeApp();
+  // Android app: a Google account with no DifAi account gets a plain notice.
+  const [noGoogleAccount, setNoGoogleAccount] = useState(false);
 
   // Renewal banner. Populated when the api.ts response interceptor redirects
   // to /auth?reason=plan_* after a 402. We read it once into local state so
@@ -103,8 +109,9 @@ export function AuthView() {
   const planReason = searchParams.get('reason');
   const planMessage = useMemo(() => {
     if (!planReason) return null;
+    if (native) return NATIVE_COPY.planInactive;
     return PLAN_REASON_MESSAGES[planReason] ?? 'Your firm subscription is no longer active. Renew to continue.';
-  }, [planReason]);
+  }, [planReason, native]);
   const dismissPlanBanner = () => {
     const next = new URLSearchParams(searchParams);
     next.delete('reason');
@@ -112,7 +119,7 @@ export function AuthView() {
   };
 
   // /auth?signup=1 (landing page CTA) opens the sign-up form directly.
-  const [tab, setTab] = useState<AuthTab>(() => (searchParams.get('signup') ? 'signup' : 'signin'));
+  const [tab, setTab] = useState<AuthTab>(() => (!native && searchParams.get('signup') ? 'signup' : 'signin'));
   const [step, setStep] = useState<0 | 1 | 2>(0);
   const [role, setRole] = useState<Role | null>(null);
   // Step 1 of sign-up: the plan, and (Free) whether advocate or student.
@@ -199,10 +206,11 @@ export function AuthView() {
   const freeLine = 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
+    if (native) return;
     setMfaChallenge(null); setGoogleSignup(null); 
     setRole(preset); setStep(0); setTab('signup');
   };
-  const bookDemo = () => { setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
+  const bookDemo = () => { if (native) return; setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
   // Superadmins land on the platform admin tree; everyone else on the app dashboard.
   const onComplete = (resp?: { user?: { isSuperadmin?: boolean } }) =>
     navigate(resp?.user?.isSuperadmin ? '/admin' : '/app/dashboard');
@@ -222,6 +230,7 @@ export function AuthView() {
 
   const handleGoogleCredential = (credential: string) => {
     const fromSignup = tab === 'signup';
+    setNoGoogleAccount(false);
     googleSignIn.mutate(
       { credential, intent: fromSignup ? 'signup' : 'signin' },
       {
@@ -238,6 +247,11 @@ export function AuthView() {
         },
         onSuccess: (r) => {
           if (isGoogleSignupRequired(r)) {
+            // The app never creates accounts: say so, with no way onward.
+            if (native) {
+              setNoGoogleAccount(true);
+              return;
+            }
             // New Google account - set up the practice next.
             setGoogleSignup(r);
             
@@ -477,7 +491,10 @@ export function AuthView() {
                   <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                 </button>
               </label>
-              {renewToken && (
+              {renewToken && native && (
+                <div role="alert" style={noticeStyle}>{NATIVE_COPY.planInactive}</div>
+              )}
+              {renewToken && !native && (
                 <div style={{ ...noticeStyle, display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <strong style={{ fontSize: 14 }}>Pick a plan to continue</strong>
                   <span>{signIn.error?.message ?? googleSignIn.error?.message} Your cases and documents are safe.</span>
@@ -505,7 +522,7 @@ export function AuthView() {
                 </div>
               )}
               {signIn.isError && !renewToken && (
-                (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
+                !native && (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
                     No DifAi account uses this email.{' '}
                     <button type="button" className="auth-link" onClick={() => (audience === 'firm' ? bookDemo() : startTrial(audience === 'chambers' ? 'group' : null))}>
@@ -533,6 +550,10 @@ export function AuthView() {
             {googleSignIn.isError && !renewToken && (
               <div role="alert" style={noticeStyle}>{googleSignIn.error.message}</div>
             )}
+            {noGoogleAccount && (
+              <div role="alert" style={noticeStyle}>{NATIVE_COPY.noGoogleAccount}</div>
+            )}
+            {!native && (<>
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
               {audience === 'firm' ? (
                 <>Firm with nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button></>
@@ -550,6 +571,7 @@ export function AuthView() {
             >
               Firm with 9+ lawyers? Book a demo
             </button>
+            </>)}
           </div>
         )}
 

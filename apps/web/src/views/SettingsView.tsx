@@ -179,7 +179,8 @@ function TrialStatusPanel() {
       eyebrow={isDemo ? 'Demo session' : 'Trial'}
       title="Plan status"
       description={isDemo
-        ? 'This is a sandbox account so you can explore DifAi. Convert to a real account any time: your existing work carries over.'
+        ? 'This is a sandbox account so you can explore DifAi.'
+          + (Capacitor.isNativePlatform() ? '' : ' Convert to a real account any time: your existing work carries over.')
         : Capacitor.isNativePlatform()
           ? 'Your current plan and when it ends.'
           : 'After the trial, pick a plan to keep going. We do not ask for card details until you choose.'}

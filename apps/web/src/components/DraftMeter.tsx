@@ -1,4 +1,6 @@
 import { useCredits } from '@/hooks/useCredits';
+import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 
 function shortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -19,7 +21,7 @@ export function CreditMeter({ compact = false }: { compact?: boolean }) {
   if (total <= 0 && data.balance <= 0) {
     return (
       <div className={`cm-meter${compact ? ' cm-meter--compact' : ''}`}>
-        <div className="cm-meter-row"><span>No AI credits yet. They are added as soon as your plan is paid.</span></div>
+        <div className="cm-meter-row"><span>{isNativeApp() ? NATIVE_COPY.noCredits : 'No AI credits yet. They are added as soon as your plan is paid.'}</span></div>
       </div>
     );
   }

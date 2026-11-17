@@ -4,6 +4,7 @@ import type { DraftLock } from '@lexdraft/types';
 import { useCredits, useUnlockDraft } from '@/hooks/useCredits';
 import { creditLabel } from '@/lib/credit-costs';
 import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 
 /**
  * Shown while part of a draft is locked (its pages went past the credit
@@ -33,7 +34,7 @@ export function LockedDraftCard({ lock, onUnlocked }: {
           {unlock.isPending ? 'Unlocking…' : `Unlock · ${creditLabel(lock.lockedCredits)}`}
         </button>
       ) : isNativeApp() ? (
-        <p className="body-sm muted" style={{ margin: 0 }}>Credits finished. Manage your plan from the DifAi website.</p>
+        <p className="body-sm muted" style={{ margin: 0 }}>{NATIVE_COPY.creditsShort}</p>
       ) : (
         <button type="button" className="btn btn-primary dw-wide" onClick={() => navigate('/app/billing')}>
           See plans and Brief Packs

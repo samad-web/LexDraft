@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBilling } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 
 /**
  * App-wide trial countdown banner. Renders when the signed-in user's firm
@@ -31,12 +32,11 @@ export function TrialBanner(): JSX.Element | null {
     return (
       <div role={left <= 1 ? 'alert' : 'status'} className={`trial-banner trial-banner--${left <= 1 ? 'critical' : 'warn'}`}>
         <span className="trial-banner-label">{left <= 1 ? `Your plan ends today (${day}).` : `Your plan ends on ${day}.`}</span>
-        <span className="trial-banner-note">
-          {native ? 'Renew from the DifAi website to keep using DifAi.' : 'Renew to keep using DifAi. Nothing is charged automatically.'}
-        </span>
-        {!native && (
+        {/* Android app: the date only, no renew prompt (Play payments policy). */}
+        {!native && (<>
+          <span className="trial-banner-note">Renew to keep using DifAi. Nothing is charged automatically.</span>
           <button type="button" className="trial-banner-btn" onClick={() => navigate('/app/billing')}>Renew</button>
-        )}
+        </>)}
       </div>
     );
   }
@@ -63,7 +63,8 @@ export function TrialBanner(): JSX.Element | null {
   if (native && freePlan) return null;
 
   const label = unpaid
-    ? expired ? 'Your payment was not finished.' : 'Your payment is not finished yet.'
+    ? native ? NATIVE_COPY.planInactive
+    : expired ? 'Your payment was not finished.' : 'Your payment is not finished yet.'
     : isDemo
     ? expired
       ? 'Your demo session has ended.'

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@lexdraft/ui';
 import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 
 /** Shown in place of a page whose feature is locked on the free launch plan
  *  (the superadmin opens or locks these; api: lib/free-plan.ts). */
@@ -10,7 +11,9 @@ export function FreePlanLocked({ feature }: { feature: string }) {
     <EmptyState
       icon="flag"
       title="Not included in the free plan"
-      description={`${feature} is part of the paid plans. Your matters stay free until 1 June 2027, with 25 AI credits a month.`}
+      description={isNativeApp()
+        ? NATIVE_COPY.featureLocked(feature)
+        : `${feature} is part of the paid plans. Your matters stay free until 1 June 2027, with 25 AI credits a month.`}
       action={
         <span style={{ display: 'inline-flex', gap: 8 }}>
           {/* No purchase prompts in the Android app (Play payments policy). */}

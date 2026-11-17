@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Modal } from './Modal';
 import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 import { useUIStore, type CapPromptModel } from '@/store/ui';
 
 /**
@@ -74,18 +75,21 @@ export function CapExceededModal() {
   );
 }
 
-function describeCap(cap: CapPromptModel): {
+/** Android app: usage facts only, no "upgrade" / "buy" lines (Play payments
+ *  policy, features/play-sign-in-only.md). */
+export function describeCap(cap: CapPromptModel): {
   title: string;
   description: string;
   primaryLabel: string;
 } {
+  const native = isNativeApp();
   if (cap.kind === 'credits') {
     return {
       title: 'Not enough AI credits',
       description:
         `This needs ${cap.used} credit${cap.used === 1 ? '' : 's'} and ${cap.cap} ${cap.cap === 1 ? 'is' : 'are'} left. Nothing was charged.`
         + (cap.resetsAt ? ` Your plan's credits renew on ${formatDate(cap.resetsAt)}.` : '')
-        + (isNativeApp() ? ' Manage your plan from the DifAi website.' : ' A bigger plan or a Brief Pack adds more now.'),
+        + (native ? '' : ' A bigger plan or a Brief Pack adds more now.'),
       primaryLabel: 'See plans and Brief Packs',
     };
   }
@@ -95,14 +99,16 @@ function describeCap(cap: CapPromptModel): {
       description:
         `You've made all ${cap.cap} drafts on your ${planLabel(cap.planTier)} plan this month.`
         + (cap.resetsAt ? ` Your limit renews on ${formatDate(cap.resetsAt)}.` : '')
-        + (cap.planTier === 'Firm' ? '' : ' Upgrade for more.'),
+        + (cap.planTier === 'Firm' || native ? '' : ' Upgrade for more.'),
       primaryLabel: 'Upgrade plan',
     };
   }
   return {
     title: 'Seat cap reached',
     description:
-      cap.planTier === 'Firm'
+      native
+        ? NATIVE_COPY.seatsFull
+        : cap.planTier === 'Firm'
         ? `Your Firm plan currently provisions ${cap.cap} seats and ${cap.used} are in use. Contact support to provision more.`
         : `Your ${cap.planTier ?? 'current'} plan includes ${cap.cap} seats and all are in use. Upgrade to invite more advocates.`,
     primaryLabel: 'Upgrade plan',

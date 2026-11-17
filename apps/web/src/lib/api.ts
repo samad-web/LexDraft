@@ -2,6 +2,7 @@ import axios, { AxiosError } from 'axios';
 import { queryClient } from './queryClient';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
+import { nativeErrorCopy } from './play-policy';
 
 interface CapErrorPayload {
   error?: string;
@@ -107,6 +108,9 @@ apiClient.interceptors.response.use(
     if (payload?.error) {
       err.message = payload.error;
     }
+    // Android app: no purchase wording in error messages (Play payments policy).
+    const nativeCopy = nativeErrorCopy(code);
+    if (nativeCopy) err.message = nativeCopy;
     return Promise.reject(err);
   },
 );

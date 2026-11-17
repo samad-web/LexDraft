@@ -1,4 +1,6 @@
 # Changelog
+- Play: Android app is sign-in only (2026-11-17, owner; features/play-sign-in-only.md): in the app there is no sign-up (/signup -> welcome, ?signup=1 -> Sign in, sign-up/demo links hidden), no onboarding plan picker (neutral "Your account setup isn't complete." + Sign out), no renew plan picker at sign-in ("Your plan isn't active."), and no prices, buy/upgrade/renew prompts or "manage on the website" text (welcome, cap modal, locked draft, free-plan lock, banners, Plan & Billing invoices/notes, Munshi, Members, Settings, credit meter, server error messages). One copy module: lib/play-policy.ts. Website unchanged.
+
 - Android 2.3 (versionCode 14, 2026-11-17, features/new-logo.md): new DifAi logo as launcher, adaptive, round, themed and splash icons; only native change. On Play internal testing; production not released.
 
 - New logo v2 (2026-11-17, owner): the symbol is now the D of the word, so the lockup reads "DifAi" (was "D DifAi"). Symbol at cap height on the baseline, "ifAi" kerned 9 units after it; one lockup at every size (compact = same). Updated everywhere the lockup appears (landing, sign-in, splash, welcome, sidebar, SEO header, offline page, invoice, og-image) and in the owner's final logo folder (v1 files backed up).

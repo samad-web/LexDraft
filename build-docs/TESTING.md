@@ -1,4 +1,9 @@
 # Testing
+## Play sign-in only — 2026-11-17 (features/play-sign-in-only.md)
+- New `play-sign-in-only.test.tsx` 22/22 (AC1–AC22): each surface rendered with Capacitor mocked native and web; interceptor rewrite tested on the real axios handler. First run: 2 failures from the test harness (zustand server render reads the store's initial state), fixed in the test, no logic change.
+- Web 33 files / 368 pass, tsc clean; SEO 174 pass; vite build ok. API not touched.
+- Visual (headless Chromium, built app, /api stubbed 401, `CapacitorCustomPlatform=android`): welcome, /auth, /signup (-> welcome), /auth?signup=1 (-> Sign in), /auth?reason=plan_expired (neutral banner), 390 wide; web versions unchanged (Create account / Book a demo / renew banner present).
+
 ## New logo v2 (symbol is the D) — 2026-11-17
 - `brand-logo.test.tsx` rewritten 12/12: one D only (no lettered D anywhere: app, index, favicon, offline, SEO), ifAi offset = 101.5 + 9 - 104.18, 16 px minimum, motion classes, decorative mode. gst-invoices header test updated (symbol D + translate, no lettered D).
 - Web 32 files / 346 pass, tsc clean; SEO 174 pass; vite build + prerender ok; API 1090 pass (share-links known), api tsc clean.

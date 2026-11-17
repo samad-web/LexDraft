@@ -30,6 +30,7 @@ const LandingView = lazy(() => import('@/views/LandingView').then((m) => ({ defa
 const AuthView = lazy(() => import('@/views/AuthView').then((m) => ({ default: m.AuthView })));
 const SignupView = lazy(() => import('@/views/SignupView').then((m) => ({ default: m.SignupView })));
 const AppWelcomeView = lazy(() => import('@/views/AppWelcomeView').then((m) => ({ default: m.AppWelcomeView })));
+const NativeSetupIncompleteView = lazy(() => import('@/views/AppWelcomeView').then((m) => ({ default: m.NativeSetupIncompleteView })));
 const SurveyView = lazy(() => import('@/views/SurveyView').then((m) => ({ default: m.SurveyView })));
 const PrivacyPolicyView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.PrivacyPolicyView })));
 const DeleteAccountView = lazy(() => import('@/views/LegalView').then((m) => ({ default: m.DeleteAccountView })));
@@ -196,8 +197,9 @@ export function App() {
         <Suspense fallback={pageFallback}>
           <Routes>
             {/* The marketing page is for the website; the Android app opens
-                on its welcome screen (brand, then Sign in / Create account),
-                or the dashboard when signed in. */}
+                on its welcome screen (brand, then Sign in), or the dashboard
+                when signed in. The app is sign-in only (Play payments policy,
+                features/play-sign-in-only.md): /signup goes to the welcome. */}
             <Route
               path="/"
               element={Capacitor.isNativePlatform()
@@ -205,7 +207,7 @@ export function App() {
                 : <LandingView />}
             />
             <Route path="/auth/*" element={<AuthView />} />
-            <Route path="/signup" element={<SignupView />} />
+            <Route path="/signup" element={Capacitor.isNativePlatform() ? <Navigate to="/" replace /> : <SignupView />} />
             <Route path="/invite/:token" element={<InviteAcceptView />} />
             <Route path="/co-counsel/accept/:token" element={<CoCounselAcceptView />} />
             <Route path="/sign/:token" element={<SignView />} />
@@ -245,7 +247,8 @@ export function App() {
   const onboarding = !!user.needsOnboarding && !user.isSuperadmin && !actAs;
   if (location.pathname.startsWith('/onboarding')) {
     if (!onboarding) return <Navigate to="/app/dashboard" replace />;
-    return <><Suspense fallback={pageFallback}><OnboardingView /></Suspense><Toast /></>;
+    // Android app: no plan picker or payment, only a neutral notice.
+    return <><Suspense fallback={pageFallback}>{Capacitor.isNativePlatform() ? <NativeSetupIncompleteView /> : <OnboardingView />}</Suspense><Toast /></>;
   }
   if (onboarding) return <Navigate to="/onboarding" replace />;
 
