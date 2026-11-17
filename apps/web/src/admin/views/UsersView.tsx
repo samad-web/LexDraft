@@ -203,10 +203,10 @@ export function UsersView() {
         </div>
       </header>
 
-      <div style={{ display: 'flex', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <input
           className="input"
-          style={{ flex: 1 }}
+          style={{ flex: 1, minWidth: 220 }}
           placeholder="Search by name, email or WhatsApp number…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -260,6 +260,8 @@ export function UsersView() {
         </div>
       </div>
 
+      {/* Ten columns: scroll sideways inside this box on narrow screens, never the page. */}
+      <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
       {isLoading ? (
         <table className="tbl" aria-busy="true">
           <thead>
@@ -429,6 +431,7 @@ export function UsersView() {
           </tbody>
         </table>
       )}
+      </div>
       {!isLoading && users.length > 0 && (
         <Pagination
           page={pager.page}
