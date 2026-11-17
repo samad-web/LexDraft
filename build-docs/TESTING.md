@@ -1,4 +1,7 @@
 # Testing
+## Invoice on WhatsApp — live check 2026-11-17
+- Prod, owner's own invoice DIF/26-27/000001 (support@ account, phone …8581): invoiceWhatsappService.send(force) via the deployed code → "sent", whatsapp_sent_at recorded. A fresh /api/i/<token> link fetched from outside: HTTP 200 application/pdf, 29,619 bytes. Not covered: a new live payment triggering the job end to end.
+
 ## Invoice on WhatsApp — 2026-11-17 (features/invoice-whatsapp.md)
 - `invoice-whatsapp.integration.test.ts` 5/5 (Wasi mocked): AC1 one difai_invoice message to the owner with number/amount/date/link, recorded, retry doesn't resend; AC2 WhatsApp failure leaves the invoice issued, error kept, job retries, next run sends; AC3 no number → nothing sent, reason kept; AC4 link resolves only that invoice, only while live, hash-only storage, bad tokens rejected; AC5 admin force resend.
 - Live probes of Wasi (all refused before sending): header must be a ≤60-char string; per-message media fields are ignored. One real message via the approved template to the owner's number: HTTP 201, Meta status sent.
