@@ -1,6 +1,6 @@
 # Feature: Credits, not pages — stop and ask to pay when credits run out
 
-Status: **built 2026-11-17, not deployed.** WhatsApp template `difai_credits_low` submitted via Wasi (pending Meta). Note: per-user DifAi caps are never absorbed (402 user_cap_reached).
+Status: **LIVE 2026-11-17 (6adc078).** WhatsApp template `difai_credits_low` Meta-approved and switched on. Note: per-user DifAi caps are never absorbed (402 user_cap_reached).
 
 ## Owner decisions (2026-11-17)
 - Drafts stay **size-based** (1 credit ≈ 400 words, rounded up to ½), but advocates only ever see **credits** — never "pages", never a draft cut into locked pages.
