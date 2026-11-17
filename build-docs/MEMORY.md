@@ -78,6 +78,8 @@
 
 - 2026-11-17 — Owner: analytics stays on every plan; its name follows the plan (My Practice / Chambers / Firm Analytics) so a solo advocate never sees "Firm".
 
+- 2026-11-17 — Owner: the plan is chosen once in the sign-up flow (sign-in tab or pricing "Start with …"); onboarding confirms it with "Change plan" instead of asking again.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

@@ -296,7 +296,7 @@ describe('Firm tab on /auth (owner 2026-11-17: "for firm I am not able to create
       expect(web).not.toContain('Sign up with'); // the Google button is in the card, not hidden in the footer
     }
     // "Create account" opens Google's chooser straight away (One Tap / FedCM).
-    expect(src('views/AuthView.tsx')).toMatch(/const startTrial[\s\S]{0,400}promptGoogle\(/);
+    expect(src('views/AuthView.tsx')).toMatch(/const startTrial[\s\S]{0,900}promptGoogle\(/);
   });
 
   it('app: no create or talk-to-us link on the Firm tab', () => {

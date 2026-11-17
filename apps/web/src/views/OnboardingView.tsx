@@ -200,6 +200,10 @@ export function OnboardingView() {
   const [plan, setPlan] = useState<BillingPlanId>(intro.size === 'team' ? 'chambers' : intro.size === 'firm' ? 'law_firm' : 'advocate');
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [munshi, setMunshi] = useState(0);
+  // The plan was already picked (sign-in tab or "Start with …" on pricing):
+  // confirm it here instead of asking again; "Change plan" opens the grid.
+  const prePicked = !!intro.size;
+  const [changingPlan, setChangingPlan] = useState(!prePicked);
   // Pre-picked from the sign-in page's left tab (Advocate / Law student).
   const [kind, setKind] = useState<Kind>(intro.kind === 'student' ? 'student' : 'advocate');
   // Step 2
@@ -318,7 +322,7 @@ export function OnboardingView() {
                 </span>
                 <span>
                   <span style={{ display: 'block', fontWeight: 600, fontSize: 16 }}>{s.title}</span>
-                  <span style={{ display: 'block', fontSize: 13, opacity: 0.7, marginTop: 3 }}>{s.sub}</span>
+                  <span style={{ display: 'block', fontSize: 13, opacity: 0.7, marginTop: 3 }}>{i === 0 && chosen?.monthlyInr ? `${chosen.name}: ${inr(chosen.monthlyInr)} + GST a month` : s.sub}</span>
                 </span>
               </li>
             );
@@ -344,10 +348,10 @@ export function OnboardingView() {
 
           {step === 0 && (
             <>
-              <h1 className="display-md" style={{ margin: 0 }}>Choose your plan</h1>
+              <h1 className="display-md" style={{ margin: 0 }}>{changingPlan ? 'Choose your plan' : 'Your plan'}</h1>
               <p className="body" style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: 680, lineHeight: 1.55 }}>
                 {user?.name ? `Welcome, ${user.name.split(' ')[0]}. ` : ''}
-                Every plan has the full app: cases, diary, eCourts and more. Plans differ in AI credits (1 credit = one 400-word page) and seats. Prices are plus 18% GST; you can switch any time.
+                Every plan has the full app: cases, diary, eCourts and more. Plans differ in AI credits and seats. Prices are plus 18% GST; you can switch any time.
               </p>
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
                 <div role="group" aria-label="Billing cycle" style={{ display: 'inline-flex', gap: 2, padding: 4, border: '1px solid var(--border-default)', borderRadius: 'var(--radius-full)' }}>
@@ -364,11 +368,21 @@ export function OnboardingView() {
                   ))}
                 </div>
               </div>
-              <div className="onb-plans">
-                {SIGNUP_PLANS.filter((p) => p.id !== 'enterprise').map((p) => (
-                  <PlanCard key={p.id} plan={p} cycle={cycle} selected={plan === p.id} popular={p.id === 'advocate'} onSelect={() => setPlan(p.id)} />
-                ))}
-              </div>
+              {changingPlan ? (
+                <div className="onb-plans">
+                  {SIGNUP_PLANS.filter((p) => p.id !== 'enterprise').map((p) => (
+                    <PlanCard key={p.id} plan={p} cycle={cycle} selected={plan === p.id} popular={p.id === 'advocate'} onSelect={() => setPlan(p.id)} />
+                  ))}
+                </div>
+              ) : chosen && (
+                <div className="onb-plans" style={{ gridTemplateColumns: 'minmax(0, 420px)', justifyContent: 'center' }}>
+                  <PlanCard plan={chosen} cycle={cycle} selected onSelect={() => undefined} />
+                  <p className="body-sm" style={{ textAlign: 'center', margin: 0 }}>
+                    Not the right plan?{' '}
+                    <button type="button" className="auth-link" onClick={() => setChangingPlan(true)}>Change plan</button>
+                  </p>
+                </div>
+              )}
               {chosen?.purchasable && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
                   <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
@@ -377,7 +391,7 @@ export function OnboardingView() {
               )}
               {!payOn && (
                 <p className="body-sm" role="status" style={{ marginTop: 18, color: 'var(--text-primary)' }}>
-                  Online payment opens soon. Until then your account is free, with 25 AI credits a month.
+                  Online payment is not available right now. Please try again a little later.
                 </p>
               )}
               <p className="body-sm" style={{ marginTop: 18, color: 'var(--text-secondary)' }}>

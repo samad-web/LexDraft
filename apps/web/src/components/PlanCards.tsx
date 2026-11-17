@@ -10,7 +10,7 @@ export const SIGNUP_PLANS: BillingPlan[] = [
     id: 'advocate', name: 'Advocate', for: 'One advocate · the full app with AI drafting',
     meaning: 'For an advocate practising on their own.',
     monthlyInr: 699, annualInr: 7689, note: '+ 18% GST · billed monthly or yearly',
-    features: ['150 AI credits a month (1 credit = one 400-word page)', 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Firm analytics', 'Add a Munshi seat for ₹149 + GST a month'],
+    features: ['150 AI credits a month', 'Cases, diary & eCourts sync', 'eFiling help, limitation & land records', 'Practice analytics', 'Add a Munshi seat for ₹149 + GST a month'],
     purchasable: true, pagesPerMonth: 150, advocates: 1, gst: 'exclusive', munshi: { monthlyInr: 149, annualInr: 1639, max: 4 },
   },
   {

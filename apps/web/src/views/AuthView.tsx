@@ -171,6 +171,9 @@ export function AuthView() {
     if (native) return;
     setMfaChallenge(null); setGoogleSignup(null); 
     setRole(preset); setStep(0); setTab('signup');
+    // The tab they create the account from is their plan choice (chosen once;
+    // onboarding confirms it instead of asking again).
+    saveIntro({ kind: 'advocate', size: audience === 'firm' ? 'firm' : audience === 'chambers' ? 'team' : 'solo' });
     // Straight into Google's account chooser (owner 2026-11-17: "by tapping
     // create account it should go"); the big Google button is the fallback.
     void promptGoogle((credential) => handleGoogleCredentialRef.current?.(credential));

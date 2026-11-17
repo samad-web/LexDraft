@@ -1,4 +1,6 @@
 # Changelog
+- Plan chosen once (2026-11-17, owner: "we give the option to choose twice"): the plan is picked on the sign-in tab (Create account on Advocate / Chambers / Firm) or by "Start with …" on pricing; onboarding step 1 then shows "Your plan" (that card, monthly/yearly, Munshi seats, price) with "Change plan" instead of the three-plan grid. Left rail shows the chosen plan's price. Removed leftover "1 credit = one 400-word page" and the "payment opens soon, free until then" note; Advocate card says "Practice analytics".
+
 - DEPLOYED 2026-11-17 (c080b5f, web only): sign-up starts in Google. Google client id, new steps text and the FedCM prompt code present in the live build; no API change.
 
 - Sign-up starts in Google (2026-11-17, owner: "by tapping create account it should go"): tapping Create account opens Google's account chooser at once (One Tap / FedCM); the sign-up card now has a large "Continue with Google" button in the middle (no longer only in the footer), the four steps, and the right price per tab.

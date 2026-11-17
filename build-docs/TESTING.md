@@ -1,4 +1,7 @@
 # Testing
+## Plan chosen once — 2026-11-17
+- web `onboarding-plan-once.test.tsx` 3/3: Firm pre-picked → "Your plan", Firm card only, Change plan, rail "Firm: ₹3,699 + GST a month"; nothing picked → "Choose your plan" with 3 plans; no "400-word page". 2 of 3 fail on the old screen (checked by stashing). play-sign-in-only promptGoogle source check window widened 400 → 900 chars (startTrial grew by the saveIntro line; what it checks is unchanged). Web 410 pass, tsc clean.
+
 ## Sign-up starts in Google — 2026-11-17
 - web play-sign-in-only: new test (price per tab Firm ₹3,699 / Chambers ₹1,699 / Advocate ₹699, steps shown, no footer-only Google button, startTrial calls promptGoogle). Web 407 pass, tsc clean. Not verifiable in tests: the real Google One Tap / FedCM prompt (browser-only) — check on the live site.
 
