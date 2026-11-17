@@ -48,7 +48,7 @@ beforeEach(async () => {
   wa.fail = false;
   firmId = (await seedFirm('WA firm', 'Solo')).id;
   ownerId = (await seedUser(firmId, { role: 'Solo Advocate' })).id;
-  await getIntegrationSql()`update users set phone = '+918754200000', state = 'Tamil Nadu', name = 'Asha Rao' where id = ${ownerId}::uuid`;
+  await getIntegrationSql()`update users set phone = '+918754200000', phone_verified_at = now(), state = 'Tamil Nadu', name = 'Asha Rao' where id = ${ownerId}::uuid`;
 });
 
 describe('AC1 one message with the invoice to the owner', () => {
@@ -91,6 +91,14 @@ describe('AC3 no number', () => {
     expect(await invoiceWhatsappService.send(id)).toBe('no_phone');
     expect(wa.calls).toHaveLength(0);
     expect((await row(id)).whatsapp_error).toMatch(/No verified WhatsApp number/);
+  });
+
+  it('signup-hardening F7: a number that was never OTP-verified is not used', async () => {
+    await getIntegrationSql()`update users set phone_verified_at = null where id = ${ownerId}::uuid`;
+    const id = await issue();
+    wa.calls.length = 0;
+    expect(await invoiceWhatsappService.send(id)).toBe('no_phone');
+    expect(wa.calls).toHaveLength(0);
   });
 });
 

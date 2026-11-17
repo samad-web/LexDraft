@@ -19,11 +19,12 @@ export const day = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', 
 
 export type InvoiceWhatsappResult = 'sent' | 'off' | 'no_phone' | 'already_sent' | 'missing';
 
-/** Same owner the invoice is billed to (subscription-invoice.service buyer query). */
+/** Same owner the invoice is billed to (subscription-invoice.service buyer query).
+ *  Only an OTP-verified number counts, as for plan-active (signup-hardening.md). */
 async function ownerPhone(firmId: string): Promise<{ name: string; phone: string | null } | null> {
   const sql = db()!;
   const [o] = await sql<{ name: string; phone: string | null }[]>`
-    select u.name, u.phone from users u
+    select u.name, case when u.phone_verified_at is not null then u.phone end as phone from users u
     where u.firm_id = ${firmId}::uuid and u.role in ('Solo Advocate', 'Managing Partner')
     order by u.created_at limit 1`;
   return o ?? null;
