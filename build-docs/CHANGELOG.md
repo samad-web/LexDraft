@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (b048194, web only): Create account screen matches the sign-in card. Google client id and new CSS present in the live build; no API change.
+
 - Create account screen restyled to the NUSI-style sign-in card (2026-11-17, owner: "when I click account creation it is going here, fix it"): round DifAi mark, centred CREATE YOUR ACCOUNT (one line), price line, full-width Continue with Google, steps as numbered circles, centred "Already have an account? Sign in". Same head on the WhatsApp/password step. The small wordmark header shows only on later sign-up steps (no double logo on phones).
 
 - DEPLOYED 2026-11-17 (7f1dd6e, web only): NUSI-style sign-in card. Google client id (still used by Create account) and the new copy present in the live build; no API change.
