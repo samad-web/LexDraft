@@ -114,6 +114,7 @@ interface InvoiceRow {
   id: string; invoice_no: string; firm_id: string; razorpay_payment_id: string; plan: string; cycle: string; seats: number; munshi_seats: number | null;
   period_start: Date | null; period_end: Date | null; buyer: Buyer; seller: Seller; place_of_supply: string; sac: string;
   taxable_paise: number; cgst_paise: number; sgst_paise: number; igst_paise: number; total_paise: number; issued_at: Date;
+  line_label?: string | null; payment_note?: string | null;
 }
 
 function toDto(r: InvoiceRow): SubscriptionInvoice {
@@ -133,6 +134,10 @@ export const subscriptionInvoiceService = {
     /** The ex-GST price in paise (pricing v5). Omitted: backed out of the total (v4 prices, ₹1 test). */
     taxablePaise?: number;
     plan: string; cycle: string; seats: number; munshi?: number; periodStart: Date | null; periodEnd: Date | null; at?: Date;
+    /** Invoice line text after "DifAi " (custom plans, admin credit sales); default from the plan id. */
+    lineLabel?: string;
+    /** How an offline payment was made ("UPI · Ref 123"); default = paid online via Razorpay. */
+    paymentNote?: string;
   }): Promise<string | null> {
     const sql = db();
     if (!sql) return null;
@@ -176,10 +181,10 @@ export const subscriptionInvoiceService = {
         const no = `${env.INVOICE_PREFIX}/${fy}/${String(seq).padStart(6, '0')}`;
         const [row] = await tx<{ id: string }[]>`
           insert into subscription_invoices (invoice_no, fy, seq, firm_id, razorpay_payment_id, razorpay_subscription_id,
-            plan, cycle, seats, munshi_seats, period_start, period_end, buyer, seller, place_of_supply, sac,
+            plan, cycle, seats, munshi_seats, period_start, period_end, line_label, payment_note, buyer, seller, place_of_supply, sac,
             taxable_paise, cgst_paise, sgst_paise, igst_paise, total_paise)
           values (${no}, ${fy}, ${seq}, ${p.firmId}::uuid, ${p.paymentId}, ${p.subscriptionId},
-            ${p.plan}, ${p.cycle}, ${p.seats}, ${p.munshi ?? 0}, ${p.periodStart}, ${p.periodEnd}, ${tx.json(buyer as never)}, ${tx.json(s as never)},
+            ${p.plan}, ${p.cycle}, ${p.seats}, ${p.munshi ?? 0}, ${p.periodStart}, ${p.periodEnd}, ${p.lineLabel ?? null}, ${p.paymentNote ?? null}, ${tx.json(buyer as never)}, ${tx.json(s as never)},
             ${`${pos}-${STATES[pos]}`}, ${env.INVOICE_SAC},
             ${tax.taxable}, ${tax.cgst}, ${tax.sgst}, ${tax.igst}, ${p.amountPaise})
           on conflict (razorpay_payment_id) do nothing
@@ -242,7 +247,8 @@ const day = (d: Date | null) => (d ? new Date(d).toLocaleDateString('en-IN', { d
 function invoiceHtml(r: InvoiceRow): string {
   const s = r.seller;
   const b = r.buyer;
-  const plan = `DifAi ${planLabel(r.plan, r.seats, r.munshi_seats ?? 0)}, ${r.cycle === 'one-time' ? 'one-time purchase' : `billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`}`;
+  const billed = r.cycle === 'one-time' ? 'one-time purchase' : r.cycle === 'custom' ? 'for the service period' : `billed ${r.cycle === 'annual' ? 'yearly' : 'monthly'}`;
+  const plan = `DifAi ${r.line_label ?? planLabel(r.plan, r.seats, r.munshi_seats ?? 0)}, ${billed}`;
   const period = r.period_start || r.period_end ? `Service period: ${day(r.period_start)} – ${day(r.period_end)}` : '';
   const taxRows = r.igst_paise
     ? `<tr><td>IGST @ 18%</td><td class="n">${inr(r.igst_paise)}</td></tr>`
@@ -269,6 +275,6 @@ th{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#555;border-b
 <table class="totals"><tr><td>Taxable value</td><td class="n">${inr(r.taxable_paise)}</td></tr>${taxRows}
 <tr class="grand"><td>Total</td><td class="n">${inr(r.total_paise)}</td></tr></table>
 <div class="words">${esc(amountInWords(r.total_paise))}</div>
-<div class="foot">Paid online via Razorpay · Payment ID ${esc(r.razorpay_payment_id)}<br>This is a computer-generated invoice and does not require a signature.</div>
+<div class="foot">${r.payment_note ? `Paid by ${esc(r.payment_note)}` : `Paid online via Razorpay · Payment ID ${esc(r.razorpay_payment_id)}`}<br>This is a computer-generated invoice and does not require a signature.</div>
 </body></html>`;
 }

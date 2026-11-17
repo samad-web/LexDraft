@@ -1,4 +1,9 @@
 # Testing
+## Admin custom plan + manual payment — 2026-11-17 (features/admin-custom-plan.md)
+- `custom-plan.integration.test.ts` 12/12: AC1 plan fields + immediate 2000-credit balance, custom period end + MRR, <8 seats kept; AC2 invoice taxable = typed price, TN CGST+SGST, line label + payment note stored, listed for the firm, ₹0 complimentary (no invoice), payment required when priced; AC4 same key = 1 plan/1 payment/1 invoice; AC5 paid credits → grant + invoice, free → grant only, same key once; AC6 audit, bad dates, unknown firm 404, owner checkout refused 409 custom_plan_active.
+- Failures found and fixed: the seat-floor trigger lifted a 3-seat Enterprise deal to 8 when the tier became Firm → seats now set in a separate update (bare seats updates are kept, per 0113). 10 unit tests read invoice insert values by position from the end → new columns moved before the tax columns (tests unchanged).
+- Regression: api unit 1094 pass (+ share-links .env file); integration 116 pass + same 2 pre-existing; web 335 pass; api + web tsc clean.
+
 ## Admin AI spend guard — 2026-11-17 (features/admin-ai-spend-guard.md)
 - Step 0 (prod, read-only): ai_token_usage, credit_ledger and ai_generations are all 0 rows ever, so the "0 AI tokens" tile is correct (no AI use on prod yet), not a recording bug.
 - `ai-spend.test.ts` 5/5: Anthropic cost parsing (cents strings, exact sums, bad rows skipped), UTC month start, pause backstop cache.

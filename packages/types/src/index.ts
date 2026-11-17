@@ -1351,6 +1351,7 @@ export type AuditAction =
   | 'free_plan.switch.update'
   | 'firm.credits.grant'
   | 'firm.ai.paused'
+  | 'firm.custom_plan.set'
   | 'firm.ai.resumed'
   | 'platform.ai.paused'
   | 'platform.ai.resumed'

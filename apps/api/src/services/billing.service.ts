@@ -331,7 +331,8 @@ export const billingService = {
         renewsAt: u.renews_at ? new Date(u.renews_at).toISOString() : null,
         billingCycle: u.billing_cycle,
         selectedPlan: u.selected_plan,
-        subscribed: u.plan_status === 'active' && !u.free_plan && isPaidPlan(u.selected_plan),
+        // A custom (Enterprise) plan recorded by DifAi counts as paid, like a checkout.
+        subscribed: u.plan_status === 'active' && !u.free_plan && (isPaidPlan(u.selected_plan) || u.selected_plan === 'enterprise'),
         seats: u.seats ?? 1,
         munshiSeats: u.munshi_seats ?? 0,
       },
@@ -356,6 +357,10 @@ export const billingService = {
     if (!u.firm_id) throw new BadRequestError('Your account is not attached to a practice.');
     if (!OWNER_ROLES.has(u.role)) {
       throw new ForbiddenError('Only the account owner can change the plan.', { code: 'billing_owner_only' });
+    }
+    // A custom plan agreed with DifAi is changed by DifAi, never overwritten by a checkout.
+    if (u.selected_plan === 'enterprise' && u.plan_status === 'active' && u.renews_at && new Date(u.renews_at) > new Date()) {
+      throw new HttpError(409, 'Your practice is on a custom plan agreed with DifAi. Contact DifAi to change it.', { code: 'custom_plan_active' });
     }
     if (!paymentsEnabled()) {
       throw new HttpError(503, 'Online payment is not switched on yet. Please try again later.', { code: 'payments_disabled' });

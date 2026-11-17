@@ -1,6 +1,6 @@
 # Feature: Custom plan with manual payment + GST invoice (admin)
 
-Status: **design, awaiting owner approval (2026-11-17).**
+Status: **built 2026-11-17 (branch feat/admin-console-v2), not deployed.** As built: tier Firm + seats set in a second update (seat-floor trigger); payment modes upi / bank_transfer / cheque / cash; firm's own billing page counts an active custom plan as subscribed.
 
 ## Purpose
 - Enterprise / special deals: the owner types the price and credits for a firm, records the offline payment, and DifAi issues the GST invoice — no Razorpay checkout.

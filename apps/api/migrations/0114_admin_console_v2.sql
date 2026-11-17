@@ -19,3 +19,10 @@ alter table firms add column if not exists custom_plan_name text;
 --    null = no cap. Half-credit steps like the rest of the ledger.
 alter table users add column if not exists credit_cap_month numeric(9,1)
   check (credit_cap_month is null or credit_cap_month >= 0);
+
+-- 5. Manual (offline) payments for custom plans and paid credit top-ups
+--    (admin-custom-plan): how it was paid, kept on the billing event and printed
+--    on the GST invoice; the invoice line can carry the custom plan's name.
+alter table billing_events add column if not exists note text;
+alter table subscription_invoices add column if not exists line_label text;
+alter table subscription_invoices add column if not exists payment_note text;

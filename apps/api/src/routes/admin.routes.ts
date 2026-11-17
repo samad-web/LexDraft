@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { customPlanService } from '../services/custom-plan.service';
 import { aiSpendService } from '../services/ai-spend.service';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -184,25 +185,50 @@ adminRouter.get('/firms/:id/credits', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+const ManualPaymentSchema = z.object({
+  mode: z.enum(['upi', 'bank_transfer', 'cheque', 'cash']),
+  reference: z.string().trim().min(1).max(100),
+  receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+}).strict();
+
 const GrantCredits = z.object({
-  amount: z.number().min(0.5).max(1000).refine((n) => Number.isInteger(n * 2), 'in half credits'),
+  /** Form-generated key: a double submit grants once. Old clients omit it. */
+  key: z.string().uuid().optional(),
+  amount: z.number().min(0.5).max(100_000).refine((n) => Number.isInteger(n * 2), 'in half credits'),
   note: z.string().trim().min(3).max(300),
-  days: z.number().int().min(1).max(365).default(30),
+  days: z.number().int().min(1).max(730).default(30),
+  /** Sold for an offline payment: whole rupees ex-GST; a GST invoice is issued. */
+  paidInr: z.number().int().min(1).max(10_000_000).optional(),
+  payment: ManualPaymentSchema.optional(),
 }).strict();
 adminRouter.post('/firms/:id/credits', async (req, res, next) => {
   try {
     const body = GrantCredits.parse(req.body);
     const firmId = z.string().uuid().parse(req.params.id);
-    const ref = `admin:${crypto.randomUUID()}`;
-    await creditService.addGrant({
-      firmId, source: 'admin', amount: body.amount, ref, note: body.note, createdBy: req.user!.id,
-      expiresAt: new Date(Date.now() + body.days * 86_400_000),
-    });
-    await auditService.write({
-      actorUserId: req.user!.id, actorEmail: req.user!.email, action: 'firm.credits.grant',
-      targetType: 'firm', targetId: firmId, payload: { amount: body.amount, days: body.days, note: body.note, ref },
-    });
-    res.status(201).json(await creditService.balance(firmId));
+    const r = await customPlanService.grantCredits(firmId, { ...body, key: body.key ?? crypto.randomUUID() }, { id: req.user!.id, email: req.user!.email });
+    res.status(201).json({ ...(await creditService.balance(firmId)), invoiceId: r.invoiceId });
+  } catch (err) { next(err); }
+});
+
+// ---- custom (Enterprise) plan with an offline payment (admin-custom-plan.md) --
+
+const CustomPlan = z.object({
+  key: z.string().uuid(),
+  name: z.string().trim().min(2).max(80),
+  seats: z.number().int().min(1).max(500),
+  munshiSeats: z.number().int().min(0).max(100),
+  creditsPerMonth: z.number().min(0).max(100_000).refine((n) => Number.isInteger(n * 2), 'in half credits'),
+  priceInr: z.number().int().min(0).max(10_000_000),
+  cycle: z.enum(['monthly', 'annual', 'custom']),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  payment: ManualPaymentSchema.nullable(),
+}).strict();
+adminRouter.post('/firms/:id/custom-plan', async (req, res, next) => {
+  try {
+    const body = CustomPlan.parse(req.body);
+    const firmId = z.string().uuid().parse(req.params.id);
+    res.status(201).json(await customPlanService.apply(firmId, body, { id: req.user!.id, email: req.user!.email }));
   } catch (err) { next(err); }
 });
 
