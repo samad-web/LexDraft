@@ -9,6 +9,7 @@ import { ConfirmProvider } from './components/ConfirmDialog';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { initNative } from './lib/native';
 import { initLock } from './lib/app-lock';
+import { initStaleChunkReload } from './lib/stale-chunk';
 import { AppLock } from './components/AppLock';
 import { Splash } from './components/Splash';
 import { uiFor } from './lib/chambers';
@@ -24,6 +25,7 @@ import './styles/chambers/firm.css';
 
 hydrateUIAttributes();
 document.documentElement.dataset.ui = uiFor(window.location.pathname);
+initStaleChunkReload();
 initNative();
 initLock();
 

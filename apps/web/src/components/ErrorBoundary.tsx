@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { ErrorState } from '@lexdraft/ui';
+import { reloadForStaleChunk } from '@/lib/stale-chunk';
 
 /**
  * Top-level safety net for uncaught render-time exceptions anywhere in the
@@ -27,6 +28,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
+    // A screen's code file from before a deploy is gone: reload once to get the new ones.
+    if (reloadForStaleChunk(error)) return;
     // eslint-disable-next-line no-console
     console.error('Unhandled render error caught by ErrorBoundary:', error, info.componentStack);
   }

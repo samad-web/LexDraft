@@ -1,4 +1,7 @@
 # Testing
+## Stale-chunk reload — 2026-11-17
+- `stale-chunk.test.ts` 5/5 (recognises the browser messages, reloads once, no loop within 30 s, retries after, ignores other errors). Web 391 pass, tsc clean.
+
 ## Credits, not pages — 2026-11-17 (features/credits-not-pages.md)
 - New: `credits-not-pages.integration.test.ts` 5/5 (AC1 estimate by type / all / 2, LIKE chars escaped, pool below estimate → 402; AC5 levels, 20% then 0 → one bell + one WhatsApp each, no repeat, nothing above 20%); web `credits-low-banner.test.ts` 4/4.
 - Rewritten because the owner retired page locking (old tests asserted locks): credits.integration "pages past the balance are locked" → AC2 delivered whole + absorbed logged, AC3 under half → 402 nothing stored, AC4 growing re-render → 402 draft unchanged, streamed draft absorbed, old locked draft still firm-scoped; per-user-usage cap test → cap never absorbed (402 user_cap_reached, incl. streamed); ai-credits stream unit test → full text, no lock event; play-sign-in-only AC12 expects the new website line "Buy credits to continue now." (app still has no buy wording/button).
