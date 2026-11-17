@@ -1,4 +1,7 @@
 # Testing
+## One sign-in card — 2026-11-17
+- web play-sign-in-only: the 2 Firm-tab tests replaced (owner retired the tabs) by 3 one-card tests (no tabs, one Create your account, Talk to us for 9+, sign-up steps say the plan is chosen next, startTrial opens Google and records no plan, app shows no links); AC4 heading regex → "Create your account". onboarding-plan-once 3/3 still pass. Web 410 pass, tsc clean.
+
 ## Plan chosen once — 2026-11-17
 - web `onboarding-plan-once.test.tsx` 3/3: Firm pre-picked → "Your plan", Firm card only, Change plan, rail "Firm: ₹3,699 + GST a month"; nothing picked → "Choose your plan" with 3 plans; no "400-word page". 2 of 3 fail on the old screen (checked by stashing). play-sign-in-only promptGoogle source check window widened 400 → 900 chars (startTrial grew by the saveIntro line; what it checks is unchanged). Web 410 pass, tsc clean.
 

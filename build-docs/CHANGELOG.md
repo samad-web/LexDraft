@@ -1,4 +1,6 @@
 # Changelog
+- One sign-in card (2026-11-17, owner approved Claude's recommendation): the Advocate / Chambers / Firm tabs are gone from the sign-in page. One card: email + password, Google, "New to DifAi? Create your account" (opens Google at once), "Nine or more advocates? Talk to us". The plan is chosen only on the plan page after sign-up (or pre-picked by "Start with …" on pricing and confirmed there).
+
 - DEPLOYED 2026-11-17 (77e18af, web only): plan chosen once. Google client id and the new "Not the right plan?" text present in the live build; no API change.
 
 - Plan chosen once (2026-11-17, owner: "we give the option to choose twice"): the plan is picked on the sign-in tab (Create account on Advocate / Chambers / Firm) or by "Start with …" on pricing; onboarding step 1 then shows "Your plan" (that card, monthly/yearly, Munshi seats, price) with "Change plan" instead of the three-plan grid. Left rail shows the chosen plan's price. Removed leftover "1 credit = one 400-word page" and the "payment opens soon, free until then" note; Advocate card says "Practice analytics".

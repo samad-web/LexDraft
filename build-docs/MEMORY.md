@@ -80,6 +80,8 @@
 
 - 2026-11-17 — Owner: the plan is chosen once in the sign-up flow (sign-in tab or pricing "Start with …"); onboarding confirms it with "Change plan" instead of asking again.
 
+- 2026-11-17 — Owner approved: the sign-in page has no plan tabs (replaces 18bdb26 "sign-in tabs Advocate · Chambers · Firm"). The plan is chosen once, on the plan page; pricing "Start with …" pre-picks it.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

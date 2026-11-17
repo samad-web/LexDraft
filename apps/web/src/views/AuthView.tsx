@@ -20,7 +20,6 @@ import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppV
 import { Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
-import { readIntro, saveIntro } from '@/lib/intro';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
 import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
@@ -34,14 +33,6 @@ import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
 type AuthTab = 'signin' | 'signup';
 type Role = 'solo' | 'student' | 'group' | 'firm';
-type Audience = 'advocate' | 'chambers' | 'firm';
-
-/** Left-panel tabs: who DifAi is for, with the line shown under them. */
-const AUDIENCES: { id: Audience; label: string; tagline: string }[] = [
-  { id: 'advocate', label: 'Advocate', tagline: 'Your hearings, drafts and matters in one app.' },
-  { id: 'chambers', label: 'Chambers', tagline: 'Up to three advocates sharing matters, diary and drafts.' },
-  { id: 'firm', label: 'Firm', tagline: 'Matters, team, hearings and billing for up to eight advocates, or more on Enterprise.' },
-];
 
 
 /** Sign-in refused because the trial / plan ended: the owner gets a token to
@@ -141,39 +132,20 @@ export function AuthView() {
   const [enquiryMessage, setEnquiryMessage] = useState('');
   const [firmEnquirySent, setFirmEnquirySent] = useState(false);
 
-  // Who is signing in (the left tabs follow the plans: advocate = Advocate,
-  // chambers = Chambers for up to 3, firm = Firm for up to 8 / Enterprise 9+).
-  // Changes the copy and the "new here" link: an advocate or chambers
-  // account, or a talk-to-us enquiry for a firm. The pick pre-selects the
-  // plan in onboarding.
-  const [audience, setAudience] = useState<Audience>(() => {
-    const intro = readIntro();
-    return intro.size === 'team' ? 'chambers' : intro.size === 'firm' ? 'firm' : 'advocate';
-  });
-  const chooseAudience = (a: Audience) => {
-    setAudience(a);
-    saveIntro({ kind: 'advocate', size: a === 'advocate' ? 'solo' : a === 'chambers' ? 'team' : 'firm' });
-  };
   // Email + password sign-in; Google is offered underneath.
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
-  const firmSide = audience === 'firm' || (tab === 'signup' && role === 'firm');
-  const shownAudience: Audience = firmSide ? 'firm' : audience;
   const handleGoogleCredentialRef = useRef<((credential: string) => void) | null>(null);
-  // The price of the plan this tab sells (shared plan catalogue).
-  const tabPlan = SIGNUP_PLANS.find((p) => p.id === (audience === 'firm' ? 'law_firm' : audience === 'chambers' ? 'chambers' : 'advocate'));
-  const freeLine = tabPlan?.monthlyInr ? `${tabPlan.name}: ${inr(tabPlan.monthlyInr)} + GST a month` : 'Plans from ₹699 + GST a month';
+  // The plan is chosen once, on the plan page after sign-up (owner 2026-11-17).
+  const freeLine = 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     if (native) return;
     setMfaChallenge(null); setGoogleSignup(null); 
     setRole(preset); setStep(0); setTab('signup');
-    // The tab they create the account from is their plan choice (chosen once;
-    // onboarding confirms it instead of asking again).
-    saveIntro({ kind: 'advocate', size: audience === 'firm' ? 'firm' : audience === 'chambers' ? 'team' : 'solo' });
     // Straight into Google's account chooser (owner 2026-11-17: "by tapping
     // create account it should go"); the big Google button is the fallback.
     void promptGoogle((credential) => handleGoogleCredentialRef.current?.(credential));
@@ -315,25 +287,9 @@ export function AuthView() {
           <div className="auth-art-brand">
             <Wordmark height={26} />
           </div>
-          {/* Hidden once someone is mid-way (WhatsApp code, Google sign-up,
-              two-step code): switching audience there would throw the step away. */}
-          {!googleSignup && !mfaChallenge ? (
-            <nav className="auth-side-tabs" aria-label="Who is signing in">
-              {AUDIENCES.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`auth-side-tab${shownAudience === a.id ? ' is-active' : ''}`}
-                  aria-current={shownAudience === a.id ? 'page' : undefined}
-                  onClick={() => { backToStart(); chooseAudience(a.id); }}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </nav>
-          ) : <span />}
+          <span />
           <p className="auth-art-tagline">
-            {AUDIENCES.find((a) => a.id === shownAudience)!.tagline}
+            For advocates, chambers and firms: matters, hearings, drafting and billing in one place.
           </p>
         </aside>
         <div className="auth-main">
@@ -405,7 +361,7 @@ export function AuthView() {
             <div style={{ textAlign: 'center' }}>
               <h1 className="auth-title">Sign in</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                {audience === 'firm' ? 'Welcome back to your firm.' : audience === 'chambers' ? 'Welcome back to your chambers.' : 'Welcome back to your practice.'}
+                Welcome back.
               </p>
             </div>
             <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -415,7 +371,7 @@ export function AuthView() {
                   type="email"
                   inputMode="email"
                   autoComplete="username"
-                  placeholder={audience !== 'advocate' ? 'Work email' : 'Email'}
+                  placeholder="Email"
                   aria-label="Email"
                   required
                   value={signinEmail}
@@ -476,7 +432,7 @@ export function AuthView() {
                 !native && (signIn.error as { response?: { data?: { code?: string } } }).response?.data?.code === 'account_not_found' ? (
                   <div role="alert" style={noticeStyle}>
                     No DifAi account uses this email.{' '}
-                    <button type="button" className="auth-link" onClick={() => startTrial(audience === 'advocate' ? null : 'group')}>
+                    <button type="button" className="auth-link" onClick={() => startTrial()}>
                       Create your account
                     </button>
                   </div>
@@ -506,14 +462,8 @@ export function AuthView() {
             )}
             {!native && (<>
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
-              {audience === 'firm' ? (
-                <>New firm on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your firm account</button>
-                  <br />Nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button></>
-              ) : audience === 'chambers' ? (
-                <>New chambers on DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial('group')}>Create your chambers’ account</button></>
-              ) : (
-                <>New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button></>
-              )}
+              New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button>
+              <br />Nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button>
             </p>
             <button
               type="button"
@@ -533,7 +483,7 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && !googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
+              <h1 className="auth-title">Create your account</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {`${freeLine}.`}
               </p>
@@ -548,12 +498,12 @@ export function AuthView() {
             <ol className="body-sm" style={{ margin: '0 auto', paddingLeft: 18, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               <li>Continue with Google</li>
               <li>Verify your WhatsApp number with a code</li>
-              <li>Add your {audience === 'advocate' ? 'practice' : audience === 'chambers' ? 'chambers' : 'firm'} details and agree to the Terms</li>
+              <li>Choose your plan, add your practice details and agree to the Terms</li>
               <li>Pay for your plan and start</li>
             </ol>
             {googleSignIn.isError && <div role="alert" style={noticeStyle}>{(googleSignIn.error as Error | null)?.message ?? 'Google sign-up failed.'}</div>}
             <p className="body-sm" style={{ textAlign: 'center', margin: 0, color: 'var(--text-secondary)' }}>
-              Already have {audience !== 'advocate' ? 'a practice' : 'an account'}?{' '}
+              Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>
           </div>
@@ -565,7 +515,7 @@ export function AuthView() {
         {tab === 'signup' && step === 0 && googleSignup && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
-              <h1 className="auth-title">{audience === 'chambers' ? 'Create chambers account' : audience === 'firm' ? 'Create firm account' : 'Create account'}</h1>
+              <h1 className="auth-title">Create your account</h1>
               <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
                 {`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}
               </p>

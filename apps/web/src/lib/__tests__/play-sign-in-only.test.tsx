@@ -87,7 +87,7 @@ describe('gap 2: sign-up and onboarding', () => {
 
     env.native = false;
     const web = render(<AuthView />, '/auth?signup=1');
-    expect(web).toMatch(/Create (account|chambers account|firm account)</);
+    expect(web).toMatch(/Create your account</); // one sign-in card since 2026-11-17 (no plan tabs)
   });
 
   it('AC5: website sign-in keeps its "Create your account" and "Book a demo" links', () => {
@@ -265,8 +265,9 @@ describe('server messages in the app (api.ts interceptor)', () => {
   });
 });
 
-describe('Firm tab on /auth (owner 2026-11-17: "for firm I am not able to create the account")', () => {
-  // Node test env has no localStorage: a tiny in-memory one for readIntro().
+// Owner 2026-11-17: the plan is chosen once, on the plan page. The sign-in page
+// is one card (no Advocate / Chambers / Firm tabs). Replaces the Firm-tab tests.
+describe('one sign-in card, plan chosen on the plan page', () => {
   const store = new Map<string, string>();
   beforeEach(() => {
     vi.stubGlobal('localStorage', {
@@ -277,32 +278,33 @@ describe('Firm tab on /auth (owner 2026-11-17: "for firm I am not able to create
   });
   afterEach(() => { store.clear(); vi.unstubAllGlobals(); });
 
-  it('website: the Firm tab offers "Create your firm account" (plan Firm, up to 8) and still "Talk to us" for nine or more', () => {
-    localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+  it('website /auth: no plan tabs; one "Create your account"; "Talk to us" only for nine or more', () => {
     env.native = false;
     const web = render(<AuthView />, '/auth');
-    expect(web).toContain('Create your firm account');
+    expect(web).not.toMatch(/auth-side-tab|Who is signing in|Create your (firm|chambers)/);
+    expect(web).toContain('Welcome back.');
+    expect(web).toContain('Create your account');
     expect(web).toContain('Nine or more advocates?');
     expect(web).toContain('Talk to us');
   });
 
-  it('website sign-up screen (owner: "by tapping create account it should go"): plan price per tab, Google up front, the steps', () => {
+  it('website sign-up screen: Google up front, plans from ₹699, the steps say the plan is chosen next', () => {
     env.native = false;
-    for (const [size, line] of [['firm', 'Firm: ₹3,699 + GST a month'], ['team', 'Chambers: ₹1,699 + GST a month'], ['solo', 'Advocate: ₹699 + GST a month']] as const) {
-      localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size }));
-      const web = render(<AuthView />, '/auth?signup=1');
-      expect(web, size).toContain(line);
-      expect(web).toContain('Verify your WhatsApp number with a code');
-      expect(web).not.toContain('Sign up with'); // the Google button is in the card, not hidden in the footer
-    }
-    // "Create account" opens Google's chooser straight away (One Tap / FedCM).
-    expect(src('views/AuthView.tsx')).toMatch(/const startTrial[\s\S]{0,900}promptGoogle\(/);
+    const web = render(<AuthView />, '/auth?signup=1');
+    expect(web).toContain('Create your account');
+    expect(web).toContain('Plans from ₹699 + GST a month');
+    expect(web).toContain('Verify your WhatsApp number with a code');
+    expect(web).toContain('Choose your plan, add your practice details and agree to the Terms');
+    expect(web).not.toContain('Sign up with');
+    const code = src('views/AuthView.tsx');
+    expect(code).toMatch(/const startTrial[\s\S]{0,900}promptGoogle\(/); // opens Google at once
+    // Creating an account no longer records a plan, so a "Start with …" pick from pricing is kept.
+    expect(code).not.toMatch(/saveIntro/);
   });
 
-  it('app: no create or talk-to-us link on the Firm tab', () => {
-    localStorage.setItem('difai-intro', JSON.stringify({ kind: 'advocate', size: 'firm' }));
+  it('app: no create or talk-to-us link', () => {
     env.native = true;
     const app = render(<AuthView />, '/auth');
-    expect(app).not.toMatch(/Create your firm account|Talk to us/);
+    expect(app).not.toMatch(/Create your account|Talk to us/);
   });
 });
