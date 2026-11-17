@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Icon, EmptyState, Skeleton, ErrorState } from '@lexdraft/ui';
 import type { Invitation, FirmManagedUser } from '@lexdraft/types';
 import { useUIStore } from '@/store/ui';
+import { isNativeApp } from '@/lib/google';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
 import { MemberProfileModal } from '@/components/MemberProfileModal';
 import {
@@ -97,7 +98,9 @@ export function MembersView() {
         <EmptyState
           icon="members"
           title="Members management isn't on your plan"
-          description="Chambers roll, roles, and invitations are available on Practice and Firm plans. Upgrade to add partners, associates, and counsel of record."
+          description={isNativeApp()
+            ? 'Chambers roll, roles, and invitations aren’t included in your plan.'
+            : 'Chambers roll, roles, and invitations are available on Practice and Firm plans. Upgrade to add partners, associates, and counsel of record.'}
         />
       ) : isGenuineError ? (
         <ErrorState

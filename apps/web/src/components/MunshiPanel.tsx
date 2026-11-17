@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useCancelInvitation, useInvitations } from '@/hooks/useInvitations';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
+import { isNativeApp } from '@/lib/google';
 
 interface MunshiMember { id: string; name: string; email: string; status: string }
 
@@ -58,7 +59,12 @@ export function MunshiPanel({ seats }: { seats: number }) {
       <button type="button" className="btn btn-primary btn-sm" disabled={full} onClick={() => setOpen(true)}>
         Invite your Munshi
       </button>
-      {full && <p className="body-sm muted">All Munshi seats are in use. Add a seat below, or remove someone first.</p>}
+      {full && (
+        <p className="body-sm muted">
+          {/* Android app: no seat purchase prompt (Play payments policy). */}
+          {isNativeApp() ? 'All Munshi seats are in use. Remove someone first.' : 'All Munshi seats are in use. Add a seat below, or remove someone first.'}
+        </p>
+      )}
       {(remove.isError || cancel.isError) && (
         <div role="alert" className="cm-error-line">{(remove.error ?? cancel.error)?.message}</div>
       )}

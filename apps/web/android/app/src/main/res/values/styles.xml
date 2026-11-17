@@ -22,5 +22,7 @@
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
         <item name="windowSplashScreenBackground">@android:color/white</item>
+        <!-- Android 12+ splash: the dark D on white (not the dark launcher tile). -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_mark</item>
     </style>
 </resources>

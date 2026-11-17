@@ -9,6 +9,7 @@ import { BriefPacks } from '@/components/BriefPacks';
 import { MunshiPanel } from '@/components/MunshiPanel';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
+import { NATIVE_COPY } from '@/lib/play-policy';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '-';
@@ -41,10 +42,12 @@ function planLabel(plan: string, advocates: number, munshi: number): string {
 const paymentPending = (c: BillingStateResponse['current']) =>
   c.planStatus === 'trial' && !c.freePlan && !c.subscribed && isPaidId(c.selectedPlan);
 
-function statusLine(c: BillingStateResponse['current']): string {
+/** Android app: status only, never "pay" (Play payments policy). */
+export function statusLine(c: BillingStateResponse['current']): string {
   const id = currentPlanId(c);
   const name = id ? PLAN_NAME[id] ?? id : '';
   if (c.freePlan) return `Free plan · free till ${formatDate(c.trialEndsAt)}`;
+  if (isNativeApp() && (paymentPending(c) || c.planStatus === 'past_due')) return `${name} · ${NATIVE_COPY.planInactive}`;
   if (paymentPending(c)) return `${name} · payment not finished yet. Pay below to keep using DifAi.`;
   if (c.planStatus === 'trial') return `${name} trial · ends ${formatDate(c.trialEndsAt)}`;
   if (c.planStatus === 'past_due') return `${name} · payment due. Update your payment to keep access.`;
@@ -226,7 +229,7 @@ export function BillingView() {
             </div>
             <div>
               <div className="cm-label">
-                {data.current.freePlan ? 'Free until' : paymentPending(data.current) ? 'Pay by' : data.current.planStatus === 'trial' ? 'Trial ends' : 'Paid until'}
+                {data.current.freePlan ? 'Free until' : paymentPending(data.current) ? (native ? 'Ends' : 'Pay by') : data.current.planStatus === 'trial' ? 'Trial ends' : 'Paid until'}
               </div>
               <div className="cm-current-v">
                 {formatDate(data.current.planStatus === 'trial' || data.current.freePlan ? data.current.trialEndsAt : data.current.renewsAt)}
@@ -254,7 +257,8 @@ export function BillingView() {
             <MunshiPanel seats={data.current.munshiSeats} />
           )}
 
-          {data.canManage && <SubscriptionInvoices />}
+          {/* Android app: no amounts in rupees (Play payments policy). */}
+          {data.canManage && !native && <SubscriptionInvoices />}
 
           {/* Android app: plan status only. No plan picker or checkout until Play
               Billing exists (Play payments policy). */}
@@ -322,9 +326,9 @@ const STATUS_WORD: Record<string, string> = {
   cancelled: 'Cancelled',
 };
 
-function daysLeftNote(c: BillingStateResponse['current']): string {
+export function daysLeftNote(c: BillingStateResponse['current']): string {
   const iso = c.planStatus === 'trial' || c.freePlan ? c.trialEndsAt : c.renewsAt;
-  if (!iso) return c.planStatus === 'cancelled' ? 'Pick a plan to continue' : '—';
+  if (!iso) return c.planStatus === 'cancelled' && !isNativeApp() ? 'Pick a plan to continue' : '—';
   const days = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
   if (Number.isNaN(days)) return '—';
   if (days < 0) return 'Ended';

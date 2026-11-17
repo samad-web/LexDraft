@@ -78,6 +78,6 @@ export function LandingHeader({ tabs, activeTab, onTabChange, onSignIn, onTrial 
   );
 }
 
-export function BrandMark({ height = 24 }: { height?: number }) {
+export function BrandMark({ height = 28 }: { height?: number }) {
   return <Wordmark height={height} />;
 }

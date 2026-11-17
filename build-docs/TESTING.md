@@ -26,6 +26,20 @@
 - Failures found and fixed: month-to-date window ended at JS `now` (ms) and dropped rows written in the same ms (Postgres µs) → window is now the whole UTC month. Audit test read rows left by an earlier test → scoped to its own start time (test bug).
 - 0114 run twice in a rolled-back schema: idempotent.
 - Regression: api unit 1094 pass (share-links.test.ts can't load in a fresh worktree: reads gitignored apps/api/.env); integration 104 pass + 2 pre-existing (auth "role=group Practice-tier", migrations idempotency stops at 0042 cases_kind_check); web 335 pass; api + web tsc clean.
+## Play sign-in only — 2026-11-17 (features/play-sign-in-only.md)
+- New `play-sign-in-only.test.tsx` 22/22 (AC1–AC22): each surface rendered with Capacitor mocked native and web; interceptor rewrite tested on the real axios handler. First run: 2 failures from the test harness (zustand server render reads the store's initial state), fixed in the test, no logic change.
+- Web 33 files / 368 pass, tsc clean; SEO 174 pass; vite build ok. API not touched.
+- Visual (headless Chromium, built app, /api stubbed 401, `CapacitorCustomPlatform=android`): welcome, /auth, /signup (-> welcome), /auth?signup=1 (-> Sign in), /auth?reason=plan_expired (neutral banner), 390 wide; web versions unchanged (Create account / Book a demo / renew banner present).
+
+## New logo v2 (symbol is the D) — 2026-11-17
+- `brand-logo.test.tsx` rewritten 12/12: one D only (no lettered D anywhere: app, index, favicon, offline, SEO), ifAi offset = 101.5 + 9 - 104.18, 16 px minimum, motion classes, decorative mode. gst-invoices header test updated (symbol D + translate, no lettered D).
+- Web 32 files / 346 pass, tsc clean; SEO 174 pass; vite build + prerender ok; API 1090 pass (share-links known), api tsc clean.
+- Looked at: design study of scales/gaps at 96/36/22/16 px light + dark; landing header light/dark desktop + phone; sign-in; splash end frame; app sidebar + tour; SEO header; invoice header; og-image; owner's usage guide (light + dark) and full-*@2x.png.
+
+## New logo — 2026-11-17 (features/new-logo.md)
+- New `brand-logo.test.tsx` 10/10 (lockups render named "DifAi" in currentColor, small-size drawing, motion classes + reduced motion, old geometry gone, favicon/apple/JSON-LD links and PNG sizes, offline + SEO copies). `page-loader.test.tsx` updated for the loader motion (3/3). API: gst-invoices header test added.
+- Web suite 32 files / 345 pass (incl. the new file), tsc clean; SEO tests 174 pass; vite build + prerender ok. API suite 1090 pass, only share-links fails (known: needs apps/api/.env); api tsc clean.
+- Visual (headless Chromium, built app, API stubbed): landing header, intro modal, sign-in, splash mid/end, boot loader, app shell sidebar + rail, SEO page, offline page, invoice header, favicon at 16/32 px — light and dark, 1366 and 390 wide. Found: splash logo ignored its CSS width (inline width:auto from the component); fixed with !important on .splash-word.
 
 ## Landing pricing cards — 2026-11-16
 - `landing-pricing.test.ts` 4/4 (tab scrolls on-page, section renders SIGNUP_PLANS with the cycle switch, phone button, footer link). Web suite 335 pass, tsc clean, vite build ok.
@@ -495,3 +509,6 @@
     - web 331 passed (incl. 174 SEO);
     - tsc clean for API and web.
 - 0113 applied to the local dev DB (no v4 rows there).
+
+## android-new-logo (2026-11-17)
+- Built signed AAB + APK 2.3 (code 14). aapt2: package in.sirahdigital.difai, 14/2.3; apksigner/keytool: upload key SHA-1 40:69:AF:...:92:0C. Extracted AAB res: new D paths in ic_launcher_mark, old wordmark path absent, legacy PNGs viewed at 48-192 px; adaptive icon previewed at 48/96/192 in circle + squircle masks. Play internal upload OK. Not device-tested.

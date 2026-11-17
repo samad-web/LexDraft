@@ -256,14 +256,14 @@ function invoiceHtml(r: InvoiceRow): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>
 *{box-sizing:border-box}body{font-family:'Noto Sans','Liberation Sans',Arial,sans-serif;color:#111;font-size:11px;margin:0}
 .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #111;padding-bottom:12px}
-.brand{font-size:26px;font-weight:800;letter-spacing:-.5px}.title{text-align:right}.title h1{margin:0;font-size:16px;letter-spacing:2px}
+.brand svg{display:block;height:24px;width:auto;margin-bottom:4px}.title{text-align:right}.title h1{margin:0;font-size:16px;letter-spacing:2px}
 .muted{color:#555}.grid{display:flex;gap:24px;margin:16px 0}.grid>div{flex:1}.label{font-size:9px;letter-spacing:1.5px;color:#555;text-transform:uppercase;margin-bottom:4px}
 table{width:100%;border-collapse:collapse;margin-top:8px}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}
 th{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#555;border-bottom:1px solid #111}.n{text-align:right;white-space:nowrap}
 .totals{width:46%;margin-left:auto}.totals td{border:none;padding:4px 8px}.grand td{border-top:2px solid #111;font-weight:700;font-size:13px;padding-top:8px}
 .words{margin-top:10px;padding:8px;border:1px solid #111}.foot{margin-top:28px;border-top:1px solid #ddd;padding-top:10px;color:#555;font-size:9.5px}
 </style></head><body>
-<div class="top"><div><div class="brand">DifAi</div><div class="muted">by ${esc(s.tradeName || s.legalName)}</div></div>
+<div class="top"><div><div class="brand"><svg viewBox="0 -1.5 272.32 101.5" fill="#111" role="img" aria-label="DifAi"><path d="M0 0H50C80.9 0 101.5 20 101.5 50C101.5 80 80.9 100 50 100H0ZM17 15H50C71.3 15 85.5 29 85.5 50C85.5 71 71.3 85 50 85H17Z" fill-rule="evenodd"/><path d="M29 28H68V39H29Z"/><path d="M29 46H76V57H29Z"/><path d="M29 64H44V75H29Z"/><path d="M51 60H59V79H51Z"/><g transform="translate(6.32 0)"><path d="M111.18 30H111.18A7 7 0 0 1 118.18 37V93A7 7 0 0 1 111.18 100H111.18A7 7 0 0 1 104.18 93V37A7 7 0 0 1 111.18 30Z"/><path d="M103.2 6.98A7.98 7.98 0 1 0 119.16 6.98A7.98 7.98 0 1 0 103.2 6.98Z"/><path d="M137.08 100V21.7A21.7 21.7 0 0 1 158.78 0H165.78V12.88H158.78A7.7 8.82 0 0 0 151.08 21.7V100Z"/><path d="M125.18 30H167.18V41.48H125.18Z"/><path d="M156.68 100L195.8 -1.5H207.56L171.52 100Z"/><path d="M229.6 100L195.8 -1.5H207.56L246.68 100Z"/><path d="M178.47 63H223.34V74.2H178.47Z"/><path d="M259 30H259A7 7 0 0 1 266 37V93A7 7 0 0 1 259 100H259A7 7 0 0 1 252 93V37A7 7 0 0 1 259 30Z"/><path d="M252 -1H266V15.8H252Z"/></g></svg></div><div class="muted">by ${esc(s.tradeName || s.legalName)}</div></div>
 <div class="title"><h1>TAX INVOICE</h1><div>Invoice No: <b>${esc(r.invoice_no)}</b></div><div>Date: ${esc(day(r.issued_at))}</div></div></div>
 <div class="grid">
 <div><div class="label">Supplier</div><b>${esc(s.tradeName || s.legalName)}</b>${s.tradeName ? `<br>(Proprietor: ${esc(s.legalName)})` : ''}<br>${esc(s.address)}<br>GSTIN: <b>${esc(s.gstin)}</b><br>State: ${esc(s.state)}${s.email ? `<br>${esc(s.email)}` : ''}${s.phone ? ` · ${esc(s.phone)}` : ''}</div>

@@ -10,7 +10,7 @@ User request 2026-11-04: changes should reach the Play Store app automatically. 
 - Capacitor injects the native bridge into the remote page, so `isNativePlatform()`, plugins (Google sign-in, biometric lock, dictation, share, filesystem, back button) keep working.
 
 ## Impact map
-- capacitor.config.ts, public/offline.html (also served on the website, harmless), android build.gradle (2.2, code 13).
+- capacitor.config.ts, public/offline.html (also served on the website, harmless), android build.gradle (2.2, code 13; now 2.3, code 14 = new logo icons).
 - API: app origin moves from https://localhost to the site origin, so CORS no longer applies; keep https://localhost in CORS_ORIGINS for old APKs.
 - localStorage is per origin: users are signed out once after updating to 2.2 (the token, app-lock and UI prefs lived under https://localhost).
 - Deploys now change the app instantly: a broken web deploy breaks every phone (no rollback).

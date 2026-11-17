@@ -1,102 +1,151 @@
 // =============================================================================
-// DifAi brand: the wordmark and the mark.
+// DifAi brand: the "Draft Lines" logo (approved 2026-11-16, build-docs/features/new-logo.md).
 //
-// The logo is the user's own artwork, traced 1:1 into vectors: a heavy
-// geometric "D" followed by "ifAi" in an even sans, flat ink, no tile.
-// `Wordmark` is the full logo; `LogoMark` is the D on its own, for square
-// spots (collapsed sidebar rail). Both draw in `currentColor` unless an ink is
-// given, so they follow the UI's light/dark tokens.
-// Geometry is shared with apps/web/public/favicon.svg and the Android
-// launcher icons (android/app/src/main/res/drawable/ic_launcher_*.xml).
+// The symbol is a D outline with three ragged text lines and a cursor bar.
+// The symbol IS the D of the word (owner, 2026-11-17): the wordmark is the
+// symbol at cap height on the baseline, then the hand-built "ifAi" (the last
+// i-dot is the cursor), kerned like a letter pair so it reads "DifAi".
+// Two lockups, picked by space (owner's usage guide):
+//   Wordmark  - "DifAi" with the symbol as its D: everywhere there is room
+//               for a word (header, sidebar, sign-in, splash). Min 16 px tall.
+//               `motion` plays the signature animation once.
+//   LogoMark  - symbol only: collapsed rail, avatars. Under 24 px it switches
+//               to the pixel-drawn favicon drawing.
+//   LogoLoader - the symbol's signature motion, looping, for loading states.
+// Everything draws in currentColor, so it follows the light/dark theme.
+// The same geometry is copied into index.html (boot loader),
+// public/favicon.svg, public/offline.html, seo/render.mjs and the API's GST
+// invoice; tests keep those copies in step with this file.
 // =============================================================================
+
+import type { CSSProperties } from 'react';
 
 export const BRAND_NAME = 'DifAi';
 
-/** Traced from the brand artwork; viewBox 0 0 758 266, cap height 262 (y 4-266). */
-export const BRAND_PATHS = {
-  d: 'M0 4H129C208.5 4 261.5 56.4 261.5 135C261.5 213.6 208.5 266 129 266H0Z'
-    + 'M88 72V196H122C151.3 196 172.5 170 172.5 134C172.5 98 151.3 72 122 72Z',
-  i1: 'M291 77H329.5V266H291Z',
-  i1Dot: { cx: 310, cy: 23.5, r: 24.5 },
-  f: 'M385.5 266V71C385.5 26 412 0 452 0C465 0 477 2 488.5 5L479 37C470 33.5 462 32 453 32C433 32 423.5 43 423.5 66V266Z',
-  fBar: 'M352 78H473.5V110H352Z',
-  a: 'M560 4H600L697.5 266H656L633.5 201.5H525.5L503 266H463Z M579.5 48L536.5 170H622.5Z',
-  i2: 'M720 77H757.5V266H720Z',
-  i2Dot: { cx: 738.5, cy: 23.5, r: 24.5 },
+/** Symbol, master drawing on a 100-unit grid (viewBox 0 0 101.5 100). Cap height 100. */
+export const ICON = {
+  frame: 'M0 0H50C80.9 0 101.5 20 101.5 50C101.5 80 80.9 100 50 100H0ZM17 15H50C71.3 15 85.5 29 85.5 50C85.5 71 71.3 85 50 85H17Z',
+  lines: ['M29 28H68V39H29Z', 'M29 46H76V57H29Z', 'M29 64H44V75H29Z'],
+  cursor: 'M51 60H59V79H51Z',
 };
 
-/** The bold D alone, square. */
-export function LogoMark({
-  size = 24,
-  ink = 'currentColor',
-  title,
-  className,
-}: {
-  size?: number;
-  ink?: string;
-  /** Accessible name; omit when the wordmark is next to it. */
-  title?: string;
-  className?: string;
-}) {
+/** Symbol drawn on whole pixels for 16-23 px (viewBox 0 0 16 16, = public/favicon.svg). */
+export const ICON_16 = {
+  frame: 'M1 1H8A7 7 0 0 1 8 15H1ZM3 3V13H8A5 5 0 0 0 8 3Z',
+  lines: ['M5 5H10V7H5Z', 'M5 9H7V11H5Z'],
+  cursor: 'M9 8H11V12H9Z',
+};
+
+/** "ifAi" on the same grid (baseline 100, cap 0); its i stem starts at x 104.18. */
+export const IFAI = [
+  'M111.18 30H111.18A7 7 0 0 1 118.18 37V93A7 7 0 0 1 111.18 100H111.18A7 7 0 0 1 104.18 93V37A7 7 0 0 1 111.18 30Z',
+  'M103.2 6.98A7.98 7.98 0 1 0 119.16 6.98A7.98 7.98 0 1 0 103.2 6.98Z',
+  'M137.08 100V21.7A21.7 21.7 0 0 1 158.78 0H165.78V12.88H158.78A7.7 8.82 0 0 0 151.08 21.7V100Z',
+  'M125.18 30H167.18V41.48H125.18Z',
+  'M156.68 100L195.8 -1.5H207.56L171.52 100Z',
+  'M229.6 100L195.8 -1.5H207.56L246.68 100Z',
+  'M178.47 63H223.34V74.2H178.47Z',
+  'M259 30H259A7 7 0 0 1 266 37V93A7 7 0 0 1 259 100H259A7 7 0 0 1 252 93V37A7 7 0 0 1 259 30Z',
+  'M252 -1H266V15.8H252Z',
+];
+
+/** "ifAi" shift: symbol width 101.5 + a 9-unit D-i pair space - the i's own 104.18 offset. */
+export const IFAI_DX = 6.32;
+const WORD_VB = { x: 0, y: -1.5, w: 272.32, h: 101.5 };
+
+/** Accessible-name props: an image named DifAi, or hidden when decorative. */
+function a11y(title: string | undefined) {
+  return title
+    ? { role: 'img' as const, 'aria-label': title }
+    : { 'aria-hidden': true as const };
+}
+
+/** The symbol's parts, classed for the signature motion (globals.css .difai-sig / .difai-loader). */
+function SymbolPaths({ d = ICON }: { d?: typeof ICON }) {
+  return (
+    <>
+      <path className="frame" d={d.frame} fillRule="evenodd" />
+      {d.lines.map((p, i) => <path key={p} className={`ln l${i + 1}`} d={p} />)}
+      <path className="cursor" d={d.cursor} />
+    </>
+  );
+}
+
+/** The symbol alone, square. Omit `title` when the name is already next to it. */
+export function LogoMark({ size = 24, title, className }: { size?: number; title?: string; className?: string }) {
+  const small = size < 24;
   return (
     <svg
       className={className}
       width={size}
       height={size}
-      viewBox="-2 3 266 266"
-      role={title ? 'img' : undefined}
-      aria-hidden={title ? undefined : true}
-      aria-label={title}
+      viewBox={small ? '0 0 16 16' : '0 -0.75 101.5 101.5'}
+      fill="currentColor"
       focusable="false"
       style={{ flexShrink: 0 }}
+      {...a11y(title)}
     >
-      <path d={BRAND_PATHS.d} fill={ink} fillRule="evenodd" />
+      <SymbolPaths d={small ? ICON_16 : ICON} />
     </svg>
   );
 }
 
-/** The full "DifAi" logo. With no `height` it is sized like text: its cap
- *  height matches the surrounding font's, sitting on the baseline. */
+/** "DifAi": the symbol as the D, then "ifAi". `motion` plays the signature animation once. */
 export function Wordmark({
   height,
-  ink = 'currentColor',
   className,
   style,
+  title = BRAND_NAME,
+  motion = false,
 }: {
   height?: number;
-  ink?: string;
   className?: string;
-  style?: React.CSSProperties;
+  style?: CSSProperties;
+  /** Accessible name; pass '' when something around it already names DifAi. */
+  title?: string;
+  motion?: boolean;
 }) {
-  const P = BRAND_PATHS;
+  const v = WORD_VB;
   return (
     <svg
-      className={className}
-      viewBox="0 0 758 266"
-      role="img"
-      aria-label={BRAND_NAME}
+      className={[motion ? 'difai-sig' : '', className].filter(Boolean).join(' ') || undefined}
+      viewBox={`${v.x} ${v.y} ${v.w} ${v.h}`}
+      fill="currentColor"
       focusable="false"
       style={{
         // Left to CSS when sized, so classes such as the sidebar's can hide it.
         ...(height ? {} : { display: 'inline-block' }),
-        height: height ?? '0.74em',
+        // Unsized: cap height matches the surrounding text, never under the 16 px minimum.
+        height: height ?? 'max(0.74em, 16px)',
         width: 'auto',
-        aspectRatio: '758 / 266',
+        aspectRatio: `${v.w} / ${v.h}`,
         flexShrink: 0,
         overflow: 'visible',
         ...style,
       }}
+      {...a11y(title)}
     >
-      <g fill={ink}>
-        <path d={P.d} fillRule="evenodd" />
-        <path d={P.i1} />
-        <circle {...P.i1Dot} />
-        <path d={P.f} />
-        <path d={P.fBar} />
-        <path d={P.a} fillRule="evenodd" />
-        <path d={P.i2} />
-        <circle {...P.i2Dot} />
+      <SymbolPaths />
+      <g className="lk-word" transform={`translate(${IFAI_DX} 0)`}>
+        {IFAI.map((p) => <path key={p} d={p} />)}
       </g>
+    </svg>
+  );
+}
+
+/** Looping loader: the lines type in, the cursor blinks. Decorative: the caller announces loading. */
+export function LogoLoader({ size = 56, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      className={['difai-loader', className].filter(Boolean).join(' ')}
+      width={size}
+      height={size}
+      viewBox="-4 -4 109.5 108"
+      fill="currentColor"
+      focusable="false"
+      aria-hidden
+    >
+      <SymbolPaths />
     </svg>
   );
 }
