@@ -1,4 +1,9 @@
 # Testing
+## App hand-off + renewal reminders — 2026-11-17 (features/app-handoff-and-renewal-reminders.md)
+- `plan-whatsapp.integration.test.ts` 12/12 (Wasi mocked): AC2 plan-active once per plan payment with plan/end date/Play link/email, retry no resend, renewal payment gets its own; not for Brief Packs; failure kept + retry sends; unverified number → nothing; template off → nothing. AC3 reminders at 7/1/0 days once per period; none at 8 days or after the end; none after renewal; skipped for free-launch/demo/enterprise/Autopay/superadmin/unverified; failed send retried by a later run; template off → nothing.
+- `web lib/__tests__/app-handoff.test.tsx` 4/4: AC1 Play link + same-account email, no badge art, hidden in native, shown on checkout return when paid; AC4 landing footer link, landing web-only.
+- Regression: api unit 1100 pass (share-links needs apps/api/.env, known); api integration 151/153 (known: migrations 0042, auth role=group); invoice-whatsapp 5/5; web 379/379; SEO 174/174; tsc api + web clean; vite build OK. Migration 0116 applied to local dev DB only.
+
 ## Invoice on WhatsApp — live check 2026-11-17
 - Prod, owner's own invoice DIF/26-27/000001 (support@ account, phone …8581): invoiceWhatsappService.send(force) via the deployed code → "sent", whatsapp_sent_at recorded. A fresh /api/i/<token> link fetched from outside: HTTP 200 application/pdf, 29,619 bytes. Not covered: a new live payment triggering the job end to end.
 

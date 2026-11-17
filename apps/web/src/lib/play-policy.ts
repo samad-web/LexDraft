@@ -37,3 +37,6 @@ const BY_CODE: Record<string, string> = {
 export function nativeErrorCopy(code: string | null | undefined): string | null {
   return code && isNativeApp() ? BY_CODE[code] ?? null : null;
 }
+
+/** The Play Store listing. Linked only on the website (never in the app). */
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=in.sirahdigital.difai';

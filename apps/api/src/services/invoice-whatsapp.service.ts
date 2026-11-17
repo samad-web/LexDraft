@@ -15,7 +15,7 @@ import { whatsappService } from './whatsapp.service';
 export const INVOICE_LINK_DAYS = 7;
 export const hashInvoiceToken = (t: string) => createHash('sha256').update(t).digest('hex');
 const inr = (paise: number) => `Rs. ${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const day = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+export const day = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
 export type InvoiceWhatsappResult = 'sent' | 'off' | 'no_phone' | 'already_sent' | 'missing';
 

@@ -224,6 +224,10 @@ const Schema = z.object({
   /** Wasi template for the GST invoice after payment (invoice-whatsapp.md), e.g.
    *  'difai_invoice'. Empty = invoices are not sent on WhatsApp (until Meta approves it). */
   WHATSAPP_INVOICE_TEMPLATE: z.string().optional().default(''),
+  /** Wasi templates for "plan active" after a plan payment and the renewal
+   *  reminders (app-handoff-and-renewal-reminders.md). Empty = not sent. */
+  WHATSAPP_PLAN_ACTIVE_TEMPLATE: z.string().optional().default(''),
+  WHATSAPP_RENEWAL_TEMPLATE: z.string().optional().default(''),
 
   /** Per-provider HMAC-SHA256 webhook secrets. Each provider stamps a
    *  hex digest of the raw body in the `x-signature` header (or a
