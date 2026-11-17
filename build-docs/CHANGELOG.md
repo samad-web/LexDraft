@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (839c4d5, web only): brand-panel bars removed; Continue with Google back on the sign-in card. Google client id present in the live build; no API change.
+
 - Sign-in (2026-11-17, owner): grey line bars beside the logo on the brand panel removed; Google sign-in back on the card — "or" + full-width dark Continue with Google pill under the SIGN IN row, above "New to DifAi? Create your account".
 
 - DEPLOYED 2026-11-17 (b048194, web only): Create account screen matches the sign-in card. Google client id and new CSS present in the live build; no API change.
