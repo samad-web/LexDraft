@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (546d3ca, web only): sign-in alignment polish. Google client id and new CSS present in the live build; no API change.
+
 - Sign-in alignment polish (2026-11-17, owner: "alignment is not looking … Create account and Talk to us"): form column 400 px so the Google button is exactly as wide as Sign in; Google button white outline (secondary) under a solid black Sign in (no shadow, 44 px); Forgot password right-aligned under the password; "New to DifAi? — Create your account →" and "Nine or more advocates? — Talk to us →" as two rows under a divider. GoogleButton gets an optional theme (default unchanged).
 
 - DEPLOYED 2026-11-17 (e476b0a, web only): sign-in right side matches the brand panel + plan pre-pick only from a fresh pricing click (f29af76). Google client id, plan-pick code and new CSS present in the live build; no API change.
