@@ -475,10 +475,23 @@ jobs.register('efiling.track.manual', async () => {
 
 // GST invoice on WhatsApp after payment (invoice-whatsapp.md). Throws on a send
 // failure so pg-boss retries (3x, backoff); the error is kept on the invoice.
+// After a plan payment the "plan active" message (app-handoff-and-renewal-reminders.md)
+// goes right after the invoice, in this same job: always that order, and one
+// failing never stops the other. Both are idempotent, so a retry re-sends neither.
 jobs.register<{ invoiceId: string }>('invoice.whatsapp', async (data) => {
   const { invoiceWhatsappService } = await import('./invoice-whatsapp.service');
-  await invoiceWhatsappService.send(data.invoiceId);
+  const { planWhatsappService } = await import('./plan-whatsapp.service');
+  const failed: unknown[] = [];
+  await invoiceWhatsappService.send(data.invoiceId).catch((e: unknown) => failed.push(e));
+  await planWhatsappService.sendPlanActive(data.invoiceId).catch((e: unknown) => failed.push(e));
+  if (failed.length) throw failed[0];
 });
+
+// Renewal reminders on WhatsApp: 7 days, 1 day and the day the paid period ends.
+jobs.register('plan.renewal.reminders', async () => {
+  const { planWhatsappService } = await import('./plan-whatsapp.service');
+  logger.info(await planWhatsappService.sendRenewalReminders(), 'plan.renewal.reminders complete');
+}, { cron: '0 10 * * *', tz: 'Asia/Kolkata' });
 
 // AI budget alerts to superadmins (admin-ai-spend-guard). Hourly; each threshold
 // is sent once per month (state in platform_settings), so reruns are harmless.

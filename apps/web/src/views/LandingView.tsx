@@ -7,6 +7,7 @@ import { SIGNUP_PLANS } from '../components/PlanCards';
 import { LandingArt } from '../components/LandingArt';
 import { IntroModal } from '../components/IntroModal';
 import { readIntro } from '../lib/intro';
+import { PLAY_STORE_URL } from '../lib/play-policy';
 
 // Header offset for scrollTo targeting — matches scrollMarginTop on each section.
 const SCROLL_OFFSET = -90;
@@ -112,6 +113,8 @@ const FOOTER_GROUPS: FooterGroup[] = [
       { label: 'Features', href: '#features' },
       { label: 'FAQ', href: '/faq' },
       { label: 'Sign in', href: '/auth' },
+      // The landing is website-only (App.tsx shows the app's welcome screen instead).
+      { label: 'Get the Android app', href: PLAY_STORE_URL },
     ],
   },
   {

@@ -7,6 +7,7 @@ import { CycleToggle, gstLine, MunshiPicker, PLAN_NAME, PlanCards, planTotal } f
 import { CreditMeter } from '@/components/DraftMeter';
 import { BriefPacks } from '@/components/BriefPacks';
 import { MunshiPanel } from '@/components/MunshiPanel';
+import { GetTheApp } from '@/components/GetTheApp';
 import { downloadSubscriptionInvoice, useBilling, useStartCheckout, useSubscriptionInvoices } from '@/hooks/useBilling';
 import { isNativeApp } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
@@ -201,6 +202,7 @@ export function BillingView() {
           <button type="button" className="btn btn-sm" onClick={clearReturn}>Dismiss</button>
         </div>
       )}
+      {(returned === 'done' || returned === 'paid') && paid && <GetTheApp />}
       {returned === 'cancelled' && (
         <div role="status" className="cm-notice">
           <span className="cm-notice-icon" aria-hidden><Icon name="close" size={13} /></span>
