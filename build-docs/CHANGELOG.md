@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (865221c, web only): Create account fits one screen. Google client id and new CSS in the live build; no API change.
+
 - Create account fits one screen (2026-11-17, owner: "page is scrolly … becoming big"): smaller round mark, tighter field spacing, the WhatsApp-code hint folded into the line under the title, slimmer Google strip. All fields and the Terms tick box unchanged.
 
 - DEPLOYED 2026-11-17 (9ddd632, api + web): email sign-up form restored. Backup pre-signup-form-20261117-125255.dump; no migration. Smoke: /auth/signup/email/start empty → validation error (name/email/phone required); /complete without acceptTerms → Terms message; password sign-in bad creds 401; Google client id + new form text in the live build; no error logs.
