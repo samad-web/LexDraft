@@ -1,4 +1,7 @@
 # Testing
+## Create account fits one screen — 2026-11-17
+- Real browser (local build, real Google button): card 607 px tall at 1920×910 and 1366×700, no page scroll (was 849 / 741 px and scrolled). Web tests pass, tsc clean.
+
 ## Email sign-up form restored — 2026-11-17
 - API: /auth/signup/email/start + /complete restored (unpaid Solo account, phone verified by the WhatsApp code). signup-flow acceptance: "routes are gone" replaced by an end-to-end form test incl. the takeover attempt (later Google sign-in to that email → 409 google_link_required, nothing linked; same email twice → 409). auth-terms: email sign-up Terms tests back (no acceptTerms → 400 with reason; false → 400). Web: terms-consent AC4 back to 2 sign-up calls; play-sign-in-only sign-up test = form fields + Start + Google strip, no auto Google prompt.
 - Also fixed: server plan feature text (billingPlans) now matches the web card ("150 AI credits a month", "Practice analytics") — pricing-v5 mirror test caught the mismatch from 77e18af.

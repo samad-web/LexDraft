@@ -536,14 +536,14 @@ export function AuthView() {
             WhatsApp, password -> START sends a WhatsApp code -> the code creates
             the account -> /onboarding. Google is in the strip at the bottom. */}
         {tab === 'signup' && step === 0 && !googleSignup && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="auth-compact" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="auth-signin-head">
               <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
               <h1 className="auth-title auth-title--long">Create your account</h1>
               <p className="auth-signin-sub">
                 {suChallenge
                   ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
-                  : `${freeLine}.`}
+                  : `${freeLine}. We send a code on WhatsApp to verify your number.`}
               </p>
             </div>
             {!suChallenge ? (
@@ -605,9 +605,6 @@ export function AuthView() {
                   </button>
                 </label>
                 {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
-                <span className="body-xs" style={{ color: 'var(--text-tertiary)', marginTop: -6 }}>
-                  We send a 6-digit code on WhatsApp to verify your number. All fields are required.
-                </span>
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
                 <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
                 <div className="auth-actions" style={{ justifyContent: 'flex-end' }}>

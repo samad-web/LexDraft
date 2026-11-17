@@ -1,4 +1,6 @@
 # Changelog
+- Create account fits one screen (2026-11-17, owner: "page is scrolly … becoming big"): smaller round mark, tighter field spacing, the WhatsApp-code hint folded into the line under the title, slimmer Google strip. All fields and the Terms tick box unchanged.
+
 - DEPLOYED 2026-11-17 (9ddd632, api + web): email sign-up form restored. Backup pre-signup-form-20261117-125255.dump; no migration. Smoke: /auth/signup/email/start empty → validation error (name/email/phone required); /complete without acceptTerms → Terms message; password sign-in bad creds 401; Google client id + new form text in the live build; no error logs.
 
 - Email sign-up form restored (2026-11-17, owner: "use the old logic itself", NUSI-style picture): Create account = round mark, CREATE YOUR ACCOUNT, Your name / Work email / WhatsApp (+91) / Password, Terms tick box, START (right) → 6-digit WhatsApp code → account (unpaid; plan + payment on onboarding); "Or sign up with Google" strip at the bottom. Create account no longer opens Google by itself. The F3 protection stays: Google never joins a password account by email. Server plan feature text synced with the web card.
