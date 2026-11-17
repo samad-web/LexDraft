@@ -1,4 +1,7 @@
 # Testing
+## Full-page sign-in — 2026-11-17
+- CSS only. Checked in a real browser (local vite build + Playwright screenshots) at 1920×1080, 1366×700 and 390×844: card at (0,0), full width, no page scroll; phone duplicate "Firm with 9+ lawyers? Book a demo" link hidden. Web 410 pass.
+
 ## One sign-in card — 2026-11-17
 - web play-sign-in-only: the 2 Firm-tab tests replaced (owner retired the tabs) by 3 one-card tests (no tabs, one Create your account, Talk to us for 9+, sign-up steps say the plan is chosen next, startTrial opens Google and records no plan, app shows no links); AC4 heading regex → "Create your account". onboarding-plan-once 3/3 still pass. Web 410 pass, tsc clean.
 

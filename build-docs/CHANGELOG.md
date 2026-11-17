@@ -1,4 +1,6 @@
 # Changelog
+- Full-page sign-in (2026-11-17, owner): the sign-in card fills the window (no outer margin, border, radius or shadow); Terms line + trust strip in a thin bottom strip; the old phone-only "Firm with 9+ lawyers? Book a demo" link hidden (the card has "Nine or more advocates? Talk to us").
+
 - DEPLOYED 2026-11-17 (23ac89f, web only): one sign-in card, plan chosen on the plan page. Google client id and the new tagline present in the live build; no API change.
 
 - One sign-in card (2026-11-17, owner approved Claude's recommendation): the Advocate / Chambers / Firm tabs are gone from the sign-in page. One card: email + password, Google, "New to DifAi? Create your account" (opens Google at once), "Nine or more advocates? Talk to us". The plan is chosen only on the plan page after sign-up (or pre-picked by "Start with …" on pricing and confirmed there).

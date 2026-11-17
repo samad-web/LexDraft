@@ -4625,6 +4625,22 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
   .auth-title { font-size: 24px; }
 }
 
+/* Full-page sign-in (owner 2026-11-17: "bring this card into full page"):
+   the card fills the window - no outer margin, border, radius or shadow; the
+   Terms line and trust strip sit in a thin strip at the bottom. */
+.auth-page { padding: 0 !important; gap: 0 !important; justify-content: flex-start !important; }
+.auth-page > .auth-shell {
+  flex: 1 1 auto; align-self: stretch; max-width: none; min-height: 0;
+  border: 0; border-radius: 0; box-shadow: none;
+}
+.auth-page > p, .auth-page > .auth-trust { padding: 8px 16px; }
+/* The card's own "Nine or more advocates? Talk to us" replaces the old phone-only demo link. */
+.auth-shell .auth-firm-link { display: none !important; }
+@media (max-width: 860px) {
+  .auth-page > .auth-shell { max-width: none; }
+  .auth-main > .auth-main-inner { max-width: 480px; }
+}
+
 /* Sign-in (NUSI-style): underline field + pill action row */
 .auth-field {
   display: flex; align-items: center; gap: 14px; padding: 10px 2px 12px; margin-top: 6px;
