@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-17 (7f1dd6e, web only): NUSI-style sign-in card. Google client id (still used by Create account) and the new copy present in the live build; no API change.
+
 - NUSI-style sign-in card (2026-11-17, owner: "like this i need", exactly NUSI, no Google): round black DifAi mark, SIGN IN, "Welcome back to DifAi.", email + password with icons, Forgot password left / black SIGN IN pill right, "New to DifAi? Create your account". Google is only on Create account (sign-up). "Talk to us" off the card (pricing still has "Speak with us"). Brand panel stays on the left.
 
 - DEPLOYED 2026-11-17 (219eb05, web only): sign in with Continue with Google first. Google client id and the email-link text present in the live build; no API change.
