@@ -40,6 +40,12 @@ export const BRIEF_PACKS: Record<BriefPackId, { credits: number; priceInr: numbe
 };
 export const BRIEF_PACK_DAYS = 365;
 
+/** Suggested ₹ per credit (ex-GST) when the superadmin sells credits by hand:
+ *  the best Brief Pack rate (largest pack), so a hand sale never undercuts a pack. */
+export const ADMIN_CREDIT_PRICE_INR = Math.round(
+  Math.min(...Object.values(BRIEF_PACKS).map((p) => p.priceInr / p.credits)) * 100,
+) / 100;
+
 export function isBriefPack(id: unknown): id is BriefPackId {
   return typeof id === 'string' && Object.prototype.hasOwnProperty.call(BRIEF_PACKS, id);
 }

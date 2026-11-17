@@ -69,6 +69,8 @@
 
 - 2026-11-17 — Invoice on WhatsApp (owner): sent after payment via Wasi (OTP sender), template `difai_invoice` with a 7-day PDF link, because Wasi can't attach a per-message PDF (DOCUMENT templates send one stored sample). Switch to an attached PDF when Wasi supports per-message documents.
 
+- 2026-11-17 — Credits sold by hand in /admin are priced per credit, default = best Brief Pack rate (₹4,249/330 = ₹12.88 ex-GST) so a hand sale never undercuts a pack; editable per deal.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

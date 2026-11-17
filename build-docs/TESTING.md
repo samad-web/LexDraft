@@ -1,4 +1,7 @@
 # Testing
+## Admin credit sale priced per credit — 2026-11-17
+- web `credit-price.test.ts` 3/3 (3000 × ₹12.88 = ₹38,640 + ₹6,955.20 GST; whole-rupee rounding; bad input = 0); api `admin-credit-price.test.ts` 1/1 (best Brief Pack rate ₹12.88, never above any pack rate). custom-plan + credits integration 23/23; web 378 pass; tsc clean.
+
 ## Invoice on WhatsApp — live check 2026-11-17
 - Prod, owner's own invoice DIF/26-27/000001 (support@ account, phone …8581): invoiceWhatsappService.send(force) via the deployed code → "sent", whatsapp_sent_at recorded. A fresh /api/i/<token> link fetched from outside: HTTP 200 application/pdf, 29,619 bytes. Not covered: a new live payment triggering the job end to end.
 

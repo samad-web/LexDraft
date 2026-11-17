@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { ADMIN_CREDIT_PRICE_INR } from '../lib/plans';
 import { invoiceWhatsappService } from '../services/invoice-whatsapp.service';
 import { landRecordsAdmin } from '../services/land-records-admin.service';
 import { firm360Service } from '../services/firm360.service';
@@ -260,7 +261,7 @@ adminRouter.patch('/firms/:id/plan', async (req, res, next) => {
 
 adminRouter.get('/firms/:id/credits', async (req, res, next) => {
   try {
-    res.json(await creditService.balance(String(req.params.id)));
+    res.json({ ...(await creditService.balance(String(req.params.id))), pricePerCreditInr: ADMIN_CREDIT_PRICE_INR });
   } catch (err) { next(err); }
 });
 

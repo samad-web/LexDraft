@@ -1,4 +1,6 @@
 # Changelog
+- Admin AI credits priced (2026-11-17, owner: "it should calculate the amount"): the add-credits form calculates the amount = credits × price per credit (default = best Brief Pack rate ₹12.88 ex-GST, sent by the server), shows GST and the total to collect; rate and amount stay editable; "Free (goodwill)" tick for no payment/no invoice; the form lists what is missing instead of a silent grey button.
+
 - DEPLOYED 2026-11-17 (578fc3d): invoice on WhatsApp. Live migration 0115 after backup pre-invoice-wa-20261117-064417.dump (counts unchanged); WHATSAPP_INVOICE_TEMPLATE=difai_invoice set in prod .env.docker (backup env.docker.pre-invoice-wa-*).
 
 - Invoice on WhatsApp (2026-11-17, features/invoice-whatsapp.md): after any payment (Razorpay plan, Brief Pack, custom plan, paid credits) DifAi sends the GST invoice to the account owner's verified WhatsApp number through Wasi Hub (same sender as the OTP), template `difai_invoice`, with a 7-day private link to the PDF (`/api/i/<token>`). Sent by a background job (3 retries); the payment never waits on WhatsApp. Admin firm page shows sent / not sent (reason) per invoice with "Send on WhatsApp". Migration 0115 (invoice WhatsApp columns, invoice_links). Off until `WHATSAPP_INVOICE_TEMPLATE=difai_invoice` is set.
