@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { TransactionSql } from 'postgres';
 import type { CreditBalance } from '@lexdraft/types';
 import { db } from '../db/client';
+import { assertAiAllowed } from '../lib/ai-pause';
 import { HttpError } from '../lib/errors';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { draftCredits, FREE_LAUNCH_CREDITS, WORDS_PER_CREDIT, type CreditAction } from '../lib/credit-costs';
@@ -204,6 +205,7 @@ export const creditService = {
     if (!sql) return noCharge(refKey); // demo mode: no metering
     if (!ctx.firmId) throw new CreditsExhaustedError({ balance: 0, needed: credits, resetsAt: null });
     await assertNotMunshi(ctx);
+    await assertAiAllowed(ctx.firmId);
     const want = halves(credits);
     const firmId = ctx.firmId;
     const out = await sql.begin(async (tx) => {
@@ -239,6 +241,7 @@ export const creditService = {
     const sql = db();
     if (!sql) return;
     await assertNotMunshi(ctx);
+    await assertAiAllowed(ctx.firmId);
     const b = await creditService.balance(ctx.firmId);
     if (halves(b.balance) < halves(credits)) {
       throw new CreditsExhaustedError({ balance: b.balance, needed: credits, resetsAt: b.resetsAt });

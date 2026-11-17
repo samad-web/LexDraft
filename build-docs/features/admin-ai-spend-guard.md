@@ -1,6 +1,7 @@
 # Feature: AI spend guard (admin)
 
-Status: **design, awaiting owner approval (2026-11-17).**
+Status: **built 2026-11-17 (branch feat/admin-console-v2), not deployed.** Step 0 result: prod has no AI use yet (all usage tables 0 rows), so 0 tokens was correct.
+- As built: paused calls get 503 `ai_paused` from the credit path; provider clients throw as a backstop. OpenAI provider spend NOT built (its docs couldn't be read to confirm the API); Contract Review cost is in DifAi's estimate only.
 
 ## Purpose
 - Owner wants "API auto pay controlled from our dashboard". Anthropic's API **cannot** top up or auto-reload credit (Admin API: usage/cost read only; spend limits only Enterprise / early-access). So DifAi controls the *spend*, not the top-up:

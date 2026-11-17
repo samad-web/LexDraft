@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { FirmAiPauseToggle } from './AiSpendCard';
 import { useNavigate, useParams } from 'react-router-dom';
 import { DatePicker, Select } from '@lexdraft/ui';
 import type {
@@ -47,6 +48,7 @@ export function FirmDetailView() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <PlanCard firmId={firm.id} initial={firm.plan} seats={firm.seats} status={firm.status} />
           <FirmCreditsCard firmId={firm.id} />
+          <FirmAiPauseToggle firmId={firm.id} paused={firm.aiPaused} />
           <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
           <RecentAuditCard entries={firm.recentAudit} />
         </div>

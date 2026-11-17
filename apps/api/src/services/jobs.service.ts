@@ -473,6 +473,13 @@ jobs.register('efiling.track.manual', async () => {
   await runEfilingTracking({ slot: 'manual' });
 });
 
+// AI budget alerts to superadmins (admin-ai-spend-guard). Hourly; each threshold
+// is sent once per month (state in platform_settings), so reruns are harmless.
+jobs.register('ai.budget.check', async () => {
+  const { aiSpendService } = await import('./ai-spend.service');
+  await aiSpendService.checkBudget();
+}, { cron: '5 * * * *', tz: 'Asia/Kolkata' });
+
 // Limitation + task deadline alerts. Hourly 9 AM-9 PM IST: dedupe keys make the
 // later runs send only what a missed 9 AM run (server down) would have sent.
 jobs.register('deadline.alerts', async () => {

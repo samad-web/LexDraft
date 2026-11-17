@@ -51,7 +51,8 @@ function rowToEntry(r: AuditRow): AuditLogEntry {
 const memLog: AuditRow[] = [];
 
 interface WriteInput {
-  actorUserId: string;
+  /** null = the system itself (e.g. an automatic AI pause). */
+  actorUserId: string | null;
   actorEmail: string;
   action: AuditAction;
   targetType: AuditLogEntry['targetType'];

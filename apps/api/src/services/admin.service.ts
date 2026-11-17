@@ -102,6 +102,7 @@ interface FirmRow {
   renews_at: Date | null;
   credit_allowance: number | string | null;
   created_at: Date;
+  ai_paused: boolean | null;
   case_count: number;
   seats_used: number;
 }
@@ -182,6 +183,7 @@ function rowToFirmSummary(r: FirmRow): FirmSummary {
       renewsAt: r.renews_at ? r.renews_at.toISOString().slice(0, 10) : null,
       creditAllowance: r.credit_allowance == null ? null : Number(r.credit_allowance),
     },
+    aiPaused: r.ai_paused === true,
     createdAt: r.created_at.toISOString(),
   };
 }
@@ -258,7 +260,7 @@ export const adminService = {
     if (!sql) return [];
     const rows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
-             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at,
+             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f
@@ -272,7 +274,7 @@ export const adminService = {
     if (!sql) return null;
     const firmRows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
-             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at,
+             f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
       from firms f where f.id = ${id}::uuid limit 1

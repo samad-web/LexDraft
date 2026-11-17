@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { aiSpendService } from '../services/ai-spend.service';
 import { Router } from 'express';
 import { z } from 'zod';
 import { adminService } from '../services/admin.service';
@@ -70,6 +71,43 @@ adminRouter.get('/compose-quality', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// ---- AI spend guard (admin-ai-spend-guard.md) ------------------------------
+
+adminRouter.get('/ai-spend', async (_req, res, next) => {
+  try { res.json(await aiSpendService.spend()); } catch (err) { next(err); }
+});
+
+const AiSpendPatch = z.object({
+  budgetUsd: z.number().positive().max(1_000_000).nullable().optional(),
+  alertPcts: z.array(z.number().int().min(1).max(200)).min(1).max(5).optional(),
+  autopause: z.boolean().optional(),
+}).strict();
+adminRouter.patch('/ai-spend', async (req, res, next) => {
+  try {
+    const body = AiSpendPatch.parse(req.body);
+    res.json(await aiSpendService.updateSettings(body, { id: req.user!.id, email: req.user!.email }));
+  } catch (err) { next(err); }
+});
+
+const AiPause = z.object({ paused: z.boolean(), reason: z.string().trim().min(3).max(300) }).strict();
+adminRouter.post('/ai-spend/pause', async (req, res, next) => {
+  try {
+    const body = AiPause.parse(req.body);
+    await aiSpendService.setPaused(body.paused, { id: req.user!.id, email: req.user!.email }, body.reason);
+    res.json(await aiSpendService.spend());
+  } catch (err) { next(err); }
+});
+
+adminRouter.patch('/firms/:id/ai-pause', async (req, res, next) => {
+  try {
+    const firmId = z.string().uuid().parse(req.params.id);
+    const { paused } = z.object({ paused: z.boolean() }).strict().parse(req.body);
+    const ok = await aiSpendService.setFirmPaused(firmId, paused, { id: req.user!.id, email: req.user!.email });
+    if (!ok) { res.status(404).json({ error: 'Firm not found' }); return; }
+    res.json({ firmId, aiPaused: paused });
+  } catch (err) { next(err); }
 });
 
 // ---- firms -----------------------------------------------------------------

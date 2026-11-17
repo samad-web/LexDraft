@@ -22,6 +22,9 @@ const Schema = z.object({
   /** Extra Anthropic keys, comma-separated, tried in order after ANTHROPIC_API_KEY
    *  when a key is out of credit / revoked (anthropic-client key pool). */
   ANTHROPIC_API_KEYS: z.string().optional().default(''),
+  /** Anthropic Admin API key (sk-ant-admin…): read-only month-to-date spend for
+   *  /admin (Usage and Cost Analytics API). Empty = DifAi's own estimate only. */
+  ANTHROPIC_ADMIN_KEY: z.string().optional().default(''),
   /** When every Anthropic key fails for credit / auth / outage, answer from the
    *  xAI/OpenAI slot instead of failing the request. 'false' = fail as before. */
   LLM_FAILOVER: z.enum(['true', 'false']).default('true'),

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { AiSpendCard } from './AiSpendCard';
 import { Skeleton } from '@lexdraft/ui';
 import type { ComposeReasonKind } from '@lexdraft/types';
 import { useComposeQuality, usePlatformStats } from '../queries';
@@ -60,6 +61,8 @@ export function AdminDashboardView() {
               </>
             )}
           </div>
+
+          <AiSpendCard compact />
 
           <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div

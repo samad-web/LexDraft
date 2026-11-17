@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AiSpendCard } from './AiSpendCard';
 import type {
   AiUsageByFeature,
   AiUsageByFirm,
@@ -69,6 +70,8 @@ export function AiUsageView() {
           ))}
         </div>
       </div>
+
+      <AiSpendCard />
 
       {isLoading || !data ? (
         <div className="muted">Loading AI usage…</div>

@@ -1,4 +1,6 @@
 # Changelog
+- Admin AI spend guard (2026-11-17, features/admin-ai-spend-guard.md): /admin shows AI spend this month (Anthropic's own bill via ANTHROPIC_ADMIN_KEY, else DifAi's estimate), a monthly budget with alerts (bell + email to superadmins, once per threshold per month, hourly job `ai.budget.check`), optional auto-pause at 100%, a "Pause AI for everyone" switch and a per-firm AI pause. Paused calls are refused on the credit path (503 `ai_paused`, nothing charged) with a provider-client backstop. Migration 0114 (platform_settings, firms.ai_paused, firms.custom_plan_name, users.credit_cap_month).
+
 - Pricing cards on the landing page (2026-11-16, owner): Pricing (desktop tab, phone button, footer link) scrolls to a pricing section on the landing page itself, in the original card design (schedule label, big price, Monthly / Yearly switch, highlighted first card, Included list), fed from the shared plan catalogue (pricing v5, + GST). No sign-in, no other page.
 
 - Pricing on phones (2026-11-16): phones and tablets get a Pricing link in the landing header (the tab bar is hidden there) that opens /pricing without sign-in. Paid-only wording: landing "No card required" -> "Plans from ₹699 a month + GST"; public pages' "Start free" -> "Get started".

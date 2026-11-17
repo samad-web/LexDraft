@@ -1074,6 +1074,8 @@ export interface FirmSummary {
   seatsUsed: number;
   /** Total cases for this firm. */
   caseCount: number;
+  /** AI paused for this firm by the superadmin (admin-ai-spend-guard). */
+  aiPaused: boolean;
   createdAt: string;
 }
 
@@ -1348,6 +1350,11 @@ export type AuditAction =
   | 'template.delete'
   | 'free_plan.switch.update'
   | 'firm.credits.grant'
+  | 'firm.ai.paused'
+  | 'firm.ai.resumed'
+  | 'platform.ai.paused'
+  | 'platform.ai.resumed'
+  | 'platform.ai_spend.settings'
   // Tenant-scoped CRUD audit actions.
   | 'case.create'      | 'case.update'      | 'case.delete' | 'case.restore' | 'case.transition' | 'case.sync_from_ecourts'
   | 'case.pipeline.node.add'  | 'case.pipeline.node.update'  | 'case.pipeline.node.delete'
@@ -1527,6 +1534,19 @@ export interface ComposeQualityRow {
 }
 export interface AdminComposeQualityResponse {
   rows: ComposeQualityRow[];
+}
+
+/** GET /admin/ai-spend (admin-ai-spend-guard). */
+export interface AdminAiSpend {
+  budgetUsd: number | null;
+  alertPcts: number[];
+  autopause: boolean;
+  monthStart: string;
+  paused: boolean;
+  provider: { usd: number; asOf: string | null } | null;
+  providerError: string | null;
+  estimate: { usd: number; inr: number };
+  usedPct: number | null;
 }
 
 export interface AdminAiUsageResponse {

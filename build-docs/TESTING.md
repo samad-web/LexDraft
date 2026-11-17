@@ -1,4 +1,12 @@
 # Testing
+## Admin AI spend guard — 2026-11-17 (features/admin-ai-spend-guard.md)
+- Step 0 (prod, read-only): ai_token_usage, credit_ledger and ai_generations are all 0 rows ever, so the "0 AI tokens" tile is correct (no AI use on prod yet), not a recording bug.
+- `ai-spend.test.ts` 5/5: Anthropic cost parsing (cents strings, exact sums, bad rows skipped), UTC month start, pause backstop cache.
+- `ai-spend-guard.integration.test.ts` 7/7: AC4 platform pause (503 ai_paused, no credits taken, resume works), AC5 firm-only pause + unknown firm, AC2 estimate labelled without admin key, AC3 alerts once at 80 and 100 (hourly reruns send nothing), auto-pause only when on (audited as system), AC6 audit with actor.
+- Failures found and fixed: month-to-date window ended at JS `now` (ms) and dropped rows written in the same ms (Postgres µs) → window is now the whole UTC month. Audit test read rows left by an earlier test → scoped to its own start time (test bug).
+- 0114 run twice in a rolled-back schema: idempotent.
+- Regression: api unit 1094 pass (share-links.test.ts can't load in a fresh worktree: reads gitignored apps/api/.env); integration 104 pass + 2 pre-existing (auth "role=group Practice-tier", migrations idempotency stops at 0042 cases_kind_check); web 335 pass; api + web tsc clean.
+
 ## Landing pricing cards — 2026-11-16
 - `landing-pricing.test.ts` 4/4 (tab scrolls on-page, section renders SIGNUP_PLANS with the cycle switch, phone button, footer link). Web suite 335 pass, tsc clean, vite build ok.
 

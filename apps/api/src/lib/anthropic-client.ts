@@ -15,6 +15,7 @@
 // tolerate transport errors); we don't want the SDK retrying underneath them.
 // =============================================================================
 
+import { platformPausedCached } from './ai-pause';
 import Anthropic from '@anthropic-ai/sdk';
 import { env } from '../env';
 import { HttpRetryError } from './retry';
@@ -35,6 +36,7 @@ const clients = new Map<string, Anthropic>();
 const benchedUntil = new Map<string, number>();
 
 function clientFor(key: string): Anthropic {
+  if (platformPausedCached()) throw new AiUnavailableError(); // admin AI pause (backstop)
   let c = clients.get(key);
   if (!c) { c = new Anthropic({ apiKey: key, maxRetries: 0 }); clients.set(key, c); }
   return c;

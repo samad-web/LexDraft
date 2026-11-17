@@ -13,6 +13,7 @@
 // talks to OpenAI instead (env.openaiCompat).
 // =============================================================================
 
+import { platformPausedCached } from './ai-pause';
 import OpenAI from 'openai';
 import { env } from '../env';
 import { HttpRetryError } from './retry';
@@ -20,6 +21,7 @@ import { xaiUsage, type NormalizedUsage } from './llm-usage';
 
 let client: OpenAI | null = null;
 export function grok(): OpenAI {
+  if (platformPausedCached()) throw new Error('AI features are paused by DifAi'); // admin AI pause (backstop)
   if (!client) {
     client = new OpenAI({
       apiKey: env.XAI_API_KEY,

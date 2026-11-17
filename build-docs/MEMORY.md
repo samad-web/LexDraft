@@ -71,6 +71,7 @@
 - none.
 
 ## Known issues
+- 2026-11-17 — migrations.integration idempotency test fails at 0042 (cases_kind_check added without a guard), so later migrations aren't re-run by it. share-links.test.ts needs apps/api/.env present (fails in a fresh worktree).
 - auth.integration.test "role=group creates a Practice-tier firm" fails on main since pricing v4 (gets Firm). Decide which tier is intended, then fix the test or the mapping.
 - 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.
 - eFiling Overview tiles are still portal-style (light tiles in dark mode) until redesign step 2.
