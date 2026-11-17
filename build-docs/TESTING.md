@@ -1,4 +1,7 @@
 # Testing
+## Sign-in alignment polish — 2026-11-17
+- Real-browser screenshots with the real Google button (local build with the public client id): 1366×700 filled and 390×844 — fields, Sign in, Google, divider and the two bottom rows share the same left/right edges (form column 400 px = Google's widest button). Web tests pass, tsc clean.
+
 ## Sign-in right side matches the brand panel — 2026-11-17
 - Real-browser screenshots (local build + Playwright): 1920×1080, 1366×700 (empty + filled: button turns solid black), 390×844 (phone keeps the logo). Web tests pass, tsc clean.
 

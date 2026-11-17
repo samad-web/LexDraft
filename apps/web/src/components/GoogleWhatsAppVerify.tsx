@@ -347,6 +347,8 @@ type GoogleButtonProps = {
   loginHint?: string;
   /** Fixed button width in px (web); default fills the container. */
   width?: number;
+  /** Web: 'outline' = white secondary button (sign-in page), default black. */
+  theme?: 'filled_black' | 'outline';
 };
 
 export function GoogleButton(props: GoogleButtonProps) {
@@ -399,7 +401,7 @@ function GoogleMark() {
   );
 }
 
-function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectangular', loginHint, width }: GoogleButtonProps) {
+function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectangular', loginHint, width, theme = 'filled_black' }: GoogleButtonProps) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onCredential);
   cb.current = onCredential;
@@ -419,7 +421,7 @@ function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectan
         ref.current.replaceChildren();
         gsi.renderButton(ref.current, {
           type: 'standard',
-          theme: 'filled_black',
+          theme,
           size: 'large',
           shape,
           text,
@@ -428,7 +430,7 @@ function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectan
       })
       .catch((err: Error) => !cancelled && setLoadError(err.message));
     return () => { cancelled = true; };
-  }, [text, shape, loginHint, width]);
+  }, [text, shape, loginHint, width, theme]);
 
   if (loadError) return <div role="alert" style={noticeStyle}>{loadError}</div>;
   // colorScheme: Google's button iframe is a light document; on a dark page a

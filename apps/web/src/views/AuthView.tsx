@@ -456,7 +456,7 @@ export function AuthView() {
             </form>
             <div className="auth-or" aria-hidden><span>or</span></div>
             {googleSignInAvailable() ? (
-              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" width={320} /></div>
+              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="signin_with" shape="pill" theme="outline" /></div>
             ) : (
               <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
             )}
@@ -470,10 +470,16 @@ export function AuthView() {
               <div role="alert" style={noticeStyle}>{NATIVE_COPY.noGoogleAccount}</div>
             )}
             {!native && (<>
-            <p className="body-sm auth-more">
-              New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button>
-              <br />Nine or more advocates?{' '}<button type="button" className="auth-link" onClick={bookDemo}>Talk to us</button>
-            </p>
+            <div className="auth-more">
+              <div className="auth-more-row">
+                <span>New to DifAi?</span>
+                <button type="button" className="auth-link" onClick={() => startTrial()}>Create your account →</button>
+              </div>
+              <div className="auth-more-row">
+                <span>Nine or more advocates?</span>
+                <button type="button" className="auth-link" onClick={bookDemo}>Talk to us →</button>
+              </div>
+            </div>
             <button
               type="button"
               className="btn btn-ghost btn-sm auth-firm-link"
@@ -499,7 +505,7 @@ export function AuthView() {
             </div>
             {googleSignInAvailable() ? (
               <div className="auth-google">
-                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" width={320} />
+                <GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" />
               </div>
             ) : (
               <p role="alert" style={noticeStyle}>Google sign-up is not configured.</p>
