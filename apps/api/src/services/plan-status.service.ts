@@ -1,5 +1,6 @@
 import { db } from '../db/client';
 import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
+import { TERMS_CONSENT_TYPE, TERMS_VERSION } from '../lib/legal';
 
 // =============================================================================
 // plan-status.service - reads firms.plan_status / renews_at for a user and
@@ -25,6 +26,10 @@ export interface PlanState {
   /** False while a self-serve owner has not finished /onboarding (plan +
    *  payment). requireActivePlan keeps the app closed until then. */
   onboarded: boolean;
+  /** Latest answer to the current Terms + Privacy version is "agree"
+   *  (terms-consent.md). requireActivePlan returns 403 terms_required
+   *  otherwise. Optional so older callers/mocks count as accepted. */
+  termsAccepted?: boolean;
 }
 
 export type PlanCheck =
@@ -42,7 +47,7 @@ const cache = new Map<string, { state: PlanState; expiresAt: number }>();
 async function loadPlanState(userId: string): Promise<PlanState> {
   const sql = db();
   // Dev / in-memory mode: no DB, no plan to evaluate - treat as active.
-  if (!sql) return { firmId: null, planStatus: 'active', renewsAt: null, trialEndsAt: null, onboarded: true };
+  if (!sql) return { firmId: null, planStatus: 'active', renewsAt: null, trialEndsAt: null, onboarded: true, termsAccepted: true };
 
   const rows = await sql<Array<{
     firm_id: string | null;
@@ -50,8 +55,12 @@ async function loadPlanState(userId: string): Promise<PlanState> {
     renews_at: Date | null;
     trial_ends_at: Date | null;
     onboarded: boolean;
+    terms_accepted: boolean;
   }>>`
-    select u.firm_id, f.plan_status, f.renews_at, f.trial_ends_at, u.onboarded_at is not null as onboarded
+    select u.firm_id, f.plan_status, f.renews_at, f.trial_ends_at, u.onboarded_at is not null as onboarded,
+           coalesce((select c.granted from consent_log c
+                      where c.user_id = u.id and c.consent_type = ${TERMS_CONSENT_TYPE} and c.consent_version = ${TERMS_VERSION}
+                      order by c.created_at desc limit 1), false) as terms_accepted
     from users u
     left join firms f on f.id = u.firm_id
     where u.id = ${userId}::uuid
@@ -73,6 +82,7 @@ async function loadPlanState(userId: string): Promise<PlanState> {
     renewsAt: row?.renews_at ?? null,
     trialEndsAt: row?.trial_ends_at ?? null,
     onboarded: row?.onboarded ?? true,
+    termsAccepted: row?.terms_accepted ?? true,
   };
 }
 

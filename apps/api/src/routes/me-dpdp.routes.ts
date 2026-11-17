@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { dpdpService } from '../services/dpdp.service';
 import { db } from '../db/client';
 import { UnauthorizedError } from '../lib/errors';
+import { invalidatePlanStatusCache } from '../services/plan-status.service';
 
 export const meDpdpRouter: Router = Router();
 
@@ -151,6 +152,8 @@ meDpdpRouter.post('/consent', async (req, res, next) => {
       ip: clientIp(req),
       userAgent: clientUa(req),
     });
+    // The server gate (requireActivePlan, terms_required) reads consent too.
+    invalidatePlanStatusCache(userId);
     res.status(201).json(record);
   } catch (err) {
     next(err);

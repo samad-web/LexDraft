@@ -28,6 +28,12 @@ export async function requireActivePlan(req: Request, res: Response, next: NextF
   }
   try {
     const state = await getPlanState(req.user.id);
+    // The current Terms + Privacy must be agreed (terms-consent.md); the web
+    // app shows the consent screen, this stops direct API use (F6).
+    if (state.termsAccepted === false) {
+      next(new ForbiddenError('Agree to the Terms of Service and Privacy Policy to continue.', { code: 'terms_required' }));
+      return;
+    }
     // A new account must finish /onboarding (plan + payment) before any
     // feature route. 403, not 402: 402 signs the user out in the web app.
     if (state.firmId && !state.onboarded) {

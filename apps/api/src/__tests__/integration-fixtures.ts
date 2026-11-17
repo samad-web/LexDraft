@@ -20,6 +20,7 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { getIntegrationSql } from './integration-db';
+import { TERMS_CONSENT_TYPE, TERMS_VERSION } from '../lib/legal';
 
 export interface SeededFirm {
   id: string;
@@ -47,6 +48,10 @@ export interface SeedUserOpts {
   /** Optional system role NAME ('Firm Admin', 'Solo Advocate', etc.) - when
    *  provided, the user is wired to that role_id post-insert. */
   systemRole?: string;
+  /** Record agreement to the current Terms + Privacy (default true): real
+   *  accounts agree at sign-up or at the in-app gate, and the server gate
+   *  (requireActivePlan, terms_required) needs it. false = never agreed. */
+  termsAccepted?: boolean;
 }
 
 export async function seedFirm(
@@ -80,6 +85,11 @@ export async function seedUser(
     returning id
   `;
   const userId = rows[0]!.id;
+  if (opts.termsAccepted !== false) {
+    await sql`
+      insert into consent_log (user_id, firm_id, consent_type, consent_version, granted)
+      values (${userId}::uuid, ${firmId}::uuid, ${TERMS_CONSENT_TYPE}, ${TERMS_VERSION}, true)`;
+  }
 
   if (opts.systemRole) {
     await assignSystemRole(userId, opts.systemRole);
