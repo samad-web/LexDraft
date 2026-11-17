@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
 import { useNavHighlighter } from '@/hooks/useNavHighlighter';
 import { useCredits } from '@/hooks/useCredits';
+import { useLandAccess } from '@/hooks/useLandAccess';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { useTeamChatStream, useTeamChatUnreadTotal } from '@/hooks/useTeamChat';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
@@ -29,6 +30,8 @@ export function Sidebar() {
   // team-chat live stream as well as rendering its unread badge.
   useTeamChatStream();
   const chatUnread = useTeamChatUnreadTotal();
+  // Land Records: TN advocates only; others see "Soon", hidden when switched off.
+  const land = useLandAccess(!!user);
 
   // Close the drawer on route change (mobile UX).
   useEffect(() => {
@@ -99,7 +102,8 @@ export function Sidebar() {
             return (
               <div key={g.title} className="nav-section">
                 <div className="nav-group-title">{g.title}</div>
-                {g.items.map((item) => {
+                {g.items.filter((item) => !(item.id === 'land-records' && land.data?.status === 'disabled')).map((rawItem) => {
+                  const item = rawItem.id === 'land-records' && land.data?.status === 'coming_soon' ? { ...rawItem, badge: 'SOON' } : rawItem;
                   // Exact match OR /-bounded prefix (so /app/review doesn't
                   // claim /app/review-queue); tabbed items stay active on
                   // every one of their tabs.

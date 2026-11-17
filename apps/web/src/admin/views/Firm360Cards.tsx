@@ -132,3 +132,56 @@ export function ExtendPlanCard({ firmId, renewsAt }: { firmId: string; renewsAt:
     </section>
   );
 }
+
+/** Land Records platform switch (land-records-tn-gate): TN advocates only. */
+export function LandRecordsSwitchCard() {
+  const qc = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
+  const { data } = useQuery({ queryKey: ['admin', 'land-records'], queryFn: () => api.get<{ enabled: boolean }>('/admin/land-records') });
+  const m = useMutation({
+    mutationFn: (enabled: boolean) => api.patch<{ enabled: boolean }>('/admin/land-records', { enabled }),
+    onSuccess: (r) => { qc.setQueryData(['admin', 'land-records'], r); showToast({ type: 'sage', text: r.enabled ? 'Land Records on for TN advocates' : 'Land Records switched off' }); },
+  });
+  if (!data) return null;
+  return (
+    <section className="card" style={{ padding: 24 }}>
+      <div className="row" style={{ alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+        <h2 className="heading-lg">Land Records</h2>
+        <span className="spacer" />
+        <span className="badge">{data.enabled ? 'ON' : 'OFF'}</span>
+      </div>
+      <p className="body-sm muted" style={{ margin: '8px 0 12px' }}>
+        For Tamil Nadu advocates only; other states see "coming soon". Override one firm on its page.
+      </p>
+      <button type="button" className="btn" disabled={m.isPending}
+        onClick={() => { if (window.confirm(data.enabled ? 'Switch Land Records off for everyone?' : 'Switch Land Records on for Tamil Nadu advocates?')) m.mutate(!data.enabled); }}>
+        {m.isPending ? 'Saving…' : data.enabled ? 'Switch off' : 'Switch on'}
+      </button>
+      {m.isError && <div role="alert" className="body-sm" style={{ marginTop: 8 }}>{m.error.message}</div>}
+    </section>
+  );
+}
+
+/** Per-firm Land Records override: follow the rules / always on / off. */
+export function FirmLandRecordsCard({ firmId, mode }: { firmId: string; mode: 'on' | 'off' | null }) {
+  const qc = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
+  const m = useMutation({
+    mutationFn: (next: 'on' | 'off' | null) => api.patch(`/admin/firms/${firmId}/land-records`, { mode: next }),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['admin'] }); showToast({ type: 'sage', text: 'Land Records setting saved' }); },
+  });
+  return (
+    <section className="card" style={{ padding: 24 }}>
+      <h2 className="heading-lg" style={{ marginBottom: 8 }}>Land Records for this firm</h2>
+      <label className="body-sm">Access
+        <select className="input" value={mode ?? 'rules'} disabled={m.isPending}
+          onChange={(e) => m.mutate(e.target.value === 'rules' ? null : (e.target.value as 'on' | 'off'))}>
+          <option value="rules">Follow the rules (Tamil Nadu advocates only)</option>
+          <option value="on">Always on for this firm</option>
+          <option value="off">Off for this firm</option>
+        </select>
+      </label>
+      {m.isError && <div role="alert" className="body-sm" style={{ marginTop: 8 }}>{m.error.message}</div>}
+    </section>
+  );
+}

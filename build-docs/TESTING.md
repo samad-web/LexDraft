@@ -1,4 +1,10 @@
 # Testing
+## Land Records for TN advocates — 2026-11-17 (features/land-records-tn-gate.md)
+- `land-access.test.ts` 5/5 (rule: TN spellings, no state, other state, platform off beats firm on, firm on/off), `land-records-gate.integration.test.ts` 5/5 (AC1-AC6 against Postgres, 403 codes + messages, audit), web `land-access-gate.test.tsx` 4/4 (services / state picker / coming soon + change state / switched off). All first run.
+- 0114 (with the new firms.land_records column) re-run twice in a rolled-back schema: idempotent.
+- Regression: api unit 1099 pass (+ share-links .env file); integration 134 pass + same 2 pre-existing; web 342 pass; api + web tsc clean.
+- Not run: the live-site Land Records e2e (land-records.e2e.ts) — it hits eservices.tn.gov.in; the guard sits in front of the unchanged routes.
+
 ## Admin Firm 360 + plan overview — 2026-11-17 (features/admin-firm-360.md)
 - `firm360.integration.test.ts` 6/6 (first run): AC1 MRR counts only paid, running plans (expired / free-launch / suspended excluded), ARR = 12 × MRR, overview MRR = stats MRR, plan mix labels; AC2 ending in 7 days, sign-ups never paid (> 30 min), list carries plan name + credits left; AC3 extend 1 month keeps one plan grant and the balance (no credit reset), audited; suspended / free-launch refused, unknown 404; payments show manual notes; ledger pages 50 + cursor.
 - `firms-filter.test.ts` 3/3 (web): ending / unpaid / plan / custom filters. One type error in the test helper itself (field named like FirmSummary.status) fixed.

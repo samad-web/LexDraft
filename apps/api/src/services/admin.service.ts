@@ -105,6 +105,7 @@ interface FirmRow {
   created_at: Date;
   ai_paused: boolean | null;
   selected_plan: string | null; custom_plan_name: string | null; free_plan: boolean | null; credits_left: string | number;
+  land_records: 'on' | 'off' | null;
   case_count: number;
   seats_used: number;
 }
@@ -188,6 +189,7 @@ function rowToFirmSummary(r: FirmRow): FirmSummary {
     aiPaused: r.ai_paused === true,
     planName: planName(r.selected_plan, r.custom_plan_name, r.free_plan),
     creditsLeft: Number(r.credits_left ?? 0),
+    landRecords: r.land_records ?? null,
     createdAt: r.created_at.toISOString(),
   };
 }
@@ -265,7 +267,7 @@ export const adminService = {
     const rows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
              f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
-             f.selected_plan, f.custom_plan_name, f.free_plan,
+             f.selected_plan, f.custom_plan_name, f.free_plan, f.land_records,
              coalesce((select sum(g.remaining) from credit_grants g where g.firm_id = f.id and g.expires_at > now()), 0) as credits_left,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used
@@ -281,7 +283,7 @@ export const adminService = {
     const firmRows = await sql<FirmRow[]>`
       select f.id, f.name, f.seats, f.status, f.plan_tier, f.plan_status,
              f.mrr_inr, f.renews_at, f.credit_allowance, f.created_at, f.ai_paused,
-             f.selected_plan, f.custom_plan_name, f.free_plan,
+             f.selected_plan, f.custom_plan_name, f.free_plan, f.land_records,
              coalesce((select sum(g.remaining) from credit_grants g where g.firm_id = f.id and g.expires_at > now()), 0) as credits_left,
              coalesce((select count(*) from cases c where c.firm_id = f.id), 0)::int as case_count,
              coalesce((select count(*) from users u where u.firm_id = f.id and u.status = 'active'), 0)::int as seats_used

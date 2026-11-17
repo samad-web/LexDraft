@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { landRecordsAdmin } from '../services/land-records-admin.service';
 import { firm360Service } from '../services/firm360.service';
 import { customPlanService } from '../services/custom-plan.service';
 import { aiSpendService } from '../services/ai-spend.service';
@@ -160,6 +161,31 @@ adminRouter.post('/firms/:id/extend', async (req, res, next) => {
     const firmId = z.string().uuid().parse(req.params.id);
     const body = ExtendPlan.parse(req.body);
     res.json(await firm360Service.extend(firmId, body.months, body.reason, { id: req.user!.id, email: req.user!.email }));
+  } catch (err) { next(err); }
+});
+
+// ---- Land Records switch (land-records-tn-gate.md) -------------------------
+
+adminRouter.get('/land-records', async (_req, res, next) => {
+  try { res.json({ enabled: await landRecordsAdmin.enabled() }); } catch (err) { next(err); }
+});
+
+adminRouter.patch('/land-records', async (req, res, next) => {
+  try {
+    const { enabled } = z.object({ enabled: z.boolean() }).strict().parse(req.body);
+    await landRecordsAdmin.setEnabled(enabled, { id: req.user!.id, email: req.user!.email });
+    res.json({ enabled });
+  } catch (err) { next(err); }
+});
+
+adminRouter.patch('/firms/:id/land-records', async (req, res, next) => {
+  try {
+    const firmId = z.string().uuid().parse(req.params.id);
+    const { mode } = z.object({ mode: z.enum(['on', 'off']).nullable() }).strict().parse(req.body);
+    if (!(await landRecordsAdmin.setFirm(firmId, mode, { id: req.user!.id, email: req.user!.email }))) {
+      res.status(404).json({ error: 'Firm not found' }); return;
+    }
+    res.json({ firmId, landRecords: mode });
   } catch (err) { next(err); }
 });
 

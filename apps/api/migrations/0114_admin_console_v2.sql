@@ -26,3 +26,8 @@ alter table users add column if not exists credit_cap_month numeric(9,1)
 alter table billing_events add column if not exists note text;
 alter table subscription_invoices add column if not exists line_label text;
 alter table subscription_invoices add column if not exists payment_note text;
+
+-- 6. Land Records for Tamil Nadu advocates only (land-records-tn-gate): per-firm
+--    override set by the superadmin. null = follow the platform switch + state.
+alter table firms add column if not exists land_records text
+  check (land_records is null or land_records in ('on', 'off'));

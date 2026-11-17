@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Icon, type IconName } from '@lexdraft/ui';
 import { PageHeader } from '@/components/PageHeader';
+import { LandAccessGate } from '@/components/land-records/LandAccessGate';
 import { PillNav } from '@/components/PillNav';
 import { LandServiceScreen } from '@/components/land-records/LandServiceScreen';
 import { LandApplicationsPanel } from '@/components/land-records/LandApplicationsPanel';
@@ -43,7 +44,12 @@ const TILE: Record<LandService, { title: string; icon: IconName }> = {
   'fline':        { title: 'F-Line sketch / statement', icon: 'analytics' },
 };
 
+/** Tamil Nadu advocates only, superadmin switch (land-records-tn-gate.md). */
 export function LandRecordsView() {
+  return <LandAccessGate><LandRecordsScreen /></LandAccessGate>;
+}
+
+function LandRecordsScreen() {
   const [params, setParams] = useSearchParams();
   const raw = params.get('service');
   const service = raw && SERVICE_IDS.has(raw) ? (raw as LandService) : null;

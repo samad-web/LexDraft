@@ -1080,6 +1080,8 @@ export interface FirmSummary {
   planName: string;
   /** Credits left right now (live grants, read-only). */
   creditsLeft: number;
+  /** Land Records override for this firm: null = follow the platform switch + state. */
+  landRecords: 'on' | 'off' | null;
   createdAt: string;
 }
 
@@ -1357,6 +1359,8 @@ export type AuditAction =
   | 'firm.ai.paused'
   | 'firm.custom_plan.set'
   | 'firm.plan.extend'
+  | 'firm.land_records.set'
+  | 'platform.land_records.set'
   | 'user.credit_cap.set'
   | 'firm.ai.resumed'
   | 'platform.ai.paused'
@@ -1541,6 +1545,13 @@ export interface ComposeQualityRow {
 }
 export interface AdminComposeQualityResponse {
   rows: ComposeQualityRow[];
+}
+
+/** GET /land-records/access (land-records-tn-gate). */
+export interface LandAccess {
+  status: 'available' | 'coming_soon' | 'state_required' | 'disabled';
+  /** The advocate's state from their profile, if any. */
+  state: string | null;
 }
 
 /** GET /admin/business (admin-firm-360): paid plans now, by plan. */

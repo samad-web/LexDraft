@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AiUsageUsersTable } from './AiUsageUsersTable';
-import { ExtendPlanCard, FirmLedgerCard, FirmPaymentsCard } from './Firm360Cards';
+import { ExtendPlanCard, FirmLandRecordsCard, FirmLedgerCard, FirmPaymentsCard } from './Firm360Cards';
 import { CustomPlanCard } from './CustomPlanCard';
 import { FirmAiPauseToggle } from './AiSpendCard';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -57,6 +57,7 @@ export function FirmDetailView() {
           <ExtendPlanCard firmId={firm.id} renewsAt={firm.plan.renewsAt} />
           <CustomPlanCard firmId={firm.id} />
           <FirmAiPauseToggle firmId={firm.id} paused={firm.aiPaused} />
+          <FirmLandRecordsCard firmId={firm.id} mode={firm.landRecords} />
           <DangerCard firmId={firm.id} firmName={firm.name} status={firm.status} onDeleted={() => navigate('/admin/firms')} />
           <RecentAuditCard entries={firm.recentAudit} />
         </div>

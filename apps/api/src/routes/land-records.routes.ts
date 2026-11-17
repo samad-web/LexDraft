@@ -7,6 +7,7 @@ import { caseBelongsToFirm, firmIdForUser } from '../services/tenant';
 import { documentsService } from '../services/documents.service';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { db } from '../db/client';
+import { assertLandAccess, landAccessFor } from '../lib/land-access';
 import { logger } from '../logger';
 
 // =============================================================================
@@ -33,6 +34,24 @@ import { logger } from '../logger';
 // =============================================================================
 
 export const landRecordsRouter: Router = Router();
+
+// Tamil Nadu advocates only, superadmin switch (land-records-tn-gate.md).
+// `access` and `state` answer every advocate; everything else needs access.
+landRecordsRouter.get('/access', async (req, res, next) => {
+  try { res.json(await landAccessFor(req.user!.id)); } catch (err) { next(err); }
+});
+
+landRecordsRouter.put('/state', validate({ body: z.object({ state: z.string().trim().min(2).max(80) }).strict() }), async (req, res, next) => {
+  try {
+    const sql = db();
+    if (sql) await sql`update users set state = ${(req.body as { state: string }).state} where id = ${req.user!.id}::uuid`;
+    res.json(await landAccessFor(req.user!.id));
+  } catch (err) { next(err); }
+});
+
+landRecordsRouter.use((req, _res, next) => {
+  assertLandAccess(req.user!.id).then(() => next(), next);
+});
 
 const SessionParam = z.object({ id: z.string().uuid() });
 const ServiceEnum = z.enum(['patta', 'a-register', 'verify-patta', 'poramboke', 'fmb', 'order-copy', 'tslr-extract', 'tslr-sketch', 'app-status', 'fline']);

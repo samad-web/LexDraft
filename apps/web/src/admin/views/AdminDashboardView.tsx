@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { LandRecordsSwitchCard } from './Firm360Cards';
 import { BusinessOverview } from './BusinessOverview';
 import { AiSpendCard } from './AiSpendCard';
 import { Skeleton } from '@lexdraft/ui';
@@ -66,6 +67,8 @@ export function AdminDashboardView() {
           <BusinessOverview />
 
           <AiSpendCard compact />
+
+          <LandRecordsSwitchCard />
 
           <section className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div

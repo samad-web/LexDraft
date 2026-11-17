@@ -1,4 +1,4 @@
-# PLAN — Superadmin console v2 (awaiting approval, 2026-11-17)
+# PLAN — Superadmin console v2 (approved 2026-11-17, built on feat/admin-console-v2)
 
 ## Goal and scope
 - The DifAi owner runs the business from `/admin`: current v5 plans, revenue, per-firm support, AI spend control, per-user AI caps, custom (Enterprise) plans with manual payment + GST invoice.
@@ -19,6 +19,7 @@
 2. `features/admin-custom-plan.md` — custom plan form (price, credits, seats, period) + manual payment + GST invoice; bigger credit grants with optional payment.
 3. `features/admin-per-user-usage.md` — per-user usage report + monthly credit cap.
 4. `features/admin-firm-360.md` — v5 plan mix/MRR on Overview, firms list, Firm 360 tabs.
+5. `features/land-records-tn-gate.md` — (owner, added 2026-11-17) Land Records for Tamil Nadu advocates only, superadmin switch + per-firm override, "coming soon" for other states.
 
 ## Build order
 - One additive migration 0114 (platform_settings, firms.ai_paused, firms.custom_plan_name, users.credit_cap_month).
