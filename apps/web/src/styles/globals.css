@@ -4628,6 +4628,21 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 /* The card's own "Nine or more advocates? Talk to us" replaces the old phone-only demo link. */
 .auth-shell .auth-firm-link { display: none !important; }
 
+/* Sign-in brand panel (owner 2026-11-17): after the Play Store feature graphic. */
+.auth-brand-panel { justify-content: center; padding: 48px 40px; }
+.auth-brand-panel > .auth-brand-block { display: flex; flex-direction: column; align-items: flex-start; gap: 22px; }
+.auth-brand-row { display: flex; align-items: center; gap: 28px; width: 100%; }
+.auth-brand-row > svg { flex: none; }
+.auth-brand-bars { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 80px; }
+.auth-brand-bars span { display: block; height: 16px; border-radius: 3px; background: color-mix(in srgb, var(--art-ink) 18%, transparent); }
+.auth-brand-headline { margin: 0; font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 34px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; color: var(--art-ink); }
+.auth-brand-sub { margin: 0; font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--art-ink) 72%, transparent); max-width: 340px; }
+@media (min-width: 861px) and (max-height: 860px) {
+  .auth-brand-panel { padding: 32px; }
+  .auth-brand-bars { gap: 9px; }
+  .auth-brand-bars span { height: 12px; }
+}
+
 /* Sign-in (NUSI-style): underline field + pill action row */
 .auth-field {
   display: flex; align-items: center; gap: 14px; padding: 10px 2px 12px; margin-top: 6px;

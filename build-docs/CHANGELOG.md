@@ -1,4 +1,6 @@
 # Changelog
+- Sign-in brand panel (2026-11-17, owner): the card's left panel shows the Play Store feature graphic built in HTML (DifAi wordmark with line bars, "Drafting that defies the clock.", "AI drafting, case diary and eCourts for Indian advocates") instead of the illustration; sign-in form stays on the right. AuthArt component kept in the repo, no longer used.
+
 - DEPLOYED 2026-11-17 (4ada924, web only): sign-in back to the card layout. Full-page CSS absent from the live build; Google client id present.
 
 - Sign-in back to the card layout (2026-11-17, owner: "no need of full screen"): full-page CSS from 517677f removed; kept only the hide of the phone-only "Firm with 9+ lawyers? Book a demo" link (duplicate of "Nine or more advocates? Talk to us").

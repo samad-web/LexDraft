@@ -15,7 +15,6 @@ import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable, isNativeApp, promptGoogle } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
-import { AuthArt } from '@/components/AuthArt';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
 import { Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
@@ -282,15 +281,19 @@ export function AuthView() {
   return (
     <div className="auth-page" style={pageStyle}>
       <div className="auth-shell">
-        <aside className="auth-art">
-          <AuthArt />
-          <div className="auth-art-brand">
-            <Wordmark height={26} />
+        {/* Brand panel (owner 2026-11-17): the Play Store feature graphic,
+            built in HTML so it stays sharp: wordmark, line, sub-line, bars. */}
+        <aside className="auth-art auth-brand-panel">
+          <div className="auth-brand-block">
+            <div className="auth-brand-row">
+              <Wordmark height={72} />
+              <div className="auth-brand-bars" aria-hidden>
+                <span style={{ width: '62%' }} /><span style={{ width: '100%' }} /><span style={{ width: '40%' }} /><span style={{ width: '80%' }} />
+              </div>
+            </div>
+            <h2 className="auth-brand-headline">Drafting that defies the clock.</h2>
+            <p className="auth-brand-sub">AI drafting, case diary and eCourts for Indian advocates</p>
           </div>
-          <span />
-          <p className="auth-art-tagline">
-            For advocates, chambers and firms: matters, hearings, drafting and billing in one place.
-          </p>
         </aside>
         <div className="auth-main">
         <div className="auth-main-inner">

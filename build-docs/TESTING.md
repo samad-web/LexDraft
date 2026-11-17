@@ -1,4 +1,7 @@
 # Testing
+## Sign-in brand panel — 2026-11-17
+- Markup + CSS. Real-browser screenshots (local build + Playwright) at 1920×1080 and 1366×700: left panel = wordmark + bars row, "Drafting that defies the clock.", sub-line; form on the right; no scroll. First attempt put the bars over the logo (.auth-art children are forced position:relative) — fixed by a logo + bars row. Web 410 pass, tsc clean.
+
 ## Full-page sign-in — 2026-11-17
 - CSS only. Checked in a real browser (local vite build + Playwright screenshots) at 1920×1080, 1366×700 and 390×844: card at (0,0), full width, no page scroll; phone duplicate "Firm with 9+ lawyers? Book a demo" link hidden. Web 410 pass.
 
