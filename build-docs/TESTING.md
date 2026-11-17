@@ -1,4 +1,7 @@
 # Testing
+## NUSI-style sign-in card — 2026-11-17
+- play-sign-in-only: 3 tests that described the superseded designs (Talk to us row, Book a demo link, Google-first with the email form hidden) updated to the owner's NUSI-style card (round mark, SIGN IN, email + password, Forgot left / SIGN IN right, one Create account line, no Google on sign-in); renew-box placement test kept. Web 413 pass, tsc clean. Real-browser screenshots desktop (filled) + phone.
+
 ## Sign in: Continue with Google first — 2026-11-17
 - play-sign-in-only: new test (no password field by default, "Sign in with email instead" shown, plan-ended renew box outside the email form, centred-logo Google button). Web suite pass, tsc clean. Real-browser screenshot with Google's real button (dark pill, logo + "Continue with Google" centred, full width).
 - Found while building: the plan-ended "Pay and continue" box lived inside the email form — hidden for Google users once the form is collapsed; moved above the form. google_link_required (Google refused for a password account) opens the email form automatically.

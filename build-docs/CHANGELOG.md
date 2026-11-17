@@ -1,4 +1,6 @@
 # Changelog
+- NUSI-style sign-in card (2026-11-17, owner: "like this i need", exactly NUSI, no Google): round black DifAi mark, SIGN IN, "Welcome back to DifAi.", email + password with icons, Forgot password left / black SIGN IN pill right, "New to DifAi? Create your account". Google is only on Create account (sign-up). "Talk to us" off the card (pricing still has "Speak with us"). Brand panel stays on the left.
+
 - DEPLOYED 2026-11-17 (219eb05, web only): sign in with Continue with Google first. Google client id and the email-link text present in the live build; no API change.
 
 - Sign in: Continue with Google first (2026-11-17, owner): the sign-in card shows a full-width dark "Continue with Google" pill (Google's button, logo + text centred) under "Sign in / Welcome back."; email + password is behind "Sign in with email instead" (kept for the password accounts and the Play review account; opens by itself when Google says the email has a DifAi password). Create account / Talk to us rows unchanged.

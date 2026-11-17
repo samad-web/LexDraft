@@ -90,10 +90,9 @@ describe('gap 2: sign-up and onboarding', () => {
     expect(web).toMatch(/Create your account</); // one sign-in card since 2026-11-17 (no plan tabs)
   });
 
-  it('AC5: website sign-in keeps its "Create your account" and "Book a demo" links', () => {
+  it('AC5: website sign-in keeps its "Create your account" link (NUSI-style card, owner 2026-11-17: one bottom line)', () => {
     const web = render(<AuthView />, '/auth');
     expect(web).toContain('Create your account');
-    expect(web).toContain('Book a demo');
   });
 
   it('AC6: a Google account with no DifAi account gets a plain notice in the app', () => {
@@ -278,14 +277,17 @@ describe('one sign-in card, plan chosen on the plan page', () => {
   });
   afterEach(() => { store.clear(); vi.unstubAllGlobals(); });
 
-  it('website /auth: no plan tabs; one "Create your account"; "Talk to us" only for nine or more', () => {
+  it('website /auth (NUSI-style card, owner 2026-11-17): no plan tabs, round mark, SIGN IN, email + password, one Create your account line', () => {
     env.native = false;
     const web = render(<AuthView />, '/auth');
     expect(web).not.toMatch(/auth-side-tab|Who is signing in|Create your (firm|chambers)/);
-    expect(web).toContain('Welcome back.');
+    expect(web).toContain('auth-signin-mark');
+    expect(web).toContain('Welcome back to DifAi.');
+    expect(web).toMatch(/type="password"/);
+    expect(web).toContain('Forgot password?');
+    expect(web).toContain('New to DifAi?');
     expect(web).toContain('Create your account');
-    expect(web).toContain('Nine or more advocates?');
-    expect(web).toContain('Talk to us');
+    expect(web).not.toContain('Continue with Google'); // owner: exactly NUSI, Google only on Create account
   });
 
   it('website sign-up screen: Google up front, plans from ₹699, the steps say the plan is chosen next', () => {
@@ -302,14 +304,9 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     expect(code).not.toMatch(/saveIntro/);
   });
 
-  it('Google first (owner 2026-11-17): no password field until "Sign in with email instead"; plan-ended box not inside the email form', () => {
-    env.native = false;
-    const web = render(<AuthView />, '/auth');
-    expect(web).toContain('Sign in with email instead');
-    expect(web).not.toMatch(/type="password"/);
+  it('plan-ended renew box sits outside the email form (shows for Google sign-ups too)', () => {
     const code = src('views/AuthView.tsx');
     expect(code.indexOf('Plan ended (402')).toBeLessThan(code.indexOf('<form onSubmit={handleSignIn}'));
-    expect(code).toContain("logoAlignment=\"center\"");
   });
 
   it('app: no create or talk-to-us link', () => {

@@ -16,7 +16,7 @@ import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable, isNativeApp, promptGoogle } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
 import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
-import { Wordmark } from '@/components/brand/Logo';
+import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
@@ -93,8 +93,6 @@ export function AuthView() {
   const [renewMunshi, setRenewMunshi] = useState(0);
   const renewChosen = SIGNUP_PLANS.find((p) => p.id === renewPlan)!;
   const renewToken = renewTokenFrom(signIn.error) ?? renewTokenFrom(googleSignIn.error);
-  // Google refused because this email has a DifAi password: open the email form.
-  const googleNeedsPassword = (googleSignIn.error as { response?: { data?: { code?: string } } } | null)?.response?.data?.code === 'google_link_required';
   /** Terms + Privacy box on the Google sign-up form. Unticked by default. */
   const [agreedTerms, setAgreedTerms] = useState(false);
 
@@ -137,8 +135,6 @@ export function AuthView() {
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  // Email + password form, hidden behind "Sign in with email instead".
-  const [showEmail, setShowEmail] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
   const handleGoogleCredentialRef = useRef<((credential: string) => void) | null>(null);
@@ -301,8 +297,8 @@ export function AuthView() {
         </aside>
         <div className="auth-main">
         <div className="auth-main-inner">
-        {/* Brand */}
-        <div className="auth-head">
+        {/* Brand (the sign-in card has its own round mark) */}
+        {tab !== 'signin' && <div className="auth-head">
           <span className="auth-logo"><Wordmark height={40} /></span>
           <div
             className="mono auth-brand-text"
@@ -316,7 +312,7 @@ export function AuthView() {
           >
             For Indian advocates
           </div>
-        </div>
+        </div>}
 
         {/* MFA challenge - interleaved between password POST and session creation. */}
         {tab === 'signin' && mfaChallenge && (
@@ -365,17 +361,12 @@ export function AuthView() {
                 </button>
               </div>
             )}
-            <div className="auth-intro">
+            {/* NUSI-style card (owner 2026-11-17), DifAi black and white. */}
+            <div className="auth-signin-head">
+              <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
               <h1 className="auth-title">Sign in</h1>
-              <p className="body-sm" style={{ color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.55 }}>
-                Welcome back.
-              </p>
+              <p className="auth-signin-sub">Welcome back to DifAi.</p>
             </div>
-            {googleSignInAvailable() ? (
-              <div className="auth-google"><GoogleButton onCredential={handleGoogleCredential} text="continue_with" shape="pill" theme="filled_black" logoAlignment="center" /></div>
-            ) : (
-              <span className="auth-foot-g"><GoogleG /> Google (not configured)</span>
-            )}
             {/* Plan ended (402 with a renew token), from Google or email sign-in. */}
             {renewToken && native && (
               <div role="alert" style={noticeStyle}>{NATIVE_COPY.planInactive}</div>
@@ -407,12 +398,6 @@ export function AuthView() {
                 </button>
               </div>
             )}
-            {/* Google first (owner 2026-11-17). Email + password stays one tap away for
-                the few password accounts and the Google Play review account. */}
-            {!(showEmail || googleNeedsPassword) ? (
-              <button type="button" className="auth-link auth-email-toggle" onClick={() => setShowEmail(true)}>Sign in with email instead</button>
-            ) : (<>
-            <div className="auth-or" aria-hidden><span>or with email</span></div>
             <form onSubmit={handleSignIn} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <label className="auth-field">
                 <Icon name="clients" size={16} />
@@ -470,7 +455,6 @@ export function AuthView() {
                 </button>
               </div>
             </form>
-            </>)}
             {googleSignIn.isPending && (
               <p className="body-sm muted">Checking your Google account…</p>
             )}
@@ -481,24 +465,9 @@ export function AuthView() {
               <div role="alert" style={noticeStyle}>{NATIVE_COPY.noGoogleAccount}</div>
             )}
             {!native && (<>
-            <div className="auth-more">
-              <div className="auth-more-row">
-                <span>New to DifAi?</span>
-                <button type="button" className="auth-link" onClick={() => startTrial()}>Create your account →</button>
-              </div>
-              <div className="auth-more-row">
-                <span>Nine or more advocates?</span>
-                <button type="button" className="auth-link" onClick={bookDemo}>Talk to us →</button>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm auth-firm-link"
-              style={{ alignSelf: 'center' }}
-              onClick={bookDemo}
-            >
-              Firm with 9+ lawyers? Book a demo
-            </button>
+            <p className="auth-signin-foot">
+              New to DifAi?{' '}<button type="button" className="auth-link" onClick={() => startTrial()}>Create your account</button>
+            </p>
             </>)}
           </div>
         )}

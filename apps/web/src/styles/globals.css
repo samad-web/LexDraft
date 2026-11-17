@@ -4646,12 +4646,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 /* Right side matches the brand panel (owner 2026-11-17): left-aligned, same
    bold sentence-case heading, solid dark action, Google inside the form. */
 .auth-shell .auth-intro { text-align: left; }
-.auth-shell .auth-title { text-transform: none; letter-spacing: -0.02em; font-weight: 800; line-height: 1.12; }
 .auth-shell .auth-intro p { margin-top: 8px !important; font-size: 15px; }
-.auth-shell .auth-actions { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-top: 4px; }
-.auth-shell .auth-actions .auth-forgot { order: 1; align-self: flex-end; margin-top: -4px; font-size: 13px; }
-.auth-shell .auth-actions .auth-submit { order: 2; width: 100%; height: 44px; min-height: 44px; background: var(--text-primary); color: var(--bg-base); border-color: var(--text-primary); text-transform: none; letter-spacing: 0.01em; box-shadow: none; }
-.auth-shell .auth-actions .auth-submit:disabled { opacity: 0.35; }
 .auth-or { display: flex; align-items: center; gap: 12px; color: var(--text-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
 .auth-google { display: block; min-height: 44px; }
@@ -4665,8 +4660,20 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-shell .auth-main > .auth-main-inner { max-width: 448px; }
 @media (min-width: 861px) {
   .auth-shell .auth-head { display: none; } /* the brand panel carries the logo */
-  .auth-shell .auth-title { font-size: clamp(28px, 2.6vw, 34px); }
 }
+
+/* NUSI-style sign-in card (owner 2026-11-17), in DifAi black and white. */
+.auth-signin-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; margin-bottom: 8px; }
+.auth-signin-mark {
+  display: inline-flex; align-items: center; justify-content: center; width: 88px; height: 88px; border-radius: 50%;
+  background: var(--text-primary); color: var(--bg-base); box-shadow: 0 10px 24px color-mix(in srgb, var(--text-primary) 25%, transparent);
+  margin-bottom: 6px;
+}
+.auth-signin-mark svg { color: var(--bg-base); }
+.auth-signin-head .auth-title { text-transform: uppercase; letter-spacing: 0.02em; font-size: 34px; font-weight: 800; }
+.auth-signin-sub { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+.auth-signin-foot { margin: 6px 0 0; text-align: center; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+.auth-signin-foot .auth-link { font-weight: 700; }
 
 /* Sign-in (NUSI-style): underline field + pill action row */
 .auth-field {

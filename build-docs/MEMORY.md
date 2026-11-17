@@ -82,6 +82,8 @@
 
 - 2026-11-17 — Owner approved: the sign-in page has no plan tabs (replaces 18bdb26 "sign-in tabs Advocate · Chambers · Firm"). The plan is chosen once, on the plan page; pricing "Start with …" pre-picks it.
 
+- 2026-11-17 — Owner: sign-in card = NUSI layout in black and white, no Google on sign-in (Google only on Create account); every account has a password (Google sign-ups set one), so nobody is locked out.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
