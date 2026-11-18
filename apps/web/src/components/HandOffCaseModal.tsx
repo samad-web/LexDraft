@@ -28,6 +28,15 @@ interface Props {
   caseTitle?: string;
 }
 
+/** wa.me link to the number the handover is bound to, with the message filled in. */
+export function waLink(phone: string | null | undefined, caseTitle: string | undefined, url: string): string | null {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  if (digits.length < 10) return null;
+  const to = digits.length === 10 ? `91${digits}` : digits;
+  const text = `${caseTitle ? `Please take over "${caseTitle}" for me on DifAi.` : 'Please take over a case for me on DifAi.'} Open this link and verify this WhatsApp number to see the case: ${url}`;
+  return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+}
+
 function acceptUrl(token: string): string {
   return `${window.location.origin}/co-counsel/accept/${token}`;
 }
@@ -157,14 +166,26 @@ export function HandOffCaseModal({ open, onClose, caseId, caseTitle }: Props) {
               />
             </span>
           )}
+          {/* One tap: opens WhatsApp to the bound number with the link typed in (owner, 2026-11-18). */}
+          {waLink(link.targetPhone, caseTitle, acceptUrl(link.shareToken)) && (
+            <a
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center' }}
+              href={waLink(link.targetPhone, caseTitle, acceptUrl(link.shareToken))!}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Send on WhatsApp
+            </a>
+          )}
           {canNativeShare && (
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn"
               style={{ width: '100%' }}
               onClick={() => { void handleNativeShare(); }}
             >
-              Share via WhatsApp, SMS…
+              Other ways to share…
             </button>
           )}
           <div className="cs-share-link">

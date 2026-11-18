@@ -19,6 +19,8 @@ export interface NavItem {
   requiresFeature?: FeatureKey;
   /** Related pages shown as tabs under this one entry; see NAV_GROUPS. */
   tabs?: NavTab[];
+  /** Shown with a SOON badge; its page says "Coming soon" (owner, 2026-11-18). */
+  comingSoon?: boolean;
 }
 
 export interface NavGroup {
@@ -95,7 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
         ],
       },
       { id: 'ecourts', label: 'eCourts', icon: 'ecourts', to: '/app/ecourts', requiresFeature: 'matter.view' },
-      { id: 'efiling', label: 'eFiling', icon: 'efiling', to: '/app/efiling', requiresFeature: 'matter.view' },
+      { id: 'efiling', label: 'eFiling', icon: 'efiling', to: '/app/efiling', requiresFeature: 'matter.view', comingSoon: true },
       { id: 'land-records', label: 'Land Records', icon: 'map', to: '/app/land-records', requiresFeature: 'matter.view' },
     ],
   },
@@ -133,7 +135,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: 'Draft & AI',
     items: [
       { id: 'draft',   label: 'Draft',       icon: 'draft',   badge: 'AI', to: '/app/draft',   requiresFeature: 'drafting.ai' },
-      { id: 'clauses', label: 'Clause Bank', icon: 'clauses', to: '/app/clauses', requiresFeature: 'drafting.clauses' },
+      { id: 'clauses', label: 'Clause Bank', icon: 'clauses', to: '/app/clauses', requiresFeature: 'drafting.clauses', comingSoon: true },
       // LAWE forms library as its own page: view + blank PDF/Word (owner 2026-11-18).
       { id: 'formats', label: 'Formats', icon: 'documents', to: '/app/formats', requiresFeature: 'drafting.ai' },
       {
@@ -147,9 +149,9 @@ export const NAV_GROUPS: NavGroup[] = [
       // picker that lets the advocate pick a matter; the picker then deep-
       // links to /app/matter-intel/:caseId. The picker is also where the
       // user is bounced after sign-out / direct URL hits.
-      { id: 'matter-intel',   label: 'Matter Intelligence', icon: 'sparkle', badge: 'AI', to: '/app/matter-intel',   requiresFeature: 'matter.intelligence' },
-      { id: 'title-reports',  label: 'Title Reports',       icon: 'map',     badge: 'AI', to: '/app/title-reports',  requiresFeature: 'title_report.use' },
-      { id: 'mock-arguments', label: 'Mock Arguments',      icon: 'gavel',   badge: 'AI', to: '/app/mock-arguments', requiresFeature: 'mock_arguments.use' },
+      { id: 'matter-intel',   label: 'Matter Intelligence', icon: 'sparkle', badge: 'AI', to: '/app/matter-intel',   requiresFeature: 'matter.intelligence', comingSoon: true },
+      { id: 'title-reports',  label: 'Title Reports',       icon: 'map',     badge: 'AI', to: '/app/title-reports',  requiresFeature: 'title_report.use', comingSoon: true },
+      { id: 'mock-arguments', label: 'Mock Arguments',      icon: 'gavel',   badge: 'AI', to: '/app/mock-arguments', requiresFeature: 'mock_arguments.use', comingSoon: true },
     ],
   },
   {
@@ -236,6 +238,7 @@ export function visibleNavGroups(granted: readonly string[], plan?: UserPlan | n
     items: g.items.flatMap((item): NavItem[] => {
       if (!can(item.requiresFeature)) return [];
       if (noTeam && item.id === 'team-chat') return [];
+      if (item.comingSoon) return [{ ...item, badge: 'SOON' }];
       if (!item.tabs) return [item];
       const tabs = item.tabs.filter((t) => can(t.requiresFeature)).map(named);
       const first = tabs[0];

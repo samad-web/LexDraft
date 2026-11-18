@@ -379,3 +379,6 @@
 
 ## solo-wording (2026-11-18)
 - Solo accounts: org section/breadcrumbs "Practice" (Chambers/Firm on those plans); Team Chat hidden without a Munshi seat; Settings wording by plan.
+
+## coming-soon (2026-11-18)
+- eFiling, Clause Bank, Matter Intelligence, Title Reports, Mock Arguments marked Coming soon; co-counsel "Send on WhatsApp". Anantha test account switched to Firm (DB, owner request).

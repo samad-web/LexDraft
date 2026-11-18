@@ -104,6 +104,7 @@ const AdminBillingView = lazy(() => import('@/admin/views/BillingView').then((m)
 const ErrorLogView = lazy(() => import('@/admin/views/ErrorLogView').then((m) => ({ default: m.ErrorLogView })));
 import { ImpersonationBanner } from '@/admin/ImpersonationBanner';
 import { ProductTour } from '@/components/tour/ProductTour';
+import { ComingSoon } from '@/components/ComingSoon';
 
 // Catch-all for any /app/* URL that doesn't match a known route. Shows the
 // unmatched path and a way back, instead of silently pretending the user
@@ -310,11 +311,11 @@ export function App() {
               <Route path="/app/draft" element={<DraftingView />} />
               <Route path="/app/review" element={<ContractReviewView />} />
               <Route path="/app/review-queue" element={<ReviewQueueView />} />
-              <Route path="/app/mock-arguments" element={<MockArgumentsView />} />
-              <Route path="/app/title-reports" element={<TitleReportsView />} />
-              <Route path="/app/title-reports/:id" element={<TitleReportDetailView />} />
-              <Route path="/app/matter-intel"          element={<MatterIntelView />} />
-              <Route path="/app/matter-intel/:caseId" element={<MatterIntelView />} />
+              <Route path="/app/mock-arguments" element={<ComingSoon feature="Mock Arguments"><MockArgumentsView /></ComingSoon>} />
+              <Route path="/app/title-reports" element={<ComingSoon feature="Title Reports"><TitleReportsView /></ComingSoon>} />
+              <Route path="/app/title-reports/:id" element={<ComingSoon feature="Title Reports"><TitleReportDetailView /></ComingSoon>} />
+              <Route path="/app/matter-intel"          element={<ComingSoon feature="Matter Intelligence"><MatterIntelView /></ComingSoon>} />
+              <Route path="/app/matter-intel/:caseId" element={<ComingSoon feature="Matter Intelligence"><MatterIntelView /></ComingSoon>} />
               <Route path="/app/tasks" element={<TasksView />} />
               <Route path="/app/documents" element={<DocumentsView />} />
               <Route path="/app/research" element={<ResearchView />} />
@@ -324,7 +325,7 @@ export function App() {
               <Route path="/app/clients"     element={<ClientsView />} />
               <Route path="/app/clients/:id" element={<ClientDetailView />} />
               <Route path="/app/leads"      element={<LeadsView />} />
-              <Route path="/app/clauses"    element={<ClausesView />} />
+              <Route path="/app/clauses"    element={<ComingSoon feature="Clause Bank"><ClausesView /></ComingSoon>} />
               <Route path="/app/formats"    element={<Gate feature="drafting.ai" fallback={<FreePlanLocked feature="Formats" />}><FormatsView /></Gate>} />
               <Route path="/app/invoices"   element={<InvoicesView />} />
               <Route path="/app/expenses"   element={<ExpensesView />} />
@@ -332,7 +333,7 @@ export function App() {
               <Route path="/app/diary"      element={<DiaryView />} />
               <Route path="/app/causelist"  element={<CauseListView />} />
               <Route path="/app/ecourts"    element={<EcourtsView />} />
-              <Route path="/app/efiling"    element={<EfilingView />} />
+              <Route path="/app/efiling"    element={<ComingSoon feature="eFiling"><EfilingView /></ComingSoon>} />
               <Route path="/app/land-records" element={<LandRecordsView />} />
               {/* The stamp duty report now lives in the calculator (PDF download there). */}
               <Route path="/app/stamp"      element={<Navigate to="/app/calculators?tab=stamp-duty" replace />} />

@@ -115,7 +115,7 @@ const CATALOG: KpiDef[] = [
   },
   {
     id: 'objections', name: 'Objections to cure', why: 'eFiling defects the registry raised - mandatory.',
-    available: always,
+    available: () => false, // eFiling is "Coming soon" (owner, 2026-11-18)
     build: ({ group }) => {
       const g = group('objections');
       const n = g?.count ?? 0;
@@ -264,10 +264,10 @@ const BY_ID = new Map(CATALOG.map((d) => [d.id, d]));
  *  - A member's own view on a Practice / Firm plan: their day, deadlines, follow-ups.
  */
 const PLAN_DEFAULTS: Record<'Solo' | 'PracticeLead' | 'FirmLead' | 'Member', KpiId[]> = {
-  Solo: ['hearingsToday', 'next7', 'limitation', 'objections', 'feesOverdue', 'openLeads'],
-  PracticeLead: ['hearingsToday', 'unassigned', 'limitation', 'objections', 'reviews', 'feesOverdue'],
-  FirmLead: ['hearingsToday', 'unassigned', 'limitation', 'objections', 'teamLoad', 'revenueFY'],
-  Member: ['hearingsToday', 'next7', 'limitation', 'objections', 'noNextDate', 'overdueTasks'],
+  Solo: ['hearingsToday', 'next7', 'limitation', 'noNextDate', 'feesOverdue', 'openLeads'],
+  PracticeLead: ['hearingsToday', 'unassigned', 'limitation', 'next7', 'reviews', 'feesOverdue'],
+  FirmLead: ['hearingsToday', 'unassigned', 'limitation', 'next7', 'teamLoad', 'revenueFY'],
+  Member: ['hearingsToday', 'next7', 'limitation', 'activeMatters', 'noNextDate', 'overdueTasks'],
 };
 
 /** Shown when a default KPI isn't available (e.g. no billing access). */

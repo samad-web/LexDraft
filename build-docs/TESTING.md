@@ -689,3 +689,7 @@
 ## solo-wording (2026-11-18)
 - solo-wording.test.ts AC1–AC3: 5/5. Web unit regression 420/421 (only known password-rule failure).
 - Browser regression: formats-page (×2), pay-before-app, team-join: all pass. formats-page test now marks the first-run tour seen (it covered the sidebar).
+
+## coming-soon (2026-11-18)
+- coming-soon.test.ts AC1–AC2: 4/4. coming-soon.public.e2e AC3: 5/5; formats-page regression 4/4.
+- Web unit regression 424/425 (known password-rule failure only). tsc clean.
