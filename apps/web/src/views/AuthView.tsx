@@ -22,7 +22,7 @@ import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppV
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
-import { passwordChecks, passwordProblem, PASSWORD_RULE } from '@/lib/password';
+import { passwordProblem, PASSWORD_RULE } from '@/lib/password';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
 import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
@@ -61,21 +61,6 @@ function signupProblems(f: { name: string; email: string; phone: string; phoneFo
       : !f.phone ? 'Enter your WhatsApp number' : !isIndianMobile(f.phone) ? 'Enter a 10-digit Indian mobile number that uses WhatsApp' : null,
     password: passwordProblem(f.password),
   };
-}
-
-/** Live checklist under a new-password field: each part of the rule ticks when met. */
-function PasswordChecks({ id, value }: { id: string; value: string }) {
-  return (
-    <ul id={id} className="auth-pw-checks" aria-label="Password must have">
-      {passwordChecks(value).map((c) => (
-        <li key={c.label} data-ok={c.ok || undefined}>
-          <Icon name={c.ok ? 'check' : 'close'} size={12} />
-          <span>{c.label}</span>
-          <span className="sr-only">{c.ok ? ' (done)' : ' (missing)'}</span>
-        </li>
-      ))}
-    </ul>
-  );
 }
 
 function renewTokenFrom(err: unknown): string | null {
@@ -608,7 +593,6 @@ export function AuthView() {
                     autoComplete="new-password"
                     placeholder="Password"
                     aria-label="Password"
-                    aria-describedby="su-pw-rule"
                     required
                     minLength={8}
                     value={newPassword}
@@ -620,7 +604,7 @@ export function AuthView() {
                     <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                   </button>
                 </label>
-                <PasswordChecks id="su-pw-rule" value={newPassword} />
+                {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
                 <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
                 <div className="auth-actions" style={{ justifyContent: 'flex-end' }}>
@@ -693,9 +677,7 @@ export function AuthView() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   minLength={8}
-                  aria-describedby="g-pw-rule"
                 />
-                <PasswordChecks id="g-pw-rule" value={newPassword} />
                 <div style={{ marginTop: 12 }}><TermsAgree checked={agreedTerms} onChange={setAgreedTerms} /></div>
               </div>
               )}

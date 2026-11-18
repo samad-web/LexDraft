@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { passwordChecks, passwordProblem, PASSWORD_RULE } from '../password';
+import { passwordProblem, PASSWORD_RULE } from '../password';
 
 describe('sign-up password rule (web mirror)', () => {
   it('same rule text and checks as the API', () => {
@@ -14,9 +14,5 @@ describe('sign-up password rule (web mirror)', () => {
   it('strong passes, weak fails', () => {
     expect(passwordProblem('Court#2026')).toBeNull();
     for (const pw of ['', 'court#2026', 'COURT#2026', 'Court#Diary', 'Court2026x', 'Ab1!xyz']) expect(passwordProblem(pw)).toBe(PASSWORD_RULE);
-  });
-  it('checklist ticks each part', () => {
-    expect(passwordChecks('a').map((c) => c.ok)).toEqual([false, false, true, false, false]);
-    expect(passwordChecks('Court#2026').every((c) => c.ok)).toBe(true);
   });
 });

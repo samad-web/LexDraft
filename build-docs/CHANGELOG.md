@@ -1,4 +1,6 @@
 # Changelog
+- Password checklist removed (2026-11-18, owner: "remove this wordings"): no "8+ characters / Uppercase / …" row under the password. The strong rule is unchanged; a weak password shows the rule once as a field error (after leaving the field or pressing START), like the other fields.
+
 - DEPLOYED 2026-11-18 (c8ccf67, web only): NUSI-size sign-in / create-account card. Rollback lexdraft-web:prev-20261118-060332. Smoke: site 200, sign-in 400, Google client id + new CSS in the live build.
 
 - Auth card = NUSI size (2026-11-18, owner "maintain this size" with the NUSI sign-in screenshot): fixed desktop sizes copied from NUSI at the owner's 125% scaling — card 980px wide, form column 450px, 96px mark, 32px title, 70px field rows, 140×46 button, 77px Google strip. Create account tightens (72px mark, shorter rows) only on windows under 800px tall so it still fits. Replaces the vh-scaled sizes of 9a574b1.

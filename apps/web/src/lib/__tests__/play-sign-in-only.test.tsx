@@ -299,8 +299,9 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     expect(web).toContain('Create your account');
     // Owner 2026-11-18: the "Plans from … / We send a code" line under the title is gone.
     expect(web).not.toContain('Plans from ₹699 + GST a month');
-    // Strong password: live checklist under the field.
-    for (const c of ['8+ characters', 'Uppercase', 'Lowercase', 'Number', 'Symbol']) expect(web, c).toContain(c);
+    // Owner 2026-11-18: no checklist under the password; a weak password shows the rule as a field error.
+    expect(web).not.toContain('Uppercase');
+    expect(src('views/AuthView.tsx')).toContain("{suShow('password') && <span role=\"alert\" className=\"auth-field-error\">");
     for (const ph of ['Your name', 'Work email', 'WhatsApp number (10 digits)', 'Password']) expect(web, ph).toContain(`placeholder="${ph}"`);
     expect(web).toMatch(/>Start</);
     expect(web).toContain('Or sign up with');

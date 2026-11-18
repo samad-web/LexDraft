@@ -1,4 +1,7 @@
 # Testing
+## Password checklist removed — 2026-11-18
+- Checklist test dropped (feature removed by owner); sign-up screen test now asserts no checklist + the password field error. Screenshot at 1536×728@1.25: weak password → one-line-wrapped rule under the field. Web unit 415/415, tsc clean.
+
 ## Auth card = NUSI size — 2026-11-18
 - Measured: card 980 wide; sign-in 615 tall (NUSI 580; the extra is the OR + Google row inside our card), field pitch 70. Overflow 0 at 1536×728@1.25 (owner), 1920×910, 1920×1080, phone 390×844 (no horizontal scroll). Web unit 416/416.
 
