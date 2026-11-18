@@ -513,15 +513,26 @@ describe('F6: Terms consent enforced by the server', () => {
 });
 
 describe('₹1 test code at onboarding (owner 2026-11-18)', () => {
-  it('an allow-listed owner pays ₹1 through onboarding; the plan applies like a real payment', async () => {
-    const r = await serviceSignup(91, 'solo');
-    const ob = await call('POST', '/onboarding/complete', { plan: 'advocate', cycle: 'monthly', coupon: 'DifaiTest' }, r.token);
-    expect(ob.status).toBe(200);
-    const orderId = orderIdOf(ob.json.checkoutUrl);
-    expect(orders.get(orderId)!.amount).toBe(100);
-    expect((await capture(orderId)).status).toBe(200);
-    expect(await firmOf(r.user.id)).toMatchObject({ plan_status: 'active', selected_plan: 'advocate' });
-    expect((await probe(r.token)).status).toBe(200);
+  it('test-payment AC4: an allow-listed owner: the code is a simulated payment; the plan applies after 10 s, no invoice', async () => {
+    const timers = vi.spyOn(globalThis, 'setTimeout');
+    try {
+      const r = await serviceSignup(91, 'solo');
+      const ob = await call('POST', '/onboarding/complete', { plan: 'advocate', cycle: 'monthly', coupon: 'DifaiTest' }, r.token);
+      expect(ob.status).toBe(200);
+      expect(ob.json.checkoutUrl).toMatch(/\/app\/billing\?checkout=paid$/);
+      expect((await firmOf(r.user.id)).plan_status).not.toBe('active');
+      expect((await probe(r.token)).json.code).toBe('onboarding_required');
+      const due = timers.mock.calls.find((c) => c[1] === 10_000);
+      expect(due).toBeDefined();
+      (due![0] as () => void)();
+      for (let i = 0; i < 50 && (await firmOf(r.user.id)).plan_status !== 'active'; i++) await new Promise((res) => setImmediate(res));
+      expect(await firmOf(r.user.id)).toMatchObject({ plan_status: 'active', selected_plan: 'advocate' });
+      expect((await probe(r.token)).status).toBe(200);
+      const inv = await sql()`select count(*)::int as n from subscription_invoices i join users u on u.firm_id = i.firm_id where u.id = ${r.user.id}::uuid`;
+      expect(inv[0]!.n).toBe(0);
+    } finally {
+      timers.mockRestore();
+    }
   });
 
   it('the code on any other account is refused before anything is saved', async () => {

@@ -368,3 +368,6 @@
 
 ## fix(engine-court-heading) — 2026-11-18
 - New `bare_designation()` in pipelines/_court.py strips a leading "(In) (the) Court of (the)" / "The"; used by s138_complaint and cause_title so headings never read "COURT OF THE THE".
+
+## test-payment (2026-11-18)
+- Test code on allow-listed accounts = simulated payment: no Razorpay, plan applied after 10 s, no GST invoice (owner). Brief Packs keep ₹1.

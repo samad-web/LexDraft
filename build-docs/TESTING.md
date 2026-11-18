@@ -675,3 +675,8 @@
 - signup-flow.integration: allow-listed owner pays ₹1 via onboarding (order 100 paise, plan active); code on another account -> 400 invalid_coupon, nothing saved. 21/21.
 - e2e pay-before-app: code box sends coupon with checkout. 5/5 incl. onboarding-fields (run on port 5174 from a temp checkout).
 - test-coupon unit 7/7. web unit 414/415 (password-rule pre-existing). api unit: share-links needs a local .env (absent in the temp checkout).
+
+## test-payment (2026-11-18)
+- test-coupon.test.ts AC1–AC3 + existing: 9/9 pass; billing.test.ts 5/5.
+- signup-flow.integration AC4 (+ regression of the whole file): 21/21 pass (local PG).
+- tsc --noEmit (api): clean.

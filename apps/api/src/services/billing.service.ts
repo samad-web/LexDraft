@@ -156,6 +156,8 @@ const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
  *  BILLING_TEST_COUPON AND the buyer's email is on BILLING_TEST_EMAILS, so a
  *  leaked code is useless to anyone else. No code given -> false. */
 export const TEST_PRICE_PAISE = 100;
+/** A plan bought with the test code is a simulated payment, applied this long after Pay. */
+export const TEST_PAYMENT_DELAY_MS = 10_000;
 export function testCouponFor(email: string | null, coupon: string | undefined): boolean {
   if (!coupon) return false;
   const { testCoupon, testEmails } = env.razorpay;
@@ -217,7 +219,7 @@ export function addPeriod(from: Date, cycle: BillingCycle): Date {
  *  - A different plan, or nothing active: it starts now. Days left on a
  *    different plan are not carried over (owner, 2026-11-14).
  */
-async function applyPlanPayment(eventId: string, payment: { id: string; amount?: unknown }, notes: Record<string, unknown>, orderAmount: number): Promise<void> {
+async function applyPlanPayment(eventId: string, payment: { id: string; amount?: unknown }, notes: Record<string, unknown>, orderAmount: number, simulated = false): Promise<void> {
   const sql = db();
   if (!sql) return;
   const firmId = typeof notes.firm_id === 'string' ? notes.firm_id : null;
@@ -234,7 +236,8 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
   const plan: PaidPlanId = v4 ? v5PlanFor(ordered as string, orderedSeats) : (ordered as PaidPlanId);
   const seats = PLANS[plan].seats;
   const test = notes.coupon === 'test'; // set only by our own checkout, on our own order
-  const want = test ? TEST_PRICE_PAISE : v4 ? v4ChargePaise(ordered as string, cycle, orderedSeats, munshi) : chargePaise(plan, cycle, munshi);
+  // `simulated` is set only by startCheckout's test path, never by a webhook.
+  const want = simulated ? 0 : test ? TEST_PRICE_PAISE : v4 ? v4ChargePaise(ordered as string, cycle, orderedSeats, munshi) : chargePaise(plan, cycle, munshi);
   // Taxable value for the invoice: the ex-GST price. v4 prices included GST, so
   // those (and the ₹1 test) are backed out of the total instead.
   const taxablePaise = test || v4 ? undefined : periodPriceInr(plan, cycle, munshi) * 100;
@@ -280,9 +283,14 @@ async function applyPlanPayment(eventId: string, payment: { id: string; amount?:
     const kind: BillingEventKind = !active ? 'subscription_active' : same ? 'renewed' : 'plan_changed';
     await tx`
       insert into billing_events (firm_id, user_id, kind, plan, cycle, amount_inr, amount_paise, provider, provider_ref, webhook_id)
-      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${Math.round(want / 100)}, ${want}, 'razorpay', ${payment.id}, ${eventId})`;
+      values (${firmId}::uuid, ${userId}, ${kind}, ${plan}, ${cycle}, ${Math.round(want / 100)}, ${want}, ${simulated ? 'test' : 'razorpay'}, ${payment.id}, ${eventId})`;
     return { start, end };
   });
+  if (simulated) {
+    // No money moved: no GST invoice number is used up.
+    if (applied) { invalidatePlanStatusCache(); invalidatePermissionsCache(); }
+    return;
+  }
   // The invoice is idempotent on the payment id: safe on a redelivery too.
   await subscriptionInvoiceService.issueForPayment({
     firmId, paymentId: payment.id, amountPaise: want, taxablePaise, subscriptionId: null,
@@ -387,18 +395,30 @@ export const billingService = {
     // (owner, 2026-11-14). The plan is applied only by the signed
     // payment.captured webhook (applyPlanPayment).
     const test = testCouponFor(u.email, coupon);
+    if (test) {
+      // Simulated test payment (owner, 2026-11-18): no Razorpay, no money, no
+      // invoice. The plan is applied after TEST_PAYMENT_DELAY_MS by the same
+      // code as a real payment. Lost if the API restarts in between; pay again.
+      const ref = `test_${crypto.randomUUID()}`;
+      const notes = { kind: 'plan', pricing: 'v5', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi), coupon: 'test' };
+      await logEvent({ firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle, amountPaise: 0, providerRef: ref });
+      setTimeout(() => {
+        applyPlanPayment(ref, { id: ref, amount: 0 }, notes, 0, true)
+          .catch((err) => logger.error({ err, ref }, 'test payment: plan NOT applied'));
+      }, TEST_PAYMENT_DELAY_MS).unref();
+      return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/app/billing?checkout=paid` };
+    }
     const order = await razorpay<{ id: string }>('POST', '/orders', {
-      amount: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, munshi),
+      amount: chargePaise(plan, cycle, munshi),
       currency: 'INR',
       receipt: `plan-${crypto.randomUUID().slice(0, 30)}`,
       notes: {
         kind: 'plan', pricing: 'v5', firm_id: u.firm_id, user_id: u.user_id, plan, cycle, seats: String(wanted), munshi: String(munshi),
-        ...(test ? { coupon: 'test' } : {}),
       },
     });
     await logEvent({
       firmId: u.firm_id, userId: u.user_id, kind: 'checkout_started', plan, cycle,
-      amountPaise: test ? TEST_PRICE_PAISE : chargePaise(plan, cycle, munshi), providerRef: order.id,
+      amountPaise: chargePaise(plan, cycle, munshi), providerRef: order.id,
     });
     return { checkoutUrl: `${env.webPublicBaseUrl.replace(/\/$/, '')}/api/billing/pay/${order.id}` };
   },

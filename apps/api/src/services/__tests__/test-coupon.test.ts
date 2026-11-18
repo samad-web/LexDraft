@@ -55,11 +55,12 @@ function stub() {
 const asUser = (email: string) => { h.useFakeDb = true; h.rows = (t) => (t.includes('from users u left join firms') ? [owner(email)] : []); };
 
 describe('checkout with the test code', () => {
-  it('an allow-listed account pays ₹1 for a plan (code and email match case-insensitively)', async () => {
+  it('test-payment AC1: an allow-listed account: the plan is a simulated payment - no Razorpay order, back to ?checkout=paid', async () => {
     asUser('owner@example.in');
-    const { order } = stub();
-    await billing.billingService.startCheckout('u1', 'advocate', 'annual', 0, ' DifAiTest ');
-    expect(order()).toMatchObject({ amount: 100, notes: { kind: 'plan', plan: 'advocate', cycle: 'annual', coupon: 'test' } });
+    const { fetchMock } = stub();
+    const r = await billing.billingService.startCheckout('u1', 'advocate', 'annual', 0, ' DifAiTest ');
+    expect(r.checkoutUrl).toBe('https://app.example.in/app/billing?checkout=paid');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('and ₹1 for a Brief Pack', async () => {
@@ -102,6 +103,43 @@ describe('checkout with the test code', () => {
       process.env['BILLING_TEST_COUPON'] = saved;
       vi.resetModules();
     }
+  });
+});
+
+describe('test-payment: the simulated payment is applied after 10 s, like a real one, with no invoice', () => {
+  const firmRows = (t: string) => t.includes('for update') ? [{ selected_plan: 'free', plan_status: 'trial', renews_at: null, free_plan: true, seats: 1, munshi_seats: 0 }]
+    : t.includes('from users u left join firms') ? [owner('owner@example.in')] : [];
+
+  it('AC2: nothing changes before 10 s; at 10 s the plan is active (MRR 0, provider test) and no invoice is issued', async () => {
+    vi.useFakeTimers();
+    try {
+      h.useFakeDb = true;
+      h.rows = firmRows;
+      stub();
+      await billing.billingService.startCheckout('u1', 'chambers', 'monthly', 0, 'DIFAITEST');
+      const started = h.calls.find((c) => c.text.includes('insert into billing_events'))!;
+      expect(started.values).toContain(0); // checkout_started at ₹0
+      await vi.advanceTimersByTimeAsync(9_000);
+      expect(h.calls.some((c) => /update firms set\s+plan_tier/.test(c.text))).toBe(false);
+      await vi.advanceTimersByTimeAsync(1_000);
+      const upd = h.calls.find((c) => /update firms set\s+plan_tier/.test(c.text))!;
+      expect(upd).toBeDefined();
+      expect(upd.values).toContain('chambers');
+      const ev = h.calls.filter((c) => c.text.includes('insert into billing_events')).at(-1)!;
+      expect(ev.values).toContain('test');
+      expect(ev.values).toContain('subscription_active');
+      expect(h.calls.some((c) => c.text.includes('subscription_invoices') || c.text.includes('invoice_counters'))).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('AC3: a webhook can never trigger the free path - a ₹0 "payment" on a test-code order applies nothing', async () => {
+    h.useFakeDb = true;
+    h.rows = firmRows;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ id: 'order_TestCoupon01', amount: 0, notes: { kind: 'plan', firm_id: '00000000-0000-0000-0000-0000000000f1', plan: 'advocate', cycle: 'monthly', seats: '1', munshi: '0', coupon: 'test' } }), { status: 200 })));
+    await billing.billingService.handleWebhook('evt_t0', { event: 'payment.captured', payload: { payment: { entity: { id: 'pay_Zero0001', order_id: 'order_TestCoupon01', amount: 0 } } } });
+    expect(h.calls.some((c) => /update firms set\s+plan_tier/.test(c.text))).toBe(false);
   });
 });
 
