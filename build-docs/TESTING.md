@@ -1,4 +1,7 @@
 # Testing
+## Spacious card at 1080p — 2026-11-18
+- Page overflow 0px on sign-up and sign-in at 1920×1080, 1920×910 (owner's window), 1536×864, 1366×657, 390×844. Web unit 416/416, tsc clean.
+
 ## Spacious auth card — 2026-11-18
 - Playwright page scroll measured (signup with password typed, and sign-in): 1920×960, 1920×939, 1536×864, 1440×768, 1366×657, 390×844 → 0px vertical overflow everywhere (before: 1536×864 overflowed 51px). Screenshots checked. Web unit 416/416, tsc clean.
 

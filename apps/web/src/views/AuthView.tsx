@@ -970,7 +970,7 @@ export function AuthView() {
         )}
         </div>
       </div>
-      <p className="body-xs muted" style={{ textAlign: 'center', margin: 0 }}>
+      <p className="body-xs muted auth-page-terms" style={{ textAlign: 'center', margin: 0 }}>
         By continuing you agree to DifAi&rsquo;s <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>terms of service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "underline" }}>privacy policy</a>.
       </p>
 
