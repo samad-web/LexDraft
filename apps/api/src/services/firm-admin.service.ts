@@ -7,6 +7,7 @@
  */
 
 import bcrypt from 'bcryptjs';
+import { passwordProblem, PASSWORD_RULE, randomStrongPassword } from '../lib/password';
 import type {
   FirmCreateUserRequest,
   FirmCreateUserResponse,
@@ -178,20 +179,14 @@ export const firmAdminService = {
         .join(' ')
       || email;
 
-    // Generate `${FirstName}@123` if no password supplied - same pattern as
-    // adminService.createFirm.
+    // No password supplied: random strong temp password (same as adminService.createFirm).
     let plaintextPassword = input.password?.trim();
     let generated = false;
     if (!plaintextPassword) {
-      const firstToken = name.split(/\s+/)[0] ?? '';
-      const sanitized  = firstToken.replace(/[^A-Za-z0-9]/g, '');
-      const firstName  = sanitized.length > 0
-        ? sanitized.charAt(0).toUpperCase() + sanitized.slice(1).toLowerCase()
-        : 'User';
-      plaintextPassword = `${firstName}@123`;
+      plaintextPassword = randomStrongPassword();
       generated = true;
-    } else if (plaintextPassword.length < 8) {
-      throw Object.assign(new Error('Password must be at least 8 characters'), { status: 422 });
+    } else if (passwordProblem(plaintextPassword)) {
+      throw Object.assign(new Error(PASSWORD_RULE), { status: 422 });
     }
     const passwordHash = await bcrypt.hash(plaintextPassword, 10);
 

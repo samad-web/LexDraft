@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { strongPassword } from '../lib/password';
 import { firmService } from '../services/firm.service';
 import { firmAdminService } from '../services/firm-admin.service';
 import { assignmentsService } from '../services/assignments.service';
@@ -55,7 +56,7 @@ const FirmCreateUser = z.object({
   name: z.string().min(1).optional(),
   roleId: z.string().uuid(),
   practiceGroupId: z.string().uuid().nullable().optional(),
-  password: z.string().min(8).optional(),
+  password: strongPassword.optional(),
 });
 
 firmRouter.post('/users', requireFeature('admin.users'), async (req, res, next) => {

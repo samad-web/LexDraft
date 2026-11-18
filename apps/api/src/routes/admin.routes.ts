@@ -7,6 +7,7 @@ import { customPlanService } from '../services/custom-plan.service';
 import { aiSpendService } from '../services/ai-spend.service';
 import { Router } from 'express';
 import { z } from 'zod';
+import { strongPassword } from '../lib/password';
 import { adminService } from '../services/admin.service';
 import { billingService } from '../services/billing.service';
 import { subscriptionInvoiceService } from '../services/subscription-invoice.service';
@@ -211,7 +212,7 @@ const CreateFirm = z.object({
   plan: FirmPlanTier,
   adminEmail: z.string().email(),
   adminName: z.string().min(1).optional(),
-  adminPassword: z.string().min(8).optional(),
+  adminPassword: strongPassword.optional(),
 });
 adminRouter.post('/firms', async (req, res, next) => {
   try {

@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth';
 import { otpSendLimiter, signInLimiter, signUpLimiter } from '../middleware/rateLimit';
 import { env } from '../env';
 import { ForbiddenError } from '../lib/errors';
+import { strongPassword } from '../lib/password';
 import { normalizePhone } from '../services/phone-otp.service';
 
 /** IP + user agent stored with the sign-up consent record. */
@@ -33,7 +34,7 @@ const SignUp = z.object({
   // Min 8 retained for backwards-compat with existing accounts. Max 128
   // blocks bcrypt-truncation-at-72 attacks and stops memory-exhaustion
   // via gigabyte-long passwords.
-  password: z.string().min(8).max(128),
+  password: strongPassword,
   name: z.string().min(1).max(200),
   role: z.enum(['solo', 'student', 'group', 'firm']),
   firm: z.string().max(200).optional(),
@@ -73,7 +74,7 @@ const GoogleSignUp = z.object({
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Agree to the Terms of Service and Privacy Policy to continue.' }) }),
   signupToken: z.string().min(20).max(4096),
   /** Every account has a password (sign in with email + password). */
-  password: z.string().min(8, 'Use at least 8 characters').max(128),
+  password: strongPassword,
   name: z.string().min(1).max(200).optional(),
   role: z.enum(['solo', 'student', 'group', 'firm']),
   firm: z.string().max(200).optional(),
@@ -202,7 +203,7 @@ const EmailSignupComplete = z.object({
   signupToken: z.string().min(20).max(4096),
   challengeId: z.string().uuid(),
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
-  password: z.string().min(8, 'Use at least 8 characters').max(128),
+  password: strongPassword,
   acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Agree to the Terms of Service and Privacy Policy to continue.' }) }),
 }).strict();
 

@@ -1,4 +1,9 @@
 # Testing
+## Strong passwords + Create account subtitle removed — 2026-11-18
+- New: api lib/__tests__/password.test.ts (each class required, >128 refused, 500 generated passwords valid + unique); auth-terms route test (weak password → 400 on both sign-up routes); web password-rule.test.ts (mirror equals API, checklist).
+- Updated (rule changed by owner, not weakened): test passwords longenough1 → Longenough1!, integration-pass-1 → Integration-pass-1; sign-up screen test expects no "Plans from" line + the checklist.
+- Results: web 416/416; API unit all pass except 1 env-only (anthropic-failover reads xAI model from local .env; untouched); integration 180/181, 1 pre-existing (0042_case_kind not idempotent; untouched). Screenshot checked at 1440×900.
+
 ## Playwright full-UI suite committed — 2026-11-18 (features/e2e-ui-suite.md)
 - Rebased onto main: web tsc clean; e2e files type-check; `playwright test --list` = 147 tests in 9 files; web unit 413/413.
 - Earlier phone runs (2026-11-13): 2 full runs, 43 passed / 4 skipped / 1 failed (palette Back — fixed in CmdK, goes green after a web deploy). Signed-in web projects need a local `.env.e2e` account (never commit it; ignored).

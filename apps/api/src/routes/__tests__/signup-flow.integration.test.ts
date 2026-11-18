@@ -138,7 +138,7 @@ const verifiedToken = (sub: string, email: string, phone: string) => jwt.sign(
   { purpose: 'google-signup', google: { sub, email, name: 'Asha Rao' }, phone }, `${env.JWT_SECRET}:google-signup`, { expiresIn: '10m' });
 async function serviceSignup(n: number, role: 'solo' | 'group' | 'firm') {
   const email = `owner${n}@signupflow.test`;
-  const r = await authService.googleSignUp({ signupToken: verifiedToken(`g-${n}`, email, `+9198765${String(10000 + n).slice(-5)}`), password: 'longenough1', role } as never);
+  const r = await authService.googleSignUp({ signupToken: verifiedToken(`g-${n}`, email, `+9198765${String(10000 + n).slice(-5)}`), password: 'Longenough1!', role } as never);
   return { ...r, email };
 }
 async function firmOf(userId: string) {
@@ -155,7 +155,7 @@ describe('sign-up -> onboarding -> payment -> app (Advocate)', () => {
     expect(g.status).toBe(200);
     expect(g.json.signupRequired).toBe(true);
     // Sign-up before the phone is verified is refused.
-    const early = await call('POST', '/auth/google/sign-up', { signupToken: g.json.signupToken, password: 'longenough1', role: 'solo', acceptTerms: true });
+    const early = await call('POST', '/auth/google/sign-up', { signupToken: g.json.signupToken, password: 'Longenough1!', role: 'solo', acceptTerms: true });
     expect(early.status).toBe(401);
     // 2. WhatsApp OTP.
     const sent = await call('POST', '/auth/signup/otp/send', { signupToken: g.json.signupToken, phone: '9876500001' });
@@ -165,9 +165,9 @@ describe('sign-up -> onboarding -> payment -> app (Advocate)', () => {
     const ver = await call('POST', '/auth/signup/otp/verify', { signupToken: g.json.signupToken, challengeId: sent.json.challengeId, code: otp.last.get(phone) });
     expect(ver.status).toBe(200);
     // 3. Terms are required by the server.
-    const noTerms = await call('POST', '/auth/google/sign-up', { signupToken: ver.json.signupToken, password: 'longenough1', role: 'solo' });
+    const noTerms = await call('POST', '/auth/google/sign-up', { signupToken: ver.json.signupToken, password: 'Longenough1!', role: 'solo' });
     expect(noTerms.status).toBe(400);
-    const su = await call('POST', '/auth/google/sign-up', { signupToken: ver.json.signupToken, password: 'longenough1', role: 'solo', acceptTerms: true, intent: 'paid', plan: 'law_firm' });
+    const su = await call('POST', '/auth/google/sign-up', { signupToken: ver.json.signupToken, password: 'Longenough1!', role: 'solo', acceptTerms: true, intent: 'paid', plan: 'law_firm' });
     expect(su.status).toBe(201);
     expect(su.json.user.needsOnboarding).toBe(true);
     expect(su.json.user.needsTermsAcceptance).toBeFalsy();
@@ -270,7 +270,7 @@ describe('30-minute payment window', () => {
     const p = await probe(r.token);
     expect(p.status).toBe(402);
     expect(p.json.code).toBe('trial_expired');
-    const si = await call('POST', '/auth/sign-in', { email: r.email, password: 'longenough1' });
+    const si = await call('POST', '/auth/sign-in', { email: r.email, password: 'Longenough1!' });
     expect(si.status).toBe(402);
     const renewToken = si.json.details?.renewToken ?? si.json.renewToken;
     expect(typeof renewToken).toBe('string');
@@ -289,7 +289,7 @@ describe('F1: abandoned or out-of-order sign-ups never pay twice', () => {
     const firmId = (await firmOf(r.user.id)).id;
     // Shape an account made before this fix had: Firm tier, 8 seats, 14-day trial now over.
     await sql()`update firms set plan_tier = 'Firm', seats = 8, trial_ends_at = now() - interval '1 day' where id = ${firmId}::uuid`;
-    const si = await call('POST', '/auth/sign-in', { email: r.email, password: 'longenough1' });
+    const si = await call('POST', '/auth/sign-in', { email: r.email, password: 'Longenough1!' });
     expect(si.status).toBe(200);
     expect(si.json.user.needsOnboarding).toBe(true);
     expect((await probe(si.json.token)).json.code).toBe('onboarding_required');
@@ -371,9 +371,9 @@ describe('F3: new accounts are Google only; Google never links a password accoun
     const start = await call('POST', '/auth/signup/email/start', { name: 'Form User', email, phone: '9876500008' });
     expect(start.status).toBe(200);
     const phone = start.json.phone as string;
-    const bad = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone) === '000000' ? '111111' : '000000', password: 'longenough1', acceptTerms: true });
+    const bad = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone) === '000000' ? '111111' : '000000', password: 'Longenough1!', acceptTerms: true });
     expect(bad.status).toBeGreaterThanOrEqual(400);
-    const done = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone), password: 'longenough1', acceptTerms: true });
+    const done = await call('POST', '/auth/signup/email/complete', { signupToken: start.json.signupToken, challengeId: start.json.challengeId, code: otp.last.get(phone), password: 'Longenough1!', acceptTerms: true });
     expect(done.status).toBe(201);
     const [u] = await sql()<any[]>`select u.id, u.google_sub, u.phone_verified_at, u.onboarded_at, f.plan_tier, f.seats, f.plan_status, f.free_plan
       from users u join firms f on f.id = u.firm_id where u.email = ${email}`;

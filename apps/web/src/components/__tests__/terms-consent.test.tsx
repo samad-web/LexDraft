@@ -29,7 +29,7 @@ describe('terms consent (web)', () => {
       expect(s.match(/<TermsAgree /g)?.length, file).toBe(calls);
     }
     for (const file of ['views/SignupView.tsx', 'views/AuthView.tsx']) expect(src(file), file).toMatch(/!agreedTerms/);
-    expect(src('views/AuthView.tsx')).toContain('ready={newPassword.length >= 8 && agreedTerms}');
+    expect(src('views/AuthView.tsx')).toContain('ready={!passwordProblem(newPassword) && agreedTerms}');
     expect(src('views/SignupView.tsx').match(/disabled=\{isSubmitting \|\| signUp\.isPending \|\| !password\.ok \|\| !agreedTerms\}/g)?.length).toBe(1);
   });
 

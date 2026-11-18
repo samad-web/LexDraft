@@ -50,7 +50,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     const email = `solo-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'Asha Solo',
       role: 'solo',
       firm: 'Asha Chambers',
@@ -70,7 +70,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     const email = `group-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'Ravi Lead',
       role: 'group',
       firm: 'Ravi Practice Group',
@@ -87,7 +87,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     const email = `firm-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'Meera Partner',
       role: 'firm',
       firm: 'Meera & Associates',
@@ -103,7 +103,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     const email = `noname-${Date.now()}@integration.test`;
     const auth = await authService.signUp({
       email,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'Vikram Solo',
       role: 'solo',
     });
@@ -115,14 +115,14 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
   it('two sign-ups produce two distinct firms (no shared seed tenant)', async () => {
     const a = await authService.signUp({
       email: `a-${Date.now()}@integration.test`,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'A One',
       role: 'solo',
       firm: 'Firm A',
     });
     const b = await authService.signUp({
       email: `b-${Date.now()}@integration.test`,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'B Two',
       role: 'solo',
       firm: 'Firm B',
@@ -139,7 +139,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
 
     await authService.signUp({
       email,
-      password: 'integration-pass-1',
+      password: 'Integration-pass-1',
       name: 'First Signup',
       role: 'solo',
       firm: firmName,
@@ -154,7 +154,7 @@ describe('authService.signUp - per-tenant firm provisioning', () => {
     await expect(
       authService.signUp({
         email,
-        password: 'integration-pass-1',
+        password: 'Integration-pass-1',
         name: 'Second Signup',
         role: 'firm',
         firm: `${firmName} (retry)`,

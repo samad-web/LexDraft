@@ -297,8 +297,11 @@ describe('one sign-in card, plan chosen on the plan page', () => {
     env.native = false;
     const web = render(<AuthView />, '/auth?signup=1');
     expect(web).toContain('Create your account');
-    expect(web).toContain('Plans from ₹699 + GST a month');
-    for (const ph of ['Your name', 'Work email', 'WhatsApp number (10 digits)', 'Password (8+ characters)']) expect(web, ph).toContain(`placeholder="${ph}"`);
+    // Owner 2026-11-18: the "Plans from … / We send a code" line under the title is gone.
+    expect(web).not.toContain('Plans from ₹699 + GST a month');
+    // Strong password: live checklist under the field.
+    for (const c of ['8+ characters', 'Uppercase', 'Lowercase', 'Number', 'Symbol']) expect(web, c).toContain(c);
+    for (const ph of ['Your name', 'Work email', 'WhatsApp number (10 digits)', 'Password']) expect(web, ph).toContain(`placeholder="${ph}"`);
     expect(web).toMatch(/>Start</);
     expect(web).toContain('Or sign up with');
     // The form is the main path now: Create account no longer opens Google by itself.

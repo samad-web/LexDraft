@@ -13,7 +13,7 @@ const meta = { ip: '203.0.113.7', userAgent: 'vitest' };
 describe('terms consent', () => {
   it('AC2: sign-up records a granted row (version, IP) and the user is not asked again', async () => {
     const email = `terms-${Date.now()}@integration.test`;
-    const { user } = await authService.signUp({ email, password: 'longenough1', name: 'Terms Test', role: 'solo', acceptTerms: true }, meta);
+    const { user } = await authService.signUp({ email, password: 'Longenough1!', name: 'Terms Test', role: 'solo', acceptTerms: true }, meta);
     expect(user.needsTermsAcceptance).toBeUndefined();
 
     const sql = getIntegrationSql();
@@ -28,7 +28,7 @@ describe('terms consent', () => {
 
   it('AC3: no row → asked; agree clears it; a later disagree asks again; an old version does not count', async () => {
     const email = `terms-gate-${Date.now()}@integration.test`;
-    const { user } = await authService.signUp({ email, password: 'longenough1', name: 'Gate Test', role: 'solo' });
+    const { user } = await authService.signUp({ email, password: 'Longenough1!', name: 'Gate Test', role: 'solo' });
     const sql = getIntegrationSql();
     await sql`delete from consent_log where user_id = ${user.id}::uuid`;
     expect((await authService.getById(user.id))?.needsTermsAcceptance).toBe(true);

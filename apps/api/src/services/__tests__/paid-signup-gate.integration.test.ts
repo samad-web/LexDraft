@@ -45,7 +45,7 @@ describe('paid-only sign-up gate', () => {
 
   it('AC3: Google sign-up that names a plan still has to onboard (no skipping to a free account)', async () => {
     const n = String(Date.now());
-    const r = await authService.googleSignUp({ signupToken: signupToken(n), password: 'longenough1', role: 'solo', plan: 'sanad', intent: 'paid' } as never);
+    const r = await authService.googleSignUp({ signupToken: signupToken(n), password: 'Longenough1!', role: 'solo', plan: 'sanad', intent: 'paid' } as never);
     expect(r.user.needsOnboarding).toBe(true);
     const [row] = await sql()<{ onboarded_at: Date | null; plan_status: string }[]>`
       select u.onboarded_at, f.plan_status from users u join firms f on f.id = u.firm_id where u.id = ${r.user.id}::uuid`;
@@ -56,7 +56,7 @@ describe('paid-only sign-up gate', () => {
 
   it('AC4: demo sign-up is refused and creates nothing', async () => {
     const n = String(Date.now() + 1);
-    await expect(authService.googleSignUp({ signupToken: signupToken(n), password: 'longenough1', role: 'solo', intent: 'demo' } as never))
+    await expect(authService.googleSignUp({ signupToken: signupToken(n), password: 'Longenough1!', role: 'solo', intent: 'demo' } as never))
       .rejects.toMatchObject({ status: 403, code: 'demo_disabled' });
     const [c] = await sql()<{ n: number }[]>`select count(*)::int as n from users where email = ${`gate-${n}@integration.test`}`;
     expect(c!.n).toBe(0);

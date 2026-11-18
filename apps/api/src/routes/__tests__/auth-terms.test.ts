@@ -37,8 +37,8 @@ const post = async (path: string, body: unknown) => {
 };
 
 const token = 'x'.repeat(40);
-const emailComplete = { signupToken: token, challengeId: '00000000-0000-4000-8000-000000000000', code: '123456', password: 'longenough1', acceptTerms: true };
-const googleSignUp = { signupToken: token, password: 'longenough1', role: 'solo' };
+const emailComplete = { signupToken: token, challengeId: '00000000-0000-4000-8000-000000000000', code: '123456', password: 'Longenough1!', acceptTerms: true };
+const googleSignUp = { signupToken: token, password: 'Longenough1!', role: 'solo' };
 
 describe('sign-up requires the Terms + Privacy agreement', () => {
   // Email sign-up form restored (owner 2026-11-17): its Terms check is back.
@@ -61,13 +61,23 @@ describe('sign-up requires the Terms + Privacy agreement', () => {
   });
 
   it('AC1: password sign-up without acceptTerms never creates an account', async () => {
-    const r = await post('/auth/sign-up', { email: 'nobody@example.com', password: 'longenough1', name: 'N', role: 'solo' });
+    const r = await post('/auth/sign-up', { email: 'nobody@example.com', password: 'Longenough1!', name: 'N', role: 'solo' });
     expect([400, 403]).toContain(r.status);
   });
 
   it('control: with acceptTerms true the schema passes and the bad token is what fails', async () => {
     const r = await post('/auth/google/sign-up', { ...googleSignUp, acceptTerms: true });
     expect(r.status).toBe(401);
+  });
+
+  it('strong password: a weak password is refused on both sign-up routes with the rule text', async () => {
+    for (const pw of ['longenough1', 'Longenough1', 'short1!A'.slice(0, 7)]) {
+      const e = await post('/auth/signup/email/complete', { ...emailComplete, password: pw });
+      expect(e.status).toBe(400);
+      expect(e.text).toContain('uppercase letter, a lowercase letter, a number and a symbol');
+      const g = await post('/auth/google/sign-up', { ...googleSignUp, password: pw, acceptTerms: true });
+      expect(g.status).toBe(400);
+    }
   });
 
   it('AC6: API TERMS_VERSION equals web LEGAL_VERSION', () => {

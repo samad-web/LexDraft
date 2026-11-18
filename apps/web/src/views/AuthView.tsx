@@ -22,6 +22,7 @@ import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppV
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
+import { passwordChecks, passwordProblem, PASSWORD_RULE } from '@/lib/password';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
 import type { BillingCycle, PaidPlanId } from '@lexdraft/types';
 
@@ -58,8 +59,23 @@ function signupProblems(f: { name: string; email: string; phone: string; phoneFo
     phone: f.phoneForeign
       ? `${FOREIGN_NUMBER_MESSAGE} Enter your 10-digit WhatsApp number.`
       : !f.phone ? 'Enter your WhatsApp number' : !isIndianMobile(f.phone) ? 'Enter a 10-digit Indian mobile number that uses WhatsApp' : null,
-    password: f.password.length < 8 ? 'Use at least 8 characters' : null,
+    password: passwordProblem(f.password),
   };
+}
+
+/** Live checklist under a new-password field: each part of the rule ticks when met. */
+function PasswordChecks({ id, value }: { id: string; value: string }) {
+  return (
+    <ul id={id} className="auth-pw-checks" aria-label="Password must have">
+      {passwordChecks(value).map((c) => (
+        <li key={c.label} data-ok={c.ok || undefined}>
+          <Icon name={c.ok ? 'check' : 'close'} size={12} />
+          <span>{c.label}</span>
+          <span className="sr-only">{c.ok ? ' (done)' : ' (missing)'}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function renewTokenFrom(err: unknown): string | null {
@@ -177,7 +193,6 @@ export function AuthView() {
   const suShow = (f: 'name' | 'email' | 'phone' | 'password') => (suTouched[f] ? suProblems[f] : null);
   const touch = (f: string) => setSuTouched((t) => ({ ...t, [f]: true }));
   // The plan is chosen once, on the plan page after sign-up (owner 2026-11-17).
-  const freeLine = 'Plans from ₹699 + GST a month';
   // A preset role (the Firm tab's trial link) skips the role picker.
   const startTrial = (preset: Role | null = null) => {
     if (native) return;
@@ -540,11 +555,11 @@ export function AuthView() {
             <div className="auth-signin-head">
               <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
               <h1 className="auth-title auth-title--long">Create your account</h1>
-              <p className="auth-signin-sub">
-                {suChallenge
-                  ? <>Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.</>
-                  : `${freeLine}. We send a code on WhatsApp to verify your number.`}
-              </p>
+              {suChallenge && (
+                <p className="auth-signin-sub">
+                  Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.
+                </p>
+              )}
             </div>
             {!suChallenge ? (
               <form onSubmit={handleSignupStart} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -591,8 +606,9 @@ export function AuthView() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
-                    placeholder="Password (8+ characters)"
+                    placeholder="Password"
                     aria-label="Password"
+                    aria-describedby="su-pw-rule"
                     required
                     minLength={8}
                     value={newPassword}
@@ -604,7 +620,7 @@ export function AuthView() {
                     <Icon name={showPassword ? 'eyeOff' : 'eye'} size={16} />
                   </button>
                 </label>
-                {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
+                <PasswordChecks id="su-pw-rule" value={newPassword} />
                 {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
                 <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
                 <div className="auth-actions" style={{ justifyContent: 'flex-end' }}>
@@ -667,7 +683,7 @@ export function AuthView() {
               <div>
                 <label className="label required" htmlFor="signup-password">
                   Password
-                  <span className="hint">At least 8 characters</span>
+                  <span className="hint">{PASSWORD_RULE}</span>
                 </label>
                 <input
                   id="signup-password"
@@ -677,11 +693,13 @@ export function AuthView() {
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   minLength={8}
+                  aria-describedby="g-pw-rule"
                 />
+                <PasswordChecks id="g-pw-rule" value={newPassword} />
                 <div style={{ marginTop: 12 }}><TermsAgree checked={agreedTerms} onChange={setAgreedTerms} /></div>
               </div>
               )}
-              ready={newPassword.length >= 8 && agreedTerms}
+              ready={!passwordProblem(newPassword) && agreedTerms}
               notReadyText="Enter your WhatsApp number and a password, and agree to the Terms"
               startWith={googleSignup}
               buttonText="signup_with"

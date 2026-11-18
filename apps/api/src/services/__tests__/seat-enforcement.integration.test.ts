@@ -24,12 +24,12 @@ describe('paid seats on direct member management', () => {
     const mail = (k: string) => `${k}-${Date.now()}@seats.integration.test`;
 
     // AC1: second advocate fits (2 of 2); a third is refused.
-    const a1 = await firmAdminService.createUser(owner.id, { email: mail('a1'), roleId: assoc, password: 'longenough1' }, actor);
-    await expect(firmAdminService.createUser(owner.id, { email: mail('a2'), roleId: assoc, password: 'longenough1' }, actor)).rejects.toMatchObject(seatErr);
+    const a1 = await firmAdminService.createUser(owner.id, { email: mail('a1'), roleId: assoc, password: 'Longenough1!' }, actor);
+    await expect(firmAdminService.createUser(owner.id, { email: mail('a2'), roleId: assoc, password: 'Longenough1!' }, actor)).rejects.toMatchObject(seatErr);
 
     // AC2: a Munshi fits the Munshi seat; a second Munshi does not.
-    const m1 = await firmAdminService.createUser(owner.id, { email: mail('m1'), roleId: munshi, password: 'longenough1' }, actor);
-    await expect(firmAdminService.createUser(owner.id, { email: mail('m2'), roleId: munshi, password: 'longenough1' }, actor)).rejects.toMatchObject(seatErr);
+    const m1 = await firmAdminService.createUser(owner.id, { email: mail('m1'), roleId: munshi, password: 'Longenough1!' }, actor);
+    await expect(firmAdminService.createUser(owner.id, { email: mail('m2'), roleId: munshi, password: 'Longenough1!' }, actor)).rejects.toMatchObject(seatErr);
 
     // AC3: turning the Munshi into an advocate needs an advocate seat (none free).
     await expect(firmAdminService.updateUser(owner.id, m1.user.id, { roleId: assoc }, actor)).rejects.toMatchObject(seatErr);

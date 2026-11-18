@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { passwordProblem, PASSWORD_RULE, randomStrongPassword } from '../lib/password';
 import type {
   AdminCreateFirmRequest,
   BillingPlanId,
@@ -352,9 +353,7 @@ export const adminService = {
       throw new Error('Firm Admin system role missing - did 0009_rbac.sql run?');
     }
 
-    // Resolve admin name first because the generated-password format depends
-    // on it: `${FirstName}@123` (e.g. "Aarav@123"). Falls back to a name
-    // derived from the email's local part when adminName is omitted.
+    // Admin name, falling back to a name derived from the email's local part when adminName is omitted.
     const adminName = (input.adminName?.trim()
       || (adminEmail.split('@')[0] ?? '')
         .split(/[._-]+/)
@@ -363,22 +362,14 @@ export const adminService = {
         .join(' '))
       || adminEmail;
 
-    // Generate a temp password if none supplied. Format: FirstName@123.
-    // First name = first whitespace-delimited token of adminName, stripped of
-    // non-ASCII-alphanumerics, capitalised. Falls back to "User" if the name
-    // produces nothing usable. Predictable by design - operator must rotate.
+    // No password supplied: random strong temp password, shown to the operator once.
     let plaintextPassword = input.adminPassword?.trim();
     let generated = false;
     if (!plaintextPassword) {
-      const firstToken = adminName.split(/\s+/)[0] ?? '';
-      const sanitized  = firstToken.replace(/[^A-Za-z0-9]/g, '');
-      const firstName  = sanitized.length > 0
-        ? sanitized.charAt(0).toUpperCase() + sanitized.slice(1).toLowerCase()
-        : 'User';
-      plaintextPassword = `${firstName}@123`;
+      plaintextPassword = randomStrongPassword();
       generated = true;
-    } else if (plaintextPassword.length < 8) {
-      throw Object.assign(new Error('Admin password must be at least 8 characters'), { status: 422 });
+    } else if (passwordProblem(plaintextPassword)) {
+      throw Object.assign(new Error(PASSWORD_RULE), { status: 422 });
     }
     const passwordHash = await bcrypt.hash(plaintextPassword, 10);
 
@@ -747,9 +738,7 @@ export const adminService = {
   async resetUserPassword(id: string, actor: { id: string; email: string }): Promise<{ tempPassword: string }> {
     const sql = db();
     if (!sql) throw new Error('Database not configured');
-    const tempPassword = Array.from(crypto.getRandomValues(new Uint8Array(9)))
-      .map((b) => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31])
-      .join('');
+    const tempPassword = randomStrongPassword();
     const hash = await bcrypt.hash(tempPassword, 10);
     await sql`update users set password_hash = ${hash} where id = ${id}::uuid`;
     await auditService.write({

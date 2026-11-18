@@ -8,6 +8,7 @@ import { useUIStore } from '@/store/ui';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
 import { FOREIGN_NUMBER_MESSAGE, isIndianMobile, readIndianMobile, toE164India } from '@/lib/indian-phone';
+import { passwordProblem, PASSWORD_RULE } from '@/lib/password';
 
 /**
  * SignupView — the new landing-funnel destination at `/signup?intent=…`.
@@ -438,17 +439,17 @@ function VerifiedLine(props: { verified: VerifiedGoogleSignup }): JSX.Element {
 function NewPasswordFields(props: { onChange: (p: { value: string; ok: boolean }) => void }): JSX.Element {
   const [pw, setPw] = useState('');
   const [again, setAgain] = useState('');
-  const problem = pw && pw.length < 8
-    ? 'Use at least 8 characters.'
+  const problem = pw && passwordProblem(pw)
+    ? `${PASSWORD_RULE}.`
     : again && again !== pw ? 'The passwords do not match.' : null;
   const update = (nextPw: string, nextAgain: string) => {
     setPw(nextPw);
     setAgain(nextAgain);
-    props.onChange({ value: nextPw, ok: nextPw.length >= 8 && nextPw === nextAgain });
+    props.onChange({ value: nextPw, ok: !passwordProblem(nextPw) && nextPw === nextAgain });
   };
   return (
     <>
-      <Labelled label="Password * (at least 8 characters)">
+      <Labelled label={`Password * (${PASSWORD_RULE.replace(/^Use /, "")})`}>
         <input className="input" type="password" autoComplete="new-password" minLength={8} required value={pw} onChange={(e) => update(e.target.value, again)} />
       </Labelled>
       <Labelled label="Confirm password *">

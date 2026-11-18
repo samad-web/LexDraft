@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/ui';
 import { useCreateFirm, useFirms } from '../queries';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { passwordProblem, PASSWORD_RULE } from '@/lib/password';
 
 /**
  * Seat ranges per plan tier - mirrors PRICING_AND_TIERS.md §3.1.
@@ -205,7 +206,7 @@ function CreateFirmModal({
   const trimmedName = name.trim();
   const seatsValid = seats >= rules.min && seats <= rules.max;
   const emailValid = /^\S+@\S+\.\S+$/.test(adminEmail.trim());
-  const pwValid    = autoPassword || adminPassword.length >= 8;
+  const pwValid    = autoPassword || !passwordProblem(adminPassword.trim());
   const canSubmit  = trimmedName.length > 0 && seatsValid && emailValid && pwValid && !create.isPending;
 
   const reset = () => {
@@ -379,8 +380,8 @@ function CreateFirmModal({
             onChange={(e) => setAutoPassword(e.target.checked)}
           />
           <span className="body-sm">
-            Auto-generate as <span className="mono">Name@123</span>
-            <span className="muted"> · ask the admin to change it on first sign-in</span>
+            Auto-generate a strong password
+            <span className="muted"> · shown once; share it with the admin</span>
           </span>
         </label>
         {!autoPassword && (
@@ -389,14 +390,14 @@ function CreateFirmModal({
             className="input"
             value={adminPassword}
             onChange={(e) => setAdminPassword(e.target.value)}
-            placeholder="At least 8 characters"
+            placeholder="Strong password"
             minLength={8}
             style={{ marginTop: 8 }}
           />
         )}
-        {!autoPassword && adminPassword.length > 0 && adminPassword.length < 8 && (
+        {!autoPassword && adminPassword.length > 0 && passwordProblem(adminPassword) && (
           <div className="body-xs" style={{ color: 'var(--danger)', marginTop: 6 }}>
-            Minimum 8 characters.
+            {PASSWORD_RULE}.
           </div>
         )}
       </Field>
