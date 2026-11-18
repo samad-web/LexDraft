@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-18 (1c61f0d, api + web): strong passwords + Create account subtitle removed. Backup pre-deploy-20261118-044045.dump; no migration. Smoke: weak password on /auth/signup/email/complete → 400 with the rule text; ready/db ok; site 200; sign-in 400; Google client id + rule text in the live build; no API errors.
+
 - Strong passwords + cleaner Create account (2026-11-18, owner): the "Plans from ₹699 … We send a code" line under CREATE YOUR ACCOUNT removed; every password a person sets (email + Google sign-up, admin/firm add-user) needs 8+ chars with uppercase, lowercase, number and symbol (API `lib/password.ts`, web mirror, live checklist under the field). Auto-generated passwords are now random strong ones instead of the guessable Name@123; admin reset too. Existing passwords still sign in.
 
 - Playwright full-UI suite committed (2026-11-18, from the 2026-11-12 work): web suite (public pages, sidebar, tabs, topbar, palette, CRUD, tools, mobile layout; E2E-* cleanup) + phone suite driving the installed Play Store app over adb. `pnpm --filter web test:e2e`. Fix: Android Back now closes the search palette instead of the page behind it (CmdK listens for difai:back). Not deployed.
