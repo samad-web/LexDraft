@@ -4595,27 +4595,6 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 /* Short desktop windows (laptops, zoomed browsers): fit sign-in and create
    account without scrolling. The art panel already carries the DifAi brand,
    so the big logo tile shrinks; spacing tightens; the trust strip goes. */
-@media (min-width: 861px) and (max-height: 859px) {
-  .auth-page { padding: 12px 20px; gap: 10px; }
-  /* Keep the art panel tall enough for its illustration + tabs even when the
-     form is short (the WhatsApp-code step), but never taller than the window. */
-  .auth-shell { min-height: min(560px, calc(100vh - 60px)); }
-  .auth-side-tab { padding-top: 14px; padding-bottom: 14px; }
-  .auth-art { padding: 22px 0 22px 26px; }
-  .auth-main-inner { padding-top: 18px; padding-bottom: 18px; }
-  .auth-head { gap: 8px; margin-bottom: 12px; }
-  .auth-logo > svg { height: 30px !important; }
-  .auth-title { font-size: 25px; }
-  .auth-main-inner form { gap: 10px !important; }
-  .auth-field { padding: 6px 2px 8px; margin-top: 2px; }
-  .auth-field-error { margin-top: -4px; }
-  .auth-foot { padding-top: 10px; padding-bottom: 10px; }
-  .auth-trust { display: none; }
-}
-@media (min-width: 861px) and (max-height: 700px) {
-  .auth-logo { display: none; }
-  .auth-art-tagline { font-size: 15px; }
-}
 @media (max-width: 860px) {
   .auth-shell { grid-template-columns: 1fr; max-width: 480px; min-height: 0; }
   .auth-art { display: none; }
@@ -4637,11 +4616,6 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-brand-bars span { display: block; height: 16px; border-radius: 3px; background: color-mix(in srgb, var(--art-ink) 18%, transparent); }
 .auth-brand-headline { margin: 0; font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 34px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; color: var(--art-ink); }
 .auth-brand-sub { margin: 0; font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--art-ink) 72%, transparent); max-width: 340px; }
-@media (min-width: 861px) and (max-height: 859px) {
-  .auth-brand-panel { padding: 32px; }
-  .auth-brand-bars { gap: 9px; }
-  .auth-brand-bars span { height: 12px; }
-}
 
 /* Right side matches the brand panel (owner 2026-11-17): left-aligned, same
    bold sentence-case heading, solid dark action, Google inside the form. */
@@ -4678,7 +4652,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-signin-head .auth-title--long { font-size: clamp(22px, 2.3vw, 27px); white-space: nowrap; }
 /* Create-account form fits one screen (owner 2026-11-17: "page is scrolly"):
    only on short windows (laptops); taller windows get the spacious card below. */
-@media (max-height: 859px) {
+@media (max-width: 860px) {
   .auth-compact .auth-signin-head { gap: 6px; margin-bottom: 0; }
   .auth-compact .auth-signin-mark { width: 60px; height: 60px; margin-bottom: 2px; box-shadow: 0 6px 16px color-mix(in srgb, var(--text-primary) 22%, transparent); }
   .auth-compact .auth-signin-mark svg { width: 32px; height: 32px; }
@@ -5279,29 +5253,28 @@ html.kb-open .fab { display: none !important; }
 .auth-pw-checks li { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .auth-pw-checks li[data-ok] { color: var(--text-primary); font-weight: 600; }
 
-/* Spacious card (owner 2026-11-18, NUSI picture "like this i need as spacious"):
-   wider card and form column, big round mark, taller fields, bigger START.
-   Only when the window is tall enough that nothing scrolls. Kept at the end of
-   the file so it wins over the base .auth-* rules. */
-@media (min-width: 861px) and (min-height: 860px) {
-  .auth-page { padding-top: 20px; padding-bottom: 20px; gap: 14px; }
+/* Spacious card (owner 2026-11-18, NUSI picture: "i need the same spacy and
+   scrolly"): on every desktop window, NUSI-sized; short windows simply scroll.
+   Kept at the end of the file so it wins over the base .auth-* rules. */
+@media (min-width: 861px) {
+  .auth-page { padding-top: 22px; padding-bottom: 28px; gap: 18px; }
   /* The Create-account card has its own Terms tick box; the line under the card repeats it. */
   .auth-page:has(.auth-compact) .auth-page-terms { display: none; }
-  .auth-shell { max-width: 1220px; min-height: 680px; }
-  .auth-shell .auth-main > .auth-main-inner { max-width: 620px; padding: 28px 40px 22px; }
-  .auth-signin-head { gap: 10px; margin-bottom: 2px; }
-  .auth-signin-mark { width: 100px; height: 100px; margin-bottom: 4px; }
-  .auth-signin-mark svg { width: 54px; height: 54px; }
-  .auth-signin-head .auth-title, .auth-signin-head .auth-title--long { font-size: 36px; }
-  .auth-signin-sub { font-size: 16px; }
-  .auth-main-inner form { gap: 10px !important; }
-  .auth-field { gap: 18px; padding: 14px 4px 16px; margin-top: 2px; }
-  .auth-field input { font-size: 17px; }
-  .auth-field > svg { width: 20px; height: 20px; flex: none; }
+  .auth-shell { max-width: 1225px; min-height: 760px; }
+  .auth-shell .auth-main > .auth-main-inner { max-width: 643px; padding: 50px 40px 36px; }
+  .auth-signin-head { gap: 14px; margin-bottom: 12px; }
+  .auth-signin-mark { width: 120px; height: 120px; margin-bottom: 14px; }
+  .auth-signin-mark svg { width: 64px; height: 64px; }
+  .auth-signin-head .auth-title, .auth-signin-head .auth-title--long { font-size: 38px; }
+  .auth-signin-sub { font-size: 17px; }
+  .auth-main-inner form { gap: 16px !important; }
+  .auth-field { gap: 20px; padding: 22px 4px 22px; margin-top: 4px; }
+  .auth-field input { font-size: 18px; }
+  .auth-field > svg { width: 22px; height: 22px; flex: none; }
   .auth-trust { display: none; }
-  .auth-pw-checks { font-size: 12.5px; margin-top: -6px; }
-  .auth-main-inner label:has(input[type="checkbox"]) { font-size: 14px; line-height: 1.5; }
-  .auth-submit { min-width: 176px; min-height: 54px; font-size: 16px; }
-  .auth-signin-foot { margin-top: 10px; font-size: 16px; }
-  .auth-foot { padding: 18px 84px; font-size: 16px; }
+  .auth-pw-checks { font-size: 13px; margin-top: -8px; }
+  .auth-main-inner label:has(input[type="checkbox"]) { font-size: 15px; line-height: 1.5; }
+  .auth-submit { min-width: 176px; min-height: 58px; font-size: 17px; }
+  .auth-signin-foot { margin-top: 14px; font-size: 17px; }
+  .auth-foot { padding: 32px 80px; font-size: 16px; }
 }

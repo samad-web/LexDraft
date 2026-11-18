@@ -1,4 +1,7 @@
 # Testing
+## Spacious + scroll — 2026-11-18
+- Measured: Create account card 992px, sign-in 760px on desktop; page scrolls on short windows by design (owner). Phone 390×844: 0px overflow, no horizontal scroll. Web unit 416/416.
+
 ## Spacious card at 1080p — 2026-11-18
 - Page overflow 0px on sign-up and sign-in at 1920×1080, 1920×910 (owner's window), 1536×864, 1366×657, 390×844. Web unit 416/416, tsc clean.
 

@@ -1,4 +1,6 @@
 # Changelog
+- Spacious + scroll (2026-11-18, owner NUSI picture: "i need the same spacy and scrolly"): NUSI-sized card on every desktop window (1225px card, 120px mark, 38px title, ~85px field rows, 58px START); short windows scroll. Height-based compact layouts removed on desktop; phones keep the compact form.
+
 - Spacious card fix (2026-11-18, owner: "no changes happened" on a 1080p screen = ~910px browser window): spacious layout now from 860px window height (was 940), card trimmed to 763px (Create account) / 680px (sign-in); the "By continuing you agree…" line under the card is hidden on Create account in this layout (the card has its own Terms tick box).
 
 - Spacious auth card (2026-11-18, owner NUSI picture "like this i need as spacious"): on windows ≥ 940px tall the sign-in / create-account card is wider (1220px), form column 620px, 112px round mark, 36px title, taller 17px fields, bigger START, roomier Google strip. Windows < 940px tall get the compact card (breakpoint raised from 860, so 864–939px windows no longer scroll). CSS only.
