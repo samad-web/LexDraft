@@ -18,6 +18,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { coCounselService } from '../services/co-counsel.service';
+import { strongPassword } from '../lib/password';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
 import { requireAuth } from '../middleware/auth';
@@ -43,6 +44,8 @@ const CreateBody = z.object({
 const AcceptByToken = z.object({
   name: z.string().min(1).max(200),
   signupToken: z.string().min(20).max(4096),
+  /** Owner 2026-11-18: every Google sign-up also sets a strong password. */
+  password: strongPassword,
 }).strict();
 
 export const coCounselRouter: Router = Router();

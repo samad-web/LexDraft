@@ -34,7 +34,6 @@ vi.mock('../auth.service', () => ({
   authService: { getById: async (id: string) => ({ id }) },
   resolveSystemRoleId: async () => null,
   systemRoleNameFor: () => null,
-  unusablePasswordHash: async () => 'x',
 }));
 
 function valueAfter(call: Call, marker: string): unknown {

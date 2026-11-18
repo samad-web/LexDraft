@@ -7,6 +7,7 @@
  * nothing is left behind in the database.
  */
 
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getIntegrationSql } from '../../__tests__/integration-db';
@@ -208,15 +209,18 @@ describe('co-counsel lockdown - real Postgres', () => {
     const link = await shareLink(caseY, NEW_PHONE);
 
     await expect(coCounselService.acceptByToken(link.token, {
-      name: 'Wrong Person', signupToken: signupToken('wrong@integration.test', '+919876500004'),
+      name: 'Wrong Person', signupToken: signupToken('wrong@integration.test', '+919876500004'), password: 'Longenough1!',
     })).rejects.toMatchObject({ status: 403 });
     const [stray] = await sql<Array<{ n: number }>>`select count(*)::int as n from users where email = 'wrong@integration.test'`;
     expect(stray!.n).toBe(0);
 
     const res = await coCounselService.acceptByToken(link.token, {
-      name: 'New Advocate', signupToken: signupToken('new@integration.test', NEW_PHONE),
+      name: 'New Advocate', signupToken: signupToken('new@integration.test', NEW_PHONE), password: 'Longenough1!',
     });
     expect(res.auth?.user.email).toBe('new@integration.test');
+    // Owner 2026-11-18: the new co-counsel account has the password they chose.
+    const [pw] = await sql<Array<{ password_hash: string }>>`select password_hash from users where email = 'new@integration.test'`;
+    expect(await bcrypt.compare('Longenough1!', pw!.password_hash)).toBe(true);
     const [u] = await sql<Array<{ firm_id: string; acquired_via: string }>>`
       select firm_id, acquired_via from users where email = 'new@integration.test'`;
     expect(u!.firm_id).not.toBe(firmA.id);

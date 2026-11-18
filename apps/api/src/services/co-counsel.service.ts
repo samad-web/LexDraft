@@ -395,6 +395,7 @@ export const coCounselService = {
       email: google.email,
       googleSub: google.sub,
       phone,
+      password: body.password,
     });
     const grant = await claimInvite(sql, invRow.id, auth.user.id, true);
     return { auth, grant: grantFromRow(grant), upsell: { eligible: true } };

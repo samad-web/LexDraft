@@ -468,12 +468,6 @@ export function verifyRenewToken(token: string): string {
   }
 }
 
-/** password_hash is NOT NULL. Google accounts get a random, never-disclosed
- *  secret, so the account has no usable password. */
-export function unusablePasswordHash(): Promise<string> {
-  return bcrypt.hash(crypto.randomBytes(32).toString('base64url'), 10);
-}
-
 /** One WhatsApp number per account, so the number identifies the user. */
 async function assertPhoneUnused(phone: string): Promise<void> {
   const sql = db();
@@ -1004,6 +998,7 @@ export const authService = {
     email: string;
     googleSub: string;
     phone: string;
+    password: string;
   }): Promise<AuthResponse> {
     const existing = await findByEmail(record.email);
     if (existing) throw new ConflictError('Email already registered');
@@ -1015,7 +1010,7 @@ export const authService = {
         role: 'Solo Advocate',
         firm: '',
         isSuperadmin: false,
-        passwordHash: await unusablePasswordHash(),
+        passwordHash: await bcrypt.hash(record.password, 10),
         googleSub: record.googleSub,
         phone: record.phone,
       },

@@ -352,7 +352,7 @@ describe('F2: members only on a set-up, paid firm', () => {
     expect(inv.status).toBe(201);
     await sql()`update firms set renews_at = now() - interval '3 days' where id = ${(await firmOf(r.user.id)).id}::uuid`;
     const acc = await call('POST', `/invitations/by-token/${inv.json.token}/accept`, {
-      name: 'Junior', signupToken: verifiedToken('g-junior14', 'junior14@signupflow.test', '+919876599014') });
+      name: 'Junior', signupToken: verifiedToken('g-junior14', 'junior14@signupflow.test', '+919876599014'), password: 'Longenough1!' });
     expect(acc.status).toBe(402);
     expect(acc.json.code).toBe('plan_required');
   });

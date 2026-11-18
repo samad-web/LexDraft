@@ -11,6 +11,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useAcceptCoCounselAsMe, useAcceptCoCounselByToken, useCoCounselInviteByToken } from '@/hooks/useCoCounsel';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { NewPasswordField } from '@/components/NewPasswordField';
+import { passwordProblem } from '@/lib/password';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
@@ -28,6 +30,7 @@ export function CoCounselAcceptView() {
 
   const [name, setName] = useState('');
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
+  const [password, setPassword] = useState('');
 
   // Existing DifAi user: accept onto their own account. The server checks
   // their verified WhatsApp number against the one this link is bound to.
@@ -52,9 +55,9 @@ export function CoCounselAcceptView() {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!token || !verified) return;
+    if (!token || !verified || passwordProblem(password)) return;
     accept.mutate(
-      { token, body: { name: name.trim(), signupToken: verified.signupToken } },
+      { token, body: { name: name.trim(), signupToken: verified.signupToken, password } },
       {
         onSuccess: (result) => {
           if (result.auth) {
@@ -214,6 +217,7 @@ export function CoCounselAcceptView() {
                   autoComplete="name"
                 />
               </div>
+              <NewPasswordField id="cocounsel-password" value={password} onChange={setPassword} />
               {accept.isError && (
                 <div
                   role="alert"
@@ -235,7 +239,7 @@ export function CoCounselAcceptView() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                disabled={accept.isPending || !name.trim()}
+                disabled={accept.isPending || !name.trim() || !!passwordProblem(password)}
                 style={{ marginTop: 4 }}
               >
                 {accept.isPending ? 'Setting up…' : 'Accept and take over this matter'}

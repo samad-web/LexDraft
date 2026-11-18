@@ -128,6 +128,8 @@ export interface AcceptHandoverByTokenInput {
    *  number. Its Google email is the new account's email (open-link
    *  invites) and must match the invite's email (email-first invites). */
   signupToken: string;
+  /** Strong password for the new account (owner 2026-11-18). */
+  password: string;
 }
 
 export interface AcceptHandoverResult {

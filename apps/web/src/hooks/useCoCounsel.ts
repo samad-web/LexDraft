@@ -174,7 +174,7 @@ export function useCoCounselInviteByToken(token: string | undefined) {
 /** Public - accept the invite, creating the guest's own trial account. */
 export function useAcceptCoCounselByToken() {
   return useMutation({
-    mutationFn: ({ token, body }: { token: string; body: { name: string; signupToken: string } }) =>
+    mutationFn: ({ token, body }: { token: string; body: { name: string; signupToken: string; password: string } }) =>
       api.post<AcceptHandoverResult>(`/co-counsel/accept/by-token/${token}`, body),
   });
 }

@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '@lexdraft/ui';
 import { useAcceptInvitation, useInvitationByToken } from '@/hooks/useInvitations';
 import { GoogleWhatsAppVerify, type VerifiedGoogleSignup } from '@/components/GoogleWhatsAppVerify';
+import { NewPasswordField } from '@/components/NewPasswordField';
+import { passwordProblem } from '@/lib/password';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { useAuthStore } from '@/store/auth';
 import { useUIStore } from '@/store/ui';
@@ -18,6 +20,7 @@ export function InviteAcceptView() {
 
   const [name, setName] = useState('');
   const [verified, setVerified] = useState<VerifiedGoogleSignup | null>(null);
+  const [password, setPassword] = useState('');
 
   // The Google account already has a DifAi account - the invite is for
   // new members, so just sign them in.
@@ -28,9 +31,9 @@ export function InviteAcceptView() {
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!token || !verified) return;
+    if (!token || !verified || passwordProblem(password)) return;
     accept.mutate(
-      { token, body: { name: name.trim(), signupToken: verified.signupToken } },
+      { token, body: { name: name.trim(), signupToken: verified.signupToken, password } },
       {
         onSuccess: (auth) => {
           setSession(auth.user, auth.token);
@@ -169,6 +172,7 @@ export function InviteAcceptView() {
                   autoFocus
                 />
               </div>
+              <NewPasswordField id="invite-password" value={password} onChange={setPassword} />
               {accept.isError && (
                 <div
                   role="alert"
@@ -190,7 +194,7 @@ export function InviteAcceptView() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                disabled={accept.isPending || !name.trim()}
+                disabled={accept.isPending || !name.trim() || !!passwordProblem(password)}
                 style={{ marginTop: 4 }}
               >
                 {accept.isPending ? 'Joining…' : `Accept and join ${data.firm}`}

@@ -13,7 +13,8 @@ import { env } from '../env';
 import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
-import { systemRoleNameFor, unusablePasswordHash } from './auth.service';
+import bcrypt from 'bcryptjs';
+import { systemRoleNameFor } from './auth.service';
 import { MUNSHI_ROLES } from '../lib/plans';
 import { HttpError } from '../lib/errors';
 
@@ -456,7 +457,7 @@ export const invitationsService = {
    *  invitee signed in with Google and proved a WhatsApp number. */
   async accept(
     token: string,
-    body: { name: string; google: { sub: string; email: string }; phone: string },
+    body: { name: string; google: { sub: string; email: string }; phone: string; password: string },
     registerUser: (
       u: User & { passwordHash: string; googleSub?: string; phone?: string },
       firmId: string | null,
@@ -502,7 +503,7 @@ export const invitationsService = {
       );
     }
 
-    const passwordHash = await unusablePasswordHash();
+    const passwordHash = await bcrypt.hash(body.password, 10);
     const provisionalId = randomBytes(8).toString('hex');
     const user: User = {
       id: provisionalId,

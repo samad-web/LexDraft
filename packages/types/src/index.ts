@@ -1016,6 +1016,8 @@ export interface AcceptInvitationRequest {
   name: string;
   /** From /auth/signup/otp/verify: Google identity + verified WhatsApp number. */
   signupToken: string;
+  /** Strong password for the new account (owner 2026-11-18). */
+  password: string;
 }
 
 // ---- Platform admin -------------------------------------------------------

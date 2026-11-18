@@ -1,4 +1,8 @@
 # Testing
+## Google sign-up needs WhatsApp + password everywhere — 2026-11-18
+- New routes/__tests__/google-signup-password.test.ts: invite + co-counsel accept → 400 without password / with weak password; strong passes validation. co-counsel integration: new account's hash matches the chosen password. Updated accept calls in co-counsel + signup-flow tests to send a password.
+- Results: API unit all pass except env-only anthropic-failover; integration 180/181 (pre-existing 0042); web 415/415; tsc clean both.
+
 ## Password checklist removed — 2026-11-18
 - Checklist test dropped (feature removed by owner); sign-up screen test now asserts no checklist + the password field error. Screenshot at 1536×728@1.25: weak password → one-line-wrapped rule under the field. Web unit 415/415, tsc clean.
 

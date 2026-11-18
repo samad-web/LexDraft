@@ -9,6 +9,7 @@ import { ForbiddenError, NotFoundError } from '../lib/errors';
 import { MUNSHI_ROLES } from '../lib/plans';
 import { validate } from '../middleware/validate';
 import { tokenLookupLimiter } from '../middleware/rateLimit';
+import { strongPassword } from '../lib/password';
 
 const InviteRoles = z.enum([
   'Managing Partner',
@@ -39,6 +40,8 @@ const Create = z.object({
 const Accept = z.object({
   name: z.string().min(1).max(200),
   signupToken: z.string().min(20).max(4096),
+  /** Owner 2026-11-18: every Google sign-up also sets a strong password. */
+  password: strongPassword,
 }).strict();
 
 // Anonymous token lookup is the principal brute-force surface. Bound the
@@ -79,7 +82,7 @@ invitationsRouter.post(
       const { google, phone } = await authService.verifiedSignup(body.signupToken);
       const auth = await invitationsService.accept(
         (req.params as { token: string }).token,
-        { name: body.name, google, phone },
+        { name: body.name, google, phone, password: body.password },
         (record, firmId) => authService.registerExternalUser(record, firmId),
       );
       res.status(201).json(auth);

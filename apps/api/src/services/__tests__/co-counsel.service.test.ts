@@ -72,7 +72,7 @@ describe('coCounselService', () => {
 
   it('rejects accepting an open-link invite without a DB configured', async () => {
     await expect(
-      coCounselService.acceptByToken('a'.repeat(32), { name: 'Jane Doe', signupToken: 'x'.repeat(40) }),
+      coCounselService.acceptByToken('a'.repeat(32), { name: 'Jane Doe', signupToken: 'x'.repeat(40), password: 'Longenough1!' }),
     ).rejects.toMatchObject({ status: 422 });
   });
 
