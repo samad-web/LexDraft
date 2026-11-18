@@ -1,4 +1,6 @@
 # Changelog
+- Onboarding fields (2026-11-18, owner): logo upload removed from "Your practice" (logo stays in the Letterhead editor); with Aadhaar/PAN the enrolment number is optional (still shown; drafts/eFiling use it when given). Server already optional.
+
 - DEPLOYED 2026-11-18 (1f38b96, api + web; engine untouched; no migration): team-join (Teams-style) + auth card flicker fix 03c0eb0. Backup pre-deploy-20261118-075042.dump; rollback lexdraft-api/web:prev-20261118-075042. Smoke: ready db ok, /auth 200, invite email/start 400 on {}, join 401 signed out, unknown invite 404, Google client id + new invite page + 44px Google slot in the build.
 
 - Team join, Teams-style (2026-11-18, owner): one "Add member" = invite (link + WhatsApp). Invitees join with Google or email + password (WhatsApp code). Existing DifAi users sign in and confirm "Join" (account moves; old workspace stays, export offered). Direct "Add member" account creation removed (made accounts nobody could sign in to). No migration. features/team-join.md.

@@ -658,3 +658,6 @@
 - api team-join.integration.test.ts (local PG): AC1-AC4 4/4 pass. First run failures were test setup (cases seed columns; pending invites hold seats), not app logic.
 - web e2e team-join.public.e2e.ts (API mocked): AC6a-d 4/4 pass.
 - Regression: api integration 189/190 (migrations idempotency fails on old 0042_case_kind, unrelated); api unit 1130/1131 (anthropic-failover, pre-existing); web unit 413/415 (same 2 pre-existing); public e2e for google-signup, forgot-password, auth-card-stable, team-join 10/10.
+
+## onboarding-fields (2026-11-18)
+- e2e onboarding-fields.public.e2e.ts (API mocked): no logo upload; Aadhaar -> "Enrolment number (optional)", not blocking — 1/1. Regression: web unit 413/415 (same 2 pre-existing); public e2e 11/11.

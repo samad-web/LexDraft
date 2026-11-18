@@ -95,6 +95,8 @@
 
 - 2026-11-18 — Owner: team members join like Microsoft Teams: admin adds by email (invite), join with Google or email + password; existing users move into the firm on confirm, old workspace data stays (not visible to the firm), no auto refund. Not built: multi-firm membership, auto-join without the link.
 
+- 2026-11-18 — Owner: onboarding has no logo upload; enrolment number optional when the ID is not a Bar Council document.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

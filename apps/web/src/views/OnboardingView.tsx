@@ -13,7 +13,7 @@ import { clearPlanPick, readIntro, readPlanPick } from '@/lib/intro';
 // =============================================================================
 // /onboarding - shown once, right after a new account is created. Three steps
 // on one full page (left: steps, right: content, bottom: Back / Continue):
-//   1. Choose a plan   2. Your practice (name, logo, practice areas)
+//   1. Choose a plan   2. Your practice (name, practice areas)
 //   3. Verification (ID document, GSTIN, business address)
 // api: POST /onboarding/upload, POST /onboarding/complete.
 // =============================================================================
@@ -24,7 +24,7 @@ type DocType = NonNullable<OnboardingCompleteRequest['idDocumentType']>;
 
 const STEPS: Array<{ title: string; sub: string }> = [
   { title: 'Choose a plan', sub: 'From ₹699 + GST a month' },
-  { title: 'Your practice', sub: 'Name, logo and practice areas' },
+  { title: 'Your practice', sub: 'Name and practice areas' },
   { title: 'Verification', sub: 'ID document, GST and address' },
 ];
 
@@ -217,8 +217,6 @@ export function OnboardingView() {
   const [areaSearch, setAreaSearch] = useState('');
   const [college, setCollege] = useState('');
   const [studyYear, setStudyYear] = useState('');
-  const logo = useUpload('logo');
-  const logoInput = useRef<HTMLInputElement>(null);
   // Step 3
   const [docType, setDocType] = useState<DocType>('bar_council_id');
   const [docNumber, setDocNumber] = useState('');
@@ -243,11 +241,10 @@ export function OnboardingView() {
   const problem =
     step === 1 ? (practice && !firm.trim() ? 'Enter your firm name'
       : student && !college.trim() ? 'Enter your college or university' : null)
-    : step === 2 ? ((!student && !barDoc && enrolment.length < 3 ? 'Enter your enrolment number' : null)
-      ?? docNumberProblem(doc.value, docNumber)
+    : step === 2 ? (docNumberProblem(doc.value, docNumber)
       ?? (gstin.trim() && !/^\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]$/.test(gstin.trim().toUpperCase()) ? 'Enter a valid GSTIN or leave it empty' : null)
       ?? (pincode.trim() && !/^\d{6}$/.test(pincode.trim()) ? 'Enter a valid 6-digit pincode' : null)
-      ?? (idDoc.busy || logo.busy ? 'Uploading…' : null))
+      ?? (idDoc.busy ? 'Uploading…' : null))
     : null;
 
   const toggleArea = (a: string) => setAreas((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));
@@ -268,7 +265,6 @@ export function OnboardingView() {
         teamSize: practice ? teamSize || undefined : undefined,
         college: student ? college.trim() || undefined : undefined,
         studyYear: student ? studyYear || undefined : undefined,
-        logoKey: logo.key,
         idDocumentType: doc.value,
         idDocumentNumber: docNumber.replace(/\s/g, '').toUpperCase() || undefined,
         idDocumentKey: idDoc.key,
@@ -423,23 +419,6 @@ export function OnboardingView() {
                 {student ? 'We use this to suggest the right material for you.' : 'This is how clients and courts see you: on your drafts, letterhead and invoices.'}
               </p>
               <div className="card" style={{ padding: 28, marginTop: 28, display: 'flex', gap: 28, flexWrap: 'wrap' }}>
-                {!student && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" hidden onChange={(e) => void logo.pick(e.target.files?.[0])} />
-                    <button
-                      type="button"
-                      onClick={() => logoInput.current?.click()}
-                      style={{ width: 120, height: 120, borderRadius: 'var(--radius-lg)', border: '1px dashed var(--border-strong)', background: 'var(--bg-surface-2)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, overflow: 'hidden', padding: 0, color: 'var(--text-primary)' }}
-                      aria-label="Upload logo"
-                    >
-                      {logo.preview
-                        ? <img src={logo.preview} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        : <><Icon name="upload" size={18} /><span className="mono" style={{ fontSize: 11, letterSpacing: '0.12em' }}>{logo.busy ? '…' : 'LOGO'}</span></>}
-                    </button>
-                    <span className="body-xs" style={{ color: 'var(--text-tertiary)' }}>PNG, JPG or SVG · optional</span>
-                    {logo.error && <span className="body-xs" style={{ color: 'var(--danger)' }}>{logo.error}</span>}
-                  </div>
-                )}
                 <div style={{ flex: 1, minWidth: 260, display: 'flex', flexDirection: 'column', gap: 16 }}>
                   {student ? (
                     <div className="onb-grid-2">
@@ -511,7 +490,8 @@ export function OnboardingView() {
               <div className="card" style={{ padding: 28, marginTop: 28, display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {!student && !barDoc && (
                   <div className="onb-grid-2">
-                    <Field label="Enrolment number" required htmlFor="onb-enrol">
+                    {/* Optional with a non-Bar ID (owner 2026-11-18); drafts and eFiling use it when given. */}
+                    <Field label="Enrolment number (optional)" htmlFor="onb-enrol">
                       <input id="onb-enrol" className="input mono" value={enrolmentNo} onChange={(e) => setEnrolmentNo(e.target.value)} placeholder="MS/1234/2018" />
                     </Field>
                   </div>
