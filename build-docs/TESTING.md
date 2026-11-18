@@ -1,4 +1,7 @@
 # Testing
+## Spacious auth card — 2026-11-18
+- Playwright page scroll measured (signup with password typed, and sign-in): 1920×960, 1920×939, 1536×864, 1440×768, 1366×657, 390×844 → 0px vertical overflow everywhere (before: 1536×864 overflowed 51px). Screenshots checked. Web unit 416/416, tsc clean.
+
 ## Strong passwords + Create account subtitle removed — 2026-11-18
 - New: api lib/__tests__/password.test.ts (each class required, >128 refused, 500 generated passwords valid + unique); auth-terms route test (weak password → 400 on both sign-up routes); web password-rule.test.ts (mirror equals API, checklist).
 - Updated (rule changed by owner, not weakened): test passwords longenough1 → Longenough1!, integration-pass-1 → Integration-pass-1; sign-up screen test expects no "Plans from" line + the checklist.

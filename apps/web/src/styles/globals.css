@@ -4595,7 +4595,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 /* Short desktop windows (laptops, zoomed browsers): fit sign-in and create
    account without scrolling. The art panel already carries the DifAi brand,
    so the big logo tile shrinks; spacing tightens; the trust strip goes. */
-@media (min-width: 861px) and (max-height: 860px) {
+@media (min-width: 861px) and (max-height: 939px) {
   .auth-page { padding: 12px 20px; gap: 10px; }
   /* Keep the art panel tall enough for its illustration + tabs even when the
      form is short (the WhatsApp-code step), but never taller than the window. */
@@ -4637,7 +4637,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-brand-bars span { display: block; height: 16px; border-radius: 3px; background: color-mix(in srgb, var(--art-ink) 18%, transparent); }
 .auth-brand-headline { margin: 0; font-family: var(--font-display); font-size: clamp(26px, 2.6vw, 34px); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; color: var(--art-ink); }
 .auth-brand-sub { margin: 0; font-size: 15px; line-height: 1.5; color: color-mix(in srgb, var(--art-ink) 72%, transparent); max-width: 340px; }
-@media (min-width: 861px) and (max-height: 860px) {
+@media (min-width: 861px) and (max-height: 939px) {
   .auth-brand-panel { padding: 32px; }
   .auth-brand-bars { gap: 9px; }
   .auth-brand-bars span { height: 12px; }
@@ -4676,18 +4676,21 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-signin-foot .auth-link { font-weight: 700; }
 .auth-signin-sub { line-height: 1.5; }
 .auth-signin-head .auth-title--long { font-size: clamp(22px, 2.3vw, 27px); white-space: nowrap; }
-/* Create-account form fits one screen (owner 2026-11-17: "page is scrolly"). */
-.auth-compact .auth-signin-head { gap: 6px; margin-bottom: 0; }
-.auth-compact .auth-signin-mark { width: 60px; height: 60px; margin-bottom: 2px; box-shadow: 0 6px 16px color-mix(in srgb, var(--text-primary) 22%, transparent); }
-.auth-compact .auth-signin-mark svg { width: 32px; height: 32px; }
-.auth-compact .auth-signin-sub { font-size: 13.5px; }
-.auth-compact form { gap: 8px !important; }
-.auth-compact .auth-field { padding-top: 7px; padding-bottom: 9px; margin-top: 2px; }
-.auth-compact .auth-actions { margin-top: 0; }
-.auth-compact .auth-signin-foot { margin-top: 0; font-size: 14px; }
-.auth-compact label:has(input[type="checkbox"]) { font-size: 12.5px; line-height: 1.45; }
-.auth-shell:has(.auth-compact) .auth-main-inner { padding-top: 22px; padding-bottom: 18px; }
-.auth-shell:has(.auth-compact) .auth-foot { padding-top: 10px; padding-bottom: 10px; }
+/* Create-account form fits one screen (owner 2026-11-17: "page is scrolly"):
+   only on short windows (laptops); taller windows get the spacious card below. */
+@media (max-height: 939px) {
+  .auth-compact .auth-signin-head { gap: 6px; margin-bottom: 0; }
+  .auth-compact .auth-signin-mark { width: 60px; height: 60px; margin-bottom: 2px; box-shadow: 0 6px 16px color-mix(in srgb, var(--text-primary) 22%, transparent); }
+  .auth-compact .auth-signin-mark svg { width: 32px; height: 32px; }
+  .auth-compact .auth-signin-sub { font-size: 13.5px; }
+  .auth-compact form { gap: 8px !important; }
+  .auth-compact .auth-field { padding-top: 7px; padding-bottom: 9px; margin-top: 2px; }
+  .auth-compact .auth-actions { margin-top: 0; }
+  .auth-compact .auth-signin-foot { margin-top: 0; font-size: 14px; }
+  .auth-compact label:has(input[type="checkbox"]) { font-size: 12.5px; line-height: 1.45; }
+  .auth-shell:has(.auth-compact) .auth-main-inner { padding-top: 22px; padding-bottom: 18px; }
+  .auth-shell:has(.auth-compact) .auth-foot { padding-top: 10px; padding-bottom: 10px; }
+}
 /* Create-account steps: numbered circles, same ink as the card. */
 .auth-steps { list-style: none; counter-reset: step; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .auth-steps li { counter-increment: step; display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.45; color: var(--text-secondary); }
@@ -5275,3 +5278,27 @@ html.kb-open .fab { display: none !important; }
 .auth-pw-checks { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; margin: -8px 0 0; padding: 0; list-style: none; font-size: 11.5px; color: var(--text-tertiary, var(--text-secondary)); }
 .auth-pw-checks li { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
 .auth-pw-checks li[data-ok] { color: var(--text-primary); font-weight: 600; }
+
+/* Spacious card (owner 2026-11-18, NUSI picture "like this i need as spacious"):
+   wider card and form column, big round mark, taller fields, bigger START.
+   Only when the window is tall enough that nothing scrolls. Kept at the end of
+   the file so it wins over the base .auth-* rules. */
+@media (min-width: 861px) and (min-height: 940px) {
+  .auth-shell { max-width: 1220px; min-height: 760px; }
+  .auth-shell .auth-main > .auth-main-inner { max-width: 620px; padding: 34px 40px 26px; }
+  .auth-signin-head { gap: 12px; margin-bottom: 4px; }
+  .auth-signin-mark { width: 112px; height: 112px; margin-bottom: 6px; }
+  .auth-signin-mark svg { width: 62px; height: 62px; }
+  .auth-signin-head .auth-title, .auth-signin-head .auth-title--long { font-size: 36px; }
+  .auth-signin-sub { font-size: 16px; }
+  .auth-main-inner form { gap: 12px !important; }
+  .auth-field { gap: 18px; padding: 16px 4px 18px; margin-top: 4px; }
+  .auth-field input { font-size: 17px; }
+  .auth-field > svg { width: 20px; height: 20px; flex: none; }
+  .auth-trust { display: none; }
+  .auth-pw-checks { font-size: 12.5px; margin-top: -6px; }
+  .auth-main-inner label:has(input[type="checkbox"]) { font-size: 14px; line-height: 1.5; }
+  .auth-submit { min-width: 176px; min-height: 58px; font-size: 16px; }
+  .auth-signin-foot { margin-top: 10px; font-size: 16px; }
+  .auth-foot { padding: 22px 84px; font-size: 16px; }
+}
