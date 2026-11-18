@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-18 (c8ccf67, web only): NUSI-size sign-in / create-account card. Rollback lexdraft-web:prev-20261118-060332. Smoke: site 200, sign-in 400, Google client id + new CSS in the live build.
+
 - Auth card = NUSI size (2026-11-18, owner "maintain this size" with the NUSI sign-in screenshot): fixed desktop sizes copied from NUSI at the owner's 125% scaling — card 980px wide, form column 450px, 96px mark, 32px title, 70px field rows, 140×46 button, 77px Google strip. Create account tightens (72px mark, shorter rows) only on windows under 800px tall so it still fits. Replaces the vh-scaled sizes of 9a574b1.
 
 - Auth card fits the page (2026-11-18, owner: "make it correct fit to the page"; laptop at Windows 125% scaling = 1536×728 CSS window): every card size now follows the window height (vh), capped at the NUSI size, so it fills and fits the page at any height/scaling. Supersedes the "scrolly" variant 789d195.
