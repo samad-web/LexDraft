@@ -639,3 +639,8 @@
 
 ## android-new-logo (2026-11-17)
 - Built signed AAB + APK 2.3 (code 14). aapt2: package in.sirahdigital.difai, 14/2.3; apksigner/keytool: upload key SHA-1 40:69:AF:...:92:0C. Extracted AAB res: new D paths in ic_launcher_mark, old wordmark path absent, legacy PNGs viewed at 48-192 px; adaptive icon previewed at 48/96/192 in circle + squircle masks. Play internal upload OK. Not device-tested.
+
+## google-signup-prefill (2026-11-18)
+- e2e/google-signup.public.e2e.ts (fake Google script + mocked API, no accounts): AC1-AC4, AC5 — 2/2 pass. First run failed on the test's own selector ('Password' also matched 'Show password'); fixed with exact match.
+- terms-consent.test.tsx updated: AuthView now has 1 consent box for 2 sign-up calls; asserts START waits for the box. 4/4 pass.
+- Regression: web vitest 413/415; the 2 failures (password-rule, share-link) fail identically without this change. Public e2e: 7 failures (landing CTA, /, /auth?signup=1, /portal/login, signup intent flow, sign-up validation) also fail identically without this change — pre-existing, not fixed here.

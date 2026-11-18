@@ -21,15 +21,15 @@ describe('terms consent (web)', () => {
 
   it('AC4: every sign-up call sends acceptTerms and its button waits for the box', () => {
     // SignupView has one sign-up form since the free demo account was removed (paid-signup-gate).
-    // AuthView has two again: the email sign-up form (restored 2026-11-17) and
-    // the Google sign-up step.
-    for (const [file, calls] of [['views/AuthView.tsx', 2], ['views/SignupView.tsx', 1]] as const) {
+    // AuthView: one form (one box) serves both sign-up calls, email and Google
+    // (google-signup-prefill, 2026-11-18); START waits for the box.
+    for (const [file, calls, boxes] of [['views/AuthView.tsx', 2, 1], ['views/SignupView.tsx', 1, 1]] as const) {
       const s = src(file);
       expect(s.match(/acceptTerms: true/g)?.length, file).toBe(calls);
-      expect(s.match(/<TermsAgree /g)?.length, file).toBe(calls);
+      expect(s.match(/<TermsAgree /g)?.length, file).toBe(boxes);
     }
     for (const file of ['views/SignupView.tsx', 'views/AuthView.tsx']) expect(src(file), file).toMatch(/!agreedTerms/);
-    expect(src('views/AuthView.tsx')).toContain('ready={!passwordProblem(newPassword) && agreedTerms}');
+    expect(src('views/AuthView.tsx')).toContain('disabled={suSending || !agreedTerms}');
     expect(src('views/SignupView.tsx').match(/disabled=\{isSubmitting \|\| signUp\.isPending \|\| !password\.ok \|\| !agreedTerms\}/g)?.length).toBe(1);
   });
 

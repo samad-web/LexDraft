@@ -89,6 +89,8 @@
 
 - 2026-11-17 — Owner reversed "Google only for new accounts": the email + password sign-up form is back (old logic, NUSI look). Safe because Google never auto-links a password account (409 google_link_required). Residual risk told to owner: email isn't verified (no SMTP), so someone could squat another person's email.
 
+- 2026-11-18 — Owner: Google sign-up uses the same Create-account form; name + email come from Google (email locked), only WhatsApp + password typed.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

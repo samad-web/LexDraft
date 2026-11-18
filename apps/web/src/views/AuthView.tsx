@@ -9,7 +9,9 @@ import {
   useEmailSignupComplete,
   useEmailSignupStart,
   useGoogleSignUp,
+  useSendSignupOtp,
   useSignIn,
+  useVerifySignupOtp,
   type EmailSignupChallenge,
   type FirmEnquirySize,
   type GoogleSignupRequired,
@@ -18,7 +20,7 @@ import { useMfaVerifyChallenge } from '@/hooks/useMfa';
 import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable, isNativeApp } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
-import { GoogleButton, GoogleWhatsAppVerify } from '@/components/GoogleWhatsAppVerify';
+import { GoogleButton } from '@/components/GoogleWhatsAppVerify';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
@@ -167,6 +169,9 @@ export function AuthView() {
   // Sign-up form (restored 2026-11-17): name, email, WhatsApp, password -> WhatsApp code.
   const signupStart = useEmailSignupStart();
   const signupComplete = useEmailSignupComplete();
+  // Google sign-up uses the same form: name + email come from Google.
+  const googleOtpSend = useSendSignupOtp();
+  const googleOtpVerify = useVerifySignupOtp();
   const [suName, setSuName] = useState('');
   const [suEmail, setSuEmail] = useState('');
   const [suPhone, setSuPhone] = useState(''); // 10 national digits; +91 shown
@@ -227,9 +232,12 @@ export function AuthView() {
               setNoGoogleAccount(true);
               return;
             }
-            // New Google account - set up the practice next.
+            // New Google account: same form, name + email filled from Google.
             setGoogleSignup(r);
-            
+            setSuName(r.profile.name);
+            setSuEmail(r.profile.email);
+            setSuChallenge(null);
+            setSuTouched({});
             setTab('signup');
             setStep(0);
             setRole(null);
@@ -262,7 +270,15 @@ export function AuthView() {
   const handleSignupStart = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSuTouched({ name: true, email: true, phone: true, password: true });
-    if (suProblems.name || suProblems.email || suProblems.emailTypo || suProblems.phone || suProblems.password || !agreedTerms) return;
+    if (suProblems.name || suProblems.email || (!googleSignup && suProblems.emailTypo) || suProblems.phone || suProblems.password || !agreedTerms) return;
+    if (googleSignup) {
+      const { signupToken } = googleSignup;
+      googleOtpSend.mutate(
+        { signupToken, phone: toE164India(suPhone) },
+        { onSuccess: (r) => { setSuChallenge({ signupToken, ...r }); setSuCode(''); } },
+      );
+      return;
+    }
     signupStart.mutate(
       { name: suName.trim(), email: suEmail.trim(), phone: toE164India(suPhone) },
       { onSuccess: (c) => { setSuChallenge(c); setSuCode(''); } },
@@ -272,6 +288,18 @@ export function AuthView() {
   const handleSignupComplete = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!suChallenge) return;
+    if (googleSignup) {
+      googleOtpVerify.mutate(
+        { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode },
+        {
+          onSuccess: (v) => signUp.mutate(
+            { signupToken: v.signupToken, password: newPassword, name: suName.trim(), role: 'solo', acceptTerms: true },
+            { onSuccess: () => navigate('/onboarding', { replace: true }) },
+          ),
+        },
+      );
+      return;
+    }
     signupComplete.mutate(
       { signupToken: suChallenge.signupToken, challengeId: suChallenge.challengeId, code: suCode, password: newPassword, acceptTerms: true },
       { onSuccess: () => navigate('/onboarding', { replace: true }) },
@@ -317,8 +345,21 @@ export function AuthView() {
     setStep(0);
     setRole(null);
     setGoogleSignup(null);
-    
   };
+  /** Leave the Google sign-up: back to the blank form. */
+  const dropGoogleSignup = () => {
+    setGoogleSignup(null);
+    setSuName('');
+    setSuEmail('');
+    setSuChallenge(null);
+    googleOtpSend.reset();
+    googleOtpVerify.reset();
+    signUp.reset();
+  };
+  const suSending = signupStart.isPending || googleOtpSend.isPending;
+  const suStartError = signupStart.error ?? googleOtpSend.error;
+  const suCreating = signupComplete.isPending || googleOtpVerify.isPending || signUp.isPending;
+  const suCompleteError = signupComplete.error ?? googleOtpVerify.error ?? signUp.error;
 
   const noticeStyle: CSSProperties = {
     fontSize: 13,
@@ -535,11 +576,17 @@ export function AuthView() {
         {/* SIGN UP - form (restored 2026-11-17, owner: NUSI-style): name, email,
             WhatsApp, password -> START sends a WhatsApp code -> the code creates
             the account -> /onboarding. Google is in the strip at the bottom. */}
-        {tab === 'signup' && step === 0 && !googleSignup && (
+        {tab === 'signup' && step === 0 && (
           <div className="auth-compact" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div className="auth-signin-head">
               <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
               <h1 className="auth-title auth-title--long">Create your account</h1>
+              {googleSignup && !suChallenge && (
+                <p className="auth-signin-sub">
+                  Name and email are from Google. Add your WhatsApp number and a password.{' '}
+                  <button type="button" className="auth-link" onClick={dropGoogleSignup}>Use a different account</button>
+                </p>
+              )}
               {suChallenge && (
                 <p className="auth-signin-sub">
                   Enter the 6-digit code we sent on WhatsApp to <strong className="mono" style={{ color: 'var(--text-primary)' }}>{suChallenge.phone}</strong>.
@@ -555,10 +602,10 @@ export function AuthView() {
                 {suShow('name') && <span role="alert" className="auth-field-error">{suShow('name')}</span>}
                 <label className="auth-field">
                   <Icon name="mail" size={16} />
-                  <input type="email" inputMode="email" autoComplete="email" placeholder="Work email" aria-label="Email" required value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
+                  <input type="email" inputMode="email" autoComplete="email" placeholder="Work email" aria-label="Email" required readOnly={!!googleSignup} aria-readonly={!!googleSignup} title={googleSignup ? 'From your Google account' : undefined} value={suEmail} onChange={(e) => setSuEmail(e.target.value)} onBlur={() => touch('email')} aria-invalid={!!suShow('email')} />
                 </label>
                 {suShow('email') && <span role="alert" className="auth-field-error">{suShow('email')}</span>}
-                {!suProblems.email && suProblems.emailTypo && (
+                {!googleSignup && !suProblems.email && suProblems.emailTypo && (
                   <span role="alert" className="auth-field-error">
                     Did you mean <strong>{suProblems.emailTypo}</strong>?{' '}
                     <button type="button" className="auth-link" onClick={() => setSuEmail(suProblems.emailTypo!)}>Use it</button>
@@ -605,15 +652,15 @@ export function AuthView() {
                   </button>
                 </label>
                 {suShow('password') && <span role="alert" className="auth-field-error">{suShow('password')}</span>}
-                {signupStart.isError && <div role="alert" style={noticeStyle}>{signupStart.error.message}</div>}
+                {suStartError && <div role="alert" style={noticeStyle}>{suStartError.message}</div>}
                 <TermsAgree checked={agreedTerms} onChange={setAgreedTerms} />
                 <div className="auth-actions" style={{ justifyContent: 'flex-end' }}>
                   <button
                     type="submit"
                     className="btn btn-primary btn-lg btn-pill auth-submit"
-                    disabled={signupStart.isPending || !agreedTerms}
+                    disabled={suSending || !agreedTerms}
                   >
-                    {signupStart.isPending ? 'Sending…' : 'Start'}
+                    {suSending ? 'Sending…' : 'Start'}
                   </button>
                 </div>
               </form>
@@ -633,72 +680,18 @@ export function AuthView() {
                     style={{ letterSpacing: '0.3em' }}
                   />
                 </label>
-                {signupComplete.isError && <div role="alert" style={noticeStyle}>{signupComplete.error.message}</div>}
+                {suCompleteError && <div role="alert" style={noticeStyle}>{suCompleteError.message}</div>}
                 <div className="auth-actions">
-                  <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => { setSuChallenge(null); setSuCode(''); signupComplete.reset(); }}>
+                  <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => { setSuChallenge(null); setSuCode(''); signupComplete.reset(); googleOtpVerify.reset(); signUp.reset(); }}>
                     Change details
                   </button>
-                  <button type="submit" className="btn btn-primary btn-lg btn-pill auth-submit" disabled={signupComplete.isPending || suCode.length !== 6}>
-                    {signupComplete.isPending ? 'Creating…' : 'Verify'}
+                  <button type="submit" className="btn btn-primary btn-lg btn-pill auth-submit" disabled={suCreating || suCode.length !== 6}>
+                    {suCreating ? 'Creating…' : 'Verify'}
                   </button>
                 </div>
               </form>
             )}
             <p className="auth-signin-foot">
-              Already have an account?{' '}
-              <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
-            </p>
-          </div>
-        )}
-
-        {/* SIGN UP - one screen: WhatsApp number + password + Google, then the
-            WhatsApp code. The account is created right after the code, and
-            /onboarding takes over (plan, practice details). */}
-        {tab === 'signup' && step === 0 && googleSignup && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="auth-signin-head">
-              <span className="auth-signin-mark"><LogoMark size={44} title="" /></span>
-              <h1 className="auth-title auth-title--long">Create your account</h1>
-              <p className="auth-signin-sub">{`Welcome, ${googleSignup.profile.name.split(' ')[0]}. Add your WhatsApp number and a password for ${googleSignup.profile.email}.`}</p>
-            </div>
-            <GoogleWhatsAppVerify
-              phoneFirst
-              afterPhone={(
-              <div>
-                <label className="label required" htmlFor="signup-password">
-                  Password
-                  <span className="hint">{PASSWORD_RULE}</span>
-                </label>
-                <input
-                  id="signup-password"
-                  className="input"
-                  type="password"
-                  autoComplete="new-password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  minLength={8}
-                />
-                <div style={{ marginTop: 12 }}><TermsAgree checked={agreedTerms} onChange={setAgreedTerms} /></div>
-              </div>
-              )}
-              ready={!passwordProblem(newPassword) && agreedTerms}
-              notReadyText="Enter your WhatsApp number and a password, and agree to the Terms"
-              startWith={googleSignup}
-              buttonText="signup_with"
-              onSignedIn={handleSignedIn}
-              onVerified={(v) => {
-                signUp.mutate(
-                  { signupToken: v.signupToken, password: newPassword, name: v.profile.name, role: 'solo', acceptTerms: true },
-                  { onSuccess: () => navigate('/onboarding', { replace: true }) },
-                );
-              }}
-            />
-            {signUp.isPending && <p className="body-sm muted" style={{ textAlign: 'center' }}>Creating your account…</p>}
-            {signUp.isError && <div role="alert" style={noticeStyle}>{(signUp.error as Error | null)?.message ?? 'Sign-up failed.'}</div>}
-            <p className="body-xs" style={{ margin: 0, color: 'var(--text-tertiary)' }}>
-              Next you choose a plan and set up your practice.
-            </p>
-            <p className="body-sm" style={{ margin: 0, color: 'var(--text-secondary)' }}>
               Already have an account?{' '}
               <button type="button" className="auth-link" onClick={backToStart}>Sign in</button>
             </p>

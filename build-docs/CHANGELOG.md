@@ -1,4 +1,6 @@
 # Changelog
+- Google sign-up prefill (2026-11-18, owner): after Sign up with Google the Create-account form shows name + email from Google (email locked); only WhatsApp number + password are typed. The separate Google card is gone. features/google-signup-prefill.md.
+
 - Google sign-up = WhatsApp + password on every path (2026-11-18, owner): self sign-up already required both. Team-invite accept and co-counsel link accept (Google + WhatsApp OTP) used to create accounts with an unusable random password; both now require a strong password (API schema + new NewPasswordField on InviteAcceptView / CoCounselAcceptView). Dead unusablePasswordHash removed.
 
 - Password checklist removed (2026-11-18, owner: "remove this wordings"): no "8+ characters / Uppercase / …" row under the password. The strong rule is unchanged; a weak password shows the rule once as a field error (after leaving the field or pressing START), like the other fields.
