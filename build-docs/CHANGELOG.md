@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-18 (2b772f2, api + web; engine NOT rebuilt, so 2f000c8 court-heading fix is not live): pay-before-app + onboarding-fields. Backup pre-deploy-20261118-081930.dump; rollback lexdraft-api/web:prev-20261118-081930. Smoke: ready db ok, /onboarding 200, sign-in 400, onboarding/complete 401 signed out, Finish-payment screen in build, no logo upload.
+
 - Pay before app (2026-11-18, owner): closing Razorpay no longer opens the dashboard. Unpaid owners stay on onboarding ("Finish your payment"); after paying, "Confirming your payment…" until the webhook opens the app. Replaces the 30-minute unpaid window. features/pay-before-app.md.
 
 - Onboarding fields (2026-11-18, owner): logo upload removed from "Your practice" (logo stays in the Letterhead editor); with Aadhaar/PAN the enrolment number is optional (still shown; drafts/eFiling use it when given). Server already optional.
