@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-18 (23c7102, api + web; engine untouched): Google sign-up prefill, WhatsApp forgot password, strong passwords on invite/co-counsel. Migration 0117 applied on prod (ledger). Backup pre-deploy-20261118-070236.dump; rollback lexdraft-api/web:prev-20261118-070236. Smoke: ready db ok, /auth 200, sign-in + password/forgot + password/reset 400 on {}, Google client id in build.
+
 - Forgot password via WhatsApp (2026-11-18, owner): "Forgot password?" -> work email -> 6-digit code on the account's verified WhatsApp -> new strong password. Same reply for unknown emails; superadmins/suspended never get a code. API /auth/password/forgot + /reset; migration 0117 (additive). features/forgot-password-whatsapp.md.
 
 - Google sign-up prefill (2026-11-18, owner): after Sign up with Google the Create-account form shows name + email from Google (email locked); only WhatsApp number + password are typed. The separate Google card is gone. features/google-signup-prefill.md.
