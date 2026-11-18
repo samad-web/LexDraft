@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-18 (a9e344f, api + web): ₹1 test code at onboarding. Allow-list unchanged (support@sirahdigital.in only). Backup pre-deploy-20261118-085223.dump; rollback prev-20261118-085223.
+
 - ₹1 test code at onboarding (2026-11-18, owner): "Have a code?" on the onboarding plan step and Finish payment; only allow-listed emails (BILLING_TEST_EMAILS) get ₹1.
 
 - DEPLOYED 2026-11-18 engine only (from 2b772f2): court-heading fix 2f000c8 now live. Image built, compileall on py3.11.18 ok, container recreated with same network/volume/token/restart; healthz ok. Rollback image lexdraft-engine:prev-20261118-082417.
