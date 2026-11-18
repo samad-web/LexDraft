@@ -382,3 +382,4 @@
 
 ## coming-soon (2026-11-18)
 - eFiling, Clause Bank, Matter Intelligence, Title Reports, Mock Arguments marked Coming soon; co-counsel "Send on WhatsApp". Anantha test account switched to Firm (DB, owner request).
+- DEPLOYED efaa029 2026-11-18 (web only; rollback lexdraft-web:prev-20261118-172451). Includes solo-wording 71b09e7.
