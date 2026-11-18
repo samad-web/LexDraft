@@ -251,7 +251,8 @@ export function App() {
     // Android app: no plan picker or payment, only a neutral notice.
     return <><Suspense fallback={pageFallback}>{Capacitor.isNativePlatform() ? <NativeSetupIncompleteView /> : <OnboardingView />}</Suspense><Toast /></>;
   }
-  if (onboarding) return <Navigate to="/onboarding" replace />;
+  // Keep ?checkout=… so a return from Razorpay shows the right onboarding screen.
+  if (onboarding) return <Navigate to={`/onboarding${location.search}`} replace />;
 
   if (isAdminRoute) {
     if (!user.isSuperadmin) {

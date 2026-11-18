@@ -139,7 +139,10 @@ export const onboardingService = {
           gstin = ${clean(input.gstin)?.toUpperCase() ?? null},
           address_line = ${clean(input.addressLine)},
           pincode = ${clean(input.pincode)},
-          onboarded_at = now()
+          -- A paid plan opens the app only once the payment lands (the
+          -- webhook sets onboarded_at); closing Razorpay leaves the owner on
+          -- /onboarding to pay (owner 2026-11-18, pay-before-app).
+          onboarded_at = ${alreadyPaid || free ? new Date() : null}
         where id = ${userId}::uuid
       `;
     });

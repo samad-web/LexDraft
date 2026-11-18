@@ -196,11 +196,11 @@ describe('sign-up -> onboarding -> payment -> app (Advocate)', () => {
     const windowMin = (new Date(f.trial_ends_at).getTime() - Date.now()) / 60_000;
     expect(windowMin).toBeGreaterThan(28);
     expect(windowMin).toBeLessThanOrEqual(30);
-    // Within the 30-minute window the app answers, but no AI credits until paid.
-    const inWindow = await probe(tok);
-    expect(inWindow.status).toBe(200);
+    // Pay-before-app (owner 2026-11-18): unpaid, the app stays closed and the
+    // owner stays on /onboarding (was: a 30-minute unpaid window).
+    expect((await probe(tok)).json.code).toBe('onboarding_required');
+    expect((await sql()<any[]>`select onboarded_at from users where id = ${userId}::uuid`)[0].onboarded_at).toBeNull();
     expect((await creditService.balance(f.id)).balance).toBe(0);
-    expect((await call('POST', '/onboarding/complete', { plan: 'advocate' }, tok)).status).toBe(400); // no second onboarding
     // 6. Webhook applies the plan.
     const paymentId = `pay_${crypto.randomBytes(7).toString('hex')}`;
     const wh = await capture(orderId, { paymentId, eventId: 'evt_flow1' });
@@ -261,21 +261,21 @@ describe('plan -> seats / credits / tier / role (pricing v5 table 1)', () => {
   });
 });
 
-describe('30-minute payment window', () => {
-  it('expired window: app 402, sign-in 402 with a renew token, renew checkout works, a late payment still activates', async () => {
+describe('pay before app (owner 2026-11-18)', () => {
+  it('payment closed: app stays closed, sign-in leads back to onboarding, paying again works, a late payment still activates', async () => {
     const r = await serviceSignup(5, 'solo');
     const ob = await call('POST', '/onboarding/complete', { plan: 'advocate', cycle: 'monthly' }, r.token);
     const firstOrder = orderIdOf(ob.json.checkoutUrl);
     await sql()`update firms set trial_ends_at = now() - interval '1 minute' where id = ${(await firmOf(r.user.id)).id}::uuid`;
     const p = await probe(r.token);
-    expect(p.status).toBe(402);
-    expect(p.json.code).toBe('trial_expired');
+    expect(p.status).toBe(403);
+    expect(p.json.code).toBe('onboarding_required');
     const si = await call('POST', '/auth/sign-in', { email: r.email, password: 'Longenough1!' });
-    expect(si.status).toBe(402);
-    const renewToken = si.json.details?.renewToken ?? si.json.renewToken;
-    expect(typeof renewToken).toBe('string');
-    const rc = await call('POST', '/billing/renew-checkout', { renewToken, plan: 'advocate', cycle: 'monthly' });
-    expect(rc.status).toBe(200);
+    expect(si.status).toBe(200);
+    expect(si.json.user.needsOnboarding).toBe(true);
+    // "Pay now" on the finish-payment screen opens a new checkout.
+    const again = await call('POST', '/billing/checkout', { plan: 'advocate', cycle: 'monthly' }, si.json.token);
+    expect(again.status).toBe(200);
     // The first order is paid late (UPI delay): it still activates.
     expect((await capture(firstOrder)).status).toBe(200);
     expect((await firmOf(r.user.id)).plan_status).toBe('active');

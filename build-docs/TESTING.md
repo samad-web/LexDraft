@@ -665,3 +665,8 @@
 ## engine-court-heading (2026-11-18)
 - s.138 complaint + cause title printed "IN THE COURT OF THE THE ..." when the court name began with "The" / "Court of the" (seen in a live draft). New tests: 5 designation variants + blank + rendered heading (s138), 2 variants (cause title) — all pass.
 - Regression: full engine suite 2187/2187 pass.
+
+## pay-before-app (2026-11-18)
+- signup-flow.integration: 2 tests encoded the old 30-minute window (owner reversed it); updated to the new rule (403 onboarding_required, sign-in -> onboarding, pay again, late payment activates). 19/19.
+- e2e pay-before-app.public.e2e.ts: dismiss URL + dashboard -> Finish payment, Pay opens checkout, return -> Confirming. 3/3.
+- Regression: api integration 189/190 (0042 idempotency, pre-existing); api unit 1130/1131 (pre-existing); web unit 413/415 (pre-existing); public e2e 14/14.

@@ -97,6 +97,8 @@
 
 - 2026-11-18 — Owner: onboarding has no logo upload; enrolment number optional when the ID is not a Bar Council document.
 
+- 2026-11-18 — Owner: no app access before payment (reverses the 30-minute unpaid window). onboarded_at is set only by the payment (or free/already-paid paths).
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

@@ -1,10 +1,11 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlan, BillingPlanId, OnboardingCompleteRequest } from '@lexdraft/types';
 import { Wordmark } from '@/components/brand/Logo';
 import { gstLine, MunshiPicker, planTotal, SIGNUP_PLANS, withGst } from '@/components/PlanCards';
-import { useBilling, useCompleteOnboarding } from '@/hooks/useBilling';
+import { useBilling, useCompleteOnboarding, useStartCheckout } from '@/hooks/useBilling';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
@@ -192,7 +193,16 @@ export function OnboardingView() {
   const complete = useCompleteOnboarding();
   // Until live payments are switched on, a new account starts on the free
   // launch plan (25 AI credits a month) instead of paying now.
-  const payOn = useBilling().data?.paymentsEnabled !== false;
+  const billing = useBilling();
+  const payOn = billing.data?.paymentsEnabled !== false;
+  // Pay before app (owner 2026-11-18): details saved, paid plan picked, not
+  // paid yet -> a "Finish payment" screen, never the dashboard.
+  const [params] = useSearchParams();
+  const returned = params.get('checkout');
+  const current = billing.data?.current;
+  const paymentPending = !!current && !current.freePlan && !current.subscribed
+    && (current.selectedPlan === 'advocate' || current.selectedPlan === 'chambers' || current.selectedPlan === 'law_firm');
+  const [editing, setEditing] = useState(false);
   const stateOptions = useMemo(() => indiaStateOptions(), []);
   const intro = useMemo(() => readIntro(), []);
 
@@ -341,6 +351,9 @@ export function OnboardingView() {
       </aside>
 
       <main className="onb-main">
+        {(returned === 'done' || returned === 'paid') && !editing ? <ConfirmingPayment />
+          : paymentPending && !editing ? <FinishPayment current={current!} cancelled={returned === 'cancelled'} onEdit={() => setEditing(true)} />
+          : <>
         <div className="onb-body">
           <div className="eyebrow" style={{ marginBottom: 10 }}>
             Step {step + 1} of 3 · {STEPS[step]!.title}
@@ -573,7 +586,71 @@ export function OnboardingView() {
             <Icon name="arrow" size={14} />
           </button>
         </div>
+          </>}
       </main>
+    </div>
+  );
+}
+
+/** Back from Razorpay after paying: the webhook opens the app within seconds.
+ *  Re-reads the account until it does (App then leaves /onboarding). */
+function ConfirmingPayment() {
+  const qc = useQueryClient();
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const tick = setInterval(() => { void qc.invalidateQueries({ queryKey: ['me'] }); void qc.invalidateQueries({ queryKey: ['billing'] }); }, 3000);
+    const late = setTimeout(() => setSlow(true), 60_000);
+    return () => { clearInterval(tick); clearTimeout(late); };
+  }, [qc]);
+  return (
+    <div className="onb-body" role="status">
+      <h1 className="display-md" style={{ margin: 0 }}>Confirming your payment…</h1>
+      <p className="body" style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: 620 }}>
+        {slow
+          ? 'This is taking longer than usual (UPI can take a few minutes). Keep this page open, or come back and sign in later - DifAi opens as soon as the payment arrives.'
+          : 'DifAi opens as soon as Razorpay confirms it. This usually takes a few seconds.'}
+      </p>
+    </div>
+  );
+}
+
+/** Details saved, payment not made: pay, or go back and edit. */
+function FinishPayment({ current, cancelled, onEdit }: {
+  current: NonNullable<ReturnType<typeof useBilling>['data']>['current'];
+  cancelled: boolean;
+  onEdit: () => void;
+}) {
+  const checkout = useStartCheckout();
+  const plan = SIGNUP_PLANS.find((p) => p.id === current.selectedPlan);
+  const cycle: BillingCycle = current.billingCycle ?? 'monthly';
+  const munshi = current.munshiSeats ?? 0;
+  const total = plan ? withGst(planTotal(plan, cycle, munshi)).total : null;
+  return (
+    <div className="onb-body">
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Last step · Payment</div>
+      <h1 className="display-md" style={{ margin: 0 }}>Finish your payment</h1>
+      <p className="body" style={{ color: 'var(--text-secondary)', marginTop: 10, maxWidth: 620 }}>
+        {cancelled ? 'The payment was not completed. ' : ''}
+        Your practice details are saved. DifAi opens as soon as your plan is paid.
+      </p>
+      <div className="card" style={{ padding: 28, marginTop: 28, display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 620 }}>
+        <div style={{ fontWeight: 600, fontSize: 18 }}>
+          {plan?.name ?? 'Your plan'} · {cycle === 'annual' ? 'yearly' : 'monthly'}{munshi ? ` · ${munshi} Munshi seat${munshi > 1 ? 's' : ''}` : ''}
+        </div>
+        {plan && <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{gstLine(planTotal(plan, cycle, munshi))}</span>}
+        {checkout.isError && <span role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{(checkout.error as Error).message}</span>}
+        <button
+          type="button"
+          className="btn btn-primary btn-lg"
+          disabled={checkout.isPending || !plan}
+          onClick={() => plan && checkout.mutate({ plan: plan.id as 'advocate' | 'chambers' | 'law_firm', cycle, munshi })}
+        >
+          {checkout.isPending ? 'Opening payment…' : total !== null ? `Pay ₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Pay now'}
+        </button>
+        <button type="button" className="btn btn-ghost" style={{ alignSelf: 'flex-start' }} onClick={onEdit}>
+          Change plan or edit details
+        </button>
+      </div>
     </div>
   );
 }
