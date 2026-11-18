@@ -1,4 +1,6 @@
 # Changelog
+- Auth card = NUSI size (2026-11-18, owner "maintain this size" with the NUSI sign-in screenshot): fixed desktop sizes copied from NUSI at the owner's 125% scaling — card 980px wide, form column 450px, 96px mark, 32px title, 70px field rows, 140×46 button, 77px Google strip. Create account tightens (72px mark, shorter rows) only on windows under 800px tall so it still fits. Replaces the vh-scaled sizes of 9a574b1.
+
 - Auth card fits the page (2026-11-18, owner: "make it correct fit to the page"; laptop at Windows 125% scaling = 1536×728 CSS window): every card size now follows the window height (vh), capped at the NUSI size, so it fills and fits the page at any height/scaling. Supersedes the "scrolly" variant 789d195.
 
 - Spacious + scroll (2026-11-18, owner NUSI picture: "i need the same spacy and scrolly"): NUSI-sized card on every desktop window (1225px card, 120px mark, 38px title, ~85px field rows, 58px START); short windows scroll. Height-based compact layouts removed on desktop; phones keep the compact form.

@@ -1,4 +1,7 @@
 # Testing
+## Auth card = NUSI size — 2026-11-18
+- Measured: card 980 wide; sign-in 615 tall (NUSI 580; the extra is the OR + Google row inside our card), field pitch 70. Overflow 0 at 1536×728@1.25 (owner), 1920×910, 1920×1080, phone 390×844 (no horizontal scroll). Web unit 416/416.
+
 ## Auth card fits the page — 2026-11-18
 - Page overflow 0px (sign-up + sign-in) at 1920×1080, 1920×910, 1536×728 @1.25 DPR (owner's laptop), 1366×657; 1280×600 sign-up 19px (rare size, acceptable). Web unit 416/416.
 
