@@ -1,4 +1,6 @@
 # Changelog
+- Auth card fits the page (2026-11-18, owner: "make it correct fit to the page"; laptop at Windows 125% scaling = 1536×728 CSS window): every card size now follows the window height (vh), capped at the NUSI size, so it fills and fits the page at any height/scaling. Supersedes the "scrolly" variant 789d195.
+
 - Spacious + scroll (2026-11-18, owner NUSI picture: "i need the same spacy and scrolly"): NUSI-sized card on every desktop window (1225px card, 120px mark, 38px title, ~85px field rows, 58px START); short windows scroll. Height-based compact layouts removed on desktop; phones keep the compact form.
 
 - Spacious card fix (2026-11-18, owner: "no changes happened" on a 1080p screen = ~910px browser window): spacious layout now from 860px window height (was 940), card trimmed to 763px (Create account) / 680px (sign-in); the "By continuing you agree…" line under the card is hidden on Create account in this layout (the card has its own Terms tick box).

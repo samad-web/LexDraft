@@ -1,4 +1,7 @@
 # Testing
+## Auth card fits the page — 2026-11-18
+- Page overflow 0px (sign-up + sign-in) at 1920×1080, 1920×910, 1536×728 @1.25 DPR (owner's laptop), 1366×657; 1280×600 sign-up 19px (rare size, acceptable). Web unit 416/416.
+
 ## Spacious + scroll — 2026-11-18
 - Measured: Create account card 992px, sign-in 760px on desktop; page scrolls on short windows by design (owner). Phone 390×844: 0px overflow, no horizontal scroll. Web unit 416/416.
 

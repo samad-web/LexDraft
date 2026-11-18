@@ -5257,24 +5257,26 @@ html.kb-open .fab { display: none !important; }
    scrolly"): on every desktop window, NUSI-sized; short windows simply scroll.
    Kept at the end of the file so it wins over the base .auth-* rules. */
 @media (min-width: 861px) {
-  .auth-page { padding-top: 22px; padding-bottom: 28px; gap: 18px; }
+  /* Every size follows the window height (vh), capped at the NUSI size, so the
+     card fills the page and fits it at any window height or browser zoom. */
+  .auth-page { padding-top: clamp(10px, 2.4vh, 28px); padding-bottom: clamp(10px, 2.4vh, 28px); gap: clamp(8px, 1.6vh, 18px); }
   /* The Create-account card has its own Terms tick box; the line under the card repeats it. */
   .auth-page:has(.auth-compact) .auth-page-terms { display: none; }
-  .auth-shell { max-width: 1225px; min-height: 760px; }
-  .auth-shell .auth-main > .auth-main-inner { max-width: 643px; padding: 50px 40px 36px; }
-  .auth-signin-head { gap: 14px; margin-bottom: 12px; }
-  .auth-signin-mark { width: 120px; height: 120px; margin-bottom: 14px; }
-  .auth-signin-mark svg { width: 64px; height: 64px; }
-  .auth-signin-head .auth-title, .auth-signin-head .auth-title--long { font-size: 38px; }
-  .auth-signin-sub { font-size: 17px; }
-  .auth-main-inner form { gap: 16px !important; }
-  .auth-field { gap: 20px; padding: 22px 4px 22px; margin-top: 4px; }
-  .auth-field input { font-size: 18px; }
+  .auth-shell { max-width: 1225px; min-height: min(760px, calc(100vh - 100px)); }
+  .auth-shell .auth-main > .auth-main-inner { max-width: 643px; padding: clamp(12px, 3.4vh, 50px) 40px clamp(8px, 2.2vh, 36px); }
+  .auth-signin-head { gap: clamp(4px, 1.1vh, 14px); margin-bottom: clamp(0px, 0.8vh, 12px); }
+  .auth-signin-mark { width: clamp(56px, 10.5vh, 120px); height: clamp(56px, 10.5vh, 120px); margin-bottom: clamp(0px, 1vh, 14px); }
+  .auth-signin-mark svg { width: 54%; height: 54%; }
+  .auth-signin-head .auth-title, .auth-signin-head .auth-title--long { font-size: clamp(24px, 3.9vh, 38px); }
+  .auth-signin-sub { font-size: clamp(14px, 1.8vh, 17px); }
+  .auth-main-inner form { gap: clamp(4px, 1.2vh, 16px) !important; }
+  .auth-field { gap: 20px; padding: clamp(5px, 1.65vh, 22px) 4px; margin-top: clamp(0px, 0.4vh, 4px); }
+  .auth-field input { font-size: clamp(15px, 1.9vh, 18px); }
   .auth-field > svg { width: 22px; height: 22px; flex: none; }
   .auth-trust { display: none; }
-  .auth-pw-checks { font-size: 13px; margin-top: -8px; }
-  .auth-main-inner label:has(input[type="checkbox"]) { font-size: 15px; line-height: 1.5; }
-  .auth-submit { min-width: 176px; min-height: 58px; font-size: 17px; }
-  .auth-signin-foot { margin-top: 14px; font-size: 17px; }
-  .auth-foot { padding: 32px 80px; font-size: 16px; }
+  .auth-pw-checks { font-size: clamp(11.5px, 1.4vh, 13px); margin-top: -4px; }
+  .auth-main-inner label:has(input[type="checkbox"]) { font-size: clamp(12.5px, 1.6vh, 15px); line-height: 1.45; }
+  .auth-submit { min-width: 176px; min-height: clamp(42px, 6vh, 58px); font-size: clamp(14px, 1.8vh, 17px); }
+  .auth-signin-foot { margin-top: clamp(0px, 0.8vh, 14px); font-size: clamp(14px, 1.8vh, 17px); }
+  .auth-foot { padding: clamp(10px, 2.6vh, 32px) 80px; font-size: clamp(14px, 1.7vh, 16px); }
 }
