@@ -47,3 +47,14 @@ test('back from a successful payment: Confirming screen, no dashboard yet', asyn
   await expect(page).toHaveURL(/\/onboarding\?checkout=done/);
   await expect(page.getByRole('heading', { name: 'Confirming your payment…' })).toBeVisible();
 });
+
+test('test code: "Have a code?" on Finish payment sends the code with the checkout', async ({ page }) => {
+  const calls: Record<string, unknown> = {};
+  await signedInUnpaid(page, calls);
+  await page.goto('/onboarding');
+  await page.getByRole('button', { name: 'Have a code?' }).click();
+  await page.getByLabel('Code').fill('DIFAITEST');
+  await page.getByRole('button', { name: /^Pay ₹/ }).click();
+  await expect(page).toHaveURL(/\/pay-test$/);
+  expect(calls.checkout).toEqual({ plan: 'law_firm', cycle: 'monthly', munshi: 0, coupon: 'DIFAITEST' });
+});

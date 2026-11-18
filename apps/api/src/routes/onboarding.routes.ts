@@ -12,6 +12,8 @@ const Complete = z.object({
   cycle: z.enum(['monthly', 'annual']).optional(),
   /** Munshi (clerk) seats to add. */
   munshi: z.number().int().min(0).max(4).optional(),
+  /** Owner's ₹1 test code; only allow-listed emails (billing.service). */
+  coupon: z.string().trim().max(40).optional(),
   kind: z.enum(['advocate', 'student']).optional(),
   firm: z.string().max(200).optional(),
   enrolment: z.string().max(80).optional(),

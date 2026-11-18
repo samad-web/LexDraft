@@ -4,7 +4,7 @@ import { FREE_PLAN_ENDS_AT } from '../lib/free-plan';
 import { isPaidPlan, PLANS } from '../lib/plans';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
 import { authService, resolveSystemRoleId } from './auth.service';
-import { billingService, paymentsEnabled } from './billing.service';
+import { billingService, paymentsEnabled, testCouponFor } from './billing.service';
 import { invalidatePermissionsCache } from './permissions.service';
 import { invalidatePlanStatusCache } from './plan-status.service';
 import { storage } from './storage.service';
@@ -63,10 +63,10 @@ export const onboardingService = {
     const sql = db();
     if (!sql) throw new HttpError(503, 'Onboarding needs the database.');
     const [u] = await sql<Array<{
-      firm_id: string | null; name: string; onboarded_at: Date | null; plan_status: string | null; free_plan: boolean | null;
+      firm_id: string | null; name: string; email: string; onboarded_at: Date | null; plan_status: string | null; free_plan: boolean | null;
       free_launch: boolean | null; selected_plan: string | null; renews_at: Date | null;
     }>>`
-      select u.firm_id, u.name, u.onboarded_at, f.plan_status, f.free_plan, f.free_launch, f.selected_plan, f.renews_at
+      select u.firm_id, u.name, u.email, u.onboarded_at, f.plan_status, f.free_plan, f.free_launch, f.selected_plan, f.renews_at
       from users u left join firms f on f.id = u.firm_id where u.id = ${userId}::uuid
     `;
     if (!u) throw new NotFoundError('User not found');
@@ -92,6 +92,8 @@ export const onboardingService = {
     }
     if (practice && !alreadyPaid && !clean(input.firm)) throw new BadRequestError('Enter your firm name.');
     if (student && !clean(input.college)) throw new BadRequestError('Enter your college or university.');
+    // A wrong test code is refused before anything is saved.
+    if (input.coupon && !alreadyPaid && !free) testCouponFor(u.email, input.coupon);
 
     const role = practice ? 'Managing Partner' : 'Solo Advocate';
     const roleId = await resolveSystemRoleId(role);
@@ -155,7 +157,7 @@ export const onboardingService = {
 
     if (!alreadyPaid && !free && isPaidPlan(input.plan)) {
       try {
-        const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.munshi ?? 0);
+        const { checkoutUrl } = await billingService.startCheckout(userId, input.plan, cycle ?? 'monthly', input.munshi ?? 0, input.coupon || undefined);
         return { user, checkoutUrl };
       } catch (err) {
         return { user, checkoutError: (err as Error).message };

@@ -670,3 +670,8 @@
 - signup-flow.integration: 2 tests encoded the old 30-minute window (owner reversed it); updated to the new rule (403 onboarding_required, sign-in -> onboarding, pay again, late payment activates). 19/19.
 - e2e pay-before-app.public.e2e.ts: dismiss URL + dashboard -> Finish payment, Pay opens checkout, return -> Confirming. 3/3.
 - Regression: api integration 189/190 (0042 idempotency, pre-existing); api unit 1130/1131 (pre-existing); web unit 413/415 (pre-existing); public e2e 14/14.
+
+## onboarding test code (2026-11-18)
+- signup-flow.integration: allow-listed owner pays ₹1 via onboarding (order 100 paise, plan active); code on another account -> 400 invalid_coupon, nothing saved. 21/21.
+- e2e pay-before-app: code box sends coupon with checkout. 5/5 incl. onboarding-fields (run on port 5174 from a temp checkout).
+- test-coupon unit 7/7. web unit 414/415 (password-rule pre-existing). api unit: share-links needs a local .env (absent in the temp checkout).

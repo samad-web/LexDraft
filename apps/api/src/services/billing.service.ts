@@ -156,7 +156,7 @@ const SUBSCRIPTION_ID = /^sub_[A-Za-z0-9]{6,40}$/;
  *  BILLING_TEST_COUPON AND the buyer's email is on BILLING_TEST_EMAILS, so a
  *  leaked code is useless to anyone else. No code given -> false. */
 export const TEST_PRICE_PAISE = 100;
-function testCouponFor(email: string | null, coupon: string | undefined): boolean {
+export function testCouponFor(email: string | null, coupon: string | undefined): boolean {
   if (!coupon) return false;
   const { testCoupon, testEmails } = env.razorpay;
   const ok = !!testCoupon && coupon.trim().toUpperCase() === testCoupon && !!email && testEmails.includes(email.toLowerCase());

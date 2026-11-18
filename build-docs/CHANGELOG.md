@@ -1,4 +1,6 @@
 # Changelog
+- ₹1 test code at onboarding (2026-11-18, owner): "Have a code?" on the onboarding plan step and Finish payment; only allow-listed emails (BILLING_TEST_EMAILS) get ₹1.
+
 - DEPLOYED 2026-11-18 engine only (from 2b772f2): court-heading fix 2f000c8 now live. Image built, compileall on py3.11.18 ok, container recreated with same network/volume/token/restart; healthz ok. Rollback image lexdraft-engine:prev-20261118-082417.
 
 - DEPLOYED 2026-11-18 (2b772f2, api + web; engine NOT rebuilt, so 2f000c8 court-heading fix is not live): pay-before-app + onboarding-fields. Backup pre-deploy-20261118-081930.dump; rollback lexdraft-api/web:prev-20261118-081930. Smoke: ready db ok, /onboarding 200, sign-in 400, onboarding/complete 401 signed out, Finish-payment screen in build, no logo upload.

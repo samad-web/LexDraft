@@ -19,6 +19,7 @@ vi.hoisted(() => {
     INVOICE_SELLER_LEGAL_NAME: 'M MOHAMED RIYAZ', INVOICE_SELLER_TRADE_NAME: 'SIRAH DIGITAL', INVOICE_SELLER_GSTIN: '33CVVPM9805M1ZO',
     INVOICE_SELLER_ADDRESS: 'Chennai, Tamil Nadu 600044', INVOICE_SAC: '998315', INVOICE_PREFIX: 'DIF',
     WEB_PUBLIC_BASE_URL: 'https://difai.example', GOOGLE_CLIENT_IDS: 'test-client',
+    BILLING_TEST_COUPON: 'difaitest', BILLING_TEST_EMAILS: 'owner91@signupflow.test',
   });
 });
 const otp = vi.hoisted(() => ({ last: new Map<string, string>() }));
@@ -508,5 +509,29 @@ describe('F6: Terms consent enforced by the server', () => {
     await capture(orderIdOf(ob.json.checkoutUrl));
     await sql()`delete from consent_log where user_id = ${r.user.id}::uuid`;
     expect((await probe(r.token)).json.code).toBe('terms_required');
+  });
+});
+
+describe('₹1 test code at onboarding (owner 2026-11-18)', () => {
+  it('an allow-listed owner pays ₹1 through onboarding; the plan applies like a real payment', async () => {
+    const r = await serviceSignup(91, 'solo');
+    const ob = await call('POST', '/onboarding/complete', { plan: 'advocate', cycle: 'monthly', coupon: 'DifaiTest' }, r.token);
+    expect(ob.status).toBe(200);
+    const orderId = orderIdOf(ob.json.checkoutUrl);
+    expect(orders.get(orderId)!.amount).toBe(100);
+    expect((await capture(orderId)).status).toBe(200);
+    expect(await firmOf(r.user.id)).toMatchObject({ plan_status: 'active', selected_plan: 'advocate' });
+    expect((await probe(r.token)).status).toBe(200);
+  });
+
+  it('the code on any other account is refused before anything is saved', async () => {
+    const r = await serviceSignup(92, 'group');
+    const before = await firmOf(r.user.id);
+    const ob = await call('POST', '/onboarding/complete', { plan: 'chambers', cycle: 'monthly', firm: 'Not Saved & Co', coupon: 'difaitest' }, r.token);
+    expect(ob.status).toBe(400);
+    expect(ob.json.code).toBe('invalid_coupon');
+    const after = await firmOf(r.user.id);
+    expect(after.name).toBe(before.name);
+    expect(after.onboarded_at).toBeNull();
   });
 });

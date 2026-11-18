@@ -213,6 +213,8 @@ export function OnboardingView() {
   const [plan, setPlan] = useState<BillingPlanId>(pick ?? 'advocate');
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const [munshi, setMunshi] = useState(0);
+  // Owner's ₹1 test code (server accepts it only for allow-listed emails).
+  const [coupon, setCoupon] = useState('');
   // The plan was already picked (sign-in tab or "Start with …" on pricing):
   // confirm it here instead of asking again; "Change plan" opens the grid.
   const prePicked = !!pick;
@@ -267,6 +269,7 @@ export function OnboardingView() {
         plan,
         cycle,
         munshi: munshi || undefined,
+        coupon: coupon.trim() || undefined,
         kind: practice ? undefined : kind,
         firm: student ? undefined : firm.trim() || undefined,
         primaryCourt: student ? undefined : primaryCourt.trim() || undefined,
@@ -400,6 +403,7 @@ export function OnboardingView() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
                   <MunshiPicker plan={chosen} cycle={cycle} munshi={munshi} min={0} onChange={setMunshi} />
                   <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{gstLine(planTotal(chosen, cycle, munshi))}</span>
+                  <CouponField value={coupon} onChange={setCoupon} />
                 </div>
               )}
               {!payOn && (
@@ -621,6 +625,7 @@ function FinishPayment({ current, cancelled, onEdit }: {
   onEdit: () => void;
 }) {
   const checkout = useStartCheckout();
+  const [coupon, setCoupon] = useState('');
   const plan = SIGNUP_PLANS.find((p) => p.id === current.selectedPlan);
   const cycle: BillingCycle = current.billingCycle ?? 'monthly';
   const munshi = current.munshiSeats ?? 0;
@@ -638,12 +643,13 @@ function FinishPayment({ current, cancelled, onEdit }: {
           {plan?.name ?? 'Your plan'} · {cycle === 'annual' ? 'yearly' : 'monthly'}{munshi ? ` · ${munshi} Munshi seat${munshi > 1 ? 's' : ''}` : ''}
         </div>
         {plan && <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{gstLine(planTotal(plan, cycle, munshi))}</span>}
+        <CouponField value={coupon} onChange={setCoupon} />
         {checkout.isError && <span role="alert" style={{ color: 'var(--danger)', fontSize: 13 }}>{(checkout.error as Error).message}</span>}
         <button
           type="button"
           className="btn btn-primary btn-lg"
           disabled={checkout.isPending || !plan}
-          onClick={() => plan && checkout.mutate({ plan: plan.id as 'advocate' | 'chambers' | 'law_firm', cycle, munshi })}
+          onClick={() => plan && checkout.mutate({ plan: plan.id as 'advocate' | 'chambers' | 'law_firm', cycle, munshi, ...(coupon.trim() ? { coupon: coupon.trim() } : {}) })}
         >
           {checkout.isPending ? 'Opening payment…' : total !== null ? `Pay ₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Pay now'}
         </button>
@@ -652,5 +658,23 @@ function FinishPayment({ current, cancelled, onEdit }: {
         </button>
       </div>
     </div>
+  );
+}
+
+/** Optional code box (owner's ₹1 test code). Collapsed until asked for. */
+function CouponField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(!!value);
+  if (!open) {
+    return (
+      <button type="button" className="auth-link" style={{ alignSelf: 'flex-start', fontSize: 13, background: 'none', border: 0, padding: 0, cursor: 'pointer' }} onClick={() => setOpen(true)}>
+        Have a code?
+      </button>
+    );
+  }
+  return (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+      <span style={{ color: 'var(--text-secondary)' }}>Code</span>
+      <input className="input" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Optional" maxLength={40} style={{ maxWidth: 180 }} aria-label="Code" />
+    </label>
   );
 }

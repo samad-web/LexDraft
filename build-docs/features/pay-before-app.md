@@ -23,3 +23,7 @@ Closing Razorpay after onboarding sent the owner to the dashboard (30-minute unp
 - AC2 Razorpay dismiss URL and /app/dashboard lead to Finish payment; Pay opens checkout with the saved plan.
 - AC3 return after paying shows Confirming, not the dashboard; app opens once the webhook lands.
 - AC4 late payment of the first order still activates.
+
+## ₹1 test code at onboarding (2026-11-18)
+- "Have a code?" on the plan step and on Finish payment. Same rule as Plan & Billing: code = BILLING_TEST_COUPON and email on BILLING_TEST_EMAILS, else 400 invalid_coupon. At onboarding a wrong code is refused before anything is saved.
+- Needed because pay-before-app keeps new accounts away from Plan & Billing until paid.

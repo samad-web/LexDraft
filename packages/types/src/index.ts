@@ -1299,6 +1299,8 @@ export interface OnboardingCompleteRequest {
   plan: 'free' | PaidPlanId;
   /** Munshi (clerk) seats to add (0-4). */
   munshi?: number;
+  /** Owner's ₹1 test code; only accepted for allow-listed accounts. */
+  coupon?: string;
   /** Advocates: State Bar Council id (apps/api/src/lib/bar-councils.ts). */
   barCouncil?: string;
   cycle?: BillingCycle;
