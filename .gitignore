@@ -58,3 +58,8 @@ __pycache__/
 mobile-audit/
 # Local Playwright login for the audit/e2e scripts (never commit)
 apps/web/.env.e2e
+apps/web/e2e/.auth/
+apps/web/playwright-report/
+apps/web/test-results/
+apps/web/playwright-report-android/
+apps/web/test-results-android/

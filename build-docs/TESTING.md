@@ -1,4 +1,8 @@
 # Testing
+## Playwright full-UI suite committed — 2026-11-18 (features/e2e-ui-suite.md)
+- Rebased onto main: web tsc clean; e2e files type-check; `playwright test --list` = 147 tests in 9 files; web unit 413/413.
+- Earlier phone runs (2026-11-13): 2 full runs, 43 passed / 4 skipped / 1 failed (palette Back — fixed in CmdK, goes green after a web deploy). Signed-in web projects need a local `.env.e2e` account (never commit it; ignored).
+
 ## Create account fits one screen — 2026-11-17
 - Real browser (local build, real Google button): card 607 px tall at 1920×910 and 1366×700, no page scroll (was 849 / 741 px and scrolled). Web tests pass, tsc clean.
 

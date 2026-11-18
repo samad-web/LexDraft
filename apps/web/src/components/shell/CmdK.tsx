@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { Case, Client, Lead } from '@lexdraft/types';
 import { Icon, type IconName } from '@lexdraft/ui';
 import { useUIStore } from '@/store/ui';
+import { BACK_EVENT } from '@/lib/back-event';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
 import { useQuickSearch } from '@/hooks/useQuickSearch';
 import { visibleNavGroups } from './nav-config';
@@ -253,6 +254,13 @@ export function CmdK() {
     cmd.run();
     toggleCmdK(false);
   }
+
+  // The Android back button closes the palette, not the page behind it.
+  useEffect(() => {
+    const onBack = (e: Event) => { e.preventDefault(); toggleCmdK(false); };
+    window.addEventListener(BACK_EVENT, onBack);
+    return () => window.removeEventListener(BACK_EVENT, onBack);
+  }, [toggleCmdK]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

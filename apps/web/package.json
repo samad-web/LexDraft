@@ -10,6 +10,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "clean": "rm -rf dist .turbo .vite",
     "build:mobile": "tsc -b --noCheck && vite build --mode mobile",
     "cap:sync": "pnpm build:mobile && cap sync android",

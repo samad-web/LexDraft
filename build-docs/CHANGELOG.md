@@ -1,4 +1,6 @@
 # Changelog
+- Playwright full-UI suite committed (2026-11-18, from the 2026-11-12 work): web suite (public pages, sidebar, tabs, topbar, palette, CRUD, tools, mobile layout; E2E-* cleanup) + phone suite driving the installed Play Store app over adb. `pnpm --filter web test:e2e`. Fix: Android Back now closes the search palette instead of the page behind it (CmdK listens for difai:back). Not deployed.
+
 - DEPLOYED 2026-11-17 (865221c, web only): Create account fits one screen. Google client id and new CSS in the live build; no API change.
 
 - Create account fits one screen (2026-11-17, owner: "page is scrolly … becoming big"): smaller round mark, tighter field spacing, the WhatsApp-code hint folded into the line under the title, slimmer Google strip. All fields and the Terms tick box unchanged.
