@@ -644,3 +644,8 @@
 - e2e/google-signup.public.e2e.ts (fake Google script + mocked API, no accounts): AC1-AC4, AC5 — 2/2 pass. First run failed on the test's own selector ('Password' also matched 'Show password'); fixed with exact match.
 - terms-consent.test.tsx updated: AuthView now has 1 consent box for 2 sign-up calls; asserts START waits for the box. 4/4 pass.
 - Regression: web vitest 413/415; the 2 failures (password-rule, share-link) fail identically without this change. Public e2e: 7 failures (landing CTA, /, /auth?signup=1, /portal/login, signup intent flow, sign-up validation) also fail identically without this change — pre-existing, not fixed here.
+
+## forgot-password-whatsapp (2026-11-18)
+- api password-reset.integration.test.ts (local PG, WhatsApp stubbed): AC1-AC5 5/5 pass.
+- web e2e forgot-password.public.e2e.ts (API mocked): AC6 + wrong-code message 2/2 pass.
+- Regression: signup-flow integration 19/19 + reset 5/5; api unit 1130/1131 (anthropic-failover fails identically without this change); web unit 413/415 (same 2 pre-existing); google-signup e2e 2/2.

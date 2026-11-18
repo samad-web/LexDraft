@@ -246,6 +246,32 @@ authRouter.post('/google/sign-up', signUpLimiter, async (req, res, next) => {
 // Firm-tier prospects skip self-serve sign-up entirely (see AuthView). This
 // endpoint captures their contact details so a partner can reach out. Shares
 // the sign-up rate limiter so the same IP can't flood the table.
+// Forgot password: code on the account's WhatsApp, then a new password
+// (forgot-password-whatsapp.md).
+const PasswordForgot = z.object({ email: z.string().email('Enter a valid email').max(254) }).strict();
+const PasswordReset = z.object({
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  password: strongPassword,
+}).strict();
+
+authRouter.post('/password/forgot', otpSendLimiter, async (req, res, next) => {
+  try {
+    const body = PasswordForgot.parse(req.body);
+    res.json(await authService.startPasswordReset({ email: body.email, ip: req.ip ?? null }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+authRouter.post('/password/reset', signInLimiter, async (req, res, next) => {
+  try {
+    res.json(await authService.completePasswordReset(PasswordReset.parse(req.body)));
+  } catch (err) {
+    next(err);
+  }
+});
+
 authRouter.post('/firm-enquiry', signUpLimiter, async (req, res, next) => {
   try {
     const body = FirmEnquiry.parse(req.body);

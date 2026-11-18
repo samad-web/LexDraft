@@ -21,6 +21,7 @@ import { isMfaChallenge, type SignInResult } from '@/lib/auth-types';
 import { googleSignInAvailable, isNativeApp } from '@/lib/google';
 import { NATIVE_COPY } from '@/lib/play-policy';
 import { GoogleButton } from '@/components/GoogleWhatsAppVerify';
+import { ForgotPassword } from '@/components/ForgotPassword';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { CycleToggle, gstLine, inr, MunshiPicker, PlanCards, planTotal, SIGNUP_PLANS } from '@/components/PlanCards';
 import { useRenewCheckout } from '@/hooks/useBilling';
@@ -163,6 +164,7 @@ export function AuthView() {
   // Email + password sign-in; Google is offered underneath.
   const [signinEmail, setSigninEmail] = useState('');
   const [signinPassword, setSigninPassword] = useState('');
+  const [forgot, setForgot] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   // Password chosen while setting up a new account (step 3).
   const [newPassword, setNewPassword] = useState('');
@@ -416,7 +418,13 @@ export function AuthView() {
         )}
 
         {/* SIGN IN */}
-        {tab === 'signin' && !mfaChallenge && (
+        {tab === 'signin' && !mfaChallenge && forgot && (
+          <ForgotPassword
+            email={signinEmail}
+            onBack={(e) => { setForgot(false); if (e) setSigninEmail(e); setSigninPassword(''); signIn.reset(); }}
+          />
+        )}
+        {tab === 'signin' && !mfaChallenge && !forgot && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {planMessage && (
               <div
@@ -536,7 +544,7 @@ export function AuthView() {
                 )
               )}
               <div className="auth-actions">
-                <a className="auth-forgot" href="mailto:support@sirahdigital.in?subject=Forgot%20password">Forgot password?</a>
+                <button type="button" className="auth-forgot" style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }} onClick={() => setForgot(true)}>Forgot password?</button>
                 <button
                   type="submit"
                   className="btn btn-primary btn-lg btn-pill auth-submit"

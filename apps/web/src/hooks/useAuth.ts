@@ -142,6 +142,22 @@ export function useVerifySignupOtp() {
   });
 }
 
+// ---- Forgot password: code on the account's WhatsApp ------------------------
+
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (body: { email: string }) =>
+      api.post<{ challengeId: string; resendAfterSeconds: number }>('/auth/password/forgot', body),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (body: { challengeId: string; code: string; password: string }) =>
+      api.post<{ ok: true }>('/auth/password/reset', body),
+  });
+}
+
 export interface GoogleSignUpRequest extends Omit<SignUpRequest, 'email' | 'name'> {
   /** Must be the token returned by useVerifySignupOtp. */
   signupToken: string;

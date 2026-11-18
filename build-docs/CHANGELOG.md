@@ -1,4 +1,6 @@
 # Changelog
+- Forgot password via WhatsApp (2026-11-18, owner): "Forgot password?" -> work email -> 6-digit code on the account's verified WhatsApp -> new strong password. Same reply for unknown emails; superadmins/suspended never get a code. API /auth/password/forgot + /reset; migration 0117 (additive). features/forgot-password-whatsapp.md.
+
 - Google sign-up prefill (2026-11-18, owner): after Sign up with Google the Create-account form shows name + email from Google (email locked); only WhatsApp number + password are typed. The separate Google card is gone. features/google-signup-prefill.md.
 
 - Google sign-up = WhatsApp + password on every path (2026-11-18, owner): self sign-up already required both. Team-invite accept and co-counsel link accept (Google + WhatsApp OTP) used to create accounts with an unusable random password; both now require a strong password (API schema + new NewPasswordField on InviteAcceptView / CoCounselAcceptView). Dead unusablePasswordHash removed.

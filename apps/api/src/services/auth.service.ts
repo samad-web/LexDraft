@@ -792,6 +792,35 @@ export const authService = {
     return { signupToken: issueSignupToken({ google: claims.google, phone }), phone };
   },
 
+  /** Forgot password (forgot-password-whatsapp.md): a code goes to the
+   *  account's verified WhatsApp number. The reply is the same whether or not
+   *  the email has such an account, so it can't be used to find accounts.
+   *  Superadmins and suspended users are never sent a code. */
+  async startPasswordReset(input: { email: string; ip: string | null }) {
+    const sql = db();
+    if (!sql) throw new Error('DATABASE_URL not configured');
+    const [u] = await sql<{ id: string; phone: string }[]>`
+      select id, phone from users
+      where lower(email) = ${input.email.trim().toLowerCase()}
+        and phone is not null and phone_verified_at is not null
+        and not is_superadmin and status = 'active'
+      limit 1
+    `;
+    if (!u) return { challengeId: crypto.randomUUID(), resendAfterSeconds: 30 };
+    const { challengeId, resendAfterSeconds } = await phoneOtpService.start({ phone: u.phone, userId: u.id, ip: input.ip });
+    return { challengeId, resendAfterSeconds };
+  },
+
+  /** Right code -> new password for the account the code was sent for. */
+  async completePasswordReset(input: { challengeId: string; code: string; password: string }) {
+    const sql = db();
+    if (!sql) throw new Error('DATABASE_URL not configured');
+    const userId = await phoneOtpService.verifyReset({ challengeId: input.challengeId, code: input.code });
+    const hash = await bcrypt.hash(input.password, 10);
+    await sql`update users set password_hash = ${hash} where id = ${userId}::uuid`;
+    return { ok: true as const };
+  },
+
   /** Create the account for a Google user whose WhatsApp number is verified. */
   async googleSignUp(input: GoogleSignUpInput, meta?: ConsentMeta): Promise<AuthResponse> {
     // Paid-only sign-up (owner, 2026-11-16): no free demo accounts.

@@ -91,6 +91,8 @@
 
 - 2026-11-18 — Owner: Google sign-up uses the same Create-account form; name + email come from Google (email locked), only WhatsApp + password typed.
 
+- 2026-11-18 — Owner: forgot password uses a WhatsApp code (prod has no SMTP; email-only reset fails for mistyped emails). Other signed-in devices stay signed in up to 7 days after a reset (no token revocation) — accepted, follow-up.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
