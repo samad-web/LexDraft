@@ -5,6 +5,8 @@ import type { CaseHistory, ExtraParty } from '../lib/ecourts/types';
 import { caseActsService, type NewCaseAct } from './case-acts.service';
 import { casePartiesService, type NewCaseParty } from './case-parties.service';
 import { logger } from '../logger';
+import { env } from '../env';
+import { whatsappService } from './whatsapp.service';
 import { BadRequestError, NotFoundError, UnprocessableEntityError } from '../lib/errors';
 import type { Court } from '../lib/ecourts/types';
 import { casePipelineService, customStagesForFirm, kindForType, snapshotFor } from './case-pipeline.service';
@@ -392,25 +394,52 @@ export interface HearingReminderSummary {
   reminded: number;
 }
 
+/** Hearing-eve WhatsApp to the advocate, only with an approved Wasi template
+ *  (WHATSAPP_HEARING_TEMPLATE; params member_name, case_title, hearing_date,
+ *  court, app_link) and a verified number. Never throws. */
+async function sendHearingWhatsApp(userId: string, title: string, date: string, court: string | null): Promise<void> {
+  const template = env.WHATSAPP_HEARING_TEMPLATE.trim();
+  const sql = db();
+  if (!template || !sql) return;
+  try {
+    const [u] = await sql<Array<{ name: string; phone: string | null }>>`
+      select name, phone from users where id::text = ${userId} and status = 'active' and phone_verified_at is not null limit 1`;
+    if (!u?.phone) return;
+    await whatsappService.sendTemplate(u.phone, template, {
+      member_name: u.name.slice(0, 60) || 'there',
+      case_title: title.slice(0, 120),
+      hearing_date: new Date(`${date}T00:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+      court: (court ?? '').slice(0, 120) || '-',
+      app_link: `${env.webPublicBaseUrl.replace(/\/$/, '')}/app/causelist`,
+    });
+  } catch (err) {
+    logger.warn({ err, userId }, 'hearing WhatsApp not sent');
+  }
+}
+
 export async function sendUpcomingHearingReminders(
   scope: { firmId?: string; caseId?: string } = {},
 ): Promise<HearingReminderSummary> {
+  const daily = !scope.firmId && !scope.caseId;
   const sql = db();
   if (!sql) {
     logger.warn('hearing reminder scan skipped: no DATABASE_URL');
     return { scanned: 0, reminded: 0 };
   }
 
-  const rows = await sql<Array<{ id: string; firm_id: string; title: string; next_hearing: string; created_by_user_id: string | null }>>`
-    select id, firm_id, coalesce(nullif(trim(title), ''), cnr) as title, next_hearing::text, created_by_user_id
-    from cases
-    where status in ('Active', 'Pending')
-      and (${scope.firmId ?? null}::text is null or firm_id::text = ${scope.firmId ?? null}::text)
-      and (${scope.caseId ?? null}::text is null or id::text = ${scope.caseId ?? null}::text)
-      and deleted_at is null
-      and next_hearing is not null
-      and next_hearing >= current_date
-      and next_hearing <= current_date + ${REMINDER_WINDOW_DAYS}::int
+  // The case's lead advocate first (team-work), else whoever created it.
+  const rows = await sql<Array<{ id: string; firm_id: string; title: string; next_hearing: string; created_by_user_id: string | null; court: string | null }>>`
+    select c.id, c.firm_id, coalesce(nullif(trim(c.title), ''), c.cnr) as title, c.next_hearing::text, c.court,
+           coalesce((select ca.user_id from case_assignments ca where ca.case_id = c.id and ca.role_on_case = 'lead' limit 1),
+                    c.created_by_user_id) as created_by_user_id
+    from cases c
+    where c.status in ('Active', 'Pending')
+      and (${scope.firmId ?? null}::text is null or c.firm_id::text = ${scope.firmId ?? null}::text)
+      and (${scope.caseId ?? null}::text is null or c.id::text = ${scope.caseId ?? null}::text)
+      and c.deleted_at is null
+      and c.next_hearing is not null
+      and c.next_hearing >= current_date
+      and c.next_hearing <= current_date + ${REMINDER_WINDOW_DAYS}::int
   `;
 
   const summary: HearingReminderSummary = { scanned: rows.length, reminded: 0 };
@@ -429,6 +458,11 @@ export async function sendUpcomingHearingReminders(
         ownerUserId: row.created_by_user_id,
       });
       summary.reminded += 1;
+      // WhatsApp once per hearing: the day before, from the daily run only
+      // (on-save / per-firm calls are bell-only so nothing is sent twice).
+      if (daily && daysUntil === 1 && row.created_by_user_id) {
+        await sendHearingWhatsApp(row.created_by_user_id, row.title, row.next_hearing, row.court);
+      }
     } catch (err) {
       // One bad row (missing firm, notification write failure) must not
       // abort the scan for every other case due today or tomorrow.

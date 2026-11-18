@@ -386,3 +386,6 @@
 
 ## team-work (2026-11-18)
 - Teams-style work assignment: member workload cards, Assign task/case, member picker for tasks, board filters, assignee notifications (+ WhatsApp once a template is approved). Migration 0118 (additive).
+
+## hearing-reminders (2026-11-18)
+- Checked eCourts sync on prod (working). Hearing reminders now go to the case lead; day-before WhatsApp once an approved template is set (WHATSAPP_HEARING_TEMPLATE).

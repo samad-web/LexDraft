@@ -230,6 +230,9 @@ const Schema = z.object({
   /** Wasi template sent to a member when work is assigned to them (team-work.md).
    *  Params: member_name, assigned_by, work, due_date, app_link. Blank = off. */
   WHATSAPP_ASSIGN_TEMPLATE: z.string().optional().default(''),
+  /** Wasi template for the day-before hearing reminder (case-sync). Params:
+   *  member_name, case_title, hearing_date, court, app_link. Blank = off. */
+  WHATSAPP_HEARING_TEMPLATE: z.string().optional().default(''),
   /** Wasi templates for "plan active" after a plan payment and the renewal
    *  reminders (app-handoff-and-renewal-reminders.md). Empty = not sent. */
   WHATSAPP_PLAN_ACTIVE_TEMPLATE: z.string().optional().default(''),

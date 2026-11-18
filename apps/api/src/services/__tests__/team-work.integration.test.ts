@@ -119,3 +119,38 @@ describe('team-work: case lead and workload', () => {
     expect(w.find((m) => m.userId === head.id)).toMatchObject({ leadCases: 0, hearingsThisWeek: 0, openTasks: 0, overdueTasks: 0 });
   });
 });
+
+describe('hearing reminders (eCourts sync follow-up, 2026-11-18)', () => {
+  async function caseWithHearingIn(firmId: string, days: number, createdBy: string) {
+    const [c] = await sql()<{ id: string }[]>`insert into cases (firm_id, cnr, title, court, stage, client, status, type, kind, next_hearing, created_by_user_id)
+      values (${firmId}::uuid, ${`CC ${Date.now()}`}, 'Gupta Traders v. Malhotra', 'JM Saket', 'Evidence', 'Gupta Traders', 'Active', 'Criminal', 'matter',
+              current_date + ${days}::int, ${createdBy}::uuid) returning id`;
+    return c!.id;
+  }
+
+  it('AC9: the reminder goes to the case lead, not only the creator', async () => {
+    const { sendUpcomingHearingReminders } = await import('../case-sync.service');
+    const { firm, head, asha } = await firmWithTeam();
+    const id = await caseWithHearingIn(firm.id, 2, head.id);
+    await sql()`insert into case_assignments (case_id, user_id, role_on_case) values (${id}::uuid, ${asha.id}::uuid, 'lead')`;
+    await sendUpcomingHearingReminders({ caseId: id });
+    expect((await notes(asha.id)).map((n) => n.title)).toEqual(['Hearing in 2 days: Gupta Traders v. Malhotra']);
+    expect(await notes(head.id)).toEqual([]);
+  });
+
+  it('AC10: WhatsApp once, the day before, from the daily run only, with the template on', async () => {
+    const { sendUpcomingHearingReminders } = await import('../case-sync.service');
+    const { firm, head } = await firmWithTeam();
+    await sql()`update users set phone = '+919876500022', phone_verified_at = now() where id = ${head.id}::uuid`;
+    const tomorrow = await caseWithHearingIn(firm.id, 1, head.id);
+    await caseWithHearingIn(firm.id, 3, head.id);
+    (env as { WHATSAPP_HEARING_TEMPLATE: string }).WHATSAPP_HEARING_TEMPLATE = 'difai_hearing_reminder';
+    await sendUpcomingHearingReminders({ caseId: tomorrow }); // on-save: bell only
+    expect(wa.sent).toHaveLength(0);
+    await sendUpcomingHearingReminders(); // the 9 AM run
+    const mine = wa.sent.filter((m) => m.phone === '+919876500022');
+    expect(mine).toHaveLength(1); // only the hearing tomorrow, not the one in 3 days
+    expect(mine[0]).toMatchObject({ template: 'difai_hearing_reminder', params: { case_title: 'Gupta Traders v. Malhotra', court: 'JM Saket' } });
+    (env as { WHATSAPP_HEARING_TEMPLATE: string }).WHATSAPP_HEARING_TEMPLATE = '';
+  });
+});

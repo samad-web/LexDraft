@@ -699,3 +699,6 @@
 - signup-flow test-payment AC4 fixed (test bug): it fired the first 10 s timer it found; it now picks the test-payment timer and waits up to 5 s. 21/21; team-join 4/4.
 - team-work.public.e2e AC7–AC8: 2/2; regression formats/coming-soon/pay-before-app/team-join: all pass (19/19).
 - Web unit 424/425 (known password-rule), API unit 1118 pass (known share-links needs .env). tsc api + web clean.
+
+## hearing-reminders (2026-11-18)
+- team-work.integration AC9–AC10: pass (8/8 file). API unit 1118 pass (share-links needs .env, known).
