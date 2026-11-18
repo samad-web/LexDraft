@@ -4623,7 +4623,7 @@ a:hover .adv-alert-btn, button:hover .adv-alert-btn, .adv-alert-btn:hover { filt
 .auth-shell .auth-intro p { margin-top: 8px !important; font-size: 15px; }
 .auth-or { display: flex; align-items: center; gap: 12px; color: var(--text-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.12em; }
 .auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
-.auth-google { display: block; min-height: 44px; }
+.auth-google { display: block; height: 44px; overflow: hidden; }
 .auth-google > div { justify-content: stretch !important; }
 .auth-email-toggle { align-self: flex-start; font-size: 14px; }
 .auth-more { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; padding-top: 18px; border-top: 1px solid var(--border-subtle); font-size: 14px; color: var(--text-secondary); }

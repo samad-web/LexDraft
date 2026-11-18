@@ -649,3 +649,7 @@
 - api password-reset.integration.test.ts (local PG, WhatsApp stubbed): AC1-AC5 5/5 pass.
 - web e2e forgot-password.public.e2e.ts (API mocked): AC6 + wrong-code message 2/2 pass.
 - Regression: signup-flow integration 19/19 + reset 5/5; api unit 1130/1131 (anthropic-failover fails identically without this change); web unit 413/415 (same 2 pre-existing); google-signup e2e 2/2.
+
+## auth-card-flicker (2026-11-18)
+- Found with a live-page layout recorder: card 634->670px and y 30->24 when the Google iframe went 44->80px.
+- e2e auth-card-stable.public.e2e.ts (fake GSI button toggling 80/40px): sign-in and create-account cards keep one bounding box — 2/2 pass (create-account failed until the component itself got the fixed slot). google-signup + forgot-password e2e 4/4; web unit 413/415 (same 2 pre-existing).

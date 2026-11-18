@@ -438,5 +438,8 @@ function WebGoogleButton({ onCredential, text = 'continue_with', shape = 'rectan
   if (loadError) return <div role="alert" style={noticeStyle}>{loadError}</div>;
   // colorScheme: Google's button iframe is a light document; on a dark page a
   // mismatched color-scheme paints an opaque white box around it.
-  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center', minHeight: 44, colorScheme: 'light' }} />;
+  // Fixed 44px slot: while loading (and when it swaps to "Continue as <name>")
+  // Google's iframe briefly grows to ~80px; without a fixed height the card
+  // grows, re-centres and visibly flickers (auth-card-flicker, 2026-11-18).
+  return <div ref={ref} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 44, overflow: 'hidden', colorScheme: 'light' }} />;
 }
