@@ -29,6 +29,7 @@ import { authService } from '../services/auth.service';
 import { validate, idParam } from '../middleware/validate';
 import { withAudit } from '../middleware/audit';
 import { requireFeature } from '../services/permissions.service';
+import { notifyCaseLead } from '../services/team-work.service';
 
 const CaseInput = z.object({
   cnr: z.string(),
@@ -122,6 +123,7 @@ casesRouter.put(
       const lead = await assignmentsService.setCaseLead({
         caseId: strParam(req.params['id']), firmId, targetUserId: req.body.userId, actor,
       });
+      await notifyCaseLead(firmId, strParam(req.params['id']), lead.id, req.user?.id);
       res.json({ lead });
     } catch (err) {
       next(err);

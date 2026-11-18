@@ -12,6 +12,7 @@ import { requireMemberAdmin } from '../middleware/requireMemberAdmin';
 import { db } from '../db/client';
 import { NotFoundError } from '../lib/errors';
 import { MUNSHI_ROLES } from '../lib/plans';
+import { teamWorkload } from '../services/team-work.service';
 
 export const firmRouter: Router = Router();
 
@@ -35,6 +36,18 @@ firmRouter.get('/teammates', async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
     res.json({ items: await assignmentsService.listTeammates(firmId) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- /firm/team (team-work.md) -------------------------------------------
+// Each active member's live workload for the Team page: lead cases, hearings
+// this week, open and overdue tasks. Anyone who can see the member list.
+firmRouter.get('/team', requireFeature('firm.members.view'), async (req, res, next) => {
+  try {
+    const firmId = await firmIdForUser(req.user?.id);
+    res.json({ items: firmId ? await teamWorkload(firmId) : [] });
   } catch (err) {
     next(err);
   }

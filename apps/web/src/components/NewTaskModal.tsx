@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Select, DatePicker } from '@lexdraft/ui';
 import type { TaskColumn, TaskPriority } from '@lexdraft/types';
 import { useCreateTask } from '@/hooks/useTasks';
+import { useCurrentUserId, useTeammates } from '@/hooks/useAssignments';
 import { useUIStore } from '@/store/ui';
 import { Modal, Field } from './Modal';
 
@@ -15,6 +16,8 @@ interface Props {
    *  would silently remove the task from that case's Pendings card (tasks
    *  link to cases by title-text match, not a foreign key). */
   lockCase?: boolean;
+  /** Pre-pick the member the task is for (Team page → Assign task). */
+  assigneeId?: string;
 }
 
 const PRIORITY_OPTIONS: ReadonlyArray<{ value: TaskPriority; label: string }> = [
@@ -31,15 +34,20 @@ function inDays(d: number): string {
   return x.toISOString().slice(0, 10);
 }
 
-export function NewTaskModal({ open, onClose, defaultCase, lockCase }: Props) {
+export function NewTaskModal({ open, onClose, defaultCase, lockCase, assigneeId }: Props) {
   const create = useCreateTask();
+  // team-work: pick a member, not typed initials (owner, 2026-11-18).
+  const team = useTeammates();
+  const me = useCurrentUserId();
   const showToast = useUIStore((s) => s.showToast);
 
   const [title, setTitle] = useState('');
   const [caseLabel, setCaseLabel] = useState(defaultCase ?? '');
   const [due, setDue] = useState<string>(inDays(7));
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assignee, setAssignee] = useState('');
+  const [assignee, setAssignee] = useState(assigneeId ?? '');
+  useEffect(() => { if (open) setAssignee(assigneeId ?? me ?? ''); }, [open, assigneeId, me]);
+  const members = team.data ?? [];
   const [column, setColumn] = useState<TaskColumn>('pending');
 
   const reset = () => {
@@ -47,7 +55,7 @@ export function NewTaskModal({ open, onClose, defaultCase, lockCase }: Props) {
     setCaseLabel(defaultCase ?? '');
     setDue(inDays(7));
     setPriority('medium');
-    setAssignee('');
+    setAssignee(assigneeId ?? me ?? '');
     setColumn('pending');
   };
 
@@ -59,7 +67,8 @@ export function NewTaskModal({ open, onClose, defaultCase, lockCase }: Props) {
         case: caseLabel.trim(),
         due,
         priority,
-        assignee: assignee.trim() || 'ME',
+        assignee: 'ME', // the server sets the member's initials
+        ...(assignee ? { assigneeUserId: assignee } : {}),
         comments: 0,
         column,
       });
@@ -132,12 +141,13 @@ export function NewTaskModal({ open, onClose, defaultCase, lockCase }: Props) {
             options={COLUMNS.map((c) => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))}
           />
         </Field>
-        <Field label="ASSIGNEE INITIALS" wide>
-          <input
-            className="input"
+        <Field label="ASSIGN TO" wide>
+          <Select
             value={assignee}
-            onChange={(e) => setAssignee(e.target.value.toUpperCase().slice(0, 4))}
-            placeholder="e.g. RM"
+            onChange={setAssignee}
+            options={members.length
+              ? members.map((m) => ({ value: m.id, label: m.id === me ? `${m.name} (me)` : m.name }))
+              : [{ value: me ?? '', label: 'Me' }]}
           />
         </Field>
       </div>

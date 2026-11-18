@@ -181,6 +181,27 @@ export interface Task {
   column: TaskColumn;
   /** Linked matter (migration 0089); null when unlinked / not yet migrated. */
   caseId?: ID | null;
+  /** The member the task is for (migration 0118); null on older tasks. */
+  assigneeUserId?: ID | null;
+  /** Their full name, for the board and filters. */
+  assigneeName?: string | null;
+  /** Who assigned it ("Assigned by me"). */
+  createdByUserId?: ID | null;
+}
+
+/** One member's live workload on the Team page (GET /firm/team). */
+export interface TeamMemberWorkload {
+  userId: ID;
+  name: string;
+  role: string;
+  /** Cases where they are the lead advocate and the case is active/pending. */
+  leadCases: number;
+  /** Hearings assigned to them in the next 7 days (today included). */
+  hearingsThisWeek: number;
+  /** Their tasks not yet done. */
+  openTasks: number;
+  /** Of those, past the due date. */
+  overdueTasks: number;
 }
 
 export interface TaskBoard {

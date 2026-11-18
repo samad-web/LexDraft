@@ -1,6 +1,7 @@
 import type { Task, TaskBoard, TaskColumn } from '@lexdraft/types';
 import { db } from '../db/client';
 import { SEED_TASKS } from '../data/seed';
+import { initialsOf, notifyAssigned, requireMember } from './team-work.service';
 
 interface TaskRow {
   id: string;
@@ -12,7 +13,14 @@ interface TaskRow {
   comments_count: number;
   column_name: TaskColumn;
   case_id?: string | null;
+  assignee_user_id?: string | null;
+  assignee_name?: string | null;
+  created_by_user_id?: string | null;
 }
+
+/** Who acts on a task (route's signed-in user). */
+export interface TaskActor { id: string; name: string }
+
 
 let memory: TaskBoard = JSON.parse(JSON.stringify(SEED_TASKS));
 
@@ -31,6 +39,9 @@ function fromRow(r: TaskRow): Task {
     comments: r.comments_count,
     column: r.column_name,
     caseId: r.case_id ?? null,
+    assigneeUserId: r.assignee_user_id ?? null,
+    assigneeName: r.assignee_name ?? null,
+    createdByUserId: r.created_by_user_id ?? null,
   };
 }
 
@@ -47,8 +58,12 @@ export const tasksService = {
       // a database where that migration hasn't been applied yet.
       const rows = await sql<TaskRow[]>`
         select t.id, t.case_label, t.title, t.due_date, t.priority, t.assignee,
-               t.comments_count, t.column_name, to_jsonb(t) ->> 'case_id' as case_id
+               t.comments_count, t.column_name, to_jsonb(t) ->> 'case_id' as case_id,
+               to_jsonb(t) ->> 'assignee_user_id' as assignee_user_id,
+               to_jsonb(t) ->> 'created_by_user_id' as created_by_user_id,
+               au.name as assignee_name
         from tasks t
+        left join users au on au.id::text = to_jsonb(t) ->> 'assignee_user_id'
         where t.firm_id = ${firmId}::uuid
         order by t.created_at
       `;
@@ -87,20 +102,29 @@ export const tasksService = {
     return memory;
   },
 
-  async create(input: Omit<Task, 'id'>, firmId: string | null): Promise<Task> {
+  async create(input: Omit<Task, 'id'>, firmId: string | null, actor?: TaskActor): Promise<Task> {
     if (!firmId) {
       throw Object.assign(new Error('No firm attached - cannot create task'), { status: 422 });
     }
     const sql = db();
     if (sql) {
+      // team-work: a member picked from the team; the board avatar shows their initials.
+      const member = input.assigneeUserId ? await requireMember(firmId, input.assigneeUserId) : null;
       const rows = await sql<TaskRow[]>`
-        insert into tasks (firm_id, case_label, title, due_date, priority, assignee, comments_count, column_name)
+        insert into tasks (firm_id, case_label, title, due_date, priority, assignee, comments_count, column_name,
+                           assignee_user_id, created_by_user_id)
         values (${firmId}::uuid, ${input.case}, ${input.title}, ${input.due || null},
-                ${input.priority}::task_priority, ${input.assignee},
-                ${input.comments}, ${input.column}::task_column)
-        returning id, case_label, title, due_date, priority, assignee, comments_count, column_name
+                ${input.priority}::task_priority, ${member ? initialsOf(member.name) : input.assignee},
+                ${input.comments}, ${input.column}::task_column,
+                ${member?.id ?? null}::uuid, ${actor?.id ?? null}::uuid)
+        returning id, case_label, title, due_date, priority, assignee, comments_count, column_name,
+                  assignee_user_id, created_by_user_id
       `;
-      return fromRow(rows[0]!);
+      const task = fromRow({ ...rows[0]!, assignee_name: member?.name ?? null });
+      if (member && actor) {
+        await notifyAssigned({ firmId, actorId: actor.id, actorName: actor.name, member, kind: 'task', title: task.title, due: task.due, dedupeKey: `task-assigned:${task.id}:${member.id}` });
+      }
+      return task;
     }
     const allIds = Object.values(memory).flat().map((t) => Number(t.id.replace(/\D/g, ''))).filter(Number.isFinite);
     const next = (allIds.length ? Math.max(...allIds) : 0) + 1;
@@ -109,12 +133,18 @@ export const tasksService = {
     return task;
   },
 
-  async update(taskId: string, patch: Partial<Task>, firmId: string | null): Promise<Task | undefined> {
+  async update(taskId: string, patch: Partial<Task>, firmId: string | null, actor?: TaskActor): Promise<Task | undefined> {
     if (!firmId) return undefined;
     const sql = db();
     if (sql) {
+      const member = patch.assigneeUserId ? await requireMember(firmId, patch.assigneeUserId) : null;
+      const [before] = member
+        ? await sql<Array<{ a: string | null }>>`select to_jsonb(t) ->> 'assignee_user_id' as a from tasks t where id::text = ${taskId} and firm_id = ${firmId}::uuid`
+        : [];
+      if (member) patch = { ...patch, assignee: initialsOf(member.name) };
       const rows = await sql<TaskRow[]>`
         update tasks set
+          assignee_user_id = coalesce(${member?.id ?? null}::uuid, assignee_user_id),
           title          = coalesce(${patch.title ?? null}, title),
           case_label     = coalesce(${patch.case ?? null}, case_label),
           due_date       = coalesce(${patch.due ?? null}, due_date),
@@ -123,10 +153,17 @@ export const tasksService = {
           comments_count = coalesce(${patch.comments ?? null}, comments_count),
           column_name    = coalesce(${patch.column ?? null}::task_column, column_name)
         where id::text = ${taskId} and firm_id = ${firmId}::uuid
-        returning id, case_label, title, due_date, priority, assignee, comments_count, column_name
+        returning id, case_label, title, due_date, priority, assignee, comments_count, column_name,
+                  assignee_user_id, created_by_user_id
       `;
       const row = rows[0];
-      return row ? fromRow(row) : undefined;
+      if (!row) return undefined;
+      const task = fromRow({ ...row, assignee_name: member?.name ?? null });
+      // Re-assigned to someone new: tell them.
+      if (member && actor && before?.a !== member.id) {
+        await notifyAssigned({ firmId, actorId: actor.id, actorName: actor.name, member, kind: 'task', title: task.title, due: task.due, dedupeKey: `task-assigned:${task.id}:${member.id}` });
+      }
+      return task;
     }
     for (const k of Object.keys(memory) as TaskColumn[]) {
       const i = memory[k].findIndex((t) => t.id === taskId);

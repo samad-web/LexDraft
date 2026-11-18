@@ -14,6 +14,12 @@ import { useCan, useFirmUsers, useUpdateFirmUser } from '@/hooks/useFirmAdmin';
 import { Pagination } from '@/components/Pagination';
 import { PageHeader } from '@/components/PageHeader';
 import { usePagination } from '@/hooks/usePagination';
+import { Link } from 'react-router-dom';
+import type { TeamMemberWorkload } from '@lexdraft/types';
+import { useTeamWorkload } from '@/hooks/useTeamWork';
+import { useIsHead } from '@/hooks/useAssignments';
+import { NewTaskModal } from '@/components/NewTaskModal';
+import { AssignCaseModal } from '@/components/AssignCaseModal';
 
 type Status = 'active' | 'on-leave';
 
@@ -68,6 +74,10 @@ export function MembersView() {
     return { total: MEMBERS.length, active, onLeave };
   }, [MEMBERS]);
   const pager = usePagination(MEMBERS);
+  // team-work: each member's live workload + Assign work (heads only).
+  const team = useTeamWorkload(!isPlanGated);
+  const workOf = useMemo(() => new Map((team.data ?? []).map((w) => [w.userId, w])), [team.data]);
+  const canAssign = useIsHead();
 
   return (
     <div className="col stagger fm-view fm-members">
@@ -117,7 +127,7 @@ export function MembersView() {
       ) : (
         <>
           <div className="fm-members-grid">
-            {pager.slice.map((m) => <MemberCard key={m.id} member={m} />)}
+            {pager.slice.map((m) => <MemberCard key={m.id} member={m} work={workOf.get(m.id)} canAssign={canAssign && m.status === 'active'} />)}
           </div>
           <Pagination
             page={pager.page}
@@ -251,8 +261,9 @@ function formatExpiry(iso: string): string {
   return `in ${hours}h`;
 }
 
-function MemberCard({ member }: { member: Member }) {
+function MemberCard({ member, work, canAssign }: { member: Member; work?: TeamMemberWorkload; canAssign: boolean }) {
   const showToast = useUIStore((s) => s.showToast);
+  const [assigning, setAssigning] = useState<'task' | 'case' | null>(null);
   const updateUser = useUpdateFirmUser();
   const [profileOpen, setProfileOpen] = useState(false);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
@@ -286,6 +297,17 @@ function MemberCard({ member }: { member: Member }) {
         <StatusPill status={member.status} />
       </div>
 
+      {work && (
+        <ul className="fm-work" aria-label={`${member.name}'s workload`}>
+          <li><strong>{work.leadCases}</strong><span>Lead cases</span></li>
+          <li><strong>{work.hearingsThisWeek}</strong><span>Hearings this week</span></li>
+          <li>
+            <strong>{work.openTasks}</strong>
+            <span>Open tasks{work.overdueTasks ? <> · <em className="fm-work-overdue">{work.overdueTasks} overdue</em></> : null}</span>
+          </li>
+        </ul>
+      )}
+
       <dl className="fm-dl">
         <Field label="Enrolment" value={member.enrolment} muted={member.enrolment === 'Not on record'} />
         <Field label="Email" value={member.email} />
@@ -295,6 +317,14 @@ function MemberCard({ member }: { member: Member }) {
           muted={member.practiceAreas.length === 0}
         />
       </dl>
+
+      {canAssign && (
+        <div className="fm-member-assign">
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => setAssigning('task')}>Assign task</button>
+          <button type="button" className="btn btn-sm" onClick={() => setAssigning('case')}>Assign case</button>
+          <Link className="btn btn-sm btn-ghost" to={`/app/tasks?assignee=${member.id}`}>View tasks</Link>
+        </div>
+      )}
 
       <div className="fm-member-actions">
         <button
@@ -322,6 +352,8 @@ function MemberCard({ member }: { member: Member }) {
         member={member}
         onClose={() => setProfileOpen(false)}
       />
+      {canAssign && <NewTaskModal open={assigning === 'task'} onClose={() => setAssigning(null)} assigneeId={member.id} />}
+      {canAssign && <AssignCaseModal open={assigning === 'case'} onClose={() => setAssigning(null)} member={member} />}
     </div>
   );
 }

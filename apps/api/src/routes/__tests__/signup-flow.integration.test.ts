@@ -522,10 +522,12 @@ describe('₹1 test code at onboarding (owner 2026-11-18)', () => {
       expect(ob.json.checkoutUrl).toMatch(/\/app\/billing\?checkout=paid$/);
       expect((await firmOf(r.user.id)).plan_status).not.toBe('active');
       expect((await probe(r.token)).json.code).toBe('onboarding_required');
-      const due = timers.mock.calls.find((c) => c[1] === 10_000);
+      // Other code also sets 10 s timers: pick the test-payment one by its body.
+      const due = timers.mock.calls.find((c) => c[1] === 10_000 && String(c[0]).includes('applyPlanPayment'));
       expect(due).toBeDefined();
       (due![0] as () => void)();
-      for (let i = 0; i < 50 && (await firmOf(r.user.id)).plan_status !== 'active'; i++) await new Promise((res) => setImmediate(res));
+      // The plan applies asynchronously (a transaction); wait up to ~5 s for it.
+      for (let i = 0; i < 100 && (await firmOf(r.user.id)).plan_status !== 'active'; i++) await new Promise((res) => setTimeout(res, 50));
       expect(await firmOf(r.user.id)).toMatchObject({ plan_status: 'active', selected_plan: 'advocate' });
       expect((await probe(r.token)).status).toBe(200);
       const inv = await sql()`select count(*)::int as n from subscription_invoices i join users u on u.firm_id = i.firm_id where u.id = ${r.user.id}::uuid`;

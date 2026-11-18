@@ -555,6 +555,13 @@
 [data-ui='chambers'] .fm-member-actions { display: flex; gap: 8px; margin-top: auto; }
 [data-ui='chambers'] .fm-member-actions .btn:first-child { flex: 1; }
 [data-ui='chambers'] .fm-member-actions .btn:last-child:not(:first-child) { min-width: 40px; }
+/* team-work: workload numbers + Assign work row on each member card */
+[data-ui='chambers'] .fm-work { list-style: none; margin: 0; padding: 10px 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+[data-ui='chambers'] .fm-work li { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-ui='chambers'] .fm-work strong { font-size: 20px; line-height: 1.1; font-weight: 600; color: var(--text-primary); }
+[data-ui='chambers'] .fm-work span { font-size: 11px; color: var(--text-secondary); }
+[data-ui='chambers'] .fm-work-overdue { font-style: normal; color: var(--danger, #b42318); font-weight: 600; }
+[data-ui='chambers'] .fm-member-assign { display: flex; flex-wrap: wrap; gap: 6px; }
 
 /* =================================================================
    ROLES & ACCESS (views/manage/*)

@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Select } from '@lexdraft/ui';
+import { useCurrentUserId, useTeammates } from '@/hooks/useAssignments';
 import { Icon, Skeleton, ErrorState, EmptyState } from '@lexdraft/ui';
 import { useTaskBoard, useMoveTask, useDeleteTask } from '@/hooks/useTasks';
 import { useUIStore } from '@/store/ui';
-import type { Task, TaskColumn, TaskPriority } from '@lexdraft/types';
+import type { Task, TaskBoard, TaskColumn, TaskPriority } from '@lexdraft/types';
 import { NewTaskModal } from '@/components/NewTaskModal';
 import { FAB } from '@/components/FAB';
 import { PageHeader } from '@/components/PageHeader';
@@ -36,6 +39,22 @@ export function TasksView() {
   // shove that focus to a different layer.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const showToast = useUIStore((s) => s.showToast);
+
+  // team-work: All · Assigned to me · Assigned by me · one person. Kept in the
+  // URL (?mine=1 / ?by=me / ?assignee=<id>) so notifications and member cards link here.
+  const [params, setParams] = useSearchParams();
+  const me = useCurrentUserId();
+  const team = useTeammates();
+  const filter: string = params.get('mine') ? 'me' : params.get('by') === 'me' ? 'by-me' : params.get('assignee') ?? 'all';
+  const setFilter = (f: string) => setParams(f === 'me' ? { mine: '1' } : f === 'by-me' ? { by: 'me' } : f === 'all' ? {} : { assignee: f }, { replace: true });
+  const data = useMemo((): TaskBoard | undefined => {
+    if (!board.data || filter === 'all') return board.data;
+    const keep = (t: Task) => filter === 'me' ? t.assigneeUserId === me
+      : filter === 'by-me' ? t.createdByUserId === me
+        : t.assigneeUserId === filter;
+    return { pending: board.data.pending.filter(keep), progress: board.data.progress.filter(keep), review: board.data.review.filter(keep), done: board.data.done.filter(keep) };
+  }, [board.data, filter, me]);
+  const people = team.data ?? [];
 
   const moveOpenTask = (to: TaskColumn, message: { type: 'sage' | 'cobalt'; text: string }) => {
     if (!openTask) return;
@@ -84,6 +103,22 @@ export function TasksView() {
         <Icon name="plus" size={22} />
       </FAB>
 
+      {people.length > 1 && (
+        <div className="row ct-filters" role="group" aria-label="Show tasks" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {([['all', 'All tasks'], ['me', 'Assigned to me'], ['by-me', 'Assigned by me']] as const).map(([id, label]) => (
+            <button key={id} type="button" className={`btn btn-sm${filter === id ? ' btn-primary' : ''}`} aria-pressed={filter === id} onClick={() => setFilter(id)}>{label}</button>
+          ))}
+          <div style={{ minWidth: 200 }}>
+            <Select
+              placeholder="By person…"
+              value={people.some((p) => p.id === filter) ? filter : ''}
+              onChange={(v) => setFilter(v || 'all')}
+              options={[{ value: '', label: 'By person…' }, ...people.map((p) => ({ value: p.id, label: p.id === me ? `${p.name} (me)` : p.name }))]}
+            />
+          </div>
+        </div>
+      )}
+
       {board.isLoading && (
         <div className="ct-board" aria-busy="true" aria-label="Loading task board">
           {COLUMNS.map((col) => (
@@ -121,9 +156,13 @@ export function TasksView() {
         />
       )}
 
-      {board.data && !COLUMNS.every((col) => board.data[col.id].length === 0) && (() => {
-        const open = board.data.pending.length + board.data.progress.length + board.data.review.length;
-        const all = [...board.data.pending, ...board.data.progress, ...board.data.review];
+      {data && board.data && filter !== 'all' && COLUMNS.every((col) => data[col.id].length === 0) && !COLUMNS.every((col) => board.data[col.id].length === 0) && (
+        <p className="body-sm muted" role="status">No tasks match this filter. <button type="button" className="auth-link" onClick={() => setFilter('all')}>Show all tasks</button></p>
+      )}
+
+      {data && !COLUMNS.every((col) => data[col.id].length === 0) && (() => {
+        const open = data.pending.length + data.progress.length + data.review.length;
+        const all = [...data.pending, ...data.progress, ...data.review];
         const today = new Date().toISOString().slice(0, 10);
         const overdueCount = all.filter((t) => isOverdue(t.due) && t.due !== today).length;
         const dueToday = all.filter((t) => t.due === today).length;
@@ -132,15 +171,15 @@ export function TasksView() {
             <div className="ct-kpi"><span className="ct-kpi-label">Open</span><span className="ct-kpi-value">{open}</span><span className="ct-kpi-note">Pending, in progress, in review</span></div>
             <div className="ct-kpi"><span className="ct-kpi-label">Overdue</span><span className="ct-kpi-value">{overdueCount}</span><span className="ct-kpi-note">Past their due date</span></div>
             <div className="ct-kpi"><span className="ct-kpi-label">Due today</span><span className="ct-kpi-value">{dueToday}</span><span className="ct-kpi-note">{dueToday === 1 ? 'Task' : 'Tasks'} to finish today</span></div>
-            <div className="ct-kpi"><span className="ct-kpi-label">Done</span><span className="ct-kpi-value">{board.data.done.length}</span><span className="ct-kpi-note">Approved and closed</span></div>
+            <div className="ct-kpi"><span className="ct-kpi-label">Done</span><span className="ct-kpi-value">{data.done.length}</span><span className="ct-kpi-note">Approved and closed</span></div>
           </div>
         );
       })()}
 
-      {board.data && !COLUMNS.every((col) => board.data[col.id].length === 0) && (
+      {data && !COLUMNS.every((col) => data[col.id].length === 0) && (
         <div className="ct-board">
           {COLUMNS.map((col) => {
-            const tasks = board.data[col.id];
+            const tasks = data[col.id];
             return (
               <div
                 key={col.id}
@@ -186,7 +225,7 @@ export function TasksView() {
                       </div>
                       <div className="ct-tcard-title">{task.title}</div>
                       <div className="ct-tcard-foot">
-                        <div className="avatar" title={task.assignee}>{task.assignee}</div>
+                        <div className="avatar" title={task.assigneeName ?? task.assignee}>{task.assignee}</div>
                         {overdue
                           ? <span className="ct-pill is-ink">Overdue · {fmtDue(task.due)}</span>
                           : dueToday && col.id !== 'done'
@@ -259,7 +298,7 @@ export function TasksView() {
                 <span className="ct-eyebrow">Assignee</span>
                 <span className="ct-fact-value">
                   <span className="avatar">{openTask.assignee}</span>
-                  {openTask.assignee}
+                  {openTask.assigneeName ?? openTask.assignee}
                 </span>
               </div>
               <div className="ct-fact">

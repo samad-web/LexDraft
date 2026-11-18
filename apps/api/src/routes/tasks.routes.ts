@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { tasksService } from '../services/tasks.service';
 import { firmIdForUser } from '../services/tenant';
 import { requireFeature } from '../services/permissions.service';
+import { actorFor } from '../services/team-work.service';
 
 const TaskInput = z.object({
   title: z.string(),
@@ -12,6 +13,8 @@ const TaskInput = z.object({
   assignee: z.string(),
   comments: z.number().int().nonnegative().default(0),
   column: z.enum(['pending', 'progress', 'review', 'done']),
+  /** team-work: the member the task is for (must be in this firm). */
+  assigneeUserId: z.string().uuid().optional(),
 });
 
 const Move = z.object({ to: z.enum(['pending', 'progress', 'review', 'done']) });
@@ -31,7 +34,7 @@ tasksRouter.get('/', requireFeature('matter.view'), async (req, res, next) => {
 tasksRouter.post('/', requireFeature('matter.create'), async (req, res, next) => {
   try {
     const firmId = await firmIdForUser(req.user?.id);
-    res.status(201).json(await tasksService.create(TaskInput.parse(req.body), firmId));
+    res.status(201).json(await tasksService.create(TaskInput.parse(req.body), firmId, await actorFor(req.user?.id)));
   } catch (err) {
     next(err);
   }
@@ -44,6 +47,7 @@ tasksRouter.patch('/:id', requireFeature('matter.create'), async (req, res, next
       String(req.params.id ?? ''),
       TaskInput.partial().parse(req.body),
       firmId,
+      await actorFor(req.user?.id),
     );
     if (!updated) {
       res.status(404).json({ error: 'Task not found' });

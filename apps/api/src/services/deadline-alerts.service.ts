@@ -122,7 +122,9 @@ export async function runDeadlineAlerts(now: Date = new Date()): Promise<number>
       and (l.deadline - ${today}::date) in (90, 30, 7, 1, 0)
   `;
   const tasks = await sql<TaskDue[]>`
-    select t.id, t.firm_id, c.created_by_user_id as owner_user_id,
+    -- team-work: the member the task is for first; else the matter owner.
+    select t.id, t.firm_id,
+           coalesce((to_jsonb(t) ->> 'assignee_user_id')::uuid, c.created_by_user_id) as owner_user_id,
            t.case_label, t.title, t.priority::text as priority, t.due_date,
            (t.due_date - ${today}::date)::int as days_left
     from tasks t

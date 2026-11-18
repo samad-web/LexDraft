@@ -693,3 +693,9 @@
 ## coming-soon (2026-11-18)
 - coming-soon.test.ts AC1–AC2: 4/4. coming-soon.public.e2e AC3: 5/5; formats-page regression 4/4.
 - Web unit regression 424/425 (known password-rule failure only). tsc clean.
+
+## team-work (2026-11-18)
+- team-work.integration AC1–AC6: 6/6 (local PG). The throwaway test schema keeps 0001's colour task priorities (0007 checks pg_type database-wide); the test renames them in its own schema.
+- signup-flow test-payment AC4 fixed (test bug): it fired the first 10 s timer it found; it now picks the test-payment timer and waits up to 5 s. 21/21; team-join 4/4.
+- team-work.public.e2e AC7–AC8: 2/2; regression formats/coming-soon/pay-before-app/team-join: all pass (19/19).
+- Web unit 424/425 (known password-rule), API unit 1118 pass (known share-links needs .env). tsc api + web clean.
