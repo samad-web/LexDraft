@@ -376,3 +376,6 @@
 ## formats-page (2026-11-18)
 - Sidebar "Formats": the 54 LAWE forms on their own page; view in-app, download blank PDF/Word (web only).
 - DEPLOYED e0db362 2026-11-18 (web only; rollback image lexdraft-web:prev-20261118-170725).
+
+## solo-wording (2026-11-18)
+- Solo accounts: org section/breadcrumbs "Practice" (Chambers/Firm on those plans); Team Chat hidden without a Munshi seat; Settings wording by plan.

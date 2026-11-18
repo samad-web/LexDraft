@@ -685,3 +685,7 @@
 - formats-nav.test.ts AC1: 2/2. formats-page.public.e2e.ts AC1–AC5: 4/4 (API mocked, port 5174).
 - Web unit regression: 416/417; the 1 failure is the known pre-existing password-rule.test.ts.
 - tsc (web): clean. Prod engine: 54/54 LAWE forms render blank.
+
+## solo-wording (2026-11-18)
+- solo-wording.test.ts AC1–AC3: 5/5. Web unit regression 420/421 (only known password-rule failure).
+- Browser regression: formats-page (×2), pay-before-app, team-join: all pass. formats-page test now marks the first-run tour seen (it covered the sidebar).

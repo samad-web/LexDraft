@@ -20,7 +20,10 @@ async function signedIn(page: Page, calls: { blank: unknown[]; pdf: number }, bl
   await page.route(/\/api\/drafting\/engine\/library$/, (r) => json(r, { lawe: FORMS, laweSource: 'https://www.lawe.co.in/lawe-downloads.html' }));
   await page.route(/\/api\/drafting\/engine\/blank$/, (r) => { calls.blank.push(r.request().postDataJSON()); return blankStatus === 200 ? json(r, { docxBase64: DOCX, blocks: [], fileName: 'x (blank)' }) : json(r, { error: 'engine_unavailable' }, blankStatus); });
   await page.route(/\/api\/drafting\/engine\/docx-to-pdf$/, (r) => { calls.pdf++; return r.fulfill({ status: 200, contentType: 'application/pdf', body: PDF }); });
-  await page.addInitScript((u) => localStorage.setItem('lexdraft-auth', JSON.stringify({ state: { user: u, token: 'jwt' }, version: 0 })), USER);
+  await page.addInitScript((u) => {
+    localStorage.setItem('lexdraft-auth', JSON.stringify({ state: { user: u, token: 'jwt' }, version: 0 }));
+    localStorage.setItem(`difai-tour-done:${u.id}`, '2026-11-18'); // the first-run tour would cover the sidebar
+  }, USER);
 }
 
 test('AC1+AC2: sidebar Formats opens the page; forms grouped by LAWE section; search filters', async ({ page }) => {

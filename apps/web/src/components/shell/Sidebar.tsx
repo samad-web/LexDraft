@@ -8,6 +8,7 @@ import { useNavHighlighter } from '@/hooks/useNavHighlighter';
 import { useCredits } from '@/hooks/useCredits';
 import { useLandAccess } from '@/hooks/useLandAccess';
 import { useMeFeatures } from '@/hooks/useFirmAdmin';
+import { useBilling } from '@/hooks/useBilling';
 import { useTeamChatStream, useTeamChatUnreadTotal } from '@/hooks/useTeamChat';
 import { LogoMark, Wordmark } from '@/components/brand/Logo';
 import { AccountMenu } from './AccountMenu';
@@ -20,9 +21,12 @@ export function Sidebar() {
   const hl = useNavHighlighter(navRef);
   const credits = useCredits();
   const meFeatures = useMeFeatures();
+  // Solo: Team Chat only with a Munshi seat (someone to message).
+  const billing = useBilling();
+  const hasTeam = (billing.data?.current?.munshiSeats ?? 0) > 0;
   const navGroups = useMemo(
-    () => visibleNavGroups(meFeatures.data?.features ?? [], user?.plan),
-    [meFeatures.data, user?.plan],
+    () => visibleNavGroups(meFeatures.data?.features ?? [], user?.plan, { hasTeam }),
+    [meFeatures.data, user?.plan, hasTeam],
   );
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);

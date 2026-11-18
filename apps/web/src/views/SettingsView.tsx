@@ -102,14 +102,14 @@ function AccountPanel() {
       <SettingsRow
         eyebrow="Account"
         title="Your profile"
-        description="The name, email and role your firm sees on matters, drafts and the audit log."
+        description="The name, email and role shown on matters, drafts and the audit log."
         flush
       >
         <div className="fm-kv">
           <Row label="Name" value={user?.name || '-'} />
           <Row label="Email" value={user?.email || '-'} />
           <Row label="Role" value={user?.role || '-'} />
-          {user?.firm && <Row label="Firm" value={user.firm} />}
+          {user?.firm && <Row label={user.plan === 'Solo' ? 'Practice' : user.plan === 'Practice' ? 'Chambers' : 'Firm'} value={user.firm} />}
         </div>
       </SettingsRow>
 

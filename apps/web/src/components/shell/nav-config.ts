@@ -218,13 +218,24 @@ export function analyticsLabel(plan?: UserPlan | null): string {
   return plan === 'Solo' ? 'My Practice Analytics' : plan === 'Practice' ? 'Chambers Analytics' : 'Firm Analytics';
 }
 
-export function visibleNavGroups(granted: readonly string[], plan?: UserPlan | null): NavGroup[] {
+/** The org section's name follows the plan, so a solo advocate never reads
+ *  "Firm" (owner, 2026-11-18): Practice · Chambers · Firm. */
+export function orgSectionTitle(plan?: UserPlan | null): string {
+  return plan === 'Solo' ? 'Practice' : plan === 'Practice' ? 'Chambers' : 'Firm';
+}
+
+/** `hasTeam`: a Solo account has someone to message only with a Munshi seat;
+ *  without one Team Chat is hidden (owner, 2026-11-18). Ignored on other plans. */
+export function visibleNavGroups(granted: readonly string[], plan?: UserPlan | null, opts: { hasTeam?: boolean } = {}): NavGroup[] {
   const can = (f?: FeatureKey) => !f || granted.includes(f);
   const named = (t: NavTab): NavTab => (t.to === '/app/analytics' ? { ...t, label: analyticsLabel(plan) } : t);
+  const noTeam = plan === 'Solo' && !opts.hasTeam;
   return NAV_GROUPS.map((g) => ({
     ...g,
+    title: g.title === 'Firm' ? orgSectionTitle(plan) : g.title,
     items: g.items.flatMap((item): NavItem[] => {
       if (!can(item.requiresFeature)) return [];
+      if (noTeam && item.id === 'team-chat') return [];
       if (!item.tabs) return [item];
       const tabs = item.tabs.filter((t) => can(t.requiresFeature)).map(named);
       const first = tabs[0];
