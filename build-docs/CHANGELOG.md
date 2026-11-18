@@ -372,3 +372,6 @@
 ## test-payment (2026-11-18)
 - Test code on allow-listed accounts = simulated payment: no Razorpay, plan applied after 10 s, no GST invoice (owner). Brief Packs keep ₹1.
 - DEPLOYED 03b159a 2026-11-18 (api only; backup pre-deploy-20261118-114318.dump; rollback image lexdraft-api:prev-20261118-114318).
+
+## formats-page (2026-11-18)
+- Sidebar "Formats": the 54 LAWE forms on their own page; view in-app, download blank PDF/Word (web only).

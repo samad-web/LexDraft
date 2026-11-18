@@ -61,6 +61,7 @@ const ClientsView = lazy(() => import('@/views/ClientsView').then((m) => ({ defa
 const ClientDetailView = lazy(() => import('@/views/ClientDetailView').then((m) => ({ default: m.ClientDetailView })));
 const LeadsView = lazy(() => import('@/views/LeadsView').then((m) => ({ default: m.LeadsView })));
 const ClausesView = lazy(() => import('@/views/ClausesView').then((m) => ({ default: m.ClausesView })));
+const FormatsView = lazy(() => import('@/views/FormatsView').then((m) => ({ default: m.FormatsView })));
 const InvoicesView = lazy(() => import('@/views/InvoicesView').then((m) => ({ default: m.InvoicesView })));
 const ExpensesView = lazy(() => import('@/views/ExpensesView').then((m) => ({ default: m.ExpensesView })));
 const LimitationView = lazy(() => import('@/views/LimitationView').then((m) => ({ default: m.LimitationView })));
@@ -324,6 +325,7 @@ export function App() {
               <Route path="/app/clients/:id" element={<ClientDetailView />} />
               <Route path="/app/leads"      element={<LeadsView />} />
               <Route path="/app/clauses"    element={<ClausesView />} />
+              <Route path="/app/formats"    element={<Gate feature="drafting.ai" fallback={<FreePlanLocked feature="Formats" />}><FormatsView /></Gate>} />
               <Route path="/app/invoices"   element={<InvoicesView />} />
               <Route path="/app/expenses"   element={<ExpensesView />} />
               <Route path="/app/limitation" element={<Gate feature="limitation.use" fallback={<FreePlanLocked feature="The limitation tracker" />}><LimitationView /></Gate>} />

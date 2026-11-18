@@ -134,6 +134,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'draft',   label: 'Draft',       icon: 'draft',   badge: 'AI', to: '/app/draft',   requiresFeature: 'drafting.ai' },
       { id: 'clauses', label: 'Clause Bank', icon: 'clauses', to: '/app/clauses', requiresFeature: 'drafting.clauses' },
+      // LAWE forms library as its own page: view + blank PDF/Word (owner 2026-11-18).
+      { id: 'formats', label: 'Formats', icon: 'documents', to: '/app/formats', requiresFeature: 'drafting.ai' },
       {
         id: 'review', label: 'Contract Review', icon: 'review', badge: 'AI', to: '/app/review',
         tabs: [
@@ -267,6 +269,7 @@ export const ROUTE_TITLES: Record<string, { title: string; eyebrow: string }> = 
   calendar:   { title: 'Hearings',        eyebrow: 'Calendar' },
   leads:      { title: 'Leads',           eyebrow: 'Pipeline & intake' },
   clauses:    { title: 'Clause Bank',     eyebrow: 'Reusable clauses' },
+  formats:    { title: 'Formats',         eyebrow: 'Court forms library' },
   expenses:   { title: 'Expenses',        eyebrow: 'Disbursements' },
   limitation: { title: 'Limitation',      eyebrow: 'Limitation tracker' },
   research:   { title: 'Legal Research',  eyebrow: 'Lex.AI answers with citations' },

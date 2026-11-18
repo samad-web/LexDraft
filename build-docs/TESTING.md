@@ -680,3 +680,8 @@
 - test-coupon.test.ts AC1–AC3 + existing: 9/9 pass; billing.test.ts 5/5.
 - signup-flow.integration AC4 (+ regression of the whole file): 21/21 pass (local PG).
 - tsc --noEmit (api): clean.
+
+## formats-page (2026-11-18)
+- formats-nav.test.ts AC1: 2/2. formats-page.public.e2e.ts AC1–AC5: 4/4 (API mocked, port 5174).
+- Web unit regression: 416/417; the 1 failure is the known pre-existing password-rule.test.ts.
+- tsc (web): clean. Prod engine: 54/54 LAWE forms render blank.
