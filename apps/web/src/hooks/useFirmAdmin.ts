@@ -1,8 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AuditLogEntry,
-  FirmCreateUserRequest,
-  FirmCreateUserResponse,
   FirmManagedUser,
   FirmUpdateUserRequest,
   MeFeaturesResponse,
@@ -70,14 +68,3 @@ export function useUpdateFirmUser() {
   });
 }
 
-export function useCreateFirmUser() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (input: FirmCreateUserRequest) =>
-      api.post<FirmCreateUserResponse>('/firm/users', input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['firm', 'users'] });
-      qc.invalidateQueries({ queryKey: ['firm', 'audit'] });
-    },
-  });
-}

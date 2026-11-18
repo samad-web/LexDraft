@@ -735,7 +735,9 @@ export const authService = {
 
   /** Verifies the WhatsApp code and creates the account: unpaid until the plan
    *  is chosen and paid on /onboarding (signup-hardening.md). */
-  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }, meta?: ConsentMeta): Promise<AuthResponse> {
+  /** Email sign-up token + WhatsApp code -> the verified name, email and
+   *  phone. Shared by the sign-up form and invite join (team-join.md). */
+  async verifyEmailSignup(input: { signupToken: string; challengeId: string; code: string }): Promise<{ name: string; email: string; phone: string }> {
     let claims: { purpose?: string; name?: string; email?: string; phone?: string };
     try {
       claims = jwt.verify(input.signupToken, EMAIL_SIGNUP_TOKEN_SECRET) as typeof claims;
@@ -752,6 +754,23 @@ export const authService = {
       throw new ConflictError('An account with this email already exists. Sign in instead.');
     }
     await assertPhoneUnused(phone);
+    return { name: claims.name, email: claims.email, phone };
+  },
+
+  /** A fresh session for a signed-in user whose firm or role just changed
+   *  (team-join.md); keeps the MFA proof of the current session. */
+  async sessionFor(userId: string, mfaVerifiedAt?: number): Promise<AuthResponse> {
+    const sql = db();
+    if (!sql) throw new Error('DATABASE_URL not configured');
+    const [row] = await sql<UserRow[]>`${sql.unsafe(USER_SELECT_WITH_FIRM)} where u.id = ${userId}::uuid limit 1`;
+    if (!row) throw new UnauthorizedError('Account not found');
+    const user = rowToPublic(row);
+    return { user, token: issueToken(user, { mfaVerifiedAt }) };
+  },
+
+  async completeEmailSignup(input: { signupToken: string; challengeId: string; code: string; password: string }, meta?: ConsentMeta): Promise<AuthResponse> {
+    const claims = await authService.verifyEmailSignup(input);
+    const phone = claims.phone;
     const user = await insertUserWithNewFirm(
       {
         id: '',

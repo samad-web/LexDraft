@@ -6,7 +6,7 @@ function initialsOf(name: string): string {
   if (parts.length === 0) return '?';
   return parts.length === 1 ? parts[0]!.slice(0, 2).toUpperCase() : (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
 }
-import type { FirmCreateUserResponse, FirmManagedUser, UserStatus } from '@lexdraft/types';
+import type { FirmManagedUser, UserStatus } from '@lexdraft/types';
 import {
   useFirmPracticeGroups,
   useFirmRoles,
@@ -15,7 +15,6 @@ import {
 } from '@/hooks/useFirmAdmin';
 import { useUIStore } from '@/store/ui';
 import { InviteMemberModal } from '@/components/InviteMemberModal';
-import { CreateMemberModal, CreatedMemberDialog } from './CreateMemberModal';
 import { Pagination } from '@/components/Pagination';
 import { usePagination } from '@/hooks/usePagination';
 
@@ -29,9 +28,7 @@ export function ManageUsersPanel() {
   const [q, setQ] = useState('');
   const [statusFilter, setStatusFilter] = useState<UserStatus | ''>('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [createdResult, setCreatedResult] = useState<FirmCreateUserResponse | null>(null);
 
   const filtered = useMemo(() => {
     if (!users.data) return [];
@@ -108,13 +105,11 @@ export function ManageUsersPanel() {
     <div className="col" style={{ gap: 16 }}>
       <div className="fm-manage-intro">
         <p>
-          Add a member two ways: <strong>Add member</strong> creates the account immediately and they sign in
-          with Google; <strong>Send invite</strong> sends a link where they sign in with Google and verify their WhatsApp number.
+          <strong>Add member</strong> with their email and role, then send them the link (WhatsApp or copy). They join
+          with Google or with their email and a password, and verify their WhatsApp number. Someone who already uses
+          DifAi signs in and confirms to join.
         </p>
-        <button type="button" className="btn" onClick={() => setInviteOpen(true)}>
-          <Icon name="mail" size={14} /> Send invite
-        </button>
-        <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+        <button type="button" className="btn btn-primary" onClick={() => setInviteOpen(true)}>
           <Icon name="plus" size={14} /> Add member
         </button>
       </div>
@@ -251,14 +246,6 @@ export function ManageUsersPanel() {
         </div>
       )}
 
-      <CreateMemberModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        roles={roles.data ?? []}
-        practiceGroups={groups.data ?? []}
-        onCreated={(r) => { setCreateOpen(false); setCreatedResult(r); }}
-      />
-      <CreatedMemberDialog result={createdResult} onClose={() => setCreatedResult(null)} />
       <InviteMemberModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
     </div>
   );

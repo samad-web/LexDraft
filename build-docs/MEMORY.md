@@ -93,6 +93,8 @@
 
 - 2026-11-18 — Owner: forgot password uses a WhatsApp code (prod has no SMTP; email-only reset fails for mistyped emails). Other signed-in devices stay signed in up to 7 days after a reset (no token revocation) — accepted, follow-up.
 
+- 2026-11-18 — Owner: team members join like Microsoft Teams: admin adds by email (invite), join with Google or email + password; existing users move into the firm on confirm, old workspace data stays (not visible to the firm), no auto refund. Not built: multi-firm membership, auto-join without the link.
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

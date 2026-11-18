@@ -8,7 +8,7 @@ import { requireMemberAdmin } from '../middleware/requireMemberAdmin';
 import { ForbiddenError, NotFoundError } from '../lib/errors';
 import { MUNSHI_ROLES } from '../lib/plans';
 import { validate } from '../middleware/validate';
-import { tokenLookupLimiter } from '../middleware/rateLimit';
+import { otpSendLimiter, signUpLimiter, tokenLookupLimiter } from '../middleware/rateLimit';
 import { strongPassword } from '../lib/password';
 
 const InviteRoles = z.enum([
@@ -82,7 +82,55 @@ invitationsRouter.post(
       const { google, phone } = await authService.verifiedSignup(body.signupToken);
       const auth = await invitationsService.accept(
         (req.params as { token: string }).token,
-        { name: body.name, google, phone, password: body.password },
+        { name: body.name, email: google.email, googleSub: google.sub, phone, password: body.password },
+        (record, firmId) => authService.registerExternalUser(record, firmId),
+      );
+      res.status(201).json(auth);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+// Join with email + password instead of Google (team-join.md): the email is
+// the invite's own, never typed, so the code and account are for that email.
+const InviteEmailStart = z.object({
+  name: z.string().trim().min(1, 'Enter your name').max(200),
+  phone: z.string().min(8).max(24),
+}).strict();
+const InviteEmailAccept = z.object({
+  signupToken: z.string().min(20).max(4096),
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  password: strongPassword,
+}).strict();
+
+invitationsRouter.post(
+  '/by-token/:token/email/start',
+  otpSendLimiter,
+  validate({ params: TokenParam, body: InviteEmailStart }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof InviteEmailStart>;
+      const email = await invitationsService.pendingEmail((req.params as { token: string }).token);
+      res.json(await authService.startEmailSignup({ name: body.name, email, phone: body.phone, ip: req.ip ?? null }));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+invitationsRouter.post(
+  '/by-token/:token/email/accept',
+  signUpLimiter,
+  validate({ params: TokenParam, body: InviteEmailAccept }),
+  async (req, res, next) => {
+    try {
+      const body = req.body as z.infer<typeof InviteEmailAccept>;
+      const v = await authService.verifyEmailSignup(body);
+      const auth = await invitationsService.accept(
+        (req.params as { token: string }).token,
+        { name: v.name, email: v.email, phone: v.phone, password: body.password },
         (record, firmId) => authService.registerExternalUser(record, firmId),
       );
       res.status(201).json(auth);
@@ -95,6 +143,22 @@ invitationsRouter.post(
 // ---- Authenticated --------------------------------------------------------
 
 invitationsRouter.use(requireAuth);
+
+// An existing DifAi user (signed in as the invited email) joins the firm.
+invitationsRouter.post(
+  '/by-token/:token/join',
+  tokenLookupLimiter,
+  validate({ params: TokenParam }),
+  async (req, res, next) => {
+    try {
+      if (req.user!.actAs) throw new ForbiddenError('Not while acting as another user.');
+      await invitationsService.join((req.params as { token: string }).token, req.user!.id);
+      res.json(await authService.sessionFor(req.user!.id, req.user!.mfaVerifiedAt));
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // All read+write below requires `admin.users`. The previous setup gated only
 // on `requireAuth`, which let any Solo/Practice-tier user mint invitations

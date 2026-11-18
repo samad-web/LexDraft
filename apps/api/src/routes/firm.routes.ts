@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { strongPassword } from '../lib/password';
 import { firmService } from '../services/firm.service';
 import { firmAdminService } from '../services/firm-admin.service';
 import { assignmentsService } from '../services/assignments.service';
@@ -51,25 +50,9 @@ firmRouter.get('/users', requireFeature('admin.users'), async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-const FirmCreateUser = z.object({
-  email: z.string().email(),
-  name: z.string().min(1).optional(),
-  roleId: z.string().uuid(),
-  practiceGroupId: z.string().uuid().nullable().optional(),
-  password: strongPassword.optional(),
-});
-
-firmRouter.post('/users', requireFeature('admin.users'), async (req, res, next) => {
-  try {
-    const body = FirmCreateUser.parse(req.body);
-    const result = await firmAdminService.createUser(
-      req.user!.id,
-      body,
-      { id: req.user!.id, email: req.user!.email },
-    );
-    res.status(201).json(result);
-  } catch (err) { next(err); }
-});
+// POST /firm/users (direct account creation) removed 2026-11-18 (team-join.md):
+// those accounts had a hidden random password and Google was refused, so the
+// member could never sign in. Members join through an invitation.
 
 const FirmUpdateUser = z.object({
   roleId: z.string().uuid().optional(),

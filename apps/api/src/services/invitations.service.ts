@@ -14,7 +14,9 @@ import { db } from '../db/client';
 import { jobs } from './jobs.service';
 import { logger } from '../logger';
 import bcrypt from 'bcryptjs';
-import { systemRoleNameFor } from './auth.service';
+import { resolveSystemRoleId, systemRoleNameFor } from './auth.service';
+import { invalidatePermissionsCache } from './permissions.service';
+import { invalidatePlanStatusCache } from './plan-status.service';
 import { MUNSHI_ROLES } from '../lib/plans';
 import { HttpError } from '../lib/errors';
 
@@ -457,7 +459,7 @@ export const invitationsService = {
    *  invitee signed in with Google and proved a WhatsApp number. */
   async accept(
     token: string,
-    body: { name: string; google: { sub: string; email: string }; phone: string; password: string },
+    body: { name: string; email: string; googleSub?: string; phone: string; password: string },
     registerUser: (
       u: User & { passwordHash: string; googleSub?: string; phone?: string },
       firmId: string | null,
@@ -494,9 +496,9 @@ export const invitationsService = {
     await assertFirmPaidForMembers(firmId);
     await assertSeatCapNotExceeded(firmId, inv.role, inv.id);
 
-    // The invite is addressed to one inbox; only the Google account for that
-    // email may claim it.
-    if (body.google.email.toLowerCase() !== inv.email.toLowerCase()) {
+    // The invite is addressed to one email: Google must prove it; the email
+    // path is started from the invite itself, so it can only carry inv.email.
+    if (body.email.toLowerCase() !== inv.email.toLowerCase()) {
       throw Object.assign(
         new Error(`This invitation was sent to ${inv.email}. Continue with the Google account for that email.`),
         { status: 403 },
@@ -514,7 +516,7 @@ export const invitationsService = {
       isSuperadmin: false,
     };
 
-    await registerUser({ ...user, passwordHash, googleSub: body.google.sub, phone: body.phone }, firmId);
+    await registerUser({ ...user, passwordHash, ...(body.googleSub ? { googleSub: body.googleSub } : {}), phone: body.phone }, firmId);
 
     if (sql) {
       const rows = await sql<{ id: string }[]>`
@@ -534,5 +536,65 @@ export const invitationsService = {
       { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] },
     );
     return { user, token: tokenJwt };
+  },
+  /** Email the invite was sent to, if it can still be accepted (email path start). */
+  async pendingEmail(token: string): Promise<string> {
+    return (await invitationsService.lookupByToken(token)).email;
+  },
+
+  /**
+   * An existing DifAi user joins the inviting firm (team-join.md). Only the
+   * account moves: its old workspace (matters, drafts, clients) stays in the
+   * old firm, untouched and not visible to the new one.
+   */
+  async join(token: string, userId: string): Promise<void> {
+    const sql = db();
+    if (!sql) throw Object.assign(new Error('Database not configured'), { status: 503 });
+    const [row] = await sql<InvitationRow[]>`${sql.unsafe(INVITATION_SELECT)} where token = ${token} limit 1`;
+    if (!row) throw Object.assign(new Error('Invitation not found'), { status: 404 });
+    const inv = fromRow(row);
+    const firmId = row.firm_id;
+    if (inv.status !== 'pending') throw Object.assign(new Error(`This invitation is ${inv.status}`), { status: 409 });
+    if (new Date(inv.expiresAt).getTime() < Date.now()) throw Object.assign(new Error('This invitation has expired'), { status: 410 });
+
+    const [u] = await sql<{ email: string; firm_id: string; is_superadmin: boolean; status: string; is_admin: boolean }[]>`
+      select u.email, u.firm_id, u.is_superadmin, u.status,
+             coalesce(r.name = 'Firm Admin' and r.is_system, false) as is_admin
+      from users u left join roles r on r.id = u.role_id
+      where u.id = ${userId}::uuid limit 1`;
+    if (!u || u.status !== 'active') throw Object.assign(new Error('Your account is not active'), { status: 403 });
+    if (u.email.toLowerCase() !== inv.email.toLowerCase()) {
+      throw Object.assign(new Error(`This invitation was sent to ${inv.email}. Sign in with that email to join.`), { status: 403 });
+    }
+    if (u.is_superadmin) throw Object.assign(new Error('A platform admin account cannot join a firm.'), { status: 403 });
+    if (u.firm_id === firmId) throw Object.assign(new Error(`You are already in ${inv.firm}.`), { status: 409 });
+    if (u.is_admin) {
+      // Leaving must not strand a team without an admin (same rule as role changes).
+      const [left] = await sql<{ members: number; admins: number }[]>`
+        select count(*)::int as members,
+               count(*) filter (where r.name = 'Firm Admin' and r.is_system)::int as admins
+        from users x left join roles r on r.id = x.role_id
+        where x.firm_id = ${u.firm_id}::uuid and x.id <> ${userId}::uuid and x.status = 'active'`;
+      if (left && left.members > 0 && left.admins === 0) {
+        throw Object.assign(new Error('You are the only admin of your current firm. Make another member admin there first.'), { status: 409 });
+      }
+    }
+    await assertFirmPaidForMembers(firmId);
+    await assertSeatCapNotExceeded(firmId, inv.role, inv.id);
+    const roleId = await resolveSystemRoleId(inv.role, firmId);
+
+    await sql.begin(async (tx) => {
+      const claimed = await tx`
+        update invitations set status = 'accepted', accepted_at = now()
+        where id = ${inv.id} and status = 'pending' returning id`;
+      if (claimed.length === 0) throw Object.assign(new Error('This invitation was already used'), { status: 409 });
+      // practice group and per-user credit cap belonged to the old firm.
+      await tx`
+        update users set firm_id = ${firmId}::uuid, role = ${inv.role}, role_id = ${roleId}::uuid,
+                         practice_group_id = null, credit_cap_month = null
+        where id = ${userId}::uuid`;
+    });
+    invalidatePermissionsCache(userId);
+    invalidatePlanStatusCache(userId);
   },
 };

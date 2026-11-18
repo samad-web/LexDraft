@@ -192,9 +192,12 @@ export function AuthView() {
     setRole(preset); setStep(0); setTab('signup');
   };
   const bookDemo = () => { if (native) return; setMfaChallenge(null); setTab('signup'); setRole('firm'); setStep(1); };
-  // Superadmins land on the platform admin tree; everyone else on the app dashboard.
+  // Superadmins land on the platform admin tree; everyone else on the app
+  // dashboard - or back on the invite they came from (?next=/invite/<token>,
+  // team-join.md). Only invite paths are honoured, so it's no open redirect.
+  const nextInvite = /^\/invite\/[A-Za-z0-9_-]{20,128}$/.test(searchParams.get('next') ?? '') ? searchParams.get('next')! : null;
   const onComplete = (resp?: { user?: { isSuperadmin?: boolean } }) =>
-    navigate(resp?.user?.isSuperadmin ? '/admin' : '/app/dashboard');
+    navigate(resp?.user?.isSuperadmin ? '/admin' : nextInvite ?? '/app/dashboard');
 
   // ---- Submitters ---------------------------------------------------------
 

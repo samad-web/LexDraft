@@ -51,6 +51,31 @@ export function useInvitationByToken(token: string | undefined) {
 }
 
 /** Public - accept the invitation, creates the account, returns a session. */
+// ---- Join without Google / existing account (features/team-join.md) ------
+
+export function useInviteEmailStart() {
+  return useMutation({
+    mutationFn: ({ token, body }: { token: string; body: { name: string; phone: string } }) =>
+      api.post<{ signupToken: string; challengeId: string; phone: string; resendAfterSeconds: number }>(
+        `/invitations/by-token/${token}/email/start`, body,
+      ),
+  });
+}
+
+export function useInviteEmailAccept() {
+  return useMutation({
+    mutationFn: ({ token, body }: { token: string; body: { signupToken: string; challengeId: string; code: string; password: string } }) =>
+      api.post<AuthResponse>(`/invitations/by-token/${token}/email/accept`, body),
+  });
+}
+
+/** Signed-in user (the invited email) moves their account into the firm. */
+export function useJoinInvitation() {
+  return useMutation({
+    mutationFn: (token: string) => api.post<AuthResponse>(`/invitations/by-token/${token}/join`, {}),
+  });
+}
+
 export function useAcceptInvitation() {
   return useMutation({
     mutationFn: ({ token, body }: { token: string; body: AcceptInvitationRequest }) =>

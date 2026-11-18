@@ -1,4 +1,6 @@
 # Changelog
+- Team join, Teams-style (2026-11-18, owner): one "Add member" = invite (link + WhatsApp). Invitees join with Google or email + password (WhatsApp code). Existing DifAi users sign in and confirm "Join" (account moves; old workspace stays, export offered). Direct "Add member" account creation removed (made accounts nobody could sign in to). No migration. features/team-join.md.
+
 - Auth card flicker fixed (2026-11-18, owner screenshot): Google's button iframe grows to ~80px while loading / swapping to "Continue as <name>", so the centred card grew and jumped. The Google slot is now a fixed 44px (GoogleWhatsAppVerify WebGoogleButton + .auth-google).
 
 - DEPLOYED 2026-11-18 (23c7102, api + web; engine untouched): Google sign-up prefill, WhatsApp forgot password, strong passwords on invite/co-counsel. Migration 0117 applied on prod (ledger). Backup pre-deploy-20261118-070236.dump; rollback lexdraft-api/web:prev-20261118-070236. Smoke: ready db ok, /auth 200, sign-in + password/forgot + password/reset 400 on {}, Google client id in build.
