@@ -46,6 +46,20 @@ class TestDistrictCivilVariant:
         assert ctx["plaintiffs"][0]["name"] == "Ramesh"
         assert ctx["defendants"][0]["name"] == "Suresh"
 
+    # Template prints "IN THE COURT OF THE {{ court.name }}": a name starting with
+    # "The" / "Court of the" must not double the article.
+    @pytest.mark.parametrize("given", ["The Principal District Judge",
+                                       "Court of the Principal District Judge"])
+    def test_court_name_never_doubles_the(self, given):
+        ctx = ct.build_context(
+            variant=ct.Variant.DISTRICT_CIVIL,
+            court=Court(court_type="district", name=given, state="Tamil Nadu"),
+            case=Case(category="C2", document_type="suit", year=2026),
+            parties=[_plaintiff(), _defendant()],
+            court_place="Chengalpattu",
+        )
+        assert ctx["court"]["name"] == "Principal District Judge"
+
     def test_address_joined_from_lines_and_pin(self):
         ctx = ct.build_context(
             variant=ct.Variant.DISTRICT_CIVIL,

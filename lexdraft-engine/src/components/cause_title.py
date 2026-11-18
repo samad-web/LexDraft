@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from ..factsheet import Party, PartyRole, Court, Case
 from ..rules._result import Assessment
+from ..pipelines._court import bare_designation
 
 TEMPLATE = "cause_title.docx"
 
@@ -149,7 +150,7 @@ def build_context(
     ctx: Dict[str, Any] = {
         "variant": variant.value,
         "court": {
-            "name": court.name,
+            "name": bare_designation(court.name) or court.name,
             "place": court_place,
             "side": court_side,
             "bench": court_bench,

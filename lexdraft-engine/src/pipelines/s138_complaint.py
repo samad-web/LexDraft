@@ -27,6 +27,7 @@ from ..components.amount_words import rupees_in_words
 from ..components.date_format import body_date, table_date
 from ..verify.refusals import Refusal, Severity
 from .s138_notice import Cheque
+from ._court import bare_designation
 
 TEMPLATE = "s138_complaint.docx"
 SPEC = "3.1"
@@ -538,7 +539,7 @@ def build(
         # the extractor triggers when it fills BOTH the court location (which names
         # the city) and the standalone city field.
         "court_location": court_location,
-        "court_designation": court_designation,
+        "court_designation": bare_designation(court_designation),
         "city": (
             None
             if (city and court_location and city.strip().lower() in court_location.lower())

@@ -355,3 +355,6 @@
 ## feat(gst-invoices) — 2026-11-13
 - Every successful Razorpay subscription charge gets a GST tax invoice from Sirah Digital (DIF/FY/serial, gapless), CGST+SGST in Tamil Nadu else IGST, PDF in DifAi format.
 - Owners: Invoices list + PDF on Plan & Billing. Superadmin: GST invoices list in /admin/billing. Migration 0106 (additive).
+
+## fix(engine-court-heading) — 2026-11-18
+- New `bare_designation()` in pipelines/_court.py strips a leading "(In) (the) Court of (the)" / "The"; used by s138_complaint and cause_title so headings never read "COURT OF THE THE".

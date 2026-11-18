@@ -131,6 +131,16 @@ def court_and_place(court_name: Optional[str],
     return name, place
 
 
+def bare_designation(name: Optional[str]) -> Optional[str]:
+    """For templates that print 'IN THE COURT OF THE <name>': drop a leading
+    '(In) (the) Court of (the)' and a leading 'The', so 'The Metropolitan
+    Magistrate' never renders as 'COURT OF THE THE METROPOLITAN MAGISTRATE'.
+    Blank stays None so the template's default applies."""
+    s = re.sub(r"^\s*(in\s+)?(the\s+)?court\s+of\s+", "", name or "", flags=re.I)
+    s = re.sub(r"^\s*the\s+", "", s, flags=re.I).strip()
+    return s or None
+
+
 def designation_and_place(court_name: Optional[str],
                           court_place: Optional[str]) -> Tuple[str, str]:
     """For the fixed 'IN THE COURT OF <designation> :: AT <place>' heading:

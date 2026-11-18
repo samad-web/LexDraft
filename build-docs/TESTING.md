@@ -661,3 +661,7 @@
 
 ## onboarding-fields (2026-11-18)
 - e2e onboarding-fields.public.e2e.ts (API mocked): no logo upload; Aadhaar -> "Enrolment number (optional)", not blocking — 1/1. Regression: web unit 413/415 (same 2 pre-existing); public e2e 11/11.
+
+## engine-court-heading (2026-11-18)
+- s.138 complaint + cause title printed "IN THE COURT OF THE THE ..." when the court name began with "The" / "Court of the" (seen in a live draft). New tests: 5 designation variants + blank + rendered heading (s138), 2 variants (cause title) — all pass.
+- Regression: full engine suite 2187/2187 pass.

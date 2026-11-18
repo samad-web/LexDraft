@@ -403,6 +403,34 @@ class TestCourtDesignation:
             "Metropolitan Magistrate, Fast Track Court-III"
         )
 
+    # The template prints "IN THE COURT OF THE {designation}". A designation that
+    # already starts with "The" / "Court of the" rendered "COURT OF THE THE
+    # METROPOLITAN MAGISTRATE" in a live draft (seen 2026-11-18).
+    @pytest.mark.parametrize("given", [
+        "The Metropolitan Magistrate, Saket",
+        "the Metropolitan Magistrate, Saket",
+        "Court of the Metropolitan Magistrate, Saket",
+        "In the Court of the Metropolitan Magistrate, Saket",
+        "  Metropolitan Magistrate, Saket  ",
+    ])
+    def test_no_doubled_the_in_heading(self, given):
+        result = complaint.build(**_base(court_designation=given))
+        assert result.context["court_designation"] == "Metropolitan Magistrate, Saket"
+
+    def test_blank_designation_keeps_template_default(self):
+        result = complaint.build(**_base(court_designation="   "))
+        assert result.context["court_designation"] is None
+
+    def test_rendered_heading_has_single_the(self, tmp_path):
+        from src.components.render import extract_text
+        from tests.documents._golden import render_golden
+        result = complaint.build(**_base(court_designation="The Metropolitan Magistrate"))
+        out = tmp_path / "s138.docx"
+        render_golden(complaint.TEMPLATE, result.context, out)
+        text = extract_text(out)
+        assert "IN THE COURT OF THE METROPOLITAN MAGISTRATE" in text
+        assert "THE THE" not in text
+
 
 def test_debt_paragraph_fits_a_loan_and_goods():
     from src.pipelines.s138_complaint import _GOODS_DEBT, _debt_clause
