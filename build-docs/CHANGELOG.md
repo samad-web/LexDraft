@@ -393,3 +393,4 @@
 
 ## web-push (2026-11-19)
 - Phone notification bar for every in-app notice (web push, VAPID). Settings → Phone notifications. Migration 0119 (additive). Email reminders dropped (owner).
+- DEPLOYED e5dd534 2026-11-19 (api+web; 0119 applied after backup pre-deploy-20261119-044726.dump; VAPID keys in prod .env.docker, backup env.docker.pre-vapid-*; rollback images prev-20261119-044726).
