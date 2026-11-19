@@ -144,3 +144,4 @@
 
 - 2026-11-18 test-payment: owner chose a simulated (no-money, no-invoice) plan payment for test accounts over the ₹1 Razorpay charge; trade-off: it no longer exercises Razorpay/webhook. Allow-list on prod: support@ + test@sirahdigital.in.
 - 2026-11-18 team-work: owner approved the Teams-style plan (workload cards, Assign task/case, board filters, assignee notifications). Tasks link to members via 0118; WhatsApp for assignments waits for an approved Wasi template (env WHATSAPP_ASSIGN_TEMPLATE, blank = off).
+- 2026-11-19 owner: no email reminders; notices go to the bell, WhatsApp (templates) and the phone notification bar (web push, 0119). Android APK can't get web push (needs FCM; Android parked).

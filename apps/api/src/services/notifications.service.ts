@@ -156,7 +156,14 @@ export const notificationsStore = {
           created_at = now()
         returning id
       `;
-      return rows[0]?.id ?? null;
+      const id = rows[0]?.id ?? null;
+      // web-push: the same notice in the phone notification bar (fire-and-forget).
+      if (id) {
+        void import('./push.service')
+          .then(({ pushService }) => pushService.sendToUser(input.userId, { title: input.title, body: input.body, view: input.view, tag: input.dedupeKey ?? id }))
+          .catch(() => undefined);
+      }
+      return id;
     } catch (err) {
       logger.warn({ err, userId: input.userId }, 'notificationsStore.create failed');
       return null;

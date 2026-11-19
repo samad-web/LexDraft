@@ -702,3 +702,7 @@
 
 ## hearing-reminders (2026-11-18)
 - team-work.integration AC9–AC10: pass (8/8 file). API unit 1118 pass (share-links needs .env, known).
+
+## web-push (2026-11-19)
+- web-push.integration AC1–AC5: 5/5 (web-push stubbed); team-work 8/8. web-push.public.e2e AC6–AC7: 2/2; browser regression 21/21.
+- API unit 1118 pass (share-links needs .env, known); web unit 424/425 (password-rule, known). tsc api + web clean.

@@ -233,6 +233,12 @@ const Schema = z.object({
   /** Wasi template for the day-before hearing reminder (case-sync). Params:
    *  member_name, case_title, hearing_date, court, app_link. Blank = off. */
   WHATSAPP_HEARING_TEMPLATE: z.string().optional().default(''),
+  /** Web push (phone notification bar). VAPID key pair from `npx web-push
+   *  generate-vapid-keys`; the private key is a secret. Blank = push off. */
+  VAPID_PUBLIC_KEY: z.string().optional().default(''),
+  VAPID_PRIVATE_KEY: z.string().optional().default(''),
+  /** Contact for push services: the site URL (a mailto: also works). */
+  VAPID_SUBJECT: z.string().optional().default('https://difai.sirahdigital.in'),
   /** Wasi templates for "plan active" after a plan payment and the renewal
    *  reminders (app-handoff-and-renewal-reminders.md). Empty = not sent. */
   WHATSAPP_PLAN_ACTIVE_TEMPLATE: z.string().optional().default(''),

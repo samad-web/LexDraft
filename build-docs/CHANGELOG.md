@@ -390,3 +390,6 @@
 ## hearing-reminders (2026-11-18)
 - Checked eCourts sync on prod (working). Hearing reminders now go to the case lead; day-before WhatsApp once an approved template is set (WHATSAPP_HEARING_TEMPLATE).
 - DEPLOYED 25ac53b + 7add287 2026-11-18 (api+web; 0118 applied after backup pre-deploy-20261118-175709.dump; rollback images prev-20261118-175709).
+
+## web-push (2026-11-19)
+- Phone notification bar for every in-app notice (web push, VAPID). Settings → Phone notifications. Migration 0119 (additive). Email reminders dropped (owner).

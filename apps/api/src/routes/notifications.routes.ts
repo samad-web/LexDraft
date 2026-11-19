@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import { notificationsStore } from '../services/notifications.service';
+import { pushService } from '../services/push.service';
 
 // =============================================================================
 // /api/notifications — the current user's in-app notification feed.
@@ -69,6 +70,37 @@ notificationsRouter.post('/read-all', async (req, res, next) => {
     }
     const count = await notificationsStore.markAllRead(userId);
     res.json({ ok: true, marked: count });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---- web push (build-docs/features/web-push.md) ----------------------------
+// The browser needs the server's public VAPID key to subscribe; then it saves
+// its subscription here. Own devices only (user-scoped like the feed).
+notificationsRouter.get('/push/key', (_req, res) => {
+  res.json({ publicKey: pushService.publicKey() });
+});
+
+const PushSub = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(8).max(100) }),
+});
+
+notificationsRouter.post('/push/subscription', validate({ body: PushSub }), async (req, res, next) => {
+  try {
+    if (!pushService.publicKey()) { res.status(503).json({ error: 'push_off' }); return; }
+    await pushService.subscribe(req.user!.id, req.body, req.get('user-agent'));
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+notificationsRouter.post('/push/unsubscribe', validate({ body: PushSub.pick({ endpoint: true }) }), async (req, res, next) => {
+  try {
+    await pushService.unsubscribe(req.user!.id, req.body.endpoint);
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

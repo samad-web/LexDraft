@@ -25,6 +25,7 @@ import { LANGUAGES, findLanguage } from '@/lib/languages';
 import { useUpdatePreferences } from '@/hooks/useMePreferences';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useMutation } from '@tanstack/react-query';
+import { usePushNotifications, type PushState } from '@/hooks/usePush';
 import { api } from '@/lib/api';
 import { GoogleButton } from '@/components/GoogleWhatsAppVerify';
 import { googleSignInAvailable } from '@/lib/google';
@@ -92,6 +93,41 @@ function SettingsRow({
   );
 }
 
+/** web-push (owner 2026-11-19): DifAi notices in the phone / computer notification bar. */
+function PhoneNotificationsPanel() {
+  const push = usePushNotifications();
+  const showToast = useUIStore((s) => s.showToast);
+  const text: Record<PushState, string> = {
+    on: 'On for this device. Hearings, assigned work and eCourts updates also show in the notification bar.',
+    off: 'Get hearing reminders, assigned work and eCourts updates in this device’s notification bar.',
+    blocked: 'Notifications are blocked for DifAi in this browser. Allow them in the browser’s site settings, then turn this on.',
+    'ios-install': 'On iPhone: tap Share → Add to Home Screen, open DifAi from the Home Screen, then turn this on here.',
+    unsupported: 'This browser can’t show notifications. Use Chrome on Android or a desktop browser.',
+    unavailable: 'Phone notifications aren’t switched on for DifAi yet. Please try again later.',
+  };
+  return (
+    <SettingsRow eyebrow="Notifications" title="Phone notifications" description={text[push.state]}>
+      <div className="fm-set-actions">
+        {push.state === 'on' ? (
+          <button className="btn" disabled={push.busy} onClick={() => { void push.disable(); }}>Turn off on this device</button>
+        ) : (
+          <button
+            className="btn btn-primary"
+            disabled={push.busy || push.state === 'unsupported' || push.state === 'ios-install'}
+            onClick={() => {
+              void push.enable()
+                .then((s) => showToast(s === 'on' ? { type: 'sage', text: 'Phone notifications are on' } : { type: 'amber', text: text[s] }))
+                .catch(() => showToast({ type: 'vermillion', text: 'Could not turn on notifications. Try again.' }));
+            }}
+          >
+            {push.busy ? 'Turning on…' : 'Turn on phone notifications'}
+          </button>
+        )}
+      </div>
+    </SettingsRow>
+  );
+}
+
 function AccountPanel() {
   const user = useAuthStore((s) => s.user);
   const signOut = useSignOut();
@@ -122,6 +158,8 @@ function AccountPanel() {
       {Capacitor.isNativePlatform() && <AppLockPanel />}
 
       <LanguagePreferencePanel />
+
+      {!Capacitor.isNativePlatform() && <PhoneNotificationsPanel />}
 
       <SettingsRow
         eyebrow="Session"

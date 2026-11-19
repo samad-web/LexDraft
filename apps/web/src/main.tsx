@@ -22,12 +22,15 @@ import './styles/chambers/court.css';
 import './styles/chambers/clients.css';
 import './styles/chambers/ai.css';
 import './styles/chambers/firm.css';
+import { registerPushWorker } from './hooks/usePush';
 
 hydrateUIAttributes();
 document.documentElement.dataset.ui = uiFor(window.location.pathname);
 initStaleChunkReload();
 initNative();
 initLock();
+// web-push: keep the notification worker registered (push only, no caching).
+if (!(window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) registerPushWorker();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
