@@ -2,7 +2,7 @@
 
 ## Decisions
 - 2026-11-19 (owner): Claude only. No xAI/OpenAI anywhere, enforced in env.claudeOnly whatever the server .env says. Reverses 2026-11-08 Contract Review on OpenAI. Reason: sales promise that client facts stay with the firm and are never used for training.
-- 2026-11-19 (owner): co-counsel guests get an unpaid account limited to the shared matter (closes the free-account loophole noted 2026-11-17). Older guest accounts keep their free plan (no live data change).
+- 2026-11-19 (owner): co-counsel guests get an unpaid account limited to the shared matter (closes the free-account loophole noted 2026-11-17). Prod had 0 earlier guest accounts at deploy, so the loophole is fully closed.
 - 2026-11-18 (owner): every account created via Google needs a verified WhatsApp number AND a strong password — self sign-up, team invite accept, co-counsel accept. No account may be created with an unusable password.
 - 2026-11-18 (owner, reverses 2026-11-17 "page is scrolly"): auth cards are spacious like NUSI on every desktop window; final (owner "maintain this size"): fixed NUSI sizes — card 980px, form 450px, mark 96px, title 32px, field rows 70px, button 140×46; only Create account tightens under 800px window height. Owner's laptop runs Windows 125% scaling (CSS window ≈1536×728) — test auth layouts there.
 - 2026-11-18 (owner): strong password rule for every password a person sets: 8–128 chars, upper + lower + number + symbol. Sign-in still accepts older passwords (no forced reset). Generated temp passwords are random (Name@123 dropped: guessable). Rule lives in apps/api/src/lib/password.ts, mirrored in apps/web/src/lib/password.ts (mirror test).

@@ -1,6 +1,6 @@
 # Claude only
 
-Status: BUILT + tested 2026-11-19 (owner: "claude only"). Reverses 2026-11-08 Contract Review on OpenAI and the OpenAI fallbacks.
+Status: LIVE 2026-11-19 (8ea6e0f; owner: "claude only"). Reverses 2026-11-08 Contract Review on OpenAI and the OpenAI fallbacks.
 
 ## Purpose
 Sales material promises client facts are never used for training and stay with the firm. Only Claude (Anthropic business API) may receive them; no xAI/OpenAI path may exist in prod, whatever the server .env says.

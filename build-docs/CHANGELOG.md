@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-19 07:53 UTC (8ea6e0f, api + web; engine untouched; no migration): claude-only 2704aa5 + cocounsel-guest-scope 8ea6e0f. Live env: llmProvider anthropic, REVIEW_PROVIDER default, failover off, no xAI key, claude-sonnet-5-5. 0 existing co-counsel guest accounts on prod, so nobody keeps the old free plan. Backup pre-deploy-20261119-074836.dump; rollback lexdraft-api/web:prev-20261119-074836. Smoke: ready db ok, site 200, sign-in 400, guest-cases 401 signed out, Google client id in build.
+
 - Co-counsel guest scope (2026-11-19, owner): a new advocate accepting a handover gets an unpaid account that opens only the shared matter; the rest needs a paid plan (was: free plan till 1 Jun 2027). features/cocounsel-guest-scope.md.
 
 - Claude only (2026-11-19, owner): env.claudeOnly drops xAI/OpenAI keys and provider settings at boot; Contract Review moves to Claude; no vendor failover. features/claude-only.md.

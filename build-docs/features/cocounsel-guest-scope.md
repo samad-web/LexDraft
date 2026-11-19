@@ -1,6 +1,6 @@
 # Co-counsel guest scope
 
-Status: BUILT + tested 2026-11-19 (owner: "make that change").
+Status: LIVE 2026-11-19 (8ea6e0f). Prod had 0 earlier guest accounts.
 
 ## Purpose
 Sign-up is paid only, but a new advocate accepting a co-counsel link got a full free account (free launch plan until 1 Jun 2027). Anyone could get a free DifAi through a handover link. Now the guest gets the shared matter only; everything else needs a paid plan.
