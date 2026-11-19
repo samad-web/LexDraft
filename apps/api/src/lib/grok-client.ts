@@ -22,6 +22,8 @@ import { xaiUsage, type NormalizedUsage } from './llm-usage';
 let client: OpenAI | null = null;
 export function grok(): OpenAI {
   if (platformPausedCached()) throw new Error('AI features are paused by DifAi'); // admin AI pause (backstop)
+  // Claude only (env.claudeOnly): the key is always blank, so nothing is ever sent.
+  if (!env.XAI_API_KEY) throw new Error('DifAi uses Claude only; the xAI/OpenAI client is disabled');
   if (!client) {
     client = new OpenAI({
       apiKey: env.XAI_API_KEY,

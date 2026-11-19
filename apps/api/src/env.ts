@@ -292,6 +292,32 @@ if (!parsed.success) {
   process.exit(1);
 }
 
+/** Claude only (owner, 2026-11-19): client facts never go to another AI vendor.
+ *  Whatever the server .env says, the xAI/OpenAI keys are dropped and every
+ *  provider setting that could pick them falls back to Claude. Returns the
+ *  setting names it overrode so boot can log them. */
+export function claudeOnly(d: {
+  XAI_API_KEY: string; OPENAI_API_KEY: string; LLM_PROVIDER: string;
+  INTAKE_PROVIDER: string; REVIEW_PROVIDER: string; LLM_FAILOVER: string;
+}): string[] {
+  const ignored: string[] = [];
+  const set = <K extends keyof typeof d>(k: K, bad: boolean, v: string) => {
+    if (bad) { ignored.push(k); d[k] = v; }
+  };
+  set('XAI_API_KEY', !!d.XAI_API_KEY, '');
+  set('OPENAI_API_KEY', !!d.OPENAI_API_KEY, '');
+  set('LLM_PROVIDER', d.LLM_PROVIDER === 'xai', 'anthropic');
+  set('INTAKE_PROVIDER', d.INTAKE_PROVIDER === 'xai', 'anthropic');
+  set('REVIEW_PROVIDER', d.REVIEW_PROVIDER !== 'default', 'default');
+  set('LLM_FAILOVER', d.LLM_FAILOVER !== 'false', 'false');
+  return ignored;
+}
+const claudeOnlyIgnored = claudeOnly(parsed.data!);
+if (claudeOnlyIgnored.some((k) => k !== 'LLM_FAILOVER')) {
+  // eslint-disable-next-line no-console
+  console.warn(`Claude only: ignoring ${claudeOnlyIgnored.join(', ')} (no other AI vendor is used).`);
+}
+
 /** Secrets still set to the repo's "change-me-..." placeholders. The tracked
  *  .env files are public on GitHub, so a token signed with one can be forged
  *  (audit 2026-11-07: prod once ran on the placeholder JWT secret). */
