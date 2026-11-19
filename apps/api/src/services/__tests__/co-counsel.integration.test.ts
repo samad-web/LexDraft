@@ -16,6 +16,7 @@ import { assignmentsService } from '../assignments.service';
 import { casesService } from '../cases.service';
 import { clientsService } from '../clients.service';
 import { coCounselService } from '../co-counsel.service';
+import { getPlanState } from '../plan-status.service';
 import { documentsService } from '../documents.service';
 import { teamChatService, type Viewer } from '../team-chat.service';
 
@@ -227,5 +228,21 @@ describe('co-counsel lockdown - real Postgres', () => {
     expect(u!.acquired_via).toBe('co_counsel_handover');
     expect((await coCounselService.listGuestCases(res.auth!.user.id)).map((c) => c.caseId)).toEqual([caseY]);
     expect(await casesService.get(caseX, u!.firm_id)).toBeUndefined();
+  });
+  it('guest-scope AC1-AC3 (owner 2026-11-19): a new guest gets no free plan, but the shared matter opens', async () => {
+    const sql = getIntegrationSql();
+    const phone = '+919876500011';
+    const link = await shareLink(caseX, phone);
+    const res = await coCounselService.acceptByToken(link.token, {
+      name: 'Unpaid Guest', signupToken: signupToken('unpaid-guest@integration.test', phone), password: 'Longenough1!',
+    });
+    const id = res.auth!.user.id;
+    const [f] = await sql<Array<{ free_plan: boolean; trial_ends_at: Date | null; onboarded_at: Date | null }>>`
+      select f.free_plan, f.trial_ends_at, u.onboarded_at from users u join firms f on f.id = u.firm_id where u.id = ${id}::uuid`;
+    expect(f).toEqual({ free_plan: false, trial_ends_at: null, onboarded_at: null }); // AC1: no free launch plan
+    expect((await getPlanState(id)).onboarded).toBe(false); // AC2: every plan-gated route answers onboarding_required
+    const detail = await coCounselService.guestCaseDetail(id, caseX); // AC3: the shared matter still opens
+    expect(detail).toBeTruthy();
+    await expect(coCounselService.guestCaseDetail(id, caseY)).rejects.toMatchObject({ status: 404 });
   });
 });

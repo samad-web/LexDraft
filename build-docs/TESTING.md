@@ -1,4 +1,8 @@
 # Testing
+## Co-counsel guest scope + Claude only — 2026-11-19
+- New: co-counsel.integration 'guest-scope AC1-AC3', __tests__/claude-only.test.ts (AC1-AC4), web views/__tests__/cocounsel-guest-scope.test.tsx (AC4-AC5).
+- Results: API unit 1137 pass / 4 skipped; integration 205/206 (pre-existing 0042 idempotency); web 426/427 (password-rule mirror fails on unchanged main too: CRLF checkout); tsc clean api + web.
+
 ## Google sign-up needs WhatsApp + password everywhere — 2026-11-18
 - New routes/__tests__/google-signup-password.test.ts: invite + co-counsel accept → 400 without password / with weak password; strong passes validation. co-counsel integration: new account's hash matches the chosen password. Updated accept calls in co-counsel + signup-flow tests to send a password.
 - Results: API unit all pass except env-only anthropic-failover; integration 180/181 (pre-existing 0042); web 415/415; tsc clean both.

@@ -368,8 +368,8 @@ export type SignUpIntent = 'trial' | 'paid' | 'demo';
  *  - 'unpaid' (every self-serve sign-up, signup-hardening.md): Solo tier,
  *    1 seat, no trial clock, not free; the user must finish /onboarding and
  *    the plan, seats and credits come only from a paid plan.
- *  - 'free_guest' (co-counsel guest accounts, dev auto-provision): the
- *    free launch plan until FREE_PLAN_ENDS_AT, already onboarded (unchanged). */
+ *  - 'free_guest' (dev auto-provision only): the free launch plan until
+ *    FREE_PLAN_ENDS_AT, already onboarded. Co-counsel guests are 'unpaid'. */
 type NewFirmMode = 'unpaid' | 'free_guest';
 
 async function insertUserWithNewFirm(
@@ -1033,7 +1033,7 @@ export const authService = {
   /**
    * Used by the co-counsel handover accept flow when the receiving advocate
    * has no DifAi account yet. Unlike `registerExternalUser` (which joins
-   * the inviter's firm), this provisions the new advocate their OWN trial
+   * the inviter's firm), this provisions the new advocate their OWN unpaid
    * Solo firm via `insertUserWithNewFirm` - they must NOT gain membership in
    * the referring firm just by accepting a single-case handover. Their only
    * access to the referred case comes from the `case_guest_grants` row the
@@ -1063,7 +1063,10 @@ export const authService = {
         phone: record.phone,
       },
       `${record.name} (Solo)`,
-      'free_guest',
+      // Unpaid (owner 2026-11-19): the guest sees only the matters shared with
+      // them (co-counsel routes skip the plan gate); everything else needs a
+      // paid plan, same as any self-serve sign-up.
+      'unpaid',
     );
     return { user, token: issueToken(user) };
   },

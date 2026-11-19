@@ -253,6 +253,24 @@ export function App() {
     // Android app: no plan picker or payment, only a neutral notice.
     return <><Suspense fallback={pageFallback}>{Capacitor.isNativePlatform() ? <NativeSetupIncompleteView /> : <OnboardingView />}</Suspense><Toast /></>;
   }
+  // A co-counsel guest without a plan (owner 2026-11-19) can open only the
+  // matters shared with them; everything else goes to plan selection.
+  if (onboarding && /^\/app\/co-counsel\/[^/]+$/.test(location.pathname)) {
+    return (
+      <>
+        <div role="note" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', fontSize: 14 }}>
+          <span>Shared with you, read-only. To use DifAi for your own matters, choose a plan.</span>
+          <button type="button" className="btn btn-primary" onClick={() => navigate('/onboarding')}>Choose a plan</button>
+        </div>
+        <main className="content" id="main-content" tabIndex={-1}>
+          <Suspense fallback={pageFallback}>
+            <Routes><Route path="/app/co-counsel/:caseId" element={<GuestCaseDetailView />} /></Routes>
+          </Suspense>
+        </main>
+        <Toast />
+      </>
+    );
+  }
   // Keep ?checkout=… so a return from Razorpay shows the right onboarding screen.
   if (onboarding) return <Navigate to={`/onboarding${location.search}`} replace />;
 

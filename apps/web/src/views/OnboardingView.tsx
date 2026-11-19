@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@lexdraft/ui';
 import type { BillingCycle, BillingPlan, BillingPlanId, OnboardingCompleteRequest } from '@lexdraft/types';
 import { Wordmark } from '@/components/brand/Logo';
 import { gstLine, MunshiPicker, planTotal, SIGNUP_PLANS, withGst } from '@/components/PlanCards';
 import { useBilling, useCompleteOnboarding, useStartCheckout } from '@/hooks/useBilling';
+import { useGuestCases } from '@/hooks/useCoCounsel';
 import { useAuthStore } from '@/store/auth';
 import { api } from '@/lib/api';
 import { indiaStateOptions } from '@/lib/india-states';
@@ -187,6 +188,23 @@ function PlanCard({ plan, cycle, selected, popular, onSelect }: { plan: BillingP
   );
 }
 
+/** Matters another advocate handed to this user (co-counsel). They stay open
+ *  read-only without a plan (owner 2026-11-19). */
+function SharedWithYou() {
+  const { data } = useGuestCases();
+  if (!data?.length) return null;
+  return (
+    <nav aria-label="Matters shared with you" style={{ marginTop: 24, fontSize: 14 }}>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>Shared with you (read-only, no plan needed)</div>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {data.map((c) => (
+          <li key={c.caseId}><Link to={`/app/co-counsel/${c.caseId}`} style={{ color: 'inherit' }}>{c.title}</Link></li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 export function OnboardingView() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -341,6 +359,7 @@ export function OnboardingView() {
             );
           })}
         </ol>
+        <SharedWithYou />
         <ul className="onb-side-extra" style={{ listStyle: 'none', margin: 'auto 0 0', padding: '22px 0 0', borderTop: '1px solid rgba(127,127,127,0.35)', display: 'flex', flexDirection: 'column', gap: 16, fontSize: 14 }}>
           {([['sparkle', 'Plans from ₹699 + GST a month.'], ['shield', 'Your cases and client data are encrypted.'], ['invoices', 'GST-ready invoices from day one.']] as const).map(([icon, text]) => (
             <li key={text} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

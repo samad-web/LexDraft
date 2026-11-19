@@ -1,4 +1,8 @@
 # Changelog
+- Co-counsel guest scope (2026-11-19, owner): a new advocate accepting a handover gets an unpaid account that opens only the shared matter; the rest needs a paid plan (was: free plan till 1 Jun 2027). features/cocounsel-guest-scope.md.
+
+- Claude only (2026-11-19, owner): env.claudeOnly drops xAI/OpenAI keys and provider settings at boot; Contract Review moves to Claude; no vendor failover. features/claude-only.md.
+
 - DEPLOYED 2026-11-18 (a9e344f, api + web): ₹1 test code at onboarding. Allow-list unchanged (support@sirahdigital.in only). Backup pre-deploy-20261118-085223.dump; rollback prev-20261118-085223.
 
 - ₹1 test code at onboarding (2026-11-18, owner): "Have a code?" on the onboarding plan step and Finish payment; only allow-listed emails (BILLING_TEST_EMAILS) get ₹1.

@@ -377,7 +377,7 @@ export const coCounselService = {
 
   /**
    * Brand-new advocate accepting an invite by token: creates their account
-   * (own trial Solo firm, never the referring firm), then the guest grant,
+   * (own unpaid Solo firm, never the referring firm), then the guest grant,
    * in one transaction.
    */
   async acceptByToken(token: string, body: AcceptHandoverByTokenInput): Promise<AcceptHandoverResult> {
