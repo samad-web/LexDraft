@@ -1,6 +1,6 @@
 # Limitation ladder fix (s.138 NI Act)
 
-Status: BUILT + tested 2026-11-19 (owner: "fix the ladder"). Not deployed.
+Status: LIVE 2026-11-19 (b67ad17; owner: "fix the ladder").
 
 ## Purpose
 The Deadlines calculator's cheque-bounce ladder is in the sales deck. It had three faults a senior advocate would spot: it cited s.473 CrPC (repealed; the NI Act has its own proviso), it counted the complaint window as 30 days (the law says one calendar month), and it could not take the real date the notice was received.

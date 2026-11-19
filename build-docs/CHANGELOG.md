@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-19 08:22 UTC (b67ad17, api + web; no migration; engine untouched): limitation ladder fix. Live check: notice served 1995-09-29 -> 1995-10-14 / 10-15 / 11-15 (Saketh India). Backup pre-deploy-20261119-081919.dump; rollback lexdraft-api/web:prev-20261119-081919. Smoke: ready db ok, site 200, sign-in 400, calculate 401 signed out, notice-received field + Google client id in build.
+
 - Limitation ladder fix (2026-11-19, owner): s.138 ladder now one calendar month from the cause of action (Saketh India), optional notice-received date, premature-filing warning, proviso to s.142(1)(b) instead of s.473 CrPC, national holidays flagged. features/limitation-ladder-fix.md.
 
 - DEPLOYED 2026-11-19 07:53 UTC (8ea6e0f, api + web; engine untouched; no migration): claude-only 2704aa5 + cocounsel-guest-scope 8ea6e0f. Live env: llmProvider anthropic, REVIEW_PROVIDER default, failover off, no xAI key, claude-sonnet-5-5. 0 existing co-counsel guest accounts on prod, so nobody keeps the old free plan. Backup pre-deploy-20261119-074836.dump; rollback lexdraft-api/web:prev-20261119-074836. Smoke: ready db ok, site 200, sign-in 400, guest-cases 401 signed out, Google client id in build.
