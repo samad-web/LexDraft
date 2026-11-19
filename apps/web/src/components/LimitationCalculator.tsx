@@ -31,6 +31,7 @@ export function LimitationCalculator() {
 
   const [mode, setMode] = useState<Mode>('filing');
   const [filingTypeId, setFilingTypeId] = useState<string>('');
+  const [noticeReceived, setNoticeReceived] = useState<string>('');
   const [matterType, setMatterType] = useState<string>('');
   const [triggerDate, setTriggerDate] = useState<string>(
     () => new Date().toISOString().slice(0, 10),
@@ -61,7 +62,7 @@ export function LimitationCalculator() {
     if (!triggerDate) return;
     if (mode === 'filing') {
       if (!filingTypeId) return;
-      calc.mutate({ filingTypeId, triggerDate });
+      calc.mutate({ filingTypeId, triggerDate, ...(filingTypeId === 'ni138-dishonor' && noticeReceived ? { noticeReceivedDate: noticeReceived } : {}) });
     } else {
       if (!matterType) return;
       ruleCalc.mutate({ matterType, computedFrom: triggerDate });
@@ -153,6 +154,24 @@ export function LimitationCalculator() {
             style={selectStyle}
           />
         </label>
+
+        {mode === 'filing' && filingTypeId === 'ni138-dishonor' && (
+          <label>
+            <span className="eyebrow">Date the drawer received the notice (optional)</span>
+            <input
+              type="date"
+              value={noticeReceived}
+              min={triggerDate || undefined}
+              onChange={(e) => setNoticeReceived(e.target.value)}
+              className="input"
+              style={selectStyle}
+              aria-describedby="ni138-notice-hint"
+            />
+            <span id="ni138-notice-hint" className="muted" style={{ fontSize: 12 }}>
+              If it came back refused or unclaimed, use the return date. Leave blank for an estimate.
+            </span>
+          </label>
+        )}
 
         <button
           type="submit"

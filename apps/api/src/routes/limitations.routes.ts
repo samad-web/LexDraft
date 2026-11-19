@@ -30,6 +30,7 @@ const Input = z.object({
 const CalculateInput = z.object({
   filingTypeId: z.string().min(1),
   triggerDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'triggerDate must be ISO YYYY-MM-DD'),
+  noticeReceivedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'noticeReceivedDate must be ISO YYYY-MM-DD').optional(),
 });
 
 const ComputeRuleInput = z.object({

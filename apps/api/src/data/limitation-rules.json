@@ -173,8 +173,8 @@
     "section": "§138 provisos and §142(b)",
     "periodMonths": 0,
     "periodDays": 75,
-    "computedFrom": "Date of the cheque-dishonour memo",
-    "notes": "Compound ladder: 30 days to issue notice + 15-day drawer window + 30 days to file complaint after window expires. Use the calculator ladder for precise milestones."
+    "computedFrom": "Date you received the bank's return memo",
+    "notes": "Compound ladder: notice within 30 days of the bank's information; the drawer has 15 days from receiving it; complaint within one calendar month of the next day (Saketh India, (1999) 3 SCC 1). This 75-day figure is a rough estimate only: use the s.138 calculator with the date the notice was received."
   },
   {
     "matterType": "Application to set aside arbitral award (§34 A&C Act)",

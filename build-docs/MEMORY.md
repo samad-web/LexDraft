@@ -1,6 +1,7 @@
 # Project memory (LexDraft / DifAi)
 
 ## Decisions
+- 2026-11-19 (owner "fix the ladder"): s.138 dates follow Saketh India (1999) 3 SCC 1 — cause of action = notice receipt + 16 days, complaint within one calendar month excluding that day; late filing = proviso to s.142(1)(b). Only weekends + 26 Jan/15 Aug/2 Oct/25 Dec are flagged; no court holiday calendar exists in the app.
 - 2026-11-19 (owner): Claude only. No xAI/OpenAI anywhere, enforced in env.claudeOnly whatever the server .env says. Reverses 2026-11-08 Contract Review on OpenAI. Reason: sales promise that client facts stay with the firm and are never used for training.
 - 2026-11-19 (owner): co-counsel guests get an unpaid account limited to the shared matter (closes the free-account loophole noted 2026-11-17). Prod had 0 earlier guest accounts at deploy, so the loophole is fully closed.
 - 2026-11-18 (owner): every account created via Google needs a verified WhatsApp number AND a strong password — self sign-up, team invite accept, co-counsel accept. No account may be created with an unusable password.

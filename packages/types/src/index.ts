@@ -2062,6 +2062,8 @@ export interface LimitationCalculateRequest {
   filingTypeId: string;
   /** ISO YYYY-MM-DD. */
   triggerDate: string;
+  /** NI §138 only: date the drawer received the notice. ISO YYYY-MM-DD. */
+  noticeReceivedDate?: string;
 }
 
 // ---- Leads ----------------------------------------------------------------

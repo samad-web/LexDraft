@@ -1,4 +1,8 @@
 # Testing
+## Limitation ladder fix — 2026-11-19
+- Replaced the three old s.138 tests (they asserted +45/+75 days and 'condonation' via CrPC, which is wrong in law) with AC1-AC8 in limitations.calculator.test.ts; weekend test now matches 'Saturday|Sunday' wording. Web: components/__tests__/limitation-ladder.test.tsx (AC9).
+- Results: API unit 1142 pass / 4 skipped; web 427/428 (pre-existing password-rule CRLF mirror); tsc clean api + web.
+
 ## Co-counsel guest scope + Claude only — 2026-11-19
 - New: co-counsel.integration 'guest-scope AC1-AC3', __tests__/claude-only.test.ts (AC1-AC4), web views/__tests__/cocounsel-guest-scope.test.tsx (AC4-AC5).
 - Results: API unit 1137 pass / 4 skipped; integration 205/206 (pre-existing 0042 idempotency); web 426/427 (password-rule mirror fails on unchanged main too: CRLF checkout); tsc clean api + web.

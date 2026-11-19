@@ -222,12 +222,13 @@ export const FILING_TYPES: ReadonlyArray<FilingType> = [
     category: 'NI Act',
     label: 'Section 138 NI Act - full ladder',
     period: { unit: 'days', count: 75 },
-    reference: 'Negotiable Instruments Act 1881, §138 provisos & §142',
-    triggerLabel: 'Date of cheque-dishonor memo',
+    reference: 'Negotiable Instruments Act 1881, §138 provisos (b), (c) & §142(1)(b)',
+    triggerLabel: 'Date you received the bank\'s return memo',
     notes: [
-      '30 days to issue statutory notice (proviso (b)).',
-      'Drawer has 15 days from notice to pay (proviso (c)).',
-      'Complaint must be filed within 30 days of expiry of the 15-day notice period (§142(b)).',
+      'Send the demand notice within 30 days of receiving the bank\'s information (proviso (b)). This period cannot be extended.',
+      'The drawer has 15 days from receiving the notice to pay (proviso (c)). If the notice came back refused or unclaimed, courts generally treat the return date as the date of service.',
+      'The cause of action arises the day after those 15 days end. File the complaint within one calendar month of it, not counting that day (§142(1)(b); Saketh India v. India Securities, (1999) 3 SCC 1, affirmed in Econ Antri v. Rom Industries, 2013).',
+      'Only weekends and national holidays (26 Jan, 15 Aug, 2 Oct, 25 Dec) are checked. Check the court calendar for other holidays.',
     ],
   },
 ];
@@ -293,10 +294,22 @@ export function daysBetween(iso: string, now: Date = new Date()): number {
   return Math.round((d.getTime() - today.getTime()) / 86_400_000);
 }
 
-function isWeekend(iso: string): boolean {
-  const d = parseIsoDate(iso);
-  const day = d.getDay();
-  return day === 0 || day === 6;
+/** National holidays on fixed dates, when every court is closed. Other court
+ *  holidays vary by court and year and are not checked. */
+const FIXED_HOLIDAYS: Record<string, string> = {
+  '01-26': 'Republic Day', '08-15': 'Independence Day', '10-02': 'Gandhi Jayanti', '12-25': 'Christmas',
+};
+
+/** Why courts are likely closed on this date, or null. */
+export function closedDayReason(iso: string): string | null {
+  const day = parseIsoDate(iso).getDay();
+  if (day === 0) return 'a Sunday';
+  if (day === 6) return 'a Saturday';
+  return FIXED_HOLIDAYS[iso.slice(5)] ?? null;
+}
+
+function dayDiff(fromIso: string, toIso: string): number {
+  return Math.round((parseIsoDate(toIso).getTime() - parseIsoDate(fromIso).getTime()) / 86_400_000);
 }
 
 // ---- Calculator -------------------------------------------------------------
@@ -308,6 +321,9 @@ export function getFilingType(id: string): FilingType | undefined {
 export interface CalculateInput {
   filingTypeId: string;
   triggerDate: string;
+  /** NI §138 only: the date the drawer received the notice (or it came back
+   *  refused/unclaimed). Without it the later steps are an estimate. */
+  noticeReceivedDate?: string;
   /** Override "now" - for tests. */
   now?: Date;
 }
@@ -324,59 +340,15 @@ export function calculate(input: CalculateInput): CalculationResult {
 
   // NI Act §138 is a compound ladder. The terminal "deadline" is the latest
   // day a complaint may be filed.
-  if (filingType.id === 'ni138-dishonor') {
-    const noticeDeadline = addDays(input.triggerDate, 30);
-    // Per §138 proviso (c) the drawer has 15 days FROM notice service. We
-    // assume same-day service (best case) for the calculator; the UI surfaces
-    // this assumption as a warning.
-    const noticeServedOn = noticeDeadline; // assumption: notice issued on day 30
-    const drawerWindowEnds = addDays(noticeServedOn, 15);
-    const complaintDeadline = addDays(drawerWindowEnds, 30);
-
-    const steps: CalculationStep[] = [
-      {
-        label: 'Issue statutory notice',
-        date: noticeDeadline,
-        daysFromTrigger: 30,
-        notes: 'Latest day to despatch the §138 notice (proviso (b)).',
-      },
-      {
-        label: 'Drawer\'s 15-day payment window ends',
-        date: drawerWindowEnds,
-        daysFromTrigger: 45,
-        notes: 'Calculated assuming notice was served on day 30. Adjust if served later.',
-      },
-      {
-        label: 'Latest day to file complaint',
-        date: complaintDeadline,
-        daysFromTrigger: 75,
-        notes: 'Complaint must be filed within 30 days of expiry of the drawer\'s 15-day window (§142(b)).',
-      },
-    ];
-
-    warnings.push('Notice-service date is assumed to be the day the notice is despatched. If service is delayed, every downstream date shifts by the same number of days.');
-    if (isWeekend(complaintDeadline)) warnings.push(`Complaint deadline (${complaintDeadline}) falls on a weekend; verify court working day.`);
-
-    const days = daysBetween(complaintDeadline, input.now ?? new Date());
-    if (days < 0)       warnings.push('Complaint deadline has already passed; consider §473 CrPC condonation.');
-    else if (days <= 7) warnings.push('Complaint deadline is within 7 days - file urgently.');
-
-    return {
-      filingType,
-      triggerDate: input.triggerDate,
-      deadline: complaintDeadline,
-      daysRemaining: days,
-      steps,
-      warnings,
-    };
-  }
+  if (filingType.id === 'ni138-dishonor') return ni138Ladder(filingType, input);
 
   // Simple article: deadline = trigger + period.
   const deadline = applyPeriod(input.triggerDate, filingType.period);
   const days = daysBetween(deadline, input.now ?? new Date());
 
-  if (isWeekend(deadline)) {
-    warnings.push(`Deadline (${deadline}) falls on a weekend; verify court working day. Section 4 may extend the period to the next working day.`);
+  const closed = closedDayReason(deadline);
+  if (closed) {
+    warnings.push(`Deadline (${deadline}) falls on ${closed}. If the court is closed that day, you may file on the next day it opens (Limitation Act s.4). Check the court calendar for other holidays.`);
   }
   if (days < 0)        warnings.push('This deadline has already passed. Consider whether s. 5 condonation is available.');
   else if (days <= 7)  warnings.push('Deadline is within 7 days - file urgently.');
@@ -390,6 +362,64 @@ export function calculate(input: CalculateInput): CalculationResult {
     steps: [],
     warnings,
   };
+}
+
+/**
+ * NI Act §138 ladder (Saketh India v. India Securities, (1999) 3 SCC 1): the
+ * drawer's 15 days run from the day after receipt of the notice; the cause of
+ * action arises the next day; the complaint is due one calendar month later,
+ * excluding that day. E.g. notice served 29 Sep -> 15 days end 14 Oct -> cause
+ * of action 15 Oct -> complaint by 15 Nov.
+ */
+function ni138Ladder(filingType: FilingType, input: CalculateInput): CalculationResult {
+  const memo = input.triggerDate;
+  const noticeBy = addDays(memo, 30);
+  const actual = input.noticeReceivedDate;
+  if (actual) {
+    parseIsoDate(actual);
+    if (actual < memo) {
+      throw Object.assign(new Error('The notice cannot be received before the bank\'s return memo'), { status: 422 });
+    }
+  }
+  const received = actual ?? noticeBy;
+  const payBy = addDays(received, 15);
+  const causeOfAction = addDays(payBy, 1);
+  const complaintBy = addMonths(causeOfAction, 1);
+  const est = actual ? '' : ' (estimate)';
+
+  const steps: CalculationStep[] = [
+    { label: 'Send the demand notice', date: noticeBy, daysFromTrigger: 30,
+      notes: 'Latest day to send the notice: 30 days from receiving the bank\'s information (proviso (b)). Cannot be extended.' },
+    { label: `Drawer's 15 days to pay end${est}`, date: payBy, daysFromTrigger: dayDiff(memo, payBy),
+      notes: actual ? `15 days from the notice received on ${actual} (proviso (c)).` : `Assumes the notice is received on ${noticeBy}. Enter the actual date for exact dates.` },
+    { label: `Earliest day to file the complaint${est}`, date: causeOfAction, daysFromTrigger: dayDiff(memo, causeOfAction),
+      notes: 'The cause of action arises the day after the 15 days end. A complaint filed earlier is premature.' },
+    { label: `Last day to file the complaint${est}`, date: complaintBy, daysFromTrigger: dayDiff(memo, complaintBy),
+      notes: 'One calendar month from the cause of action, not counting that day (§142(1)(b)).' },
+  ];
+
+  const now = input.now ?? new Date();
+  const warnings: string[] = [];
+  if (!actual) {
+    warnings.push(`These dates assume the drawer received the notice on ${noticeBy}. Enter the date it was received (or came back refused or unclaimed) to get exact dates.`);
+    if (daysBetween(noticeBy, now) < 0) {
+      warnings.push(`If the notice has not been sent yet, the 30 days to send it ended on ${noticeBy}. This period cannot be extended.`);
+    }
+  }
+  const closed = closedDayReason(complaintBy);
+  if (closed) {
+    warnings.push(`The last day to file (${complaintBy}) falls on ${closed}. If the court is closed that day, you may file on the next day it opens (General Clauses Act s.10). Check the court calendar for other holidays.`);
+  }
+  const days = daysBetween(complaintBy, now);
+  if (daysBetween(causeOfAction, now) > 0) {
+    warnings.push(`Do not file before ${causeOfAction}: a complaint filed before the drawer's 15 days end is premature.`);
+  } else if (days < 0) {
+    warnings.push('The last day to file has passed. The court may still take cognizance if you show sufficient cause for the delay (proviso to §142(1)(b) NI Act).');
+  } else if (days <= 7) {
+    warnings.push('The last day to file is within 7 days. File urgently.');
+  }
+
+  return { filingType, triggerDate: memo, deadline: complaintBy, daysRemaining: days, steps, warnings };
 }
 
 // ---- Matter-type rules table ------------------------------------------------
