@@ -1,4 +1,6 @@
 # Changelog
+- DEPLOYED 2026-11-20 10:25 UTC (7448960, api + web; 0121 applied): daily brief. Backup pre-0121-20261120-102152.dump; rollback lexdraft-api/web:prev-20261120-102152. Smoke: ready db ok, site 200, sign-in 400, /notifications/brief 401 signed out, brief.morning 07:00 IST scheduled, Google client id in build.
+
 - DEPLOYED 2026-11-20 09:30 UTC (e065f51, api + web; 0120 applied): reminders + Android push plumbing + c7412fd activation funnel. Backup pre-0120-20261120-092345.dump; rollback lexdraft-api/web:prev-20261120-092345. FCM not configured yet.
 
 - Daily brief (2026-11-20, owner): 07:00 IST morning brief (today, tomorrow, tasks, reminders; quiet day names the next hearing) and an evening brief of tomorrow's hearings after the 19:00 eCourts run (eCourts + manual + diary), re-sent only if an eCourts retry changes it. Replaces the per-case evening notices. Settings switch; 0121 users.daily_brief. features/daily-brief.md.
