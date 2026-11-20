@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "252921963536",
+    "project_id": "difai-513007",
+    "storage_bucket": "difai-513007.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:252921963536:android:3aa9b2d08a6d5073e7d695",
+        "android_client_info": {
+          "package_name": "in.sirahdigital.difai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "252921963536-lukil8l013rukogoaeqe20uq83vvcjgv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3VSl7idS_E8M4u0qkq_clhVAaeoxESVI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "252921963536-lukil8l013rukogoaeqe20uq83vvcjgv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
