@@ -97,6 +97,17 @@ notificationsRouter.post('/push/subscription', validate({ body: PushSub }), asyn
   }
 });
 
+// Android app (FCM) token, sent after sign-in (android-push.md).
+const NativeToken = z.object({ token: z.string().min(20).max(4096).regex(/^[\w:.\-]+$/) });
+notificationsRouter.post('/push/native', validate({ body: NativeToken }), async (req, res, next) => {
+  try {
+    await pushService.subscribeNative(req.user!.id, req.body.token, req.get('user-agent'));
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 notificationsRouter.post('/push/unsubscribe', validate({ body: PushSub.pick({ endpoint: true }) }), async (req, res, next) => {
   try {
     await pushService.unsubscribe(req.user!.id, req.body.endpoint);

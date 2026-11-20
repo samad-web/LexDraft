@@ -1117,3 +1117,20 @@
   :root[data-ui='chambers'] .tbl > tbody > tr > td:has(> .cm-due-rel) { flex-wrap: wrap; row-gap: 0; }
   :root[data-ui='chambers'] .tbl > tbody > tr > td > .cm-due-rel { flex-basis: 100%; margin-top: 0; }
 }
+
+/* ---------- REMINDERS + NOTIFY PROMPT (build-docs/features/reminders.md) ---------- */
+.notify-prompt { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-primary); }
+.notify-prompt-text { flex: 1; min-width: 0; }
+.notify-prompt--banner { padding: 8px 32px; background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
+.notify-prompt--row { margin: 10px 14px 4px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--bg-base); font-size: 12.5px; }
+@media (max-width: 1023px) { .notify-prompt--banner { padding: 8px 20px; } }
+@media (max-width: 640px) { .notify-prompt--banner { padding: 8px 14px; font-size: 12.5px; } }
+
+[data-ui='chambers'] .cs-reminders .cs-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cs-reminder-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cs-reminder-list li { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border-subtle); }
+.cs-reminder-list li:first-child { border-top: 0; }
+.cs-reminder-list li.is-sent { opacity: 0.55; }
+.cs-reminder-main { flex: 1; min-width: 0; }
+.cs-reminder-title { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-reminder-when { font-size: 12px; color: var(--text-tertiary); margin-top: 1px; }

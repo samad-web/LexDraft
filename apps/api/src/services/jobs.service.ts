@@ -400,12 +400,20 @@ async function runSlot(slot: 'morning' | 'evening', runDate?: string): Promise<v
     await runScheduledSync({ slot, ...(runDate ? { runDate } : {}) });
   } finally {
     await trackEfilingsAfterSync(slot);
+    // Hearing reminders read the DB, not eCourts - they must go out even
+    // when eCourts is down, using the last synced hearing dates.
+    const cs = await import('./case-sync.service');
     if (slot === 'morning') {
-      // Hearing reminders read the DB, not eCourts - they must go out even
-      // when eCourts is down, using the last synced hearing dates.
-      const { sendUpcomingHearingReminders } = await import('./case-sync.service');
-      const summary = await sendUpcomingHearingReminders();
-      logger.info(summary, 'hearing reminders sent after morning sync');
+      await cs.sendUpcomingHearingReminders()
+        .then((s) => logger.info(s, 'hearing reminders sent after morning sync'))
+        .catch((err) => logger.warn({ err }, 'hearing reminders failed'));
+      await cs.sendDiaryReminders()
+        .then((s) => logger.info(s, 'diary reminders sent'))
+        .catch((err) => logger.warn({ err }, 'diary reminders failed'));
+    } else {
+      await cs.sendEveningHearingReminders()
+        .then((s) => logger.info(s, 'evening hearing reminders sent'))
+        .catch((err) => logger.warn({ err }, 'evening hearing reminders failed'));
     }
   }
 }
@@ -417,6 +425,13 @@ jobs.register('ecourts.sync.morning', async () => {
 jobs.register('ecourts.sync.evening', async () => {
   await runSlot('evening');
 }, { cron: '0 19 * * *', tz: 'Asia/Kolkata', expireInSeconds: ECOURTS_RUN_EXPIRE_SEC });
+
+// Reminders advocates set by hand (build-docs/features/reminders.md).
+jobs.register('reminders.due', async () => {
+  const { remindersService } = await import('./reminders.service');
+  const r = await remindersService.sendDue();
+  if (r.sent) logger.info(r, 'reminders.due sent');
+}, { cron: '*/5 * * * *', tz: 'Asia/Kolkata' });
 
 // ---- Missed-run recovery -------------------------------------------------
 // The cron above fires only if the server is up at that exact minute, and

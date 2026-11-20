@@ -3,6 +3,7 @@ import { db } from '../db/client';
 import { env } from '../env';
 import { BadRequestError } from '../lib/errors';
 import { logger } from '../logger';
+import { sendFcm } from '../lib/fcm';
 
 // =============================================================================
 // web-push (owner 2026-11-19, build-docs/features/web-push.md): every in-app
@@ -47,6 +48,17 @@ export const pushService = {
         user_agent = excluded.user_agent, created_at = now()`;
   },
 
+  /** The Android app's FCM token (android-push.md). Stored even while FCM is
+   *  not configured, so devices work as soon as the server key is added. */
+  async subscribeNative(userId: string, token: string, userAgent?: string): Promise<void> {
+    const sql = db();
+    if (!sql) return;
+    await sql`
+      insert into push_subscriptions (user_id, endpoint, p256dh, auth, user_agent, kind)
+      values (${userId}::uuid, ${token}, '', '', ${(userAgent ?? '').slice(0, 300)}, 'fcm')
+      on conflict (endpoint) do update set user_id = excluded.user_id, user_agent = excluded.user_agent, kind = 'fcm', created_at = now()`;
+  },
+
   async unsubscribe(userId: string, endpoint: string): Promise<void> {
     const sql = db();
     if (!sql) return;
@@ -57,18 +69,27 @@ export const pushService = {
    *  the push service reports gone (404/410) are removed. */
   async sendToUser(userId: string, msg: { title: string; body?: string; view?: string; tag?: string }): Promise<number> {
     const sql = db();
-    if (!sql || !configure()) return 0;
+    if (!sql) return 0;
+    const webOn = configure();
     let sent = 0;
     try {
-      const subs = await sql<Array<{ id: string; endpoint: string; p256dh: string; auth: string }>>`
-        select id, endpoint, p256dh, auth from push_subscriptions where user_id = ${userId}::uuid`;
-      const payload = JSON.stringify({
+      const subs = await sql<Array<{ id: string; endpoint: string; p256dh: string; auth: string; kind: string }>>`
+        select id, endpoint, p256dh, auth, kind from push_subscriptions where user_id = ${userId}::uuid`;
+      const note = {
         title: msg.title.slice(0, 120),
         body: (msg.body ?? '').slice(0, 300),
         url: `/app/${(msg.view ?? 'dashboard').replace(/^\/+/, '')}`,
         tag: msg.tag,
-      });
+      };
+      const payload = JSON.stringify(note);
       for (const s of subs) {
+        if (s.kind === 'fcm') {
+          const r = await sendFcm(s.endpoint, note);
+          if (r === 'sent') { sent += 1; await sql`update push_subscriptions set last_ok_at = now() where id = ${s.id}::uuid`; }
+          else if (r === 'gone') await sql`delete from push_subscriptions where id = ${s.id}::uuid`;
+          continue;
+        }
+        if (!webOn) continue;
         try {
           await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 24 * 3600, urgency: 'high' });
           sent += 1;

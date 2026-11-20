@@ -533,6 +533,27 @@ export const notify = {
    * instead, which is the effect an advocate actually wants from a
    * reminder re-surfacing.
    */
+  /** Court Diary "remind N days before" (reminders.md). Diary entries have no
+   *  owner column, so the firm's people hear about it. */
+  async diaryReminder(
+    firmId: string,
+    entry: { id: string; caseLabel: string; hearingDate: string; daysUntil: number },
+  ): Promise<void> {
+    const when = entry.daysUntil <= 0 ? 'today' : entry.daysUntil === 1 ? 'tomorrow' : `in ${entry.daysUntil} days`;
+    for (const r of await loadFirmRecipientUsers(firmId)) {
+      await notificationsStore.create({
+        firmId,
+        userId: r.id,
+        tone: 'amber',
+        icon: 'calendar',
+        title: `Reminder: ${entry.caseLabel} - next date ${when}`.slice(0, 160),
+        body: `Next date on ${entry.hearingDate} (Court Diary).`,
+        view: 'diary',
+        dedupeKey: `diary-reminder:${entry.id}:${entry.hearingDate}`,
+      });
+    }
+  },
+
   async hearingReminder(
     firmId: string,
     reminder: {

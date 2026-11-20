@@ -90,6 +90,8 @@ const EngagementTemplatesView = lazy(() => import('@/views/EngagementTemplatesVi
 import { MfaPromptBanner } from '@/components/MfaPromptBanner';
 import { DeletionScheduledBanner } from '@/components/DeletionScheduledBanner';
 import { TrialBanner } from '@/components/TrialBanner';
+import { NotifyPrompt } from '@/components/NotifyPrompt';
+import { useNativePush } from '@/hooks/useNativePush';
 import { AdminShell } from '@/admin/AdminShell';
 import { AdminLoginView } from '@/admin/AdminLoginView';
 const AdminDashboardView = lazy(() => import('@/admin/views/AdminDashboardView').then((m) => ({ default: m.AdminDashboardView })));
@@ -149,6 +151,9 @@ export function App() {
 
   // Phones: tables read as stacked cards, so label each cell with its column.
   useEffect(() => watchStackedTables(), []);
+
+  // Android app: phone notifications via Firebase once signed in (android-push.md).
+  useNativePush(user?.id);
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
@@ -315,6 +320,7 @@ export function App() {
           {user.isSuperadmin && !actAs && <SuperadminBanner />}
           <DeletionScheduledBanner />
           <TrialBanner />
+          <NotifyPrompt variant="banner" />
           <CreditsLowBanner />
           <MfaPromptBanner />
           <Topbar />

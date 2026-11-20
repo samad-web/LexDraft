@@ -1,3 +1,4 @@
+import { NotifyPrompt } from '@/components/NotifyPrompt';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from '@lexdraft/ui';
@@ -114,6 +115,7 @@ export function NotificationPanel({
             MARK ALL READ
           </button>
         </div>
+        <NotifyPrompt variant="row" />
         {/* Filter tabs */}
         <div
           className="row"

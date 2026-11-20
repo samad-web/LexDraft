@@ -239,6 +239,10 @@ const Schema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional().default(''),
   /** Contact for push services: the site URL (a mailto: also works). */
   VAPID_SUBJECT: z.string().optional().default('https://difai.sirahdigital.in'),
+  /** Android app push (Firebase Cloud Messaging): base64 of the Firebase
+   *  service-account JSON. A secret (lives in /etc/lexdraft/secrets.env).
+   *  Blank = Android push off (build-docs/features/android-push.md). */
+  FCM_SERVICE_ACCOUNT: z.string().optional().default(''),
   /** Wasi templates for "plan active" after a plan payment and the renewal
    *  reminders (app-handoff-and-renewal-reminders.md). Empty = not sent. */
   WHATSAPP_PLAN_ACTIVE_TEMPLATE: z.string().optional().default(''),

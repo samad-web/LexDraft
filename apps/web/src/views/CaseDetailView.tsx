@@ -37,6 +37,8 @@ import { useAuthStore } from '@/store/auth';
 import { caseUpdateMessage, openWhatsAppText } from '@/lib/whatsapp-share';
 import { useHasTeamChat } from '@/hooks/useTeamChat';
 import { MatterDiscussionPanel } from '@/components/team-chat/MatterDiscussionPanel';
+import { ReminderModal } from '@/components/ReminderModal';
+import { CaseReminders } from '@/components/case/CaseReminders';
 
 // The full eCourts Case History lives in the eCourts view's bundle; load it
 // only when the tab is opened.
@@ -71,6 +73,7 @@ export function CaseDetailView() {
   const [docOpen, setDocOpen] = useState(false);
   const [hearingOpen, setHearingOpen] = useState(false);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [diaryAll, setDiaryAll] = useState(false);
   const [engagementLetter, setEngagementLetter] = useState<string | null>(null);
@@ -456,8 +459,13 @@ export function CaseDetailView() {
               <button type="button" className="btn" onClick={() => setTaskOpen(true)}>
                 <Icon name="tasks" size={14} /> Add a task
               </button>
+              <button type="button" className="btn" onClick={() => setReminderOpen(true)}>
+                <Icon name="bell" size={14} /> Set a reminder
+              </button>
             </div>
           </div>
+
+          <CaseReminders caseId={data.id} onAdd={() => setReminderOpen(true)} />
 
           {/* At a glance - one line per hub tab, each jumping to it. */}
           <div className="card">
@@ -547,6 +555,9 @@ export function CaseDetailView() {
         defaultCourt={c.court}
         defaultDate={c.next || undefined}
       />
+      {reminderOpen && (
+        <ReminderModal open={reminderOpen} onClose={() => setReminderOpen(false)} caseId={data.id} defaultTitle={`Hearing prep: ${data.title}`} />
+      )}
       <NewTaskModal
         open={taskOpen}
         onClose={() => setTaskOpen(false)}

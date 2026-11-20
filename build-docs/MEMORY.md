@@ -102,6 +102,8 @@
 
 - 2026-11-18 — Owner: no app access before payment (reverses the 30-minute unpaid window). onboarded_at is set only by the payment (or free/already-paid paths).
 
+- 2026-11-20 — Owner: reminders are a must on web AND the Android app ("android app push is must", reverses the Android pause for push only). Automatic hearing reminders stay (09:00, 3 days → today) plus 19:00 "Hearing tomorrow"; advocates can add their own at any date/time; Court Diary offsets now fire. Android push = FCM (needs the owner's Firebase project); iPhone only via Home Screen web app (Apple rule).
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.
@@ -111,6 +113,7 @@
 - 2026-11-20: All-HC corpus scope (metadata-all + text-on-demand vs bigger server). Trial option A/B/C for Stage 2. Ship/cut/park per LIVE-STATE.md.
 
 ## Known issues
+- 2026-11-20 — web password-rule mirror test fails on Windows checkouts (CRLF vs LF text compare); fails on origin/main too.
 - 2026-11-17 — migrations.integration idempotency test fails at 0042 (cases_kind_check added without a guard), so later migrations aren't re-run by it. share-links.test.ts needs apps/api/.env present (fails in a fresh worktree).
 - auth.integration.test "role=group creates a Practice-tier firm" fails on main since pricing v4 (gets Firm). Decide which tier is intended, then fix the test or the mapping.
 - 2026-11-03 — Supabase is IO-throttled (2.2 s to count the 1,300-row judgments table). Cause: the embedding backfill plus judgment searches, which ranked most of the corpus per query. Searches are now capped (1,500 FTS candidates, NN-200 vector). JUDGMENTS_SEARCH=false locally until it recovers; the backfill is paused. Dev uses the live Supabase, so heavy corpus work hurts it.

@@ -417,6 +417,55 @@ async function sendHearingWhatsApp(userId: string, title: string, date: string, 
   }
 }
 
+/** 19:00 IST: "Hearing tomorrow" for every active case listed tomorrow, so the
+ *  advocate is reminded the evening they prepare (reminders.md). Bell + device
+ *  push only (WhatsApp stays with the morning run). Never throws per case. */
+export async function sendEveningHearingReminders(): Promise<HearingReminderSummary> {
+  const sql = db();
+  if (!sql) return { scanned: 0, reminded: 0 };
+  const rows = await sql<Array<{ id: string; firm_id: string; title: string; next_hearing: string; owner: string | null }>>`
+    select c.id, c.firm_id, coalesce(nullif(trim(c.title), ''), c.cnr) as title, c.next_hearing::text,
+           coalesce((select ca.user_id from case_assignments ca where ca.case_id = c.id and ca.role_on_case = 'lead' limit 1),
+                    c.created_by_user_id) as owner
+    from cases c
+    where c.status in ('Active', 'Pending') and c.deleted_at is null
+      and c.next_hearing = (now() at time zone 'Asia/Kolkata')::date + 1`;
+  const summary: HearingReminderSummary = { scanned: rows.length, reminded: 0 };
+  const { notify } = await import('./notifications.service');
+  for (const row of rows) {
+    try {
+      await notify.hearingReminder(row.firm_id, { matterTitle: row.title, caseId: row.id, hearingDate: row.next_hearing, daysUntil: 1, ownerUserId: row.owner });
+      summary.reminded += 1;
+    } catch (err) {
+      logger.warn({ err, caseId: row.id }, 'evening hearing reminder: case failed');
+    }
+  }
+  return summary;
+}
+
+/** 09:00 IST: Court Diary entries whose "remind N days before" falls today.
+ *  The field was saved but never fired before 2026-11-20 (reminders.md). */
+export async function sendDiaryReminders(): Promise<HearingReminderSummary> {
+  const sql = db();
+  if (!sql) return { scanned: 0, reminded: 0 };
+  const rows = await sql<Array<{ id: string; firm_id: string; case_label: string; next_hearing_date: string; reminder_offset_days: number }>>`
+    select id, firm_id, case_label, next_hearing_date::text, reminder_offset_days
+    from diary_entries
+    where firm_id is not null and next_hearing_date is not null and reminder_offset_days is not null
+      and next_hearing_date - reminder_offset_days = (now() at time zone 'Asia/Kolkata')::date`;
+  const summary: HearingReminderSummary = { scanned: rows.length, reminded: 0 };
+  const { notify } = await import('./notifications.service');
+  for (const row of rows) {
+    try {
+      await notify.diaryReminder(row.firm_id, { id: row.id, caseLabel: row.case_label, hearingDate: row.next_hearing_date, daysUntil: row.reminder_offset_days });
+      summary.reminded += 1;
+    } catch (err) {
+      logger.warn({ err, diaryId: row.id }, 'diary reminder failed');
+    }
+  }
+  return summary;
+}
+
 export async function sendUpcomingHearingReminders(
   scope: { firmId?: string; caseId?: string } = {},
 ): Promise<HearingReminderSummary> {

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar notification icon (android-push.md): the D symbol in one colour,
+     same geometry as ICON in apps/web/src/components/brand/Logo.tsx. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="112"
+    android:viewportHeight="112">
+    <group android:translateX="5.25" android:translateY="6">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M0 0H50C80.9 0 101.5 20 101.5 50C101.5 80 80.9 100 50 100H0ZM17 15H50C71.3 15 85.5 29 85.5 50C85.5 71 71.3 85 50 85H17Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M29 28H68V39H29ZM29 46H76V57H29ZM29 64H44V75H29ZM51 60H59V79H51Z" />
+    </group>
+</vector>

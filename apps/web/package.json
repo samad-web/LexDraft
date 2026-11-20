@@ -26,6 +26,7 @@
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/push-notifications": "^8.0.4",
     "@capacitor/share": "^8.0.3",
     "@capgo/capacitor-social-login": "8.5.15",
     "@lexdraft/types": "workspace:*",

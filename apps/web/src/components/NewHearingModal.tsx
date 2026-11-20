@@ -7,6 +7,7 @@ import { useCourtJudges, isHighCourt } from '@/hooks/useJudges';
 import { useTeammates, useAssignHearing, useHearingAssignee, useIsHead } from '@/hooks/useAssignments';
 import { INDIAN_COURTS } from '@/lib/indian-courts';
 import { useUIStore } from '@/store/ui';
+import { toRemindAt, useCreateReminder } from '@/hooks/useReminders';
 import { Modal, Field } from './Modal';
 
 interface Props {
@@ -95,6 +96,24 @@ export function NewHearingModal({
   const assignHearing = useAssignHearing();
   const existingAssignee = useHearingAssignee(isEdit ? existing?.id : undefined);
   const [assigneeId, setAssigneeId] = useState('');
+  // Hearings are reminded automatically (3 days before, the evening before,
+  // the morning). "Also" adds one more at a time the advocate picks.
+  const [remindMode, setRemindMode] = useState<'auto' | 'also'>('auto');
+  const [remindDate, setRemindDate] = useState('');
+  const [remindTime, setRemindTime] = useState('19:00');
+  const [remindTouched, setRemindTouched] = useState(false);
+  const createReminder = useCreateReminder();
+  const dayBefore = (iso: string): string => {
+    const d = new Date(`${iso}T00:00:00`);
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  // The extra reminder follows the hearing date (evening before) until the
+  // advocate picks its date themselves.
+  useEffect(() => {
+    if (remindMode === 'also' && !remindTouched) setRemindDate(dayBefore(date));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, remindMode]);
   const teammateOptions = useMemo(
     () => [
       { value: '', label: 'Unassigned' },
@@ -186,6 +205,19 @@ export function NewHearingModal({
           await assignHearing.mutateAsync({ hearingId, userId: assigneeId || null });
         } catch {
           showToast({ type: 'vermillion', text: 'Hearing saved, but assignment failed' });
+        }
+      }
+      if (remindMode === 'also' && remindDate) {
+        try {
+          await createReminder.mutateAsync({
+            caseId: caseId ?? null,
+            title: `Hearing: ${caseLabel.trim()}`,
+            note: [purpose.trim(), court.trim(), `${date} ${time}`].filter(Boolean).join(' · '),
+            remindAt: toRemindAt(remindDate, remindTime),
+          });
+        } catch (err) {
+          const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error ?? 'reminder not set';
+          showToast({ type: 'vermillion', text: `Hearing saved, but ${msg.charAt(0).toLowerCase()}${msg.slice(1)}` });
         }
       }
       onClose();
@@ -288,6 +320,30 @@ export function NewHearingModal({
             options={STATUSES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))}
           />
         </Field>
+        <Field label="REMIND ME" hint="Automatic: 3 days before, the evening before, the morning" wide>
+          <Select
+            value={remindMode}
+            onChange={(v) => {
+              const m = v as 'auto' | 'also';
+              setRemindMode(m);
+              if (m === 'also' && !remindDate) setRemindDate(dayBefore(date));
+            }}
+            options={[
+              { value: 'auto', label: 'Automatically' },
+              { value: 'also', label: 'Automatically, and also at a time I pick' },
+            ]}
+          />
+        </Field>
+        {remindMode === 'also' && (
+          <>
+            <Field label="REMINDER DATE" required>
+              <DatePicker value={remindDate} onChange={(v) => { setRemindTouched(true); setRemindDate(v); }} />
+            </Field>
+            <Field label="REMINDER TIME" required>
+              <TimePicker value={remindTime} onChange={setRemindTime} />
+            </Field>
+          </>
+        )}
         {isHead && (
           <Field label="ASSIGN TO" hint="Hand this hearing to a colleague">
             <Select

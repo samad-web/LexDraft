@@ -724,3 +724,11 @@
 - Regression: `firm360.integration.test.ts` 6/6; API route unit tests 31/31; tsc api + web clean (after `pnpm install --frozen-lockfile` brought in web-push).
 - First run: 1 failure was the test's own cleanup (deleting a firm with users, FK) — not needed (throwaway schema), removed. No logic change.
 - Owner-only: covered by the shared `/admin` mount (`requireAuth, requireSuperadmin`, routes/index.ts); no HTTP route tests exist in the repo.
+
+## Reminders + Android push — 2026-11-20
+- Unit (api `reminders.test.ts`, 11): remindAt future/grace/2-year/invalid; diary day maths (month/year ends, 0 days); FCM assertion claims; dead-token detection vs passing failures. Pass.
+- Integration (api `reminders.integration.test.ts`, 5, local PG :5433 ephemeral schema): AC1 due reminder sent once with case link, not before time; AC2 diary reminder on its day; AC3 evening "Hearing tomorrow" only for tomorrow; AC4 owner-only list/delete, other firm can't attach. Pass.
+- Unit (web `reminders-push.test.ts`, 3): local time → ISO instant; notification taps open only /app/ paths. Pass.
+- Browser (mocked API): case page Reminders card + Set a reminder dialog, hearing dialog Remind me (also-at-time), notify banner (hidden when the browser blocks notifications) at 1440 light and 390 dark; no page errors.
+- Android: debug build succeeds with the plugin (google-services.json absent → plugin dormant).
+- Regression: web 430/431, api 1138 pass; the 2 failures (password-rule CRLF mirror, share-links needs apps/api/.env) fail identically on unchanged origin/main.
