@@ -1,4 +1,4 @@
-# PLAN — Competitive improvement in stages (APPROVED 2026-11-20; fast track started)
+# PLAN — Competitive improvement in stages (APPROVED 2026-11-20; PAUSED by owner after Day 1 — waiting on team decision about High Court scope)
 
 ## Goal and scope
 - Close the gap with research tools (Supreme Today AI: ~1 crore judgments, citator, ₹11k–33k/yr) without becoming a library. Keep DifAi's edge: drafting + eCourts + diary + team + billing in one app at ~₹699/mo.
