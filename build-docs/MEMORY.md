@@ -108,7 +108,7 @@
 - Deploy only when the user says "deploy".
 
 ## Open questions
-- none.
+- 2026-11-20: All-HC corpus scope (metadata-all + text-on-demand vs bigger server). Trial option A/B/C for Stage 2. Ship/cut/park per LIVE-STATE.md.
 
 ## Known issues
 - 2026-11-17 — migrations.integration idempotency test fails at 0042 (cases_kind_check added without a guard), so later migrations aren't re-run by it. share-links.test.ts needs apps/api/.env present (fails in a fresh worktree).
@@ -148,3 +148,6 @@
 - 2026-11-18 test-payment: owner chose a simulated (no-money, no-invoice) plan payment for test accounts over the ₹1 Razorpay charge; trade-off: it no longer exercises Razorpay/webhook. Allow-list on prod: support@ + test@sirahdigital.in.
 - 2026-11-18 team-work: owner approved the Teams-style plan (workload cards, Assign task/case, board filters, assignee notifications). Tasks link to members via 0118; WhatsApp for assignments waits for an approved Wasi template (env WHATSAPP_ASSIGN_TEMPLATE, blank = off).
 - 2026-11-19 owner: no email reminders; notices go to the bell, WhatsApp (templates) and the phone notification bar (web push, 0119). Android APK can't get web push (needs FCM; Android parked).
+
+- 2026-11-20 — Owner approved the competitive plan (PLAN.md top: stages 0–4, fast track ≈12 working days); go for 0098/0099 on the prod DB (lexdraft-postgres-1, db `lexdraft`, pgvector 0.8.2 available). Wants ALL High Courts in the corpus — flagged: ~15.9M HC judgments vs VPS 23 GB free / 2 CPU / no embed service on prod; scope decision pending (see Open questions). Trial option answer "okay" was unclear — re-asked.
+- 2026-11-20 — Prod has no EMBED_SERVICE_URL and no LAWS_DATABASE_URL: corpus search on prod is keyword (FTS) only until an embed service exists.

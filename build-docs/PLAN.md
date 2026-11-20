@@ -1,3 +1,81 @@
+# PLAN — Competitive improvement in stages (APPROVED 2026-11-20; fast track started)
+
+## Goal and scope
+- Close the gap with research tools (Supreme Today AI: ~1 crore judgments, citator, ₹11k–33k/yr) without becoming a library. Keep DifAi's edge: drafting + eCourts + diary + team + billing in one app at ~₹699/mo.
+- Order: fix what's half-shipped and start measuring → case law inside drafts → conversion → daily habit → expand.
+- Out of scope: matching their library size, foreign judgments, writing legal news, statute commentary (licensing), Android until Stage 4.
+
+## Project memory that applies
+- Claude-only AI (Sonnet 5.5); credits not pages; paid-only sign-up (2026-11-16) — Stage 2 asks the owner to revisit, does not change it silently.
+- Judgments corpus code exists (0098/0099, dbc14d2; ingest/embed scripts; draft-guards checks cited judgments). Never on prod. It throttled Supabase on 2026-11-03 → corpus must NOT live on Supabase.
+- No live DB change without owner's go; additive only; no test data on prod.
+- UI black & white; red only for a mandatory issue (an unverified citation qualifies).
+
+## Stages (each ends with a gate; next stage starts only when the gate passes)
+
+### Stage 0 — Stabilise and measure (≈1 week)
+1. `live-state-audit` — one list of every built-but-not-live item (judgments, Bar Council at sign-up, 5 "Soon" features, E2E suite, OneDrive's 33 held-back files); owner marks ship / cut / park for each.
+2. `activation-funnel` — admin tile: signed up → paid → first draft → active week 2 → renewed.
+3. Process: releases only from main (difai-wt-local); E2E suite run before every deploy.
+- **Gate:** every audit item has a decision; funnel shows real numbers.
+
+### Stage 1 — Case law inside drafts (≈3–4 weeks) — the main gap
+1. `judgments-live` — corpus on the VPS Postgres: SC (1950→) + Madras HC first, then HCs our users practise in; nightly incremental ingest.
+2. `judgment-research` — Research tab searches judgments: court, year, judge, Act/section, party, case no.; paragraph hits with para no. + source PDF.
+3. `verified-citations` — every judgment in a draft must be one we hold; unverified ones flagged red with "replace / remove".
+4. `citator-v1` — "Cited by" + "possible negative treatment" warning on any judgment (flagged as a check, never as a ruling).
+5. `case-binder` — chosen judgments → one indexed PDF.
+- **Gate:** 95% of judgments cited in 50 test drafts are verified in the corpus; search p95 < 2 s on prod; no DB slowdown.
+
+### Stage 2 — Conversion (≈1–2 weeks)
+1. Trial decision (owner): A) one free draft, B) 7 days + small credit cap, C) stay paid-only + 7-day refund. Google sign-in stays the abuse guard.
+2. First draft in under 5 minutes: guided first draft from a sample matter.
+3. Pricing page: "DifAi vs a research subscription" table (generic, no competitor names).
+- **Gate:** sign-up → first-draft rate measured and improved vs Stage 0 baseline.
+
+### Stage 3 — Daily habit (≈2–3 weeks)
+1. Voice dictation in Draft box + case notes (Indian languages).
+2. Daily WhatsApp digest: new SC/HC judgments matching the advocate's case types (from our own ingest, not news).
+3. Scans/photos with OCR into matters (verify what exists first).
+- **Gate:** week-2 active rate up vs Stage 2.
+
+### Stage 4 — Expand (driven by funnel data)
+- More HCs; re-enable "Soon" features one at a time (eFiling first); revisit Android/iOS.
+
+## Fast-track schedule (owner asked 2026-11-20: shortest time) — ≈12 working days
+Speed comes from: reusing the 2026-11-03 corpus code, running slow external waits in parallel from Day 1, one prod deploy per stage (still one commit + tests per feature), and moving low-value items out.
+
+| Day | Build (me) | Running in parallel |
+|---|---|---|
+| 1 | live-state list ready for owner; activation-funnel tile | Owner: all decisions in one sitting. Submit Wasi template for the judgment digest (approval takes days). Add VPS disk if needed. |
+| 2 | judgments-live: migrations 0098/0099 on VPS Postgres (owner's go); SC ingest starts FTS-only | SC ingest + embeddings run in background for days; Madras HC queued after |
+| 3–4 | judgment-research (Research "Judgments" mode) | ingest continues |
+| 5 | verified-citations (red marker, export warning) — parser already in draft-guards | |
+| 6–7 | citator-v1 (cited-by + negative-treatment warning) | |
+| 7 | **Deploy Stage 0+1** after E2E suite + gate check | |
+| 8 | Trial/first-draft flow (option chosen on Day 1); pricing comparison table | |
+| 9 | Voice dictation (browser speech API first; no new service) | |
+| 10 | WhatsApp judgment digest (template approved by now) | |
+| 11 | case-binder (as a Brief Packs option) | |
+| 12 | **Deploy Stage 2+3**; regression run; docs | |
+
+- Moved out of the fast track: OCR of scans (check what exists first), more HCs (nightly ingest adds them later, no code), Stage 4.
+- Not cut for speed: tests per feature, regression runs, owner's go on prod migrations, no test data on prod.
+- Risks to the dates: embedding the SC corpus on VPS CPU may take days (search works FTS-only meanwhile); Wasi template rejection delays the digest only; owner decisions not made on Day 1 shift everything.
+
+## Feature docs
+- Stage 0–1 docs written now (`features/<name>.md`). Stage 2–4 docs are written and approved at the start of each stage, after checking the code then.
+
+## Needs from you (all on Day 1 for the fast track)
+1. Approve the stages, order and fast-track schedule.
+2. Corpus on the VPS Postgres (SC ≈ a few GB with embeddings; each large HC more) — OK to add disk? Run `df -h /` on the server and paste it.
+3. Go for migrations 0098/0099 on the VPS DB on Day 2.
+4. First HCs after Madras: which courts?
+5. Trial option A / B / C (needed by Day 8).
+6. Ship / cut / park for each live-state item.
+
+---
+
 # PLAN — Superadmin console v2 (approved 2026-11-17, built on feat/admin-console-v2)
 
 ## Goal and scope
