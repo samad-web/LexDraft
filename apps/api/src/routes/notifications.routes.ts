@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validate } from '../middleware/validate';
 import { notificationsStore } from '../services/notifications.service';
 import { pushService } from '../services/push.service';
+import { dailyBrief } from '../services/daily-brief.service';
 
 // =============================================================================
 // /api/notifications — the current user's in-app notification feed.
@@ -103,6 +104,24 @@ notificationsRouter.post('/push/native', validate({ body: NativeToken }), async 
   try {
     await pushService.subscribeNative(req.user!.id, req.body.token, req.get('user-agent'));
     res.status(201).json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Daily brief on/off for this user (daily-brief.md).
+notificationsRouter.get('/brief', async (req, res, next) => {
+  try {
+    res.json({ on: await dailyBrief.isOn(req.user!.id) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+notificationsRouter.put('/brief', validate({ body: z.object({ on: z.boolean() }) }), async (req, res, next) => {
+  try {
+    await dailyBrief.setOn(req.user!.id, req.body.on);
+    res.json({ on: req.body.on });
   } catch (err) {
     next(err);
   }

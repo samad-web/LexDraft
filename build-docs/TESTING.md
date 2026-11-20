@@ -1,4 +1,9 @@
 # Testing
+## Daily brief — 2026-11-20
+- Unit daily-brief.test.ts 9/9 (compose, quiet day, cap at 3, IST dates, watchdog window). Integration daily-brief.integration.test.ts 5/5 (AC1-AC5) on local PG16; reminders.integration 4/4 (old AC3 moved to the brief).
+- notificationsStore.create gained `repeat`; default unchanged, covered by the full suites below.
+- Full suites: API unit 1147 pass (share-links needs apps/api/.env, pre-existing); integration 220/221; the one failure is migrations idempotency on old 0042_case_kind (constraint re-add), pre-existing and not touched here; web 430/431 (password-rule CRLF, pre-existing).
+
 ## Limitation ladder fix — 2026-11-19
 - Replaced the three old s.138 tests (they asserted +45/+75 days and 'condonation' via CrPC, which is wrong in law) with AC1-AC8 in limitations.calculator.test.ts; weekend test now matches 'Saturday|Sunday' wording. Web: components/__tests__/limitation-ladder.test.tsx (AC9).
 - Results: API unit 1142 pass / 4 skipped; web 427/428 (pre-existing password-rule CRLF mirror); tsc clean api + web.

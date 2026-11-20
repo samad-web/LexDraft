@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { getIntegrationSql } from '../../__tests__/integration-db';
 import { seedFirm, seedUser } from '../../__tests__/integration-fixtures';
 import { remindersService } from '../reminders.service';
-import { sendDiaryReminders, sendEveningHearingReminders } from '../case-sync.service';
+import { sendDiaryReminders } from '../case-sync.service';
 
 const sql = () => getIntegrationSql();
 
@@ -60,17 +60,7 @@ describe('AC2 Court Diary "remind N days before" fires', () => {
   });
 });
 
-describe('AC3 evening before a hearing', () => {
-  it('sends "Hearing tomorrow" for cases listed tomorrow only', async () => {
-    const tomorrow = (await sql()<{ d: string }[]>`select ((now() at time zone 'Asia/Kolkata')::date + 1)::text as d`)[0]!.d;
-    const inThree = (await sql()<{ d: string }[]>`select ((now() at time zone 'Asia/Kolkata')::date + 3)::text as d`)[0]!.d;
-    const a = await firmWithCase('Tomorrow', tomorrow);
-    const b = await firmWithCase('InThree', inThree);
-    await sendEveningHearingReminders();
-    expect((await notes(a.userId)).map((x) => x.title)).toContain('Hearing tomorrow: Tomorrow v. State');
-    expect(await notes(b.userId)).toHaveLength(0);
-  });
-});
+// AC3 (evening before) is covered by daily-brief.integration.test.ts.
 
 describe('AC4 reminders are private to their owner', () => {
   it('lists and deletes only your own; other firms cannot attach to your case', async () => {

@@ -17,8 +17,8 @@ evening before; turning on device notifications was buried in Settings.
 - **Job `reminders.due`** every 5 min (IST cron): claims due rows
   (`for update skip locked`), marks sent, then creates a bell notification
   (which also pushes to web + Android devices). Opens the case when linked.
-- **Evening run:** after the 19:00 eCourts slot, every case with a hearing
-  tomorrow gets "Hearing tomorrow" (own dedupe key, so it is a fresh push).
+- **Evening run:** replaced on 2026-11-20 by the evening daily brief (one
+  "Tomorrow: N hearings" notice per advocate, see daily-brief.md).
 - **Diary reminders:** the 09:00 run also fires diary entries whose
   `next_hearing_date - reminder_offset_days = today` (firm recipients;
   diary entries have no owner column).
@@ -46,6 +46,6 @@ evening before; turning on device notifications was buried in Settings.
 ## Acceptance criteria
 1. A reminder set for a time fires within 5 minutes of it: bell + device push.
 2. Diary "remind N days before" fires on that day at ~09:00 IST.
-3. Cases with a hearing tomorrow get a 19:00 "Hearing tomorrow" notice.
+3. Cases with a hearing tomorrow are in the evening brief (daily-brief.md AC3).
 4. Users can list and delete only their own reminders.
 5. The banner shows only when notifications are supported and off, and never after dismiss/turn-on.

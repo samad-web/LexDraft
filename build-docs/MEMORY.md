@@ -104,6 +104,8 @@
 
 - 2026-11-20 — Owner: reminders are a must on web AND the Android app ("android app push is must", reverses the Android pause for push only). Automatic hearing reminders stay (09:00, 3 days → today) plus 19:00 "Hearing tomorrow"; advocates can add their own at any date/time; Court Diary offsets now fire. Android push = FCM (needs the owner's Firebase project); iPhone only via Home Screen web app (Apple rule).
 
+- 2026-11-20 (owner): daily notifications. Morning brief at 07:00 IST every day; on a quiet day it says "No hearings today" + the next hearing. Evening brief of tomorrow's hearings after the 19:00 eCourts run, covering eCourts, manual hearings and Court Diary. It replaces the per-case "Hearing tomorrow" notices to avoid one push per case. There is a per-user switch in Settings (0121).
+
 ## Constraints
 - Strictly black & white; red only as a button naming a mandatory issue. Light + dark.
 - Live Supabase: no schema/data changes without approval; no test accounts; tests roll back.

@@ -1,4 +1,8 @@
 # Changelog
+- DEPLOYED 2026-11-20 09:30 UTC (e065f51, api + web; 0120 applied): reminders + Android push plumbing + c7412fd activation funnel. Backup pre-0120-20261120-092345.dump; rollback lexdraft-api/web:prev-20261120-092345. FCM not configured yet.
+
+- Daily brief (2026-11-20, owner): 07:00 IST morning brief (today, tomorrow, tasks, reminders; quiet day names the next hearing) and an evening brief of tomorrow's hearings after the 19:00 eCourts run (eCourts + manual + diary), re-sent only if an eCourts retry changes it. Replaces the per-case evening notices. Settings switch; 0121 users.daily_brief. features/daily-brief.md.
+
 - DEPLOYED 2026-11-19 08:22 UTC (b67ad17, api + web; no migration; engine untouched): limitation ladder fix. Live check: notice served 1995-09-29 -> 1995-10-14 / 10-15 / 11-15 (Saketh India). Backup pre-deploy-20261119-081919.dump; rollback lexdraft-api/web:prev-20261119-081919. Smoke: ready db ok, site 200, sign-in 400, calculate 401 signed out, notice-received field + Google client id in build.
 
 - Limitation ladder fix (2026-11-19, owner): s.138 ladder now one calendar month from the cause of action (Saketh India), optional notice-received date, premature-filing warning, proviso to s.142(1)(b) instead of s.473 CrPC, national holidays flagged. features/limitation-ladder-fix.md.

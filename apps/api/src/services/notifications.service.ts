@@ -103,6 +103,11 @@ interface CreateNotificationInput {
    *  nightly sync touching the same case) refreshes the existing row instead of
    *  stacking duplicates. The refreshed row is bumped back to unread. */
   dedupeKey?: string;
+  /** What a repeat of the same dedupeKey does (daily-brief.md):
+   *  'always' (default) refreshes the row and pushes again; 'never' keeps the
+   *  first one and does not push; 'if-changed' refreshes and pushes only when
+   *  the title or body differ. */
+  repeat?: 'always' | 'never' | 'if-changed';
 }
 
 interface NotificationRow {
@@ -146,7 +151,7 @@ export const notificationsStore = {
           ${input.dedupeKey ?? null}
         )
         on conflict (user_id, dedupe_key) where dedupe_key is not null
-        do update set
+        ${input.repeat === 'never' ? sql`do nothing` : sql`do update set
           title = excluded.title,
           body = excluded.body,
           tone = excluded.tone,
@@ -154,6 +159,9 @@ export const notificationsStore = {
           view = excluded.view,
           read_at = null,
           created_at = now()
+        ${input.repeat === 'if-changed'
+          ? sql`where notifications.title is distinct from excluded.title or notifications.body is distinct from excluded.body`
+          : sql``}`}
         returning id
       `;
       const id = rows[0]?.id ?? null;

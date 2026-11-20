@@ -411,9 +411,9 @@ async function runSlot(slot: 'morning' | 'evening', runDate?: string): Promise<v
         .then((s) => logger.info(s, 'diary reminders sent'))
         .catch((err) => logger.warn({ err }, 'diary reminders failed'));
     } else {
-      await cs.sendEveningHearingReminders()
-        .then((s) => logger.info(s, 'evening hearing reminders sent'))
-        .catch((err) => logger.warn({ err }, 'evening hearing reminders failed'));
+      // One "Tomorrow: N hearings" brief per advocate (daily-brief.md).
+      const { safeRun } = await import('./daily-brief.service');
+      await safeRun('evening');
     }
   }
 }
@@ -425,6 +425,13 @@ jobs.register('ecourts.sync.morning', async () => {
 jobs.register('ecourts.sync.evening', async () => {
   await runSlot('evening');
 }, { cron: '0 19 * * *', tz: 'Asia/Kolkata', expireInSeconds: ECOURTS_RUN_EXPIRE_SEC });
+
+// 07:00 IST morning brief (daily-brief.md). Sent once per user per day;
+// the watchdog below re-runs it until 09:00 in case the server was down.
+jobs.register('brief.morning', async () => {
+  const { safeRun } = await import('./daily-brief.service');
+  await safeRun('morning');
+}, { cron: '0 7 * * *', tz: 'Asia/Kolkata' });
 
 // Reminders advocates set by hand (build-docs/features/reminders.md).
 jobs.register('reminders.due', async () => {
@@ -468,6 +475,8 @@ export async function ensureScheduledSyncRan(): Promise<void> {
 
 jobs.register('ecourts.sync.watchdog', async () => {
   await ensureScheduledSyncRan();
+  const { inMorningWindow, safeRun } = await import('./daily-brief.service');
+  if (inMorningWindow(new Date())) await safeRun('morning');
 }, { cron: '*/15 * * * *', tz: 'Asia/Kolkata' });
 
 interface EfilingTrackRetryPayload {
@@ -532,6 +541,12 @@ interface EcourtsSyncRetryPayload {
 jobs.register<EcourtsSyncRetryPayload>('ecourts.sync.retry', async (data) => {
   const { runScheduledSync } = await import('./ecourts-sync-runs.service');
   await runScheduledSync(data);
+  // A retry can change tomorrow's dates: send the corrected evening brief
+  // (only users whose list changed get a new push).
+  if (data.slot === 'evening') {
+    const { safeRun } = await import('./daily-brief.service');
+    await safeRun('evening');
+  }
 });
 
 // Ad-hoc full sync (no schedule - its old 02:00 cron is retired above).

@@ -24,7 +24,7 @@ import { LetterheadsPanel } from '@/components/letterhead/LetterheadsPanel';
 import { LANGUAGES, findLanguage } from '@/lib/languages';
 import { useUpdatePreferences } from '@/hooks/useMePreferences';
 import { useUrlTab } from '@/hooks/useUrlTab';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePushNotifications, type PushState } from '@/hooks/usePush';
 import { api } from '@/lib/api';
 import { GoogleButton } from '@/components/GoogleWhatsAppVerify';
@@ -160,6 +160,8 @@ function AccountPanel() {
       <LanguagePreferencePanel />
 
       {!Capacitor.isNativePlatform() && <PhoneNotificationsPanel />}
+
+      <DailyBriefPanel />
 
       <SettingsRow
         eyebrow="Session"
@@ -356,6 +358,37 @@ function LanguagePreferencePanel() {
 }
 
 // ---- App lock (Android build) ---------------------------------------------
+
+/** Daily brief on/off (daily-brief.md): 07:00 today's list, evening tomorrow's. */
+function DailyBriefPanel() {
+  const qc = useQueryClient();
+  const showToast = useUIStore((s) => s.showToast);
+  const q = useQuery({ queryKey: ['daily-brief'], queryFn: () => api.get<{ on: boolean }>('/notifications/brief') });
+  const save = useMutation({
+    mutationFn: (on: boolean) => api.put<{ on: boolean }>('/notifications/brief', { on }),
+    onSuccess: (r) => qc.setQueryData(['daily-brief'], r),
+    onError: () => showToast({ type: 'vermillion', text: 'Could not save. Try again.' }),
+  });
+  if (!q.data) return null;
+  const on = q.data.on;
+  return (
+    <SettingsRow
+      eyebrow="Notifications"
+      title="Daily brief"
+      description="Every morning at 7 AM: today's hearings, tasks and reminders. Every evening after the 7 PM eCourts update: tomorrow's hearings."
+    >
+      <div className="fm-status-line">
+        <span className={`fm-status-mark${on ? '' : ' is-off'}`} aria-hidden><Icon name={on ? 'check' : 'bell'} size={16} /></span>
+        <div><div className="fm-status-title">{on ? 'Daily brief is on' : 'Daily brief is off'}</div></div>
+      </div>
+      <div className="fm-set-actions">
+        <button type="button" className={on ? 'btn btn-sm btn-ghost' : 'btn btn-primary'} onClick={() => save.mutate(!on)} disabled={save.isPending}>
+          {on ? 'Turn off daily brief' : 'Turn on daily brief'}
+        </button>
+      </div>
+    </SettingsRow>
+  );
+}
 
 function AppLockPanel() {
   const [on, setOn] = useState(lockEnabled);
