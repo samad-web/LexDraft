@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { LandRecordsSwitchCard } from './Firm360Cards';
 import { BusinessOverview } from './BusinessOverview';
+import { ActivationFunnel } from './ActivationFunnel';
 import { AiSpendCard } from './AiSpendCard';
 import { Skeleton } from '@lexdraft/ui';
 import type { ComposeReasonKind } from '@lexdraft/types';
@@ -65,6 +66,8 @@ export function AdminDashboardView() {
           </div>
 
           <BusinessOverview />
+
+          <ActivationFunnel />
 
           <AiSpendCard compact />
 

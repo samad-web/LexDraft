@@ -405,3 +405,5 @@
 - Phone notification bar for every in-app notice (web push, VAPID). Settings → Phone notifications. Migration 0119 (additive). Email reminders dropped (owner).
 - DEPLOYED e5dd534 2026-11-19 (api+web; 0119 applied after backup pre-deploy-20261119-044726.dump; VAPID keys in prod .env.docker, backup env.docker.pre-vapid-*; rollback images prev-20261119-044726).
 - 2026-11-20 feat(draft-loader): while a draft is written the prompt box shows the DifAi "Draft Lines" loader (lines type in, cursor blinks) with the live stage; the "Draft in BNS / BNSS" switch is removed (drafting already follows BNS/BNSS/BSA and maps IPC/CrPC sections); the credits meter takes its place beside Language.
+
+- 2026-11-20 feat(activation-funnel): admin dashboard "Sign-up funnel" — last 8 sign-up weeks (IST): signed up → paid → first draft → active in week 2 → paid again; test/admin/free-launch firms left out. GET /admin/business/funnel (read-only, no migration). Not deployed.

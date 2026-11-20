@@ -1595,6 +1595,24 @@ export interface AdminBusinessOverview {
   stuckSignups: Array<{ firmId: ID; name: string; plan: string; createdAt: string; ownerEmail: string | null }>;
 }
 
+/** GET /admin/business/funnel (activation-funnel): firms by sign-up week (IST, Monday), newest first. */
+export interface AdminActivationFunnel {
+  weeks: Array<{
+    /** Monday of the sign-up week, YYYY-MM-DD (IST). */
+    weekStart: string;
+    signedUp: number;
+    paid: number;
+    /** At least one draft, ever. */
+    firstDraft: number;
+    /** Paid firms whose days 7–14 after first payment are over (the week-2 denominator). */
+    week2Due: number;
+    /** Of week2Due: a draft, case, task or diary entry created in days 7–14. */
+    activeWeek2: number;
+    /** Paid two or more times (renewed or changed plan). */
+    paidAgain: number;
+  }>;
+}
+
 export interface AdminFirmPayments {
   events: Array<{ id: ID; kind: string; plan: string | null; cycle: string | null; provider: string; providerRef: string | null;
     note: string | null; amountInr: number | null; createdAt: string }>;

@@ -718,3 +718,9 @@
 ## Draft loader + composer footer — 2026-11-20
 - Browser (Playwright, mocked API, draft request held open): overlay with LogoLoader and the stage label inside the prompt box at 1440 light/dark and 390; no "Draft in BNS" switch; credits meter beside Language, Draft document on the same row at 1440; no page errors.
 - web tsc clean; vitest 427/428 — the one failure (password-rule web/API mirror) fails identically on unchanged origin/main (CRLF checkout), unrelated.
+
+## Activation funnel — 2026-11-20
+- `activation-funnel.integration.test.ts` 6/6 on local Postgres :5433 (own schema per file): AC1 8 weeks newest-first + empty weeks 0; signed up → paid → first draft → active week 2 (days 7–14 only; day 6/15 don't count) → paid again; this week's payers not in week2Due; edge: superadmin / test-coupon / free-launch firms excluded; multi-seat firm counts once.
+- Regression: `firm360.integration.test.ts` 6/6; API route unit tests 31/31; tsc api + web clean (after `pnpm install --frozen-lockfile` brought in web-push).
+- First run: 1 failure was the test's own cleanup (deleting a firm with users, FK) — not needed (throwaway schema), removed. No logic change.
+- Owner-only: covered by the shared `/admin` mount (`requireAuth, requireSuperadmin`, routes/index.ts); no HTTP route tests exist in the repo.

@@ -146,6 +146,10 @@ adminRouter.get('/business', async (_req, res, next) => {
   try { res.json(await firm360Service.overview()); } catch (err) { next(err); }
 });
 
+adminRouter.get('/business/funnel', async (_req, res, next) => {
+  try { res.json(await firm360Service.activation()); } catch (err) { next(err); }
+});
+
 adminRouter.get('/firms/:id/payments', async (req, res, next) => {
   try { res.json(await firm360Service.payments(z.string().uuid().parse(req.params.id))); } catch (err) { next(err); }
 });

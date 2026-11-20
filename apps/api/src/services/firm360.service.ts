@@ -4,8 +4,9 @@
  * payment, one firm's payments + invoices + credit ledger, and the one write:
  * extend a plan by whole months at no charge (audited).
  */
-import type { AdminBusinessOverview, AdminFirmLedgerPage, AdminFirmPayments } from '@lexdraft/types';
+import type { AdminActivationFunnel, AdminBusinessOverview, AdminFirmLedgerPage, AdminFirmPayments } from '@lexdraft/types';
 import { db } from '../db/client';
+import { env } from '../env';
 import { BadRequestError, HttpError, NotFoundError } from '../lib/errors';
 import { PLAN_NAMES } from '../lib/plans';
 import { auditService } from './audit.service';
@@ -59,6 +60,52 @@ export const firm360Service = {
       planMix: mix.map((r) => ({ plan: r.free_plan ? 'free_launch' : r.selected_plan ?? 'none', label: planName(r.selected_plan, null, r.free_plan), firms: r.firms, paidFirms: r.paid, mrrInr: r.mrr })),
       endingSoon: ending.map((r) => ({ firmId: r.id, name: r.name, plan: planName(r.selected_plan, r.custom_plan_name, false), renewsAt: r.renews_at.toISOString() })),
       stuckSignups: stuck.map((r) => ({ firmId: r.id, name: r.name, plan: planName(r.selected_plan, null, false), createdAt: r.created_at.toISOString(), ownerEmail: r.owner_email })),
+    };
+  },
+
+  /** Activation funnel (activation-funnel.md): firms by sign-up week (IST,
+   *  Monday start), newest first, always `weeks` rows. Superadmin, test-coupon
+   *  and free-launch firms are left out. Week 2 = days 7–14 after the first
+   *  payment, counted only once those days are over (`week2Due`). */
+  async activation(weeks = 8): Promise<AdminActivationFunnel> {
+    const sql = db();
+    if (!sql) return { weeks: [] };
+    const testEmails = env.razorpay.testEmails;
+    const rows = await sql<{ week: string; signed_up: number; paid: number; first_draft: number; week2_due: number; active_week2: number; paid_again: number }[]>`
+      with wk as (
+        select generate_series(date_trunc('week', now() at time zone 'Asia/Kolkata') - make_interval(weeks => ${weeks - 1}),
+                               date_trunc('week', now() at time zone 'Asia/Kolkata'), interval '1 week') as start
+      ), f as (
+        select f.id, date_trunc('week', f.created_at at time zone 'Asia/Kolkata') as week,
+               min(e.created_at) as paid_at, count(e.id)::int as payments
+        from firms f
+        left join billing_events e on e.firm_id = f.id and e.kind in ('subscription_active', 'renewed', 'plan_changed')
+        where f.created_at at time zone 'Asia/Kolkata' >= (select min(start) from wk)
+          and not coalesce(f.free_plan, false)
+          and not exists (select 1 from users u where u.firm_id = f.id
+                          and (u.is_superadmin or lower(u.email) = any(${testEmails}::text[])))
+        group by f.id
+      ), active as (
+        select f.id from f where f.paid_at + interval '14 days' <= now() and exists (
+          select 1 from (
+            select created_at from drafts where firm_id = f.id
+            union all select created_at from cases where firm_id = f.id
+            union all select created_at from tasks where firm_id = f.id
+            union all select created_at from diary_entries where firm_id = f.id
+          ) a where a.created_at >= f.paid_at + interval '7 days' and a.created_at < f.paid_at + interval '14 days')
+      )
+      select to_char(wk.start, 'YYYY-MM-DD') as week,
+        count(f.id)::int as signed_up,
+        (count(f.id) filter (where f.paid_at is not null))::int as paid,
+        (count(f.id) filter (where exists (select 1 from drafts d where d.firm_id = f.id)))::int as first_draft,
+        (count(f.id) filter (where f.paid_at + interval '14 days' <= now()))::int as week2_due,
+        (count(f.id) filter (where f.id in (select id from active)))::int as active_week2,
+        (count(f.id) filter (where f.payments >= 2))::int as paid_again
+      from wk left join f on f.week = wk.start
+      group by wk.start order by wk.start desc`;
+    return {
+      weeks: rows.map((r) => ({ weekStart: r.week, signedUp: r.signed_up, paid: r.paid, firstDraft: r.first_draft,
+        week2Due: r.week2_due, activeWeek2: r.active_week2, paidAgain: r.paid_again })),
     };
   },
 
